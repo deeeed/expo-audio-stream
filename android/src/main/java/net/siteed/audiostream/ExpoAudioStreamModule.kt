@@ -1,9 +1,31 @@
 package net.siteed.audiostream
 
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
+import android.util.Log
+import androidx.core.content.ContextCompat
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.kotlin.Promise
 
-class ExpoAudioStreamModule : Module() {
+class AudioRecorderModule(val appContext: AppContext) : Module() {
+  private var audioRecord: AudioRecord? = null
+  private var sampleRateInHz = 44100  // Default sample rate
+  private var channelConfig = AudioFormat.CHANNEL_IN_MONO
+  private var audioFormat = AudioFormat.ENCODING_PCM_16BIT
+  private var bufferSizeInBytes: Int
+  private var isRecording = false
+  private var recordingStartTime: Long = 0
+  private var totalRecordedTime: Long = 0
+
+  init {
+    bufferSizeInBytes = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat)
+  }
+
   // Each module class must implement the definition function. The definition consists of components
   // that describes the module's functionality and behavior.
   // See https://docs.expo.dev/modules/module-api for more details about available components.
@@ -13,35 +35,84 @@ class ExpoAudioStreamModule : Module() {
     // The module will be accessible from `requireNativeModule('ExpoAudioStream')` in JavaScript.
     Name("ExpoAudioStream")
 
-    // Sets constant properties on the module. Can take a dictionary or a closure that returns a dictionary.
-    Constants(
-      "PI" to Math.PI
-    )
-
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
-
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      "Hello world! 👋"
+    Function("configureRecordingSettings") { params: Map<String, Any?> ->
+      sampleRateInHz = (params["sampleRate"] as? Int) ?: 44100
+      channelConfig = (params["channelConfig"] as? Int) ?: AudioFormat.CHANNEL_IN_MONO
+      audioFormat = (params["audioFormat"] as? Int) ?: AudioFormat.ENCODING_PCM_16BIT
+      bufferSizeInBytes = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat)
     }
 
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { value: String ->
-      // Send an event to JavaScript.
-      sendEvent("onChange", mapOf(
-        "value" to value
-      ))
+    AsyncFunction("startRecording") { _, promise: Promise ->
+      if (!checkPermission()) {
+        promise.reject("PERMISSION_DENIED", "Recording permission has not been granted")
+        return@AsyncFunction
+      }
+
+      if (isRecording) {
+        promise.reject("ALREADY_RECORDING", "Recording is already in progress")
+        return@AsyncFunction
+      }
+
+      audioRecord = AudioRecord(MediaRecorder.AudioSource.MIC, sampleRateInHz, channelConfig, audioFormat, bufferSizeInBytes)
+      if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+        promise.reject("INITIALIZATION_FAILED", "AudioRecord initialization failed")
+        return@AsyncFunction
+      }
+
+      audioRecord?.startRecording()
+      isRecording = true
+      recordingStartTime = System.currentTimeMillis()
+      Thread(this::recordingProcess).start()
+      promise.resolve(null)
     }
 
-    // Enables the module to be used as a native view. Definition components that are accepted as part of
-    // the view definition: Prop, Events.
-    View(ExpoAudioStreamView::class) {
-      // Defines a setter for the `name` prop.
-      Prop("name") { view: ExpoAudioStreamView, prop: String ->
-        println(prop)
+    AsyncFunction("stopRecording") { promise: Promise ->
+      if (!isRecording) {
+        promise.reject("NOT_RECORDING", "Recording is not active")
+        return@AsyncFunction
+      }
+      audioRecord?.stop()
+      audioRecord?.release()
+      audioRecord = null
+      isRecording = false
+      updateRecordingTime()
+      promise.resolve(totalRecordedTime)
+    }
+
+    Function("getRecordingDuration") { ->
+      if (isRecording) {
+        totalRecordedTime + (System.currentTimeMillis() - recordingStartTime)
+      } else {
+        totalRecordedTime
       }
     }
+  }
+
+  private fun recordingProcess() {
+    val audioData = ByteArray(bufferSizeInBytes)
+    while (isRecording) {
+      val bytesRead = audioRecord?.read(audioData, 0, bufferSizeInBytes) ?: -1
+      if (bytesRead < 0) {
+        handleError("Read error: $bytesRead")
+        break
+      }
+      // Optionally handle the audio data, such as sending it to JavaScript
+    }
+  }
+
+  private fun updateRecordingTime() {
+    if (isRecording) {
+      totalRecordedTime += System.currentTimeMillis() - recordingStartTime
+      recordingStartTime = System.currentTimeMillis()
+    }
+  }
+
+  private fun handleError(errorMessage: String) {
+    Log.e("AudioRecorderModule", errorMessage)
+  }
+
+
+  private fun checkPermission(): Boolean {
+    return ContextCompat.checkSelfPermission(appContext.reactContext, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
   }
 }
