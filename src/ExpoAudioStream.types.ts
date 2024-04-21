@@ -16,8 +16,9 @@ export interface AudioStreamStatus {
 }
 
 export interface RecordingOptions {
+  // TODO align Android and IOS options
   sampleRate?: number;
-  channelConfig?: number;
-  audioFormat?: number;
+  channelConfig?: number; // numberOfChannel
+  audioFormat?: number; // bitDepth (ENCODING_PCM_16BIT --> 2)
   interval?: number;
 }

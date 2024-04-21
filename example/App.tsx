@@ -24,7 +24,7 @@ export default function App() {
 
   const handleStart = async () => {
     const { granted } = await Audio.requestPermissionsAsync();
-    startRecording({interval: 4000, audioFormat: 4});
+    startRecording({interval: 4000});
   }
 
   const handleListFiles = async () => {
