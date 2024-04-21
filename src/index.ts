@@ -1,26 +1,31 @@
-import { NativeModulesProxy, EventEmitter, Subscription } from 'expo-modules-core';
+import { NativeModulesProxy, EventEmitter, type Subscription } from 'expo-modules-core';
 
 // Import the native module. On web, it will be resolved to ExpoAudioStream.web.ts
 // and on native platforms to ExpoAudioStream.ts
 import ExpoAudioStreamModule from './ExpoAudioStreamModule';
-import ExpoAudioStreamView from './ExpoAudioStreamView';
-import { ChangeEventPayload, ExpoAudioStreamViewProps } from './ExpoAudioStream.types';
-
-// Get the native constant value.
-export const PI = ExpoAudioStreamModule.PI;
-
-export function hello(): string {
-  return ExpoAudioStreamModule.hello();
-}
-
-export async function setValueAsync(value: string) {
-  return await ExpoAudioStreamModule.setValueAsync(value);
-}
+import { AudioEventPayload, RecordingOptions } from './ExpoAudioStream.types';
+import { useAudioRecorder } from './useAudioRecording';
 
 const emitter = new EventEmitter(ExpoAudioStreamModule ?? NativeModulesProxy.ExpoAudioStream);
 
-export function addChangeListener(listener: (event: ChangeEventPayload) => void): Subscription {
-  return emitter.addListener<ChangeEventPayload>('onChange', listener);
+
+
+// Function to get the recording duration
+export function getRecordingDuration(): Promise<number> {
+  return ExpoAudioStreamModule.getRecordingDuration();
 }
 
-export { ExpoAudioStreamView, ExpoAudioStreamViewProps, ChangeEventPayload };
+export function listAudioFiles(): Promise<string[]> {
+  return ExpoAudioStreamModule.listAudioFiles();
+}
+
+export function clearAudioFiles(): Promise<void> {
+  return ExpoAudioStreamModule.clearAudioFiles();
+}
+
+export function addChangeListener(listener: (event: AudioEventPayload) => void): Subscription {
+  return emitter.addListener<AudioEventPayload>('AudioData', listener);
+}
+
+
+export { AudioEventPayload, useAudioRecorder };
