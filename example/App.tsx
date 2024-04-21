@@ -1,22 +1,13 @@
-import { Button, StyleSheet, Text, View } from 'react-native';
 import { Audio } from 'expo-av';
+import { Button, StyleSheet, Text, View } from 'react-native';
 
-import { useAudioRecorder, addChangeListener, AudioEventPayload, listAudioFiles, clearAudioFiles } from 'expo-audio-stream';
-import { useEffect, useState } from 'react';
+import { clearAudioFiles, listAudioFiles, useAudioRecorder } from 'expo-audio-stream';
 
 export default function App() {
   const [permissionResponse, requestPermission] = Audio.usePermissions();
 
-  // useEffect(() => {
-  //   const subscribe = addChangeListener((event) => {
-  //     console.log('Received audio event:', event.buffer);
-  //   });
-  //   return () => subscribe.remove();
-    
-  // }, [permissionResponse]);
-
-  const onAudioData = (base64Data: unknown) => {
-    console.log(`AAAAAAAAAAA audio event ${typeof base64Data}`, base64Data);
+  const onAudioData = (base64Data: Blob) => {
+    console.log(`audio event ${typeof base64Data}`, base64Data);
   }
 
   const { startRecording, stopRecording, duration, size, isRecording } = useAudioRecorder({onAudioStream: onAudioData});
@@ -24,7 +15,7 @@ export default function App() {
 
   const handleStart = async () => {
     const { granted } = await Audio.requestPermissionsAsync();
-    startRecording({interval: 4000});
+    startRecording({interval: 500});
   }
 
   const handleListFiles = async () => {
