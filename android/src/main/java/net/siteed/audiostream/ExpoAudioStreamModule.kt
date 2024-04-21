@@ -245,7 +245,7 @@ class ExpoAudioStreamModule() : Module() {
           bundleOf(
             "fileUri" to audioFile?.toURI().toString(),
             "from" to from,
-            "encoded" to encodedBuffer,   // this creates error because the array is too big
+            "encoded" to encodedBuffer,
             "deltaSize" to deltaSize,
             "totalSize" to fileSize,
             "streamUuid" to streamUuid

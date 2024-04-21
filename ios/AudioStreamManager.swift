@@ -15,25 +15,26 @@ struct RecordingSettings {
 }
 
 protocol AudioStreamManagerDelegate: AnyObject {
-    func didUpdateRecordingStatus(_ manager: AudioStreamManager, status: String)
-    func didEmitAudioData(_ manager: AudioStreamManager, data: Data)
-    func didReceiveBuffer(_ manager: AudioStreamManager, buffer: AVAudioPCMBuffer, atTime: AVAudioTime)
+    func audioStreamManager(_ manager: AudioStreamManager, didReceiveAudioData data: Data, recordingTime: TimeInterval, totalDataSize: Int64)
 }
 
-class AudioStreamManager: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDelegate {
-    private var audioRecorder: AVAudioRecorder?
-    private let audioSession = AVAudioSession.sharedInstance()
-    private var recordingFileURL: URL?
-    private var recordingStartTime: Date?
-    private var isRecording: Bool { audioRecorder?.isRecording ?? false }
-    private var isPaused: Bool = false
-    private var pausedTime: TimeInterval = 0
-    private var totalRecordedTime: TimeInterval = 0
+class AudioStreamManager: NSObject {
+    private let audioEngine = AVAudioEngine()
+    private var inputNode: AVAudioInputNode {
+        return audioEngine.inputNode
+    }
+    internal var recordingFileURL: URL?
+    private var startTime: Date?
+    internal var lastEmissionTime: Date?
+    internal var lastEmittedSize: Int64 = 0
+    private var emissionInterval: TimeInterval = 1.0 // Default to 1 second
     private var totalDataSize: Int64 = 0
-    private var emitInterval: TimeInterval = 1.0  // Default interval
-    private var emitTimer: Timer?
-    weak var delegate: AudioStreamManagerDelegate?
-    
+    private var isRecording = false
+    private var isPaused = false
+    private var pausedDuration = 0
+    private var fileManager = FileManager.default
+    internal var recordingUUID: UUID?
+    weak var delegate: AudioStreamManagerDelegate?  // Define the delegate here
     
     override init() {
         super.init()
@@ -41,141 +42,114 @@ class AudioStreamManager: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDelega
     }
     
     private func configureAudioSession() {
+        let session = AVAudioSession.sharedInstance()
         do {
-            try audioSession.setCategory(.playAndRecord, mode: .default)
-            try audioSession.setActive(true)
-            print("Audio session configured successfully.")
-            
+            try session.setCategory(.playAndRecord, mode: .default)
+            try session.setActive(true)
         } catch {
-            print("Failed to set up audio session: \(error)")
+            print("Failed to set up audio session: \(error.localizedDescription)")
         }
     }
     
-    
-    func startEmittingAudioData(interval: TimeInterval = 1.0) {
-        emitTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            self?.emitAudioData()
-        }
+    private func createRecordingFile() -> URL? {
+        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        recordingUUID = UUID()
+        let fileName = "\(recordingUUID!.uuidString).pcm"
+        let fileURL = documentsDirectory.appendingPathComponent(fileName)
+        fileManager.createFile(atPath: fileURL.path, contents: nil, attributes: nil)
+        return fileURL
     }
     
-    private func emitAudioData() {
-        guard let url = recordingFileURL, let data = try? Data(contentsOf: url) else { return }
-        delegate?.didEmitAudioData(self, data: data)
-    }
-    
-    func listAudioFiles() -> [URL] {
-        let documentDirectory = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
-        let files = try? FileManager.default.contentsOfDirectory(at: documentDirectory!, includingPropertiesForKeys: nil)
-        return files?.filter { $0.pathExtension == "pcm" } ?? []
-    }
-    
-    func clearAudioFiles() {
-        let files = listAudioFiles()
-        files.forEach { try? FileManager.default.removeItem(at: $0) }
-    }
-    
-    
-    func checkMicrophonePermission(completion: @escaping (Bool) -> Void) {
-        switch AVAudioSession.sharedInstance().recordPermission {
-        case .granted:
-            completion(true)
-        case .denied:
-            completion(false)
-        case .undetermined:
-            AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                DispatchQueue.main.async {
-                    completion(granted)
-                }
-            }
-        @unknown default:
-            completion(false)
-        }
-    }
-    
-    func startRecording(settings: RecordingSettings, completion: @escaping (Bool, Error?) -> Void) {
-        checkMicrophonePermission { [weak self] granted in
-            guard granted else {
-                completion(false, NSError(domain: "AudioStreamManager", code: -2, userInfo: [NSLocalizedDescriptionKey: "Microphone permission not granted"]))
-                return
-            }
-            
-            guard let self = self, !self.isRecording else {
-                completion(false, NSError(domain: "AudioStreamManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Recording is already in progress"]))
-                return
-            }
-            
-            let filename = "\(UUID().uuidString).pcm"
-            do {
-                let documentDirectory = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-                self.recordingFileURL = documentDirectory.appendingPathComponent(filename)
-                
-                let recorderSettings = [
-                    AVFormatIDKey: NSNumber(value: kAudioFormatLinearPCM),
-                    AVSampleRateKey: NSNumber(value: settings.sampleRate),
-                    AVNumberOfChannelsKey: NSNumber(value: settings.numberOfChannels),
-                    AVLinearPCMBitDepthKey: NSNumber(value: settings.bitDepth),
-                    AVLinearPCMIsBigEndianKey: false,
-                    AVLinearPCMIsFloatKey: false
-                ] as [String : Any]
-                
-                self.audioRecorder = try AVAudioRecorder(url: self.recordingFileURL!, settings: recorderSettings)
-                self.audioRecorder?.delegate = self
-                self.audioRecorder?.record()
-                
-                self.recordingStartTime = Date() // Set start time
-                print("Recording started at URL: \(self.recordingFileURL!.absoluteString)")
-                completion(true, nil)
-            } catch {
-                completion(false, error)
-            }
-        }
-    }
-    
-    func status() -> [String: Any] {
+    func getStatus() -> [String: Any] {
         let currentTime = Date()
-        var currentRecordedTime: TimeInterval = 0
-        if let startTime = recordingStartTime {
-            currentRecordedTime = currentTime.timeIntervalSince(startTime) - pausedTime
-        }
-        
-        // Adjust the total recorded time if recording is stopped
-        if !isRecording {
-            totalRecordedTime = currentRecordedTime
-        }
-        
-        // Calculate the size of the recorded file
-        var fileSize: Int64 = 0
-        if let url = recordingFileURL {
-            do {
-                let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
-                fileSize = attributes[FileAttributeKey.size] as? Int64 ?? 0
-            } catch {
-                print("Error getting file size: \(error)")
-            }
-        }
-        
+        let totalRecordedTime = startTime != nil ? Int(currentTime.timeIntervalSince(startTime!)) - pausedDuration : 0
         return [
             "duration": totalRecordedTime,
             "isRecording": isRecording,
             "isPaused": isPaused,
-            "size": fileSize,
-            "interval": emitInterval
+            "size": totalDataSize,
+            "interval": emissionInterval
         ]
     }
     
-    func pauseRecording() {
-        audioRecorder?.pause()
-        pausedTime += Date().timeIntervalSince(recordingStartTime ?? Date())
-        print("Recording paused. Total paused time: \(pausedTime) seconds")
+    func startRecording(settings: RecordingSettings, intervalMilliseconds: Int) {
+        guard !isRecording else { return }
+        
+        emissionInterval = max(100.0, Double(intervalMilliseconds)) / 1000.0 // Convert ms to seconds, ensure minimum of 100 ms
+        lastEmissionTime = Date() // Reset last emission time
+        
+        // Configure audio session for the desired sample rate and channel count
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setPreferredSampleRate(settings.sampleRate)
+            try session.setPreferredIOBufferDuration(1024 / settings.sampleRate)
+            try session.setCategory(.playAndRecord, mode: .measurement, options: .defaultToSpeaker)
+            try session.setActive(true)
+        } catch {
+            print("Failed to set up audio session: \(error)")
+            return
+        }
+        
+        // Create an audio format with specified or default settings
+        let channelLayout = AVAudioChannelLayout(layoutTag: settings.numberOfChannels == 1 ? kAudioChannelLayoutTag_Mono : kAudioChannelLayoutTag_Stereo) ?? AVAudioChannelLayout(layoutTag: kAudioChannelLayoutTag_Stereo)!
+        let format = AVAudioFormat(standardFormatWithSampleRate: settings.sampleRate, channelLayout: channelLayout)
+        
+        // Install tap on the input node and handle audio buffer
+        audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] (buffer, time) in
+            guard let self = self, let fileURL = self.recordingFileURL else { return }
+            self.processAudioBuffer(buffer, fileURL: fileURL)
+        }
+        
+        recordingFileURL = createRecordingFile()
+        do {
+            startTime = Date()
+            try audioEngine.start()
+            isRecording = true
+        } catch {
+            print("Could not start the audio engine: \(error)")
+            isRecording = false
+        }
     }
-    
     
     func stopRecording() {
-        guard let startTime = recordingStartTime else { return }
-        
-        audioRecorder?.stop()
-        audioRecorder = nil
-        let recordedTime = Date().timeIntervalSince(startTime)
-        print("Recording stopped. Total recorded time: \(recordedTime) seconds")
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        isRecording = false
+        recordingFileURL = nil  // Optionally reset or handle the finalization of the file
     }
+    
+    private func processAudioBuffer(_ buffer: AVAudioPCMBuffer, fileURL: URL) {
+        guard let fileHandle = try? FileHandle(forWritingTo: fileURL) else {
+            print("Failed to open file handle for URL: \(fileURL)")
+            return
+        }
+        
+        let audioData = buffer.audioBufferList.pointee.mBuffers
+        guard let bufferData = audioData.mData else {
+            print("Buffer data is nil.")
+            return
+        }
+        let data = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
+        
+        fileHandle.seekToEndOfFile()
+        fileHandle.write(data)
+        fileHandle.closeFile()
+        
+        print("Wrote \(data.count) bytes to \(fileURL.lastPathComponent)")
+        
+        totalDataSize += Int64(data.count)
+        print("Total data size after write: \(totalDataSize) bytes")
+        
+        let currentTime = Date()
+        if let lastEmissionTime = lastEmissionTime, currentTime.timeIntervalSince(lastEmissionTime) >= emissionInterval {
+            if let startTime = startTime {
+                let recordingTime = currentTime.timeIntervalSince(startTime)
+                print("Emitting data: Recording time \(recordingTime) seconds, Data size \(totalDataSize) bytes")
+                self.lastEmittedSize = totalDataSize
+                delegate?.audioStreamManager(self, didReceiveAudioData: data, recordingTime: recordingTime, totalDataSize: totalDataSize)
+                self.lastEmissionTime = currentTime // Update last emission time
+            }
+        }
+    }
+    
 }
