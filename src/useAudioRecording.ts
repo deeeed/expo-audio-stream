@@ -1,4 +1,4 @@
-import { NativeModulesProxy, EventEmitter, type Subscription } from 'expo-modules-core';
+import { NativeModulesProxy, EventEmitter, type Subscription, Platform } from 'expo-modules-core';
 
 import { useCallback, useEffect, useState } from "react";
 import ExpoAudioStreamModule from './ExpoAudioStreamModule';
@@ -19,7 +19,7 @@ interface UseAudioRecorderState {
     size: number;      // Size in bytes of the recorded audio
 }
 
-export function useAudioRecorder({onAudioStream}: {onAudioStream?: (buffer:Uint8Array) => void}): UseAudioRecorderState {
+export function useAudioRecorder({onAudioStream}: {onAudioStream?: (buffer: Blob) => void}): UseAudioRecorderState {
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [duration, setDuration] = useState(0);
@@ -40,7 +40,7 @@ export function useAudioRecorder({onAudioStream}: {onAudioStream?: (buffer:Uint8
 
 
   useEffect(() => {
-    const subscribe = addChangeListener(async ({fileUri, deltaSize, totalSize, from, streamUuid, encoded}) => {
+    const subscribe = addChangeListener(async ({fileUri, deltaSize, totalSize, from, streamUuid, encoded, buffer}) => {
         console.debug(`Received audio event:`, {fileUri, deltaSize, totalSize, from, streamUuid, encodedLength: encoded?.length})
         if(deltaSize > 0) {
             // Fetch the audio data from the fileUri
@@ -50,20 +50,27 @@ export function useAudioRecorder({onAudioStream}: {onAudioStream?: (buffer:Uint8
                 length: deltaSize,
               };
 
-              try {
-                const base64Content = await FileSystem.readAsStringAsync(fileUri, options);
-                const binaryData = atob(base64Content);
-                const content = new Uint8Array(binaryData.length);
-                for (let i = 0; i < binaryData.length; i++) {
-                  content[i] = binaryData.charCodeAt(i);
-                }
+              if(Platform.OS !== 'web') {
+                // Read the audio file as a base64 string for comparison
+                try {
+                    const base64Content = await FileSystem.readAsStringAsync(fileUri, options);
+                    const binaryData = atob(base64Content);
+                    const content = new Uint8Array(binaryData.length);
+                    for (let i = 0; i < binaryData.length; i++) {
+                    content[i] = binaryData.charCodeAt(i);
+                    }
 
-                console.debug(`Read audio file (len: ${content.length}) vs ${deltaSize}`)
-              } catch (error) {
-                console.error('Error reading audio file:', error);
-              }
+                    // TODO: get the filetype based on audio setting and encoding
+                    const audioBlob = new Blob([content], { type: 'application/octet-stream' }); // Create a Blob from the byte array
+                    console.debug(`Read audio file (len: ${content.length}) vs ${deltaSize}`)
+                    onAudioStream?.(audioBlob);
+                } catch (error) {
+                    console.error('Error reading audio file:', error);
+                }
+            } else if(buffer) {
+                onAudioStream?.(buffer);
+            }
         }
-    //   onAudioStream?.(event.buffer);
     });
     return () => subscribe.remove();
   }, [isRecording, onAudioStream]);
@@ -77,6 +84,7 @@ export function useAudioRecorder({onAudioStream}: {onAudioStream?: (buffer:Uint8
             setDuration(0);
             const startTime = Date.now();
 
+            console.log(`module shims`, ExpoAudioStreamModule)
             try {
                 console.log(`start recoding`, recordingOptions)
                 await ExpoAudioStreamModule.startRecording(recordingOptions);
