@@ -1,5 +1,5 @@
 {
-  "name": "expo-audio-stream",
+  "name": "@siteed/expo-audio-stream",
   "version": "0.1.0",
   "description": "stream audio crossplatform",
   "main": "build/index.js",

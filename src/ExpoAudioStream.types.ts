@@ -1,5 +1,6 @@
 export interface AudioEventPayload {
   encoded?: string, 
+  buffer?: Blob,
   fileUri: string,
   from: number,
   deltaSize: number,

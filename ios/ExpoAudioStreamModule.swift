@@ -1,18 +1,21 @@
 import ExpoModulesCore
 
+let audioDataEvent: String = "AudioData"
+
 public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     private var streamManager = AudioStreamManager()
-    
-    public func onCreate() {
-        streamManager.delegate = self
-    }
-    
+
     public func definition() -> ModuleDefinition {
         Name("ExpoAudioStream")
         
         // Defines event names that the module can send to JavaScript.
-        Events("AudioData")
-                
+        Events(audioDataEvent)
+        
+        OnCreate {
+            print("Setting streamManager delegate")
+            streamManager.delegate = self
+        }
+           
         AsyncFunction("startRecording") { (options: [String: Any], promise: Promise) in
             self.checkMicrophonePermission { granted in
                 guard granted else {
@@ -21,7 +24,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 }
                 
                 // Extract settings from provided options, using default values if necessary
-                let sampleRate = options["sampleRate"] as? Double ?? 44100.0
+                let sampleRate = options["sampleRate"] as? Double ?? 48000.0
                 let numberOfChannels = options["channelConfig"] as? Int ?? 1
                 let bitDepth = options["audioFormat"] as? Int ?? 16
                 let interval = options["interval"] as? Int ?? 1000
@@ -53,6 +56,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveAudioData data: Data, recordingTime: TimeInterval, totalDataSize: Int64) {
+        print("audioStreamManager debug sending data")
         guard let fileURL = manager.recordingFileURL else { return }
         let encodedData = data.base64EncodedString()
         
@@ -73,8 +77,9 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         // Update the last emitted size for the next calculation
         manager.lastEmittedSize += Int64(deltaSize)
         
+        print("Sending audio data", eventBody)
         // Emit the event to JavaScript
-        sendEvent("AudioData", eventBody)
+        sendEvent(audioDataEvent, eventBody)
     }
     
     private func checkMicrophonePermission(completion: @escaping (Bool) -> Void) {
@@ -95,16 +100,34 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     }
     
     private func clearAudioFiles() {
-        let files = listAudioFiles()
-        files.forEach { file in
-            try? FileManager.default.removeItem(at: file)
+        let filenames = listAudioFiles()
+        let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        
+        filenames.forEach { filename in
+            let fileURL = documentDirectory.appendingPathComponent(filename)
+            do {
+                try FileManager.default.removeItem(at: fileURL)
+                print("Removed file at:", fileURL.path)
+            } catch {
+                print("Error removing file at \(fileURL.path):", error.localizedDescription)
+            }
         }
     }
     
-    func listAudioFiles() -> [URL] {
-        let documentDirectory = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
-        let files = try? FileManager.default.contentsOfDirectory(at: documentDirectory!, includingPropertiesForKeys: nil)
-        return files?.filter { $0.pathExtension == "pcm" } ?? []
+    func listAudioFiles() -> [String] {
+        guard let documentDirectory = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) else {
+            print("Failed to access document directory.")
+            return []
+        }
+        
+        do {
+            let files = try FileManager.default.contentsOfDirectory(at: documentDirectory, includingPropertiesForKeys: nil)
+            let audioFiles = files.filter { $0.pathExtension == "pcm" }.map { $0.lastPathComponent }
+            return audioFiles
+        } catch {
+            print("Error listing audio files:", error.localizedDescription)
+            return []
+        }
     }
     
 }

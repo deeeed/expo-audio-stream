@@ -8,8 +8,6 @@ import { useAudioRecorder } from './useAudioRecording';
 
 const emitter = new EventEmitter(ExpoAudioStreamModule ?? NativeModulesProxy.ExpoAudioStream);
 
-
-
 // Function to get the recording duration
 export function getRecordingDuration(): Promise<number> {
   return ExpoAudioStreamModule.getRecordingDuration();
