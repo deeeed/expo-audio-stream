@@ -3,8 +3,8 @@ import { Button, Platform, ScrollView, StyleSheet, Text, View } from 'react-nati
 
 import { clearAudioFiles, listAudioFiles, useAudioRecorder } from 'expo-audio-stream';
 import { useCallback, useRef, useState } from 'react';
-import { AudioStreamResult } from '../src/ExpoAudioStream.types';
-import { formatBytes, formatDuration } from './src/utils';
+import { AudioStreamResult } from '../../src/ExpoAudioStream.types';
+import { formatBytes, formatDuration } from './utils';
 
 let audioChunks: Blob[] = [];
 const isWeb = Platform.OS === 'web';
@@ -105,7 +105,7 @@ export default function App() {
         <Button title="Play Recording" onPress={async () => {
           try {
             let url = result.fileUri;
-            if(isWeb) {
+            if (isWeb) {
               const blob = new Blob(audioChunks, { type: 'audio/webm' });
               url = URL.createObjectURL(blob);
             }
