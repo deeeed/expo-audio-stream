@@ -39,19 +39,15 @@ Add the plugin to your app.json like so:
 
 ## Usage
 
+The `example/` folder contains a fully functional React Native application that demonstrates how to integrate and use the `@siteed/expo-audio-stream` library in a real-world scenario. This sample application includes features such as starting and stopping audio recordings, handling permissions, and processing live audio data.
+
 ### Importing the module
 
 ```tsx
 import {
   useAudioRecorder,
+  AudioStreamResult,
 } from 'expo-audio-stream';
-
-export interface AudioStreamResult {
-  fileUrl: string;
-  duration: number;
-  size: number;
-  mimeType: string;
-}
 
 export default function App() {
   const { startRecording, stopRecording, duration, size, isRecording } = useAudioRecorder({
@@ -154,6 +150,5 @@ or set the DEBUG environment variable to `expo-audio-stream:*`
 
 ### TODO
 this package is still in development, and there are a few things that need to be done:
-- remove the dependency on expo-av
-- add multiple format of audio stream (wav, mp3, opus)
+- add multiple format for native audio stream (wav, mp3, opus)
 
