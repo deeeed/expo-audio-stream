@@ -1,10 +1,11 @@
 import ExpoModulesCore
+import AVFoundation
 
 let audioDataEvent: String = "AudioData"
 
 public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     private var streamManager = AudioStreamManager()
-
+    
     public func definition() -> ModuleDefinition {
         Name("ExpoAudioStream")
         
@@ -15,7 +16,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             print("Setting streamManager delegate")
             streamManager.delegate = self
         }
-           
+        
         AsyncFunction("startRecording") { (options: [String: Any], promise: Promise) in
             self.checkMicrophonePermission { granted in
                 guard granted else {
@@ -24,15 +25,15 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 }
                 
                 // Extract settings from provided options, using default values if necessary
-                let sampleRate = options["sampleRate"] as? Double ?? 48000.0
-                let numberOfChannels = options["channelConfig"] as? Int ?? 1
-                let bitDepth = options["audioFormat"] as? Int ?? 16
+                let sampleRate = options["sampleRate"] as? Double ?? 16000.0 // it fails if not 48000, why?
+                let numberOfChannels = options["channelConfig"] as? Int ?? 1 // Mono channel configuration
+                let bitDepth = options["audioFormat"] as? Int ?? 16 // 16bits
                 let interval = options["interval"] as? Int ?? 1000
                 
                 let settings = RecordingSettings(sampleRate: sampleRate, numberOfChannels: numberOfChannels, bitDepth: bitDepth)
-                self.streamManager.startRecording(settings: settings, intervalMilliseconds: interval)
+                let url = self.streamManager.startRecording(settings: settings, intervalMilliseconds: interval)
                 
-                promise.resolve(nil)
+                promise.resolve(url)
             }
         }
         
@@ -41,8 +42,17 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         }
         
         AsyncFunction("stopRecording") { (promise: Promise) in
-            self.streamManager.stopRecording()
-            promise.resolve(nil)
+            if let recordingResult = self.streamManager.stopRecording() {
+                // Convert RecordingResult to a dictionary
+                let resultDict: [String: Any] = [
+                    "fileUri": recordingResult.fileUri,
+                    "duration": recordingResult.duration,
+                    "size": recordingResult.size
+                ]
+                promise.resolve(resultDict)
+            } else {
+                promise.reject("ERROR", "Failed to stop recording or no recording in progress.")
+            }
         }
         
         AsyncFunction("listAudioFiles") { (promise: Promise) in
@@ -56,7 +66,6 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveAudioData data: Data, recordingTime: TimeInterval, totalDataSize: Int64) {
-        print("audioStreamManager debug sending data")
         guard let fileURL = manager.recordingFileURL else { return }
         let encodedData = data.base64EncodedString()
         
@@ -71,13 +80,13 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             "encoded": encodedData,
             "deltaSize": deltaSize,
             "totalSize": fileSize,
+            "mimeType": manager.mimeType,
             "streamUuid": manager.recordingUUID?.uuidString ?? UUID().uuidString
         ]
         
         // Update the last emitted size for the next calculation
         manager.lastEmittedSize += Int64(deltaSize)
         
-        print("Sending audio data", eventBody)
         // Emit the event to JavaScript
         sendEvent(audioDataEvent, eventBody)
     }
@@ -122,7 +131,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         
         do {
             let files = try FileManager.default.contentsOfDirectory(at: documentDirectory, includingPropertiesForKeys: nil)
-            let audioFiles = files.filter { $0.pathExtension == "pcm" }.map { $0.lastPathComponent }
+            let audioFiles = files.filter { $0.pathExtension == "wav" }.map { $0.lastPathComponent }
             return audioFiles
         } catch {
             print("Error listing audio files:", error.localizedDescription)

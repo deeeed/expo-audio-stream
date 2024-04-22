@@ -5,8 +5,16 @@ export interface AudioEventPayload {
   from: number,
   deltaSize: number,
   totalSize: number,
+  mimeType: string;
   streamUuid: string,
 };
+
+export interface AudioStreamResult {
+  fileUri: string;
+  duration: number;
+  size: number;
+  mimeType: string;
+}
 
 export interface AudioStreamStatus {
   isRecording: boolean;
@@ -14,12 +22,13 @@ export interface AudioStreamStatus {
   duration: number;
   size: number;
   interval: number;
+  mimeType: string;
 }
 
 export interface RecordingOptions {
   // TODO align Android and IOS options
-  sampleRate?: number;
-  channelConfig?: number; // numberOfChannel
-  audioFormat?: number; // bitDepth (ENCODING_PCM_16BIT --> 2)
+  // sampleRate?: number;
+  // channelConfig?: number; // numberOfChannel
+  // audioFormat?: number; // bitDepth (ENCODING_PCM_16BIT --> 2)
   interval?: number;
 }
