@@ -2,7 +2,7 @@ import {
   clearAudioFiles,
   listAudioFiles,
   useAudioRecorder,
-} from "expo-audio-stream";
+} from "@siteed/expo-audio-stream";
 import { Audio } from "expo-av";
 import { useCallback, useRef, useState } from "react";
 import {
