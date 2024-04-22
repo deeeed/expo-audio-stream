@@ -37,6 +37,8 @@ Add the plugin to your app.json like so:
 }
 ```
 
+Make sure to run `npx expo prebuild` after adding the plugin to your app.json file.
+
 ## Usage
 
 The `example/` folder contains a fully functional React Native application that demonstrates how to integrate and use the `@siteed/expo-audio-stream` library in a real-world scenario. This sample application includes features such as starting and stopping audio recordings, handling permissions, and processing live audio data.
@@ -47,7 +49,7 @@ The `example/` folder contains a fully functional React Native application that 
 import {
   useAudioRecorder,
   AudioStreamResult,
-} from 'expo-audio-stream';
+} from '@siteed/expo-audio-stream';
 
 export default function App() {
   const { startRecording, stopRecording, duration, size, isRecording } = useAudioRecorder({
@@ -92,41 +94,11 @@ export default function App() {
 
 The library also exposes an `addAudioEventListener` function that provides an `AudioEventPayload` object that you can subscribe to:
 ```tsx
-export interface AudioEventPayload {
-  encoded?: string, 
-  buffer?: Blob,
-  fileUri: string,
-  from: number,
-  deltaSize: number,
-  totalSize: number,
-  mimeType: string;
-  streamUuid: string,
-};
+import { addAudioEventListener } from '@siteed/expo-audio-stream';
 
   useEffect(() => {
     const subscribe = addAudioEventListener(async ({fileUri, deltaSize, totalSize, from, streamUuid, encoded, mimeType, buffer}) => {
-        log(`Received audio event:`, {fileUri, deltaSize, totalSize, mimeType, from, streamUuid, encodedLength: encoded?.length})
-        if(deltaSize > 0) {
-            // Coming from native ( ios / android ) otherwise buffer is set
-              if(Platform.OS !== 'web') {
-                // Read the audio file as a base64 string for comparison
-                try {
-                    // convert encoded string to binary data
-                    const binaryData = atob(encoded);
-                    const content = new Uint8Array(binaryData.length);
-                    for (let i = 0; i < binaryData.length; i++) {
-                        content[i] = binaryData.charCodeAt(i);
-                    }
-                    const audioBlob = new Blob([content], { type: mimeType });
-                    console.info(`Received audio blob:`, audioBlob);
-                } catch (error) {
-                    console.error('Error reading audio file:', error);
-                }
-            } else if(buffer) {
-                // Coming from web
-                console.info(`Received audio buffer:`, buffer)
-            }
-        }
+        log(`Received audio event:`, {fileUri, deltaSize, totalSize, mimeType, from, streamUuid, encodedLength: encoded?.length, bufferLength: buffer?.length})
     });
     return () => subscribe.remove();
   }, []);
