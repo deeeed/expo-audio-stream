@@ -1,33 +1,34 @@
 import {
   AndroidConfig,
   ConfigPlugin,
-  IOSConfig,
-  createRunOncePlugin,
+  withAndroidManifest,
+  withInfoPlist,
 } from "@expo/config-plugins";
 
-const pkg = require("../../package.json");
 const MICROPHONE_USAGE = "Allow $(PRODUCT_NAME) to access your microphone";
 
 const withRecordingPermission: ConfigPlugin<{
-  microphonePermission: string | false | undefined;
+  microphonePermission: string;
 }> = (config, { microphonePermission }) => {
-  IOSConfig.Permissions.createPermissionsPlugin({
-    NSMicrophoneUsageDescription: MICROPHONE_USAGE,
-  })(config, {
-    NSMicrophoneUsageDescription: microphonePermission,
+  config = withInfoPlist(config, (config) => {
+    config.modResults["NSMicrophoneUsageDescription"] = MICROPHONE_USAGE;
+    return config;
   });
 
-  return AndroidConfig.Permissions.withPermissions(
-    config,
-    [
-      microphonePermission !== false && "android.permission.RECORD_AUDIO",
-      "android.permission.MODIFY_AUDIO_SETTINGS",
-    ].filter(Boolean) as string[],
-  );
+  config = withAndroidManifest(config, (config) => {
+    const mainApplication = AndroidConfig.Manifest.getMainApplicationOrThrow(
+      config.modResults,
+    );
+
+    AndroidConfig.Manifest.addMetaDataItemToMainApplication(
+      mainApplication,
+      "android.permission.RECORD_AUDIO",
+      MICROPHONE_USAGE,
+    );
+    return config;
+  });
+
+  return config;
 };
 
-export default createRunOncePlugin(
-  withRecordingPermission,
-  pkg.name,
-  pkg.version,
-);
+export default withRecordingPermission;
