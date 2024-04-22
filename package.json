@@ -7,7 +7,10 @@
   "types": "build/index.d.ts",
   "author": "Arthur Breton <abreton@siteed.net> (https://github.com/deeeed)",
   "homepage": "https://github.com/deeeed/expo-audio-stream#readme",
-  "repository": "https://github.com/deeeed/expo-audio-stream",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deeeed/expo-audio-stream.git"
+  },
   "bugs": {
     "url": "https://github.com/deeeed/expo-audio-stream/issues"
   },
@@ -58,6 +61,7 @@
     "react-native": "*"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   }
 }
