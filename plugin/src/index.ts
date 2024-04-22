@@ -9,7 +9,10 @@ const MICROPHONE_USAGE = "Allow $(PRODUCT_NAME) to access your microphone";
 
 const withRecordingPermission: ConfigPlugin<{
   microphonePermission: string;
-}> = (config, { microphonePermission }) => {
+}> = (config, existingPerms) => {
+  if (!existingPerms) {
+    console.warn("No previous permissions provided");
+  }
   config = withInfoPlist(config, (config) => {
     config.modResults["NSMicrophoneUsageDescription"] = MICROPHONE_USAGE;
     return config;
