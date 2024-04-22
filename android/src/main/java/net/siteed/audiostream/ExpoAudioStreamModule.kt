@@ -22,13 +22,18 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.RandomAccessFile
+
 const val AUDIO_EVENT_NAME = "AudioData"
+const val DEFAULT_SAMPLE_RATE = 16000 // Default sample rate for audio recording
+const val DEFAULT_CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
+const val DEFAULT_AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
 
 class ExpoAudioStreamModule() : Module() {
   private var audioRecord: AudioRecord? = null
-  private var sampleRateInHz = 44100  // Default sample rate
-  private var channelConfig = AudioFormat.CHANNEL_IN_MONO
-  private var audioFormat = AudioFormat.ENCODING_PCM_16BIT
+  private var sampleRateInHz = DEFAULT_SAMPLE_RATE
+  private var channelConfig = DEFAULT_CHANNEL_CONFIG
+  private var audioFormat = DEFAULT_AUDIO_FORMAT
   private var bufferSizeInBytes: Int = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat)
   private var isRecording = AtomicBoolean(false)
   private val isPaused = AtomicBoolean(false)
@@ -44,6 +49,7 @@ class ExpoAudioStreamModule() : Module() {
   private var lastPauseTime = 0L
   private var pausedDuration = 0L
   private var lastEmittedSize = 0L
+  private var mimeType = "audio/wav"
   private val mainHandler = Handler(Looper.getMainLooper())
 
   @SuppressLint("MissingPermission")
@@ -72,6 +78,7 @@ class ExpoAudioStreamModule() : Module() {
         "duration" to totalRecordedTime,
         "isRecording" to isRecording.get(),
         "isPaused" to isPaused.get(),
+        "mime" to mimeType,
         "size" to totalDataSize,
         "interval" to interval,
       )
@@ -87,26 +94,62 @@ class ExpoAudioStreamModule() : Module() {
     }
 
     AsyncFunction("pauseRecording") { promise: Promise ->
+      Log.d("AudioRecorderModule", "Pausing recording")
       pauseRecording(promise)
     }
 
     AsyncFunction("stopRecording") { promise: Promise ->
+      Log.d("AudioRecorderModule", "Stopping recording")
       stopRecording(promise)
     }
   }
 
+  // Method to write WAV file header
+  private fun writeWavHeader(out: FileOutputStream, channelConfig: Int, sampleRate: Int, audioFormat: Int) {
+    val channels = if (channelConfig == AudioFormat.CHANNEL_IN_MONO) 1 else 2
+    val bitDepth = if (audioFormat == AudioFormat.ENCODING_PCM_16BIT) 16 else 8
+
+    val header = ByteArray(44)
+    val byteRate = sampleRate * channels * bitDepth / 8
+    val blockAlign = channels * bitDepth / 8
+
+    // RIFF/WAVE header
+    "RIFF".toByteArray().copyInto(header, 0)
+    header[4] = 0 // Size will be updated later
+    "WAVE".toByteArray().copyInto(header, 8)
+    "fmt ".toByteArray().copyInto(header, 12)
+
+    // 16 for PCM
+    header[16] = 16
+    header[20] = 1 // Audio format 1 for PCM
+    header[22] = channels.toByte()
+    header[24] = (sampleRate and 0xff).toByte()
+    header[25] = (sampleRate shr 8 and 0xff).toByte()
+    header[26] = (sampleRate shr 16 and 0xff).toByte()
+    header[27] = (sampleRate shr 24 and 0xff).toByte()
+    header[28] = (byteRate and 0xff).toByte()
+    header[29] = (byteRate shr 8 and 0xff).toByte()
+    header[30] = (byteRate shr 16 and 0xff).toByte()
+    header[31] = (byteRate shr 24 and 0xff).toByte()
+    header[32] = blockAlign.toByte()
+    header[34] = bitDepth.toByte()
+    "data".toByteArray().copyInto(header, 36)
+
+    out.write(header, 0, 44)
+  }
+
   private fun configureRecording(params: Map<String, Any?>) {
-    sampleRateInHz = (params["sampleRate"] as? Int) ?: 44100
-    channelConfig = (params["channelConfig"] as? Int) ?: AudioFormat.CHANNEL_IN_MONO
-    audioFormat = (params["audioFormat"] as? Int) ?: AudioFormat.ENCODING_PCM_16BIT
+    sampleRateInHz = (params["sampleRate"] as? Int) ?: DEFAULT_SAMPLE_RATE
+    channelConfig = (params["channelConfig"] as? Int) ?: DEFAULT_CHANNEL_CONFIG
+    audioFormat = (params["audioFormat"] as? Int) ?: DEFAULT_AUDIO_FORMAT
     bufferSizeInBytes = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat)
   }
 
   private fun listAudioFiles(): List<String> {
     val filesDir = appContext.reactContext?.filesDir
-    // Filter to include only .pcm files
+    // Filter to include only .wav files
     val files = filesDir?.listFiles { file ->
-      file.isFile && file.name.endsWith(".pcm")
+      file.isFile && file.name.endsWith(".wav")
     }?.map { it.absolutePath } ?: listOf()  // Use `listOf()` to return an empty list if null
     return files
   }
@@ -143,7 +186,7 @@ class ExpoAudioStreamModule() : Module() {
     // Log for new recording or resuming
     if (!isPaused.get()) {
       streamUuid = java.util.UUID.randomUUID().toString()
-      audioFile = File(appContext.reactContext?.filesDir, "audio_${streamUuid}.pcm")
+      audioFile = File(appContext.reactContext?.filesDir, "audio_${streamUuid}.wav")
       Log.i("AudioRecorderModule", "Starting new recording $streamUuid with sample rate: $sampleRateInHz, channel config: $channelConfig, audio format: $audioFormat, buffer size: $bufferSizeInBytes, interval: $interval")
 
     } else {
@@ -153,6 +196,15 @@ class ExpoAudioStreamModule() : Module() {
     // Initialize the recorder if it's a new recording
     if (!isPaused.get() && !initializeRecorder()) {
       promise.reject("INITIALIZATION_FAILED", "AudioRecord initialization failed", null)
+      return
+    }
+
+    try {
+      FileOutputStream(audioFile, true).use { fos ->
+        writeWavHeader(fos, channelConfig, sampleRateInHz, audioFormat)
+      }
+    } catch (e: IOException) {
+      promise.reject("FILE_CREATION_FAILED", "Failed to create audio file with WAV header", null)
       return
     }
 
@@ -166,7 +218,7 @@ class ExpoAudioStreamModule() : Module() {
     }
 
     recordingThread = Thread { recordingProcess() }.apply { start() }
-    promise.resolve(null)
+    promise.resolve(audioFile?.toURI().toString())
   }
 
   private fun stopRecording(promise: Promise) {
@@ -182,7 +234,19 @@ class ExpoAudioStreamModule() : Module() {
       totalRecordedTime += (endTime - recordingStartTime - pausedDuration)  // Adjust the total recording time
       isRecording.set(false)
       isPaused.set(false)
-      promise.resolve(totalRecordedTime)
+
+      // Calculate the file size
+      val fileSize = audioFile?.length() ?: 0
+
+      // Create result bundle
+      val result = bundleOf(
+        "fileUri" to audioFile?.toURI().toString(),
+        "duration" to totalRecordedTime,
+        "size" to fileSize,
+        "mimeType" to mimeType
+      )
+      promise.resolve(result)
+
       // Reset the timing variables
       totalRecordedTime = 0
       pausedDuration = 0
@@ -194,30 +258,49 @@ class ExpoAudioStreamModule() : Module() {
   }
 
   private fun recordingProcess() {
+    FileOutputStream(audioFile, true).use { fos ->
+      // Write audio data directly to the file
+      val audioData = ByteArray(bufferSizeInBytes)
+      while (isRecording.get()) {
+        if (!isPaused.get()) {
+          val bytesRead = audioRecord?.read(audioData, 0, bufferSizeInBytes) ?: -1
+          if (bytesRead < 0) {
+            Log.e("AudioRecorderModule", "Read error: $bytesRead")
+            break
+          }
+          if (bytesRead > 0) {
+            fos.write(audioData, 0, bytesRead)
+            totalDataSize += bytesRead
 
-    val audioData = ByteArray(bufferSizeInBytes)
-    while (isRecording.get()) {
-      if (!isPaused.get()) {
-        val bytesRead = audioRecord?.read(audioData, 0, bufferSizeInBytes) ?: -1
-        if (bytesRead < 0) {
-          Log.e("AudioRecorderModule", "Read error: $bytesRead")
-          break
-        }
-        if (bytesRead > 0) {
-          audioDataBuffer.write(audioData, 0, bytesRead)
-          totalDataSize += bytesRead
-          if (SystemClock.elapsedRealtime() - lastEmitTime >= interval) {
-            emitAudioData()
-            lastEmitTime = SystemClock.elapsedRealtime() // Reset the timer
+            // Emit audio data at defined intervals
+            if (SystemClock.elapsedRealtime() - lastEmitTime >= interval) {
+              emitAudioData(audioData, bytesRead)
+              lastEmitTime = SystemClock.elapsedRealtime() // Reset the timer
+            }
           }
         }
       }
     }
-    if (audioDataBuffer.size() > 0) {
-      emitAudioData() // Emit any remaining data
-    }
+    updateWavHeader() // Update the header with the correct file size after recording stops
   }
 
+  private fun updateWavHeader() {
+    try {
+      RandomAccessFile(audioFile, "rw").use { raf ->
+        val fileSize = raf.length()
+        val dataSize = fileSize - 44 // Subtract the header size
+        raf.seek(4) // Skip 'RIFF' label
+
+        // Write correct file size, excluding the first 8 bytes of the RIFF header
+        raf.writeInt(Integer.reverseBytes((dataSize + 36).toInt()))
+
+        raf.seek(40) // Go to the data size position
+        raf.writeInt(Integer.reverseBytes(dataSize.toInt())) // Write the size of the data segment
+      }
+    } catch (e: IOException) {
+      Log.e("AudioRecorderModule", "Could not update WAV header", e)
+    }
+  }
 
   private fun clearAudioStorage() {
     // Clear all files in the app's internal storage
@@ -228,34 +311,31 @@ class ExpoAudioStreamModule() : Module() {
     }
   }
 
-  private fun emitAudioData() {
-    val rawData = audioDataBuffer.toByteArray()
-    if (!saveAudioToFile(rawData)) {
-      Log.e("AudioRecorderModule", "Failed to save audio data")
-      return
-    }
-    val encodedBuffer = encodeAudioData(rawData)
-    val fileSize = audioFile?.length() ?: 0
+  private fun emitAudioData(audioData: ByteArray, length: Int) {
+    // Since audioData now contains the actual bytes read, you do not need to read from audioDataBuffer.
+    // Encode the part of the buffer that contains new audio data.
+    val encodedBuffer = encodeAudioData(audioData)
+    val fileSize = audioFile?.length() ?: 0 // Update file size information
     val from = lastEmittedSize
     val deltaSize = fileSize - lastEmittedSize
-    lastEmittedSize = fileSize
+    lastEmittedSize = fileSize // Update last emitted size
+
     mainHandler.post {
       try {
-        this@ExpoAudioStreamModule.sendEvent(AUDIO_EVENT_NAME,
-          bundleOf(
-            "fileUri" to audioFile?.toURI().toString(),
-            "from" to from,
-            "encoded" to encodedBuffer,
-            "deltaSize" to deltaSize,
-            "totalSize" to fileSize,
-            "streamUuid" to streamUuid
-          )
-        )
+        this@ExpoAudioStreamModule.sendEvent(AUDIO_EVENT_NAME, bundleOf(
+          "fileUri" to audioFile?.toURI().toString(),
+          "from" to from,
+          "encoded" to encodedBuffer,
+          "deltaSize" to deltaSize,
+          "mimeType" to mimeType,
+          "totalSize" to fileSize,
+          "streamUuid" to streamUuid
+        ))
       } catch (e: Exception) {
         Log.e("AudioRecorderModule", "Failed to send event", e)
       }
     }
-    audioDataBuffer.reset() // Clear the buffer after emitting
+    // audioDataBuffer.reset() is no longer needed here as we do not use the buffer to store ongoing data
   }
 
   private fun encodeAudioData(rawData: ByteArray): String {

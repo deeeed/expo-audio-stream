@@ -1,6 +1,8 @@
 import { EventEmitter } from "expo-modules-core";
-import { AudioEventPayload, RecordingOptions } from "./ExpoAudioStream.types";
+import { AudioEventPayload, AudioStreamResult, RecordingOptions } from "./ExpoAudioStream.types";
+import debug from 'debug';
 
+const log =  debug("expo-audio-stream:useAudioRecording");
 class ExpoAudioStreamWeb extends EventEmitter {
     mediaRecorder: MediaRecorder | null;
     audioChunks: Blob[];
@@ -17,10 +19,10 @@ class ExpoAudioStreamWeb extends EventEmitter {
     constructor() {
         const mockNativeModule = {
             addListener: (eventName: string) => {
-                console.log(`Web addListener called for ${eventName}`);
+                // Not used on web
             },
             removeListeners: (count: number) => {
-                console.log(`Web removeListeners called, count: ${count}`);
+                // Not used on web
             }
         };
         super(mockNativeModule); // Pass the mock native module to the parent class
@@ -64,6 +66,8 @@ class ExpoAudioStreamWeb extends EventEmitter {
         this.pausedTime = 0;
         this.lastEmittedSize = 0;
         this.streamUuid = this.generateUUID(); // Generate a UUID for the new recording session
+        const fileUri = `${this.streamUuid}.webm`;
+        return fileUri;
     }
 
     // Setup listeners for the MediaRecorder
@@ -80,7 +84,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
 
         this.mediaRecorder.onstop = () => {
             this.isRecording = false;
-            console.log('Recording stopped', this.audioChunks);
+            log('Recording stopped', this.audioChunks);
         };
 
         this.mediaRecorder.onpause = () => {
@@ -94,9 +98,10 @@ class ExpoAudioStreamWeb extends EventEmitter {
     }
 
     emitAudioEvent(data: Blob) {
-        const fileUri = `${this.streamUuid}.pcm`;
+        const fileUri = `${this.streamUuid}.webm`;
         const audioEventPayload: AudioEventPayload = {
             fileUri: fileUri,
+            mimeType: 'audio/webm',
             from: this.lastEmittedSize,  // Since this might be continuously streaming, adjust accordingly
             deltaSize: data.size,
             totalSize: this.currentSize,
@@ -117,12 +122,18 @@ class ExpoAudioStreamWeb extends EventEmitter {
     }
 
     // Stop recording
-    async stopRecording() {
-        console.debug('Stopping recording', this);
+    async stopRecording(): Promise<AudioStreamResult | null> {
         this.mediaRecorder?.stop();
         this.isRecording = false;
         this.currentDuration = (Date.now() - this.recordingStartTime) / 1000;
-        return this.currentDuration;
+        const result: AudioStreamResult = {
+            fileUri: `${this.streamUuid}.webm`,
+            duration: this.currentDuration,
+            size: this.currentSize,
+            mimeType: 'audio/webm',
+        }
+
+        return result;
     }
 
     // Pause recording

@@ -8,11 +8,6 @@ import { useAudioRecorder } from './useAudioRecording';
 
 const emitter = new EventEmitter(ExpoAudioStreamModule ?? NativeModulesProxy.ExpoAudioStream);
 
-// Function to get the recording duration
-export function getRecordingDuration(): Promise<number> {
-  return ExpoAudioStreamModule.getRecordingDuration();
-}
-
 export function listAudioFiles(): Promise<string[]> {
   return ExpoAudioStreamModule.listAudioFiles();
 }
@@ -21,9 +16,8 @@ export function clearAudioFiles(): Promise<void> {
   return ExpoAudioStreamModule.clearAudioFiles();
 }
 
-export function addChangeListener(listener: (event: AudioEventPayload) => void): Subscription {
+export function addAudioEventListener(listener: (event: AudioEventPayload) => void): Subscription {
   return emitter.addListener<AudioEventPayload>('AudioData', listener);
 }
-
 
 export { AudioEventPayload, useAudioRecorder };
