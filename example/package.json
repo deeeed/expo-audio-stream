@@ -1,7 +1,7 @@
 {
   "name": "expo-audio-stream-example",
   "version": "1.0.0",
-  "main": "./src/index",
+  "main": "src/index.js",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",

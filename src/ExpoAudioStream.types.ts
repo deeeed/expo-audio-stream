@@ -1,13 +1,13 @@
 export interface AudioEventPayload {
-  encoded?: string, 
-  buffer?: Blob,
-  fileUri: string,
-  from: number,
-  deltaSize: number,
-  totalSize: number,
+  encoded?: string;
+  buffer?: Blob;
+  fileUri: string;
+  from: number;
+  deltaSize: number;
+  totalSize: number;
   mimeType: string;
-  streamUuid: string,
-};
+  streamUuid: string;
+}
 
 export interface AudioStreamResult {
   fileUri: string;

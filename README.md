@@ -150,7 +150,7 @@ This library uses the npm `debug` package, to enable logging you can:
 ```
 localStorage.debug = 'expo-audio-stream:*'
 ```
-
+or set the DEBUG environment variable to `expo-audio-stream:*`
 
 ### TODO
 this package is still in development, and there are a few things that need to be done:
