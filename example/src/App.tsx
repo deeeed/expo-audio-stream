@@ -17,7 +17,6 @@ import {
 import { formatBytes, formatDuration } from "./utils";
 import { AudioStreamResult } from "../../src/ExpoAudioStream.types";
 
-const audioChunks: Blob[] = [];
 const isWeb = Platform.OS === "web";
 
 if (isWeb) {
@@ -25,9 +24,9 @@ if (isWeb) {
 }
 
 export default function App() {
-  const [permissionResponse, requestPermission] = Audio.usePermissions();
+  const [, requestPermission] = Audio.usePermissions();
   const [error, setError] = useState<string | null>(null);
-  const audioRef = useRef<Blob | null>(null);
+  const audioChunks = useRef<Blob[]>([]);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [result, setResult] = useState<AudioStreamResult | null>(null);
   const [files, setFiles] = useState<string[]>([]);
@@ -35,7 +34,7 @@ export default function App() {
   const onAudioData = (audioData: Blob) => {
     console.log(`audio event ${typeof audioData}`, audioData);
     // Append the audio data to the audioRef
-    audioChunks.push(audioData);
+    audioChunks.current.push(audioData);
   };
 
   const { startRecording, stopRecording, duration, size, isRecording } =
@@ -46,6 +45,8 @@ export default function App() {
     if (!granted) {
       setError("Permission not granted!");
     }
+    // Clear previous audio chunks
+    audioChunks.current = [];
     const url = await startRecording({ interval: 500 });
     console.debug(`Recording started at ${url}`);
     if (url) setAudioUri(url);
@@ -119,7 +120,9 @@ export default function App() {
               try {
                 let url = result.fileUri;
                 if (isWeb) {
-                  const blob = new Blob(audioChunks, { type: "audio/webm" });
+                  const blob = new Blob(audioChunks.current, {
+                    type: "audio/webm",
+                  });
                   url = URL.createObjectURL(blob);
                 }
                 const sound = new Audio.Sound();
