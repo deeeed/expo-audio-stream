@@ -15,6 +15,14 @@ const withRecordingPermission: ConfigPlugin<{
   }
   config = withInfoPlist(config, (config) => {
     config.modResults["NSMicrophoneUsageDescription"] = MICROPHONE_USAGE;
+
+    // Add audio to UIBackgroundModes to allow background audio recording
+    const existingBackgroundModes = config.modResults.UIBackgroundModes || [];
+    if (!existingBackgroundModes.includes("audio")) {
+      existingBackgroundModes.push("audio");
+    }
+    config.modResults.UIBackgroundModes = existingBackgroundModes;
+
     return config;
   });
 
@@ -28,6 +36,14 @@ const withRecordingPermission: ConfigPlugin<{
       "android.permission.RECORD_AUDIO",
       MICROPHONE_USAGE,
     );
+
+    // Add FOREGROUND_SERVICE permission for handling background recording
+    AndroidConfig.Manifest.addMetaDataItemToMainApplication(
+      mainApplication,
+      "android.permission.FOREGROUND_SERVICE",
+      "This apps needs access to the foreground service to record audio in the background",
+    );
+
     return config;
   });
 

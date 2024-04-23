@@ -69,13 +69,42 @@ class AudioStreamManager: NSObject {
     
     override init() {
         super.init()
+        setupWithDefaultSettings()
         configureAudioSession()
     }
     
-    private func configureAudioSession() {
+    private func setupWithDefaultSettings() {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.playAndRecord, mode: .default)
+            try session.setActive(true)
+            // Retrieve and compare system default settings
+            let defaultSampleRate = session.sampleRate  // Default system sample rate
+            let defaultNumberOfChannels = session.inputNumberOfChannels  // Default number of input channels
+            
+            // You can adjust your default settings based on the system capabilities here
+            recordingSettings = RecordingSettings(
+                sampleRate: defaultSampleRate,
+                numberOfChannels: defaultNumberOfChannels
+            )
+            
+            // Log or handle the configuration as needed
+            print("Configured with sample rate: \(defaultSampleRate) and channels: \(defaultNumberOfChannels)")
+            
+        } catch {
+            print("Failed to activate audio session: \(error.localizedDescription)")
+        }
+    }
+    
+    private func configureAudioSession() {
+        guard let settings = recordingSettings else {
+            print("Recording settings are not set.")
+            return
+        }
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setPreferredSampleRate(settings.sampleRate)
+            try session.setPreferredInputNumberOfChannels(settings.numberOfChannels)
+            try session.setCategory(.playAndRecord, mode: .default, options: [])
             try session.setActive(true)
             print("Audio session configured successfully.")
         } catch {
@@ -90,6 +119,7 @@ class AudioStreamManager: NSObject {
             return
         }
         
+        print("audio session interruption \(type)")
         if type == .began {
             // Pause your audio recording
         } else if type == .ended {
@@ -131,8 +161,12 @@ class AudioStreamManager: NSObject {
         let channels = UInt32(recordingSettings!.numberOfChannels)
         let bitDepth = UInt32(recordingSettings!.bitDepth)
         
-        // Calculate byteRate
         let byteRate = sampleRate * channels * (bitDepth / 8)
+        let blockAlign = channels * (bitDepth / 8)
+        
+        // Log to confirm the values
+        print("WAV Header - Sample Rate: \(sampleRate), Channels: \(channels), Bit Depth: \(bitDepth)")
+        print("WAV Header - Byte Rate: \(byteRate), Block Align: \(blockAlign), Data Size: \(dataSize)")
         
         // "RIFF" chunk descriptor
         header.append(contentsOf: "RIFF".utf8)
@@ -175,7 +209,25 @@ class AudioStreamManager: NSObject {
             print("Debug: Recording is already in progress.")
             return nil
         }
-
+        
+        guard !audioEngine.isRunning else {
+            print("Debug: Audio engine already running.")
+            return nil
+        }
+        
+        // Determine the commonFormat based on bitDepth
+        let commonFormat: AVAudioCommonFormat
+        switch settings.bitDepth {
+        case 16:
+            commonFormat = .pcmFormatInt16
+        case 32:
+            commonFormat = .pcmFormatInt32
+        default:
+            print("Unsupported bit depth. Defaulting to 16-bit PCM")
+            commonFormat = .pcmFormatInt16
+        }
+        
+        
         emissionInterval = max(100.0, Double(intervalMilliseconds)) / 1000.0
         lastEmissionTime = Date()
         recordingSettings = settings
@@ -192,42 +244,71 @@ class AudioStreamManager: NSObject {
             print("Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
             return nil
         }
-
+        
         NotificationCenter.default.addObserver(self, selector: #selector(handleAudioSessionInterruption), name: AVAudioSession.interruptionNotification, object: nil)
-
-        guard let channelLayout = AVAudioChannelLayout(layoutTag: settings.numberOfChannels == 1 ? kAudioChannelLayoutTag_Mono : kAudioChannelLayoutTag_Stereo) else {
+        
+        let channelLayoutTag = settings.numberOfChannels == 1 ? kAudioChannelLayoutTag_Mono : kAudioChannelLayoutTag_Stereo
+        guard let channelLayout = AVAudioChannelLayout(layoutTag: channelLayoutTag) else {
             print("Error: Failed to create channel layout.")
             return nil
         }
-        let errorFormat = AVAudioFormat(standardFormatWithSampleRate: settings.sampleRate, channelLayout: channelLayout)
-
-        audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: errorFormat) { [weak self] (buffer, time) in
+        
+        // Correct the format to use 16-bit integer (PCM)
+        guard let audioFormat = AVAudioFormat(commonFormat: commonFormat, sampleRate: settings.sampleRate, channels: UInt32(settings.numberOfChannels), interleaved: true) else {
+            print("Error: Failed to create audio format with the specified bit depth.")
+            return nil
+        }
+        
+        audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: audioFormat) { [weak self] (buffer, time) in
             guard let self = self, let fileURL = self.recordingFileURL else {
                 print("Error: File URL or self is nil during buffer processing.")
                 return
             }
+            let formatDescription = describeAudioFormat(buffer.format)
+            print("Debug: Buffer format - \(formatDescription)")
+            
             self.processAudioBuffer(buffer, fileURL: fileURL)
         }
-
+        
         recordingFileURL = createRecordingFile()
         if recordingFileURL == nil {
             print("Error: Failed to create recording file.")
             return nil
         }
-
+        
         do {
             startTime = Date()
             try audioEngine.start()
             isRecording = true
             print("Debug: Recording started successfully.")
-            return recordingFileURL?.absoluteString
+            return recordingFileURL?.path
         } catch {
             print("Error: Could not start the audio engine: \(error.localizedDescription)")
             isRecording = false
             return nil
         }
     }
-
+    
+    func describeAudioFormat(_ format: AVAudioFormat) -> String {
+        let sampleRate = format.sampleRate
+        let channelCount = format.channelCount
+        let bitDepth: String
+        
+        switch format.commonFormat {
+        case .pcmFormatInt16:
+            bitDepth = "16-bit Int"
+        case .pcmFormatInt32:
+            bitDepth = "32-bit Int"
+        case .pcmFormatFloat32:
+            bitDepth = "32-bit Float"
+        case .pcmFormatFloat64:
+            bitDepth = "64-bit Float"
+        default:
+            bitDepth = "Unknown Format"
+        }
+        
+        return "Sample Rate: \(sampleRate), Channels: \(channelCount), Format: \(bitDepth)"
+    }
     
     func stopRecording() -> RecordingResult? {
         audioEngine.stop()
@@ -297,19 +378,19 @@ class AudioStreamManager: NSObject {
         }
         let data = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
         
-        print("Writing data size: \(data.count) bytes")  // Debug: Check the size of data being written
+        //        print("Writing data size: \(data.count) bytes")  // Debug: Check the size of data being written
         fileHandle.seekToEndOfFile()
         fileHandle.write(data)
         fileHandle.closeFile()
         
         totalDataSize += Int64(data.count)
-        print("Total data size written: \(totalDataSize) bytes")  // Debug: Check total data written
-
+        //        print("Total data size written: \(totalDataSize) bytes")  // Debug: Check total data written
+        
         let currentTime = Date()
         if let lastEmissionTime = lastEmissionTime, currentTime.timeIntervalSince(lastEmissionTime) >= emissionInterval {
             if let startTime = startTime {
                 let recordingTime = currentTime.timeIntervalSince(startTime)
-                print("Emitting data: Recording time \(recordingTime) seconds, Data size \(totalDataSize) bytes")
+                //                print("Emitting data: Recording time \(recordingTime) seconds, Data size \(totalDataSize) bytes")
                 self.delegate?.audioStreamManager(self, didReceiveAudioData: data, recordingTime: recordingTime, totalDataSize: totalDataSize)
                 self.lastEmissionTime = currentTime // Update last emission time
                 self.lastEmittedSize = totalDataSize

@@ -4,6 +4,7 @@ import {
   useAudioRecorder,
 } from "@siteed/expo-audio-stream";
 import { Audio } from "expo-av";
+import * as Sharing from "expo-sharing";
 import { useCallback, useRef, useState } from "react";
 import {
   Button,
@@ -59,19 +60,19 @@ export default function App() {
     setResult(result);
   }, [isRecording]);
 
-  const handleListFiles = async () => {
+  const handleListFiles = useCallback(async () => {
     const _files = await listAudioFiles();
     setFiles(_files);
-  };
+  }, []);
 
-  const handleClearStorage = async () => {
+  const handleClearStorage = useCallback(async () => {
     try {
       await clearAudioFiles();
       await handleListFiles();
     } catch (error) {
       console.error(`Error while clearing storage`, error);
     }
-  };
+  }, []);
 
   const renderRecording = () => (
     <View>
@@ -81,9 +82,41 @@ export default function App() {
     </View>
   );
 
+  const playAudio = useCallback(async (url: string) => {
+    try {
+      const sound = new Audio.Sound();
+      console.log(`Playing audio`, url);
+      await sound.loadAsync({ uri: url });
+      await sound.playAsync();
+    } catch (error) {
+      console.error(`error playing audio`, error);
+    }
+  }, []);
+
+  const shareAudio = async (url: string) => {
+    try {
+      console.log(`Sharing audio`, url);
+      await Sharing.shareAsync(url);
+    } catch (error) {
+      console.error(`error sharing audio`, error);
+    }
+  };
+
   const renderStopped = () => (
     <View>
       <Button title="Start Recording" onPress={() => handleStart()} />
+    </View>
+  );
+
+  const renderRecordings = () => (
+    <View style={styles.recordingContainer}>
+      {files?.map((file, index) => (
+        <View key={index}>
+          <Text>{file}</Text>
+          <Button title="Play" onPress={() => playAudio(file)} />
+          <Button title="Share" onPress={() => shareAudio(file)} />
+        </View>
+      ))}
     </View>
   );
 
@@ -96,24 +129,37 @@ export default function App() {
     );
   }
 
-  const renderRecordings = () => (
-    <View>{files?.map((file, index) => <Text key={index}>{file}</Text>)}</View>
-  );
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={{ gap: 10 }}>
-        <Button title="Request Permission" onPress={requestPermission} />
         <Button title="Find existing Recordings" onPress={handleListFiles} />
         <Button title="Clear Storage" onPress={handleClearStorage} />
       </View>
-      {audioUri && (
+      {/* {audioUri && (
         <View>
           <Text>Audio URI: {audioUri}</Text>
         </View>
-      )}
+      )} */}
       {result && (
         <View>
           <Text>{JSON.stringify(result, null, 2)}</Text>
+          <Button
+            title="Share Recording"
+            onPress={async () => {
+              try {
+                let url = result.fileUri;
+                if (isWeb) {
+                  const blob = new Blob(audioChunks.current, {
+                    type: "audio/webm",
+                  });
+                  url = URL.createObjectURL(blob);
+                }
+                shareAudio(url);
+              } catch (error) {
+                console.error(`error playing audio`, error);
+              }
+            }}
+          />
           <Button
             title="Play Recording"
             onPress={async () => {
@@ -125,10 +171,8 @@ export default function App() {
                   });
                   url = URL.createObjectURL(blob);
                 }
-                const sound = new Audio.Sound();
-                console.log(`playing file uri ${result.fileUri}`, url);
-                await sound.loadAsync({ uri: url });
-                await sound.playAsync();
+                console.log(`Playing audio`, url);
+                playAudio(url);
               } catch (error) {
                 console.error(`error playing audio`, error);
               }
@@ -150,5 +194,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
+  },
+  recordingContainer: {
+    gap: 10,
+    borderWidth: 1,
   },
 });
