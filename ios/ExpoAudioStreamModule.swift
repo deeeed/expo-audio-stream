@@ -134,7 +134,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         
         do {
             let files = try FileManager.default.contentsOfDirectory(at: documentDirectory, includingPropertiesForKeys: nil)
-            let audioFiles = files.filter { $0.pathExtension == "wav" }.map { $0.path }
+            let audioFiles = files.filter { $0.pathExtension == "wav" }.map { $0.absoluteString }
             return audioFiles
         } catch {
             print("Error listing audio files:", error.localizedDescription)
