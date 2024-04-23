@@ -47,7 +47,8 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 let resultDict: [String: Any] = [
                     "fileUri": recordingResult.fileUri,
                     "duration": recordingResult.duration,
-                    "size": recordingResult.size
+                    "size": recordingResult.size,
+                    "mimeType": recordingResult.mimeType,
                 ]
                 promise.resolve(resultDict)
             } else {
@@ -109,18 +110,20 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     }
     
     private func clearAudioFiles() {
-        let filenames = listAudioFiles()
-        let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        
-        filenames.forEach { filename in
-            let fileURL = documentDirectory.appendingPathComponent(filename)
-            do {
-                try FileManager.default.removeItem(at: fileURL)
-                print("Removed file at:", fileURL.path)
-            } catch {
-                print("Error removing file at \(fileURL.path):", error.localizedDescription)
+        let fileURLs = listAudioFiles()  // This now returns full URLs as strings
+        fileURLs.forEach { fileURLString in
+            if let fileURL = URL(string: fileURLString) {
+                do {
+                    try FileManager.default.removeItem(at: fileURL)
+                    print("Removed file at:", fileURL.path)
+                } catch {
+                    print("Error removing file at \(fileURL.path):", error.localizedDescription)
+                }
+            } else {
+                print("Invalid URL string: \(fileURLString)")
             }
         }
+        
     }
     
     func listAudioFiles() -> [String] {
@@ -131,7 +134,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         
         do {
             let files = try FileManager.default.contentsOfDirectory(at: documentDirectory, includingPropertiesForKeys: nil)
-            let audioFiles = files.filter { $0.pathExtension == "wav" }.map { $0.lastPathComponent }
+            let audioFiles = files.filter { $0.pathExtension == "wav" }.map { $0.path }
             return audioFiles
         } catch {
             print("Error listing audio files:", error.localizedDescription)
