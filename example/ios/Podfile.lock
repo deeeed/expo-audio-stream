@@ -1,20 +1,4 @@
 PODS:
-  - AudioKit (5.1.0):
-    - AudioKit/C (= 5.1.0)
-    - AudioKit/Core (= 5.1.0)
-    - AudioKit/Soundpipe (= 5.1.0)
-    - AudioKit/Sporth (= 5.1.0)
-    - AudioKit/STK (= 5.1.0)
-  - AudioKit/C (5.1.0):
-    - AudioKit/Soundpipe
-    - AudioKit/Sporth
-    - AudioKit/STK
-  - AudioKit/Core (5.1.0):
-    - AudioKit/C
-  - AudioKit/Soundpipe (5.1.0)
-  - AudioKit/Sporth (5.1.0):
-    - AudioKit/Soundpipe
-  - AudioKit/STK (5.1.0)
   - boost (1.83.0)
   - DoubleConversion (1.1.6)
   - EXAV (13.10.6):
@@ -27,7 +11,6 @@ PODS:
   - Expo (50.0.17):
     - ExpoModulesCore
   - ExpoAudioStream (0.2.4):
-    - AudioKit
     - ExpoModulesCore
   - ExpoFileSystem (16.0.9):
     - ExpoModulesCore
@@ -1161,7 +1144,6 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
-    - AudioKit
     - fmt
     - libevent
     - SocketRocket
@@ -1284,14 +1266,13 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-  AudioKit: 81246a4ccdd7ca3c6e0076f913070e90987b4369
   boost: d3f49c53809116a5d38da093a8aa78bf551aed09
   DoubleConversion: fea03f2699887d960129cc54bba7e52542b6f953
   EXAV: e4f6137431ddc4cb025895046bfefa9612025c35
   EXConstants: a5f6276e565d98f9eb4280f81241fc342d641590
   EXFont: f20669cb266ef48b004f1eb1f2b20db96cd1df9f
   Expo: 2cdb5916749a1509cf88114f1f510bd458630eb4
-  ExpoAudioStream: d33e2485958224c73dc59df63ca074e9adbf90f7
+  ExpoAudioStream: 6f2769ac1a6585920cfa2e17b81b126892f497c9
   ExpoFileSystem: 74cc0fae916f9f044248433971dcfc8c3befd057
   ExpoKeepAwake: 0f5cad99603a3268e50af9a6eb8b76d0d9ac956c
   ExpoModulesCore: 4a8928a228569301ac4fc4a1e846713e05754d05
