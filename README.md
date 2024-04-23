@@ -122,5 +122,8 @@ or set the DEBUG environment variable to `expo-audio-stream:*`
 
 ### TODO
 this package is still in development, and there are a few things that need to be done:
-- add multiple format for native audio stream (wav, mp3, opus)
+- Add resume (vs currently use start) support and implement pause on iOS.
+- Multi format support: Extend support to other audio formats beyond WAV, such as MP3 or AAC
+- Integrate an audio processing library for optional audio analysis, such as equalization, noise reduction, or volume normalization.
+- Implement a more robust error handling system to provide detailed error messages and recovery options.
 
