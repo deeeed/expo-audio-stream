@@ -68,6 +68,10 @@ export function useAudioRecorder({
         `[useAudioRecorder] Registering audio event listener`,
         onAudioStream,
       );
+      onAudioStream?.({
+        buffer: new Blob(),
+        position: 0,
+      }).catch(console.error);
     }
     const subscribe = addAudioEventListener(
       async ({
