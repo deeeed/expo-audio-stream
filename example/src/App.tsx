@@ -33,10 +33,14 @@ export default function App() {
   const [result, setResult] = useState<AudioStreamResult | null>(null);
   const [files, setFiles] = useState<string[]>([]);
 
-  const onAudioData = ({ buffer, position }: AudioDataEvent) => {
-    console.log(`audio event ${typeof buffer} position=${position}`, buffer);
-    // Append the audio data to the audioRef
-    audioChunks.current.push(buffer);
+  const onAudioData = async ({ buffer, position }: AudioDataEvent) => {
+    try {
+      console.log(`audio event ${typeof buffer} position=${position}`, buffer);
+      // Append the audio data to the audioRef
+      audioChunks.current.push(buffer);
+    } catch (error) {
+      console.error(`Error while processing audio data`, error);
+    }
   };
 
   const { startRecording, stopRecording, duration, size, isRecording } =

@@ -28,7 +28,7 @@ export function useAudioRecorder({
   onAudioStream,
   debug = false,
 }: {
-  onAudioStream?: (_: AudioDataEvent) => void;
+  onAudioStream?: (_: AudioDataEvent) => Promise<void>;
   debug?: boolean;
 }): UseAudioRecorderState {
   const [isRecording, setIsRecording] = useState(false);
@@ -64,7 +64,10 @@ export function useAudioRecorder({
 
   useEffect(() => {
     if (debug) {
-      console.log(`[useAudioRecorder] Registering audio event listener`);
+      console.log(
+        `[useAudioRecorder] Registering audio event listener`,
+        onAudioStream,
+      );
     }
     const subscribe = addAudioEventListener(
       async ({
