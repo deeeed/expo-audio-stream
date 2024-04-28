@@ -23,7 +23,7 @@ export function clearAudioFiles(): Promise<void> {
 }
 
 export function addAudioEventListener(
-  listener: (event: AudioEventPayload) => void,
+  listener: (event: AudioEventPayload) => Promise<void>,
 ): Subscription {
   return emitter.addListener<AudioEventPayload>("AudioData", listener);
 }
