@@ -45,7 +45,11 @@ export function useAudioRecorder({
     if (isRecording || isPaused) {
       const interval = setInterval(() => {
         try {
+          if (debug) console.log(`[useAudioRecorder] Getting status`);
           const status: AudioStreamStatus = ExpoAudioStreamModule.status();
+          if (debug) {
+            console.log(`[useAudioRecorder] Status:`, status);
+          }
           setDuration(status.duration);
           setSize(status.size);
         } catch (error) {
@@ -135,7 +139,12 @@ export function useAudioRecorder({
         }
       },
     );
-    return () => subscribe.remove();
+    return () => {
+      if (debug) {
+        console.log(`[useAudioRecorder] Removing audio event listener`);
+      }
+      subscribe.remove();
+    };
   }, [isRecording, onAudioStream, debug]);
 
   const startRecording = useCallback(
