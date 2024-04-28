@@ -26,7 +26,7 @@ export interface UseAudioRecorderState {
 export function useAudioRecorder({
   onAudioStream,
 }: {
-  onAudioStream?: (buffer: Blob) => void;
+  onAudioStream?: (_: { buffer: Blob; position: number }) => void;
 }): UseAudioRecorderState {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -96,13 +96,13 @@ export function useAudioRecorder({
               // const audioBlob = new Blob([content], { type: 'application/octet-stream' }); // Create a Blob from the byte array
               // console.debug(`Read audio file (len: ${content.length}) vs ${deltaSize}`)
 
-              onAudioStream?.(audioBlob);
+              onAudioStream?.({ buffer: audioBlob, position: from });
             } catch (error) {
               console.error("Error reading audio file:", error);
             }
           } else if (buffer) {
             // Coming from web
-            onAudioStream?.(buffer);
+            onAudioStream?.({ buffer, position: from });
           }
         }
       },
