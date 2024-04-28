@@ -34,8 +34,7 @@
   },
   "dependencies": {
     "base-64": "^1.0.0",
-    "debug": "^4.3.4",
-    "expo-file-system": "^16.0.9"
+    "debug": "^4.3.4"
   },
   "devDependencies": {
     "@expo/config-plugins": "^7.9.1",
@@ -53,12 +52,14 @@
     "expo-module-scripts": "^3.4.2",
     "expo-modules-core": "^1.11.12",
     "prettier": "^3.2.5",
+    "expo-file-system": "^16.0.9",
     "release-it": "^17.2.0"
   },
   "peerDependencies": {
     "expo": "*",
     "react": "*",
-    "react-native": "*"
+    "react-native": "*",
+    "expo-file-system": "*"
   },
   "publishConfig": {
     "access": "public",
