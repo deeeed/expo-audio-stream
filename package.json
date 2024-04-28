@@ -1,6 +1,6 @@
 {
   "name": "@siteed/expo-audio-stream",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "description": "stream audio crossplatform",
   "license": "MIT",
   "main": "build/index.js",
