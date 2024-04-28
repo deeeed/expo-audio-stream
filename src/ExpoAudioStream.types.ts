@@ -2,7 +2,8 @@ export interface AudioEventPayload {
   encoded?: string;
   buffer?: Blob;
   fileUri: string;
-  from: number;
+  lastEmittedSize: number;
+  position: number;
   deltaSize: number;
   totalSize: number;
   mimeType: string;
@@ -14,6 +15,9 @@ export interface AudioStreamResult {
   duration: number;
   size: number;
   mimeType: string;
+  channels?: number;
+  bitDepth?: number;
+  sampleRate?: number;
 }
 
 export interface AudioStreamStatus {

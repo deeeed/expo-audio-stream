@@ -53,6 +53,7 @@ import {
 
 export default function App() {
   const { startRecording, stopRecording, duration, size, isRecording } = useAudioRecorder({
+    debug: true,
     onAudioStream: (audioData: Blob) => {
       console.log(`audio event`,audioData);
     }
@@ -110,15 +111,6 @@ import { addAudioEventListener } from '@siteed/expo-audio-stream';
 - on web, it usually records in opus  but it depends on the browser configuration.
 
 If you want to process the audio livestream directly, I recommend having another encoding step to align the audio format across platforms.
-
-
-### Debug Configuration
-
-This library uses the npm `debug` package, to enable logging you can:
-```
-localStorage.debug = 'expo-audio-stream:*'
-```
-or set the DEBUG environment variable to `expo-audio-stream:*`
 
 ### TODO
 this package is still in development, and there are a few things that need to be done:

@@ -15,10 +15,11 @@ class ExpoAudioStreamWeb extends EventEmitter {
   isPaused: boolean;
   recordingStartTime: number;
   pausedTime: number;
-  currentDuration: number;
+  currentDurationMs: number;
   currentSize: number;
   currentInterval: number;
   lastEmittedSize: number;
+  lastEmittedTime: number;
   streamUuid: string | null;
 
   constructor() {
@@ -38,10 +39,11 @@ class ExpoAudioStreamWeb extends EventEmitter {
     this.isPaused = false;
     this.recordingStartTime = 0;
     this.pausedTime = 0;
-    this.currentDuration = 0;
+    this.currentDurationMs = 0;
     this.currentSize = 0;
     this.currentInterval = 1000; // Default interval in ms
     this.lastEmittedSize = 0;
+    this.lastEmittedTime = 0;
     this.streamUuid = null; // Initialize UUID on first recording start
   }
 
@@ -69,6 +71,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
     this.recordingStartTime = Date.now();
     this.pausedTime = 0;
     this.lastEmittedSize = 0;
+    this.lastEmittedTime = 0;
     this.streamUuid = this.generateUUID(); // Generate a UUID for the new recording session
     const fileUri = `${this.streamUuid}.webm`;
     return fileUri;
@@ -82,7 +85,9 @@ class ExpoAudioStreamWeb extends EventEmitter {
     this.mediaRecorder.ondataavailable = (event) => {
       this.audioChunks.push(event.data);
       this.currentSize += event.data.size; // Update the size of the recording
-      this.emitAudioEvent(event.data); // Emit the event with the correct payload
+
+      this.emitAudioEvent({ data: event.data, position: this.lastEmittedTime });
+      this.lastEmittedTime = event.timeStamp;
       this.lastEmittedSize = this.currentSize;
     };
 
@@ -101,13 +106,14 @@ class ExpoAudioStreamWeb extends EventEmitter {
     };
   }
 
-  emitAudioEvent(data: Blob) {
+  emitAudioEvent({ data, position }: { data: Blob; position: number }) {
     const fileUri = `${this.streamUuid}.webm`;
     const audioEventPayload: AudioEventPayload = {
       fileUri,
       mimeType: "audio/webm",
-      from: this.lastEmittedSize, // Since this might be continuously streaming, adjust accordingly
+      lastEmittedSize: this.lastEmittedSize, // Since this might be continuously streaming, adjust accordingly
       deltaSize: data.size,
+      position,
       totalSize: this.currentSize,
       buffer: data,
       streamUuid: this.streamUuid ?? "", // Generate or manage UUID for stream identification
@@ -130,10 +136,10 @@ class ExpoAudioStreamWeb extends EventEmitter {
   async stopRecording(): Promise<AudioStreamResult | null> {
     this.mediaRecorder?.stop();
     this.isRecording = false;
-    this.currentDuration = (Date.now() - this.recordingStartTime) / 1000;
+    this.currentDurationMs = Date.now() - this.recordingStartTime;
     const result: AudioStreamResult = {
       fileUri: `${this.streamUuid}.webm`,
-      duration: this.currentDuration,
+      duration: this.currentDurationMs,
       size: this.currentSize,
       mimeType: "audio/webm",
     };

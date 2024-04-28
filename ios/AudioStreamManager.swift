@@ -35,6 +35,9 @@ struct RecordingResult {
     var mimeType: String
     var duration: Int64
     var size: Int64
+    var channels: Int
+    var bitDepth: Int
+    var sampleRate: Double
 }
 
 protocol AudioStreamManagerDelegate: AnyObject {
@@ -62,7 +65,7 @@ class AudioStreamManager: NSObject {
     private var isPaused = false
     private var pausedDuration = 0
     private var fileManager = FileManager.default
-    private var recordingSettings: RecordingSettings?
+    internal var recordingSettings: RecordingSettings?
     internal var recordingUUID: UUID?
     internal var mimeType: String = "audio/wav"
     weak var delegate: AudioStreamManagerDelegate?  // Define the delegate here
@@ -147,16 +150,30 @@ class AudioStreamManager: NSObject {
     
     
     func getStatus() -> [String: Any] {
-        let currentTime = Date()
-        let totalRecordedTime = startTime != nil ? Int(currentTime.timeIntervalSince(startTime!)) - pausedDuration : 0
+        //        let currentTime = Date()
+        //        let totalRecordedTime = startTime != nil ? Int(currentTime.timeIntervalSince(startTime!)) - pausedDuration : 0
+        guard let settings = recordingSettings else {
+            print("Recording settings are not available.")
+            return [:]
+        }
+        
+        let sampleRate = Double(settings.sampleRate)
+        let channels = Double(settings.numberOfChannels)
+        let bitDepth = Double(settings.bitDepth)
+        
+        // Calculate the duration in seconds
+        let durationInSeconds = Double(totalDataSize) / (sampleRate * channels * (bitDepth / 8))
+        let durationInMilliseconds = Int(durationInSeconds * 1000)
+        
         return [
-            "duration": totalRecordedTime * 1000,
+            "duration": durationInMilliseconds,
             "isRecording": isRecording,
             "isPaused": isPaused,
             "mimeType": mimeType,
             "size": totalDataSize,
             "interval": emissionInterval
         ]
+        
     }
     
     func startRecording(settings: RecordingSettings, intervalMilliseconds: Int) -> String? {
@@ -265,7 +282,7 @@ class AudioStreamManager: NSObject {
         audioEngine.inputNode.removeTap(onBus: 0)
         isRecording = false
         
-        guard let fileURL = recordingFileURL, let startTime = startTime else {
+        guard let fileURL = recordingFileURL, let startTime = startTime, let settings = recordingSettings else {
             print("Recording or file URL is nil.")
             return nil
         }
@@ -282,7 +299,15 @@ class AudioStreamManager: NSObject {
             // Update the WAV header with the correct file size
             updateWavHeader(fileURL: fileURL, totalDataSize: fileSize - 44) // Subtract the header size to get audio data size
             
-            let result = RecordingResult(fileUri: fileURL.absoluteString, mimeType: mimeType, duration: duration, size: fileSize)
+            let result = RecordingResult(
+                fileUri: fileURL.absoluteString,
+                mimeType: mimeType,
+                duration: duration,
+                size: fileSize,
+                channels: settings.numberOfChannels,
+                bitDepth: settings.bitDepth,
+                sampleRate: settings.sampleRate
+            )
             recordingFileURL = nil // Reset for next recording
             return result
         } catch {

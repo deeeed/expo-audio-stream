@@ -17,6 +17,7 @@ import {
 
 import { formatBytes, formatDuration } from "./utils";
 import { AudioStreamResult } from "../../src/ExpoAudioStream.types";
+import { AudioDataEvent } from "../../src/useAudioRecording";
 
 const isWeb = Platform.OS === "web";
 
@@ -32,14 +33,14 @@ export default function App() {
   const [result, setResult] = useState<AudioStreamResult | null>(null);
   const [files, setFiles] = useState<string[]>([]);
 
-  const onAudioData = (audioData: Blob) => {
-    console.log(`audio event ${typeof audioData}`, audioData);
+  const onAudioData = ({ buffer, position }: AudioDataEvent) => {
+    console.log(`audio event ${typeof buffer} position=${position}`, buffer);
     // Append the audio data to the audioRef
-    audioChunks.current.push(audioData);
+    audioChunks.current.push(buffer);
   };
 
   const { startRecording, stopRecording, duration, size, isRecording } =
-    useAudioRecorder({ onAudioStream: onAudioData });
+    useAudioRecorder({ debug: true, onAudioStream: onAudioData });
 
   const handleStart = async () => {
     const { granted } = await Audio.requestPermissionsAsync();

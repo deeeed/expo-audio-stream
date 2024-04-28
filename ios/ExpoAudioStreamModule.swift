@@ -48,6 +48,9 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     "fileUri": recordingResult.fileUri,
                     "duration": recordingResult.duration,
                     "size": recordingResult.size,
+                    "channels": recordingResult.channels,
+                    "bitDepth": recordingResult.bitDepth,
+                    "sampleRate": recordingResult.sampleRate,
                     "mimeType": recordingResult.mimeType,
                 ]
                 promise.resolve(resultDict)
@@ -67,17 +70,26 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveAudioData data: Data, recordingTime: TimeInterval, totalDataSize: Int64) {
-        guard let fileURL = manager.recordingFileURL else { return }
+        guard let fileURL = manager.recordingFileURL,
+                let settings = manager.recordingSettings else { return }
+        
         let encodedData = data.base64EncodedString()
         
         // Assuming `lastEmittedSize` and `streamUuid` are tracked within `AudioStreamManager`
         let deltaSize = data.count  // This needs to be calculated based on what was last sent if using chunks
         let fileSize = totalDataSize  // Total data size in bytes
         
+        // Calculate the position in milliseconds using the lastEmittedSize
+        let sampleRate = settings.sampleRate
+        let channels = Double(settings.numberOfChannels)
+        let bitDepth = Double(settings.bitDepth)
+        let position = Int((Double(manager.lastEmittedSize) / (sampleRate * channels * (bitDepth / 8))) * 1000)
+
         // Construct the event payload similar to Android
         let eventBody: [String: Any] = [
             "fileUri": fileURL.absoluteString,
-            "from": manager.lastEmittedSize,  // Needs to be maintained within AudioStreamManager
+            "lastEmittedSize": manager.lastEmittedSize,  // Needs to be maintained within AudioStreamManager
+            "position": position, // Add position of the chunk in ms since
             "encoded": encodedData,
             "deltaSize": deltaSize,
             "totalSize": fileSize,
