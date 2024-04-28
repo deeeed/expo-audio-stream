@@ -37,6 +37,11 @@ export function useAudioRecorder({
   const [size, setSize] = useState(0);
 
   useEffect(() => {
+    if (debug) {
+      console.log(
+        `[useAudioRecorder] isRecording: ${isRecording}, isPaused: ${isPaused}`,
+      );
+    }
     if (isRecording || isPaused) {
       const interval = setInterval(() => {
         const status: AudioStreamStatus = ExpoAudioStreamModule.status();
@@ -47,9 +52,12 @@ export function useAudioRecorder({
     }
 
     return () => null;
-  }, [isRecording, isPaused]);
+  }, [isRecording, isPaused, debug]);
 
   useEffect(() => {
+    if (debug) {
+      console.log(`[useAudioRecorder] Registering audio event listener`);
+    }
     const subscribe = addAudioEventListener(
       async ({
         fileUri,
@@ -117,7 +125,7 @@ export function useAudioRecorder({
       },
     );
     return () => subscribe.remove();
-  }, [isRecording, onAudioStream]);
+  }, [isRecording, onAudioStream, debug]);
 
   const startRecording = useCallback(
     async (recordingOptions: RecordingOptions) => {
@@ -139,7 +147,7 @@ export function useAudioRecorder({
         setIsRecording(false);
       }
     },
-    [],
+    [debug],
   );
 
   const stopRecording = useCallback(async () => {
@@ -158,7 +166,7 @@ export function useAudioRecorder({
     } catch (error) {
       console.error("[useAudioRecorder] Error pausing recording:", error);
     }
-  }, []);
+  }, [debug]);
 
   return {
     startRecording,
