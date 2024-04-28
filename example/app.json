@@ -34,7 +34,8 @@
         {
           "apiKey": "custom_secret_api"
         }
-      ]
+      ],
+      "expo-localization"
     ]
   }
 }
