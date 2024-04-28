@@ -44,9 +44,13 @@ export function useAudioRecorder({
     }
     if (isRecording || isPaused) {
       const interval = setInterval(() => {
-        const status: AudioStreamStatus = ExpoAudioStreamModule.status();
-        setDuration(status.duration);
-        setSize(status.size);
+        try {
+          const status: AudioStreamStatus = ExpoAudioStreamModule.status();
+          setDuration(status.duration);
+          setSize(status.size);
+        } catch (error) {
+          console.error(`[useAudioRecorder] Error getting status:`, error);
+        }
       }, 1000);
       return () => clearInterval(interval);
     }
@@ -70,57 +74,64 @@ export function useAudioRecorder({
         mimeType,
         buffer,
       }) => {
-        if (debug) {
-          console.log(`[useAudioRecorder] Received audio event:`, {
-            fileUri,
-            deltaSize,
-            totalSize,
-            mimeType,
-            lastEmittedSize,
-            streamUuid,
-            encodedLength: encoded?.length,
-          });
-        }
-        if (deltaSize > 0) {
-          // Coming from native ( ios / android ) otherwise buffer is set
-          if (Platform.OS !== "web") {
-            // Read the audio file as a base64 string for comparison
-            try {
-              // convert encoded string to binary data
-              const binaryData = atob(encoded);
-              const content = new Uint8Array(binaryData.length);
-              for (let i = 0; i < binaryData.length; i++) {
-                content[i] = binaryData.charCodeAt(i);
-              }
-              const audioBlob = new Blob([content], { type: mimeType });
-
-              // Below code is optional, used to compare encoded data to audio on file system
-              // Fetch the audio data from the fileUri
-              // const options = {
-              //     encoding: FileSystem.EncodingType.Base64,
-              //     position: from,
-              //     length: deltaSize,
-              // };
-              // const base64Content = await FileSystem.readAsStringAsync(fileUri, options);
-              // const binaryData = atob(base64Content);
-              // const content = new Uint8Array(binaryData.length);
-              // for (let i = 0; i < binaryData.length; i++) {
-              // content[i] = binaryData.charCodeAt(i);
-              // }
-              // const audioBlob = new Blob([content], { type: 'application/octet-stream' }); // Create a Blob from the byte array
-              // console.debug(`Read audio file (len: ${content.length}) vs ${deltaSize}`)
-
-              onAudioStream?.({ buffer: audioBlob, position });
-            } catch (error) {
-              console.error(
-                "[useAudioRecorder] Error reading audio file:",
-                error,
-              );
-            }
-          } else if (buffer) {
-            // Coming from web
-            onAudioStream?.({ buffer, position });
+        try {
+          if (debug) {
+            console.log(`[useAudioRecorder] Received audio event:`, {
+              fileUri,
+              deltaSize,
+              totalSize,
+              mimeType,
+              lastEmittedSize,
+              streamUuid,
+              encodedLength: encoded?.length,
+            });
           }
+          if (deltaSize > 0) {
+            // Coming from native ( ios / android ) otherwise buffer is set
+            if (Platform.OS !== "web") {
+              // Read the audio file as a base64 string for comparison
+              try {
+                // convert encoded string to binary data
+                const binaryData = atob(encoded);
+                const content = new Uint8Array(binaryData.length);
+                for (let i = 0; i < binaryData.length; i++) {
+                  content[i] = binaryData.charCodeAt(i);
+                }
+                const audioBlob = new Blob([content], { type: mimeType });
+
+                // Below code is optional, used to compare encoded data to audio on file system
+                // Fetch the audio data from the fileUri
+                // const options = {
+                //     encoding: FileSystem.EncodingType.Base64,
+                //     position: from,
+                //     length: deltaSize,
+                // };
+                // const base64Content = await FileSystem.readAsStringAsync(fileUri, options);
+                // const binaryData = atob(base64Content);
+                // const content = new Uint8Array(binaryData.length);
+                // for (let i = 0; i < binaryData.length; i++) {
+                // content[i] = binaryData.charCodeAt(i);
+                // }
+                // const audioBlob = new Blob([content], { type: 'application/octet-stream' }); // Create a Blob from the byte array
+                // console.debug(`Read audio file (len: ${content.length}) vs ${deltaSize}`)
+
+                onAudioStream?.({ buffer: audioBlob, position });
+              } catch (error) {
+                console.error(
+                  "[useAudioRecorder] Error reading audio file:",
+                  error,
+                );
+              }
+            } else if (buffer) {
+              // Coming from web
+              onAudioStream?.({ buffer, position });
+            }
+          }
+        } catch (error) {
+          console.error(
+            "[useAudioRecorder] Error processing audio event:",
+            error,
+          );
         }
       },
     );
