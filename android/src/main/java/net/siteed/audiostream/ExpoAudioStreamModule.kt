@@ -51,6 +51,8 @@ class ExpoAudioStreamModule() : Module() {
   private var lastEmittedSize = 0L
   private var mimeType = "audio/wav"
   private val mainHandler = Handler(Looper.getMainLooper())
+  private var bitDepth = 16
+  private var channels = 1
 
   @SuppressLint("MissingPermission")
   override fun definition() = ModuleDefinition {
@@ -71,11 +73,15 @@ class ExpoAudioStreamModule() : Module() {
     }
 
     Function("status") {
-      val currentTime = System.currentTimeMillis()
-      totalRecordedTime = (currentTime - recordingStartTime - pausedDuration)  // Adjust the total recording time
+      // Ensure you update this to check if audioFile is null or not
+      val fileSize = audioFile?.length() ?: 0
+      val dataFileSize = fileSize - 44 // Assuming header is always 44 bytes
+
+      val byteRate = sampleRateInHz * channels * (bitDepth / 8)
+      val duration = if (byteRate > 0) (dataFileSize * 1000 / byteRate) else 0 // Duration in milliseconds
 
       bundleOf(
-        "duration" to totalRecordedTime,
+        "duration" to duration,
         "isRecording" to isRecording.get(),
         "isPaused" to isPaused.get(),
         "mime" to mimeType,
@@ -105,12 +111,9 @@ class ExpoAudioStreamModule() : Module() {
   }
 
   // Method to write WAV file header
-  private fun writeWavHeader(out: FileOutputStream, channelConfig: Int, sampleRate: Int, audioFormat: Int) {
-    val channels = if (channelConfig == AudioFormat.CHANNEL_IN_MONO) 1 else 2
-    val bitDepth = if (audioFormat == AudioFormat.ENCODING_PCM_16BIT) 16 else 8
-
+  private fun writeWavHeader(out: FileOutputStream) {
     val header = ByteArray(44)
-    val byteRate = sampleRate * channels * bitDepth / 8
+    val byteRate = sampleRateInHz * channels * bitDepth / 8
     val blockAlign = channels * bitDepth / 8
 
     // RIFF/WAVE header
@@ -121,12 +124,12 @@ class ExpoAudioStreamModule() : Module() {
 
     // 16 for PCM
     header[16] = 16
-    header[20] = 1 // Audio format 1 for PCM
+    header[20] = 1 // Audio format 1 for PCM (not compressed)
     header[22] = channels.toByte()
-    header[24] = (sampleRate and 0xff).toByte()
-    header[25] = (sampleRate shr 8 and 0xff).toByte()
-    header[26] = (sampleRate shr 16 and 0xff).toByte()
-    header[27] = (sampleRate shr 24 and 0xff).toByte()
+    header[24] = (sampleRateInHz and 0xff).toByte()
+    header[25] = (sampleRateInHz shr 8 and 0xff).toByte()
+    header[26] = (sampleRateInHz shr 16 and 0xff).toByte()
+    header[27] = (sampleRateInHz shr 24 and 0xff).toByte()
     header[28] = (byteRate and 0xff).toByte()
     header[29] = (byteRate shr 8 and 0xff).toByte()
     header[30] = (byteRate shr 16 and 0xff).toByte()
@@ -143,6 +146,8 @@ class ExpoAudioStreamModule() : Module() {
     channelConfig = (params["channelConfig"] as? Int) ?: DEFAULT_CHANNEL_CONFIG
     audioFormat = (params["audioFormat"] as? Int) ?: DEFAULT_AUDIO_FORMAT
     bufferSizeInBytes = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat)
+    channels = if (channelConfig == AudioFormat.CHANNEL_IN_MONO) 1 else 2
+    bitDepth = if (audioFormat == AudioFormat.ENCODING_PCM_16BIT) 16 else 8
   }
 
   private fun listAudioFiles(): List<String> {
@@ -201,7 +206,7 @@ class ExpoAudioStreamModule() : Module() {
 
     try {
       FileOutputStream(audioFile, true).use { fos ->
-        writeWavHeader(fos, channelConfig, sampleRateInHz, audioFormat)
+        writeWavHeader(fos)
       }
     } catch (e: IOException) {
       promise.reject("FILE_CREATION_FAILED", "Failed to create audio file with WAV header", null)
@@ -230,24 +235,29 @@ class ExpoAudioStreamModule() : Module() {
     try {
       audioRecord?.stop()
       audioRecord?.release()
-      val endTime = System.currentTimeMillis()
-      totalRecordedTime += (endTime - recordingStartTime - pausedDuration)  // Adjust the total recording time
-      isRecording.set(false)
-      isPaused.set(false)
 
-      // Calculate the file size
       val fileSize = audioFile?.length() ?: 0
+      val dataFileSize = fileSize - 44  // Subtract header size
+      val byteRate = sampleRateInHz * channels * (bitDepth / 8)
+
+      // Calculate duration based on the data size and byte rate
+      val duration = if (byteRate > 0) (dataFileSize * 1000 / byteRate) else 0
 
       // Create result bundle
       val result = bundleOf(
         "fileUri" to audioFile?.toURI().toString(),
-        "duration" to totalRecordedTime,
+        "duration" to duration,
+        "channels" to channels,
+        "bitDepth" to bitDepth,
+        "sampleRate" to sampleRateInHz,
         "size" to fileSize,
         "mimeType" to mimeType
       )
       promise.resolve(result)
 
       // Reset the timing variables
+      isRecording.set(false)
+      isPaused.set(false)
       totalRecordedTime = 0
       pausedDuration = 0
     } catch (e: Exception) {
@@ -320,13 +330,17 @@ class ExpoAudioStreamModule() : Module() {
     val deltaSize = fileSize - lastEmittedSize
     lastEmittedSize = fileSize // Update last emitted size
 
+    // Calculate position in milliseconds
+    val positionInMs = (from * 1000) / (sampleRateInHz * channels * (bitDepth / 8))
+
     mainHandler.post {
       try {
         this@ExpoAudioStreamModule.sendEvent(AUDIO_EVENT_NAME, bundleOf(
           "fileUri" to audioFile?.toURI().toString(),
-          "from" to from,
+          "lastEmittedSize" to from,
           "encoded" to encodedBuffer,
           "deltaSize" to deltaSize,
+          "position" to positionInMs,
           "mimeType" to mimeType,
           "totalSize" to fileSize,
           "streamUuid" to streamUuid

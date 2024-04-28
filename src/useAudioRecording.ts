@@ -1,5 +1,4 @@
 import { decode as atob } from "base-64";
-import debug from "debug";
 import { Platform } from "expo-modules-core";
 import { useCallback, useEffect, useState } from "react";
 
@@ -11,8 +10,10 @@ import {
 } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 
-const log = debug("expo-audio-stream:useAudioRecording");
-
+export interface AudioDataEvent {
+  buffer: Blob;
+  position: number;
+}
 export interface UseAudioRecorderState {
   startRecording: (_: RecordingOptions) => Promise<string | null>;
   stopRecording: () => Promise<AudioStreamResult | null>;
@@ -25,8 +26,10 @@ export interface UseAudioRecorderState {
 
 export function useAudioRecorder({
   onAudioStream,
+  debug = false,
 }: {
-  onAudioStream?: (_: { buffer: Blob; position: number }) => void;
+  onAudioStream?: (_: AudioDataEvent) => void;
+  debug?: boolean;
 }): UseAudioRecorderState {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -52,21 +55,24 @@ export function useAudioRecorder({
         fileUri,
         deltaSize,
         totalSize,
-        from,
+        lastEmittedSize,
+        position,
         streamUuid,
         encoded,
         mimeType,
         buffer,
       }) => {
-        log(`Received audio event:`, {
-          fileUri,
-          deltaSize,
-          totalSize,
-          mimeType,
-          from,
-          streamUuid,
-          encodedLength: encoded?.length,
-        });
+        if (debug) {
+          console.log(`[useAudioRecorder] Received audio event:`, {
+            fileUri,
+            deltaSize,
+            totalSize,
+            mimeType,
+            lastEmittedSize,
+            streamUuid,
+            encodedLength: encoded?.length,
+          });
+        }
         if (deltaSize > 0) {
           // Coming from native ( ios / android ) otherwise buffer is set
           if (Platform.OS !== "web") {
@@ -96,13 +102,16 @@ export function useAudioRecorder({
               // const audioBlob = new Blob([content], { type: 'application/octet-stream' }); // Create a Blob from the byte array
               // console.debug(`Read audio file (len: ${content.length}) vs ${deltaSize}`)
 
-              onAudioStream?.({ buffer: audioBlob, position: from });
+              onAudioStream?.({ buffer: audioBlob, position });
             } catch (error) {
-              console.error("Error reading audio file:", error);
+              console.error(
+                "[useAudioRecorder] Error reading audio file:",
+                error,
+              );
             }
           } else if (buffer) {
             // Coming from web
-            onAudioStream?.({ buffer, position: from });
+            onAudioStream?.({ buffer, position });
           }
         }
       },
@@ -117,13 +126,16 @@ export function useAudioRecorder({
       setSize(0);
       setDuration(0);
       try {
-        log(`start recoding`, recordingOptions);
+        if (debug) {
+          console.log(`[useAudioRecorder] start recoding`, recordingOptions);
+        }
+
         const fileUrl =
           await ExpoAudioStreamModule.startRecording(recordingOptions);
 
         return fileUrl;
       } catch (error) {
-        console.error("Error starting recording:", error);
+        console.error("[useAudioRecorder] Error starting recording:", error);
         setIsRecording(false);
       }
     },
@@ -144,7 +156,7 @@ export function useAudioRecorder({
       setIsPaused(true);
       setIsRecording(false);
     } catch (error) {
-      console.error("Error pausing recording:", error);
+      console.error("[useAudioRecorder] Error pausing recording:", error);
     }
   }, []);
 
