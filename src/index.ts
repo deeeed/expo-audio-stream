@@ -8,7 +8,7 @@ import {
 // and on native platforms to ExpoAudioStream.ts
 import { AudioEventPayload } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
-import { useAudioRecorder } from "./useAudioRecording";
+import { useAudioRecorder, UseAudioRecorderState } from "./useAudioRecording";
 
 const emitter = new EventEmitter(
   ExpoAudioStreamModule ?? NativeModulesProxy.ExpoAudioStream,
@@ -28,4 +28,5 @@ export function addAudioEventListener(
   return emitter.addListener<AudioEventPayload>("AudioData", listener);
 }
 
-export { AudioEventPayload, useAudioRecorder };
+export type { AudioEventPayload, UseAudioRecorderState };
+export { useAudioRecorder };

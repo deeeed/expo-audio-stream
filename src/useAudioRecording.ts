@@ -13,7 +13,7 @@ import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 
 const log = debug("expo-audio-stream:useAudioRecording");
 
-interface UseAudioRecorderState {
+export interface UseAudioRecorderState {
   startRecording: (_: RecordingOptions) => Promise<string | null>;
   stopRecording: () => Promise<AudioStreamResult | null>;
   pauseRecording: () => void;
