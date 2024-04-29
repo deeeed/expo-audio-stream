@@ -3,6 +3,7 @@ import {
   listAudioFiles,
   useAudioRecorder,
 } from "@siteed/expo-audio-stream";
+import { Buffer } from "buffer";
 import { Audio } from "expo-av";
 import * as Sharing from "expo-sharing";
 import { useCallback, useRef, useState } from "react";
@@ -28,20 +29,31 @@ if (isWeb) {
 export default function App() {
   const [, requestPermission] = Audio.usePermissions();
   const [error, setError] = useState<string | null>(null);
-  const audioChunks = useRef<Blob[]>([]);
+  const audioChunks = useRef<Buffer[]>([]);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [result, setResult] = useState<AudioStreamResult | null>(null);
   const [files, setFiles] = useState<string[]>([]);
 
-  const onAudioData = async ({ buffer, position }: AudioDataEvent) => {
-    try {
-      console.log(`audio event ${typeof buffer} position=${position}`, buffer);
-      // Append the audio data to the audioRef
-      audioChunks.current.push(buffer);
-    } catch (error) {
-      console.error(`Error while processing audio data`, error);
-    }
-  };
+  const onAudioData = useCallback(
+    async ({ arrayBuffer, position }: AudioDataEvent) => {
+      try {
+        console.log(
+          `audio event ${typeof arrayBuffer} position=${position}`,
+          arrayBuffer,
+        );
+        if (arrayBuffer.byteLength === 0) {
+          console.log(`Empty buffer received`);
+        }
+        console.log(`Buffer is ${typeof Buffer}`, Buffer);
+        const buffer = Buffer.from(arrayBuffer);
+        // Append the audio data to the audioRef
+        audioChunks.current.push(buffer);
+      } catch (error) {
+        console.error(`Error while processing audio data`, error);
+      }
+    },
+    [],
+  );
 
   const { startRecording, stopRecording, duration, size, isRecording } =
     useAudioRecorder({ debug: true, onAudioStream: onAudioData });

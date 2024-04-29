@@ -269,6 +269,9 @@ class ExpoAudioStreamModule() : Module() {
 
   private fun recordingProcess() {
     FileOutputStream(audioFile, true).use { fos ->
+      // Buffer to accumulate data
+      val accumulatedAudioData = ByteArrayOutputStream()
+
       // Write audio data directly to the file
       val audioData = ByteArray(bufferSizeInBytes)
       while (isRecording.get()) {
@@ -281,11 +284,13 @@ class ExpoAudioStreamModule() : Module() {
           if (bytesRead > 0) {
             fos.write(audioData, 0, bytesRead)
             totalDataSize += bytesRead
+            accumulatedAudioData.write(audioData, 0, bytesRead)
 
             // Emit audio data at defined intervals
             if (SystemClock.elapsedRealtime() - lastEmitTime >= interval) {
-              emitAudioData(audioData, bytesRead)
+              emitAudioData(accumulatedAudioData.toByteArray(), accumulatedAudioData.size())
               lastEmitTime = SystemClock.elapsedRealtime() // Reset the timer
+              accumulatedAudioData.reset() // Clear the accumulator
             }
           }
         }
@@ -339,7 +344,7 @@ class ExpoAudioStreamModule() : Module() {
           "fileUri" to audioFile?.toURI().toString(),
           "lastEmittedSize" to from,
           "encoded" to encodedBuffer,
-          "deltaSize" to deltaSize,
+          "deltaSize" to length,
           "position" to positionInMs,
           "mimeType" to mimeType,
           "totalSize" to fileSize,
@@ -353,7 +358,7 @@ class ExpoAudioStreamModule() : Module() {
   }
 
   private fun encodeAudioData(rawData: ByteArray): String {
-    return Base64.encodeToString(rawData, Base64.DEFAULT)
+    return Base64.encodeToString(rawData, Base64.NO_WRAP)
   }
 
   private fun saveAudioToFile(rawData: ByteArray): Boolean {
