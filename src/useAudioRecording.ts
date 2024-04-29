@@ -10,7 +10,7 @@ import {
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 
 export interface AudioDataEvent {
-  data: string | Blob;
+  data: string | ArrayBuffer;
   position: number;
   size: number;
 }
@@ -143,8 +143,9 @@ export function useAudioRecorder({
                 );
               }
             } else if (buffer) {
+              const data = await buffer.arrayBuffer();
               // Coming from web
-              onAudioStream?.({ data: buffer, position, size: deltaSize });
+              onAudioStream?.({ data, position, size: deltaSize });
             }
           }
         } catch (error) {
