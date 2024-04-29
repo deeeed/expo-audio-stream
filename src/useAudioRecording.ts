@@ -6,16 +6,18 @@ import {
   AudioStreamResult,
   AudioStreamStatus,
   RecordingOptions,
+  StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 
 export interface AudioDataEvent {
-  data: string | ArrayBuffer;
+  data: string | Blob;
   position: number;
-  size: number;
+  eventDataSize: number;
+  totalSize: number;
 }
 export interface UseAudioRecorderState {
-  startRecording: (_: RecordingOptions) => Promise<string | null>;
+  startRecording: (_: RecordingOptions) => Promise<StartAudioStreamResult>;
   stopRecording: () => Promise<AudioStreamResult | null>;
   pauseRecording: () => void;
   isRecording: boolean;
@@ -36,32 +38,33 @@ export function useAudioRecorder({
   const [duration, setDuration] = useState(0);
   const [size, setSize] = useState(0);
 
-  useEffect(() => {
-    if (debug) {
-      console.log(
-        `[useAudioRecorder] isRecording: ${isRecording}, isPaused: ${isPaused}`,
-      );
-    }
-    if (isRecording || isPaused) {
-      const interval = setInterval(() => {
-        try {
-          if (debug) console.log(`[useAudioRecorder] Getting status`);
-          const status: AudioStreamStatus = ExpoAudioStreamModule.status();
-          if (debug) {
-            console.log(`[useAudioRecorder] Status:`, status);
-          }
-          // Extract matching file from filesystem
-          setDuration(status.duration);
-          setSize(status.size);
-        } catch (error) {
-          console.error(`[useAudioRecorder] Error getting status:`, error);
-        }
-      }, 1000);
-      return () => clearInterval(interval);
-    }
+  const checkStatus = useCallback(async () => {
+    try {
+      if (!isRecording) {
+        return;
+      }
 
-    return () => null;
-  }, [isRecording, isPaused, debug]);
+      const status: AudioStreamStatus = ExpoAudioStreamModule.status();
+      if (debug) {
+        console.log(`[useAudioRecorder] Status:`, status);
+      }
+
+      if (!status.isRecording) {
+        // Don't update if recording stopped.
+        return;
+      }
+      // Extract matching file from filesystem
+      setDuration(status.duration);
+      setSize(status.size);
+    } catch (error) {
+      console.error(`[useAudioRecorder] Error getting status:`, error);
+    }
+  }, [isRecording]);
+
+  useEffect(() => {
+    const interval = setInterval(checkStatus, 1000);
+    return () => clearInterval(interval);
+  }, [checkStatus]);
 
   useEffect(() => {
     if (debug) {
@@ -119,7 +122,12 @@ export function useAudioRecorder({
                 //   );
                 // }
 
-                onAudioStream?.({ data: encoded, position, size: deltaSize });
+                onAudioStream?.({
+                  data: encoded,
+                  position,
+                  eventDataSize: deltaSize,
+                  totalSize,
+                });
 
                 // Below code is optional, used to compare encoded data to audio on file system
                 // Fetch the audio data from the fileUri
@@ -143,9 +151,13 @@ export function useAudioRecorder({
                 );
               }
             } else if (buffer) {
-              const data = await buffer.arrayBuffer();
               // Coming from web
-              onAudioStream?.({ data, position, size: deltaSize });
+              onAudioStream?.({
+                data: buffer,
+                position,
+                eventDataSize: deltaSize,
+                totalSize,
+              });
             }
           }
         } catch (error) {
@@ -194,10 +206,12 @@ export function useAudioRecorder({
   );
 
   const stopRecording = useCallback(async () => {
-    setIsRecording(false);
-    setIsPaused(false);
+    console.log(`STOOOOOP NOW`);
     const result: AudioStreamResult =
       await ExpoAudioStreamModule.stopRecording();
+    console.log(`STOOOOOP NOW 2`);
+    setIsRecording(false);
+    setIsPaused(false);
     return result;
   }, []);
 

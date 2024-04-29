@@ -4,7 +4,9 @@ import {
   useAudioRecorder,
 } from "@siteed/expo-audio-stream";
 import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import isBase64 from "is-base64";
 import { useCallback, useRef, useState } from "react";
 import {
   Button,
@@ -14,9 +16,13 @@ import {
   Text,
   View,
 } from "react-native";
+import { atob, btoa } from "react-native-quick-base64";
 
 import { formatBytes, formatDuration } from "./utils";
-import { AudioStreamResult } from "../../src/ExpoAudioStream.types";
+import {
+  AudioStreamResult,
+  StartAudioStreamResult,
+} from "../../src/ExpoAudioStream.types";
 import { AudioDataEvent } from "../../src/useAudioRecording";
 
 const isWeb = Platform.OS === "web";
@@ -30,19 +36,25 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const audioChunks = useRef<string[]>([]);
   const audioChunksBlobs = useRef<Blob[]>([]);
-  const [audioUri, setAudioUri] = useState<string | null>(null);
+  const [streamConfig, setStreamConfig] =
+    useState<StartAudioStreamResult | null>(null);
   const [result, setResult] = useState<AudioStreamResult | null>(null);
   const [files, setFiles] = useState<string[]>([]);
+  const currentSize = useRef(0);
 
   const onAudioData = useCallback(
-    async ({ data, position, size }: AudioDataEvent) => {
+    async ({ data, position, eventDataSize, totalSize }: AudioDataEvent) => {
       try {
-        console.log(`audio event ${typeof data} position=${position}`, data);
-        if (size === 0) {
+        if (eventDataSize === 0) {
           console.log(`Invalid data`);
           return;
         }
 
+        currentSize.current += eventDataSize;
+
+        console.log(
+          `CHECK DATA ${currentSize.current} vs ${totalSize} difference: ${totalSize - currentSize.current}`,
+        );
         if (typeof data === "string") {
           // Append the audio data to the audioRef
           audioChunks.current.push(data);
@@ -67,9 +79,12 @@ export default function App() {
     }
     // Clear previous audio chunks
     audioChunks.current = [];
-    const url = await startRecording({ interval: 500 });
-    console.debug(`Recording started at ${url}`);
-    if (url) setAudioUri(url);
+    currentSize.current = 0;
+    const streamConfig: StartAudioStreamResult = await startRecording({
+      interval: 500,
+    });
+    console.debug(`Recording started `, streamConfig);
+    setStreamConfig(streamConfig);
   };
 
   const handleStopRecording = useCallback(async () => {
@@ -78,6 +93,56 @@ export default function App() {
     // TODO: compare accumulated audio chunks with the result
     console.debug(`Recording stopped. `, result);
     setResult(result);
+
+    if (!result) {
+      console.warn(`No result found`);
+      return;
+    }
+
+    // Compare the first 100 bytes of the audio data vs the file
+    if (audioChunks.current.length > 0) {
+      try {
+        // Remove padding, concatenate, then re-add padding if necessary
+        const concatenatedBase64Chunks = audioChunks.current
+          .map((chunk) => chunk.replace(/=*$/, ""))
+          .join("");
+        const padding = (4 - (concatenatedBase64Chunks.length % 4)) % 4;
+        const paddedBase64Chunks =
+          concatenatedBase64Chunks + "=".repeat(padding);
+        console.log(
+          `Padded base64 chunks padding=${padding}:`,
+          paddedBase64Chunks,
+        );
+
+        if (!isBase64(paddedBase64Chunks)) {
+          console.error(`Invalid base64 data`);
+          return;
+        }
+        const binaryChunkData = atob(paddedBase64Chunks);
+
+        // Read the equivalent length of data from the file, skipping the header
+        const fileDataInBase64 = await FileSystem.readAsStringAsync(
+          result.fileUri,
+          {
+            encoding: FileSystem.EncodingType.Base64,
+            position: 0,
+            length: 5000,
+          },
+        );
+        const binaryFileData = atob(fileDataInBase64);
+
+        const binaryChunkDataBase64 = btoa(binaryChunkData.slice(3000, 5000));
+        const binaryFileDataBase64 = btoa(binaryFileData.slice(3000, 5000));
+        // Perform binary comparison
+        console.log(`Binary data from chunks:`, binaryChunkDataBase64);
+        console.log(`Binary data from file:`, binaryFileDataBase64);
+
+        const isEqual = binaryChunkDataBase64 === binaryFileDataBase64;
+        console.log(`Comparison result:`, isEqual);
+      } catch (error) {
+        console.error(`Error while comparing audio data`, error);
+      }
+    }
   }, [isRecording]);
 
   const handleListFiles = useCallback(async () => {
@@ -163,6 +228,7 @@ export default function App() {
       {result && (
         <View>
           <Text>{JSON.stringify(result, null, 2)}</Text>
+          <Text>size: {currentSize.current}</Text>
           <Button
             title="Share Recording"
             onPress={async () => {
@@ -209,11 +275,10 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     gap: 10,
     backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
+    // alignItems: "center",
+    // justifyContent: "center",
   },
   recordingContainer: {
     gap: 10,

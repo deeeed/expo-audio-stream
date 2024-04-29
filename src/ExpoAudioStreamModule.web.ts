@@ -5,6 +5,7 @@ import {
   AudioEventPayload,
   AudioStreamResult,
   RecordingOptions,
+  StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
 
 const log = debug("expo-audio-stream:useAudioRecording");
@@ -74,7 +75,11 @@ class ExpoAudioStreamWeb extends EventEmitter {
     this.lastEmittedTime = 0;
     this.streamUuid = this.generateUUID(); // Generate a UUID for the new recording session
     const fileUri = `${this.streamUuid}.webm`;
-    return fileUri;
+    const streamConfig: StartAudioStreamResult = {
+      fileUri,
+      mimeType: "audio/webm",
+    };
+    return streamConfig;
   }
 
   // Setup listeners for the MediaRecorder

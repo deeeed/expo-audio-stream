@@ -40,6 +40,14 @@ struct RecordingResult {
     var sampleRate: Double
 }
 
+struct StartRecordingResult {
+    var fileUri: String
+    var mimeType: String
+    var channels: Int
+    var bitDepth: Int
+    var sampleRate: Double
+}
+
 protocol AudioStreamManagerDelegate: AnyObject {
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveAudioData data: Data, recordingTime: TimeInterval, totalDataSize: Int64)
 }
@@ -68,6 +76,9 @@ class AudioStreamManager: NSObject {
     internal var recordingSettings: RecordingSettings?
     internal var recordingUUID: UUID?
     internal var mimeType: String = "audio/wav"
+    private var lastBuffer: AVAudioPCMBuffer?
+    private var lastBufferTime: AVAudioTime?
+
     weak var delegate: AudioStreamManagerDelegate?  // Define the delegate here
     
     override init() {
@@ -123,8 +134,8 @@ class AudioStreamManager: NSObject {
         let channels = UInt32(recordingSettings!.numberOfChannels)
         let bitDepth = UInt32(recordingSettings!.bitDepth)
         
-        let byteRate = sampleRate * channels * (bitDepth / 8)
         let blockAlign = channels * (bitDepth / 8)
+        let byteRate = sampleRate * blockAlign
         
         // "RIFF" chunk descriptor
         header.append(contentsOf: "RIFF".utf8)
@@ -138,7 +149,7 @@ class AudioStreamManager: NSObject {
         header.append(contentsOf: UInt16(channels).littleEndianBytes)
         header.append(contentsOf: sampleRate.littleEndianBytes)
         header.append(contentsOf: byteRate.littleEndianBytes)    // byteRate
-        header.append(contentsOf: UInt16(channels * (bitDepth / 8)).littleEndianBytes)  // blockAlign
+        header.append(contentsOf: UInt16(blockAlign).littleEndianBytes)  // blockAlign
         header.append(contentsOf: UInt16(bitDepth).littleEndianBytes)  // bits per sample
         
         // "data" sub-chunk
@@ -176,7 +187,7 @@ class AudioStreamManager: NSObject {
         
     }
     
-    func startRecording(settings: RecordingSettings, intervalMilliseconds: Int) -> String? {
+    func startRecording(settings: RecordingSettings, intervalMilliseconds: Int)  -> StartRecordingResult? {
         guard !isRecording else {
             Logger.debug("Debug: Recording is already in progress.")
             return nil
@@ -234,7 +245,12 @@ class AudioStreamManager: NSObject {
             let formatDescription = describeAudioFormat(buffer.format)
             Logger.debug("Debug: Buffer format - \(formatDescription)")
             
-            self.processAudioBuffer(buffer, fileURL: fileURL)
+            // Processing the current buffer
+            self.processAudioBuffer(buffer, fileURL: self.recordingFileURL!)
+            
+            // Store the buffer and time as the last buffer and time
+            self.lastBuffer = buffer
+            self.lastBufferTime = time
         }
         
         recordingFileURL = createRecordingFile()
@@ -248,7 +264,13 @@ class AudioStreamManager: NSObject {
             try audioEngine.start()
             isRecording = true
             Logger.debug("Debug: Recording started successfully.")
-            return recordingFileURL?.path
+            return StartRecordingResult(
+                fileUri: recordingFileURL!.path,
+                mimeType: mimeType,
+                channels: settings.numberOfChannels,
+                bitDepth: settings.bitDepth,
+                sampleRate: settings.sampleRate
+            )
         } catch {
             Logger.debug("Error: Could not start the audio engine: \(error.localizedDescription)")
             isRecording = false
@@ -287,6 +309,11 @@ class AudioStreamManager: NSObject {
             return nil
         }
         
+        // Ensure all remaining audio data is sent
+        if let lastBuffer = lastBuffer, let lastBufferTime = lastBufferTime {
+            self.processAudioBuffer(lastBuffer, fileURL: fileURL)
+        }
+        
         let endTime = Date()
         let duration = Int64(endTime.timeIntervalSince(startTime) * 1000) - Int64(pausedDuration * 1000)
         
@@ -309,6 +336,9 @@ class AudioStreamManager: NSObject {
                 sampleRate: settings.sampleRate
             )
             recordingFileURL = nil // Reset for next recording
+            lastBuffer = nil // Reset last buffer
+            lastBufferTime = nil // Reset last buffer time
+            
             return result
         } catch {
             print("Failed to fetch file attributes: \(error)")
