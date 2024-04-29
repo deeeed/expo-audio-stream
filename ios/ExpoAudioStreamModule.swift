@@ -31,9 +31,9 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 let interval = options["interval"] as? Int ?? 1000
                 
                 let settings = RecordingSettings(sampleRate: sampleRate, numberOfChannels: numberOfChannels, bitDepth: bitDepth)
-                let url = self.streamManager.startRecording(settings: settings, intervalMilliseconds: interval)
+                let result = self.streamManager.startRecording(settings: settings, intervalMilliseconds: interval)
                 
-                promise.resolve(url)
+                promise.resolve(result)
             }
         }
         

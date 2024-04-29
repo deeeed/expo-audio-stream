@@ -20,6 +20,14 @@ export interface AudioStreamResult {
   sampleRate?: number;
 }
 
+export interface StartAudioStreamResult {
+  fileUri: string;
+  mimeType: string;
+  channels?: number;
+  bitDepth?: number;
+  sampleRate?: number;
+}
+
 export interface AudioStreamStatus {
   isRecording: boolean;
   isPaused: boolean;
