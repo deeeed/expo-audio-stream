@@ -1,6 +1,5 @@
 import { Platform } from "expo-modules-core";
 import { useCallback, useEffect, useState } from "react";
-import { atob } from "react-native-quick-base64";
 
 import { addAudioEventListener } from ".";
 import {
@@ -11,8 +10,9 @@ import {
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 
 export interface AudioDataEvent {
-  arrayBuffer: ArrayBuffer;
+  data: string | Blob;
   position: number;
+  size: number;
 }
 export interface UseAudioRecorderState {
   startRecording: (_: RecordingOptions) => Promise<string | null>;
@@ -69,11 +69,6 @@ export function useAudioRecorder({
         `[useAudioRecorder] Registering audio event listener`,
         onAudioStream,
       );
-      onAudioStream?.({
-        arrayBuffer: new ArrayBuffer(0),
-        position: 0,
-      }).catch(console.error);
-      console.log(`[useAudioRecorder] Registered audio event listener`);
     }
     const subscribe = addAudioEventListener(
       async ({
@@ -93,6 +88,7 @@ export function useAudioRecorder({
               fileUri,
               deltaSize,
               totalSize,
+              position,
               mimeType,
               lastEmittedSize,
               streamUuid,
@@ -110,21 +106,20 @@ export function useAudioRecorder({
                   );
                   throw new Error("Encoded audio data is missing");
                 }
-                console.log(`encoded.length: ${encoded.length}`);
-                const binaryData = atob(encoded);
-                const bytes = new Uint8Array(binaryData.length);
-                for (let i = 0; i < binaryData.length; i++) {
-                  bytes[i] = binaryData.charCodeAt(i) & 0xff; // Mask to 8 bits
-                }
-                const arrayBuffer = bytes.buffer;
+                // const binaryData = atob(encoded);
+                // const bytes = new Uint8Array(binaryData.length);
+                // for (let i = 0; i < binaryData.length; i++) {
+                //   bytes[i] = binaryData.charCodeAt(i) & 0xff; // Mask to 8 bits
+                // }
+                // const arrayBuffer = bytes.buffer;
 
-                if (debug) {
-                  console.log(
-                    `[useAudioRecorder] Read audio file deltaSize: ${deltaSize} vs encoded.length: ${encoded.length}`,
-                  );
-                }
+                // if (debug) {
+                //   console.log(
+                //     `[useAudioRecorder] Read audio file position=${position} deltaSize: ${deltaSize} vs encoded.length: ${encoded.length}`,
+                //   );
+                // }
 
-                onAudioStream?.({ arrayBuffer, position });
+                onAudioStream?.({ data: encoded, position, size: deltaSize });
 
                 // Below code is optional, used to compare encoded data to audio on file system
                 // Fetch the audio data from the fileUri
@@ -149,8 +144,7 @@ export function useAudioRecorder({
               }
             } else if (buffer) {
               // Coming from web
-              const arrayBuffer = await buffer.arrayBuffer();
-              onAudioStream?.({ arrayBuffer, position });
+              onAudioStream?.({ data: buffer, position, size: deltaSize });
             }
           }
         } catch (error) {

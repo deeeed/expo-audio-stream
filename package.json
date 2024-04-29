@@ -39,6 +39,7 @@
     "@expo/config-plugins": "^7.9.1",
     "@release-it/conventional-changelog": "^8.0.1",
     "@types/debug": "^4.1.12",
+    "@types/node": "^20.12.7",
     "@types/react": "^18.0.25",
     "@typescript-eslint/eslint-plugin": "^7.7.0",
     "@typescript-eslint/parser": "^7.7.0",
