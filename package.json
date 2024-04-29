@@ -33,7 +33,7 @@
     "open:android": "open -a \"Android Studio\" example/android"
   },
   "dependencies": {
-    "base-64": "^1.0.0"
+    "react-native-quick-base64": "^2.1.2"
   },
   "devDependencies": {
     "@expo/config-plugins": "^7.9.1",

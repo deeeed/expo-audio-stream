@@ -1,6 +1,6 @@
-import { decode as atob } from "base-64";
 import { Platform } from "expo-modules-core";
 import { useCallback, useEffect, useState } from "react";
+import { atob } from "react-native-quick-base64";
 
 import { addAudioEventListener } from ".";
 import {
@@ -11,7 +11,7 @@ import {
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 
 export interface AudioDataEvent {
-  buffer: Blob;
+  arrayBuffer: ArrayBuffer;
   position: number;
 }
 export interface UseAudioRecorderState {
@@ -50,6 +50,7 @@ export function useAudioRecorder({
           if (debug) {
             console.log(`[useAudioRecorder] Status:`, status);
           }
+          // Extract matching file from filesystem
           setDuration(status.duration);
           setSize(status.size);
         } catch (error) {
@@ -69,9 +70,10 @@ export function useAudioRecorder({
         onAudioStream,
       );
       onAudioStream?.({
-        buffer: new Blob(),
+        arrayBuffer: new ArrayBuffer(0),
         position: 0,
       }).catch(console.error);
+      console.log(`[useAudioRecorder] Registered audio event listener`);
     }
     const subscribe = addAudioEventListener(
       async ({
@@ -102,19 +104,33 @@ export function useAudioRecorder({
             if (Platform.OS !== "web") {
               // Read the audio file as a base64 string for comparison
               try {
-                // convert encoded string to binary data
-                const binaryData = atob(encoded);
-                const content = new Uint8Array(binaryData.length);
-                for (let i = 0; i < binaryData.length; i++) {
-                  content[i] = binaryData.charCodeAt(i);
+                if (!encoded) {
+                  console.error(
+                    "[useAudioRecorder] Encoded audio data is missing",
+                  );
+                  throw new Error("Encoded audio data is missing");
                 }
-                const audioBlob = new Blob([content], { type: mimeType });
+                console.log(`encoded.length: ${encoded.length}`);
+                const binaryData = atob(encoded);
+                const bytes = new Uint8Array(binaryData.length);
+                for (let i = 0; i < binaryData.length; i++) {
+                  bytes[i] = binaryData.charCodeAt(i) & 0xff; // Mask to 8 bits
+                }
+                const arrayBuffer = bytes.buffer;
+
+                if (debug) {
+                  console.log(
+                    `[useAudioRecorder] Read audio file deltaSize: ${deltaSize} vs encoded.length: ${encoded.length}`,
+                  );
+                }
+
+                onAudioStream?.({ arrayBuffer, position });
 
                 // Below code is optional, used to compare encoded data to audio on file system
                 // Fetch the audio data from the fileUri
                 // const options = {
                 //     encoding: FileSystem.EncodingType.Base64,
-                //     position: from,
+                //     position: lastEmittedSize,
                 //     length: deltaSize,
                 // };
                 // const base64Content = await FileSystem.readAsStringAsync(fileUri, options);
@@ -125,8 +141,6 @@ export function useAudioRecorder({
                 // }
                 // const audioBlob = new Blob([content], { type: 'application/octet-stream' }); // Create a Blob from the byte array
                 // console.debug(`Read audio file (len: ${content.length}) vs ${deltaSize}`)
-
-                onAudioStream?.({ buffer: audioBlob, position });
               } catch (error) {
                 console.error(
                   "[useAudioRecorder] Error reading audio file:",
@@ -135,7 +149,8 @@ export function useAudioRecorder({
               }
             } else if (buffer) {
               // Coming from web
-              onAudioStream?.({ buffer, position });
+              const arrayBuffer = await buffer.arrayBuffer();
+              onAudioStream?.({ arrayBuffer, position });
             }
           }
         } catch (error) {
@@ -146,13 +161,19 @@ export function useAudioRecorder({
         }
       },
     );
+    if (debug) {
+      console.log(
+        `[useAudioRecorder] Subscribed to audio event listener`,
+        subscribe,
+      );
+    }
     return () => {
       if (debug) {
         console.log(`[useAudioRecorder] Removing audio event listener`);
       }
       subscribe.remove();
     };
-  }, [isRecording, onAudioStream, debug]);
+  }, []);
 
   const startRecording = useCallback(
     async (recordingOptions: RecordingOptions) => {
