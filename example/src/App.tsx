@@ -3,7 +3,6 @@ import {
   listAudioFiles,
   useAudioRecorder,
 } from "@siteed/expo-audio-stream";
-import { Buffer } from "buffer";
 import { Audio } from "expo-av";
 import * as Sharing from "expo-sharing";
 import { useCallback, useRef, useState } from "react";
@@ -29,25 +28,28 @@ if (isWeb) {
 export default function App() {
   const [, requestPermission] = Audio.usePermissions();
   const [error, setError] = useState<string | null>(null);
-  const audioChunks = useRef<Buffer[]>([]);
+  const audioChunks = useRef<string[]>([]);
+  const audioChunksBlobs = useRef<Blob[]>([]);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [result, setResult] = useState<AudioStreamResult | null>(null);
   const [files, setFiles] = useState<string[]>([]);
 
   const onAudioData = useCallback(
-    async ({ arrayBuffer, position }: AudioDataEvent) => {
+    async ({ data, position, size }: AudioDataEvent) => {
       try {
-        console.log(
-          `audio event ${typeof arrayBuffer} position=${position}`,
-          arrayBuffer,
-        );
-        if (arrayBuffer.byteLength === 0) {
-          console.log(`Empty buffer received`);
+        console.log(`audio event ${typeof data} position=${position}`, data);
+        if (size === 0) {
+          console.log(`Invalid data`);
+          return;
         }
-        console.log(`Buffer is ${typeof Buffer}`, Buffer);
-        const buffer = Buffer.from(arrayBuffer);
-        // Append the audio data to the audioRef
-        audioChunks.current.push(buffer);
+
+        if (typeof data === "string") {
+          // Append the audio data to the audioRef
+          audioChunks.current.push(data);
+        } else if (data instanceof Blob) {
+          // Append the audio data to the audioRef
+          audioChunksBlobs.current.push(data);
+        }
       } catch (error) {
         console.error(`Error while processing audio data`, error);
       }
@@ -73,6 +75,7 @@ export default function App() {
   const handleStopRecording = useCallback(async () => {
     if (!isRecording) return;
     const result = await stopRecording();
+    // TODO: compare accumulated audio chunks with the result
     console.debug(`Recording stopped. `, result);
     setResult(result);
   }, [isRecording]);
