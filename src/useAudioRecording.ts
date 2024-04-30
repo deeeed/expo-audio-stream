@@ -13,6 +13,7 @@ import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 export interface AudioDataEvent {
   data: string | Blob;
   position: number;
+  fileUri: string;
   eventDataSize: number;
   totalSize: number;
 }
@@ -20,6 +21,7 @@ export interface UseAudioRecorderState {
   startRecording: (_: RecordingConfig) => Promise<StartAudioStreamResult>;
   stopRecording: () => Promise<AudioStreamResult | null>;
   pauseRecording: () => void;
+  resumeRecording: () => void;
   isRecording: boolean;
   isPaused: boolean;
   duration: number; // Duration of the recording
@@ -125,6 +127,7 @@ export function useAudioRecorder({
                 onAudioStream?.({
                   data: encoded,
                   position,
+                  fileUri,
                   eventDataSize: deltaSize,
                   totalSize,
                 });
@@ -155,6 +158,7 @@ export function useAudioRecorder({
               onAudioStream?.({
                 data: buffer,
                 position,
+                fileUri,
                 eventDataSize: deltaSize,
                 totalSize,
               });
@@ -188,28 +192,20 @@ export function useAudioRecorder({
       setIsPaused(false);
       setSize(0);
       setDuration(0);
-      try {
-        if (debug) {
-          console.log(`[useAudioRecorder] start recoding`, recordingOptions);
-        }
-
-        const fileUrl =
-          await ExpoAudioStreamModule.startRecording(recordingOptions);
-
-        return fileUrl;
-      } catch (error) {
-        console.error("[useAudioRecorder] Error starting recording:", error);
-        setIsRecording(false);
+      if (debug) {
+        console.log(`[useAudioRecorder] start recoding`, recordingOptions);
       }
+
+      const result: StartAudioStreamResult =
+        await ExpoAudioStreamModule.startRecording(recordingOptions);
+      return result;
     },
     [debug],
   );
 
   const stopRecording = useCallback(async () => {
-    console.log(`STOOOOOP NOW`);
     const result: AudioStreamResult =
       await ExpoAudioStreamModule.stopRecording();
-    console.log(`STOOOOOP NOW 2`);
     setIsRecording(false);
     setIsPaused(false);
     return result;
@@ -217,7 +213,17 @@ export function useAudioRecorder({
 
   const pauseRecording = useCallback(async () => {
     try {
-      await ExpoAudioStreamModule.stopRecording();
+      await ExpoAudioStreamModule.pauseRecording();
+      setIsPaused(true);
+      setIsRecording(false);
+    } catch (error) {
+      console.error("[useAudioRecorder] Error pausing recording:", error);
+    }
+  }, [debug]);
+
+  const resumeRecording = useCallback(async () => {
+    try {
+      await ExpoAudioStreamModule.resumeRecording();
       setIsPaused(true);
       setIsRecording(false);
     } catch (error) {
@@ -229,6 +235,7 @@ export function useAudioRecorder({
     startRecording,
     stopRecording,
     pauseRecording,
+    resumeRecording,
     isPaused,
     isRecording,
     duration,

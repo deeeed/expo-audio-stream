@@ -31,9 +31,18 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 let interval = options["interval"] as? Int ?? 1000
                 
                 let settings = RecordingSettings(sampleRate: sampleRate, numberOfChannels: numberOfChannels, bitDepth: bitDepth)
-                let result = self.streamManager.startRecording(settings: settings, intervalMilliseconds: interval)
-                
-                promise.resolve(result)
+                if let result = self.streamManager.startRecording(settings: settings, intervalMilliseconds: interval) {
+                    let resultDict: [String: Any] = [
+                        "fileUri": result.fileUri,
+                        "channels": result.channels,
+                        "bitDepth": result.bitDepth,
+                        "sampleRate": result.sampleRate,
+                        "mimeType": result.mimeType,
+                    ]
+                    promise.resolve(resultDict)
+                } else {
+                    promise.reject("ERROR", "Failed to start recording.")
+                }
             }
         }
         
@@ -96,9 +105,6 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             "mimeType": manager.mimeType,
             "streamUuid": manager.recordingUUID?.uuidString ?? UUID().uuidString
         ]
-        
-        // Update the last emitted size for the next calculation
-        manager.lastEmittedSize += Int64(deltaSize)
         
         // Emit the event to JavaScript
         sendEvent(audioDataEvent, eventBody)
