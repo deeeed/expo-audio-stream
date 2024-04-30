@@ -1,6 +1,7 @@
 import {
   clearAudioFiles,
   listAudioFiles,
+  test,
   useAudioRecorder,
 } from "@siteed/expo-audio-stream";
 import { Audio } from "expo-av";
@@ -188,6 +189,14 @@ export default function App() {
     }
   };
 
+  const handleTestFfmpeg = async () => {
+    try {
+      test();
+    } catch (error) {
+      console.error(`Error while testing ffmpeg`, error);
+    }
+  };
+
   const renderStopped = () => (
     <View>
       <Button title="Start Recording" onPress={() => handleStart()} />
@@ -220,6 +229,7 @@ export default function App() {
       <View style={{ gap: 10 }}>
         <Button title="Find existing Recordings" onPress={handleListFiles} />
         <Button title="Clear Storage" onPress={handleClearStorage} />
+        <Button title="Test FFmpeg" onPress={handleTestFfmpeg} />
       </View>
       {/* {audioUri && (
         <View>

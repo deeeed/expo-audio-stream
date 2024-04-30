@@ -35,6 +35,10 @@ class ExpoAudioStreamModule() : Module(), EventSender {
             return@Function audioRecorderManager.getStatus()
         }
 
+        Function("test") {
+            return@Function audioRecorderManager.test()
+        }
+
         AsyncFunction("listAudioFiles") { promise: Promise ->
             audioRecorderManager.listAudioFiles(promise)
         }

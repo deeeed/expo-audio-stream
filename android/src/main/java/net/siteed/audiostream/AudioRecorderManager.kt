@@ -11,12 +11,15 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.os.bundleOf
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.ReturnCode
 import expo.modules.kotlin.Promise
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
+
 
 class AudioRecorderManager(
     private val filesDir: File,
@@ -144,7 +147,7 @@ class AudioRecorderManager(
         bufferSizeInBytes = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat)
 
         Log.d(
-            "AudioRecorderManager",
+            Constants.TAG,
             "Starting recording with the following parameters: Sample Rate: $sampleRateInHz Hz, Channels: $channels, Encoding: $encodingType, File Extension: $fileExtension, MIME Type: $mimeType, Interval: $interval ms"
         )
 
@@ -204,7 +207,7 @@ class AudioRecorderManager(
         synchronized(audioRecordLock) {
 
             if (!isRecording.get()) {
-                Log.e("AudioRecorderManager", "Recording is not active")
+                Log.e(Constants.TAG, "Recording is not active")
                 promise.reject("NOT_RECORDING", "Recording is not active", null)
                 return
             }
@@ -212,18 +215,18 @@ class AudioRecorderManager(
             try {
                 val audioData = ByteArray(bufferSizeInBytes)
                 val bytesRead = audioRecord?.read(audioData, 0, bufferSizeInBytes) ?: -1
-                Log.d("AudioRecorderModule", "Last Read $bytesRead bytes")
+                Log.d(Constants.TAG, "Last Read $bytesRead bytes")
                 if (bytesRead > 0) {
                     emitAudioData(audioData, bytesRead)
                 }
 
-                Log.d("AudioRecorderModule", "Stopping recording state = ${audioRecord?.state}")
+                Log.d(Constants.TAG, "Stopping recording state = ${audioRecord?.state}")
                 if (audioRecord != null && audioRecord!!.state == AudioRecord.STATE_INITIALIZED) {
-                    Log.d("AudioRecorderModule", "Stopping AudioRecord");
+                    Log.d(Constants.TAG, "Stopping AudioRecord");
                     audioRecord!!.stop()
                 }
             } catch (e: IllegalStateException) {
-                Log.e("AudioRecording", "Error reading from AudioRecord", e);
+                Log.e(Constants.TAG, "Error reading from AudioRecord", e);
             } finally {
                 audioRecord?.release()
             }
@@ -254,7 +257,7 @@ class AudioRecorderManager(
                 totalRecordedTime = 0
                 pausedDuration = 0
             } catch (e: Exception) {
-                Log.d("AudioRecorderModule", "Failed to stop recording", e)
+                Log.d(Constants.TAG, "Failed to stop recording", e)
                 promise.reject("STOP_FAILED", "Failed to stop recording", e)
             } finally {
                 audioRecord = null
@@ -296,7 +299,7 @@ class AudioRecorderManager(
     fun getStatus(): Bundle {
         synchronized(audioRecordLock) {
             if (!isRecording.get()) {
-                Log.d("AudioRecorderManager", "Not recording --- skip status with default values")
+                Log.d(Constants.TAG, "Not recording --- skip status with default values")
 
                 return bundleOf(
                     "isRecording" to false,
@@ -350,7 +353,7 @@ class AudioRecorderManager(
     }
 
     private fun recordingProcess() {
-        Log.i("AudioRecorderManager", "Starting recording process...")
+        Log.i(Constants.TAG, "Starting recording process...")
         FileOutputStream(audioFile, true).use { fos ->
             // Buffer to accumulate data
             val accumulatedAudioData = ByteArrayOutputStream()
@@ -363,7 +366,7 @@ class AudioRecorderManager(
 
             // Write audio data directly to the file
             val audioData = ByteArray(bufferSizeInBytes)
-            Log.d("AudioRecorderManager", "Entering recording loop")
+            Log.d(Constants.TAG, "Entering recording loop")
             while (isRecording.get() && !Thread.currentThread().isInterrupted) {
                 if (isPaused.get()) {
                     // If recording is paused, skip reading from the microphone
@@ -374,7 +377,7 @@ class AudioRecorderManager(
                     // Only synchronize the read operation and the check
                     audioRecord?.let {
                         if (it.state != AudioRecord.STATE_INITIALIZED) {
-                            Log.e("AudioRecorderModule", "AudioRecord not initialized")
+                            Log.e(Constants.TAG, "AudioRecord not initialized")
                             return@let -1
                         }
                         it.read(audioData, 0, bufferSizeInBytes)
@@ -395,7 +398,7 @@ class AudioRecorderManager(
                         accumulatedAudioData.reset() // Clear the accumulator
                     }
 
-                    Log.d("AudioRecorderModule", "Bytes written to file: $bytesRead")
+                    Log.d(Constants.TAG, "Bytes written to file: $bytesRead")
                 }
             }
         }
@@ -431,11 +434,26 @@ class AudioRecorderManager(
                     )
                 )
             } catch (e: Exception) {
-                Log.e("AudioRecorderModule", "Failed to send event", e)
+                Log.e(Constants.TAG, "Failed to send event", e)
             }
         }
     }
 
+    fun test() {
+        Log.d(Constants.TAG, "Testing FFmpegKit integration...")
+
+        val session = FFmpegKit.execute("-version")
+        if (ReturnCode.isSuccess(session.returnCode)) {
+            Log.d(Constants.TAG, "FFmpegKit version: ${session.output}")
+            // SUCCESS
+        } else if (ReturnCode.isCancel(session.returnCode)) {
+            Log.d(Constants.TAG, "FFmpegKit execution cancelled.")
+            // CANCEL
+        } else {
+            Log.e(Constants.TAG, "FFmpegKit execution failed. Error: ${session.failStackTrace}")
+            // FAILURE
+        }
+    }
 
     private fun getCompressedAudioDuration(file: File?): Long {
         // Placeholder function for fetching duration from a compressed audio file
