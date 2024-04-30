@@ -5,7 +5,7 @@ import { addAudioEventListener } from ".";
 import {
   AudioStreamResult,
   AudioStreamStatus,
-  RecordingOptions,
+  RecordingConfig,
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
@@ -17,7 +17,7 @@ export interface AudioDataEvent {
   totalSize: number;
 }
 export interface UseAudioRecorderState {
-  startRecording: (_: RecordingOptions) => Promise<StartAudioStreamResult>;
+  startRecording: (_: RecordingConfig) => Promise<StartAudioStreamResult>;
   stopRecording: () => Promise<AudioStreamResult | null>;
   pauseRecording: () => void;
   isRecording: boolean;
@@ -183,7 +183,7 @@ export function useAudioRecorder({
   }, []);
 
   const startRecording = useCallback(
-    async (recordingOptions: RecordingOptions) => {
+    async (recordingOptions: RecordingConfig) => {
       setIsRecording(true);
       setIsPaused(false);
       setSize(0);

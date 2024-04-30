@@ -81,6 +81,7 @@ export default function App() {
     audioChunks.current = [];
     currentSize.current = 0;
     const streamConfig: StartAudioStreamResult = await startRecording({
+      encoding: "opus",
       interval: 500,
     });
     console.debug(`Recording started `, streamConfig);

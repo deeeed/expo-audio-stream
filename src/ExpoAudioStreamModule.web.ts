@@ -4,7 +4,7 @@ import { EventEmitter } from "expo-modules-core";
 import {
   AudioEventPayload,
   AudioStreamResult,
-  RecordingOptions,
+  RecordingConfig,
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
 
@@ -59,7 +59,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
   }
 
   // Start recording with options
-  async startRecording(options: RecordingOptions = {}) {
+  async startRecording(options: RecordingConfig = {}) {
     if (this.isRecording) {
       throw new Error("Recording is already in progress");
     }
