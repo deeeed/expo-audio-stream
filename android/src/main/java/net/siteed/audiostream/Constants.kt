@@ -8,4 +8,5 @@ object Constants {
     const val DEFAULT_INTERVAL = 1000L
     const val MIN_INTERVAL = 100L // Minimum interval in ms for emitting audio data
     const val WAV_HEADER_SIZE = 44
+    const val TAG = "AudioRecorderModule"
 }

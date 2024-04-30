@@ -10,8 +10,9 @@ PODS:
     - ExpoModulesCore
   - Expo (50.0.17):
     - ExpoModulesCore
-  - ExpoAudioStream (0.4.5):
+  - ExpoAudioStream (0.5.2):
     - ExpoModulesCore
+    - ffmpeg-kit-ios-audio (= 6.0)
   - ExpoFileSystem (16.0.9):
     - ExpoModulesCore
   - ExpoKeepAwake (12.8.2):
@@ -35,6 +36,7 @@ PODS:
     - React-Core (= 0.73.6)
     - React-jsi (= 0.73.6)
     - ReactCommon/turbomodule/core (= 0.73.6)
+  - ffmpeg-kit-ios-audio (6.0)
   - fmt (6.2.1)
   - glog (0.3.5)
   - hermes-engine (0.73.6):
@@ -1176,6 +1178,7 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - ffmpeg-kit-ios-audio
     - fmt
     - libevent
     - SocketRocket
@@ -1318,7 +1321,7 @@ SPEC CHECKSUMS:
   EXConstants: a5f6276e565d98f9eb4280f81241fc342d641590
   EXFont: f20669cb266ef48b004f1eb1f2b20db96cd1df9f
   Expo: 2cdb5916749a1509cf88114f1f510bd458630eb4
-  ExpoAudioStream: 8e1c1b932ee6531dab07e0d57b454304f85e894d
+  ExpoAudioStream: 1a37e4015600c18e558c48cf2e4b3cf5f63c50a2
   ExpoFileSystem: 74cc0fae916f9f044248433971dcfc8c3befd057
   ExpoKeepAwake: 0f5cad99603a3268e50af9a6eb8b76d0d9ac956c
   ExpoLocalization: f94759e55802e4a4f8b7d7cecb450de11b888721
@@ -1326,6 +1329,7 @@ SPEC CHECKSUMS:
   ExpoSharing: 752ad6ae2b693de9cd4e7fddb78297bdc658b815
   FBLazyVector: f64d1e2ea739b4d8f7e4740cde18089cd97fe864
   FBReactNativeSpec: 9f2b8b243131565335437dba74923a8d3015e780
+  ffmpeg-kit-ios-audio: 9fa9953fc197280a69e59c603c7fa7690df7190c
   fmt: ff9d55029c625d3757ed641535fd4a75fedc7ce9
   glog: c5d68082e772fa1c511173d6b30a9de2c05a69a2
   hermes-engine: 9cecf9953a681df7556b8cc9c74905de8f3293c0

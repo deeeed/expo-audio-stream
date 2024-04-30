@@ -26,6 +26,10 @@ export function clearAudioFiles(): Promise<void> {
   return ExpoAudioStreamModule.clearAudioFiles();
 }
 
+export function test(): void {
+  return ExpoAudioStreamModule.test();
+}
+
 export function addAudioEventListener(
   listener: (event: AudioEventPayload) => Promise<void>,
 ): Subscription {
