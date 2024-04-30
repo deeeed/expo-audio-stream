@@ -37,10 +37,11 @@ export interface AudioStreamStatus {
   mimeType: string;
 }
 
-export interface RecordingOptions {
-  // TODO align Android and IOS options
-  // sampleRate?: number;
-  // channelConfig?: number; // numberOfChannel
-  // audioFormat?: number; // bitDepth (ENCODING_PCM_16BIT --> 2)
+export type EncodingType = "pcm_16bit" | "pcm_8bit" | "aac" | "opus";
+
+export interface RecordingConfig {
+  sampleRate?: 16000 | 44100 | 48000;
+  channels?: 1 | 2; // 1 or 2 MONO or STEREO
+  encoding?: EncodingType;
   interval?: number;
 }
