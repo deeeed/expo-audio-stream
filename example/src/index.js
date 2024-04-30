@@ -1,5 +1,4 @@
-import { registerRootComponent } from "expo";
+import "intl-pluralrules";
+// Keep polyfills at the top
 
-import App from "./App";
-
-registerRootComponent(App);
+import "expo-router/entry";
