@@ -37,7 +37,13 @@ export default function App() {
   });
 
   const onAudioData = useCallback(
-    async ({ data, position, eventDataSize, totalSize }: AudioDataEvent) => {
+    async ({
+      data,
+      fileUri,
+      position,
+      eventDataSize,
+      totalSize,
+    }: AudioDataEvent) => {
       try {
         if (eventDataSize === 0) {
           console.log(`Invalid data`);
@@ -46,12 +52,17 @@ export default function App() {
 
         currentSize.current += eventDataSize;
 
-        console.log(
-          `CHECK DATA ${currentSize.current} vs ${totalSize} difference: ${totalSize - currentSize.current}`,
-        );
+        // console.log(
+        //   `CHECK DATA position=${position} currentSize.current=${currentSize.current} vs ${totalSize} difference: ${totalSize - currentSize.current}`,
+        // );
         if (typeof data === "string") {
           // Append the audio data to the audioRef
           audioChunks.current.push(data);
+          if (!isBase64(data)) {
+            console.error(
+              `Invalid base64 data for chunks#${audioChunks.current.length} position=${position}`,
+            );
+          }
         } else if (data instanceof Blob) {
           // Append the audio data to the audioRef
           audioChunksBlobs.current.push(data);
@@ -73,11 +84,12 @@ export default function App() {
     }
     // Clear previous audio chunks
     audioChunks.current = [];
+    audioChunksBlobs.current = [];
     currentSize.current = 0;
     const streamConfig: StartAudioStreamResult =
       await startRecording(recordingConfig);
     console.debug(`Recording started `, streamConfig);
-    setStreamConfig(streamConfig);
+    setStreamConfig((test) => ({ ...test, ...streamConfig }));
   };
 
   const handleStopRecording = useCallback(async () => {
@@ -92,7 +104,7 @@ export default function App() {
       return;
     }
 
-    // Compare the first 100 bytes of the audio data vs the file
+    // Verify data integrity to make sure we streamed the correct data
     if (audioChunks.current.length > 0) {
       try {
         // Remove padding, concatenate, then re-add padding if necessary
@@ -102,10 +114,6 @@ export default function App() {
         const padding = (4 - (concatenatedBase64Chunks.length % 4)) % 4;
         const paddedBase64Chunks =
           concatenatedBase64Chunks + "=".repeat(padding);
-        console.log(
-          `Padded base64 chunks padding=${padding}:`,
-          paddedBase64Chunks,
-        );
 
         if (!isBase64(paddedBase64Chunks)) {
           console.error(`Invalid base64 data`);
@@ -124,8 +132,9 @@ export default function App() {
         );
         const binaryFileData = atob(fileDataInBase64);
 
-        const binaryChunkDataBase64 = btoa(binaryChunkData.slice(3000, 5000));
-        const binaryFileDataBase64 = btoa(binaryFileData.slice(3000, 5000));
+        // Ignore first 44bytes (header) and compare the next 500 bytes
+        const binaryChunkDataBase64 = btoa(binaryChunkData.slice(44, 500));
+        const binaryFileDataBase64 = btoa(binaryFileData.slice(44, 500));
         // Perform binary comparison
         console.log(`Binary data from chunks:`, binaryChunkDataBase64);
         console.log(`Binary data from file:`, binaryFileDataBase64);

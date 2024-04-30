@@ -76,9 +76,9 @@ class AudioStreamManager: NSObject {
     internal var recordingSettings: RecordingSettings?
     internal var recordingUUID: UUID?
     internal var mimeType: String = "audio/wav"
-    private var lastBuffer: AVAudioPCMBuffer?
     private var lastBufferTime: AVAudioTime?
-
+    private var accumulatedData = Data()
+    
     weak var delegate: AudioStreamManagerDelegate?  // Define the delegate here
     
     override init() {
@@ -208,6 +208,8 @@ class AudioStreamManager: NSObject {
         
         emissionInterval = max(100.0, Double(intervalMilliseconds)) / 1000.0
         lastEmissionTime = Date()
+        accumulatedData.removeAll()
+        totalDataSize = 0
         
         let session = AVAudioSession.sharedInstance()
         do {
@@ -240,9 +242,6 @@ class AudioStreamManager: NSObject {
             
             // Processing the current buffer
             self.processAudioBuffer(buffer, fileURL: self.recordingFileURL!)
-            
-            // Store the buffer and time as the last buffer and time
-            self.lastBuffer = buffer
             self.lastBufferTime = time
         }
         
@@ -302,9 +301,12 @@ class AudioStreamManager: NSObject {
             return nil
         }
         
-        // Ensure all remaining audio data is sent
-        if let lastBuffer = lastBuffer, let lastBufferTime = lastBufferTime {
-            self.processAudioBuffer(lastBuffer, fileURL: fileURL)
+        // Emit any remaining accumulated data
+        if !accumulatedData.isEmpty {
+            let currentTime = Date()
+            let recordingTime = currentTime.timeIntervalSince(startTime)
+            delegate?.audioStreamManager(self, didReceiveAudioData: accumulatedData, recordingTime: recordingTime, totalDataSize: totalDataSize)
+            accumulatedData.removeAll()
         }
         
         let endTime = Date()
@@ -329,7 +331,6 @@ class AudioStreamManager: NSObject {
                 sampleRate: settings.sampleRate
             )
             recordingFileURL = nil // Reset for next recording
-            lastBuffer = nil // Reset last buffer
             lastBufferTime = nil // Reset last buffer time
             
             return result
@@ -383,6 +384,9 @@ class AudioStreamManager: NSObject {
             data.insert(contentsOf: header, at: 0)
         }
         
+        // Accumulate new data
+        accumulatedData.append(data)
+        
         //        print("Writing data size: \(data.count) bytes")  // Debug: Check the size of data being written
         fileHandle.seekToEndOfFile()
         fileHandle.write(data)
@@ -396,9 +400,10 @@ class AudioStreamManager: NSObject {
             if let startTime = startTime {
                 let recordingTime = currentTime.timeIntervalSince(startTime)
                 //                print("Emitting data: Recording time \(recordingTime) seconds, Data size \(totalDataSize) bytes")
-                self.delegate?.audioStreamManager(self, didReceiveAudioData: data, recordingTime: recordingTime, totalDataSize: totalDataSize)
+                self.delegate?.audioStreamManager(self, didReceiveAudioData: accumulatedData, recordingTime: recordingTime, totalDataSize: totalDataSize)
                 self.lastEmissionTime = currentTime // Update last emission time
                 self.lastEmittedSize = totalDataSize
+                accumulatedData.removeAll() // Reset accumulated data after emission
             }
         }
     }
