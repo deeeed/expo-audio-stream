@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "scheme": "net.siteed.audiostream.example",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -26,7 +27,8 @@
       "package": "net.siteed.audiostream.example"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       [
@@ -35,7 +37,8 @@
           "apiKey": "custom_secret_api"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "expo-router"
     ]
   }
 }

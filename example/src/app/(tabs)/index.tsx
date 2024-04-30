@@ -1,30 +1,19 @@
-import {
-  clearAudioFiles,
-  listAudioFiles,
-  test,
-  useAudioRecorder,
-} from "@siteed/expo-audio-stream";
+import { Button, Picker } from "@siteed/design-system";
+import { useAudioRecorder } from "@siteed/expo-audio-stream";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
-import * as Sharing from "expo-sharing";
 import isBase64 from "is-base64";
 import { useCallback, useRef, useState } from "react";
-import {
-  Button,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { atob, btoa } from "react-native-quick-base64";
 
-import { formatBytes, formatDuration } from "./utils";
 import {
   AudioStreamResult,
+  RecordingConfig,
   StartAudioStreamResult,
-} from "../../src/ExpoAudioStream.types";
-import { AudioDataEvent } from "../../src/useAudioRecording";
+} from "../../../../src/ExpoAudioStream.types";
+import { AudioDataEvent } from "../../../../src/useAudioRecording";
+import { formatBytes, formatDuration } from "../../utils";
 
 const isWeb = Platform.OS === "web";
 
@@ -42,6 +31,10 @@ export default function App() {
   const [result, setResult] = useState<AudioStreamResult | null>(null);
   const [files, setFiles] = useState<string[]>([]);
   const currentSize = useRef(0);
+  const [recordingConfig, setRecordingConfig] = useState<RecordingConfig>({
+    interval: 500,
+    sampleRate: 16000,
+  });
 
   const onAudioData = useCallback(
     async ({ data, position, eventDataSize, totalSize }: AudioDataEvent) => {
@@ -81,10 +74,8 @@ export default function App() {
     // Clear previous audio chunks
     audioChunks.current = [];
     currentSize.current = 0;
-    const streamConfig: StartAudioStreamResult = await startRecording({
-      encoding: "opus",
-      interval: 500,
-    });
+    const streamConfig: StartAudioStreamResult =
+      await startRecording(recordingConfig);
     console.debug(`Recording started `, streamConfig);
     setStreamConfig(streamConfig);
   };
@@ -147,71 +138,48 @@ export default function App() {
     }
   }, [isRecording]);
 
-  const handleListFiles = useCallback(async () => {
-    const _files = await listAudioFiles();
-    setFiles(_files);
-  }, []);
-
-  const handleClearStorage = useCallback(async () => {
-    try {
-      await clearAudioFiles();
-      await handleListFiles();
-    } catch (error) {
-      console.error(`Error while clearing storage`, error);
-    }
-  }, []);
-
   const renderRecording = () => (
     <View>
       <Text>Duration: {formatDuration(duration)}</Text>
       <Text>Size: {formatBytes(size)}</Text>
-      <Button title="Stop Recording" onPress={() => handleStopRecording()} />
+      <Button mode="contained" onPress={() => handleStopRecording()}>
+        Stop Recording
+      </Button>
     </View>
   );
-
-  const playAudio = useCallback(async (url: string) => {
-    try {
-      const sound = new Audio.Sound();
-      console.log(`Playing audio`, url);
-      await sound.loadAsync({ uri: url });
-      await sound.playAsync();
-    } catch (error) {
-      console.error(`error playing audio`, error);
-    }
-  }, []);
-
-  const shareAudio = async (url: string) => {
-    try {
-      console.log(`Sharing audio`, url);
-      await Sharing.shareAsync(url);
-    } catch (error) {
-      console.error(`error sharing audio`, error);
-    }
-  };
-
-  const handleTestFfmpeg = async () => {
-    try {
-      test();
-    } catch (error) {
-      console.error(`Error while testing ffmpeg`, error);
-    }
-  };
 
   const renderStopped = () => (
     <View>
-      <Button title="Start Recording" onPress={() => handleStart()} />
-    </View>
-  );
-
-  const renderRecordings = () => (
-    <View style={styles.recordingContainer}>
-      {files?.map((file, index) => (
-        <View key={index}>
-          <Text>{file}</Text>
-          <Button title="Play" onPress={() => playAudio(file)} />
-          <Button title="Share" onPress={() => shareAudio(file)} />
-        </View>
-      ))}
+      <Picker
+        label="Sample Rate"
+        multi={false}
+        options={[
+          {
+            label: "16000",
+            value: "16000",
+            selected: recordingConfig.sampleRate === 16000,
+          },
+          {
+            label: "44100",
+            value: "44100",
+            selected: recordingConfig.sampleRate === 44100,
+          },
+          {
+            label: "48000",
+            value: "48000",
+            selected: recordingConfig.sampleRate === 48000,
+          },
+        ]}
+        onFinish={(options) => {
+          const selected = options.find((option) => option.selected);
+          if (!selected) return;
+          setRecordingConfig((prev) => ({
+            ...prev,
+            sampleRate: parseInt(selected.value, 10) as 16000 | 44100 | 48000,
+          }));
+        }}
+      />
+      <Button onPress={() => handleStart()}>Start Recording</Button>
     </View>
   );
 
@@ -219,18 +187,13 @@ export default function App() {
     return (
       <View>
         <Text>{error}</Text>
-        <Button onPress={() => handleStart} title="Try Again" />
+        <Button onPress={() => handleStart}>Try Again</Button>
       </View>
     );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <View style={{ gap: 10 }}>
-        <Button title="Find existing Recordings" onPress={handleListFiles} />
-        <Button title="Clear Storage" onPress={handleClearStorage} />
-        <Button title="Test FFmpeg" onPress={handleTestFfmpeg} />
-      </View>
       {/* {audioUri && (
         <View>
           <Text>Audio URI: {audioUri}</Text>
@@ -240,46 +203,10 @@ export default function App() {
         <View>
           <Text>{JSON.stringify(result, null, 2)}</Text>
           <Text>size: {currentSize.current}</Text>
-          <Button
-            title="Share Recording"
-            onPress={async () => {
-              try {
-                let url = result.fileUri;
-                if (isWeb) {
-                  const blob = new Blob(audioChunks.current, {
-                    type: "audio/webm",
-                  });
-                  url = URL.createObjectURL(blob);
-                }
-                shareAudio(url);
-              } catch (error) {
-                console.error(`error playing audio`, error);
-              }
-            }}
-          />
-          <Button
-            title="Play Recording"
-            onPress={async () => {
-              try {
-                let url = result.fileUri;
-                if (isWeb) {
-                  const blob = new Blob(audioChunks.current, {
-                    type: "audio/webm",
-                  });
-                  url = URL.createObjectURL(blob);
-                }
-                console.log(`Playing audio`, url);
-                playAudio(url);
-              } catch (error) {
-                console.error(`error playing audio`, error);
-              }
-            }}
-          />
         </View>
       )}
       {isRecording && renderRecording()}
       {!isRecording && renderStopped()}
-      {renderRecordings()}
     </ScrollView>
   );
 }
@@ -287,7 +214,6 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     gap: 10,
-    backgroundColor: "#fff",
     // alignItems: "center",
     // justifyContent: "center",
   },

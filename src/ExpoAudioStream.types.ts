@@ -37,7 +37,7 @@ export interface AudioStreamStatus {
   mimeType: string;
 }
 
-export type EncodingType = "pcm_16bit" | "pcm_8bit" | "aac" | "opus";
+export type EncodingType = "pcm_16bit" | "pcm_8bit";
 
 export interface RecordingConfig {
   sampleRate?: 16000 | 44100 | 48000;

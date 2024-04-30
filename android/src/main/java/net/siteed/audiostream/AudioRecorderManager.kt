@@ -11,8 +11,6 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.os.bundleOf
-import com.arthenica.ffmpegkit.FFmpegKit
-import com.arthenica.ffmpegkit.ReturnCode
 import expo.modules.kotlin.Promise
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -436,22 +434,6 @@ class AudioRecorderManager(
             } catch (e: Exception) {
                 Log.e(Constants.TAG, "Failed to send event", e)
             }
-        }
-    }
-
-    fun test() {
-        Log.d(Constants.TAG, "Testing FFmpegKit integration...")
-
-        val session = FFmpegKit.execute("-version")
-        if (ReturnCode.isSuccess(session.returnCode)) {
-            Log.d(Constants.TAG, "FFmpegKit version: ${session.output}")
-            // SUCCESS
-        } else if (ReturnCode.isCancel(session.returnCode)) {
-            Log.d(Constants.TAG, "FFmpegKit execution cancelled.")
-            // CANCEL
-        } else {
-            Log.e(Constants.TAG, "FFmpegKit execution failed. Error: ${session.failStackTrace}")
-            // FAILURE
         }
     }
 

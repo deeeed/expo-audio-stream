@@ -113,16 +113,9 @@ class AudioStreamManager: NSObject {
         let fileName = "\(recordingUUID!.uuidString).wav"
         let fileURL = documentsDirectory.appendingPathComponent(fileName)
         
-        if fileManager.createFile(atPath: fileURL.path, contents: nil, attributes: nil) {
-            do {
-                let fileHandle = try FileHandle(forWritingTo: fileURL)
-                let wavHeader = createWavHeader(dataSize: 0)  // Initially set data size to 0
-                fileHandle.write(wavHeader)
-                fileHandle.closeFile()
-            } catch {
-                Logger.debug("Failed to write WAV header: \(error.localizedDescription)")
-                return nil
-            }
+        if !fileManager.createFile(atPath: fileURL.path, contents: nil, attributes: nil) {
+            Logger.debug("Failed to create file at: \(fileURL.path)")
+            return nil
         }
         return fileURL
     }
@@ -381,7 +374,14 @@ class AudioStreamManager: NSObject {
             print("Buffer data is nil.")
             return
         }
-        let data = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
+        var data = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
+        
+        // Check if this is the first buffer to process and totalDataSize is 0
+        if totalDataSize == 0 {
+            // Since it's the first buffer, prepend the WAV header
+            let header = createWavHeader(dataSize: 0)  // Set initial dataSize to 0, update later
+            data.insert(contentsOf: header, at: 0)
+        }
         
         //        print("Writing data size: \(data.count) bytes")  // Debug: Check the size of data being written
         fileHandle.seekToEndOfFile()
