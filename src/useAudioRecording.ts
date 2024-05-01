@@ -175,6 +175,7 @@ export function useAudioRecorder({
   const checkStatus = useCallback(async () => {
     try {
       if (!state.isRecording) {
+        logDebug(`${TAG} Not recording, exiting status check.`);
         return;
       }
 
@@ -197,8 +198,15 @@ export function useAudioRecorder({
   }, [state.isRecording, logDebug]);
 
   useEffect(() => {
-    const interval = state.isRecording ? setInterval(checkStatus, 1000) : null;
-    return () => (interval ? clearInterval(interval) : undefined);
+    let interval: number;
+    if (state.isRecording) {
+      interval = setInterval(checkStatus, 1000);
+    }
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
   }, [checkStatus, state.isRecording]);
 
   useEffect(() => {
