@@ -222,9 +222,10 @@ export function useAudioRecorder({
   );
 
   const stopRecording = useCallback(async () => {
-    logDebug(`${TAG} stop recording`);
+    logDebug(`${TAG} stoping recording`);
     const stopResult: AudioStreamResult =
       await ExpoAudioStreamModule.stopRecording();
+    logDebug(`${TAG} recording stopped`, stopResult);
     dispatch({ type: "STOP" });
     return stopResult;
   }, [logDebug]);
