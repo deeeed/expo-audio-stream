@@ -71,22 +71,19 @@ function recorderReducer(
 }
 const TAG = "[ useAudioRecorder ] ";
 
-export function useAudioRecorder(
-  {
-    // onAudioStream,
-  }: {
-    onAudioStream?: (_: AudioDataEvent) => Promise<void>;
-    debug?: boolean;
-  },
-): UseAudioRecorderState {
+export function useAudioRecorder({
+  onAudioStream,
+  debug = false,
+}: {
+  onAudioStream?: (_: AudioDataEvent) => Promise<void>;
+  debug?: boolean;
+}): UseAudioRecorderState {
   const [state, dispatch] = useReducer(recorderReducer, {
     isRecording: false,
     isPaused: false,
     duration: 0,
     size: 0,
   });
-  const debug = true;
-  const onAudioStream: any = undefined;
 
   console.log(`[useAudioRecorder] RENDERING state`, state);
   const logDebug = (message: string, data?: any) => {
@@ -205,6 +202,9 @@ export function useAudioRecorder(
   }, [checkStatus, state.isRecording]);
 
   useEffect(() => {
+    if (!onAudioStream) {
+      return;
+    }
     logDebug(`${TAG} Registering audio event listener`, onAudioStream);
     const subscribe = addAudioEventListener(handleAudioEvent);
     logDebug(`${TAG} Subscribed to audio event listener`, subscribe);
@@ -213,7 +213,7 @@ export function useAudioRecorder(
       logDebug(`${TAG} Removing audio event listener`);
       subscribe.remove();
     };
-  }, [handleAudioEvent, logDebug]);
+  }, [onAudioStream, handleAudioEvent, logDebug]);
 
   const startRecording = useCallback(
     async (recordingOptions: RecordingConfig) => {
