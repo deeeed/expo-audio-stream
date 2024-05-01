@@ -1,5 +1,5 @@
 import { Platform } from "expo-modules-core";
-import { useCallback, useEffect, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 
 import { addAudioEventListener } from ".";
 import {
@@ -69,28 +69,36 @@ function recorderReducer(
       return state;
   }
 }
+const TAG = "[ useAudioRecorder ] ";
 
-export function useAudioRecorder({
-  onAudioStream,
-  debug = false,
-}: {
-  onAudioStream?: (_: AudioDataEvent) => Promise<void>;
-  debug?: boolean;
-}): UseAudioRecorderState {
+export function useAudioRecorder(
+  {
+    // onAudioStream,
+  }: {
+    onAudioStream?: (_: AudioDataEvent) => Promise<void>;
+    debug?: boolean;
+  },
+): UseAudioRecorderState {
   const [state, dispatch] = useReducer(recorderReducer, {
     isRecording: false,
     isPaused: false,
     duration: 0,
     size: 0,
   });
+  const debug = true;
+  const onAudioStream: any = undefined;
 
+  console.log(`[useAudioRecorder] RENDERING state`, state);
   const logDebug = (message: string, data?: any) => {
     if (debug) {
-      console.log(`[useAudioRecorder] ${message}`, data);
+      if (data) {
+        console.log(`[useAudioRecorder] ${message}`, data);
+      } else {
+        console.log(`[useAudioRecorder] ${message}`);
+      }
     }
   };
 
-  const TAG = "[ useAudioRecorder ] ";
   const handleAudioEvent = useCallback(
     async (eventData: AudioEventPayload) => {
       const {
