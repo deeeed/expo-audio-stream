@@ -1,14 +1,21 @@
 import { UIProvider } from "@siteed/design-system";
 import { LoggerProvider } from "@siteed/react-native-logger";
 import { Stack } from "expo-router/stack";
-export default function Layout() {
+
+import { AudioRecorderProvider } from "../../../src";
+import { AudioFilesProvider } from "../context/AudioFilesProvider";
+export default function RootLayout() {
   return (
     <LoggerProvider>
-      <UIProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
-      </UIProvider>
+      <AudioRecorderProvider>
+        <UIProvider>
+          <AudioFilesProvider>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack>
+          </AudioFilesProvider>
+        </UIProvider>
+      </AudioRecorderProvider>
     </LoggerProvider>
   );
 }

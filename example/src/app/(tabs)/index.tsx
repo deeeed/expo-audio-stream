@@ -1,5 +1,5 @@
-import { Button, Picker } from "@siteed/design-system";
-import { useAudioRecorder } from "@siteed/expo-audio-stream";
+import { Button } from "@siteed/design-system";
+import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
 import isBase64 from "is-base64";
@@ -7,12 +7,15 @@ import { useCallback, useRef, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { atob, btoa } from "react-native-quick-base64";
 
+import { useSharedAudioRecorder } from "../../../../src";
 import {
   AudioStreamResult,
   RecordingConfig,
   StartAudioStreamResult,
 } from "../../../../src/ExpoAudioStream.types";
 import { AudioDataEvent } from "../../../../src/useAudioRecording";
+import { AudioRecording } from "../../component/AudioRecording";
+import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { formatBytes, formatDuration } from "../../utils";
 
 const isWeb = Platform.OS === "web";
@@ -21,87 +24,112 @@ if (isWeb) {
   localStorage.debug = "expo-audio-stream:*";
 }
 
-export default function App() {
-  const [, requestPermission] = Audio.usePermissions();
+export default function Record() {
   const [error, setError] = useState<string | null>(null);
   const audioChunks = useRef<string[]>([]);
   const audioChunksBlobs = useRef<Blob[]>([]);
   const [streamConfig, setStreamConfig] =
     useState<StartAudioStreamResult | null>(null);
   const [result, setResult] = useState<AudioStreamResult | null>(null);
-  const [files, setFiles] = useState<string[]>([]);
   const currentSize = useRef(0);
+  const { refreshFiles, removeFile } = useAudioFiles();
+  const [webAudioUri, setWebAudioUri] = useState<string>();
+  const { logger } = useLogger("Record");
+
+  const onAudioData = useCallback(async (event: AudioDataEvent) => {
+    try {
+      console.log(`Received audio data event`, event);
+      const { data, position, eventDataSize } = event;
+      if (eventDataSize === 0) {
+        console.log(`Invalid data`);
+        return;
+      }
+
+      currentSize.current += eventDataSize;
+
+      // console.log(
+      //   `CHECK DATA position=${position} currentSize.current=${currentSize.current} vs ${totalSize} difference: ${totalSize - currentSize.current}`,
+      // );
+      if (typeof data === "string") {
+        // Append the audio data to the audioRef
+        audioChunks.current.push(data);
+        if (!isBase64(data)) {
+          logger.warn(
+            `Invalid base64 data for chunks#${audioChunks.current.length} position=${position}`,
+          );
+        }
+      } else if (data instanceof Blob) {
+        // Append the audio data to the audioRef
+        audioChunksBlobs.current.push(data);
+      }
+    } catch (error) {
+      logger.error(`Error while processing audio data`, error);
+    }
+  }, []);
+
   const [recordingConfig, setRecordingConfig] = useState<RecordingConfig>({
     interval: 500,
     sampleRate: 16000,
+    onAudioStream: (a) => onAudioData(a),
   });
 
-  const onAudioData = useCallback(
-    async ({
-      data,
-      fileUri,
-      position,
-      eventDataSize,
-      totalSize,
-    }: AudioDataEvent) => {
-      try {
-        if (eventDataSize === 0) {
-          console.log(`Invalid data`);
-          return;
-        }
-
-        currentSize.current += eventDataSize;
-
-        // console.log(
-        //   `CHECK DATA position=${position} currentSize.current=${currentSize.current} vs ${totalSize} difference: ${totalSize - currentSize.current}`,
-        // );
-        if (typeof data === "string") {
-          // Append the audio data to the audioRef
-          audioChunks.current.push(data);
-          if (!isBase64(data)) {
-            console.error(
-              `Invalid base64 data for chunks#${audioChunks.current.length} position=${position}`,
-            );
-          }
-        } else if (data instanceof Blob) {
-          // Append the audio data to the audioRef
-          audioChunksBlobs.current.push(data);
-        }
-      } catch (error) {
-        console.error(`Error while processing audio data`, error);
-      }
-    },
-    [],
-  );
-
   const { startRecording, stopRecording, duration, size, isRecording } =
-    useAudioRecorder({ debug: true, onAudioStream: onAudioData });
+    useSharedAudioRecorder();
 
   const handleStart = async () => {
-    const { granted } = await Audio.requestPermissionsAsync();
-    if (!granted) {
-      setError("Permission not granted!");
+    try {
+      const { granted } = await Audio.requestPermissionsAsync();
+      if (!granted) {
+        setError("Permission not granted!");
+      }
+      // Clear previous audio chunks
+      audioChunks.current = [];
+      audioChunksBlobs.current = [];
+      currentSize.current = 0;
+      const streamConfig: StartAudioStreamResult =
+        await startRecording(recordingConfig);
+      logger.debug(`Recording started `, streamConfig);
+      setStreamConfig((prev) => ({ ...prev, ...streamConfig }));
+    } catch (error) {
+      logger.error(`Error while starting recording`, error);
     }
-    // Clear previous audio chunks
-    audioChunks.current = [];
-    audioChunksBlobs.current = [];
-    currentSize.current = 0;
-    const streamConfig: StartAudioStreamResult =
-      await startRecording(recordingConfig);
-    console.debug(`Recording started `, streamConfig);
-    setStreamConfig((test) => ({ ...test, ...streamConfig }));
   };
 
   const handleStopRecording = useCallback(async () => {
     if (!isRecording) return;
     const result = await stopRecording();
     // TODO: compare accumulated audio chunks with the result
-    console.debug(`Recording stopped. `, result);
+    logger.debug(`Recording stopped. `, result);
     setResult(result);
 
     if (!result) {
-      console.warn(`No result found`);
+      logger.warn(`No result found`);
       return;
+    }
+
+    if (!isWeb && result) {
+      try {
+        const jsonPath = result.fileUri.replace(/\.wav$/, ".json"); // Assuming fileUri has a .wav extension
+        await FileSystem.writeAsStringAsync(
+          jsonPath,
+          JSON.stringify(result, null, 2),
+          {
+            encoding: FileSystem.EncodingType.UTF8,
+          },
+        );
+        logger.log(`Metadata saved to ${jsonPath}`);
+        refreshFiles();
+      } catch (error) {
+        logger.error(`Error saving metadata`, error);
+      }
+    }
+
+    if (isWeb) {
+      const blob = new Blob(audioChunksBlobs.current, {
+        type: "audio/webm",
+      });
+      const url = URL.createObjectURL(blob);
+      setWebAudioUri(url);
     }
 
     // Verify data integrity to make sure we streamed the correct data
@@ -116,7 +144,8 @@ export default function App() {
           concatenatedBase64Chunks + "=".repeat(padding);
 
         if (!isBase64(paddedBase64Chunks)) {
-          console.error(`Invalid base64 data`);
+          // FIXME: ios concatenation seems to sometime fail -- investigate
+          logger.warn(`Invalid base64 data`);
           return;
         }
         const binaryChunkData = atob(paddedBase64Chunks);
@@ -136,21 +165,27 @@ export default function App() {
         const binaryChunkDataBase64 = btoa(binaryChunkData.slice(44, 500));
         const binaryFileDataBase64 = btoa(binaryFileData.slice(44, 500));
         // Perform binary comparison
-        console.log(`Binary data from chunks:`, binaryChunkDataBase64);
-        console.log(`Binary data from file:`, binaryFileDataBase64);
+        logger.log(`Binary data from chunks:`, binaryChunkDataBase64);
+        logger.log(`Binary data from file:`, binaryFileDataBase64);
 
         const isEqual = binaryChunkDataBase64 === binaryFileDataBase64;
-        console.log(`Comparison result:`, isEqual);
+        logger.log(`Comparison result:`, isEqual);
       } catch (error) {
-        console.error(`Error while comparing audio data`, error);
+        logger.error(`Error while comparing audio data`, error);
       }
     }
-  }, [isRecording]);
+  }, [isRecording, refreshFiles]);
 
   const renderRecording = () => (
-    <View>
+    <View style={{ gap: 10 }}>
       <Text>Duration: {formatDuration(duration)}</Text>
       <Text>Size: {formatBytes(size)}</Text>
+      {streamConfig?.sampleRate ? (
+        <Text>sampleRate: {streamConfig?.sampleRate}</Text>
+      ) : null}
+      {streamConfig?.channels ? (
+        <Text>channels: {streamConfig?.channels}</Text>
+      ) : null}
       <Button mode="contained" onPress={() => handleStopRecording()}>
         Stop Recording
       </Button>
@@ -158,8 +193,8 @@ export default function App() {
   );
 
   const renderStopped = () => (
-    <View>
-      <Picker
+    <View style={{ gap: 10 }}>
+      {/* <Picker
         label="Sample Rate"
         multi={false}
         options={[
@@ -187,14 +222,16 @@ export default function App() {
             sampleRate: parseInt(selected.value, 10) as 16000 | 44100 | 48000,
           }));
         }}
-      />
-      <Button onPress={() => handleStart()}>Start Recording</Button>
+      /> */}
+      <Button mode="contained" onPress={() => handleStart()}>
+        Start Recording
+      </Button>
     </View>
   );
 
   if (error) {
     return (
-      <View>
+      <View style={{ gap: 10 }}>
         <Text>{error}</Text>
         <Button onPress={() => handleStart}>Try Again</Button>
       </View>
@@ -209,13 +246,26 @@ export default function App() {
         </View>
       )} */}
       {result && (
-        <View>
-          <Text>{JSON.stringify(result, null, 2)}</Text>
-          <Text>size: {currentSize.current}</Text>
+        <View style={{ gap: 10 }}>
+          <AudioRecording
+            recording={result}
+            webAudioUri={webAudioUri}
+            onDelete={
+              isWeb
+                ? undefined
+                : () => {
+                    setResult(null);
+                    return removeFile(result.fileUri);
+                  }
+            }
+          />
+          <Button mode="outlined" onPress={() => setResult(null)}>
+            Record Again
+          </Button>
         </View>
       )}
       {isRecording && renderRecording()}
-      {!isRecording && renderStopped()}
+      {!result && !isRecording && renderStopped()}
     </ScrollView>
   );
 }
@@ -223,8 +273,10 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     gap: 10,
+    padding: 10,
+    flex: 1,
     // alignItems: "center",
-    // justifyContent: "center",
+    justifyContent: "center",
   },
   recordingContainer: {
     gap: 10,

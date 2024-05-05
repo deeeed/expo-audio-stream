@@ -176,14 +176,6 @@ class ExpoAudioStreamWeb extends EventEmitter {
       interval: this.currentInterval,
     };
   }
-
-  listAudioFiles() {
-    // Not applicable on web
-  }
-
-  clearAudioFiles() {
-    // Not applicable on web
-  }
 }
 
 export default new ExpoAudioStreamWeb();

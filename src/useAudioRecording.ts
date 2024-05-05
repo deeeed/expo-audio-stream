@@ -1,5 +1,5 @@
 import { Platform } from "expo-modules-core";
-import { useCallback, useEffect, useReducer } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 
 import { addAudioEventListener } from ".";
 import {
@@ -17,6 +17,10 @@ export interface AudioDataEvent {
   fileUri: string;
   eventDataSize: number;
   totalSize: number;
+}
+
+export interface UseAudioRecorderProps {
+  debug?: boolean;
 }
 export interface UseAudioRecorderState {
   startRecording: (_: RecordingConfig) => Promise<StartAudioStreamResult>;
@@ -72,12 +76,8 @@ function recorderReducer(
 const TAG = "[ useAudioRecorder ] ";
 
 export function useAudioRecorder({
-  onAudioStream,
   debug = false,
-}: {
-  onAudioStream?: (_: AudioDataEvent) => Promise<void>;
-  debug?: boolean;
-}): UseAudioRecorderState {
+}: UseAudioRecorderProps = {}): UseAudioRecorderState {
   const [state, dispatch] = useReducer(recorderReducer, {
     isRecording: false,
     isPaused: false,
@@ -85,16 +85,22 @@ export function useAudioRecorder({
     size: 0,
   });
 
-  console.log(`[useAudioRecorder] RENDERING state`, state);
-  const logDebug = (message: string, data?: any) => {
-    if (debug) {
-      if (data) {
-        console.log(`[useAudioRecorder] ${message}`, data);
-      } else {
-        console.log(`[useAudioRecorder] ${message}`);
+  const onAudioStreamRef = useRef<
+    ((_: AudioDataEvent) => Promise<void>) | null
+  >(null);
+
+  const logDebug = useCallback(
+    (message: string, data?: any) => {
+      if (debug) {
+        if (data) {
+          console.log(`${TAG} ${message}`, data);
+        } else {
+          console.log(`${TAG} ${message}`);
+        }
       }
-    }
-  };
+    },
+    [debug],
+  );
 
   const handleAudioEvent = useCallback(
     async (eventData: AudioEventPayload) => {
@@ -123,41 +129,24 @@ export function useAudioRecorder({
         // Ignore packet with no data
         return;
       }
-      // Add more detailed handling here
       try {
         // Coming from native ( ios / android ) otherwise buffer is set
         if (Platform.OS !== "web") {
           // Read the audio file as a base64 string for comparison
           if (!encoded) {
-            console.error("[useAudioRecorder] Encoded audio data is missing");
+            console.error(`${TAG} Encoded audio data is missing`);
             throw new Error("Encoded audio data is missing");
           }
-          await onAudioStream?.({
+          onAudioStreamRef.current?.({
             data: encoded,
             position,
             fileUri,
             eventDataSize: deltaSize,
             totalSize,
           });
-
-          // Below code is optional, used to compare encoded data to audio on file system
-          // Fetch the audio data from the fileUri
-          // const options = {
-          //     encoding: FileSystem.EncodingType.Base64,
-          //     position: lastEmittedSize,
-          //     length: deltaSize,
-          // };
-          // const base64Content = await FileSystem.readAsStringAsync(fileUri, options);
-          // const binaryData = atob(base64Content);
-          // const content = new Uint8Array(binaryData.length);
-          // for (let i = 0; i < binaryData.length; i++) {
-          // content[i] = binaryData.charCodeAt(i);
-          // }
-          // const audioBlob = new Blob([content], { type: 'application/octet-stream' }); // Create a Blob from the byte array
-          // console.debug(`Read audio file (len: ${content.length}) vs ${deltaSize}`)
         } else if (buffer) {
           // Coming from web
-          await onAudioStream?.({
+          onAudioStreamRef.current?.({
             data: buffer,
             position,
             fileUri,
@@ -169,7 +158,7 @@ export function useAudioRecorder({
         console.error(`${TAG} Error processing audio event:`, error);
       }
     },
-    [logDebug, onAudioStream],
+    [logDebug],
   );
 
   const checkStatus = useCallback(async () => {
@@ -181,7 +170,7 @@ export function useAudioRecorder({
 
       const status: AudioStreamStatus = ExpoAudioStreamModule.status();
       if (debug) {
-        logDebug("[useAudioRecorder] Status:", status);
+        logDebug(`${TAG} Status:`, status);
       }
 
       if (!status.isRecording) {
@@ -193,7 +182,7 @@ export function useAudioRecorder({
         });
       }
     } catch (error) {
-      console.error(`[useAudioRecorder] Error getting status:`, error);
+      console.error(`${TAG} Error getting status:`, error);
     }
   }, [state.isRecording, logDebug]);
 
@@ -210,10 +199,7 @@ export function useAudioRecorder({
   }, [checkStatus, state.isRecording]);
 
   useEffect(() => {
-    if (!onAudioStream) {
-      return;
-    }
-    logDebug(`${TAG} Registering audio event listener`, onAudioStream);
+    logDebug(`${TAG} Registering audio event listener`);
     const subscribe = addAudioEventListener(handleAudioEvent);
     logDebug(`${TAG} Subscribed to audio event listener`, subscribe);
 
@@ -221,15 +207,23 @@ export function useAudioRecorder({
       logDebug(`${TAG} Removing audio event listener`);
       subscribe.remove();
     };
-  }, [onAudioStream, handleAudioEvent, logDebug]);
+  }, [handleAudioEvent, logDebug]);
 
   const startRecording = useCallback(
     async (recordingOptions: RecordingConfig) => {
       if (debug) {
         logDebug(`${TAG} start recoding`, recordingOptions);
       }
+      // remove onAudioStream from recordingOptions
+      const { onAudioStream, ...options } = recordingOptions;
+      if (typeof onAudioStream === "function") {
+        onAudioStreamRef.current = onAudioStream;
+      } else {
+        console.warn(`${TAG} onAudioStream is not a function`, onAudioStream);
+        onAudioStreamRef.current = null;
+      }
       const startResult: StartAudioStreamResult =
-        await ExpoAudioStreamModule.startRecording(recordingOptions);
+        await ExpoAudioStreamModule.startRecording(options);
       dispatch({ type: "START" });
 
       return startResult;
@@ -241,6 +235,7 @@ export function useAudioRecorder({
     logDebug(`${TAG} stoping recording`);
     const stopResult: AudioStreamResult =
       await ExpoAudioStreamModule.stopRecording();
+    onAudioStreamRef.current = null;
     logDebug(`${TAG} recording stopped`, stopResult);
     dispatch({ type: "STOP" });
     return stopResult;
