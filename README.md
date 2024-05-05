@@ -1,6 +1,6 @@
 # @siteed/expo-audio-stream
 
-`@siteed/expo-audio-stream` is a comprehensive library designed to facilitate real-time audio processing and streaming across iOS, Android, and web platforms. This library leverages Expo's robust ecosystem to simplify the implementation of audio recording and streaming functionalities within React Native applications. 
+`@siteed/expo-audio-stream` is a comprehensive library designed to facilitate real-time audio processing and streaming across iOS, Android, and web platforms.
 
 ## Features
 
