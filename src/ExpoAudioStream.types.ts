@@ -1,3 +1,5 @@
+import { AudioDataEvent } from "./useAudioRecording";
+
 export interface AudioEventPayload {
   encoded?: string;
   buffer?: Blob;
@@ -38,10 +40,10 @@ export interface AudioStreamStatus {
 }
 
 export type EncodingType = "pcm_16bit" | "pcm_8bit";
-
 export interface RecordingConfig {
   sampleRate?: 16000 | 44100 | 48000;
   channels?: 1 | 2; // 1 or 2 MONO or STEREO
   encoding?: EncodingType;
   interval?: number;
+  onAudioStream?: (_: AudioDataEvent) => Promise<void>;
 }
