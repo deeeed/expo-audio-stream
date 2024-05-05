@@ -1,6 +1,6 @@
 # @siteed/expo-audio-stream
 
-`@siteed/expo-audio-stream` is a comprehensive library designed to facilitate real-time audio processing and streaming across iOS, Android, and web platforms. This library leverages Expo's robust ecosystem to simplify the implementation of audio recording and streaming functionalities within React Native applications. Key features include audio streaming with configurable buffer intervals and automatic handling of microphone permissions in managed Expo projects.
+`@siteed/expo-audio-stream` is a comprehensive library designed to facilitate real-time audio processing and streaming across iOS, Android, and web platforms. This library leverages Expo's robust ecosystem to simplify the implementation of audio recording and streaming functionalities within React Native applications. 
 
 ## Features
 
@@ -38,13 +38,10 @@ npm install @siteed/expo-audio-stream
 yarn add @siteed/expo-audio-stream
 ```
 
-Make sure that you have Expo set up in your project. For details on setting up Expo, refer to the Expo documentation.
 
 ### Configuring with app.json
 
-To ensure expo-audio-stream works correctly with Expo, you must add it as a plugin in your app.json configuration file. This step is crucial as it allows Expo to load any necessary configurations or permissions required by the library.
-
-Add the plugin to your app.json like so:
+To ensure expo-audio-stream works correctly with Expo, you must add it as a plugin in your app.json configuration file.
 
 ```json
 {
@@ -187,11 +184,3 @@ function App() {
 - on web, it usually records in opus  but it depends on the browser configuration.
 
 If you want to process the audio livestream directly, I recommend having another encoding step to align the audio format across platforms.
-
-## TODO
-this package is still in development, and there are a few things that need to be done:
-- Add resume (vs currently use start) support and implement pause on iOS.
-- Multi format support: Extend support to other audio formats beyond WAV, such as MP3 or AAC
-- Integrate an audio processing library for optional audio analysis, such as equalization, noise reduction, or volume normalization.
-- Implement a more robust error handling system to provide detailed error messages and recovery options.
-
