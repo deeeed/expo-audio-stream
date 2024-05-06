@@ -26,7 +26,7 @@ export default function TabLayout() {
             <Text
               style={{
                 color: isRecording ? recordingColor : color,
-                paddingLeft: isWeb ? 20 : 0,
+                paddingLeft: isWeb && position === "beside-icon" ? 20 : 0,
               }}
             >
               Record
