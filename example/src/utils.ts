@@ -34,3 +34,23 @@ export function formatDuration(ms: number): string {
 
   return `${paddedMinutes}:${paddedSeconds}`;
 }
+
+const MAX_8BIT = 255;
+const MAX_16BIT = 32768;
+const MAX_24BIT = 8388608;
+export const normalizeValue = (
+  value: number,
+  amplitude: number,
+  bitDepth: number,
+): number => {
+  switch (bitDepth) {
+    case 8:
+      return (1 - value / MAX_8BIT) * amplitude;
+    case 16:
+      return (1 - value / MAX_16BIT) * amplitude;
+    case 24:
+      return (1 - value / MAX_24BIT) * amplitude;
+    default:
+      throw new Error("Unsupported bit depth");
+  }
+};

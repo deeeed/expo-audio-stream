@@ -10,7 +10,7 @@ PODS:
     - ExpoModulesCore
   - Expo (50.0.17):
     - ExpoModulesCore
-  - ExpoAudioStream (0.7.5):
+  - ExpoAudioStream (1.0.1):
     - ExpoModulesCore
   - ExpoFileSystem (16.0.9):
     - ExpoModulesCore
@@ -1109,6 +1109,8 @@ PODS:
     - glog
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
+  - RNSVG (14.1.0):
+    - React-Core
   - RNVectorIcons (10.0.3):
     - glog
     - RCT-Folly (= 2022.05.16.00)
@@ -1185,6 +1187,7 @@ DEPENDENCIES:
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
+  - RNSVG (from `../node_modules/react-native-svg`)
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -1326,6 +1329,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
     :path: "../node_modules/react-native-screens"
+  RNSVG:
+    :path: "../node_modules/react-native-svg"
   RNVectorIcons:
     :path: "../node_modules/react-native-vector-icons"
   Yoga:
@@ -1338,7 +1343,7 @@ SPEC CHECKSUMS:
   EXConstants: a5f6276e565d98f9eb4280f81241fc342d641590
   EXFont: f20669cb266ef48b004f1eb1f2b20db96cd1df9f
   Expo: 2cdb5916749a1509cf88114f1f510bd458630eb4
-  ExpoAudioStream: 4c6b370d78bfcc40a1d9a2a262a6d9d2dafcd812
+  ExpoAudioStream: 0a24442d4d1b96c81c7bb19a0c4aacf539261481
   ExpoFileSystem: 74cc0fae916f9f044248433971dcfc8c3befd057
   ExpoHead: 89ffd324e60520751c2c285233fe45e875c91874
   ExpoKeepAwake: 0f5cad99603a3268e50af9a6eb8b76d0d9ac956c
@@ -1399,6 +1404,7 @@ SPEC CHECKSUMS:
   RNGestureHandler: 15c6ef51acba34c49ff03003806cf5dd6098f383
   RNReanimated: f6b02d8f5eaa2830296411d4ec3b8ef5442dd13d
   RNScreens: 17e2f657f1b09a71ec3c821368a04acbb7ebcb46
+  RNSVG: ba3e7232f45e34b7b47e74472386cf4e1a676d0a
   RNVectorIcons: 73ab573085f65a572d3b6233e68996d4707fd505
   SocketRocket: f32cd54efbe0f095c4d7594881e52619cfe80b17
   Yoga: 9740433b091fbae134d68e3ee8738f305b3f3e2a

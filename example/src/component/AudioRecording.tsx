@@ -5,6 +5,7 @@ import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { WaveForm } from "./waveform/waveform";
 import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
 import { formatBytes, formatDuration } from "../utils";
 
@@ -39,14 +40,22 @@ const getStyles = ({
   });
 };
 
+const fetchArrayBuffer = async (uri: string): Promise<ArrayBuffer> => {
+  const response = await fetch(uri);
+  const arrayBuffer = await response.arrayBuffer();
+  return arrayBuffer;
+};
+
 export interface AudioRecordingProps {
   recording: AudioStreamResult;
   webAudioUri?: string; // Allow to overwrite the audioUri for web since it cannot load from file
+  showWaveform?: boolean;
   onDelete?: () => Promise<void>;
 }
 export const AudioRecording = ({
   recording,
   webAudioUri,
+  showWaveform = true,
   onDelete,
 }: AudioRecordingProps) => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
@@ -54,6 +63,8 @@ export const AudioRecording = ({
   const { show } = useToast();
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
+  const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer | null>(null); // State for ArrayBuffer
+
   const audioUri = webAudioUri ?? recording.fileUri;
 
   const theme = useTheme();
@@ -66,6 +77,30 @@ export const AudioRecording = ({
       sound?.unloadAsync();
     };
   }, [sound]);
+
+  useEffect(() => {
+    if (!showWaveform) return;
+    // Fetch the ArrayBuffer when the component mounts
+    const loadArrayBuffer = async () => {
+      if (audioUri) {
+        try {
+          const buffer = await fetchArrayBuffer(audioUri);
+          setArrayBuffer(buffer);
+          logger.debug(
+            `Fetched audio array buffer from ${audioUri} --> length: ${buffer.byteLength} bytes`,
+          );
+        } catch (error) {
+          logger.error(
+            `Failed to fetch audio ${recording.fileUri} array buffer:`,
+            error,
+          );
+          show({ type: "error", message: "Failed to load audio data" });
+        }
+      }
+    };
+
+    loadArrayBuffer();
+  }, [audioUri, showWaveform]);
 
   const updatePlaybackStatus = useCallback(
     ({ isLoaded, didJustFinish, positionMillis, error }: any) => {
@@ -161,6 +196,22 @@ export const AudioRecording = ({
       ) : null}
 
       <Text style={[styles.positionText]}>Position: {position} ms</Text>
+
+      {arrayBuffer && (
+        <WaveForm
+          buffer={arrayBuffer}
+          waveformHeight={50}
+          showRuler={false}
+          candleStickSpacing={0}
+          candleStickWidth={1}
+          currentTime={position / 1000}
+          bitDepth={recording.bitDepth}
+          sampleRate={recording.sampleRate}
+          channels={recording.channels}
+          mode="preview" // Adjust mode as needed
+        />
+      )}
+
       <View style={styles.buttons}>
         <Button onPress={togglePlayPause}>
           {isPlaying ? "Pause" : "Play"}

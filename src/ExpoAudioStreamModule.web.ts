@@ -7,10 +7,12 @@ import {
   RecordingConfig,
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
+import { WebRecorder } from "./WebRecorder";
+import { quickUUID } from "./utils";
 
 const log = debug("expo-audio-stream:useAudioRecording");
 class ExpoAudioStreamWeb extends EventEmitter {
-  mediaRecorder: MediaRecorder | null;
+  customRecorder: WebRecorder | null;
   audioChunks: Blob[];
   isRecording: boolean;
   isPaused: boolean;
@@ -22,6 +24,8 @@ class ExpoAudioStreamWeb extends EventEmitter {
   lastEmittedSize: number;
   lastEmittedTime: number;
   streamUuid: string | null;
+  extension: "webm" | "wav" = "wav"; // Default extension is 'webm'
+  recordingConfig?: RecordingConfig;
 
   constructor() {
     const mockNativeModule = {
@@ -34,7 +38,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
     };
     super(mockNativeModule); // Pass the mock native module to the parent class
 
-    this.mediaRecorder = null;
+    this.customRecorder = null;
     this.audioChunks = [];
     this.isRecording = false;
     this.isPaused = false;
@@ -59,63 +63,52 @@ class ExpoAudioStreamWeb extends EventEmitter {
   }
 
   // Start recording with options
-  async startRecording(options: RecordingConfig = {}) {
+  async startRecording(recordingConfig: RecordingConfig = {}) {
     if (this.isRecording) {
       throw new Error("Recording is already in progress");
     }
 
+    const audioContext = new (window.AudioContext ||
+      // @ts-ignore - Allow webkitAudioContext for Safari
+      window.webkitAudioContext)();
     const stream = await this.getMediaStream();
-    this.mediaRecorder = new MediaRecorder(stream);
-    this.setupRecordingListeners();
-    this.mediaRecorder.start(options.interval || this.currentInterval);
+
+    const source = audioContext.createMediaStreamSource(stream);
+
+    this.customRecorder = new WebRecorder(
+      audioContext,
+      source,
+      recordingConfig,
+      (data, position) => {
+        this.audioChunks.push(data);
+        this.currentSize += data.size;
+        this.emitAudioEvent({ data, position });
+        this.lastEmittedTime = Date.now();
+        this.lastEmittedSize = this.currentSize;
+      }
+    );
+    await this.customRecorder.init();
+    this.customRecorder.start();
+
     this.isRecording = true;
     this.recordingStartTime = Date.now();
     this.pausedTime = 0;
     this.lastEmittedSize = 0;
     this.lastEmittedTime = 0;
-    this.streamUuid = this.generateUUID(); // Generate a UUID for the new recording session
-    const fileUri = `${this.streamUuid}.webm`;
+    this.streamUuid = quickUUID(); // Generate a UUID for the new recording session
+    const fileUri = `${this.streamUuid}.${this.extension}`;
     const streamConfig: StartAudioStreamResult = {
       fileUri,
-      mimeType: "audio/webm",
+      mimeType: `audio/${this.extension}`,
     };
     return streamConfig;
   }
 
-  // Setup listeners for the MediaRecorder
-  setupRecordingListeners() {
-    if (!this.mediaRecorder) {
-      throw new Error("No active media recorder");
-    }
-    this.mediaRecorder.ondataavailable = (event) => {
-      this.audioChunks.push(event.data);
-      this.currentSize += event.data.size; // Update the size of the recording
-
-      this.emitAudioEvent({ data: event.data, position: this.lastEmittedTime });
-      this.lastEmittedTime = event.timeStamp;
-      this.lastEmittedSize = this.currentSize;
-    };
-
-    this.mediaRecorder.onstop = () => {
-      this.isRecording = false;
-      log("Recording stopped", this.audioChunks);
-    };
-
-    this.mediaRecorder.onpause = () => {
-      this.isPaused = true;
-    };
-
-    this.mediaRecorder.onresume = () => {
-      this.isPaused = false;
-      this.recordingStartTime += Date.now() - this.pausedTime; // Adjust start time after resuming
-    };
-  }
-
   emitAudioEvent({ data, position }: { data: Blob; position: number }) {
-    const fileUri = `${this.streamUuid}.webm`;
+    const fileUri = `${this.streamUuid}.${this.extension}`;
     const audioEventPayload: AudioEventPayload = {
       fileUri,
-      mimeType: "audio/webm",
+      mimeType: `audio/${this.extension}`,
       lastEmittedSize: this.lastEmittedSize, // Since this might be continuously streaming, adjust accordingly
       deltaSize: data.size,
       position,
@@ -127,26 +120,18 @@ class ExpoAudioStreamWeb extends EventEmitter {
     this.emit("AudioData", audioEventPayload);
   }
 
-  // Helper method to generate a UUID
-  generateUUID() {
-    // Implementation of UUID generation (use a library or custom method)
-    return "xxxx-xxxx-xxxx-xxxx".replace(/[x]/g, (c) => {
-      const r = (Math.random() * 16) | 0,
-        v = c === "x" ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
-
   // Stop recording
   async stopRecording(): Promise<AudioStreamResult | null> {
-    this.mediaRecorder?.stop();
+    if (this.customRecorder) {
+      this.customRecorder.stop();
+    }
     this.isRecording = false;
     this.currentDurationMs = Date.now() - this.recordingStartTime;
     const result: AudioStreamResult = {
-      fileUri: `${this.streamUuid}.webm`,
+      fileUri: `${this.streamUuid}.${this.extension}`,
       duration: this.currentDurationMs,
       size: this.currentSize,
-      mimeType: "audio/webm",
+      mimeType: `audio/${this.extension}`,
     };
 
     return result;
@@ -154,16 +139,28 @@ class ExpoAudioStreamWeb extends EventEmitter {
 
   // Pause recording
   async pauseRecording() {
-    if (!this.mediaRecorder) {
-      throw new Error("No active media recorder");
-    }
-
-    if (this.isRecording && !this.isPaused) {
-      this.mediaRecorder.pause();
-      this.pausedTime = Date.now();
-    } else {
+    if (!this.isRecording || this.isPaused) {
       throw new Error("Recording is not active or already paused");
     }
+
+    if (this.customRecorder) {
+      this.customRecorder.stop();
+    }
+    this.isPaused = true;
+    this.pausedTime = Date.now();
+  }
+
+  // Resume recording
+  async resumeRecording() {
+    if (!this.isPaused) {
+      throw new Error("Recording is not paused");
+    }
+
+    if (this.customRecorder) {
+      this.customRecorder.resume();
+    }
+    this.isPaused = false;
+    this.recordingStartTime += Date.now() - this.pausedTime;
   }
 
   // Get current status
