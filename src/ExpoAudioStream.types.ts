@@ -40,8 +40,9 @@ export interface AudioStreamStatus {
 }
 
 export type EncodingType = "pcm_16bit" | "pcm_8bit";
+export type SampleRate = 16000 | 44100 | 48000;
 export interface RecordingConfig {
-  sampleRate?: 16000 | 44100 | 48000;
+  sampleRate?: SampleRate;
   channels?: 1 | 2; // 1 or 2 MONO or STEREO
   encoding?: EncodingType;
   interval?: number;

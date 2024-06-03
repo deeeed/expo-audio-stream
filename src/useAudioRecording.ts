@@ -214,6 +214,7 @@ export function useAudioRecorder({
       if (debug) {
         logDebug(`${TAG} start recoding`, recordingOptions);
       }
+
       // remove onAudioStream from recordingOptions
       const { onAudioStream, ...options } = recordingOptions;
       if (typeof onAudioStream === "function") {

@@ -1,8 +1,5 @@
-import {
-  EventEmitter,
-  NativeModulesProxy,
-  type Subscription,
-} from "expo-modules-core";
+import { EventEmitter, type Subscription } from "expo-modules-core";
+import { Platform } from "react-native";
 
 // Import the native module. On web, it will be resolved to ExpoAudioStream.web.ts
 // and on native platforms to ExpoAudioStream.ts
@@ -18,9 +15,7 @@ import {
   useAudioRecorder,
 } from "./useAudioRecording";
 
-const emitter = new EventEmitter(
-  ExpoAudioStreamModule ?? NativeModulesProxy.ExpoAudioStream,
-);
+const emitter = new EventEmitter(ExpoAudioStreamModule);
 
 export function test(): void {
   return ExpoAudioStreamModule.test();
@@ -33,5 +28,20 @@ export function addAudioEventListener(
   return emitter.addListener<AudioEventPayload>("AudioData", listener);
 }
 
-export { AudioRecorderProvider, useAudioRecorder, useSharedAudioRecorder };
+let createWebWorker: () => Worker;
+
+if (Platform.OS === "web") {
+  createWebWorker = require("./WebWorker.web").default;
+} else {
+  createWebWorker = () => {
+    throw new Error("Web Workers are not supported on this platform.");
+  };
+}
+
+export {
+  AudioRecorderProvider,
+  useAudioRecorder,
+  useSharedAudioRecorder,
+  createWebWorker,
+};
 export type { AudioDataEvent, AudioEventPayload, UseAudioRecorderState };

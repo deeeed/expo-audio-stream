@@ -52,6 +52,7 @@
     "expo-module-scripts": "^3.4.2",
     "expo-modules-core": "^1.11.12",
     "prettier": "^3.2.5",
+    "react-native": "^0.73.6",
     "release-it": "^17.2.0"
   },
   "peerDependencies": {
