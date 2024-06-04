@@ -191,11 +191,11 @@ class AudioStreamManager: NSObject {
             return nil
         }
         
-        recordingSettings = settings
+        var newSettings = settings  // Make settings mutable
         
         // Determine the commonFormat based on bitDepth
         let commonFormat: AVAudioCommonFormat
-        switch settings.bitDepth {
+        switch newSettings.bitDepth {
         case 16:
             commonFormat = .pcmFormatInt16
         case 32:
@@ -203,7 +203,7 @@ class AudioStreamManager: NSObject {
         default:
             Logger.debug("Unsupported bit depth. Defaulting to 16-bit PCM")
             commonFormat = .pcmFormatInt16
-            recordingSettings?.bitDepth = 16
+            newSettings.bitDepth = 16
         }
         
         emissionInterval = max(100.0, Double(intervalMilliseconds)) / 1000.0
@@ -215,6 +215,17 @@ class AudioStreamManager: NSObject {
           do {
               Logger.debug("Debug: Configuring audio session with sample rate: \(settings.sampleRate) Hz")
               
+              // Create an audio format with the desired sample rate
+              let desiredFormat = AVAudioFormat(commonFormat: commonFormat, sampleRate: newSettings.sampleRate, channels: UInt32(newSettings.numberOfChannels), interleaved: true)
+              
+              // Check if the input node supports the desired format
+              let inputNode = audioEngine.inputNode
+              let hardwareFormat = inputNode.inputFormat(forBus: 0)
+              if hardwareFormat.sampleRate != newSettings.sampleRate {
+                  Logger.debug("Debug: Preferred sample rate not supported. Falling back to hardware sample rate.")
+                  newSettings.sampleRate = session.sampleRate
+              }
+              
               try session.setCategory(.playAndRecord)
               try session.setMode(.default)
               try session.setPreferredSampleRate(settings.sampleRate)
@@ -223,10 +234,12 @@ class AudioStreamManager: NSObject {
               Logger.debug("Debug: Audio session activated successfully.")
               
               let actualSampleRate = session.sampleRate
-              if actualSampleRate != settings.sampleRate {
+              if actualSampleRate != newSettings.sampleRate {
                   Logger.debug("Debug: Preferred sample rate not set. Falling back to hardware sample rate: \(actualSampleRate) Hz")
-                  recordingSettings?.sampleRate = actualSampleRate
+                  newSettings.sampleRate = actualSampleRate
               }
+              
+              recordingSettings = newSettings  // Update the class property with the new settings
           } catch {
               Logger.debug("Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
               return nil
@@ -235,10 +248,11 @@ class AudioStreamManager: NSObject {
         NotificationCenter.default.addObserver(self, selector: #selector(handleAudioSessionInterruption), name: AVAudioSession.interruptionNotification, object: nil)
         
         // Correct the format to use 16-bit integer (PCM)
-        guard let audioFormat = AVAudioFormat(commonFormat: commonFormat, sampleRate: settings.sampleRate, channels: UInt32(settings.numberOfChannels), interleaved: true) else {
+        guard let audioFormat = AVAudioFormat(commonFormat: commonFormat, sampleRate: newSettings.sampleRate, channels: UInt32(newSettings.numberOfChannels), interleaved: true) else {
             Logger.debug("Error: Failed to create audio format with the specified bit depth.")
             return nil
         }
+        
         
         audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: audioFormat) { [weak self] (buffer, time) in
             guard let self = self, let fileURL = self.recordingFileURL else {
