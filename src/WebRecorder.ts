@@ -25,41 +25,6 @@ interface AudioWorkletEvent {
       sampleRate?: number;
   };
 }
-
-const encodeWAV = (samples: Float32Array, sampleRate: number): ArrayBuffer => {
-  const buffer = new ArrayBuffer(44 + samples.length * 4); // 44 bytes for WAV header, 4 bytes per 32-bit float sample
-  const view = new DataView(buffer);
-
-  // Write WAV header
-  const writeString = (view: DataView, offset: number, string: string) => {
-      for (let i = 0; i < string.length; i++) {
-          view.setUint8(offset + i, string.charCodeAt(i));
-      }
-  };
-
-  writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + samples.length * 4, true); // File size - 8 bytes
-  writeString(view, 8, 'WAVE');
-  writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true); // Subchunk1Size for PCM
-  view.setUint16(20, 3, true); // Format code 3 for 32-bit float
-  view.setUint16(22, 1, true); // Mono channel
-  view.setUint32(24, sampleRate, true); // Sample rate
-  view.setUint32(28, sampleRate * 4, true); // Byte rate
-  view.setUint16(32, 4, true); // Block align (4 bytes per sample for 32-bit float)
-  view.setUint16(34, 32, true); // Bits per sample (32-bit float)
-  writeString(view, 36, 'data');
-  view.setUint32(40, samples.length * 4, true); // Data chunk size
-
-  // Write samples
-  for (let i = 0; i < samples.length; i++) {
-      view.setFloat32(44 + i * 4, samples[i], true);
-  }
-
-  return buffer;
-};
-
-
 export class WebRecorder {
   private audioContext: AudioContext;
   private audioWorkletNode!: AudioWorkletNode;
@@ -86,6 +51,7 @@ export class WebRecorder {
     this.channels = source.mediaStream.getAudioTracks()[0].getSettings().channelCount || 1; // Default to 1 if not available
     this.bitDepth = 16; // Assume 16-bit depth as standard
     this.buffers = []; // Initialize the buffers array
+    this.checkAudioContextFormat();
   }
 
   async init() {
@@ -101,11 +67,9 @@ export class WebRecorder {
       this.audioContext,
       "recorder-processor",
     );
-    
+
     this.audioWorkletNode.port.onmessage = (event: AudioWorkletEvent) => {
       const command = event.data.command;
-      console.log(`received event`, event.data, command);
-      console.log(`received event`, event.data, command);
       if (command === "recordedData") {
         const recordedData = event.data.recordedData as ArrayBuffer;
         // Compute duration of the recorded data
@@ -121,11 +85,9 @@ export class WebRecorder {
         console.log(`mergedBuffers.length=${mergedBuffers.byteLength}`);
 
         // compare mergedBuffers with recordedData
-        console.log(`mergedBuffers.length=${mergedBuffers.byteLength} vs recordedData.length=${recordedData.byteLength}`);
-        this.playRecordedData(recordedData);
+        // console.log(`mergedBuffers.length=${mergedBuffers.byteLength} vs recordedData.length=${recordedData.byteLength}`);
+        // this.playRecordedData(recordedData);
         // this.playRecordedData(mergedBuffers);
-        this.checkAudioContextFormat();
-        // this.playBlobRecordedData(mergedBuffers);
         return;
       }
 
@@ -222,28 +184,6 @@ export class WebRecorder {
     console.log(`AudioBuffer number of channels: ${audioBuffer.numberOfChannels}`);
     console.log(`AudioBuffer bit depth: ${bitDepth} bits`);
   };
-
-  private playBlobRecordedData(buffer: ArrayBuffer) {
-    console.log(`before encodeWAV buffer.length=${buffer.byteLength}`, buffer);
-    const wavBuffer = encodeWAV(new Float32Array(buffer), this.audioContext.sampleRate);
-    console.log(`after encodeWAV wavBuffer.length=${wavBuffer.byteLength}`, wavBuffer);
-    const blob = new Blob([wavBuffer], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audio.play().then(() => {
-        console.log('Audio is playing');
-    }).catch((error) => {
-        console.error('Error playing audio:', error);
-    });
-    // const blob = new Blob([buffer], { type: 'audio/wav' });
-    //     const url = URL.createObjectURL(blob);
-    //     const audio = new Audio(url);
-    //     audio.play().then(() => {
-    //         console.log('Audio is playing');
-    //     }).catch((error) => {
-    //         console.error('Error playing audio:', error);
-    //     });
-}
 
   resume() {
     this.source.connect(this.audioWorkletNode);

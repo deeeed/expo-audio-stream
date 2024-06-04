@@ -53,14 +53,8 @@ export default function Record() {
   const audioChunks = useRef<string[]>([]);
   const audioChunksBlobs = useRef<ArrayBuffer[]>([]);
   const [streamConfig, setStreamConfig] =
-    useState<StartAudioStreamResult | null>({
-      sampleRate: isWeb ? 44100 : 16000,
-      mimeType: "audio/wav",
-      channels: 1,
-      bitDepth: isWeb ? 32 : 16,
-      fileUri: "",
-    });
-  const [recordingConfig, setRecordingConfig] = useState<RecordingConfig>({
+    useState<StartAudioStreamResult | null>(null);
+  const [startRecordingConfig, setStartRecordingConfig] = useState<RecordingConfig>({
     interval: 500,
     sampleRate: isWeb ? 44100 : 16000,
     encoding: isWeb ? "pcm_32bit" : "pcm_16bit",
@@ -152,9 +146,9 @@ export default function Record() {
       liveWavFormBuffer.current = new Array(LIVE_WAVE_FORM_CHUNKS_LENGTH);
       liveWavFormBufferIndex.current = 0;
       currentSize.current = 0;
-      console.log(`Starting recording...`, recordingConfig)
+      console.log(`Starting recording...`, startRecordingConfig)
       const streamConfig: StartAudioStreamResult =
-        await startRecording(recordingConfig);
+        await startRecording(startRecordingConfig);
       logger.debug(`Recording started `, streamConfig);
       setStreamConfig((prev) => ({ ...prev, ...streamConfig }));
     } catch (error) {
@@ -322,14 +316,14 @@ export default function Record() {
       <View style={{ flexDirection: "row", gap: 10 }}>
         <RadioButton.Group
           onValueChange={(value) =>
-            setRecordingConfig((prev) => {
+            setStartRecordingConfig((prev) => {
               return {
                 ...prev,
                 sampleRate: parseInt(value, 10) as SampleRate,
               };
             })
           }
-          value={recordingConfig?.sampleRate + ""}
+          value={startRecordingConfig?.sampleRate + ""}
         >
           {["16000", "44100", "48000"].map((rate) => (
             <RadioButton.Item key={rate} label={rate} value={rate} />
@@ -359,7 +353,7 @@ export default function Record() {
         </View>
       )} */}
       {result && (
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: 10, paddingBottom: 100 }}>
           <AudioRecording
             recording={result}
             showWaveform={true}
@@ -373,7 +367,7 @@ export default function Record() {
                 }
             }
           />
-          <Button mode="outlined" onPress={() => setResult(null)}>
+          <Button mode="contained" onPress={() => setResult(null)}>
             Record Again
           </Button>
         </View>
