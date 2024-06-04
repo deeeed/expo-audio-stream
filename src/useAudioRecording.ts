@@ -12,7 +12,7 @@ import {
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 
 export interface AudioDataEvent {
-  data: string | Blob;
+  data: string | ArrayBuffer;
   position: number;
   fileUri: string;
   eventDataSize: number;
