@@ -2,7 +2,7 @@ import { AudioDataEvent } from "./useAudioRecording";
 
 export interface AudioEventPayload {
   encoded?: string;
-  buffer?: Blob;
+  buffer?: ArrayBuffer;
   fileUri: string;
   lastEmittedSize: number;
   position: number;
@@ -39,7 +39,7 @@ export interface AudioStreamStatus {
   mimeType: string;
 }
 
-export type EncodingType = "pcm_16bit" | "pcm_8bit";
+export type EncodingType = "pcm_32bit" | "pcm_16bit" | "pcm_8bit";
 export type SampleRate = 16000 | 44100 | 48000;
 export interface RecordingConfig {
   sampleRate?: SampleRate;

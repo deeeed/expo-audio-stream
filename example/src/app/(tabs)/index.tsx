@@ -8,10 +8,11 @@ import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { RadioButton } from "react-native-paper";
 import { atob, btoa } from "react-native-quick-base64";
 
-import { useSharedAudioRecorder } from "../../../../src";
+import { useSharedAudioRecorder, writeWaveHeader } from "../../../../src";
 import {
   AudioStreamResult,
   RecordingConfig,
+  SampleRate,
   StartAudioStreamResult,
 } from "../../../../src/ExpoAudioStream.types";
 import { AudioDataEvent } from "../../../../src/useAudioRecording";
@@ -27,7 +28,7 @@ if (isWeb) {
   localStorage.debug = "expo-audio-stream:*";
 }
 
-const LIVE_WAVE_FORM_CHUNKS_LENGTH = 60;
+const LIVE_WAVE_FORM_CHUNKS_LENGTH = 5000;
 
 const concatenateBuffers = (buffers: ArrayBuffer[]): ArrayBuffer => {
   // Filter out any undefined or null buffers
@@ -50,19 +51,29 @@ export default function Record() {
   const [visualizationType, setVisualizationType] =
     useState<WaveformProps["visualizationType"]>("candlestick");
   const audioChunks = useRef<string[]>([]);
-  const audioChunksBlobs = useRef<Blob[]>([]);
+  const audioChunksBlobs = useRef<ArrayBuffer[]>([]);
   const [streamConfig, setStreamConfig] =
     useState<StartAudioStreamResult | null>({
-      sampleRate: 44100,
+      sampleRate: isWeb ? 44100 : 16000,
       mimeType: "audio/wav",
       channels: 1,
-      bitDepth: 16,
+      bitDepth: isWeb ? 32 : 16,
       fileUri: "",
     });
+  const [recordingConfig, setRecordingConfig] = useState<RecordingConfig>({
+    interval: 500,
+    sampleRate: isWeb ? 44100 : 16000,
+    encoding: isWeb ? "pcm_32bit" : "pcm_16bit",
+    onAudioStream: (a) => onAudioData(a),
+  });
   const [result, setResult] = useState<AudioStreamResult | null>(null);
   const currentSize = useRef(0);
   const { refreshFiles, removeFile } = useAudioFiles();
   const [webAudioUri, setWebAudioUri] = useState<string>();
+
+  // Ref for full WAV audio buffer
+  const fullWavAudioBuffer = useRef<ArrayBuffer | null>(null);
+
   // Prevent displaying the entiere audio in the live visualization
   const liveWavFormBufferIndex = useRef(0);
   const liveWavFormBuffer = useRef<ArrayBuffer[]>(
@@ -105,15 +116,18 @@ export default function Record() {
           liveWavFormBufferIndex.current =
             (liveWavFormBufferIndex.current + 1) % LIVE_WAVE_FORM_CHUNKS_LENGTH;
         }
-      } else if (data instanceof Blob) {
-        // Append the audio data to the audioRef
+      } else if (data instanceof ArrayBuffer) {
         audioChunksBlobs.current.push(data);
 
-        const wavAudioBuffer = await data.arrayBuffer();
+        // Store the arrayBuffer
+        fullWavAudioBuffer.current = concatenateBuffers([
+          ...(fullWavAudioBuffer.current ? [fullWavAudioBuffer.current] : []),
+          data,
+        ]);
 
-        // Update the circular buffer
+        // Update the circular buffer for visualization
         liveWavFormBuffer.current[liveWavFormBufferIndex.current] =
-          wavAudioBuffer;
+          data;
         liveWavFormBufferIndex.current =
           (liveWavFormBufferIndex.current + 1) % LIVE_WAVE_FORM_CHUNKS_LENGTH;
       }
@@ -121,12 +135,6 @@ export default function Record() {
       logger.error(`Error while processing audio data`, error);
     }
   }, []);
-
-  const [recordingConfig, setRecordingConfig] = useState<RecordingConfig>({
-    interval: 500,
-    sampleRate: 44100,
-    onAudioStream: (a) => onAudioData(a),
-  });
 
   const { startRecording, stopRecording, duration, size, isRecording } =
     useSharedAudioRecorder();
@@ -144,6 +152,7 @@ export default function Record() {
       liveWavFormBuffer.current = new Array(LIVE_WAVE_FORM_CHUNKS_LENGTH);
       liveWavFormBufferIndex.current = 0;
       currentSize.current = 0;
+      console.log(`Starting recording...`, recordingConfig)
       const streamConfig: StartAudioStreamResult =
         await startRecording(recordingConfig);
       logger.debug(`Recording started `, streamConfig);
@@ -182,12 +191,20 @@ export default function Record() {
       }
     }
 
-    if (isWeb) {
-      const blob = new Blob(audioChunksBlobs.current, {
-        type: "audio/webm",
+
+    if (isWeb && fullWavAudioBuffer.current) {
+      const wavBuffer = writeWaveHeader({
+        buffer: fullWavAudioBuffer.current,
+        sampleRate: streamConfig?.sampleRate || 44100,
+        numChannels: streamConfig?.channels || 1,
+        bitDepth: streamConfig?.bitDepth || 32,
       });
+
+      const blob = new Blob([wavBuffer], { type: result.mimeType });
       const url = URL.createObjectURL(blob);
+      console.log(`Generated URL: ${url}`);
       setWebAudioUri(url);
+      return;
     }
 
     // Verify data integrity to make sure we streamed the correct data
@@ -243,7 +260,7 @@ export default function Record() {
           <Text>len: {visualBuffer.byteLength}</Text>
           <WaveForm
             buffer={visualBuffer}
-            // mode="live"
+            mode="live"
             showRuler
             debug
             visualizationType={visualizationType}
@@ -305,12 +322,14 @@ export default function Record() {
       <View style={{ flexDirection: "row", gap: 10 }}>
         <RadioButton.Group
           onValueChange={(value) =>
-            setStreamConfig((prev) => {
-              if (!prev) return prev;
-              return { ...prev, sampleRate: parseInt(value, 10) };
+            setRecordingConfig((prev) => {
+              return {
+                ...prev,
+                sampleRate: parseInt(value, 10) as SampleRate,
+              };
             })
           }
-          value={streamConfig?.sampleRate + ""}
+          value={recordingConfig?.sampleRate + ""}
         >
           {["16000", "44100", "48000"].map((rate) => (
             <RadioButton.Item key={rate} label={rate} value={rate} />
@@ -343,15 +362,15 @@ export default function Record() {
         <View style={{ gap: 10 }}>
           <AudioRecording
             recording={result}
-            showWaveform={false}
+            showWaveform={true}
             webAudioUri={webAudioUri}
             onDelete={
               isWeb
                 ? undefined
                 : () => {
-                    setResult(null);
-                    return removeFile(result.fileUri);
-                  }
+                  setResult(null);
+                  return removeFile(result.fileUri);
+                }
             }
           />
           <Button mode="outlined" onPress={() => setResult(null)}>

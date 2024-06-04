@@ -212,17 +212,25 @@ class AudioStreamManager: NSObject {
         totalDataSize = 0
         
         let session = AVAudioSession.sharedInstance()
-        do {
-            Logger.debug("Debug: Configuring audio session with sample rate: \(settings.sampleRate) Hz")
-            try session.setPreferredSampleRate(settings.sampleRate)
-            try session.setPreferredIOBufferDuration(1024 / settings.sampleRate)
-            try session.setCategory(.playAndRecord)
-            try session.setActive(true)
-            Logger.debug("Debug: Audio session activated successfully.")
-        } catch {
-            Logger.debug("Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
-            return nil
-        }
+          do {
+              Logger.debug("Debug: Configuring audio session with sample rate: \(settings.sampleRate) Hz")
+              
+              try session.setCategory(.playAndRecord)
+              try session.setMode(.default)
+              try session.setPreferredSampleRate(settings.sampleRate)
+              try session.setPreferredIOBufferDuration(1024 / settings.sampleRate)
+              try session.setActive(true)
+              Logger.debug("Debug: Audio session activated successfully.")
+              
+              let actualSampleRate = session.sampleRate
+              if actualSampleRate != settings.sampleRate {
+                  Logger.debug("Debug: Preferred sample rate not set. Falling back to hardware sample rate: \(actualSampleRate) Hz")
+                  recordingSettings?.sampleRate = actualSampleRate
+              }
+          } catch {
+              Logger.debug("Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
+              return nil
+          }
         
         NotificationCenter.default.addObserver(self, selector: #selector(handleAudioSessionInterruption), name: AVAudioSession.interruptionNotification, object: nil)
         

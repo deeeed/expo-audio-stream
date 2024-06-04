@@ -65,13 +65,13 @@ export const getRulerInterval = (
 };
 
 interface MinMaxAverageParams {
-  data: Int16Array;
+  data: Float32Array;
   totalCandles: number;
   samplesPerCandle: number;
 }
 
 interface GenerateBarsParams {
-  data: Int16Array;
+  data: Float32Array;
   totalCandles: number;
   samplesPerCandle: number;
   minAverage: number;

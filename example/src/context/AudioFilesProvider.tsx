@@ -140,6 +140,7 @@ export const AudioFilesProvider = ({
         }
       }),
     );
+    await refreshFiles();
   }, []);
 
   useEffect(() => {

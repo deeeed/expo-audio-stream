@@ -30,6 +30,8 @@ export const TimeRuler = ({
   const finalLabelColor = labelColor || colors.text;
   const numTicks = Math.floor(duration / interval);
 
+  if (width <= 0 || numTicks <= 0) return null; // Early return if width or numTicks is invalid
+
   return (
     <>
       {Array.from({ length: numTicks + 1 }).map((_, i) => {

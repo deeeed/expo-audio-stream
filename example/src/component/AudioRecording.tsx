@@ -202,6 +202,7 @@ export const AudioRecording = ({
           buffer={arrayBuffer}
           waveformHeight={50}
           showRuler={false}
+          debug
           candleStickSpacing={0}
           candleStickWidth={1}
           currentTime={position / 1000}
