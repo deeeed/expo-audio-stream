@@ -14,6 +14,7 @@ import {
   UseAudioRecorderState,
   useAudioRecorder,
 } from "./useAudioRecording";
+import { writeWaveHeader, convertPCMToFloat32 } from "./utils";
 
 const emitter = new EventEmitter(ExpoAudioStreamModule);
 
@@ -40,6 +41,8 @@ if (Platform.OS === "web") {
 
 export {
   AudioRecorderProvider,
+  writeWaveHeader,
+  convertPCMToFloat32,
   useAudioRecorder,
   useSharedAudioRecorder,
   createWebWorker,

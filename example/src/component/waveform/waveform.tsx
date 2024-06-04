@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import Svg, { Line, Rect } from "react-native-svg";
@@ -11,10 +11,11 @@ import {
   generateBars,
   getRulerInterval,
 } from "./waveform.utils";
+import { convertPCMToFloat32 } from "../../../../src";
 
 const DEFAULT_CANDLE_WIDTH = 3;
 const DEFAULT_CANDLE_SPACING = 2;
-const waveHeaderSize = 80; // size to skip for header or invalid data
+const waveHeaderSize = 44; // size to skip for header or invalid data
 const startMargin = 0; // Margin to ensure 0 mark is visible
 
 export const WaveForm: React.FC<WaveformProps> = ({
@@ -38,60 +39,55 @@ export const WaveForm: React.FC<WaveformProps> = ({
   const [parentWidth, setParentWidth] = useState<number>(0);
   const [minAvg, setMinAvg] = useState<number>(Infinity);
   const [maxAvg, setMaxAvg] = useState<number>(-Infinity);
-  const duration =
-    (buffer.byteLength - waveHeaderSize) /
-    (sampleRate * channels * (bitDepth / 8));
-
-  const rulerInterval = useMemo(() => {
-    return getRulerInterval(zoomLevel, duration, parentWidth, mode);
-  }, [zoomLevel, duration, parentWidth, mode]);
 
   const maxDuration =
     mode === "live"
       ? 30
       : (buffer.byteLength - waveHeaderSize) /
-        (sampleRate * channels * (bitDepth / 8));
-
-  const data = useMemo(() => {
-    // if (mode === "live") {
-    //   const endSample = buffer.byteLength / (bitDepth / 8);
-    //   const startSample = Math.max(0, endSample - sampleRate * maxDuration);
-    //   return new Int16Array(buffer.slice(waveHeaderSize)).slice(
-    //     startSample,
-    //     endSample,
-    //   );
-    // }
-    return new Int16Array(buffer.slice(waveHeaderSize));
-  }, [buffer, mode, maxDuration, sampleRate, bitDepth]);
+      (sampleRate * channels * (bitDepth / 8));
 
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Compute samplesPerCandle differently for preview mode
-  const samplesPerCandle =
-    mode === "preview"
+  const { duration, data, rulerInterval, samplesPerCandle, totalCandles, totalSvgWidth, currentSampleIndex, currentSampleValue, currentDecibels, currentXPosition } = useMemo(() => {
+    const duration = (buffer.byteLength - waveHeaderSize) / (sampleRate * channels * (bitDepth / 8));
+    const rawData = buffer.slice(waveHeaderSize);
+    const data = convertPCMToFloat32(rawData, bitDepth);
+    const rulerInterval = getRulerInterval(zoomLevel, duration, parentWidth, mode);
+
+    const samplesPerCandle = mode === "preview"
       ? Math.ceil(data.length / parentWidth)
       : (sampleRate * rulerInterval) / candlesPerRulerInterval;
 
-  // Compute totalCandles and totalSvgWidth differently for preview mode
-  const totalCandles =
-    mode === "preview"
+    const totalCandles = mode === "preview"
       ? Math.floor(parentWidth / (candleStickWidth + candleStickSpacing))
       : Math.ceil((duration * sampleRate) / samplesPerCandle);
 
-  const candlestickTotalWidth = candleStickWidth + candleStickSpacing;
-  const totalSvgWidth =
-    mode === "preview"
+    const candlestickTotalWidth = candleStickWidth + candleStickSpacing;
+    const totalSvgWidth = mode === "preview"
       ? parentWidth
       : totalCandles * candlestickTotalWidth + startMargin;
 
-  // Calculate the current sample index based on the current time
-  const currentSampleIndex = Math.floor(currentTime * sampleRate);
-  const currentSampleValue = data[currentSampleIndex];
-  const currentDecibels = amplitudeToDecibels(currentSampleValue, bitDepth);
+    const currentSampleIndex = Math.floor(currentTime * sampleRate);
+    const currentSampleValue = data[currentSampleIndex] || 0;
+    const currentDecibels = amplitudeToDecibels(currentSampleValue, bitDepth);
 
-  // Calculate the x-position of the vertical line
-  const currentXPosition =
-    (currentTime / duration) * (totalSvgWidth - startMargin) + startMargin;
+    const currentXPosition = duration > 0 && totalSvgWidth > 0
+      ? (currentTime / duration) * (totalSvgWidth - startMargin) + startMargin
+      : 0;
+
+    return {
+      duration,
+      data,
+      rulerInterval,
+      samplesPerCandle,
+      totalCandles,
+      totalSvgWidth,
+      currentSampleIndex,
+      currentSampleValue,
+      currentDecibels,
+      currentXPosition,
+    };
+  }, [buffer, bitDepth, sampleRate, channels, parentWidth, zoomLevel, mode, currentTime, candleStickWidth, candleStickSpacing]);
 
   useEffect(() => {
     if (mode === "live") {
@@ -105,7 +101,7 @@ export const WaveForm: React.FC<WaveformProps> = ({
     }
   }, [mode]);
 
-  useEffect(() => {
+  const updateBars = useCallback(() => {
     if (parentWidth > 0) {
       const [minAverage, maxAverage] = calculateMinMaxAverage({
         data,
@@ -130,19 +126,11 @@ export const WaveForm: React.FC<WaveformProps> = ({
         scrollViewRef.current.scrollTo({ x: 0, animated: false });
       }
     }
-  }, [
-    buffer,
-    parentWidth,
-    mode,
-    bitDepth,
-    channels,
-    visualizationType,
-    totalSvgWidth,
-    duration,
-    data,
-    totalCandles,
-    samplesPerCandle,
-  ]);
+  }, [data, totalCandles, samplesPerCandle, waveformHeight, totalSvgWidth, parentWidth, mode]);
+
+  useEffect(() => {
+    updateBars();
+  }, [updateBars]);
 
   const handleLayout = (event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
@@ -157,6 +145,8 @@ export const WaveForm: React.FC<WaveformProps> = ({
           <Text>Data: {data.length}</Text>
           <Text>Duration: {duration}</Text>
           <Text>SampleRate: {sampleRate}</Text>
+          <Text>bitDepth: {bitDepth}</Text>
+          <Text>Channels: {channels}</Text>
           <Text>candlesPerRulerInterval: {candlesPerRulerInterval}</Text>
           <Text>Total Candles: {totalCandles}</Text>
           <Text>Samples Per Candle: {samplesPerCandle}</Text>

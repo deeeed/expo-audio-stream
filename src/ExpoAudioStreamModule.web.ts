@@ -10,10 +10,16 @@ import {
 import { WebRecorder } from "./WebRecorder";
 import { quickUUID } from "./utils";
 
+export interface EmitAudioEventProps {
+  data: ArrayBuffer;
+  position: number;
+};
+export type EmitAudioEventFunction = (_: EmitAudioEventProps) => void;
+
 const log = debug("expo-audio-stream:useAudioRecording");
 class ExpoAudioStreamWeb extends EventEmitter {
   customRecorder: WebRecorder | null;
-  audioChunks: Blob[];
+  audioChunks: ArrayBuffer[];
   isRecording: boolean;
   isPaused: boolean;
   recordingStartTime: number;
@@ -79,16 +85,23 @@ class ExpoAudioStreamWeb extends EventEmitter {
       audioContext,
       source,
       recordingConfig,
-      (data, position) => {
+      ({data, position}: EmitAudioEventProps) => {
         this.audioChunks.push(data);
-        this.currentSize += data.size;
+        this.currentSize += data.byteLength;
         this.emitAudioEvent({ data, position });
         this.lastEmittedTime = Date.now();
         this.lastEmittedSize = this.currentSize;
-      }
+      },
     );
     await this.customRecorder.init();
     this.customRecorder.start();
+
+    // // Set a timer to stop recording after 5 seconds
+    // setTimeout(() => {
+    //   console.log("AUTO Stopping recording");
+    //   this.customRecorder?.stopAndPlay();
+    //   this.isRecording = false;
+    // }, 2000);
 
     this.isRecording = true;
     this.recordingStartTime = Date.now();
@@ -104,13 +117,13 @@ class ExpoAudioStreamWeb extends EventEmitter {
     return streamConfig;
   }
 
-  emitAudioEvent({ data, position }: { data: Blob; position: number }) {
+  emitAudioEvent({ data, position }: EmitAudioEventProps) {
     const fileUri = `${this.streamUuid}.${this.extension}`;
     const audioEventPayload: AudioEventPayload = {
       fileUri,
       mimeType: `audio/${this.extension}`,
       lastEmittedSize: this.lastEmittedSize, // Since this might be continuously streaming, adjust accordingly
-      deltaSize: data.size,
+      deltaSize: data.byteLength,
       position,
       totalSize: this.currentSize,
       buffer: data,
@@ -123,12 +136,15 @@ class ExpoAudioStreamWeb extends EventEmitter {
   // Stop recording
   async stopRecording(): Promise<AudioStreamResult | null> {
     if (this.customRecorder) {
-      this.customRecorder.stop();
+      this.customRecorder.stopAndPlay();
     }
     this.isRecording = false;
     this.currentDurationMs = Date.now() - this.recordingStartTime;
     const result: AudioStreamResult = {
       fileUri: `${this.streamUuid}.${this.extension}`,
+      bitDepth: this.recordingConfig?.encoding === "pcm_32bit" ? 32 : 32,
+      channels: this.recordingConfig?.channels ?? 1,
+      sampleRate: this.recordingConfig?.sampleRate ?? 44100,
       duration: this.currentDurationMs,
       size: this.currentSize,
       mimeType: `audio/${this.extension}`,
