@@ -1,4 +1,4 @@
-import { Button } from "@siteed/design-system";
+import { Button, Picker, ScreenWrapper } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
@@ -283,53 +283,76 @@ export default function Record() {
 
   const renderStopped = () => (
     <View style={{ gap: 10 }}>
-      {/* <Picker
+      <Picker
         label="Sample Rate"
         multi={false}
         options={[
           {
             label: "16000",
             value: "16000",
-            selected: recordingConfig.sampleRate === 16000,
+            selected: startRecordingConfig.sampleRate === 16000,
           },
           {
             label: "44100",
             value: "44100",
-            selected: recordingConfig.sampleRate === 44100,
+            selected: startRecordingConfig.sampleRate === 44100,
           },
           {
             label: "48000",
             value: "48000",
-            selected: recordingConfig.sampleRate === 48000,
+            selected: startRecordingConfig.sampleRate === 48000,
           },
         ]}
         onFinish={(options) => {
-          const selected = options.find((option) => option.selected);
+          console.log(`Selected options`, options);
+          const selected = options?.find((option) => option.selected);
           if (!selected) return;
-          setRecordingConfig((prev) => ({
+          setStartRecordingConfig((prev) => ({
             ...prev,
-            sampleRate: parseInt(selected.value, 10) as 16000 | 44100 | 48000,
+            sampleRate: parseInt(selected.value, 10) as SampleRate,
           }));
         }}
-      /> */}
-      {/* Choose between available sample rate via radio button */}
-      <View style={{ flexDirection: "row", gap: 10 }}>
-        <RadioButton.Group
-          onValueChange={(value) =>
-            setStartRecordingConfig((prev) => {
-              return {
-                ...prev,
-                sampleRate: parseInt(value, 10) as SampleRate,
-              };
-            })
-          }
-          value={startRecordingConfig?.sampleRate + ""}
-        >
-          {["16000", "44100", "48000"].map((rate) => (
-            <RadioButton.Item key={rate} label={rate} value={rate} />
-          ))}
-        </RadioButton.Group>
-      </View>
+      />
+      <Picker label="Encoding" multi={false} options={[
+        {
+          label: "pcm_16bit",
+          value: "pcm_16bit",
+          selected: startRecordingConfig.encoding === "pcm_16bit",
+        },
+        {
+          label: "pcm_32bit",
+          value: "pcm_32bit",
+          selected: startRecordingConfig.encoding === "pcm_32bit",
+        },
+        {
+          label: "pcm_8bit",
+          value: "pcm_8bit",
+          selected: startRecordingConfig.encoding === "pcm_8bit",
+        },
+      ]} onFinish={(options) => {
+        const selected = options?.find((option) => option.selected);
+        if (!selected) return;
+        setStartRecordingConfig((prev) => ({
+          ...prev,
+          encoding: selected.value as RecordingConfig["encoding"],
+        }));
+      }} />
+      <Picker label="Visualization Type" multi={false} options={[
+        {
+          label: "Candlestick",
+          value: "candlestick",
+          selected: visualizationType === "candlestick",
+        },
+        {
+          label: "Line",
+          value: "line",
+          selected: visualizationType === "line",
+        },
+      ]} onFinish={(options) => {
+        const selected = options?.find((option) => option.selected);
+        if (!selected) return;
+        setVisualizationType(selected.value as WaveformProps["visualizationType"]);
+      }} />
       <Button mode="contained" onPress={() => handleStart()}>
         Start Recording
       </Button>
@@ -346,7 +369,7 @@ export default function Record() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
       {/* {audioUri && (
         <View>
           <Text>Audio URI: {audioUri}</Text>
@@ -374,7 +397,7 @@ export default function Record() {
       )}
       {isRecording && renderRecording()}
       {!result && !isRecording && renderStopped()}
-    </ScrollView>
+    </ScreenWrapper>
   );
 }
 
@@ -382,9 +405,10 @@ const styles = StyleSheet.create({
   container: {
     gap: 10,
     padding: 10,
-    flex: 1,
+    // flex: 1,
     // alignItems: "center",
     justifyContent: "center",
+    paddingBottom: 80,
   },
   waveformContainer: {
     borderRadius: 10,

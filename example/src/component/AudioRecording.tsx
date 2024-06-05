@@ -1,15 +1,13 @@
 import { AppTheme, Button, useTheme, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
-import { Audio } from "expo-av";
 import * as Sharing from "expo-sharing";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import React, { useMemo } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
-import { WaveForm } from "./waveform/waveform";
 import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
-import { fetchArrayBuffer, formatBytes, formatDuration } from "../utils";
-import * as FileSystem from 'expo-file-system';
 import { useAudio } from "../hooks/useAudio";
+import { formatBytes, formatDuration } from "../utils";
+import { WaveForm } from "./waveform/waveform";
 
 const getStyles = ({
   isPlaying,
@@ -111,19 +109,19 @@ export const AudioRecording = ({
       {arrayBuffer && (
         <WaveForm
           buffer={arrayBuffer}
-          waveformHeight={50}
-          showRuler={false}
+          waveformHeight={200}
+          showRuler={true}
           debug
-          candleStickSpacing={0}
-          candleStickWidth={1}
+          visualizationType="line"
+          candleStickSpacing={2}
+          candleStickWidth={5}
           currentTime={position / 1000}
           bitDepth={recording.bitDepth}
           sampleRate={recording.sampleRate}
           channels={recording.channels}
-          mode="preview" // Adjust mode as needed
+          mode="static" // Adjust mode as needed
         />
       )}
-
       <View style={styles.buttons}>
         <Button onPress={togglePlayPause}>
           {isPlaying ? "Pause" : "Play"}

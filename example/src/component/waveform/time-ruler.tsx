@@ -13,6 +13,7 @@ export interface TimeRulerProps {
   labelFormatter?: (value: number) => string; // Formatter function for labels
   startMargin?: number; // Margin at the start to ensure 0 mark is visible
 }
+
 export const TimeRuler = ({
   duration,
   width,
@@ -21,7 +22,7 @@ export const TimeRuler = ({
   tickColor,
   labelColor,
   labelFontSize = 10,
-  labelFormatter = (value) => value.toFixed(1), // Format to 1 decimal place
+  labelFormatter = (value) => value < 10 ? value.toFixed(1) : Math.round(value).toString(), // Format to 1 decimal place
   startMargin = 0,
 }: TimeRulerProps) => {
   const { colors } = useTheme();
@@ -29,8 +30,12 @@ export const TimeRuler = ({
   const finalTickColor = tickColor || colors.text;
   const finalLabelColor = labelColor || colors.text;
   const numTicks = Math.floor(duration / interval);
+  const minLabelSpacing = 50; // Minimum spacing in pixels between labels
 
   if (width <= 0 || numTicks <= 0) return null; // Early return if width or numTicks is invalid
+
+  const tickSpacing = (width - startMargin) / numTicks;
+  const labelInterval = Math.ceil(minLabelSpacing / tickSpacing);
 
   return (
     <>
@@ -46,15 +51,17 @@ export const TimeRuler = ({
               stroke={finalTickColor}
               strokeWidth="1"
             />
-            <SvgText
-              x={xPosition}
-              y={tickHeight + labelFontSize}
-              fill={finalLabelColor}
-              fontSize={labelFontSize}
-              textAnchor="middle"
-            >
-              {labelFormatter(i * interval)}
-            </SvgText>
+            {i % labelInterval === 0 && (
+              <SvgText
+                x={xPosition}
+                y={tickHeight + labelFontSize}
+                fill={finalLabelColor}
+                fontSize={labelFontSize}
+                textAnchor="middle"
+              >
+                {labelFormatter(i * interval)}
+              </SvgText>
+            )}
           </React.Fragment>
         );
       })}
