@@ -33,6 +33,23 @@ export const AudioFilesProvider = ({
   const [files, setFiles] = useState<AudioStreamResult[]>([]);
   const { logger } = useLogger("AudioFilesProvider");
 
+  useEffect(() => {
+    const testFileUri = async (uri: string) => {
+      try {
+        const info = await FileSystem.getInfoAsync(uri);
+        if (!info.exists) {
+          logger.error(`File does not exist at ${uri}`);
+        } else {
+          logger.debug(`File exists at ${uri}`);
+        }
+      } catch (error) {
+        logger.error(`Error accessing file at ${uri}:`, error);
+      }
+    };
+  
+    files.forEach(file => testFileUri(file.fileUri));
+  }, [files]);
+
   const listAudioFiles = useCallback(async () => {
     if (Platform.OS === "web") {
       return [];

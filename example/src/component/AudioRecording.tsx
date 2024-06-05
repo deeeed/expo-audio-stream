@@ -3,11 +3,13 @@ import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 
 import { WaveForm } from "./waveform/waveform";
 import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
-import { formatBytes, formatDuration } from "../utils";
+import { fetchArrayBuffer, formatBytes, formatDuration } from "../utils";
+import * as FileSystem from 'expo-file-system';
+import { useAudio } from "../hooks/useAudio";
 
 const getStyles = ({
   isPlaying,
@@ -40,12 +42,6 @@ const getStyles = ({
   });
 };
 
-const fetchArrayBuffer = async (uri: string): Promise<ArrayBuffer> => {
-  const response = await fetch(uri);
-  const arrayBuffer = await response.arrayBuffer();
-  return arrayBuffer;
-};
-
 export interface AudioRecordingProps {
   recording: AudioStreamResult;
   webAudioUri?: string; // Allow to overwrite the audioUri for web since it cannot load from file
@@ -58,115 +54,30 @@ export const AudioRecording = ({
   showWaveform = true,
   onDelete,
 }: AudioRecordingProps) => {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const { logger } = useLogger("AudioRecording");
+  const { logger } = useLogger('AudioRecording');
   const { show } = useToast();
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [position, setPosition] = useState(0);
-  const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer | null>(null); // State for ArrayBuffer
-
   const audioUri = webAudioUri ?? recording.fileUri;
-
   const theme = useTheme();
-  const styles = useMemo(
-    () => getStyles({ isPlaying, theme }),
-    [isPlaying, theme],
-  );
-  useEffect(() => {
-    return () => {
-      sound?.unloadAsync();
-    };
-  }, [sound]);
-
-  useEffect(() => {
-    if (!showWaveform) return;
-    // Fetch the ArrayBuffer when the component mounts
-    const loadArrayBuffer = async () => {
-      if (audioUri) {
-        try {
-          const buffer = await fetchArrayBuffer(audioUri);
-          setArrayBuffer(buffer);
-          logger.debug(
-            `Fetched audio array buffer from ${audioUri} --> length: ${buffer.byteLength} bytes`,
-          );
-        } catch (error) {
-          logger.error(
-            `Failed to fetch audio ${recording.fileUri} array buffer:`,
-            error,
-          );
-          show({ type: "error", message: "Failed to load audio data" });
-        }
-      }
-    };
-
-    loadArrayBuffer();
-  }, [audioUri, showWaveform]);
-
-  const updatePlaybackStatus = useCallback(
-    ({ isLoaded, didJustFinish, positionMillis, error }: any) => {
-      if (error) {
-        logger.error(`Playback Error: ${error}`);
-        return;
-      }
-      if (!isLoaded) {
-        return;
-      }
-      setPosition(positionMillis);
-      if (didJustFinish) {
-        setIsPlaying(false);
-        setPosition(0); // Reset position when playback finishes
-      }
-    },
-    [],
-  );
+  const { arrayBuffer, isPlaying, position, togglePlayPause } = useAudio(audioUri, showWaveform);
+  const styles = useMemo(() => getStyles({ isPlaying: isPlaying, theme }), [isPlaying, theme]);
 
   const handleShare = async () => {
     if (!audioUri) {
-      show({ type: "error", message: "No file to share" });
+      show({ type: 'error', message: 'No file to share' });
       return;
     }
 
     try {
       const isAvailable = await Sharing.isAvailableAsync();
       if (!isAvailable) {
-        alert("Sharing is not available on your platform");
+        alert('Sharing is not available on your platform');
         return;
       }
 
       await Sharing.shareAsync(audioUri);
     } catch (error) {
-      logger.error("Error sharing the audio file:", error);
-      show({ type: "error", message: "Failed to share the file" });
-    }
-  };
-
-  const togglePlayPause = async () => {
-    try {
-      if (!sound) {
-        // No sound object, create a new one and play
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri: audioUri },
-          { shouldPlay: true },
-        );
-        newSound.setOnPlaybackStatusUpdate(updatePlaybackStatus);
-        setSound(newSound);
-        setIsPlaying(true);
-      } else {
-        // Sound object exists
-        if (isPlaying) {
-          // If already playing, pause it
-          await sound.pauseAsync();
-          setIsPlaying(false);
-        } else {
-          // Not playing, make sure we start from the beginning
-          await sound.setPositionAsync(0); // Reset the position to the start
-          await sound.playAsync();
-          setIsPlaying(true);
-        }
-      }
-    } catch (error) {
-      logger.error("Failed to play or pause the audio:", error);
-      show({ type: "error", message: "Failed to play or pause the audio" });
+      logger.error('Error sharing the audio file:', error);
+      show({ type: 'error', message: 'Failed to share the file' });
     }
   };
 

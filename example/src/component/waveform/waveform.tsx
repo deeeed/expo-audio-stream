@@ -18,6 +18,8 @@ const DEFAULT_CANDLE_SPACING = 2;
 const waveHeaderSize = 44; // size to skip for header or invalid data
 const startMargin = 0; // Margin to ensure 0 mark is visible
 
+const isValidNumber = (value: number) => !isNaN(value) && isFinite(value);
+
 export const WaveForm: React.FC<WaveformProps> = ({
   buffer,
   bitDepth = 16,
@@ -175,16 +177,21 @@ export const WaveForm: React.FC<WaveformProps> = ({
                 interval={rulerInterval}
               />
             )}
-            {bars.map((bar, index) => (
-              <Rect
-                key={index}
-                x={bar.x + startMargin}
-                y={bar.y}
-                width={candleStickWidth}
-                height={bar.height}
-                fill={candleColor}
-              />
-            ))}
+            {bars.map((bar, index) => {
+               if (isValidNumber(bar.x) && isValidNumber(bar.y) && isValidNumber(bar.height)) {
+                return (
+                  <Rect
+                    key={index}
+                    x={bar.x + startMargin}
+                    y={bar.y}
+                    width={candleStickWidth}
+                    height={bar.height}
+                    fill={candleColor}
+                  />
+                );
+              }
+              return null; // Skip rendering if any value is NaN
+            })}
             {/* Vertical line for current playback position */}
             {mode !== "live" && (
               <Line
