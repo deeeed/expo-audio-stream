@@ -1,7 +1,9 @@
-export const convertPCMToFloat32 = (buffer: ArrayBuffer, bitDepth: number): Float32Array => {
+export const convertPCMToFloat32 = (buffer: ArrayBuffer, bitDepth: number): {pcmValues: Float32Array, min: number, max: number} => {
   const dataView = new DataView(buffer);
   const length = buffer.byteLength / (bitDepth / 8);
   const float32Array = new Float32Array(length);
+  let min = Infinity;
+  let max = -Infinity;
 
   for (let i = 0; i < length; i++) {
     let value = 0;
@@ -22,10 +24,12 @@ export const convertPCMToFloat32 = (buffer: ArrayBuffer, bitDepth: number): Floa
       default:
         throw new Error(`Unsupported bit depth: ${bitDepth}`);
     }
+    if (value < min) min = value;
+    if (value > max) max = value;
     float32Array[i] = value;
   }
 
-  return float32Array;
+  return {pcmValues: float32Array, min, max};
 };
 
 interface WaveHeaderOptions {

@@ -50,38 +50,57 @@ export const amplitudeToDecibels = (
   return 20 * Math.log10(Math.abs(amplitude) / reference);
 };
 
-
-interface GenerateLinePointsParams {
+interface DownsampleParams {
   data: Float32Array;
-  waveformHeight: number;
-  totalWidth: number;
-  topMargin?: number; // Optional top margin
-  bottomMargin?: number; // Optional bottom margin
+  samplesPerPoint: number;
 }
 
-export const generateLinePoints = ({
-  data,
-  waveformHeight,
-  totalWidth,
-  topMargin = 30, // Default 30px top margin
-  bottomMargin = 30, // Default 30px bottom margin
-}: GenerateLinePointsParams): Point[] => {
-  const totalPoints = data.length;
-  const linePoints: Point[] = [];
+export const downsampleAverage = ({ data, samplesPerPoint }: DownsampleParams): Float32Array => {
+    const downsampled = new Float32Array(Math.ceil(data.length / samplesPerPoint));
+    for (let i = 0; i < downsampled.length; i++) {
+        const start = i * samplesPerPoint;
+        const end = Math.min(start + samplesPerPoint, data.length);
+        let sum = 0;
+        for (let j = start; j < end; j++) {
+            sum += data[j];
+        }
+        downsampled[i] = sum / (end - start);
+    }
+    return downsampled;
+};
 
-  const effectiveHeight = waveformHeight - topMargin - bottomMargin;
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-
+export const downsamplePeak = ({ data, samplesPerPoint }: DownsampleParams): { min: Float32Array, max: Float32Array } => {
+  const totalPoints = Math.ceil(data.length / samplesPerPoint);
+  const downsampledMin = new Float32Array(totalPoints);
+  const downsampledMax = new Float32Array(totalPoints);
+  
   for (let i = 0; i < totalPoints; i++) {
-    const normalizedValue = (data[i] - min) / (max - min);
-    const x = (i * totalWidth) / totalPoints;
-    const y = topMargin + effectiveHeight - normalizedValue * effectiveHeight;
-
-    linePoints.push({ x, y });
+    const start = i * samplesPerPoint;
+    const end = Math.min(start + samplesPerPoint, data.length);
+    let max = -Infinity;
+    let min = Infinity;
+    for (let j = start; j < end; j++) {
+      if (data[j] > max) max = data[j];
+      if (data[j] < min) min = data[j];
+    }
+    downsampledMin[i] = min;
+    downsampledMax[i] = max;
   }
+  
+  return { min: downsampledMin, max: downsampledMax };
+};
 
-  console.log(`Generated ${linePoints.length} line points`, linePoints);
 
-  return linePoints;
+export const downsampleRMS = ({ data, samplesPerPoint }: DownsampleParams): Float32Array => {
+  const downsampled = new Float32Array(Math.ceil(data.length / samplesPerPoint));
+  for (let i = 0; i < downsampled.length; i++) {
+      const start = i * samplesPerPoint;
+      const end = Math.min(start + samplesPerPoint, data.length);
+      let sum = 0;
+      for (let j = start; j < end; j++) {
+          sum += data[j] * data[j];
+      }
+      downsampled[i] = Math.sqrt(sum / (end - start));
+  }
+  return downsampled;
 };

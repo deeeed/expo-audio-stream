@@ -14,6 +14,7 @@
     "@expo/vector-icons": "^14.0.0",
     "@gorhom/bottom-sheet": "5.0.0-alpha.9",
     "@react-navigation/native": "^6.1.17",
+    "@shopify/react-native-skia": "1.2.3",
     "@simform_solutions/react-native-audio-waveform": "^1.0.1",
     "@siteed/design-system": "^0.8.1",
     "@siteed/react-native-logger": "^0.7.1",
