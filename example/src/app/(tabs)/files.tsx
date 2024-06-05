@@ -52,6 +52,7 @@ const styles = StyleSheet.create({
   container: {
     gap: 10,
     backgroundColor: "#fff",
+    marginBottom: 80,
     // alignItems: "center",
     // justifyContent: "center",
   },
