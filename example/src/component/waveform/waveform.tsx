@@ -1,13 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, ScrollView, StyleSheet, View } from "react-native";
-import { RadioButton, Text } from "react-native-paper";
+import { ActivityIndicator, RadioButton, Text } from "react-native-paper";
 import Svg, { Line, Polyline, Rect } from "react-native-svg";
 
 import { convertPCMToFloat32 } from "../../../../src";
-import { useWaveformVisualization } from "../../hooks/useWaveFormVisualization";
+import { DownsamplingStrategy, DownsamplingStrategyType, useWaveformVisualization } from "../../hooks/useWaveFormVisualization";
 import { TimeRuler } from "./time-ruler";
 import { WaveformProps } from "./waveform.types";
-import { amplitudeToDecibels } from "./waveform.utils";
+import { amplitudeToDecibels, downsampleAverage, downsamplePeak, downsampleRMS } from "./waveform.utils";
 
 const DEFAULT_CANDLE_WIDTH = 3;
 const DEFAULT_CANDLE_SPACING = 2;
@@ -18,6 +18,11 @@ const RULER_HEIGHT = 10; // Height of the ruler
 const MAX_POINTS = 100; // Maximum number of points or bars in preview mode
 
 const isValidNumber = (value: number) => !isNaN(value) && isFinite(value);
+
+interface DownsampleParams {
+  data: Float32Array;
+  samplesPerPoint: number;
+}
 
 export const WaveForm: React.FC<WaveformProps> = ({
   buffer,
@@ -42,9 +47,13 @@ export const WaveForm: React.FC<WaveformProps> = ({
   const [parentWidth, setParentWidth] = useState<number>(0);
   const [activeVisualizationType, setVisualizationType] = useState<"line" | "candlestick">(visualizationType);
   const [activeMode, setMode] = useState<"static" | "live" | "preview">(mode);
+  const [downsamplingStrategy, setDownsamplingStrategy] = useState<DownsamplingStrategyType>(DownsamplingStrategy.NONE);
+  const [data, setData] = useState<Float32Array>(new Float32Array(0));
+  const [loading, setLoading] = useState<boolean>(true);
+  const [samplesPerPoint, setSamplesPerPoint] = useState<number>(0);
+  const [downsampledPeakData, setDownsampledPeakData] = useState<{ min: Float32Array, max: Float32Array } | undefined>(undefined);
 
   const scrollViewRef = useRef<ScrollView>(null);
-
   const computedPointsPerSecond = useMemo(() => {
     if (activeMode === "preview") {
       return MAX_POINTS / ((buffer.byteLength - waveHeaderSize) / (sampleRate * channels * (bitDepth / 8)));
@@ -63,24 +72,16 @@ export const WaveForm: React.FC<WaveformProps> = ({
     return Math.ceil(duration * computedPointsPerSecond * (candleStickWidth + candleStickSpacing));
   }, [activeMode, parentWidth, buffer, bitDepth, sampleRate, channels, computedPointsPerSecond, candleStickWidth, candleStickSpacing]);
 
-
-  const data = useMemo(() => {
-    const rawData = buffer.slice(waveHeaderSize);
-    return convertPCMToFloat32(rawData, bitDepth);
-  }, [buffer, bitDepth]);
-
-
   const duration = useMemo(() => {
     return (buffer.byteLength - waveHeaderSize) / (sampleRate * channels * (bitDepth / 8));
   }, [buffer, sampleRate, channels, bitDepth]);
- 
 
   const currentXPosition = useMemo(() => {
     return duration > 0 && totalSvgWidth > 0
       ? (currentTime / duration) * (totalSvgWidth - startMargin) + startMargin
       : 0;
   }, [duration, totalSvgWidth, currentTime]);
-  
+
   useEffect(() => {
     if (activeMode === "live") {
       const interval = setInterval(() => {
@@ -93,6 +94,56 @@ export const WaveForm: React.FC<WaveformProps> = ({
     }
   }, [activeMode]);
 
+  const pcmData = useMemo(() => {
+    const rawData = buffer.slice(waveHeaderSize);
+    let pcmData = convertPCMToFloat32(rawData, bitDepth);
+    return pcmData;
+  }, [buffer, bitDepth]);
+
+  const processData = useCallback(() => {
+    console.log(`ArrayBuffer raw byteLength: ${buffer.byteLength}`);
+    console.log(`PCM Data Length: ${pcmData.pcmValues.length} min=${pcmData.min} max=${pcmData.max}`);
+
+    const desiredPointsPerSecond = Math.max(pointsPerSecond, 10); // Ensure at least 10 points per second
+    let samplesPerPoint = Math.max(1, Math.floor(sampleRate / desiredPointsPerSecond));
+    setSamplesPerPoint(samplesPerPoint);
+
+    console.log(`Desired Points Per Second: ${desiredPointsPerSecond}`);
+    console.log(`Samples Per Point: ${samplesPerPoint}`);
+    console.log(`Downsampling Strategy: ${downsamplingStrategy}`);
+
+    if (downsamplingStrategy !== DownsamplingStrategy.NONE) {
+      switch (downsamplingStrategy) {
+        case DownsamplingStrategy.PEAK:
+          const downsampledPeakData = downsamplePeak({ data: pcmData.pcmValues, samplesPerPoint });
+          setDownsampledPeakData(downsampledPeakData);
+          console.log(`Downsampled Peak Data Min Length: ${downsampledPeakData.min.length}`);
+          console.log(`Downsampled Peak Data Max Length: ${downsampledPeakData.max.length}`);
+          return downsampledPeakData.max; // Use max values for visualization, just for initial assignment
+        case DownsamplingStrategy.RMS:
+          const downsampledRMSData = downsampleRMS({ data: pcmData.pcmValues, samplesPerPoint });
+          console.log(`Downsampled RMS Data Length: ${downsampledRMSData.length}`);
+          return downsampledRMSData;
+        case DownsamplingStrategy.AVERAGE:
+          const downsampledAverageData = downsampleAverage({ data: pcmData.pcmValues, samplesPerPoint });
+          console.log(`Downsampled Average Data Length: ${downsampledAverageData.length}`);
+          return downsampledAverageData;
+      }
+    }
+    return pcmData.pcmValues;
+  }, [buffer, bitDepth, computedPointsPerSecond, downsamplingStrategy, sampleRate, pcmData]);
+
+
+  useEffect(() => {
+    setLoading(true);
+    console.log(`Processing Data...`);
+    setData(new Float32Array(0));
+    const preparedData = processData();
+    setData(preparedData);
+    setLoading(false);
+    console.log(`Data Processed`);
+  }, [pcmData, downsamplingStrategy, activeVisualizationType, activeMode]);
+
   const { bars, points } = useWaveformVisualization({
     data,
     pointsPerSecond: computedPointsPerSecond,
@@ -104,6 +155,8 @@ export const WaveForm: React.FC<WaveformProps> = ({
     visualizationType: activeVisualizationType,
     mode: activeMode,
     sampleRate,
+    downsamplingStrategy,
+    downsampledPeakData,
   });
 
   const handleLayout = (event: LayoutChangeEvent) => {
@@ -111,20 +164,27 @@ export const WaveForm: React.FC<WaveformProps> = ({
     setParentWidth(width);
   };
 
+  if(loading) {
+    console.log(`Loading...`)
+    return <ActivityIndicator size="large" color={candleColor} />;
+  }
+
   return (
     <View style={styles.container} onLayout={handleLayout}>
       {debug && (
         <View>
           <Text>Buffer: {buffer.byteLength}</Text>
+          <Text>PCM Data: {pcmData.pcmValues.length} min={pcmData.min} max={pcmData.max}</Text>
           <Text>Data: {data.length}</Text>
           <Text>Duration: {duration}</Text>
+          <Text>SamplesPerPoint: {samplesPerPoint}</Text>
           <Text>SampleRate: {sampleRate}</Text>
           <Text>bitDepth: {bitDepth}</Text>
           <Text>Channels: {channels}</Text>
           <Text>PointsPerSeconds: {computedPointsPerSecond}</Text>
           <Text>CanvasWidth: {totalSvgWidth}</Text>
           {/* <Text>Points: {points?.length} {JSON.stringify(points?.slice(-3))}</Text>
-          <Text>Bars: {bars?.length} {JSON.stringify(bars?.slice(-3))}</Text> */}
+          <Text>Candles: {bars?.length} {JSON.stringify(bars?.slice(-3))}</Text> */}
           <View style={{ flexDirection: "column", gap: 10 }}>
             <RadioButton.Group
               onValueChange={(value) =>
@@ -144,80 +204,92 @@ export const WaveForm: React.FC<WaveformProps> = ({
                 <RadioButton.Item key={mode} label={mode} value={mode} />
               ))}
             </RadioButton.Group>
+            <RadioButton.Group
+              onValueChange={(value) => setDownsamplingStrategy(value as DownsamplingStrategyType)}
+              value={downsamplingStrategy}
+            >
+              {Object.values(DownsamplingStrategy).map((strategy) => (
+                <RadioButton.Item key={strategy} label={strategy} value={strategy} />
+              ))}
+            </RadioButton.Group>
           </View>
         </View>
       )}
-      <ScrollView
-        horizontal
-        ref={scrollViewRef}
-        style={styles.waveformContainer}
-      >
-        {parentWidth > 0 && (
-          <View style={[{ backgroundColor: 'black', paddingHorizontal: 10 }]}>
-            <Svg height={waveformHeight} width={totalSvgWidth}>
-              {showRuler && activeMode !== "live" && (
-                <TimeRuler
-                  duration={duration}
-                  width={totalSvgWidth}
-                  labelColor="white"
-                  startMargin={startMargin}
-                />
-              )}
-              {/* Dotted line in the middle of the display area */}
-              <Line
-                x1="0"
-                y1={effectiveHeight / 2 + marginTop}
-                x2={totalSvgWidth}
-                y2={effectiveHeight / 2 + marginTop}
-                stroke="white"
-                strokeWidth="2"
-                strokeDasharray="5, 5"
-              />
-              {activeVisualizationType === "candlestick" &&
-                bars?.map((bar, index) => {
-                  if (isValidNumber(bar.x) && isValidNumber(bar.y) && isValidNumber(bar.height)) {
-                    const rectX = activeMode === "preview" ? index * (parentWidth / MAX_POINTS) : bar.x + startMargin; // Adjusting for proper order
-                    const rectY = bar.y + marginTop;
-                    const rectWidth = activeMode === "preview" ? parentWidth / MAX_POINTS : candleStickWidth; // Adjust width in preview mode
-                    const rectHeight = bar.height;
-
-                    console.log(`Rendering Bar ${index}: x=${rectX}, y=${rectY}, width=${rectWidth}, height=${rectHeight}`);
-
-                    return (
-                      <Rect
-                        key={index}
-                        x={rectX}
-                        y={rectY}
-                        width={rectWidth}
-                        height={rectHeight}
-                        fill={candleColor}
-                      />
-                    );
-                  }
-                  return null; // Skip rendering if any value is NaN
-                })}
-              {activeVisualizationType === "line" && (
-                <Polyline
-                  points={points?.map((p, index) => `${activeMode === "preview" ? index * (parentWidth / MAX_POINTS) : p.x + startMargin},${p.y + marginTop}`).join(" ")} // Adjust for marginTop
-                  fill="none"
-                  stroke={candleColor}
-                  strokeWidth="2"
-                />
-              )}
-              {activeMode !== "live" && (
+      {loading ? (
+        <ActivityIndicator size="large" color={candleColor} />
+      ) : (
+        <ScrollView
+          horizontal
+          ref={scrollViewRef}
+          style={styles.waveformContainer}
+        >
+          {parentWidth > 0 && (
+            <View style={[{ backgroundColor: 'black', paddingHorizontal: 10 }]}>
+              <Svg height={waveformHeight} width={totalSvgWidth}>
+                {showRuler && activeMode !== "live" && (
+                  <TimeRuler
+                    duration={duration}
+                    width={totalSvgWidth}
+                    labelColor="white"
+                    startMargin={startMargin}
+                  />
+                )}
+                {/* Dotted line in the middle of the display area */}
                 <Line
-                  x1={currentXPosition}
-                  y1="0"
-                  x2={currentXPosition}
-                  y2={waveformHeight}
-                  stroke="red"
+                  x1="0"
+                  y1={effectiveHeight / 2 + marginTop}
+                  x2={totalSvgWidth}
+                  y2={effectiveHeight / 2 + marginTop}
+                  stroke="white"
                   strokeWidth="2"
+                  strokeDasharray="5, 5"
                 />
-              )}
-            </Svg>
-          </View>
-        )}
-      </ScrollView>
+                {activeVisualizationType === "candlestick" &&
+                  bars?.map((bar, index) => {
+                    if (isValidNumber(bar.x) && isValidNumber(bar.y) && isValidNumber(bar.height)) {
+                      const rectX = activeMode === "preview" ? index * (parentWidth / MAX_POINTS) : bar.x + startMargin; // Adjusting for proper order
+                      const rectY = bar.y + marginTop;
+                      const rectWidth = activeMode === "preview" ? parentWidth / MAX_POINTS : candleStickWidth; // Adjust width in preview mode
+                      const rectHeight = bar.height;
+
+                      // console.log(`Rendering Candle ${index}: x=${rectX}, y=${rectY}, width=${rectWidth}, height=${rectHeight}`);
+
+                      return (
+                        <Rect
+                          key={index}
+                          x={rectX}
+                          y={rectY}
+                          width={rectWidth}
+                          height={rectHeight}
+                          fill={candleColor}
+                        />
+                      );
+                    }
+                    return null; // Skip rendering if any value is NaN
+                  })}
+                {activeVisualizationType === "line" && (
+                  <Polyline
+                    points={points?.map((p, index) => `${activeMode === "preview" ? index * (parentWidth / MAX_POINTS) : p.x + startMargin},${p.y + marginTop}`).join(" ")} // Adjust for marginTop
+                    fill="none"
+                    stroke={candleColor}
+                    strokeWidth="2"
+                  />
+                )}
+                {activeMode !== "live" && (
+                  <Line
+                    x1={currentXPosition}
+                    y1="0"
+                    x2={currentXPosition}
+                    y2={waveformHeight}
+                    stroke="red"
+                    strokeWidth="2"
+                  />
+                )}
+              </Svg>
+            </View>
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 };

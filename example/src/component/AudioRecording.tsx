@@ -112,7 +112,7 @@ export const AudioRecording = ({
           waveformHeight={200}
           showRuler={true}
           debug
-          visualizationType="line"
+          visualizationType="candlestick"
           candleStickSpacing={2}
           candleStickWidth={5}
           currentTime={position / 1000}
