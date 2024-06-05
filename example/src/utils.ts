@@ -1,3 +1,5 @@
+import * as FileSystem from 'expo-file-system';
+import { Platform } from 'react-native';
 /**
  * Formats bytes into a human-readable format.
  *
@@ -52,5 +54,38 @@ export const normalizeValue = (
       return (1 - value / MAX_24BIT) * amplitude;
     default:
       throw new Error("Unsupported bit depth");
+  }
+};
+
+export const fetchArrayBuffer = async (uri: string): Promise<ArrayBuffer> => {
+  try {
+    console.log(`Reading file from: ${uri}`);
+    if (Platform.OS === 'web') {
+      const response = await fetch(uri);
+      const arrayBuffer = await response.arrayBuffer();
+      return arrayBuffer;
+    } else {
+      const fileUri = uri;
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+
+      if (!fileInfo.exists) {
+        throw new Error(`File does not exist at ${fileUri}`);
+      }
+
+      const fileData = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const binaryString = atob(fileData);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+  } catch (error) {
+    console.error(`Failed to read file from ${uri}:`, error);
+    throw error;
   }
 };

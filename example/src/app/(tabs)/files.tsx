@@ -33,6 +33,7 @@ export default function Files() {
         <AudioRecording
           key={index}
           recording={recording}
+          showWaveform={true}
           onDelete={() => handleDelete(recording)}
         />
       ))}
