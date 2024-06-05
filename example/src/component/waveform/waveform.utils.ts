@@ -1,4 +1,4 @@
-import { Bar } from './waveform.types';
+import { Bar, Point } from './waveform.types';
 
 const MAX_8BIT = 128; // Adjusted for signed 8-bit
 const MAX_16BIT = 32768; // 2^15
@@ -41,103 +41,6 @@ export const normalizeValue = ({
   return normalizedValue;
 };
 
-// Define the fixed intervals based on zoom level
-export const getRulerInterval = (
-  zoomLevel: number,
-  duration: number,
-  width: number,
-  mode: string
-) => {
-  if (mode === 'preview') {
-    const minInterval = duration / (width / 50); // Approx 50 pixels per interval
-    if (minInterval >= 30) return 30;
-    if (minInterval >= 5) return 5;
-    if (minInterval >= 1) return 1;
-    if (minInterval >= 0.5) return 0.5;
-    return 0.1;
-  } else {
-    if (zoomLevel >= 10) return 0.1;
-    if (zoomLevel >= 5) return 0.5;
-    if (zoomLevel >= 2) return 1;
-    if (zoomLevel >= 1) return 5;
-    return 30;
-  }
-};
-
-interface MinMaxAverageParams {
-  data: Float32Array;
-  totalCandles: number;
-  samplesPerCandle: number;
-}
-
-interface GenerateBarsParams {
-  data: Float32Array;
-  totalCandles: number;
-  samplesPerCandle: number;
-  minAverage: number;
-  maxAverage: number;
-  waveformHeight: number;
-  parentWidth: number;
-}
-
-export const calculateMinMaxAverage = ({
-  data,
-  totalCandles,
-  samplesPerCandle,
-}: MinMaxAverageParams): [number, number] => {
-  let minAverage = Infinity;
-  let maxAverage = -Infinity;
-
-  for (let i = 0; i < totalCandles; i++) {
-    const startSample = Math.floor(i * samplesPerCandle);
-    const endSample = Math.min(startSample + samplesPerCandle, data.length);
-
-    let min = Infinity;
-    let max = -Infinity;
-    for (let j = startSample; j < endSample; j++) {
-      if (data[j] < min) min = data[j];
-      if (data[j] > max) max = data[j];
-    }
-
-    if (min < minAverage) minAverage = min;
-    if (max > maxAverage) maxAverage = max;
-  }
-
-  return [minAverage, maxAverage];
-};
-
-export const generateBars = ({
-  data,
-  totalCandles,
-  samplesPerCandle,
-  minAverage,
-  waveformHeight,
-  maxAverage,
-  parentWidth,
-}: GenerateBarsParams): Bar[] => {
-  const bars: Bar[] = [];
-
-  for (let i = 0; i < totalCandles; i++) {
-    const startSample = Math.floor(i * samplesPerCandle);
-    const endSample = Math.min(startSample + samplesPerCandle, data.length);
-
-    let min = Infinity;
-    let max = -Infinity;
-    for (let j = startSample; j < endSample; j++) {
-      if (data[j] < min) min = data[j];
-      if (data[j] > max) max = data[j];
-    }
-
-    const height = ((max - min) / (maxAverage - minAverage)) * waveformHeight;
-    const x = (i * parentWidth) / totalCandles;
-    const y = waveformHeight / 2 - height / 2;
-
-    bars.push({ x, height, y });
-  }
-
-  return bars;
-};
-
 export const amplitudeToDecibels = (
   amplitude: number,
   bitDepth: number
@@ -145,4 +48,40 @@ export const amplitudeToDecibels = (
   const reference = Math.pow(2, bitDepth - 1) - 1;
   if (amplitude === 0) return -Infinity; // Handle log(0) case
   return 20 * Math.log10(Math.abs(amplitude) / reference);
+};
+
+
+interface GenerateLinePointsParams {
+  data: Float32Array;
+  waveformHeight: number;
+  totalWidth: number;
+  topMargin?: number; // Optional top margin
+  bottomMargin?: number; // Optional bottom margin
+}
+
+export const generateLinePoints = ({
+  data,
+  waveformHeight,
+  totalWidth,
+  topMargin = 30, // Default 30px top margin
+  bottomMargin = 30, // Default 30px bottom margin
+}: GenerateLinePointsParams): Point[] => {
+  const totalPoints = data.length;
+  const linePoints: Point[] = [];
+
+  const effectiveHeight = waveformHeight - topMargin - bottomMargin;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+
+  for (let i = 0; i < totalPoints; i++) {
+    const normalizedValue = (data[i] - min) / (max - min);
+    const x = (i * totalWidth) / totalPoints;
+    const y = topMargin + effectiveHeight - normalizedValue * effectiveHeight;
+
+    linePoints.push({ x, y });
+  }
+
+  console.log(`Generated ${linePoints.length} line points`, linePoints);
+
+  return linePoints;
 };
