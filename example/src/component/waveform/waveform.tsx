@@ -54,27 +54,26 @@ export const WaveForm: React.FC<WaveformProps> = ({
   const [downsampledPeakData, setDownsampledPeakData] = useState<{ min: Float32Array, max: Float32Array } | undefined>(undefined);
 
   const scrollViewRef = useRef<ScrollView>(null);
+
+  const duration = useMemo(() => {
+    return (buffer.byteLength - waveHeaderSize) / (sampleRate * channels * (bitDepth / 8));
+  }, [buffer, sampleRate, channels, bitDepth]);
+
   const computedPointsPerSecond = useMemo(() => {
     if (activeMode === "preview") {
-      return MAX_POINTS / ((buffer.byteLength - waveHeaderSize) / (sampleRate * channels * (bitDepth / 8)));
+      return MAX_POINTS / duration;
     }
     if (pointsPerSecond) return pointsPerSecond;
-    const duration = (buffer.byteLength - waveHeaderSize) / (sampleRate * channels * (bitDepth / 8));
     const totalPoints = parentWidth / (candleStickWidth + candleStickSpacing);
     return totalPoints / duration;
-  }, [buffer, bitDepth, sampleRate, channels, parentWidth, candleStickWidth, candleStickSpacing, pointsPerSecond, activeMode]);
+  }, [duration, parentWidth, candleStickWidth, candleStickSpacing, pointsPerSecond, activeMode]);
 
   const totalSvgWidth = useMemo(() => {
     if (activeMode === "preview" || activeMode === "live") {
       return parentWidth;
     }
-    const duration = (buffer.byteLength - waveHeaderSize) / (sampleRate * channels * (bitDepth / 8));
     return Math.ceil(duration * computedPointsPerSecond * (candleStickWidth + candleStickSpacing));
-  }, [activeMode, parentWidth, buffer, bitDepth, sampleRate, channels, computedPointsPerSecond, candleStickWidth, candleStickSpacing]);
-
-  const duration = useMemo(() => {
-    return (buffer.byteLength - waveHeaderSize) / (sampleRate * channels * (bitDepth / 8));
-  }, [buffer, sampleRate, channels, bitDepth]);
+  }, [activeMode, parentWidth, duration, computedPointsPerSecond, candleStickWidth, candleStickSpacing]);
 
   const currentXPosition = useMemo(() => {
     return duration > 0 && totalSvgWidth > 0
@@ -104,11 +103,11 @@ export const WaveForm: React.FC<WaveformProps> = ({
     console.log(`ArrayBuffer raw byteLength: ${buffer.byteLength}`);
     console.log(`PCM Data Length: ${pcmData.pcmValues.length} min=${pcmData.min} max=${pcmData.max}`);
 
-    const desiredPointsPerSecond = Math.max(pointsPerSecond, 10); // Ensure at least 10 points per second
-    let samplesPerPoint = Math.max(1, Math.floor(sampleRate / desiredPointsPerSecond));
+    const totalPoints = Math.ceil(duration * computedPointsPerSecond);
+    let samplesPerPoint = Math.max(1, Math.floor(pcmData.pcmValues.length / totalPoints));
     setSamplesPerPoint(samplesPerPoint);
 
-    console.log(`Desired Points Per Second: ${desiredPointsPerSecond}`);
+    console.log(`Desired Points Per Second: ${computedPointsPerSecond}`);
     console.log(`Samples Per Point: ${samplesPerPoint}`);
     console.log(`Downsampling Strategy: ${downsamplingStrategy}`);
 
@@ -131,8 +130,7 @@ export const WaveForm: React.FC<WaveformProps> = ({
       }
     }
     return pcmData.pcmValues;
-  }, [buffer, bitDepth, computedPointsPerSecond, downsamplingStrategy, sampleRate, pcmData]);
-
+  }, [buffer, duration, computedPointsPerSecond, downsamplingStrategy, sampleRate, pcmData]);
 
   useEffect(() => {
     setLoading(true);
@@ -142,7 +140,7 @@ export const WaveForm: React.FC<WaveformProps> = ({
     setData(preparedData);
     setLoading(false);
     console.log(`Data Processed`);
-  }, [pcmData, downsamplingStrategy, activeVisualizationType, activeMode]);
+  }, [pcmData, downsamplingStrategy, processData, activeVisualizationType, activeMode]);
 
   const { bars, points } = useWaveformVisualization({
     data,
@@ -164,7 +162,7 @@ export const WaveForm: React.FC<WaveformProps> = ({
     setParentWidth(width);
   };
 
-  if(loading) {
+  if (loading) {
     console.log(`Loading...`)
     return <ActivityIndicator size="large" color={candleColor} />;
   }
@@ -174,8 +172,6 @@ export const WaveForm: React.FC<WaveformProps> = ({
       {debug && (
         <View>
           <Text>Buffer: {buffer.byteLength}</Text>
-          <Text>PCM Data: {pcmData.pcmValues.length} min={pcmData.min} max={pcmData.max}</Text>
-          <Text>Data: {data.length}</Text>
           <Text>Duration: {duration}</Text>
           <Text>SamplesPerPoint: {samplesPerPoint}</Text>
           <Text>SampleRate: {sampleRate}</Text>
@@ -183,8 +179,11 @@ export const WaveForm: React.FC<WaveformProps> = ({
           <Text>Channels: {channels}</Text>
           <Text>PointsPerSeconds: {computedPointsPerSecond}</Text>
           <Text>CanvasWidth: {totalSvgWidth}</Text>
-          {/* <Text>Points: {points?.length} {JSON.stringify(points?.slice(-3))}</Text>
-          <Text>Candles: {bars?.length} {JSON.stringify(bars?.slice(-3))}</Text> */}
+          <Text>PCM Data: {pcmData.pcmValues.length} min={pcmData.min} max={pcmData.max}</Text>
+          <Text>Data: {data.length} {JSON.stringify(data.slice(-3))}</Text>
+          <Text>Downsampling Factor: {Math.round(pcmData.pcmValues.length / data.length)}</Text>
+          <Text>Points: {points?.length} {JSON.stringify(points?.slice(-3))}</Text>
+          <Text>Candles: {bars?.length} {JSON.stringify(bars?.slice(-3))}</Text>
           <View style={{ flexDirection: "column", gap: 10 }}>
             <RadioButton.Group
               onValueChange={(value) =>
