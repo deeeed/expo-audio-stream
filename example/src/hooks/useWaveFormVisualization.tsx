@@ -59,10 +59,10 @@ export const generateCandles = ({
 
     if (downsamplingStrategy === DownsamplingStrategy.PEAK && downsampledPeakData) {
         // Use downsampled peak data directly
-        totalPoints = downsampledPeakData.min.length;
+        totalPoints = Math.min(data.length, downsampledPeakData.min.length);
     } else {
         // Calculate totalPoints and samplesPerPoint based on provided data
-        totalPoints = Math.ceil(duration * pointsPerSecond);
+        totalPoints = Math.min(data.length, Math.ceil(duration * pointsPerSecond)); // Ensure totalPoints does not exceed data length
         samplesPerPoint = Math.max(1, Math.floor(data.length / totalPoints));
     }
 
@@ -126,12 +126,13 @@ export const generateLinePoints = ({
     let totalPoints: number;
     let samplesPerPoint: number = 1;
 
+
     if (downsamplingStrategy === DownsamplingStrategy.PEAK && downsampledPeakData) {
         // Use downsampled peak data directly
-        totalPoints = downsampledPeakData.min.length;
+        totalPoints = Math.min(data.length, downsampledPeakData.min.length);
     } else {
         // Calculate totalPoints and samplesPerPoint based on provided data
-        totalPoints = Math.ceil(duration * pointsPerSecond);
+        totalPoints = Math.min(data.length, Math.ceil(duration * pointsPerSecond)); // Ensure totalPoints does not exceed data length
         samplesPerPoint = Math.max(1, Math.floor(data.length / totalPoints));
     }
 
