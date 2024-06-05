@@ -5,8 +5,7 @@ export interface WaveformProps {
   channels?: number;
   visualizationType?: "line" | "candlestick";
   currentTime?: number; // Current playback time in seconds
-  zoomLevel?: number;
-  candlesPerRulerInterval?: number;
+  pointsPerSecond?: number, // Default points per second
   candleStickWidth?: number;
   waveformHeight?: number;
   candleStickSpacing?: number;
@@ -16,8 +15,10 @@ export interface WaveformProps {
   debug?: boolean;
 }
 
-export interface Bar {
+export interface Point {
   x: number;
-  height: number;
   y: number;
+}
+export interface Bar extends Point {
+  height: number;
 }
