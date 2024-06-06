@@ -172,7 +172,14 @@ export const generateLinePoints = ({
             y: (1 - normalizedAverage) * waveformHeight,
         });
     }
-    return points;
+
+
+    // Normalization
+    const maxVal = Math.max(...points.map(p => p.y));
+    const minVal = Math.min(...points.map(p => p.y));
+    const range = maxVal - minVal;
+
+    return points.map(p => ({ x: p.x, y: ((p.y - minVal) / range) * waveformHeight }));
 };
 
 

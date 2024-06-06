@@ -5752,6 +5752,7 @@ __metadata:
     expo: "npm:^51.0.0"
     expo-av: "npm:~14.0.5"
     expo-constants: "npm:~16.0.2"
+    expo-document-picker: "npm:~12.0.1"
     expo-file-system: "npm:~17.0.1"
     expo-linking: "npm:~6.3.1"
     expo-localization: "npm:~15.0.3"
@@ -5794,6 +5795,15 @@ __metadata:
   peerDependencies:
     expo: "*"
   checksum: 10c0/3a51ef1d4de7e7a86d8ee7ef7b0e0edb6cbde981e1e09540e5d7a5dfec3327cb805df06f10614ebf87a158b01a274f63eef9f573e87d7cf1040ffd7168c8a5d1
+  languageName: node
+  linkType: hard
+
+"expo-document-picker@npm:~12.0.1":
+  version: 12.0.1
+  resolution: "expo-document-picker@npm:12.0.1"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/0e0104f2e438b4dd2cf35f6ae0b46dbce4f03dcf5f5419ae6d252be6959aa12b8a36d209c0eece2a35ca2de663abc9aabf909c2aef38b07ef9e1aab7d5ef8603
   languageName: node
   linkType: hard
 

@@ -68,6 +68,25 @@ export const downsampleAverage = ({ data, samplesPerPoint }: DownsampleParams): 
     }
     return downsampled;
 };
+export const downsampleAverage2 = ({ data, samplesPerPoint }: DownsampleParams): Float32Array => {
+  const downsampled = new Float32Array(Math.ceil(data.length / samplesPerPoint));
+  for (let i = 0; i < downsampled.length; i++) {
+      const start = i * samplesPerPoint;
+      const end = Math.min(start + samplesPerPoint, data.length);
+      let sum = 0;
+      for (let j = start; j < end; j++) {
+          sum += data[j];
+      }
+      downsampled[i] = sum / (end - start);
+  }
+
+  // Normalization
+  const maxVal = Math.max(...downsampled);
+  const minVal = Math.min(...downsampled);
+  const range = maxVal - minVal;
+
+  return downsampled.map(val => (val - minVal) / range);
+};
 
 export const downsamplePeak = ({ data, samplesPerPoint }: DownsampleParams): { min: Float32Array, max: Float32Array } => {
   const totalPoints = Math.ceil(data.length / samplesPerPoint);
@@ -91,7 +110,7 @@ export const downsamplePeak = ({ data, samplesPerPoint }: DownsampleParams): { m
 };
 
 
-export const downsampleRMS = ({ data, samplesPerPoint }: DownsampleParams): Float32Array => {
+export const downsampleRMSUnscaled = ({ data, samplesPerPoint }: DownsampleParams): Float32Array => {
   const downsampled = new Float32Array(Math.ceil(data.length / samplesPerPoint));
   for (let i = 0; i < downsampled.length; i++) {
       const start = i * samplesPerPoint;
@@ -103,4 +122,24 @@ export const downsampleRMS = ({ data, samplesPerPoint }: DownsampleParams): Floa
       downsampled[i] = Math.sqrt(sum / (end - start));
   }
   return downsampled;
+};
+
+export const downsampleRMS = ({ data, samplesPerPoint }: DownsampleParams): Float32Array => {
+  const downsampled = new Float32Array(Math.ceil(data.length / samplesPerPoint));
+  for (let i = 0; i < downsampled.length; i++) {
+      const start = i * samplesPerPoint;
+      const end = Math.min(start + samplesPerPoint, data.length);
+      let sum = 0;
+      for (let j = start; j < end; j++) {
+          sum += data[j] * data[j];
+      }
+      downsampled[i] = Math.sqrt(sum / (end - start));
+  }
+
+  // Normalization
+  const maxVal = Math.max(...downsampled);
+  const minVal = Math.min(...downsampled);
+  const range = maxVal - minVal;
+
+  return downsampled.map(val => (val - minVal) / range);
 };

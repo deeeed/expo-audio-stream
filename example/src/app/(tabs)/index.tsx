@@ -133,6 +133,15 @@ export default function Record() {
   const { startRecording, stopRecording, duration, size, isRecording } =
     useSharedAudioRecorder();
 
+  const handleSaveFile = () => {
+    if (webAudioUri) {
+      const a = document.createElement("a");
+      a.href = webAudioUri;
+      a.download = `recording_${result?.sampleRate ?? 'NOSAMPLE'}_${result?.bitDepth ?? 'NOBITDEPTH'}.wav`;
+      a.click();
+    }
+  };
+
   const handleStart = async () => {
     try {
       const { granted } = await Audio.requestPermissionsAsync();
@@ -145,19 +154,25 @@ export default function Record() {
       audioChunksBlobs.current = [];
       liveWavFormBuffer.current = new Array(LIVE_WAVE_FORM_CHUNKS_LENGTH);
       liveWavFormBufferIndex.current = 0;
+      fullWavAudioBuffer.current = null;
       currentSize.current = 0;
       console.log(`Starting recording...`, startRecordingConfig)
       const streamConfig: StartAudioStreamResult =
         await startRecording(startRecordingConfig);
       logger.debug(`Recording started `, streamConfig);
       setStreamConfig(streamConfig);
+
+      // FIXME: remove when the issue is fixed
+      setTimeout(async () => {
+        console.log("AUTO Stopping recording");
+        await handleStopRecording();
+      }, 3000);
     } catch (error) {
       logger.error(`Error while starting recording`, error);
     }
   };
 
   const handleStopRecording = useCallback(async () => {
-    if (!isRecording) return;
     const result = await stopRecording();
     // TODO: compare accumulated audio chunks with the result
     logger.debug(`Recording stopped. `, result);
@@ -390,6 +405,11 @@ export default function Record() {
                 }
             }
           />
+           {isWeb && webAudioUri && (
+            <Button mode="contained" onPress={handleSaveFile}>
+              Save to Disk
+            </Button>
+          )}
           <Button mode="contained" onPress={() => setResult(null)}>
             Record Again
           </Button>
