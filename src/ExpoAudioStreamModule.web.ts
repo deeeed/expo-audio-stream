@@ -101,7 +101,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
     //   console.log("AUTO Stopping recording");
     //   this.customRecorder?.stopAndPlay();
     //   this.isRecording = false;
-    // }, 2000);
+    // }, 3000);
 
     this.isRecording = true;
     this.recordingStartTime = Date.now();

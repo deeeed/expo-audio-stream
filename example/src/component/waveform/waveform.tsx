@@ -192,7 +192,7 @@ export const WaveForm: React.FC<WaveformProps> = ({
               value={activeVisualizationType}
             >
               {["line", "candlestick"].map((type) => (
-                <RadioButton.Item key={type} label={type} value={type} />
+                <RadioButton.Item style={{backgroundColor: 'lightblue'}} key={type} label={type} value={type} />
               ))}
             </RadioButton.Group>
             <RadioButton.Group
@@ -208,7 +208,7 @@ export const WaveForm: React.FC<WaveformProps> = ({
               value={downsamplingStrategy}
             >
               {Object.values(DownsamplingStrategy).map((strategy) => (
-                <RadioButton.Item key={strategy} label={strategy} value={strategy} />
+                <RadioButton.Item  style={{backgroundColor: 'lightblue'}}  key={strategy} label={strategy} value={strategy} />
               ))}
             </RadioButton.Group>
           </View>
