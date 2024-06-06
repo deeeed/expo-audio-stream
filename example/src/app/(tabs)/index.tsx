@@ -150,7 +150,7 @@ export default function Record() {
       const streamConfig: StartAudioStreamResult =
         await startRecording(startRecordingConfig);
       logger.debug(`Recording started `, streamConfig);
-      setStreamConfig((prev) => ({ ...prev, ...streamConfig }));
+      setStreamConfig(streamConfig);
     } catch (error) {
       logger.error(`Error while starting recording`, error);
     }

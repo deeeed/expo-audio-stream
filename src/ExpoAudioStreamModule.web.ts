@@ -113,6 +113,9 @@ class ExpoAudioStreamWeb extends EventEmitter {
     const streamConfig: StartAudioStreamResult = {
       fileUri,
       mimeType: `audio/${this.extension}`,
+      bitDepth: recordingConfig.encoding === "pcm_32bit" ? 32 : 16,
+      channels: recordingConfig.channels ?? 1,
+      sampleRate: recordingConfig.sampleRate ?? 44100,
     };
     return streamConfig;
   }
