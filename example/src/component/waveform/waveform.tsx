@@ -1,13 +1,28 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { LayoutChangeEvent, ScrollView, StyleSheet, View } from "react-native";
 import { ActivityIndicator, RadioButton, Text } from "react-native-paper";
 import Svg, { Line, Polyline, Rect } from "react-native-svg";
 
-import { convertPCMToFloat32 } from "../../../../src";
-import { DownsamplingStrategy, DownsamplingStrategyType, useWaveformVisualization } from "../../hooks/useWaveFormVisualization";
 import { TimeRuler } from "./time-ruler";
 import { WaveformProps } from "./waveform.types";
-import { amplitudeToDecibels, downsampleAverage, downsamplePeak, downsampleRMS } from "./waveform.utils";
+import {
+  amplitudeToDecibels,
+  downsampleAverage,
+  downsamplePeak,
+  downsampleRMS,
+} from "./waveform.utils";
+import { convertPCMToFloat32 } from "../../../../src";
+import {
+  DownsamplingStrategy,
+  DownsamplingStrategyType,
+  useWaveformVisualization,
+} from "../../hooks/useWaveFormVisualization";
 
 const DEFAULT_CANDLE_WIDTH = 3;
 const DEFAULT_CANDLE_SPACING = 2;
@@ -45,18 +60,26 @@ export const WaveForm: React.FC<WaveformProps> = ({
   const effectiveHeight = waveformHeight - marginTop - marginBottom;
 
   const [parentWidth, setParentWidth] = useState<number>(0);
-  const [activeVisualizationType, setVisualizationType] = useState<"line" | "candlestick">(visualizationType);
+  const [activeVisualizationType, setVisualizationType] = useState<
+    "line" | "candlestick"
+  >(visualizationType);
   const [activeMode, setMode] = useState<"static" | "live" | "preview">(mode);
-  const [downsamplingStrategy, setDownsamplingStrategy] = useState<DownsamplingStrategyType>(DownsamplingStrategy.NONE);
+  const [downsamplingStrategy, setDownsamplingStrategy] =
+    useState<DownsamplingStrategyType>(DownsamplingStrategy.NONE);
   const [data, setData] = useState<Float32Array>(new Float32Array(0));
   const [loading, setLoading] = useState<boolean>(true);
   const [samplesPerPoint, setSamplesPerPoint] = useState<number>(0);
-  const [downsampledPeakData, setDownsampledPeakData] = useState<{ min: Float32Array, max: Float32Array } | undefined>(undefined);
+  const [downsampledPeakData, setDownsampledPeakData] = useState<
+    { min: Float32Array; max: Float32Array } | undefined
+  >(undefined);
 
   const scrollViewRef = useRef<ScrollView>(null);
 
   const duration = useMemo(() => {
-    return (buffer.byteLength - waveHeaderSize) / (sampleRate * channels * (bitDepth / 8));
+    return (
+      (buffer.byteLength - waveHeaderSize) /
+      (sampleRate * channels * (bitDepth / 8))
+    );
   }, [buffer, sampleRate, channels, bitDepth]);
 
   const computedPointsPerSecond = useMemo(() => {
@@ -66,14 +89,32 @@ export const WaveForm: React.FC<WaveformProps> = ({
     if (pointsPerSecond) return pointsPerSecond;
     const totalPoints = parentWidth / (candleStickWidth + candleStickSpacing);
     return totalPoints / duration;
-  }, [duration, parentWidth, candleStickWidth, candleStickSpacing, pointsPerSecond, activeMode]);
+  }, [
+    duration,
+    parentWidth,
+    candleStickWidth,
+    candleStickSpacing,
+    pointsPerSecond,
+    activeMode,
+  ]);
 
   const totalSvgWidth = useMemo(() => {
     if (activeMode === "preview" || activeMode === "live") {
       return parentWidth;
     }
-    return Math.ceil(duration * computedPointsPerSecond * (candleStickWidth + candleStickSpacing));
-  }, [activeMode, parentWidth, duration, computedPointsPerSecond, candleStickWidth, candleStickSpacing]);
+    return Math.ceil(
+      duration *
+        computedPointsPerSecond *
+        (candleStickWidth + candleStickSpacing),
+    );
+  }, [
+    activeMode,
+    parentWidth,
+    duration,
+    computedPointsPerSecond,
+    candleStickWidth,
+    candleStickSpacing,
+  ]);
 
   const currentXPosition = useMemo(() => {
     return duration > 0 && totalSvgWidth > 0
@@ -95,16 +136,21 @@ export const WaveForm: React.FC<WaveformProps> = ({
 
   const pcmData = useMemo(() => {
     const rawData = buffer.slice(waveHeaderSize);
-    let pcmData = convertPCMToFloat32(rawData, bitDepth);
+    const pcmData = convertPCMToFloat32(rawData, bitDepth);
     return pcmData;
   }, [buffer, bitDepth]);
 
   const processData = useCallback(() => {
     console.log(`ArrayBuffer raw byteLength: ${buffer.byteLength}`);
-    console.log(`PCM Data Length: ${pcmData.pcmValues.length} min=${pcmData.min} max=${pcmData.max}`);
+    console.log(
+      `PCM Data Length: ${pcmData.pcmValues.length} min=${pcmData.min} max=${pcmData.max}`,
+    );
 
     const totalPoints = Math.ceil(duration * computedPointsPerSecond);
-    let samplesPerPoint = Math.max(1, Math.floor(pcmData.pcmValues.length / totalPoints));
+    const samplesPerPoint = Math.max(
+      1,
+      Math.floor(pcmData.pcmValues.length / totalPoints),
+    );
     setSamplesPerPoint(samplesPerPoint);
 
     console.log(`Desired Points Per Second: ${computedPointsPerSecond}`);
@@ -114,23 +160,47 @@ export const WaveForm: React.FC<WaveformProps> = ({
     if (downsamplingStrategy !== DownsamplingStrategy.NONE) {
       switch (downsamplingStrategy) {
         case DownsamplingStrategy.PEAK:
-          const downsampledPeakData = downsamplePeak({ data: pcmData.pcmValues, samplesPerPoint });
+          const downsampledPeakData = downsamplePeak({
+            data: pcmData.pcmValues,
+            samplesPerPoint,
+          });
           setDownsampledPeakData(downsampledPeakData);
-          console.log(`Downsampled Peak Data Min Length: ${downsampledPeakData.min.length}`);
-          console.log(`Downsampled Peak Data Max Length: ${downsampledPeakData.max.length}`);
+          console.log(
+            `Downsampled Peak Data Min Length: ${downsampledPeakData.min.length}`,
+          );
+          console.log(
+            `Downsampled Peak Data Max Length: ${downsampledPeakData.max.length}`,
+          );
           return downsampledPeakData.max; // Use max values for visualization, just for initial assignment
         case DownsamplingStrategy.RMS:
-          const downsampledRMSData = downsampleRMS({ data: pcmData.pcmValues, samplesPerPoint });
-          console.log(`Downsampled RMS Data Length: ${downsampledRMSData.length}`);
+          const downsampledRMSData = downsampleRMS({
+            data: pcmData.pcmValues,
+            samplesPerPoint,
+          });
+          console.log(
+            `Downsampled RMS Data Length: ${downsampledRMSData.length}`,
+          );
           return downsampledRMSData;
         case DownsamplingStrategy.AVERAGE:
-          const downsampledAverageData = downsampleAverage({ data: pcmData.pcmValues, samplesPerPoint });
-          console.log(`Downsampled Average Data Length: ${downsampledAverageData.length}`);
+          const downsampledAverageData = downsampleAverage({
+            data: pcmData.pcmValues,
+            samplesPerPoint,
+          });
+          console.log(
+            `Downsampled Average Data Length: ${downsampledAverageData.length}`,
+          );
           return downsampledAverageData;
       }
     }
     return pcmData.pcmValues;
-  }, [buffer, duration, computedPointsPerSecond, downsamplingStrategy, sampleRate, pcmData]);
+  }, [
+    buffer,
+    duration,
+    computedPointsPerSecond,
+    downsamplingStrategy,
+    sampleRate,
+    pcmData,
+  ]);
 
   useEffect(() => {
     setLoading(true);
@@ -140,7 +210,13 @@ export const WaveForm: React.FC<WaveformProps> = ({
     setData(preparedData);
     setLoading(false);
     console.log(`Data Processed`);
-  }, [pcmData, downsamplingStrategy, processData, activeVisualizationType, activeMode]);
+  }, [
+    pcmData,
+    downsamplingStrategy,
+    processData,
+    activeVisualizationType,
+    activeMode,
+  ]);
 
   const { bars, points } = useWaveformVisualization({
     data,
@@ -163,7 +239,7 @@ export const WaveForm: React.FC<WaveformProps> = ({
   };
 
   if (loading) {
-    console.log(`Loading...`)
+    console.log(`Loading...`);
     return <ActivityIndicator size="large" color={candleColor} />;
   }
 
@@ -179,11 +255,23 @@ export const WaveForm: React.FC<WaveformProps> = ({
           <Text>Channels: {channels}</Text>
           <Text>PointsPerSeconds: {computedPointsPerSecond}</Text>
           <Text>CanvasWidth: {totalSvgWidth}</Text>
-          <Text>PCM Data: {pcmData.pcmValues.length} min={pcmData.min} max={pcmData.max}</Text>
-          <Text>Data: {data.length} {JSON.stringify(data.slice(-3))}</Text>
-          <Text>Downsampling Factor: {Math.round(pcmData.pcmValues.length / data.length)}</Text>
-          <Text>Points: {points?.length} {JSON.stringify(points?.slice(-3))}</Text>
-          <Text>Candles: {bars?.length} {JSON.stringify(bars?.slice(-3))}</Text>
+          <Text>
+            PCM Data: {pcmData.pcmValues.length} min={pcmData.min} max=
+            {pcmData.max}
+          </Text>
+          <Text>
+            Data: {data.length} {JSON.stringify(data.slice(-3))}
+          </Text>
+          <Text>
+            Downsampling Factor:{" "}
+            {Math.round(pcmData.pcmValues.length / data.length)}
+          </Text>
+          <Text>
+            Points: {points?.length} {JSON.stringify(points?.slice(-3))}
+          </Text>
+          <Text>
+            Candles: {bars?.length} {JSON.stringify(bars?.slice(-3))}
+          </Text>
           <View style={{ flexDirection: "column", gap: 10 }}>
             <RadioButton.Group
               onValueChange={(value) =>
@@ -192,11 +280,18 @@ export const WaveForm: React.FC<WaveformProps> = ({
               value={activeVisualizationType}
             >
               {["line", "candlestick"].map((type) => (
-                <RadioButton.Item style={{backgroundColor: 'lightblue'}} key={type} label={type} value={type} />
+                <RadioButton.Item
+                  style={{ backgroundColor: "lightblue" }}
+                  key={type}
+                  label={type}
+                  value={type}
+                />
               ))}
             </RadioButton.Group>
             <RadioButton.Group
-              onValueChange={(value) => setMode(value as "static" | "live" | "preview")}
+              onValueChange={(value) =>
+                setMode(value as "static" | "live" | "preview")
+              }
               value={activeMode}
             >
               {["static", "live", "preview"].map((mode) => (
@@ -204,11 +299,18 @@ export const WaveForm: React.FC<WaveformProps> = ({
               ))}
             </RadioButton.Group>
             <RadioButton.Group
-              onValueChange={(value) => setDownsamplingStrategy(value as DownsamplingStrategyType)}
+              onValueChange={(value) =>
+                setDownsamplingStrategy(value as DownsamplingStrategyType)
+              }
               value={downsamplingStrategy}
             >
               {Object.values(DownsamplingStrategy).map((strategy) => (
-                <RadioButton.Item  style={{backgroundColor: 'lightblue'}}  key={strategy} label={strategy} value={strategy} />
+                <RadioButton.Item
+                  style={{ backgroundColor: "lightblue" }}
+                  key={strategy}
+                  label={strategy}
+                  value={strategy}
+                />
               ))}
             </RadioButton.Group>
           </View>
@@ -223,7 +325,7 @@ export const WaveForm: React.FC<WaveformProps> = ({
           style={styles.waveformContainer}
         >
           {parentWidth > 0 && (
-            <View style={[{ backgroundColor: 'black', paddingHorizontal: 10 }]}>
+            <View style={[{ backgroundColor: "black", paddingHorizontal: 10 }]}>
               <Svg height={waveformHeight} width={totalSvgWidth}>
                 {showRuler && activeMode !== "live" && (
                   <TimeRuler
@@ -245,10 +347,20 @@ export const WaveForm: React.FC<WaveformProps> = ({
                 />
                 {activeVisualizationType === "candlestick" &&
                   bars?.map((bar, index) => {
-                    if (isValidNumber(bar.x) && isValidNumber(bar.y) && isValidNumber(bar.height)) {
-                      const rectX = activeMode === "preview" ? index * (parentWidth / MAX_POINTS) : bar.x + startMargin; // Adjusting for proper order
+                    if (
+                      isValidNumber(bar.x) &&
+                      isValidNumber(bar.y) &&
+                      isValidNumber(bar.height)
+                    ) {
+                      const rectX =
+                        activeMode === "preview"
+                          ? index * (parentWidth / MAX_POINTS)
+                          : bar.x + startMargin; // Adjusting for proper order
                       const rectY = bar.y + marginTop;
-                      const rectWidth = activeMode === "preview" ? parentWidth / MAX_POINTS : candleStickWidth; // Adjust width in preview mode
+                      const rectWidth =
+                        activeMode === "preview"
+                          ? parentWidth / MAX_POINTS
+                          : candleStickWidth; // Adjust width in preview mode
                       const rectHeight = bar.height;
 
                       // console.log(`Rendering Candle ${index}: x=${rectX}, y=${rectY}, width=${rectWidth}, height=${rectHeight}`);
@@ -268,7 +380,12 @@ export const WaveForm: React.FC<WaveformProps> = ({
                   })}
                 {activeVisualizationType === "line" && (
                   <Polyline
-                    points={points?.map((p, index) => `${activeMode === "preview" ? index * (parentWidth / MAX_POINTS) : p.x + startMargin},${p.y + marginTop}`).join(" ")} // Adjust for marginTop
+                    points={points
+                      ?.map(
+                        (p, index) =>
+                          `${activeMode === "preview" ? index * (parentWidth / MAX_POINTS) : p.x + startMargin},${p.y + marginTop}`,
+                      )
+                      .join(" ")} // Adjust for marginTop
                     fill="none"
                     stroke={candleColor}
                     strokeWidth="2"

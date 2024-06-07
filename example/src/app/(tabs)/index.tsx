@@ -4,8 +4,7 @@ import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
 import isBase64 from "is-base64";
 import { useCallback, useRef, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
-import { RadioButton } from "react-native-paper";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { atob, btoa } from "react-native-quick-base64";
 
 import { useSharedAudioRecorder, writeWaveHeader } from "../../../../src";
@@ -16,6 +15,7 @@ import {
   StartAudioStreamResult,
 } from "../../../../src/ExpoAudioStream.types";
 import { AudioDataEvent } from "../../../../src/useAudioRecording";
+import { getWavFileInfo } from "../../../../src/utils";
 import { AudioRecording } from "../../component/AudioRecording";
 import { WaveForm } from "../../component/waveform/waveform";
 import { WaveformProps } from "../../component/waveform/waveform.types";
@@ -54,12 +54,13 @@ export default function Record() {
   const audioChunksBlobs = useRef<ArrayBuffer[]>([]);
   const [streamConfig, setStreamConfig] =
     useState<StartAudioStreamResult | null>(null);
-  const [startRecordingConfig, setStartRecordingConfig] = useState<RecordingConfig>({
-    interval: 500,
-    sampleRate: isWeb ? 44100 : 16000,
-    encoding: isWeb ? "pcm_32bit" : "pcm_16bit",
-    onAudioStream: (a) => onAudioData(a),
-  });
+  const [startRecordingConfig, setStartRecordingConfig] =
+    useState<RecordingConfig>({
+      interval: 500,
+      sampleRate: isWeb ? 44100 : 16000,
+      encoding: isWeb ? "pcm_32bit" : "pcm_16bit",
+      onAudioStream: (a) => onAudioData(a),
+    });
   const [result, setResult] = useState<AudioStreamResult | null>(null);
   const currentSize = useRef(0);
   const { refreshFiles, removeFile } = useAudioFiles();
@@ -120,8 +121,7 @@ export default function Record() {
         ]);
 
         // Update the circular buffer for visualization
-        liveWavFormBuffer.current[liveWavFormBufferIndex.current] =
-          data;
+        liveWavFormBuffer.current[liveWavFormBufferIndex.current] = data;
         liveWavFormBufferIndex.current =
           (liveWavFormBufferIndex.current + 1) % LIVE_WAVE_FORM_CHUNKS_LENGTH;
       }
@@ -137,8 +137,22 @@ export default function Record() {
     if (webAudioUri) {
       const a = document.createElement("a");
       a.href = webAudioUri;
-      a.download = `recording_${result?.sampleRate ?? 'NOSAMPLE'}_${result?.bitDepth ?? 'NOBITDEPTH'}.wav`;
+      a.download = `recording_${result?.sampleRate ?? "NOSAMPLE"}_${result?.bitDepth ?? "NOBITDEPTH"}.wav`;
       a.click();
+    }
+  };
+
+  const handleFileInfo = async (uri: string) => {
+    logger.debug(`Getting file info...`, uri);
+    try {
+      const response = await fetch(uri);
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Decode the audio file to get metadata
+      const wavMetadata = await getWavFileInfo(arrayBuffer);
+      console.log(`Decoded audio:`, wavMetadata);
+    } catch (error) {
+      console.error("Error picking audio file:", error);
     }
   };
 
@@ -156,7 +170,7 @@ export default function Record() {
       liveWavFormBufferIndex.current = 0;
       fullWavAudioBuffer.current = null;
       currentSize.current = 0;
-      console.log(`Starting recording...`, startRecordingConfig)
+      console.log(`Starting recording...`, startRecordingConfig);
       const streamConfig: StartAudioStreamResult =
         await startRecording(startRecordingConfig);
       logger.debug(`Recording started `, streamConfig);
@@ -200,19 +214,22 @@ export default function Record() {
       }
     }
 
-
     if (isWeb && fullWavAudioBuffer.current) {
-      const wavBuffer = writeWaveHeader({
+      const wavConfig = {
         buffer: fullWavAudioBuffer.current,
-        sampleRate: streamConfig?.sampleRate || 44100,
-        numChannels: streamConfig?.channels || 1,
-        bitDepth: streamConfig?.bitDepth || 32,
-      });
+        sampleRate: result?.sampleRate || 44100,
+        numChannels: result?.channels || 1,
+        bitDepth: result?.bitDepth || 32,
+      };
+      logger.debug(`Writing wav header`, wavConfig);
+      const wavBuffer = writeWaveHeader(wavConfig);
 
       const blob = new Blob([wavBuffer], { type: result.mimeType });
       const url = URL.createObjectURL(blob);
       console.log(`Generated URL: ${url}`);
       setWebAudioUri(url);
+
+      await handleFileInfo(url);
       return;
     }
 
@@ -328,46 +345,58 @@ export default function Record() {
           }));
         }}
       />
-      <Picker label="Encoding" multi={false} options={[
-        {
-          label: "pcm_16bit",
-          value: "pcm_16bit",
-          selected: startRecordingConfig.encoding === "pcm_16bit",
-        },
-        {
-          label: "pcm_32bit",
-          value: "pcm_32bit",
-          selected: startRecordingConfig.encoding === "pcm_32bit",
-        },
-        {
-          label: "pcm_8bit",
-          value: "pcm_8bit",
-          selected: startRecordingConfig.encoding === "pcm_8bit",
-        },
-      ]} onFinish={(options) => {
-        const selected = options?.find((option) => option.selected);
-        if (!selected) return;
-        setStartRecordingConfig((prev) => ({
-          ...prev,
-          encoding: selected.value as RecordingConfig["encoding"],
-        }));
-      }} />
-      <Picker label="Visualization Type" multi={false} options={[
-        {
-          label: "Candlestick",
-          value: "candlestick",
-          selected: visualizationType === "candlestick",
-        },
-        {
-          label: "Line",
-          value: "line",
-          selected: visualizationType === "line",
-        },
-      ]} onFinish={(options) => {
-        const selected = options?.find((option) => option.selected);
-        if (!selected) return;
-        setVisualizationType(selected.value as WaveformProps["visualizationType"]);
-      }} />
+      <Picker
+        label="Encoding"
+        multi={false}
+        options={[
+          {
+            label: "pcm_16bit",
+            value: "pcm_16bit",
+            selected: startRecordingConfig.encoding === "pcm_16bit",
+          },
+          {
+            label: "pcm_32bit",
+            value: "pcm_32bit",
+            selected: startRecordingConfig.encoding === "pcm_32bit",
+          },
+          {
+            label: "pcm_8bit",
+            value: "pcm_8bit",
+            selected: startRecordingConfig.encoding === "pcm_8bit",
+          },
+        ]}
+        onFinish={(options) => {
+          const selected = options?.find((option) => option.selected);
+          if (!selected) return;
+          setStartRecordingConfig((prev) => ({
+            ...prev,
+            encoding: selected.value as RecordingConfig["encoding"],
+          }));
+        }}
+      />
+      <Picker
+        label="Visualization Type"
+        multi={false}
+        options={[
+          {
+            label: "Candlestick",
+            value: "candlestick",
+            selected: visualizationType === "candlestick",
+          },
+          {
+            label: "Line",
+            value: "line",
+            selected: visualizationType === "line",
+          },
+        ]}
+        onFinish={(options) => {
+          const selected = options?.find((option) => option.selected);
+          if (!selected) return;
+          setVisualizationType(
+            selected.value as WaveformProps["visualizationType"],
+          );
+        }}
+      />
       <Button mode="contained" onPress={() => handleStart()}>
         Start Recording
       </Button>
@@ -394,21 +423,29 @@ export default function Record() {
         <View style={{ gap: 10, paddingBottom: 100 }}>
           <AudioRecording
             recording={result}
-            showWaveform={true}
+            showWaveform
             webAudioUri={webAudioUri}
             onDelete={
               isWeb
                 ? undefined
                 : () => {
-                  setResult(null);
-                  return removeFile(result.fileUri);
-                }
+                    setResult(null);
+                    return removeFile(result.fileUri);
+                  }
             }
           />
-           {isWeb && webAudioUri && (
-            <Button mode="contained" onPress={handleSaveFile}>
-              Save to Disk
-            </Button>
+          {isWeb && webAudioUri && (
+            <>
+              <Button mode="contained" onPress={handleSaveFile}>
+                Save to Disk
+              </Button>
+              <Button
+                mode="contained"
+                onPress={() => handleFileInfo(webAudioUri)}
+              >
+                Get Wav Info
+              </Button>
+            </>
           )}
           <Button mode="contained" onPress={() => setResult(null)}>
             Record Again

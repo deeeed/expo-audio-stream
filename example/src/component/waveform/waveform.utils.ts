@@ -1,4 +1,4 @@
-import { Bar, Point } from './waveform.types';
+import { Bar, Point } from "./waveform.types";
 
 const MAX_8BIT = 128; // Adjusted for signed 8-bit
 const MAX_16BIT = 32768; // 2^15
@@ -29,12 +29,12 @@ export const normalizeValue = ({
       normalizedValue = (value / MAX_24BIT) * amplitude;
       break;
     default:
-      throw new Error('Unsupported bit depth');
+      throw new Error("Unsupported bit depth");
   }
 
   if (debug) {
     console.log(
-      `Normalize Value: input=${value}, amplitude=${amplitude}, bitDepth=${bitDepth}, result=${normalizedValue}`
+      `Normalize Value: input=${value}, amplitude=${amplitude}, bitDepth=${bitDepth}, result=${normalizedValue}`,
     );
   }
 
@@ -43,7 +43,7 @@ export const normalizeValue = ({
 
 export const amplitudeToDecibels = (
   amplitude: number,
-  bitDepth: number
+  bitDepth: number,
 ): number => {
   const reference = Math.pow(2, bitDepth - 1) - 1;
   if (amplitude === 0) return -Infinity; // Handle log(0) case
@@ -55,29 +55,39 @@ interface DownsampleParams {
   samplesPerPoint: number;
 }
 
-export const downsampleAverage = ({ data, samplesPerPoint }: DownsampleParams): Float32Array => {
-    const downsampled = new Float32Array(Math.ceil(data.length / samplesPerPoint));
-    for (let i = 0; i < downsampled.length; i++) {
-        const start = i * samplesPerPoint;
-        const end = Math.min(start + samplesPerPoint, data.length);
-        let sum = 0;
-        for (let j = start; j < end; j++) {
-            sum += data[j];
-        }
-        downsampled[i] = sum / (end - start);
-    }
-    return downsampled;
-};
-export const downsampleAverage2 = ({ data, samplesPerPoint }: DownsampleParams): Float32Array => {
-  const downsampled = new Float32Array(Math.ceil(data.length / samplesPerPoint));
+export const downsampleAverage = ({
+  data,
+  samplesPerPoint,
+}: DownsampleParams): Float32Array => {
+  const downsampled = new Float32Array(
+    Math.ceil(data.length / samplesPerPoint),
+  );
   for (let i = 0; i < downsampled.length; i++) {
-      const start = i * samplesPerPoint;
-      const end = Math.min(start + samplesPerPoint, data.length);
-      let sum = 0;
-      for (let j = start; j < end; j++) {
-          sum += data[j];
-      }
-      downsampled[i] = sum / (end - start);
+    const start = i * samplesPerPoint;
+    const end = Math.min(start + samplesPerPoint, data.length);
+    let sum = 0;
+    for (let j = start; j < end; j++) {
+      sum += data[j];
+    }
+    downsampled[i] = sum / (end - start);
+  }
+  return downsampled;
+};
+export const downsampleAverage2 = ({
+  data,
+  samplesPerPoint,
+}: DownsampleParams): Float32Array => {
+  const downsampled = new Float32Array(
+    Math.ceil(data.length / samplesPerPoint),
+  );
+  for (let i = 0; i < downsampled.length; i++) {
+    const start = i * samplesPerPoint;
+    const end = Math.min(start + samplesPerPoint, data.length);
+    let sum = 0;
+    for (let j = start; j < end; j++) {
+      sum += data[j];
+    }
+    downsampled[i] = sum / (end - start);
   }
 
   // Normalization
@@ -85,14 +95,17 @@ export const downsampleAverage2 = ({ data, samplesPerPoint }: DownsampleParams):
   const minVal = Math.min(...downsampled);
   const range = maxVal - minVal;
 
-  return downsampled.map(val => (val - minVal) / range);
+  return downsampled.map((val) => (val - minVal) / range);
 };
 
-export const downsamplePeak = ({ data, samplesPerPoint }: DownsampleParams): { min: Float32Array, max: Float32Array } => {
+export const downsamplePeak = ({
+  data,
+  samplesPerPoint,
+}: DownsampleParams): { min: Float32Array; max: Float32Array } => {
   const totalPoints = Math.ceil(data.length / samplesPerPoint);
   const downsampledMin = new Float32Array(totalPoints);
   const downsampledMax = new Float32Array(totalPoints);
-  
+
   for (let i = 0; i < totalPoints; i++) {
     const start = i * samplesPerPoint;
     const end = Math.min(start + samplesPerPoint, data.length);
@@ -105,35 +118,44 @@ export const downsamplePeak = ({ data, samplesPerPoint }: DownsampleParams): { m
     downsampledMin[i] = min;
     downsampledMax[i] = max;
   }
-  
+
   return { min: downsampledMin, max: downsampledMax };
 };
 
-
-export const downsampleRMSUnscaled = ({ data, samplesPerPoint }: DownsampleParams): Float32Array => {
-  const downsampled = new Float32Array(Math.ceil(data.length / samplesPerPoint));
+export const downsampleRMSUnscaled = ({
+  data,
+  samplesPerPoint,
+}: DownsampleParams): Float32Array => {
+  const downsampled = new Float32Array(
+    Math.ceil(data.length / samplesPerPoint),
+  );
   for (let i = 0; i < downsampled.length; i++) {
-      const start = i * samplesPerPoint;
-      const end = Math.min(start + samplesPerPoint, data.length);
-      let sum = 0;
-      for (let j = start; j < end; j++) {
-          sum += data[j] * data[j];
-      }
-      downsampled[i] = Math.sqrt(sum / (end - start));
+    const start = i * samplesPerPoint;
+    const end = Math.min(start + samplesPerPoint, data.length);
+    let sum = 0;
+    for (let j = start; j < end; j++) {
+      sum += data[j] * data[j];
+    }
+    downsampled[i] = Math.sqrt(sum / (end - start));
   }
   return downsampled;
 };
 
-export const downsampleRMS = ({ data, samplesPerPoint }: DownsampleParams): Float32Array => {
-  const downsampled = new Float32Array(Math.ceil(data.length / samplesPerPoint));
+export const downsampleRMS = ({
+  data,
+  samplesPerPoint,
+}: DownsampleParams): Float32Array => {
+  const downsampled = new Float32Array(
+    Math.ceil(data.length / samplesPerPoint),
+  );
   for (let i = 0; i < downsampled.length; i++) {
-      const start = i * samplesPerPoint;
-      const end = Math.min(start + samplesPerPoint, data.length);
-      let sum = 0;
-      for (let j = start; j < end; j++) {
-          sum += data[j] * data[j];
-      }
-      downsampled[i] = Math.sqrt(sum / (end - start));
+    const start = i * samplesPerPoint;
+    const end = Math.min(start + samplesPerPoint, data.length);
+    let sum = 0;
+    for (let j = start; j < end; j++) {
+      sum += data[j] * data[j];
+    }
+    downsampled[i] = Math.sqrt(sum / (end - start));
   }
 
   // Normalization
@@ -141,5 +163,5 @@ export const downsampleRMS = ({ data, samplesPerPoint }: DownsampleParams): Floa
   const minVal = Math.min(...downsampled);
   const range = maxVal - minVal;
 
-  return downsampled.map(val => (val - minVal) / range);
+  return downsampled.map((val) => (val - minVal) / range);
 };

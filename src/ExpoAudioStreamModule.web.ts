@@ -8,12 +8,12 @@ import {
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
 import { WebRecorder } from "./WebRecorder";
-import { quickUUID } from "./utils";
+import { encodingToBitDepth, quickUUID } from "./utils";
 
 export interface EmitAudioEventProps {
   data: ArrayBuffer;
   position: number;
-};
+}
 export type EmitAudioEventFunction = (_: EmitAudioEventProps) => void;
 
 const log = debug("expo-audio-stream:useAudioRecording");
@@ -32,6 +32,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
   streamUuid: string | null;
   extension: "webm" | "wav" = "wav"; // Default extension is 'webm'
   recordingConfig?: RecordingConfig;
+  bitDepth: number; // Bit depth of the audio
 
   constructor() {
     const mockNativeModule = {
@@ -52,6 +53,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
     this.pausedTime = 0;
     this.currentDurationMs = 0;
     this.currentSize = 0;
+    this.bitDepth = 32; // Default
     this.currentInterval = 1000; // Default interval in ms
     this.lastEmittedSize = 0;
     this.lastEmittedTime = 0;
@@ -74,6 +76,10 @@ class ExpoAudioStreamWeb extends EventEmitter {
       throw new Error("Recording is already in progress");
     }
 
+    this.bitDepth = encodingToBitDepth({
+      encoding: recordingConfig.encoding ?? "pcm_32bit",
+    });
+
     const audioContext = new (window.AudioContext ||
       // @ts-ignore - Allow webkitAudioContext for Safari
       window.webkitAudioContext)();
@@ -85,7 +91,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
       audioContext,
       source,
       recordingConfig,
-      ({data, position}: EmitAudioEventProps) => {
+      ({ data, position }: EmitAudioEventProps) => {
         this.audioChunks.push(data);
         this.currentSize += data.byteLength;
         this.emitAudioEvent({ data, position });
@@ -104,6 +110,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
     // }, 3000);
 
     this.isRecording = true;
+    this.recordingConfig = recordingConfig;
     this.recordingStartTime = Date.now();
     this.pausedTime = 0;
     this.lastEmittedSize = 0;
@@ -113,7 +120,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
     const streamConfig: StartAudioStreamResult = {
       fileUri,
       mimeType: `audio/${this.extension}`,
-      bitDepth: recordingConfig.encoding === "pcm_32bit" ? 32 : 16,
+      bitDepth: this.bitDepth,
       channels: recordingConfig.channels ?? 1,
       sampleRate: recordingConfig.sampleRate ?? 44100,
     };
@@ -145,7 +152,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
     this.currentDurationMs = Date.now() - this.recordingStartTime;
     const result: AudioStreamResult = {
       fileUri: `${this.streamUuid}.${this.extension}`,
-      bitDepth: this.recordingConfig?.encoding === "pcm_32bit" ? 32 : 32,
+      bitDepth: this.bitDepth,
       channels: this.recordingConfig?.channels ?? 1,
       sampleRate: this.recordingConfig?.sampleRate ?? 44100,
       duration: this.currentDurationMs,
