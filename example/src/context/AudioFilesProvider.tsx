@@ -46,8 +46,8 @@ export const AudioFilesProvider = ({
         logger.error(`Error accessing file at ${uri}:`, error);
       }
     };
-  
-    files.forEach(file => testFileUri(file.fileUri));
+
+    files.forEach((file) => testFileUri(file.fileUri));
   }, [files]);
 
   const listAudioFiles = useCallback(async () => {

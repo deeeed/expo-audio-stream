@@ -1,6 +1,6 @@
-import { useTheme } from '@siteed/design-system';
-import React from 'react';
-import { Line, Text as SvgText } from 'react-native-svg';
+import { useTheme } from "@siteed/design-system";
+import React from "react";
+import { Line, Text as SvgText } from "react-native-svg";
 
 export interface TimeRulerProps {
   duration: number;
@@ -22,7 +22,8 @@ export const TimeRuler = ({
   tickColor,
   labelColor,
   labelFontSize = 10,
-  labelFormatter = (value) => value < 10 ? value.toFixed(1) : Math.round(value).toString(), // Format to 1 decimal place
+  labelFormatter = (value) =>
+    value < 10 ? value.toFixed(1) : Math.round(value).toString(), // Format to 1 decimal place
   startMargin = 0,
 }: TimeRulerProps) => {
   const { colors } = useTheme();

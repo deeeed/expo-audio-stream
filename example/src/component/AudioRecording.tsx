@@ -4,10 +4,10 @@ import * as Sharing from "expo-sharing";
 import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { WaveForm } from "./waveform/waveform";
 import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
 import { useAudio } from "../hooks/useAudio";
 import { formatBytes, formatDuration } from "../utils";
-import { WaveForm } from "./waveform/waveform";
 
 const getStyles = ({
   isPlaying,
@@ -52,30 +52,36 @@ export const AudioRecording = ({
   showWaveform = true,
   onDelete,
 }: AudioRecordingProps) => {
-  const { logger } = useLogger('AudioRecording');
+  const { logger } = useLogger("AudioRecording");
   const { show } = useToast();
   const audioUri = webAudioUri ?? recording.fileUri;
   const theme = useTheme();
-  const { arrayBuffer, isPlaying, position, togglePlayPause } = useAudio(audioUri, showWaveform);
-  const styles = useMemo(() => getStyles({ isPlaying: isPlaying, theme }), [isPlaying, theme]);
+  const { arrayBuffer, isPlaying, position, togglePlayPause } = useAudio(
+    audioUri,
+    showWaveform,
+  );
+  const styles = useMemo(
+    () => getStyles({ isPlaying, theme }),
+    [isPlaying, theme],
+  );
 
   const handleShare = async () => {
     if (!audioUri) {
-      show({ type: 'error', message: 'No file to share' });
+      show({ type: "error", message: "No file to share" });
       return;
     }
 
     try {
       const isAvailable = await Sharing.isAvailableAsync();
       if (!isAvailable) {
-        alert('Sharing is not available on your platform');
+        alert("Sharing is not available on your platform");
         return;
       }
 
       await Sharing.shareAsync(audioUri);
     } catch (error) {
-      logger.error('Error sharing the audio file:', error);
-      show({ type: 'error', message: 'Failed to share the file' });
+      logger.error("Error sharing the audio file:", error);
+      show({ type: "error", message: "Failed to share the file" });
     }
   };
 
@@ -110,7 +116,7 @@ export const AudioRecording = ({
         <WaveForm
           buffer={arrayBuffer}
           waveformHeight={200}
-          showRuler={true}
+          showRuler
           debug
           visualizationType="candlestick"
           candleStickSpacing={2}

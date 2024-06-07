@@ -158,7 +158,6 @@ class RecorderProcessor extends AudioWorkletProcessor {
 registerProcessor('recorder-processor', RecorderProcessor);
 `;
 
-
 // Because we use expo and needs to include the worker script in the shared library, better inline it in the module.
 export const InlineProcessorScrippt = `
 class RecorderProcessor extends AudioWorkletProcessor {
@@ -338,4 +337,4 @@ class RecorderProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('recorder-processor', RecorderProcessor);
-`
+`;

@@ -1,3 +1,6 @@
+const DEFAULT_BIT_DEPTH = 32;
+const DEFAULT_SAMPLE_RATE = 44100; 
+
 class RecorderProcessor extends AudioWorkletProcessor {
     constructor() {
         super();
@@ -6,10 +9,11 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.resampledBuffer = []; // Float32Array
         this.exportIntervalSamples = 0;
         this.samplesSinceLastExport = 0;
-        this.recordSampleRate = 44100; // To be overwritten
-        this.exportSampleRate = 44100; // To be overwritten
+        this.recordSampleRate = DEFAULT_SAMPLE_RATE; // To be overwritten
+        this.exportSampleRate = DEFAULT_SAMPLE_RATE; // To be overwritten
+        this.recordBitDepth = DEFAULT_BIT_DEPTH; // Default to 32-bit depth
+        this.exportBitDepth = DEFAULT_BIT_DEPTH; // To be overwritten
         this.numberOfChannels = 1; // Default to 1 channel (mono)
-        this.bitDepth = 32; // Default to 32-bit depth
         this.isRecording = true;
         this.port.onmessage = this.handleMessage.bind(this);
     }
@@ -23,9 +27,10 @@ class RecorderProcessor extends AudioWorkletProcessor {
                 if (event.data.numberOfChannels) {
                     this.numberOfChannels = event.data.numberOfChannels;
                 }
-                if (event.data.bitDepth) {
-                    this.bitDepth = event.data.bitDepth;
+                if (event.data.recordBitDepth) {
+                    this.recordBitDepth = event.data.recordBitDepth;
                 }
+                this.exportBitDepth = event.data.exportBitDepth || this.recordBitDepth || DEFAULT_BIT_DEPTH;
                 console.debug(`RecorderProcessor -- Initializing with recordSampleRate: ${this.recordSampleRate}, exportSampleRate: ${this.exportSampleRate}, exportIntervalSamples: ${this.exportIntervalSamples}`);
                 break;
             case 'stop':
@@ -33,8 +38,10 @@ class RecorderProcessor extends AudioWorkletProcessor {
                 this.getAllRecordedData()
                     .then((fullRecordedData) => {
                         this.port.postMessage({
-                        command: "recordedData",
-                        recordedData: fullRecordedData,
+                            command: "recordedData",
+                            recordedData: fullRecordedData,
+                            bitDepth: this.exportBitDepth,
+                            sampleRate: this.exportSampleRate
                         });
                         return fullRecordedData;
                     })
@@ -72,70 +79,28 @@ class RecorderProcessor extends AudioWorkletProcessor {
         return result;
     }
 
-    floatTo16BitPCM(output, offset, input) {
-        for (let i = 0; i < input.length; i++, offset += 2) {
+    floatTo16BitPCM(input) {
+        const output = new Int16Array(input.length);
+        for (let i = 0; i < input.length; i++) {
             const s = Math.max(-1, Math.min(1, input[i]));
-            output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
-        console.debug('Float to 16-bit PCM conversion complete. Output byte length:', offset);
+        console.debug('Float to 16-bit PCM conversion complete. Output byte length:', output.byteLength);
+        return output;
     }
 
-    floatTo32BitPCM(output, offset, input) {
-        for (let i = 0; i < input.length; i++, offset += 4) {
-            output.setFloat32(offset, input[i], true);
+    floatTo32BitPCM(input) {
+        const output = new Int32Array(input.length);
+        for (let i = 0; i < input.length; i++) {
+            const s = Math.max(-1, Math.min(1, input[i]));
+            output[i] = s < 0 ? s * 0x80000000 : s * 0x7FFFFFFF;
         }
-        console.debug('Float to 32-bit PCM (no conversion) complete. Output byte length:', offset);
+        console.debug('Float to 32-bit PCM conversion complete. Output byte length:', output.byteLength);
+        return output;
     }
-
-    writeString(view, offset, string) {
-        for (let i = 0; i < string.length; i++) {
-            view.setUint8(offset + i, string.charCodeAt(i));
-        }
-    }
-
-    encodeWAV(samples, includeHeader = true) {
-        const sampleCount = samples.length;
-        const bytesPerSample = this.bitDepth / 8;
-        const blockAlign = this.numberOfChannels * bytesPerSample;
-        const byteRate = this.exportSampleRate * blockAlign;
-        const buffer = new ArrayBuffer((includeHeader ? 44 : 0) + sampleCount * bytesPerSample);
-        const view = new DataView(buffer);
-
-        if (includeHeader) {
-            this.writeString(view, 0, 'RIFF');
-            view.setUint32(4, 36 + sampleCount * bytesPerSample, true); // File size - 8 bytes
-            this.writeString(view, 8, 'WAVE');
-            this.writeString(view, 12, 'fmt ');
-            view.setUint32(16, 16, true); // PCM format
-            view.setUint16(20, this.bitDepth === 32 ? 3 : 1, true); // Format code 3 for float, 1 for PCM
-            view.setUint16(22, this.numberOfChannels, true); // Channels
-            view.setUint32(24, this.exportSampleRate, true); // Sample rate
-            view.setUint32(28, byteRate, true); // Byte rate
-            view.setUint16(32, blockAlign, true); // Block align
-            view.setUint16(34, this.bitDepth, true); // Bits per sample
-            this.writeString(view, 36, 'data');
-            view.setUint32(40, sampleCount * bytesPerSample, true); // Data chunk size
-        }
-
-        console.debug('Writing PCM samples to DataView. Offset:', includeHeader ? 44 : 0, 'Samples length:', sampleCount);
-
-        if(this.bitDepth === 16) {
-            console.debug('Encoding as 16-bit PCM');
-            this.floatTo16BitPCM(view, includeHeader ? 44 : 0, samples);
-        } else {
-            console.debug('Encoding as 32-bit float PCM');
-            this.floatTo32BitPCM(view, includeHeader ? 44 : 0, samples);
-        }
-
-        console.debug('Encoded WAV DataView:', view);
-        console.debug('Encoded WAV length:', view.byteLength);
-
-        return view;
-    }
-
 
     resample(samples, targetSampleRate) {
-        if(this.recordSampleRate === targetSampleRate) {
+        if (this.recordSampleRate === targetSampleRate) {
             return samples;
         }
         const resampledBuffer = new Float32Array(samples.length * targetSampleRate / this.recordSampleRate);
@@ -157,11 +122,10 @@ class RecorderProcessor extends AudioWorkletProcessor {
 
     async resampleBuffer(buffer, targetSampleRate) {
         if (typeof OfflineAudioContext === 'undefined') {
-            console.warn('OfflineAudioContext is not supported in this environment -- fallback to manual resampling');
             return this.resample(buffer, targetSampleRate);
         }
 
-        if(this.recordSampleRate === targetSampleRate) {
+        if (this.recordSampleRate === targetSampleRate) {
             return buffer;
         }
         const offlineContext = new OfflineAudioContext(numberOfChannels, buffer.length, this.recordSampleRate);
@@ -191,8 +155,25 @@ class RecorderProcessor extends AudioWorkletProcessor {
 
         const resampledBuffer = await this.resampleBuffer(mergedBuffer, this.exportSampleRate);
 
-        // Encode the merged buffer into a WAV format
-        const encodedWav = this.encodeWAV(resampledBuffer, false);
+        let finalBuffer = resampledBuffer;  // Float32Array
+        if(this.recordBitDepth !== this.exportBitDepth) {
+            if (this.exportBitDepth === 16) {
+                finalBuffer = this.floatTo16BitPCM(resampledBuffer);
+            } else if (this.exportBitDepth === 32) {
+                finalBuffer = this.floatTo32BitPCM(resampledBuffer);
+            }
+        }
+
+        console.debug(`Original buffer length: ${mergedBuffer.byteLength}`);
+        console.debug(`Resampled buffer length: ${resampledBuffer.byteLength}`);
+        console.debug(`Final buffer length (after conversion): ${finalBuffer.byteLength}`);
+
+        const originalSize = mergedBuffer.byteLength;
+        const resampledSize = resampledBuffer.byteLength;
+        const finalSize = finalBuffer.byteLength;
+
+        console.debug(`Resampled buffer size ratio: ${(resampledSize / originalSize).toFixed(2)}`);
+        console.debug(`Final buffer size ratio: ${(finalSize / originalSize).toFixed(2)}`);
 
         // Clear the new recorded buffers after they have been processed
         this.newRecBuffer.length = 0;
@@ -201,8 +182,8 @@ class RecorderProcessor extends AudioWorkletProcessor {
         // The first argument is the message data, containing the encoded WAV buffer
         // The second argument is the transfer list, which transfers ownership of the ArrayBuffer
         // to the main thread, avoiding the need to copy the buffer and improving performance
-        this.port.postMessage({ recordedData: encodedWav.buffer, sampleRate: this.recordSampleRate }, [encodedWav.buffer]);
-        // this.port.postMessage({ recordedData: mergedBuffer, sampleRate: this.recordSampleRate }, [mergedBuffer]);
+        // this.port.postMessage({ recordedData: encodedWav.buffer, sampleRate: this.recordSampleRate }, [encodedWav.buffer]);
+        this.port.postMessage({ recordedData: finalBuffer.buffer, sampleRate: this.exportSampleRate, bitDepth: this.exportBitDepth });
     }
 
     async getAllRecordedData() {
@@ -210,41 +191,31 @@ class RecorderProcessor extends AudioWorkletProcessor {
 
         const length = this.recordedBuffers.reduce((acc, buffer) => acc + buffer.length, 0);
         const mergedBuffer = this.mergeBuffers(this.recordedBuffers, length);
-
-        console.debug(`mergedBuffer.byteLength: ${mergedBuffer.byteLength}`);
-        console.debug(`recordSampleRate: ${this.recordSampleRate}`);
-        console.debug(`channels: ${this.numberOfChannels}`);
-        console.debug(`bitDepth: ${this.bitDepth}`);
-
-        // Calculate the duration based on the sample count and sample rate
-        const sampleCount = mergedBuffer.length;
-        const mergedBufferDuration = sampleCount / this.recordSampleRate;
-        console.debug(`mergedBuffer Duration: ${mergedBufferDuration} seconds`);
-
-        // TODO: Resample the merged buffer to the export sample rate
-        // const resampledBuffer = this.resample(mergedBuffer, this.exportSampleRate);
         const resampledBuffer = await this.resampleBuffer(mergedBuffer, this.exportSampleRate);
+        // Convert to the desired bit depth if necessary
+        let finalBuffer = resampledBuffer;
+        if(this.recordBitDepth !== this.exportBitDepth) {
+            if (this.exportBitDepth === 16) {
+                finalBuffer = this.floatTo16BitPCM(resampledBuffer);
+            } else if (this.exportBitDepth === 32) {
+                finalBuffer = this.floatTo32BitPCM(resampledBuffer);
+            }
+        }
 
-        // compare lengths
-        console.debug(`resampledBuffer.length: ${resampledBuffer.length} vs mergedBuffer.length: ${mergedBuffer.length}`);
-        console.debug(`saved ${mergedBuffer.length - resampledBuffer.length} samples`);
-        const encodedWav = this.encodeWAV(resampledBuffer, true);
+        console.debug(`Original buffer length: ${mergedBuffer.byteLength}`);
+        console.debug(`Resampled buffer length: ${resampledBuffer.byteLength}`);
+        console.debug(`Final buffer length (after conversion): ${finalBuffer.byteLength}`);
 
-        console.debug(`encodedWav.byteLength: ${encodedWav.byteLength}`);
+        const originalSize = mergedBuffer.byteLength;
+        const resampledSize = resampledBuffer.byteLength;
+        const finalSize = finalBuffer.byteLength;
 
-        // Calculate and log the duration for encodedWav.buffer based on sample count
-        const encodedWavBufferDuration = sampleCount / this.recordSampleRate;
-        console.debug(`encodedWav.buffer Duration: ${encodedWavBufferDuration} seconds`);
+        console.debug(`Resampled buffer size ratio: ${(resampledSize / originalSize).toFixed(2)}`);
+        console.debug(`Final buffer size ratio: ${(finalSize / originalSize).toFixed(2)}`);
 
         this.recordedBuffers.length = 0; // Clear the buffers after extraction
 
-        // Returning both for testing, comment one of the returns based on your test
-        console.debug('mergedBuffer:', mergedBuffer);
-        console.debug('encodedWav.buffer:', encodedWav.buffer);
-
-        // Uncomment the appropriate return for testing
-        // return mergedBuffer; // This works when played
-        return encodedWav.buffer; // This doesn't work when played
+        return finalBuffer.buffer;
     }
 
 

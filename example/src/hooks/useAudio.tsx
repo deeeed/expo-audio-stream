@@ -1,16 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Audio } from 'expo-av';
-import { useLogger } from '@siteed/react-native-logger';
-import { useToast } from '@siteed/design-system';
-import { AudioStreamResult } from '../../../src/ExpoAudioStream.types';
-import { fetchArrayBuffer } from '../utils';
+import { useToast } from "@siteed/design-system";
+import { useLogger } from "@siteed/react-native-logger";
+import { Audio } from "expo-av";
+import { useState, useEffect, useCallback } from "react";
 
-export const useAudio = (audioUri: string | undefined, showWaveform: boolean) => {
+import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
+import { fetchArrayBuffer } from "../utils";
+
+export const useAudio = (
+  audioUri: string | undefined,
+  showWaveform: boolean,
+) => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer | null>(null);
-  const { logger } = useLogger('useAudio');
+  const { logger } = useLogger("useAudio");
   const { show } = useToast();
 
   useEffect(() => {
@@ -27,10 +31,12 @@ export const useAudio = (audioUri: string | undefined, showWaveform: boolean) =>
         logger.debug(`Fetching audio array buffer from ${audioUri}`);
         const buffer = await fetchArrayBuffer(audioUri);
         setArrayBuffer(buffer);
-        logger.debug(`Fetched audio array buffer from ${audioUri} --> length: ${buffer.byteLength} bytes`);
+        logger.debug(
+          `Fetched audio array buffer from ${audioUri} --> length: ${buffer.byteLength} bytes`,
+        );
       } catch (error) {
         logger.error(`Failed to fetch audio ${audioUri} array buffer:`, error);
-        show({ type: 'error', message: 'Failed to load audio data' });
+        show({ type: "error", message: "Failed to load audio data" });
       }
     };
 
@@ -56,7 +62,7 @@ export const useAudio = (audioUri: string | undefined, showWaveform: boolean) =>
   );
 
   const togglePlayPause = async () => {
-    if(!audioUri) return;
+    if (!audioUri) return;
     try {
       if (!sound) {
         const { sound: newSound } = await Audio.Sound.createAsync(
@@ -77,8 +83,8 @@ export const useAudio = (audioUri: string | undefined, showWaveform: boolean) =>
         }
       }
     } catch (error) {
-      logger.error('Failed to play or pause the audio:', error);
-      show({ type: 'error', message: 'Failed to play or pause the audio' });
+      logger.error("Failed to play or pause the audio:", error);
+      show({ type: "error", message: "Failed to play or pause the audio" });
     }
   };
 

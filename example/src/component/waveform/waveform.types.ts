@@ -5,7 +5,7 @@ export interface WaveformProps {
   channels?: number;
   visualizationType?: "line" | "candlestick";
   currentTime?: number; // Current playback time in seconds
-  pointsPerSecond?: number, // Default points per second
+  pointsPerSecond?: number; // Default points per second
   candleStickWidth?: number;
   waveformHeight?: number;
   candleStickSpacing?: number;

@@ -1,4 +1,9 @@
-export const convertPCMToFloat32 = (buffer: ArrayBuffer, bitDepth: number): {pcmValues: Float32Array, min: number, max: number} => {
+import { EncodingType } from "./ExpoAudioStream.types";
+
+export const convertPCMToFloat32 = (
+  buffer: ArrayBuffer,
+  bitDepth: number,
+): { pcmValues: Float32Array; min: number; max: number } => {
   const dataView = new DataView(buffer);
   const length = buffer.byteLength / (bitDepth / 8);
   const float32Array = new Float32Array(length);
@@ -16,7 +21,11 @@ export const convertPCMToFloat32 = (buffer: ArrayBuffer, bitDepth: number): {pcm
         value = dataView.getInt16(offset, true) / 32768;
         break;
       case 24:
-        value = (dataView.getInt8(offset) + (dataView.getInt8(offset + 1) << 8) + (dataView.getInt8(offset + 2) << 16)) / 8388608;
+        value =
+          (dataView.getInt8(offset) +
+            (dataView.getInt8(offset + 1) << 8) +
+            (dataView.getInt8(offset + 2) << 16)) /
+          8388608;
         break;
       case 32:
         value = dataView.getFloat32(offset, true);
@@ -29,7 +38,7 @@ export const convertPCMToFloat32 = (buffer: ArrayBuffer, bitDepth: number): {pcm
     float32Array[i] = value;
   }
 
-  return {pcmValues: float32Array, min, max};
+  return { pcmValues: float32Array, min, max };
 };
 
 interface WavHeaderOptions {
@@ -63,10 +72,10 @@ export const writeWavHeader = ({
 
   if (!existingHeader) {
     // Write the WAV header
-    writeString(view, 0, 'RIFF'); // ChunkID
+    writeString(view, 0, "RIFF"); // ChunkID
     view.setUint32(4, 36 + numSamples * blockAlign, true); // ChunkSize
-    writeString(view, 8, 'WAVE'); // Format
-    writeString(view, 12, 'fmt '); // Subchunk1ID
+    writeString(view, 8, "WAVE"); // Format
+    writeString(view, 12, "fmt "); // Subchunk1ID
     view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
     view.setUint16(20, bitDepth === 32 ? 3 : 1, true); // AudioFormat (3 for float, 1 for PCM)
     view.setUint16(22, numChannels, true); // NumChannels
@@ -74,7 +83,7 @@ export const writeWavHeader = ({
     view.setUint32(28, byteRate, true); // ByteRate
     view.setUint16(32, blockAlign, true); // BlockAlign
     view.setUint16(34, bitDepth, true); // BitsPerSample
-    writeString(view, 36, 'data'); // Subchunk2ID
+    writeString(view, 36, "data"); // Subchunk2ID
     view.setUint32(40, numSamples * blockAlign, true); // Subchunk2Size
   } else {
     // Update the existing WAV header if necessary
@@ -88,15 +97,17 @@ export const writeWavHeader = ({
   return buffer;
 };
 
-
 interface WavFileInfo {
   sampleRate: number;
   numChannels: number;
   bitDepth: number;
+  size: number; // in bytes
   duration: number; // in seconds
 }
 
-export const getWavFileInfo = async (arrayBuffer: ArrayBuffer): Promise<WavFileInfo> => {
+export const getWavFileInfo = async (
+  arrayBuffer: ArrayBuffer,
+): Promise<WavFileInfo> => {
   const view = new DataView(arrayBuffer);
 
   // Check if the file is a valid RIFF/WAVE file
@@ -117,7 +128,8 @@ export const getWavFileInfo = async (arrayBuffer: ArrayBuffer): Promise<WavFileI
   while (fmtChunkOffset < view.byteLength) {
     const chunkId = view.getUint32(fmtChunkOffset, false);
     const chunkSize = view.getUint32(fmtChunkOffset + 4, true);
-    if (chunkId === 0x666d7420) { // "fmt "
+    if (chunkId === 0x666d7420) {
+      // "fmt "
       audioFormat = view.getUint16(fmtChunkOffset + 8, true);
       if (audioFormat !== 1 && audioFormat !== 3) {
         throw new Error("Unsupported WAV file format");
@@ -125,7 +137,8 @@ export const getWavFileInfo = async (arrayBuffer: ArrayBuffer): Promise<WavFileI
       numChannels = view.getUint16(fmtChunkOffset + 10, true);
       sampleRate = view.getUint32(fmtChunkOffset + 12, true);
       bitDepth = view.getUint16(fmtChunkOffset + 22, true);
-    } else if (chunkId === 0x64617461) { // "data"
+    } else if (chunkId === 0x64617461) {
+      // "data"
       dataChunkSize = chunkSize;
       break;
     }
@@ -145,6 +158,7 @@ export const getWavFileInfo = async (arrayBuffer: ArrayBuffer): Promise<WavFileI
     sampleRate,
     numChannels,
     bitDepth,
+    size: arrayBuffer.byteLength,
     duration,
   };
 };
@@ -157,4 +171,21 @@ export const quickUUID = () => {
       v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
+};
+
+export const encodingToBitDepth = ({
+  encoding,
+}: {
+  encoding: EncodingType;
+}): number => {
+  switch (encoding) {
+    case "pcm_32bit":
+      return 32;
+    case "pcm_16bit":
+      return 16;
+    case "pcm_8bit":
+      return 8;
+    default:
+      throw new Error(`Unsupported encoding type: ${encoding}`);
+  }
 };
