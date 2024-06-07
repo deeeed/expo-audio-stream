@@ -6,15 +6,12 @@ import { Button, StyleSheet, Text, View } from "react-native";
 import { getWavFileInfo } from "../../../../src/utils";
 import { WaveForm } from "../../component/waveform/waveform";
 import { formatBytes } from "../../utils";
+import { ScreenWrapper } from "@siteed/design-system";
 
 const getStyles = () => {
   return StyleSheet.create({
     container: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      padding: 20,
-      gap: 10,
+      paddingBottom: 80,
     },
     audioPlayer: {},
     button: {},
@@ -79,7 +76,9 @@ export const TestPage = () => {
       });
       setFileName(audioUri);
       setAudioUri(audioUri);
-    } catch (error) {}
+    } catch (error) {
+      console.error("Error loading audio file:", error);
+    }
   };
 
   const playAudio = useCallback(async () => {
@@ -93,13 +92,13 @@ export const TestPage = () => {
   useEffect(() => {
     return sound
       ? () => {
-          sound.unloadAsync();
-        }
+        sound.unloadAsync();
+      }
       : undefined;
   }, [sound]);
 
   return (
-    <View style={styles.container}>
+    <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
       <Text>Select and play audio file</Text>
       <Button title="Select Audio File" onPress={pickAudioFile} />
       <Button
@@ -140,7 +139,7 @@ export const TestPage = () => {
           <Text style={styles.audioPlayer}>Selected File: {fileName}</Text>
         </>
       )}
-    </View>
+    </ScreenWrapper>
   );
 };
 

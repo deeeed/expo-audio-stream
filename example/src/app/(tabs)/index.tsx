@@ -176,11 +176,11 @@ export default function Record() {
       logger.debug(`Recording started `, streamConfig);
       setStreamConfig(streamConfig);
 
-      // FIXME: remove when the issue is fixed
-      setTimeout(async () => {
-        console.log("AUTO Stopping recording");
-        await handleStopRecording();
-      }, 3000);
+      // // Debug Only with fixed audio buffer
+      // setTimeout(async () => {
+      //   console.log("AUTO Stopping recording");
+      //   await handleStopRecording();
+      // }, 3000);
     } catch (error) {
       logger.error(`Error while starting recording`, error);
     }
