@@ -1,12 +1,15 @@
+import { ScreenWrapper } from "@siteed/design-system";
+import { Asset, useAssets } from "expo-asset";
 import { Audio } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, StyleSheet, Text, View } from "react-native";
+import { Button, Platform, StyleSheet, Text, View } from "react-native";
+import { atob, btoa } from "react-native-quick-base64";
 
 import { getWavFileInfo } from "../../../../src/utils";
 import { WaveForm } from "../../component/waveform/waveform";
 import { formatBytes } from "../../utils";
-import { ScreenWrapper } from "@siteed/design-system";
 
 const getStyles = () => {
   return StyleSheet.create({
@@ -17,6 +20,7 @@ const getStyles = () => {
     button: {},
   });
 };
+const isWeb = Platform.OS === "web";
 
 export const TestPage = () => {
   const styles = useMemo(() => getStyles(), []);
@@ -24,11 +28,14 @@ export const TestPage = () => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [audioBuffer, setAudioBuffer] = useState<ArrayBuffer>();
+
   const [audioMetadata, setAudioMetadata] = useState<{
     sampleRate: number;
     channels: number;
     bitDepth: number;
   } | null>(null);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>(0);
 
   const pickAudioFile = async () => {
     try {
@@ -41,11 +48,17 @@ export const TestPage = () => {
         const name = result.assets[0].name;
         setAudioUri(uri);
         setFileName(name);
-
+        setIsPlaying(false);
+        setCurrentTime(0);
         // Fetch the audio file as an ArrayBuffer
         const response = await fetch(uri);
         const arrayBuffer = await response.arrayBuffer();
         setAudioBuffer(arrayBuffer);
+
+        // Unload any existing sound
+        if (sound) {
+          setSound(null);
+        }
 
         // Decode the audio file to get metadata
         const wavMetadata = await getWavFileInfo(arrayBuffer);
@@ -60,13 +73,17 @@ export const TestPage = () => {
     }
   };
 
-  const loadAudioFile = async ({ audioUri }: { audioUri: string }) => {
+  const loadWebAudioFile = async ({ audioUri }: { audioUri: string }) => {
     try {
       const response = await fetch(audioUri);
       const arrayBuffer = await response.arrayBuffer();
-      setAudioBuffer(arrayBuffer);
 
-      // Decode the audio file to get metadata
+      // Unload any existing sound
+      if (sound) {
+        setSound(null);
+      }
+
+      // // Decode the audio file to get metadata
       const wavMetadata = await getWavFileInfo(arrayBuffer);
       console.log(`Decoded audio:`, wavMetadata);
       setAudioMetadata({
@@ -74,26 +91,53 @@ export const TestPage = () => {
         channels: wavMetadata.numChannels,
         bitDepth: wavMetadata.bitDepth,
       });
-      setFileName(audioUri);
+      setAudioBuffer(arrayBuffer);
+      setFileName(fileName);
       setAudioUri(audioUri);
+      // Reset playback position and stop playback
+      setCurrentTime(0);
+      setIsPlaying(false);
     } catch (error) {
       console.error("Error loading audio file:", error);
     }
   };
 
-  const playAudio = useCallback(async () => {
-    if (audioUri) {
-      const { sound } = await Audio.Sound.createAsync({ uri: audioUri });
-      setSound(sound);
-      await sound.playAsync();
+  const playPauseAudio = useCallback(async () => {
+    if (sound) {
+      const status = await sound.getStatusAsync();
+      if (status.isLoaded) {
+        if (status.isPlaying) {
+          await sound.pauseAsync();
+          setIsPlaying(false);
+        } else {
+          await sound.playAsync();
+          setIsPlaying(true);
+        }
+      }
+    } else if (audioUri) {
+      const { sound: newSound } = await Audio.Sound.createAsync({
+        uri: audioUri,
+      });
+      setSound(newSound);
+      await newSound.playAsync();
+      setIsPlaying(true);
+
+      // Track playback position
+      newSound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded) {
+          setCurrentTime(status.positionMillis / 1000);
+          setIsPlaying(status.isPlaying);
+        }
+      });
     }
-  }, [audioUri]);
+  }, [audioUri, sound]);
 
   useEffect(() => {
     return sound
       ? () => {
-        sound.unloadAsync();
-      }
+          console.log("Unloading sound");
+          sound.unloadAsync();
+        }
       : undefined;
   }, [sound]);
 
@@ -101,16 +145,18 @@ export const TestPage = () => {
     <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
       <Text>Select and play audio file</Text>
       <Button title="Select Audio File" onPress={pickAudioFile} />
-      <Button
-        title="Auto Load"
-        onPress={async () => {
-          try {
-            await loadAudioFile({ audioUri: "/recording_44100_32.wav" });
-          } catch (error) {
-            console.error("Error loading audio file:", error);
-          }
-        }}
-      />
+      {isWeb && (
+        <Button
+          title="Auto Load"
+          onPress={async () => {
+            try {
+              await loadWebAudioFile({ audioUri: "/test.wav" });
+            } catch (error) {
+              console.error("Error loading audio file:", error);
+            }
+          }}
+        />
+      )}
       {audioUri && (
         <View>
           <Text>{JSON.stringify(audioMetadata)}</Text>
@@ -123,19 +169,22 @@ export const TestPage = () => {
               buffer={audioBuffer}
               mode="static"
               showRuler
+              currentTime={currentTime}
               debug
               visualizationType="candlestick"
               sampleRate={audioMetadata?.sampleRate}
               channels={audioMetadata?.channels}
-              bitDepth={32}
+              bitDepth={audioMetadata.bitDepth}
             />
           )}
-          <Button title="Play Audio" onPress={playAudio} />
+          <Button
+            title={isPlaying ? "Pause Audio" : "Play Audio"}
+            onPress={playPauseAudio}
+          />
         </View>
       )}
       {fileName && (
         <>
-          {/* <Text style={styles.audioPlayer}>Selected File: {audioUri}</Text> */}
           <Text style={styles.audioPlayer}>Selected File: {fileName}</Text>
         </>
       )}
