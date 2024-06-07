@@ -38,6 +38,12 @@
         }
       ],
       "expo-localization",
+      [
+        "expo-asset",
+        {
+          "assets": ["./public/test.wav"]
+        }
+      ],
       "expo-router"
     ]
   }
