@@ -10,6 +10,7 @@ import {
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
+import { WavFileInfo } from "./utils";
 
 export interface AudioDataEvent {
   data: string | ArrayBuffer;
@@ -17,6 +18,50 @@ export interface AudioDataEvent {
   fileUri: string;
   eventDataSize: number;
   totalSize: number;
+}
+
+export interface DataPoint {
+  amplitude: number;
+  activeSpeech?: boolean;
+  dB?: number;
+  silent?: boolean;
+  features?: {
+    energy: number;
+    mfcc: number[];
+    rms: number;
+    zcr: number;
+    spectralCentroid: number;
+    spectralFlatness: number;
+  };
+  timestamp?: number;
+  speaker?: number;
+}
+
+export interface AudioAnalysisData {
+  pointsPerSecond: number; // How many consolidated value per second
+  durationMs?: number; // Duration of the audio in milliseconds
+  bitDepth: number; // Bit depth of the audio
+  numberOfChannels: number; // Number of audio channels
+  sampleRate: number; // Sample rate of the audio
+  dataPoints: DataPoint[];
+  amplitudeRange: {
+    min: number;
+    max: number;
+  };
+  speakerChanges?: {
+    timestamp: number;
+    speaker: number;
+  }[];
+}
+
+export interface ExtractMetadataProps {
+  fileUri: string;
+  wavMetadata?: WavFileInfo;
+  arrayBuffer?: ArrayBuffer;
+  algorithm?: "peak" | "rms";
+  position?: number; // Optional number of bytes to skip. Default is 0
+  length?: number; // Optional number of bytes to read.
+  pointsPerSecond?: number; // Optional number of points per second. Use to reduce the number of points and compute the number of datapoints to return.
 }
 
 export interface UseAudioRecorderProps {
