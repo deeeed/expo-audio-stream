@@ -97,7 +97,7 @@ export const writeWavHeader = ({
   return buffer;
 };
 
-interface WavFileInfo {
+export interface WavFileInfo {
   sampleRate: number;
   numChannels: number;
   bitDepth: number;

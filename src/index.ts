@@ -10,11 +10,13 @@ import {
 import { AudioEventPayload } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 import {
+  AudioAnalysisData,
   AudioDataEvent,
+  ExtractMetadataProps,
   UseAudioRecorderState,
   useAudioRecorder,
 } from "./useAudioRecording";
-import { writeWavHeader, convertPCMToFloat32 } from "./utils";
+import { convertPCMToFloat32, getWavFileInfo, writeWavHeader } from "./utils";
 
 const emitter = new EventEmitter(ExpoAudioStreamModule);
 
@@ -29,6 +31,60 @@ export function addAudioEventListener(
   return emitter.addListener<AudioEventPayload>("AudioData", listener);
 }
 
+export const extractAudioAnalysis = async ({
+  fileUri,
+  wavMetadata,
+  pointsPerSecond = 5,
+  arrayBuffer,
+  algorithm = "rms",
+}: ExtractMetadataProps): Promise<AudioAnalysisData> => {
+  if (Platform.OS === "web") {
+    if (!arrayBuffer) {
+      const response = await fetch(fileUri);
+      arrayBuffer = await response.arrayBuffer();
+    }
+
+    const audioContext = new (window.AudioContext ||
+      // @ts-ignore
+      window.webkitAudioContext)();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+    const channelData = audioBuffer.getChannelData(0); // Use only the first channel
+
+    if (!wavMetadata) {
+      wavMetadata = await getWavFileInfo(arrayBuffer);
+    }
+
+    return new Promise((resolve, reject) => {
+      const worker = new Worker(
+        new URL("/wavextractor.js", window.location.href),
+      );
+
+      worker.onmessage = (event) => {
+        resolve(event.data);
+      };
+
+      worker.onerror = (error) => {
+        reject(error);
+      };
+
+      console.log(`before posting wavmetadata`, wavMetadata)
+      console.log("Posting message to worker", arrayBuffer?.byteLength);
+      worker.postMessage({
+        channelData,
+        sampleRate: wavMetadata?.sampleRate,
+        pointsPerSecond,
+        bitDepth: wavMetadata?.bitDepth,
+        numberOfChannels: wavMetadata?.numChannels,
+        durationMs: (wavMetadata?.duration ?? 0) * 1000, // Convert to milliseconds
+        algorithm,
+      });
+    });
+  } else {
+    throw new Error("Not implemented");
+  }
+};
+
 let createWebWorker: () => Worker;
 
 if (Platform.OS === "web") {
@@ -41,10 +97,10 @@ if (Platform.OS === "web") {
 
 export {
   AudioRecorderProvider,
-  writeWavHeader as writeWaveHeader,
   convertPCMToFloat32,
+  createWebWorker,
   useAudioRecorder,
   useSharedAudioRecorder,
-  createWebWorker,
+  writeWavHeader as writeWaveHeader,
 };
 export type { AudioDataEvent, AudioEventPayload, UseAudioRecorderState };
