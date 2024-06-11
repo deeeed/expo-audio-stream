@@ -1,5 +1,6 @@
 import {
   Canvas,
+  Group,
   Path,
   SkPath,
   Skia,
@@ -264,6 +265,10 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   //   setDataPoints(candles);
   // });
 
+  const transform = useDerivedValue(() => {
+    return [{ translateX: translateX.value }];
+  });
+
   return (
     <View style={styles.container} onLayout={handleLayout}>
       <Text style={styles.text}>candles: {audioData.dataPoints.length}</Text>
@@ -289,21 +294,21 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       </Button>
       <GestureDetector gesture={gesture}>
         <View style={styles.canvasContainer}>
-          <Animated.View style={[animatedStyle]}>
-            <Canvas
-              style={{
-                ...styles.canvas,
-                height: canvasHeight,
-                width: canvasWidth,
-              }}
-              onTouch={touchHandler}
-            >
+          {/* <Animated.View style={[animatedStyle]}> */}
+          <Canvas
+            style={{
+              ...styles.canvas,
+              height: canvasHeight,
+              width,
+            }}
+            onTouch={touchHandler}
+          >
+            <Group transform={transform}>
               {/* <SkiaTimeRuler
                 duration={audioData.durationMs ?? 0 / 1000}
                 paddingLeft={paddingLeft}
                 width={totalCandleWidth}
               /> */}
-
               {dataPoints.map((candle, index) => {
                 // let scaledAmplitude = candle.amplitude * canvasHeight;
                 const scaledAmplitude =
@@ -324,17 +329,17 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                   />
                 );
               })}
-
-              {showDottedLine && (
-                <Path
-                  path={drawDottedLine()}
-                  color="grey"
-                  style="stroke"
-                  strokeWidth={1}
-                />
-              )}
-            </Canvas>
-          </Animated.View>
+            </Group>
+            {showDottedLine && (
+              <Path
+                path={drawDottedLine()}
+                color="grey"
+                style="stroke"
+                strokeWidth={1}
+              />
+            )}
+          </Canvas>
+          {/* </Animated.View> */}
           <View
             style={[
               {

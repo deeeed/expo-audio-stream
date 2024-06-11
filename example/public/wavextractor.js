@@ -13,13 +13,12 @@ self.onmessage = function (event) {
 
   console.log("[WAVEXTRACTOR] Worker received message", event.data);
 
-  const SILENCE_THRESHOLD = 1e-7;
-  const MIN_SILENCE_DURATION = 2 * sampleRate; // 2 seconds of silence
-  const SPEAKER_CHANGE_THRESHOLD = 0.5; // Threshold for detecting speaker change based on spectral features
-  const MIN_SPEECH_DURATION = 0.2 * sampleRate; // Minimum speech duration in samples
+  const SILENCE_THRESHOLD = 0.01;
+  const MIN_SILENCE_DURATION = 1.5 * sampleRate; // 1.5 seconds of silence
   const SPEECH_INERTIA_DURATION = 0.1 * sampleRate; // Speech inertia duration in samples
+  const RMS_THRESHOLD = 0.01;
+  const ZCR_THRESHOLD = 0.1;
 
-  // Function to compute the waveform data
   const extractWaveform = (
     channelData, // Float32Array
     sampleRate, // number
@@ -31,7 +30,9 @@ self.onmessage = function (event) {
     const dataPoints = [];
     let minAmplitude = Infinity;
     let maxAmplitude = -Infinity;
-    const speakerChanges = [];
+    let silenceStart = null;
+    let lastSpeechEnd = -Infinity;
+    let isSpeech = false;
 
     console.log(
       `[WAVEXTRACTOR] Extracting waveform with ${length} samples and ${pointsPerSecond} points per second --> ${pointInterval} samples per point`,
@@ -45,9 +46,6 @@ self.onmessage = function (event) {
     console.log(
       `[WAVEXTRACTOR] Extracting waveform with expectedPoints=${expectedPoints} , samplesPerPoints=${samplesPerPoint}`,
     );
-
-    const adaptiveRmsThreshold = 0.01;
-    const adaptiveZcrThreshold = 0.1;
 
     for (let i = 0; i < expectedPoints; i++) {
       const start = i * samplesPerPoint;
@@ -79,31 +77,49 @@ self.onmessage = function (event) {
       const energy = sumSquares;
       const zcr = zeroCrossings / (end - start);
 
-      const features = {
-        rms,
-        energy,
-        zcr,
-      };
-
+      const silent = rms < SILENCE_THRESHOLD;
       const dB = 20 * Math.log10(rms);
-      const silent = energy < SILENCE_THRESHOLD;
+
+      if (silent) {
+        if (silenceStart === null) {
+          silenceStart = start;
+        } else if (start - silenceStart > MIN_SILENCE_DURATION) {
+          // Silence detected for longer than the threshold, set amplitude to 0
+          localMaxAmplitude = 0;
+          localMinAmplitude = 0;
+          isSpeech = false;
+        }
+      } else {
+        silenceStart = null;
+        if (!isSpeech && start - lastSpeechEnd < SPEECH_INERTIA_DURATION) {
+          isSpeech = true;
+        }
+        lastSpeechEnd = end;
+      }
 
       const activeSpeech =
-        rms > adaptiveRmsThreshold && zcr > adaptiveZcrThreshold;
+        (rms > RMS_THRESHOLD && zcr > ZCR_THRESHOLD) || (isSpeech && start - lastSpeechEnd < SPEECH_INERTIA_DURATION);
 
-      console.log(`[WAVEXTRACTOR] Point ${i} - ${start} to ${end} samples`);
-      console.log(
-        `[WAVEXTRACTOR] RMS: ${rms} dB: ${dB} Silent: ${silent} zcr: ${zcr} Energy: ${energy} ActiveSpeech: ${activeSpeech}`,
-      );
-      console.log(
-        `[WAVEXTRACTOR] detext speech zcr: ${zcr} > ${adaptiveZcrThreshold} rms: ${rms} > ${adaptiveRmsThreshold} && ${zcr} > ${adaptiveZcrThreshold}`,
-      );
+      if (activeSpeech) {
+        isSpeech = true;
+        lastSpeechEnd = end;
+      } else {
+        isSpeech = false;
+      }
+
       dataPoints.push({
         amplitude: algorithm === "peak" ? localMaxAmplitude : rms,
         activeSpeech,
         dB,
         silent,
-        features,
+        features: {
+          energy,
+          rms,
+          zcr,
+          mfcc: [], // Placeholder for MFCC features
+          spectralCentroid: 0, // Placeholder for spectral centroid
+          spectralFlatness: 0, // Placeholder for spectral flatness
+        },
         timestamp: start / sampleRate,
         speaker: 0, // Assuming speaker detection is to be handled later
       });
@@ -123,6 +139,7 @@ self.onmessage = function (event) {
       speakerChanges: [], // Placeholder for future speaker detection logic
     };
   };
+
 
   try {
     const result = extractWaveform(
