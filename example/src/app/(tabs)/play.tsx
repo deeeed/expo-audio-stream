@@ -107,7 +107,7 @@ export const TestPage = () => {
       const audioAnalysis = await extractAudioAnalysis({
         fileUri: audioUri,
         wavMetadata,
-        pointsPerSecond: 20,
+        pointsPerSecond: 0.1,
         algorithm: "rms",
       });
       setAudioAnalysis(audioAnalysis);
@@ -178,8 +178,8 @@ export const TestPage = () => {
           onPress={async () => {
             try {
               // await loadWebAudioFile({ audioUri: "/arthurdanette.wav" });
-              await loadWebAudioFile({ audioUri: "/arthurdanette.wav" });
-              // await loadWebAudioFile({ audioUri: "/sdk_sample.wav" });
+              // await loadWebAudioFile({ audioUri: "/arthurdanette.wav" });
+              await loadWebAudioFile({ audioUri: "/sdk_sample.wav" });
             } catch (error) {
               console.error("Error loading audio file:", error);
             }
@@ -216,10 +216,10 @@ export const TestPage = () => {
               />
               <Text>currentTime: {currentTime}</Text>
               <AudioVisualizer
-                candleSpace={5}
+                candleSpace={2}
                 showDottedLine
                 playing={isPlaying}
-                candleWidth={20}
+                candleWidth={5}
                 currentTime={currentTime}
                 canvasHeight={300}
                 audioData={audioAnalysis}

@@ -1,29 +1,12 @@
-import {
-  Canvas,
-  Circle,
-  Group,
-  Path,
-  Rect,
-  RoundedRect,
-  Skia,
-  SkPath,
-} from "@shopify/react-native-skia";
+import { Canvas, Group, Rect } from "@shopify/react-native-skia";
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, {
-  useAnimatedGestureHandler,
-  useAnimatedProps,
+import { Button } from "react-native-paper";
+import {
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
-  withSpring,
 } from "react-native-reanimated";
 
 const getStyles = (screenWidth: number, canvasWidth: number) => {
@@ -39,7 +22,7 @@ const getStyles = (screenWidth: number, canvasWidth: number) => {
     canvasContainer: {
       width: canvasWidth,
       height: 300,
-      backgroundColor: "#292a2d",
+      // backgroundColor: "#292a2d",
       borderColor: "green",
       borderWidth: 1,
     },
@@ -54,6 +37,13 @@ const getStyles = (screenWidth: number, canvasWidth: number) => {
   });
 };
 
+const generateWaveform = (length: number) => {
+  return Array.from({ length }, () => Math.random());
+};
+
+const RECT_WIDTH = 5;
+const SPACE_BETWEEN_RECTS = 5;
+const CANVAS_HEIGHT = 300;
 const Minimal = () => {
   const { width: screenWidth } = useWindowDimensions();
   const canvasWidth = screenWidth; // Canvas width is twice the screen width
@@ -62,42 +52,64 @@ const Minimal = () => {
     [screenWidth, canvasWidth],
   );
   const translateX = useSharedValue(0);
+  const [wavepoints, setWavepoints] = useState(generateWaveform(30000)); // Generate random waveform values
 
-  const panGesture = Gesture.Pan().onUpdate((event) => {
-    translateX.value += event.translationX;
+  const panGesture = Gesture.Pan().onChange((event) => {
+    translateX.value += event.changeX;
     console.log(`translateX: ${translateX.value}`);
   });
 
-  const [activeRect, setActiveRect] = useState<
-    { amplitude: number; x: number }[]
-  >(
-    Array.from({ length: 100 }).map((_, index) => ({
-      amplitude: 0.3,
-      x: 130 * (index + 1),
-    })),
-  );
-
-  const tx = useDerivedValue(() => {
-    return translateX.value;
+  const transform = useDerivedValue(() => {
+    return [{ translateX: translateX.value }];
   });
+
+  const loadData = async () => {
+    try {
+      const response = await fetch("/googlewaveform.json");
+      const data = await response.json();
+      setWavepoints(data[0]); // Update the wavepoints state with the fetched data
+    } catch (error) {
+      console.error("Error fetching waveform data:", error);
+    }
+  };
 
   return (
     <View style={styles.container}>
       <GestureDetector gesture={panGesture}>
         <View style={styles.canvasContainer}>
-          <Canvas style={{ height: 300 }}>
-            {activeRect.map((rect, index) => {
-              return (
-                <Rect
-                  key={"r" + index}
-                  x={rect.x}
-                  y={64}
-                  //   transform={[{ translateX: tx.value }]}
-                  width={128}
-                  height={128}
-                />
-              );
-            })}
+          <Button
+            onPress={() => {
+              translateX.value = 0;
+            }}
+          >
+            reset
+          </Button>
+          {Platform.OS === "web" && (
+            <Button onPress={loadData}>Load Remote Data</Button>
+          )}
+          <Text>translareX: {translateX.value}</Text>
+          <Text>Points: {wavepoints.length}</Text>
+          <Canvas style={{ height: 300, width: screenWidth, borderWidth: 1 }}>
+            <Group transform={transform}>
+              {wavepoints.map((amplitude, index) => {
+                const height = amplitude * CANVAS_HEIGHT; // Scale the height based on amplitude
+                const y = CANVAS_HEIGHT / 2 - height / 2; // Center the rectangle vertically
+
+                // skip 0 amplitude
+                if (height === 0) {
+                  return null;
+                }
+                return (
+                  <Rect
+                    key={"r" + index}
+                    x={(RECT_WIDTH + SPACE_BETWEEN_RECTS) * index}
+                    y={y}
+                    width={RECT_WIDTH}
+                    height={height}
+                  />
+                );
+              })}
+            </Group>
           </Canvas>
         </View>
       </GestureDetector>
