@@ -1,14 +1,14 @@
 import { ScreenWrapper } from "@siteed/design-system";
-import { Asset, useAssets } from "expo-asset";
 import { Audio } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Platform, StyleSheet, Text, View } from "react-native";
-import { atob, btoa } from "react-native-quick-base64";
 
-import { getWavFileInfo } from "../../../../src/utils";
-import { WaveForm } from "../../component/waveform/waveform";
+import { extractAudioAnalysis } from "../../../../src";
+import { AudioAnalysisData } from "../../../../src/useAudioRecording";
+import { WavFileInfo, getWavFileInfo } from "../../../../src/utils";
+import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
+import { RawWaveForm } from "../../component/waveform/rawwaveform";
 import { formatBytes } from "../../utils";
 
 const getStyles = () => {
@@ -28,19 +28,15 @@ export const TestPage = () => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [audioBuffer, setAudioBuffer] = useState<ArrayBuffer>();
-
-  const [audioMetadata, setAudioMetadata] = useState<{
-    sampleRate: number;
-    channels: number;
-    bitDepth: number;
-  } | null>(null);
+  const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData>();
+  const [audioMetadata, setAudioMetadata] = useState<WavFileInfo>();
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
 
   const pickAudioFile = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: "audio/*",
+        type: "audio/wav",
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -62,11 +58,7 @@ export const TestPage = () => {
 
         // Decode the audio file to get metadata
         const wavMetadata = await getWavFileInfo(arrayBuffer);
-        setAudioMetadata({
-          sampleRate: wavMetadata.sampleRate,
-          channels: wavMetadata.numChannels,
-          bitDepth: wavMetadata.bitDepth,
-        });
+        setAudioMetadata(wavMetadata);
       }
     } catch (error) {
       console.error("Error picking audio file:", error);
@@ -75,30 +67,65 @@ export const TestPage = () => {
 
   const loadWebAudioFile = async ({ audioUri }: { audioUri: string }) => {
     try {
-      const response = await fetch(audioUri);
-      const arrayBuffer = await response.arrayBuffer();
+      const timings: { [key: string]: number } = {};
 
+      const startOverall = performance.now();
+
+      const startUnloadSound = performance.now();
       // Unload any existing sound
       if (sound) {
         setSound(null);
       }
+      timings["Unload Sound"] = performance.now() - startUnloadSound;
 
-      // // Decode the audio file to get metadata
-      const wavMetadata = await getWavFileInfo(arrayBuffer);
-      console.log(`Decoded audio:`, wavMetadata);
-      setAudioMetadata({
-        sampleRate: wavMetadata.sampleRate,
-        channels: wavMetadata.numChannels,
-        bitDepth: wavMetadata.bitDepth,
-      });
-      setAudioBuffer(arrayBuffer);
-      setFileName(fileName);
-      setAudioUri(audioUri);
+      const startResetPlayback = performance.now();
       // Reset playback position and stop playback
       setCurrentTime(0);
       setIsPlaying(false);
+      timings["Reset Playback"] = performance.now() - startResetPlayback;
+
+      const startFetchAudio = performance.now();
+      const response = await fetch(audioUri);
+      const arrayBuffer = await response.arrayBuffer();
+      setAudioBuffer(arrayBuffer);
+      timings["Fetch and Convert Audio"] = performance.now() - startFetchAudio;
+
+      const startDecodeAudio = performance.now();
+      // Decode the audio file to get metadata
+      const wavMetadata = await getWavFileInfo(arrayBuffer);
+      setAudioMetadata(wavMetadata);
+      timings["Decode Audio"] = performance.now() - startDecodeAudio;
+
+      const startExtractFileName = performance.now();
+      // extract filename from audioUri and remove any query params
+      const fileName = audioUri.split("/").pop()?.split("?")[0] ?? "Unknown";
+      setFileName(fileName);
+      setAudioUri(audioUri);
+      timings["Extract Filename"] = performance.now() - startExtractFileName;
+
+      const startAudioAnalysis = performance.now();
+      const audioAnalysis = await extractAudioAnalysis({
+        fileUri: audioUri,
+        wavMetadata,
+        pointsPerSecond: 20,
+        algorithm: "rms",
+      });
+      setAudioAnalysis(audioAnalysis);
+      timings["Audio Analysis"] = performance.now() - startAudioAnalysis;
+
+      timings["Total Time"] = performance.now() - startOverall;
+
+      console.log("Timings:", timings);
+      console.log(`AudioAnalysis:`, audioAnalysis);
+      console.log(`wavMetadata:`, wavMetadata);
     } catch (error) {
       console.error("Error loading audio file:", error);
+    }
+  };
+
+  const handleSeekEnd = (newTime: number) => {
+    if (sound && sound._loaded) {
+      sound.setPositionAsync(newTime * 1000);
     }
   };
 
@@ -150,7 +177,9 @@ export const TestPage = () => {
           title="Auto Load"
           onPress={async () => {
             try {
-              await loadWebAudioFile({ audioUri: "/test.wav" });
+              // await loadWebAudioFile({ audioUri: "/arthurdanette.wav" });
+              await loadWebAudioFile({ audioUri: "/arthurdanette.wav" });
+              // await loadWebAudioFile({ audioUri: "/sdk_sample.wav" });
             } catch (error) {
               console.error("Error loading audio file:", error);
             }
@@ -162,10 +191,10 @@ export const TestPage = () => {
           <Text>{JSON.stringify(audioMetadata)}</Text>
           <Text>size: {formatBytes(audioBuffer?.byteLength ?? 0, 2)}</Text>
           <Text>metadata.sampleRate: {audioMetadata?.sampleRate}</Text>
-          <Text>metadata.channels: {audioMetadata?.channels}</Text>
+          <Text>metadata.channels: {audioMetadata?.numChannels}</Text>
           <Text>metadata.bitDepth: {audioMetadata?.bitDepth}</Text>
           {audioBuffer && audioMetadata && (
-            <WaveForm
+            <RawWaveForm
               buffer={audioBuffer}
               mode="static"
               showRuler
@@ -173,9 +202,32 @@ export const TestPage = () => {
               debug
               visualizationType="candlestick"
               sampleRate={audioMetadata?.sampleRate}
-              channels={audioMetadata?.channels}
+              channels={audioMetadata?.numChannels}
               bitDepth={audioMetadata.bitDepth}
             />
+          )}
+          {audioAnalysis && (
+            <>
+              <Button
+                title="Change Time"
+                onPress={() => {
+                  setCurrentTime(currentTime + 1);
+                }}
+              />
+              <Text>currentTime: {currentTime}</Text>
+              <AudioVisualizer
+                candleSpace={5}
+                showDottedLine
+                playing={isPlaying}
+                candleWidth={20}
+                currentTime={currentTime}
+                canvasHeight={300}
+                audioData={audioAnalysis}
+                onSeekEnd={handleSeekEnd}
+              />
+              <Text>length: {audioAnalysis.dataPoints.length}</Text>
+              {/* <Text>WavAudioForm: {JSON.stringify(audioAnalysis)}</Text> */}
+            </>
           )}
           <Button
             title={isPlaying ? "Pause Audio" : "Play Audio"}

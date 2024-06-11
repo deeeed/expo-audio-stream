@@ -17,7 +17,7 @@ import {
 import { AudioDataEvent } from "../../../../src/useAudioRecording";
 import { getWavFileInfo } from "../../../../src/utils";
 import { AudioRecording } from "../../component/AudioRecording";
-import { WaveForm } from "../../component/waveform/waveform";
+import { RawWaveForm } from "../../component/waveform/rawwaveform";
 import { WaveformProps } from "../../component/waveform/waveform.types";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { formatBytes, formatDuration } from "../../utils";
@@ -284,7 +284,7 @@ export default function Record() {
       {visualBuffer && (
         <View style={styles.waveformContainer}>
           <Text>len: {visualBuffer.byteLength}</Text>
-          <WaveForm
+          <RawWaveForm
             buffer={visualBuffer}
             mode="live"
             showRuler

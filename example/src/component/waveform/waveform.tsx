@@ -12,7 +12,6 @@ import Svg, { Line, Polyline, Rect } from "react-native-svg";
 import { TimeRuler } from "./time-ruler";
 import { WaveformProps } from "./waveform.types";
 import {
-  amplitudeToDecibels,
   downsampleAverage,
   downsamplePeak,
   downsampleRMS,
