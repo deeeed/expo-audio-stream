@@ -4,7 +4,7 @@ import * as Sharing from "expo-sharing";
 import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { WaveForm } from "./waveform/waveform";
+import { RawWaveForm } from "./waveform/rawwaveform";
 import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
 import { useAudio } from "../hooks/useAudio";
 import { formatBytes, formatDuration } from "../utils";
@@ -113,7 +113,7 @@ export const AudioRecording = ({
       <Text style={[styles.positionText]}>Position: {position} ms</Text>
 
       {arrayBuffer && (
-        <WaveForm
+        <RawWaveForm
           buffer={arrayBuffer}
           waveformHeight={200}
           showRuler
