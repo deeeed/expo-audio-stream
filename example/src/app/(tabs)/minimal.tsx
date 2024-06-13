@@ -151,26 +151,26 @@ const Minimal = () => {
       startIndex + maxDisplayedItems * 3,
     );
 
-    const newActivePoints = new Array(maxDisplayedItems * 3).fill({
-      amplitude: 0,
-      id: -1,
-      visible: false,
-    });
-
-    for (let i = 0; i < newActivePoints.length; i++) {
+    for (let i = 0; i < activePoints.length; i++) {
       const itemIndex = startIndex + i;
       if (itemIndex < wavepoints.length) {
-        newActivePoints[i] = {
+        activePoints[i] = {
           id: itemIndex,
           amplitude: wavepoints[itemIndex],
           visible:
             itemIndex >= hiddenItemsLeft &&
             itemIndex < hiddenItemsLeft + maxDisplayedItems,
         };
+      } else {
+        activePoints[i] = {
+          id: -1,
+          amplitude: 0,
+          visible: false,
+        };
       }
     }
 
-    setActivePoints(newActivePoints);
+    setActivePoints(activePoints);
     setStartIndex(startIndex);
 
     // Logging for debugging
