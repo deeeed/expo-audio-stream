@@ -107,7 +107,7 @@ export const TestPage = () => {
       const audioAnalysis = await extractAudioAnalysis({
         fileUri: audioUri,
         wavMetadata,
-        pointsPerSecond: 0.1,
+        pointsPerSecond: 5,
         algorithm: "rms",
       });
       setAudioAnalysis(audioAnalysis);
@@ -188,11 +188,6 @@ export const TestPage = () => {
       )}
       {audioUri && (
         <View>
-          <Text>{JSON.stringify(audioMetadata)}</Text>
-          <Text>size: {formatBytes(audioBuffer?.byteLength ?? 0, 2)}</Text>
-          <Text>metadata.sampleRate: {audioMetadata?.sampleRate}</Text>
-          <Text>metadata.channels: {audioMetadata?.numChannels}</Text>
-          <Text>metadata.bitDepth: {audioMetadata?.bitDepth}</Text>
           {audioBuffer && audioMetadata && (
             <RawWaveForm
               buffer={audioBuffer}
@@ -217,16 +212,15 @@ export const TestPage = () => {
               <Text>currentTime: {currentTime}</Text>
               <AudioVisualizer
                 candleSpace={2}
+                mode="scaled"
                 showDottedLine
                 playing={isPlaying}
                 candleWidth={5}
                 currentTime={currentTime}
-                canvasHeight={300}
+                canvasHeight={50}
                 audioData={audioAnalysis}
                 onSeekEnd={handleSeekEnd}
               />
-              <Text>length: {audioAnalysis.dataPoints.length}</Text>
-              {/* <Text>WavAudioForm: {JSON.stringify(audioAnalysis)}</Text> */}
             </>
           )}
           <Button

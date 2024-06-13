@@ -1,13 +1,6 @@
 import { Rect } from "@shopify/react-native-skia";
 import React, { useEffect } from "react";
-import { Pressable } from "react-native";
-import {
-  HandlerStateChangeEvent,
-  State,
-  TapGestureHandler,
-  TapGestureHandlerEventPayload,
-} from "react-native-gesture-handler";
-import { runOnJS, useSharedValue, withTiming } from "react-native-reanimated";
+import { useSharedValue, withTiming } from "react-native-reanimated";
 
 interface AnimatedCandleProps {
   height: number;

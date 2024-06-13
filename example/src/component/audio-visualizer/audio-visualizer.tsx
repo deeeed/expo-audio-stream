@@ -1,14 +1,19 @@
 import {
+  Atlas,
   Canvas,
   Group,
   Path,
+  Rect,
   SkPath,
   Skia,
+  drawAsImage,
+  rect,
+  useRSXformBuffer,
   useTouchHandler,
 } from "@shopify/react-native-skia";
 import { Button } from "@siteed/design-system";
 import { set } from "lodash";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { LayoutChangeEvent, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Text } from "react-native-paper";
@@ -37,6 +42,8 @@ interface AudioVisualizerProps {
   candleWidth: number;
   candleSpace: number;
   showDottedLine?: boolean;
+  showRuler?: boolean;
+  mode?: "static" | "live" | "scaled";
   playing?: boolean;
   onSeekEnd?: (newTime: number) => void;
 }
@@ -48,6 +55,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   currentTime: fullCurrentTime,
   candleSpace,
   playing = false,
+  mode = "static",
+  showRuler = false,
   showDottedLine = false,
   onSeekEnd,
 }) => {
@@ -160,18 +169,11 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     }
   }, [currentTime, audioData.durationMs, canvasWidth, width, translateX]);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    // console.log(`TranslateX: ${translateX.value}`);
-    return {
-      transform: [{ translateX: translateX.value }],
-    };
-  });
-
   const touchHandler = useTouchHandler({
     onEnd: (event) => {
       const { x } = event;
       // const adjustedX = x - paddingLeft + translateX.value;
-      const plotStart = width / 2;
+      const plotStart = width / 2 + translateX.value;
       const plotEnd = plotStart + totalCandleWidth;
 
       if (x < plotStart || x > plotEnd) {
@@ -212,60 +214,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     setDataPoints(audioData.dataPoints);
   }, [audioData.dataPoints]);
 
-  // useDerivedValue(() => {
-  //   // Allow full width hidden on both sides
-  //   const maxVisibleCandles = Math.floor(width / (candleWidth + candleSpace));
-
-  //   const extraCandles = Math.floor(
-  //     Math.abs(translateX.value) / (candleWidth + candleSpace),
-  //   );
-
-  //   let startIndex = 0;
-
-  //   const visibleCandles =
-  //     maxVisibleCandles / 2 + translateX.value * (candleWidth + candleSpace);
-
-  //   console.log(
-  //     `candle=${candleSpace + candleWidth} translateX=${translateX.value} visibleCandles=${visibleCandles} extraCandles: ${extraCandles} maxVisibleCandles: ${maxVisibleCandles}`,
-  //   );
-  //   // compute how many candles left and right of the middle line
-  //   const leftSideCandles =
-  //     Math.abs(translateX.value) / (candleWidth + candleSpace);
-  //   const rightSideCandles = audioData.dataPoints.length - leftSideCandles;
-
-  //   const hiddenLeft = Math.max(
-  //     0,
-  //     leftSideCandles - Math.floor(maxVisibleCandles / 2),
-  //   );
-  //   const hiddenRight = Math.max(
-  //     0,
-  //     rightSideCandles - Math.floor(maxVisibleCandles / 2),
-  //   );
-
-  //   console.log(
-  //     `LeftSideCandles: ${leftSideCandles} RightSideCandles: ${rightSideCandles} hiddenLeft: ${hiddenLeft} hiddenRight: ${hiddenRight}`,
-  //   );
-
-  //   if (leftSideCandles > maxVisibleCandles / 2) {
-  //     console.log(
-  //       `AAAAAAAAA: ${extraCandles} MaxVisibleCandles: ${maxVisibleCandles} length=${audioData.dataPoints.length}`,
-  //     );
-  //     startIndex = Math.floor(leftSideCandles - maxVisibleCandles / 2);
-  //   }
-
-  //   // Never load more than available
-  //   const endIndex = Math.max(
-  //     audioData.dataPoints.length,
-  //     startIndex + maxVisibleCandles,
-  //   );
-
-  //   console.log(`startIndex: ${startIndex} endIndex: ${endIndex}`);
-
-  //   const candles = audioData.dataPoints.slice(startIndex, endIndex);
-  //   setDataPoints(candles);
-  // });
-
-  const transform = useDerivedValue(() => {
+  const groupTransform = useDerivedValue(() => {
     return [{ translateX: translateX.value }];
   });
 
@@ -294,7 +243,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       </Button>
       <GestureDetector gesture={gesture}>
         <View style={styles.canvasContainer}>
-          {/* <Animated.View style={[animatedStyle]}> */}
           <Canvas
             style={{
               ...styles.canvas,
@@ -303,16 +251,21 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             }}
             onTouch={touchHandler}
           >
-            <Group transform={transform}>
-              {/* <SkiaTimeRuler
-                duration={audioData.durationMs ?? 0 / 1000}
-                paddingLeft={paddingLeft}
-                width={totalCandleWidth}
-              /> */}
+            <Group transform={groupTransform}>
+              {showRuler && (
+                <SkiaTimeRuler
+                  duration={audioData.durationMs ?? 0 / 1000}
+                  paddingLeft={paddingLeft}
+                  width={totalCandleWidth}
+                />
+              )}
               {dataPoints.map((candle, index) => {
                 // let scaledAmplitude = candle.amplitude * canvasHeight;
+                // audioData.amplitudeRange.max ==> canvasHeight
+                // candle.amplitude ==> scaledAmplitude
                 const scaledAmplitude =
-                  (candle.amplitude * 100) / audioData.amplitudeRange.max;
+                  (candle.amplitude / audioData.amplitudeRange.max) *
+                  canvasHeight;
                 return (
                   <AnimatedCandle
                     key={"ca" + index}
@@ -339,14 +292,12 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
               />
             )}
           </Canvas>
-          {/* </Animated.View> */}
           <View
             style={[
               {
                 position: "absolute",
                 top: 10 + canvasHeight / 4,
                 left: width / 2 + 10,
-                // bottom: 0,
                 width: 2,
                 height: canvasHeight / 2,
                 backgroundColor: "red",
@@ -371,11 +322,11 @@ const styles = StyleSheet.create({
   canvasContainer: {
     backgroundColor: "#292a2d",
     padding: 10,
+    maxWidth: '100%',
   },
   canvas: {
     height: 300,
     borderWidth: 1,
-    borderColor: "green",
     // backgroundColor: 'lightblue',
     marginBottom: 20,
   },
