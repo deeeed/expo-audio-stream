@@ -17,6 +17,7 @@ import {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Button } from "react-native-paper";
 import {
+  runOnJS,
   useDerivedValue,
   useSharedValue,
   withTiming,
@@ -59,8 +60,8 @@ const generateWaveform = (length: number) => {
   return Array.from({ length }, () => Math.random());
 };
 
-const RECT_WIDTH = 200;
-const SPACE_BETWEEN_RECTS = 5;
+const RECT_WIDTH = 5;
+const SPACE_BETWEEN_RECTS = 2;
 const CANVAS_HEIGHT = 300;
 const FONT_SIZE = 20;
 
@@ -104,13 +105,6 @@ const WaveFormRect = ({
         height={animated ? height : targetHeight}
         color={color}
       />
-      <SkText
-        text={`${id}`}
-        x={targetX + width / 2}
-        y={targetY - FONT_SIZE / 2}
-        font={font}
-        color="black"
-      />
     </>
   );
 };
@@ -123,7 +117,7 @@ const Minimal = () => {
     [screenWidth, canvasWidth],
   );
   const translateX = useSharedValue(0);
-  const [wavepoints, setWavepoints] = useState(generateWaveform(100)); // Generate random waveform values
+  const [wavepoints, setWavepoints] = useState(generateWaveform(20000)); // Generate random waveform values
   const [loading, setLoading] = useState(true);
 
   const maxDisplayedItems = Math.ceil(
@@ -202,7 +196,7 @@ const Minimal = () => {
     .onEnd((event) => {
       // Adjust the activePoints based on the translateX value
       console.log(`onEnd: translateX: ${translateX.value} `, event);
-      updateActivePoints(translateX.value);
+      runOnJS(updateActivePoints)(translateX.value);
     });
 
   const transform = useDerivedValue(() => {
@@ -277,8 +271,6 @@ const Minimal = () => {
           <Text>
             range: {min} , {max}
           </Text>
-          <Text>{JSON.stringify(activePoints.map((p) => p.id))}</Text>
-
           <Canvas
             style={{
               height: CANVAS_HEIGHT,
@@ -295,8 +287,7 @@ const Minimal = () => {
                     key={"r" + id}
                     animated={false}
                     x={
-                      (RECT_WIDTH + SPACE_BETWEEN_RECTS) *
-                        (index - maxDisplayedItems) +
+                      (RECT_WIDTH + SPACE_BETWEEN_RECTS) * index +
                       startIndex * (RECT_WIDTH + SPACE_BETWEEN_RECTS)
                     }
                     y={CANVAS_HEIGHT / 2 - scaledAmplitude / 2}
