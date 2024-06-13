@@ -15,6 +15,17 @@ export interface TimeRulerProps {
   startMargin?: number; // Margin at the start to ensure 0 mark is visible
 }
 
+const formatTime = (seconds: number): string => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  } else {
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+};
+
 export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
   duration,
   width,
@@ -24,8 +35,7 @@ export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
   tickColor,
   labelColor,
   labelFontSize = 10,
-  labelFormatter = (value) =>
-    value < 10 ? value.toFixed(1) : Math.round(value).toString(), // Format to 1 decimal place
+  labelFormatter = formatTime, // Use the new formatter function
   startMargin = 0,
 }) => {
   const font = useFont(
@@ -52,17 +62,22 @@ export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
         if (Platform.OS !== "web") {
           labelWidth = font?.measureText(label)?.width || 0;
         }
+        const shouldDrawLabel = i % labelInterval === 0;
+        const shouldDrawTick = shouldDrawLabel || tickSpacing >= minLabelSpacing;
+
         return (
           <React.Fragment key={i}>
-            <SkiaLine
-              p1={{ x: xPosition, y: 0 }}
-              p2={{ x: xPosition, y: tickHeight }}
-              color={finalTickColor}
-              strokeWidth={1}
-            />
-            {i % labelInterval === 0 && (
+            {shouldDrawTick && (
+              <SkiaLine
+                p1={{ x: xPosition, y: 0 }}
+                p2={{ x: xPosition, y: tickHeight }}
+                color={finalTickColor}
+                strokeWidth={1}
+              />
+            )}
+            {shouldDrawLabel && (
               <Text
-                text={labelFormatter(i * interval)}
+                text={label}
                 x={xPosition - labelWidth / 2}
                 color={finalLabelColor}
                 y={tickHeight + labelFontSize}
