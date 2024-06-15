@@ -117,7 +117,7 @@ const Minimal = () => {
     [screenWidth, canvasWidth],
   );
   const translateX = useSharedValue(0);
-  const [wavepoints, setWavepoints] = useState(generateWaveform(20000)); // Generate random waveform values
+  const [wavepoints, setWavepoints] = useState(generateWaveform(100)); // Generate random waveform values
   const [loading, setLoading] = useState(true);
 
   const maxDisplayedItems = Math.ceil(
@@ -285,7 +285,7 @@ const Minimal = () => {
                 return (
                   <WaveFormRect
                     key={"r" + id}
-                    animated={false}
+                    animated
                     x={
                       (RECT_WIDTH + SPACE_BETWEEN_RECTS) * index +
                       startIndex * (RECT_WIDTH + SPACE_BETWEEN_RECTS)
