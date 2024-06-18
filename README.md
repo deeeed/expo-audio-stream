@@ -72,7 +72,7 @@ import {
 } from '@siteed/expo-audio-stream';
 
 export default function App() {
-  const { startRecording, stopRecording, duration, size, isRecording } = useAudioRecorder({
+  const { startRecording, stopRecording, resumeRecording , pauseRecording,  duration, size, isRecording ,isPaused } = useAudioRecorder({
     debug: true,
     onAudioStream: (audioData: Blob) => {
       console.log(`audio event`,audioData);
@@ -90,11 +90,42 @@ export default function App() {
     const result: AudioStreamResult = await stopRecording();
   };
 
+  const handlePause=() => {
+      try{
+        if(isPaused){
+          return;
+        }
+        pauseRecording();
+      }catch(err){
+        console.log(err);
+      }
+  }
+
+  const handleResume = async() =>{
+      try{
+        if(!isPaused){
+          return;
+        }
+        resumeRecording();
+      }catch(err){
+        console.log(err);
+      }
+  }
+
+  const renderPause = () => (
+    <View>
+      <Text>Duration: {duration} ms</Text>
+      <Text>Size: {size} bytes</Text>
+      <Button title="Stop Recording" onPress={handleStop} />
+      <Button title="Resume Recording" onPress={handleResume}/>
+    </View>
+  )
   const renderRecording = () => (
     <View>
       <Text>Duration: {duration} ms</Text>
       <Text>Size: {size} bytes</Text>
       <Button title="Stop Recording" onPress={handleStop} />
+      <Button title="Pause Recording" onPress={handlePause}/>
     </View>
   );
 
@@ -107,7 +138,9 @@ export default function App() {
   return (
     <View>
       <Button title="Request Permission" onPress={() => Audio.requestPermissionsAsync()} />
-      {isRecording ? renderRecording() : renderStopped()}
+      {!isRecording && !isPaused && renderStopped()}
+      {!isRecording && isPaused && renderPaused()}
+      {isRecording && renderRecording()}
     </View>
   );
 }
