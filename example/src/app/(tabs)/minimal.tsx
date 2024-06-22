@@ -332,14 +332,24 @@ const Minimal = () => {
                 {activePoints.map(({ id, amplitude, visible }, index) => {
                   if (amplitude === 0 && id === -1) return null;
                   const scaledAmplitude = amplitude * CANVAS_HEIGHT;
+
+                  let delta =
+                    Math.ceil((maxDisplayedItems + 3) / 2) *
+                    (RECT_WIDTH + SPACE_BETWEEN_RECTS);
+                  if (mode === "live") {
+                    delta = 0;
+                  }
+
+                  const x =
+                    (RECT_WIDTH + SPACE_BETWEEN_RECTS) * index +
+                    startIndex * (RECT_WIDTH + SPACE_BETWEEN_RECTS) +
+                    delta;
+
                   return (
                     <WaveFormRect
                       key={"r" + id + "_" + index}
                       animated={false}
-                      x={
-                        (RECT_WIDTH + SPACE_BETWEEN_RECTS) * index +
-                        startIndex * (RECT_WIDTH + SPACE_BETWEEN_RECTS)
-                      }
+                      x={x}
                       y={CANVAS_HEIGHT / 2 - scaledAmplitude / 2}
                       width={RECT_WIDTH}
                       font={font}
