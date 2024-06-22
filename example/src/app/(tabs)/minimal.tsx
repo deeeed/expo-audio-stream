@@ -37,11 +37,9 @@ const getStyles = (screenWidth: number, canvasWidth: number) => {
     },
     canvasContainer: {
       width: canvasWidth,
-      height: 300,
-      // backgroundColor: "#292a2d",
+      backgroundColor: "#292a2d",
       justifyContent: "center",
       alignItems: "center",
-      borderColor: "green",
       gap: 5,
       borderWidth: 1,
     },
@@ -117,8 +115,9 @@ const Minimal = () => {
     [screenWidth, canvasWidth],
   );
   const translateX = useSharedValue(0);
-  const [wavepoints, setWavepoints] = useState(generateWaveform(100)); // Generate random waveform values
+  const [wavepoints, setWavepoints] = useState(generateWaveform(50000)); // Generate random waveform values
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<"static" | "live">("live"); // live is always making the waveform on the right
 
   const maxDisplayedItems = Math.ceil(
     screenWidth / (RECT_WIDTH + SPACE_BETWEEN_RECTS),
@@ -141,52 +140,94 @@ const Minimal = () => {
   const [startIndex, setStartIndex] = useState(0);
 
   const updateActivePoints = (x: number) => {
-    const translateX = Math.abs(x);
-    const hiddenItemsLeft = Math.floor(
-      translateX / (RECT_WIDTH + SPACE_BETWEEN_RECTS),
-    );
-    const startIndex = Math.max(0, hiddenItemsLeft - maxDisplayedItems);
-    const endIndex = Math.min(
-      wavepoints.length,
-      startIndex + maxDisplayedItems * 3,
-    );
+    if (mode === "live") {
+      const totalItems = wavepoints.length;
+      const startIndex = Math.max(
+        0,
+        totalItems - Math.floor(maxDisplayedItems / 2),
+      );
+      console.log(
+        `\nupdateActivePoints (live) startIndex=${startIndex}, totalItems=${totalItems}, maxDisplayedItems=${maxDisplayedItems}`,
+      );
 
-    for (let i = 0; i < activePoints.length; i++) {
-      const itemIndex = startIndex + i;
-      if (itemIndex < wavepoints.length) {
-        activePoints[i] = {
-          id: itemIndex,
-          amplitude: wavepoints[itemIndex],
-          visible:
-            itemIndex >= hiddenItemsLeft &&
-            itemIndex < hiddenItemsLeft + maxDisplayedItems,
-        };
-      } else {
-        activePoints[i] = {
-          id: -1,
-          amplitude: 0,
-          visible: false,
-        };
+      const updatedPoints = [];
+      for (let i = 0; i < maxDisplayedItems; i++) {
+        const itemIndex = startIndex + i;
+        if (itemIndex < totalItems) {
+          updatedPoints.push({
+            id: itemIndex,
+            amplitude: wavepoints[itemIndex],
+            visible: true,
+          });
+        } else {
+          updatedPoints.push({ id: -1, amplitude: 0, visible: false });
+        }
       }
-    }
 
-    setActivePoints(activePoints);
-    setStartIndex(startIndex);
+      console.log(`Updated points (live):`, updatedPoints);
+      setActivePoints(updatedPoints);
+      setStartIndex(0);
+    } else if (mode === "static") {
+      const translateX = Math.abs(x);
+      console.log(`x: ${x} translateX: ${translateX}`);
+      const hiddenItemsLeft = Math.floor(
+        translateX / (RECT_WIDTH + SPACE_BETWEEN_RECTS),
+      );
+      const startIndex = Math.max(0, hiddenItemsLeft - maxDisplayedItems);
+      console.log(
+        `hiddenItemsLeft: ${hiddenItemsLeft}  maxDisplayedItems=${maxDisplayedItems}`,
+      );
+
+      for (let i = 0; i < activePoints.length; i++) {
+        const itemIndex = startIndex + i;
+        if (itemIndex < wavepoints.length) {
+          activePoints[i] = {
+            id: itemIndex,
+            amplitude: wavepoints[itemIndex],
+            visible:
+              itemIndex >= hiddenItemsLeft &&
+              itemIndex < hiddenItemsLeft + maxDisplayedItems,
+          };
+        } else {
+          activePoints[i] = {
+            id: -1,
+            amplitude: 0,
+            visible: false,
+          };
+        }
+      }
+
+      setActivePoints(activePoints);
+      setStartIndex(startIndex);
+    }
 
     // Logging for debugging
     console.log(
-      `StartIndex: ${startIndex}, EndIndex: ${endIndex}`,
+      `updateActivePoints x: ${x} StartIndex: ${startIndex}`,
       activePoints,
     );
   };
 
   useEffect(() => {
-    updateActivePoints(0);
+    const initialTranslateX = Math.max(-maxTranslateX + screenWidth, 0);
+    translateX.value = initialTranslateX;
+    updateActivePoints(initialTranslateX);
   }, []);
+
+  useEffect(() => {
+    if (mode === "live") {
+      const initialTranslateX = Math.max(-maxTranslateX + screenWidth, 0);
+      translateX.value = initialTranslateX;
+      updateActivePoints(initialTranslateX);
+    }
+  }, [mode, wavepoints]);
 
   const panGesture = Gesture.Pan()
     .onChange((event) => {
+      if (mode === "live") return; // Disable pan gesture in live mode
+
       const newTranslateX = translateX.value + event.changeX;
+      console.log(`onChange: translateX: ${translateX.value} `, event);
       const clampedTranslateX = Math.max(
         -maxTranslateX + screenWidth,
         Math.min(0, newTranslateX),
@@ -194,6 +235,8 @@ const Minimal = () => {
       translateX.value = clampedTranslateX;
     })
     .onEnd((event) => {
+      if (mode === "live") return; // Disable pan gesture on end in live mode
+
       // Adjust the activePoints based on the translateX value
       console.log(`onEnd: translateX: ${translateX.value} `, event);
       runOnJS(updateActivePoints)(translateX.value);
@@ -223,7 +266,7 @@ const Minimal = () => {
   };
 
   const addWavePoints = () => {
-    setWavepoints([...wavepoints, ...generateWaveform(10)]);
+    setWavepoints([...wavepoints, ...generateWaveform(1)]);
   };
 
   const { min, max } = useMemo(() => {
@@ -248,8 +291,15 @@ const Minimal = () => {
   return (
     <View style={styles.container}>
       <GestureDetector gesture={panGesture}>
-        <View style={styles.canvasContainer}>
+        <View>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+            <Button
+              onPress={() => {
+                setMode(mode === "live" ? "static" : "live");
+              }}
+            >
+              Toggle Mode (Current: {mode})
+            </Button>
             <Button
               onPress={() => {
                 translateX.value = 0;
@@ -263,44 +313,61 @@ const Minimal = () => {
               <Button onPress={loadData}>Load Remote Data</Button>
             )}
           </View>
-          <Text>translareX: {translateX.value}</Text>
-          <Text>Points: {wavepoints.length}</Text>
-          <Text>activePoints: {activePoints.length}</Text>
-          <Text>MaxDisplayedItems: {maxDisplayedItems}</Text>
-          <Text>StartIndex: {startIndex}</Text>
-          <Text>
-            range: {min} , {max}
-          </Text>
-          <Canvas
-            style={{
-              height: CANVAS_HEIGHT,
-              width: screenWidth,
-              borderWidth: 1,
-            }}
-          >
-            <Group transform={transform}>
-              {activePoints.map(({ id, amplitude, visible }, index) => {
-                if (amplitude === 0 && id === -1) return null;
-                const scaledAmplitude = (amplitude * CANVAS_HEIGHT) / max;
-                return (
-                  <WaveFormRect
-                    key={"r" + id}
-                    animated
-                    x={
-                      (RECT_WIDTH + SPACE_BETWEEN_RECTS) * index +
-                      startIndex * (RECT_WIDTH + SPACE_BETWEEN_RECTS)
-                    }
-                    y={CANVAS_HEIGHT / 2 - scaledAmplitude / 2}
-                    width={RECT_WIDTH}
-                    font={font}
-                    id={id}
-                    height={scaledAmplitude}
-                    color="cyan"
-                  />
-                );
-              })}
-            </Group>
-          </Canvas>
+          <View>
+            <Text>translareX: {translateX.value}</Text>
+            <Text>Points: {wavepoints.length}</Text>
+            <Text>activePoints: {activePoints.length}</Text>
+            <Text>canvasWidth: {canvasWidth}</Text>
+            <Text>MaxDisplayedItems: {maxDisplayedItems}</Text>
+            <Text>StartIndex: {startIndex}</Text>
+            <Text>
+              range: {min} , {max}
+            </Text>
+          </View>
+          <View style={styles.canvasContainer}>
+            <Canvas
+              style={{
+                height: CANVAS_HEIGHT,
+                width: screenWidth,
+                borderWidth: 1,
+              }}
+            >
+              <Group transform={transform}>
+                {activePoints.map(({ id, amplitude, visible }, index) => {
+                  if (amplitude === 0 && id === -1) return null;
+                  const scaledAmplitude = amplitude * CANVAS_HEIGHT;
+                  return (
+                    <WaveFormRect
+                      key={"r" + id + "_" + index}
+                      animated={false}
+                      x={
+                        (RECT_WIDTH + SPACE_BETWEEN_RECTS) * index +
+                        startIndex * (RECT_WIDTH + SPACE_BETWEEN_RECTS)
+                      }
+                      y={CANVAS_HEIGHT / 2 - scaledAmplitude / 2}
+                      width={RECT_WIDTH}
+                      font={font}
+                      id={id}
+                      height={scaledAmplitude}
+                      color={visible ? "rgba(74, 144, 226, 1)" : "grey"}
+                    />
+                  );
+                })}
+              </Group>
+            </Canvas>
+            <View
+              style={[
+                {
+                  position: "absolute",
+                  top: 10 + CANVAS_HEIGHT / 4,
+                  left: screenWidth / 2 + 10,
+                  width: 2,
+                  height: CANVAS_HEIGHT / 2,
+                  backgroundColor: "red",
+                },
+              ]}
+            />
+          </View>
         </View>
       </GestureDetector>
     </View>
