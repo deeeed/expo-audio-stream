@@ -406,7 +406,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                   if (candle.amplitude === 0) return null;
 
                   let delta =
-                    Math.ceil(maxDisplayedItems / 2) *
+                    Math.ceil((maxDisplayedItems + 3) / 2) *
                     (candleWidth + candleSpace);
                   if (mode === "live") {
                     delta = 0;
