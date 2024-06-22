@@ -115,9 +115,9 @@ const Minimal = () => {
     [screenWidth, canvasWidth],
   );
   const translateX = useSharedValue(0);
-  const [wavepoints, setWavepoints] = useState(generateWaveform(50000)); // Generate random waveform values
+  const [wavepoints, setWavepoints] = useState(generateWaveform(300)); // Generate random waveform values
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<"static" | "live">("live"); // live is always making the waveform on the right
+  const [mode, setMode] = useState<"static" | "live">("static"); // live is always making the waveform on the right
 
   const maxDisplayedItems = Math.ceil(
     screenWidth / (RECT_WIDTH + SPACE_BETWEEN_RECTS),
@@ -136,7 +136,8 @@ const Minimal = () => {
     }),
   );
 
-  const maxTranslateX = wavepoints.length * (RECT_WIDTH + SPACE_BETWEEN_RECTS);
+  const maxTranslateX =
+    wavepoints.length * (RECT_WIDTH + SPACE_BETWEEN_RECTS) + canvasWidth / 2;
   const [startIndex, setStartIndex] = useState(0);
 
   const updateActivePoints = (x: number) => {
