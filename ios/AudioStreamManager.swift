@@ -7,9 +7,11 @@
 
 import Foundation
 import AVFoundation
+import Accelerate
 
 struct RecordingSettings {
     var sampleRate: Double
+    var desiredSampleRate: Double
     var numberOfChannels: Int = 1
     var bitDepth: Int = 16
 }
@@ -319,7 +321,7 @@ class AudioStreamManager: NSObject {
         isRecording = false
         
         guard let fileURL = recordingFileURL, let startTime = startTime, let settings = recordingSettings else {
-            print("Recording or file URL is nil.")
+            Logger.debug("Recording or file URL is nil.")
             return nil
         }
         
@@ -357,9 +359,47 @@ class AudioStreamManager: NSObject {
             
             return result
         } catch {
-            print("Failed to fetch file attributes: \(error)")
+            Logger.debug("Failed to fetch file attributes: \(error)")
             return nil
         }
+    }
+    
+    /// Resamples the audio buffer from the original sample rate to the target sample rate.
+    /// - Parameters:
+    ///   - buffer: The original audio buffer to be resampled.
+    ///   - originalSampleRate: The sample rate of the original audio buffer.
+    ///   - targetSampleRate: The desired sample rate to resample to.
+    /// - Returns: A new audio buffer resampled to the target sample rate.
+    private func resampleAudioBuffer(_ buffer: AVAudioPCMBuffer, from originalSampleRate: Double, to targetSampleRate: Double) -> AVAudioPCMBuffer? {
+        guard let channelData = buffer.floatChannelData else { return nil }
+
+            let sourceFrameCount = Int(buffer.frameLength) // Number of frames in the original buffer
+            let sourceChannels = Int(buffer.format.channelCount) // Number of audio channels
+
+            // Calculate the number of frames in the target buffer
+            let targetFrameCount = Int(Double(sourceFrameCount) * targetSampleRate / originalSampleRate)
+            
+            // Create a new audio buffer for the resampled data
+            guard let targetBuffer = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: AVAudioFrameCount(targetFrameCount)) else { return nil }
+            targetBuffer.frameLength = AVAudioFrameCount(targetFrameCount)
+
+            let resamplingFactor = Float(targetSampleRate / originalSampleRate) // Factor to resample the audio
+
+            for channel in 0..<sourceChannels {
+                let input = UnsafeBufferPointer(start: channelData[channel], count: sourceFrameCount) // Original channel data
+                let output = UnsafeMutableBufferPointer(start: targetBuffer.floatChannelData![channel], count: targetFrameCount) // Buffer for resampled data
+                var y: [Float] = Array(repeating: 0, count: targetFrameCount) // Temporary array for resampled data
+                
+                // Resample using vDSP_vgenp which performs interpolation
+                vDSP_vgenp(input.baseAddress!, vDSP_Stride(1), [Float](stride(from: 0, to: Float(sourceFrameCount), by: resamplingFactor)), vDSP_Stride(1), &y, vDSP_Stride(1), vDSP_Length(targetFrameCount), vDSP_Length(sourceFrameCount))
+                
+                // Copy the resampled data to the output buffer
+                for i in 0..<targetFrameCount {
+                    output[i] = y[i]
+                }
+            }
+
+        return targetBuffer
     }
     
     private func updateWavHeader(fileURL: URL, totalDataSize: Int64) {
@@ -382,19 +422,35 @@ class AudioStreamManager: NSObject {
             fileHandle.write(Data(dataSizeBytes))
             
         } catch let error {
-            print("Error updating WAV header: \(error)")
+            Logger.debug("Error updating WAV header: \(error)")
         }
     }
     
     private func processAudioBuffer(_ buffer: AVAudioPCMBuffer, fileURL: URL) {
         guard let fileHandle = try? FileHandle(forWritingTo: fileURL) else {
-            print("Failed to open file handle for URL: \(fileURL)")
+            Logger.debug("Failed to open file handle for URL: \(fileURL)")
             return
         }
         
-        let audioData = buffer.audioBufferList.pointee.mBuffers
+        
+        let targetSampleRate = recordingSettings?.desiredSampleRate ?? buffer.format.sampleRate
+        let finalBuffer: AVAudioPCMBuffer
+
+        if buffer.format.sampleRate != targetSampleRate {
+            // Resample the audio buffer if the target sample rate is different from the input sample rate
+            guard let resampledBuffer = resampleAudioBuffer(buffer, from: buffer.format.sampleRate, to: targetSampleRate) else {
+                Logger.debug("Failed to resample audio buffer.")
+                return
+            }
+            finalBuffer = resampledBuffer
+        } else {
+            // Use the original buffer if the sample rates are the same
+            finalBuffer = buffer
+        }
+        
+        let audioData = finalBuffer.audioBufferList.pointee.mBuffers
         guard let bufferData = audioData.mData else {
-            print("Buffer data is nil.")
+            Logger.debug("Buffer data is nil.")
             return
         }
         var data = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))

@@ -14,25 +14,45 @@ const getStyles = () => {
 };
 
 const ViewPage: React.FC = () => {
-  const [audioData, setAudioData] = useState<AudioAnalysisData>();
+  const [audioData, setAudioData] = useState<AudioAnalysisData>({
+    dataPoints: [],
+    amplitudeRange: { min: 0, max: 0 },
+    bitDepth: 16,
+    numberOfChannels: 1,
+    pointsPerSecond: 20,
+    sampleRate: 16000,
+  });
   const { colors } = useTheme();
   const [canvasHeight, setCanvasHeight] = useState(300);
 
   const addNewCandle = () => {
-    // const newCandle: WavPoint = { amplitude: 0.3, activeSpeech: true };
-    // setCandles((prevCandles) => [...prevCandles, newCandle]);
+    const newDataPoint = {
+      amplitude: Math.random(),
+    };
+    // compute new min / max
+    const newAmplitudeRange = {
+      min: Math.min(audioData.amplitudeRange.min, newDataPoint.amplitude),
+      max: Math.max(audioData.amplitudeRange.max, newDataPoint.amplitude),
+    };
+    setAudioData((prev) => ({
+      ...prev,
+      amplitudeRange: newAmplitudeRange,
+      dataPoints: [...prev.dataPoints, newDataPoint],
+    }));
   };
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <Text>color: {colors.text}</Text>
-      {/* <AudioVisualizer
+      <AudioVisualizer
         audioData={audioData}
         candleWidth={10}
         candleSpace={3}
+        showRuler
+        mode="live"
         showDottedLine
         canvasHeight={canvasHeight}
-      /> */}
+      />
       {/* <AnimatedCanvas items={items} /> */}
       {/* <AnimatedCandle
         candle={{ height: 50 }}

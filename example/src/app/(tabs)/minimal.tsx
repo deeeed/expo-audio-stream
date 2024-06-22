@@ -23,17 +23,12 @@ import {
   withTiming,
 } from "react-native-reanimated";
 
-import AnimatedCandle from "../../component/audio-visualizer/animated-candle";
-
 const getStyles = (screenWidth: number, canvasWidth: number) => {
   return StyleSheet.create({
     container: {
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
-    },
-    scrollView: {
-      width: "100%",
     },
     canvasContainer: {
       width: canvasWidth,
@@ -291,40 +286,40 @@ const Minimal = () => {
 
   return (
     <View style={styles.container}>
-      <GestureDetector gesture={panGesture}>
+      <View>
+        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          <Button
+            onPress={() => {
+              setMode(mode === "live" ? "static" : "live");
+            }}
+          >
+            Toggle Mode (Current: {mode})
+          </Button>
+          <Button
+            onPress={() => {
+              translateX.value = 0;
+              updateActivePoints(0);
+            }}
+          >
+            reset
+          </Button>
+          <Button onPress={addWavePoints}>Add Wavepoints</Button>
+          {Platform.OS === "web" && (
+            <Button onPress={loadData}>Load Remote Data</Button>
+          )}
+        </View>
         <View>
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            <Button
-              onPress={() => {
-                setMode(mode === "live" ? "static" : "live");
-              }}
-            >
-              Toggle Mode (Current: {mode})
-            </Button>
-            <Button
-              onPress={() => {
-                translateX.value = 0;
-                updateActivePoints(0);
-              }}
-            >
-              reset
-            </Button>
-            <Button onPress={addWavePoints}>Add Wavepoints</Button>
-            {Platform.OS === "web" && (
-              <Button onPress={loadData}>Load Remote Data</Button>
-            )}
-          </View>
-          <View>
-            <Text>translareX: {translateX.value}</Text>
-            <Text>Points: {wavepoints.length}</Text>
-            <Text>activePoints: {activePoints.length}</Text>
-            <Text>canvasWidth: {canvasWidth}</Text>
-            <Text>MaxDisplayedItems: {maxDisplayedItems}</Text>
-            <Text>StartIndex: {startIndex}</Text>
-            <Text>
-              range: {min} , {max}
-            </Text>
-          </View>
+          <Text>translareX: {translateX.value}</Text>
+          <Text>Points: {wavepoints.length}</Text>
+          <Text>activePoints: {activePoints.length}</Text>
+          <Text>canvasWidth: {canvasWidth}</Text>
+          <Text>MaxDisplayedItems: {maxDisplayedItems}</Text>
+          <Text>StartIndex: {startIndex}</Text>
+          <Text>
+            range: {min} , {max}
+          </Text>
+        </View>
+        <GestureDetector gesture={panGesture}>
           <View style={styles.canvasContainer}>
             <Canvas
               style={{
@@ -369,8 +364,8 @@ const Minimal = () => {
               ]}
             />
           </View>
-        </View>
-      </GestureDetector>
+        </GestureDetector>
+      </View>
     </View>
   );
 };
