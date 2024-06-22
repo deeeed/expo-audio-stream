@@ -14,11 +14,17 @@ import {
 import { Button } from "@siteed/design-system";
 import { set } from "lodash";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { LayoutChangeEvent, StyleSheet, View } from "react-native";
+import {
+  LayoutChangeEvent,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Text } from "react-native-paper";
 import Animated, {
   SharedValue,
+  runOnJS,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
@@ -34,6 +40,36 @@ import {
   AudioAnalysisData,
   DataPoint,
 } from "../../../../src/useAudioRecording";
+
+const getStyles = (screenWidth: number, canvasWidth: number) => {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    canvasContainer: {
+      width: canvasWidth,
+      backgroundColor: "#292a2d",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 5,
+      borderWidth: 1,
+    },
+    centeredLine: {
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      left: screenWidth / 2,
+      width: 2,
+      backgroundColor: "red",
+    },
+    canvas: {},
+    text: {
+      // color: "white"
+    },
+  });
+};
 
 interface AudioVisualizerProps {
   audioData: AudioAnalysisData;
@@ -60,7 +96,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   showDottedLine = false,
   onSeekEnd,
 }) => {
-  const [width, setWidth] = useState<number>(0);
+  const [screenWidth, setScreenWidth] = useState(0);
   const translateX = useSharedValue(0);
   const [currentTime, setCurrentTime] = useState<number | undefined>(
     fullCurrentTime,
@@ -72,7 +108,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const rulerHeight = rulerOptions.tickHeight + rulerOptions.labelFontSize;
 
   const drawDottedLine = useCallback((): SkPath => {
-    if (!width) return Skia.Path.Make();
+    if (!screenWidth) return Skia.Path.Make();
     const path = Skia.Path.Make();
     const dashLength = 3;
     const gapLength = 5;
@@ -84,54 +120,155 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     }
 
     return path;
-  }, [canvasHeight, width]);
+  }, [canvasHeight, screenWidth]);
 
   const totalCandleWidth =
     audioData.dataPoints.length * (candleWidth + candleSpace);
-  const paddingLeft = width / 2; // padding from left side
-  const paddingRight = width / 2; // padding from right side
+  const paddingLeft = screenWidth / 2; // padding from left side
+  const paddingRight = screenWidth / 2; // padding from right side
   // const canvasWidth = Math.min(totalCandleWidth, width);
-  const canvasWidth = totalCandleWidth + paddingLeft + paddingRight;
+  const canvasWidth = screenWidth;
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
-    setWidth(width);
+    setScreenWidth(width);
   }, []);
+  const [startIndex, setStartIndex] = useState(0);
+  const [ready, setReady] = useState(false);
 
-  const maxTranslateX = Math.max(0, -(canvasWidth - width));
-  const minTranslateX = -Math.max(0, canvasWidth - width);
+  const styles = React.useMemo(
+    () => getStyles(screenWidth, canvasWidth),
+    [screenWidth, canvasWidth],
+  );
 
-  const gesture = Gesture.Pan()
-    .onChange((e) => {
-      if (playing || canvasWidth <= width) {
-        return;
+  const [dataPoints, setDataPoints] = useState<DataPoint[]>(
+    audioData.dataPoints,
+  );
+
+  const maxTranslateX =
+    dataPoints.length * (candleWidth + candleSpace) + canvasWidth / 2;
+
+  const maxDisplayedItems = Math.ceil(
+    screenWidth / (candleWidth + candleSpace),
+  );
+
+  const [activePoints, setActivePoints] = useState<
+    { amplitude: number; id: number; visible: boolean }[]
+  >(
+    new Array(maxDisplayedItems * 3).fill({
+      amplitude: 0,
+      id: -1,
+      visible: false,
+    }),
+  );
+
+  const updateActivePoints = (x: number) => {
+    if (mode === "live") {
+      const totalItems = dataPoints.length;
+      // Only display items on the left of the middle line
+      const liveMaxDisplayedItems = Math.floor(maxDisplayedItems / 2);
+      const startIndex = Math.max(0, totalItems - liveMaxDisplayedItems);
+      console.log(
+        `\nupdateActivePoints (live) startIndex=${startIndex}, totalItems=${totalItems}, maxDisplayedItems=${maxDisplayedItems}`,
+      );
+
+      const updatedPoints = [];
+      for (let i = 0; i < liveMaxDisplayedItems; i++) {
+        const itemIndex = startIndex + i;
+        if (itemIndex < totalItems) {
+          updatedPoints.push({
+            id: itemIndex,
+            amplitude: dataPoints[itemIndex].amplitude,
+            visible: true,
+          });
+        }
       }
 
-      const newTranslateX = translateX.value + e.changeX;
-      // console.log(`NewTranslateX: ${newTranslateX}`);
-      if (newTranslateX > 0) {
-        translateX.value = 0;
-      } else if (newTranslateX < minTranslateX) {
-        translateX.value = minTranslateX;
-      } else {
-        translateX.value = newTranslateX;
+      console.log(`Updated points (live):`, updatedPoints);
+      setActivePoints(updatedPoints);
+      setStartIndex(0);
+    } else {
+      const translateX = Math.abs(x);
+      console.log(`x: ${x} translateX: ${translateX}`);
+      const hiddenItemsLeft = Math.floor(
+        translateX / (candleWidth + candleSpace),
+      );
+      const startIndex = Math.max(0, hiddenItemsLeft - maxDisplayedItems);
+      console.log(
+        `hiddenItemsLeft: ${hiddenItemsLeft}  maxDisplayedItems=${maxDisplayedItems} dataPoints.length=${dataPoints.length} `,
+      );
+
+      const loopTo = maxDisplayedItems * 3;
+      for (let i = 0; i < loopTo; i++) {
+        const itemIndex = startIndex + i;
+        if (itemIndex < dataPoints.length) {
+          activePoints[i] = {
+            id: itemIndex,
+            amplitude: dataPoints[itemIndex].amplitude,
+            visible:
+              itemIndex >= hiddenItemsLeft &&
+              itemIndex < hiddenItemsLeft + maxDisplayedItems,
+          };
+        } else {
+          activePoints[i] = {
+            id: -1,
+            amplitude: 0,
+            visible: false,
+          };
+        }
+        console.log(`itemIndex: ${itemIndex} `, activePoints[i]);
       }
-    })
-    .onEnd((_e) => {
-      // console.log(`Velocity: ${e.velocityX} newValue: ${translateX.value}`);
-      // Reverse ratio to get currentTime
-      if (audioData.durationMs) {
-        const allowedTranslateX = Math.abs(maxTranslateX - minTranslateX);
-        const progressRatio = -translateX.value / allowedTranslateX;
-        const newTime = (progressRatio * audioData.durationMs) / 1000;
-        // console.log(`NewTime: ${newTime}`);
-        onSeekEnd?.(newTime);
-      }
-    });
+
+      console.log(`Updated points:`, activePoints);
+      setActivePoints(activePoints);
+      setStartIndex(startIndex);
+    }
+    setReady(true);
+  };
+
+  useEffect(() => {
+    if (maxDisplayedItems === 0) return;
+    updateActivePoints(translateX.value);
+  }, [dataPoints, maxDisplayedItems]);
+
+  useEffect(() => {
+    setDataPoints(audioData.dataPoints);
+  }, [audioData.dataPoints]);
 
   useEffect(() => {
     setCurrentTime(fullCurrentTime);
   }, [fullCurrentTime]);
+
+  const gesture = Gesture.Pan()
+    .onChange((e) => {
+      if (playing || mode === "live") {
+        return;
+      }
+
+      const newTranslateX = translateX.value + e.changeX;
+      console.log(`NewTranslateX: ${newTranslateX}`);
+      const clampedTranslateX = Math.max(
+        -maxTranslateX + screenWidth,
+        Math.min(0, newTranslateX),
+      ); // Clamping within bounds
+      translateX.value = clampedTranslateX;
+    })
+    .onEnd((_e) => {
+      if (mode === "live") return;
+
+      // console.log(`Velocity: ${e.velocityX} newValue: ${translateX.value}`);
+      // Reverse ratio to get currentTime
+      console.log(`onEnd: translateX: ${translateX.value} `, _e);
+      runOnJS(updateActivePoints)(translateX.value);
+
+      // if (audioData.durationMs) {
+      //   const allowedTranslateX = Math.abs(maxTranslateX - minTranslateX);
+      //   const progressRatio = -translateX.value / allowedTranslateX;
+      //   const newTime = (progressRatio * audioData.durationMs) / 1000;
+      //   // console.log(`NewTime: ${newTime}`);
+      //   onSeekEnd?.(newTime);
+      // }
+    });
 
   const SYNC_DURATION = 100; // Duration for the timing animation
 
@@ -163,17 +300,17 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         currentTime,
         durationMs: audioData.durationMs,
         maxTranslateX,
-        minTranslateX,
+        minTranslateX: 0,
         translateX,
       });
     }
-  }, [currentTime, audioData.durationMs, canvasWidth, width, translateX]);
+  }, [currentTime, audioData.durationMs, canvasWidth, screenWidth, translateX]);
 
   const touchHandler = useTouchHandler({
     onEnd: (event) => {
       const { x } = event;
       // const adjustedX = x - paddingLeft + translateX.value;
-      const plotStart = width / 2 + translateX.value;
+      const plotStart = screenWidth / 2 + translateX.value;
       const plotEnd = plotStart + totalCandleWidth;
 
       if (x < plotStart || x > plotEnd) {
@@ -208,21 +345,17 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     },
   });
 
-  const [dataPoints, setDataPoints] = useState<DataPoint[]>([]);
-
-  useEffect(() => {
-    setDataPoints(audioData.dataPoints);
-  }, [audioData.dataPoints]);
-
   const groupTransform = useDerivedValue(() => {
     return [{ translateX: translateX.value }];
   });
 
   return (
     <View style={styles.container} onLayout={handleLayout}>
-      <Text style={styles.text}>candles: {audioData.dataPoints.length}</Text>
+      <Text style={styles.text}>dataPoints: {dataPoints.length}</Text>
+      <Text>activePoints: {activePoints.length}</Text>
       <Text style={styles.text}>canvasHeight: {canvasHeight}</Text>
       <Text style={styles.text}>canvasWidth: {canvasWidth}</Text>
+      <Text style={styles.text}>maxDisplayedItems: {maxDisplayedItems}</Text>
       <Text style={styles.text}>
         pointsPerSecond: {audioData.pointsPerSecond}
       </Text>
@@ -237,6 +370,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       <Button
         onPress={() => {
           translateX.value = 0;
+          updateActivePoints(0);
         }}
       >
         Reset
@@ -245,9 +379,9 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         <View style={styles.canvasContainer}>
           <Canvas
             style={{
-              ...styles.canvas,
               height: canvasHeight,
-              width,
+              width: screenWidth,
+              borderWidth: 1,
             }}
             onTouch={touchHandler}
           >
@@ -259,29 +393,49 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                   width={totalCandleWidth}
                 />
               )}
-              {dataPoints.map((candle, index) => {
-                // let scaledAmplitude = candle.amplitude * canvasHeight;
-                // audioData.amplitudeRange.max ==> canvasHeight
-                // candle.amplitude ==> scaledAmplitude
-                const scaledAmplitude =
-                  (candle.amplitude / audioData.amplitudeRange.max) *
-                  canvasHeight;
-                return (
-                  <AnimatedCandle
-                    key={"ca" + index}
-                    color={
-                      candle.activeSpeech
-                        ? ACTIVE_SPEECH_COLOR
-                        : INACTIVE_SPEECH_COLOR
-                    }
-                    startY={canvasHeight / 2}
-                    height={scaledAmplitude}
-                    width={candleWidth}
-                    x={index * (candleWidth + candleSpace) + paddingLeft}
-                    y={canvasHeight / 2 - scaledAmplitude / 2}
-                  />
-                );
-              })}
+              {ready &&
+                activePoints.map((candle, index) => {
+                  // let scaledAmplitude = candle.amplitude * canvasHeight;
+                  // audioData.amplitudeRange.max ==> canvasHeight
+                  // candle.amplitude ==> scaledAmplitude
+                  // const scalingFactor = 3; // randomly chosen to better display the candle
+                  const scaledAmplitude =
+                    (candle.amplitude * (canvasHeight - 10)) /
+                    audioData.amplitudeRange.max;
+                  // console.log(`scaledAmplitude: ${scaledAmplitude}`);
+                  if (candle.amplitude === 0) return null;
+
+                  let delta =
+                    Math.ceil(maxDisplayedItems / 2) *
+                    (candleWidth + candleSpace);
+                  if (mode === "live") {
+                    delta = 0;
+                  }
+                  const x =
+                    (candleWidth + candleSpace) * index +
+                    startIndex * (candleWidth + candleSpace) +
+                    // paddingLeft +
+                    delta;
+
+                  // console.log(
+                  //   `Index: ${index} x=${x} amplitude: ${scaledAmplitude}`,
+                  //   candle,
+                  // );
+
+                  return (
+                    <AnimatedCandle
+                      key={"ca" + index}
+                      color={ACTIVE_SPEECH_COLOR}
+                      animated={false}
+                      startY={canvasHeight / 2}
+                      height={scaledAmplitude}
+                      width={candleWidth}
+                      // x={index * (candleWidth + candleSpace) + paddingLeft}
+                      x={x}
+                      y={canvasHeight / 2 - scaledAmplitude / 2}
+                    />
+                  );
+                })}
             </Group>
             {showDottedLine && (
               <Path
@@ -296,10 +450,10 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             style={[
               {
                 position: "absolute",
-                top: 10 + canvasHeight / 4,
-                left: width / 2 + 10,
+                top: 10 + canvasHeight / 6,
+                left: screenWidth / 2 + 10,
                 width: 2,
-                height: canvasHeight / 2,
+                height: canvasHeight / 1.5,
                 backgroundColor: "red",
               },
             ]}
@@ -309,25 +463,3 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    borderRadius: 10,
-    // justifyContent: "center",
-  },
-  text: {
-    // color: "white"
-  },
-  canvasContainer: {
-    backgroundColor: "#292a2d",
-    padding: 10,
-    maxWidth: '100%',
-  },
-  canvas: {
-    height: 300,
-    borderWidth: 1,
-    // backgroundColor: 'lightblue',
-    marginBottom: 20,
-  },
-});

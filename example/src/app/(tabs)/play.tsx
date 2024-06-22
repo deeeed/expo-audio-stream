@@ -3,6 +3,7 @@ import { Audio } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Platform, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator } from "react-native-paper";
 
 import { extractAudioAnalysis } from "../../../../src";
 import { AudioAnalysisData } from "../../../../src/useAudioRecording";
@@ -32,6 +33,7 @@ export const TestPage = () => {
   const [audioMetadata, setAudioMetadata] = useState<WavFileInfo>();
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
+  const [processing, setProcessing] = useState<boolean>(false);
 
   const pickAudioFile = async () => {
     try {
@@ -56,12 +58,24 @@ export const TestPage = () => {
           setSound(null);
         }
 
+        setProcessing(true);
         // Decode the audio file to get metadata
         const wavMetadata = await getWavFileInfo(arrayBuffer);
         setAudioMetadata(wavMetadata);
+
+        const audioAnalysis = await extractAudioAnalysis({
+          fileUri: uri,
+          wavMetadata,
+          pointsPerSecond: 5,
+          algorithm: "rms",
+        });
+        console.log(`AudioAnalysis:`, audioAnalysis);
+        setAudioAnalysis(audioAnalysis);
       }
     } catch (error) {
       console.error("Error picking audio file:", error);
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -186,9 +200,10 @@ export const TestPage = () => {
           }}
         />
       )}
+      {processing && <ActivityIndicator size="large" />}
       {audioUri && (
         <View>
-          {audioBuffer && audioMetadata && (
+          {/* {audioBuffer && audioMetadata && (
             <RawWaveForm
               buffer={audioBuffer}
               mode="static"
@@ -200,7 +215,7 @@ export const TestPage = () => {
               channels={audioMetadata?.numChannels}
               bitDepth={audioMetadata.bitDepth}
             />
-          )}
+          )} */}
           {audioAnalysis && (
             <>
               <Button
@@ -213,11 +228,12 @@ export const TestPage = () => {
               <AudioVisualizer
                 candleSpace={2}
                 mode="scaled"
+                showRuler
                 showDottedLine
                 playing={isPlaying}
                 candleWidth={5}
                 currentTime={currentTime}
-                canvasHeight={50}
+                canvasHeight={300}
                 audioData={audioAnalysis}
                 onSeekEnd={handleSeekEnd}
               />

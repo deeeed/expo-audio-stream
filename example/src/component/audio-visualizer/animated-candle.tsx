@@ -9,6 +9,7 @@ interface AnimatedCandleProps {
   startY: number;
   width: number;
   color: string;
+  animated?: boolean;
   onPress?: () => void;
 }
 
@@ -22,6 +23,7 @@ const AnimatedCandle: React.FC<AnimatedCandleProps> = ({
   startY,
   height: targetHeight,
   width,
+  animated = true,
   onPress,
 }) => {
   const y = useSharedValue(startY);
@@ -30,11 +32,18 @@ const AnimatedCandle: React.FC<AnimatedCandleProps> = ({
   const color = useSharedValue(INACTIVE_SPEECH_COLOR);
 
   useEffect(() => {
-    y.value = withTiming(targetY, { duration: 500 });
-    height.value = withTiming(targetHeight, { duration: 500 });
-    x.value = withTiming(targetX, { duration: 500 });
-    color.value = withTiming(targetColor, { duration: 500 });
-  }, [targetY, targetHeight, targetX]);
+    if (animated) {
+      y.value = withTiming(targetY, { duration: 500 });
+      height.value = withTiming(targetHeight, { duration: 500 });
+      x.value = withTiming(targetX, { duration: 500 });
+      color.value = withTiming(targetColor, { duration: 500 });
+    } else {
+      y.value = targetY;
+      height.value = targetHeight;
+      x.value = targetX;
+      color.value = targetColor;
+    }
+  }, [targetY, targetHeight, targetX, targetColor, animated]);
 
   return <Rect x={targetX} y={y} width={width} height={height} color={color} />;
 };

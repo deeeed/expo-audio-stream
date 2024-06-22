@@ -17,6 +17,28 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             streamManager.delegate = self
         }
         
+        AsyncFunction("extractAudioAnalysis") { (options: [String: Any], promise: Promise) in
+            guard let fileUri = options["fileUri"] as? String,
+                  let url = URL(string: fileUri),
+                  let pointsPerSecond = options["pointsPerSecond"] as? Int,
+                  let algorithm = options["algorithm"] as? String else {
+                promise.reject("INVALID_ARGUMENTS", "Invalid arguments provided")
+                return
+            }
+            
+            // Perform audio analysis on a background thread
+            DispatchQueue.global().async {
+                if let result = extractAudioAnalysis(fileUrl: url, pointsPerSecond: pointsPerSecond, algorithm: algorithm) {
+                    
+                    Logger.debug("Extraction result: \(result)")
+                    let resultDict = result.toDictionary()
+                    promise.resolve(resultDict)
+                } else {
+                    promise.reject("PROCESSING_ERROR", "Failed to process audio data")
+                }
+            }
+        }
+        
         AsyncFunction("startRecording") { (options: [String: Any], promise: Promise) in
             self.checkMicrophonePermission { granted in
                 guard granted else {
@@ -30,7 +52,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 let bitDepth = options["audioFormat"] as? Int ?? 16 // 16bits
                 let interval = options["interval"] as? Int ?? 1000
                 
-                let settings = RecordingSettings(sampleRate: sampleRate, numberOfChannels: numberOfChannels, bitDepth: bitDepth)
+                let settings = RecordingSettings(sampleRate: sampleRate, desiredSampleRate: sampleRate, numberOfChannels: numberOfChannels, bitDepth: bitDepth)
                 if let result = self.streamManager.startRecording(settings: settings, intervalMilliseconds: interval) {
                     let resultDict: [String: Any] = [
                         "fileUri": result.fileUri,
@@ -80,7 +102,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveAudioData data: Data, recordingTime: TimeInterval, totalDataSize: Int64) {
         guard let fileURL = manager.recordingFileURL,
-                let settings = manager.recordingSettings else { return }
+              let settings = manager.recordingSettings else { return }
         
         let encodedData = data.base64EncodedString()
         
@@ -93,7 +115,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         let channels = Double(settings.numberOfChannels)
         let bitDepth = Double(settings.bitDepth)
         let position = Int((Double(manager.lastEmittedSize) / (sampleRate * channels * (bitDepth / 8))) * 1000)
-
+        
         // Construct the event payload similar to Android
         let eventBody: [String: Any] = [
             "fileUri": fileURL.absoluteString,

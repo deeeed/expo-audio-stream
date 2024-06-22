@@ -1,4 +1,4 @@
-// worker.js
+// waveextractor.js
 
 self.onmessage = function (event) {
   const {

@@ -80,6 +80,14 @@ export const extractAudioAnalysis = async ({
         algorithm,
       });
     });
+  } else if(Platform.OS ==="ios" ) {
+    const res = await ExpoAudioStreamModule.extractAudioAnalysis({
+      fileUri,
+      pointsPerSecond,
+      algorithm,
+    })
+    console.log(`extractAudioAnalysis`, res);
+    return res;
   } else {
     throw new Error("Not implemented");
   }
