@@ -297,8 +297,6 @@ export default function Record() {
     }
   }, [isRecording, refreshFiles]);
 
-  const visualBuffer = concatenateBuffers(liveWavFormBuffer.current);
-
   const renderRecording = () => (
     <View style={{ gap: 10, display: "flex" }}>
       {analysisData && (

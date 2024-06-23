@@ -138,7 +138,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   const lastUpdatedTranslateX = useRef<number>(0);
   const updateActivePoints = (x: number) => {
-    if (x === lastUpdatedTranslateX.current && activePoints.length > 0) return; // Exit if x has not changed
+    // if (x === lastUpdatedTranslateX.current && activePoints.length > 0) return; // Exit if x has not changed
     lastUpdatedTranslateX.current = x;
 
     if (mode === "live") {
@@ -386,12 +386,13 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                   // let scaledAmplitude = candle.amplitude * canvasHeight;
                   // audioData.amplitudeRange.max ==> canvasHeight
                   // candle.amplitude ==> scaledAmplitude
-                  // const scalingFactor = 3; // randomly chosen to better display the candle
+                  const scalingFactor = 3; // randomly chosen to better display the candle
                   const scaledAmplitude =
                     (candle.amplitude * (canvasHeight - 10)) /
                     audioData.amplitudeRange.max;
-                  // console.log(`scaledAmplitude: ${scaledAmplitude}`);
+                  // const scaledAmplitude = candle.amplitude * scalingFactor;
                   if (candle.amplitude === 0) return null;
+                  // const scaledAmplitude = 30;
 
                   let delta =
                     Math.ceil(maxDisplayedItems / 2) *
