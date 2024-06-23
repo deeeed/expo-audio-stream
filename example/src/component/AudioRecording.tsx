@@ -58,11 +58,15 @@ export const AudioRecording = ({
   const { show } = useToast();
   const audioUri = webAudioUri ?? recording.fileUri;
   const theme = useTheme();
-  const [processing, setProcessing] = useState(false);
-  const { audioAnalysis, isPlaying, position, togglePlayPause } = useAudio(
-    audioUri,
-    { extractAnalysis: true },
-  );
+  const {
+    audioAnalysis,
+    isPlaying,
+    processing,
+    position,
+    play,
+    pause,
+    updatePlaybackOptions,
+  } = useAudio(audioUri, { extractAnalysis: showWaveform });
   const styles = useMemo(
     () => getStyles({ isPlaying, theme }),
     [isPlaying, theme],
@@ -94,6 +98,14 @@ export const AudioRecording = ({
     };
   }, []);
 
+  const handlePlayPause = () => {
+    if (isPlaying) {
+      pause();
+    } else {
+      play();
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={[styles.detailText, { fontWeight: "bold" }]}>
@@ -123,7 +135,7 @@ export const AudioRecording = ({
 
       {processing && <ActivityIndicator />}
 
-      {audioAnalysis && (
+      {!processing && audioAnalysis && (
         <AudioVisualizer
           canvasHeight={150}
           playing={isPlaying}
@@ -131,26 +143,14 @@ export const AudioRecording = ({
           currentTime={position / 1000}
           audioData={audioAnalysis}
           showDottedLine
+          onSeekEnd={(newtime) =>
+            updatePlaybackOptions({ position: newtime * 1000 })
+          }
         />
       )}
-      {/* {arrayBuffer && (
-        <RawWaveForm
-          buffer={arrayBuffer}
-          waveformHeight={200}
-          showRuler
-          debug
-          visualizationType="candlestick"
-          candleStickSpacing={2}
-          candleStickWidth={5}
-          currentTime={position / 1000}
-          bitDepth={recording.bitDepth}
-          sampleRate={recording.sampleRate}
-          channels={recording.channels}
-          mode="static" // Adjust mode as needed
-        />
-      )} */}
+
       <View style={styles.buttons}>
-        <Button onPress={togglePlayPause}>
+        <Button onPress={handlePlayPause}>
           {isPlaying ? "Pause" : "Play"}
         </Button>
         <Button onPress={handleShare}>Share</Button>

@@ -1,11 +1,21 @@
 import { useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
+import { log } from "console";
 import { Audio } from "expo-av";
 import { useCallback, useEffect, useState } from "react";
 
 import { extractAudioAnalysis } from "../../../src";
 import { AudioAnalysisData } from "../../../src/ExpoAudioStream.types";
 import { fetchArrayBuffer } from "../utils";
+
+interface PlayOptions {
+  position?: number;
+}
+
+interface UpdatePlaybackOptions {
+  position?: number;
+  speed?: number;
+}
 
 interface UseAudioOptions {
   loadArrayBuffer?: boolean;
@@ -18,7 +28,9 @@ export const useAudio = (
 ) => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [position, setPosition] = useState(0);
+  const [speed, setSpeed] = useState(1); // Add state for speed
   const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer | null>(null);
   const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData | null>(
     null,
@@ -37,6 +49,7 @@ export const useAudio = (
 
     const processAudioData = async () => {
       try {
+        setProcessing(true);
         if (options.loadArrayBuffer) {
           logger.debug(`Fetching audio array buffer from ${audioUri}`);
           const buffer = await fetchArrayBuffer(audioUri);
@@ -56,6 +69,8 @@ export const useAudio = (
       } catch (error) {
         logger.error(`Failed to process audio ${audioUri}:`, error);
         show({ type: "error", message: "Failed to load audio data" });
+      } finally {
+        setProcessing(false);
       }
     };
 
@@ -86,30 +101,61 @@ export const useAudio = (
     [logger],
   );
 
-  const togglePlayPause = async () => {
+  const play = async (options?: PlayOptions) => {
     if (!audioUri) return;
     try {
       if (!sound) {
         const { sound: newSound } = await Audio.Sound.createAsync(
           { uri: audioUri },
-          { shouldPlay: true },
+          { shouldPlay: true, positionMillis: options?.position || position },
         );
         newSound.setOnPlaybackStatusUpdate(updatePlaybackStatus);
         setSound(newSound);
         setIsPlaying(true);
-      } else {
-        if (isPlaying) {
-          await sound.pauseAsync();
-          setIsPlaying(false);
-        } else {
-          await sound.setPositionAsync(0); // Reset the position to the start
-          await sound.playAsync();
-          setIsPlaying(true);
+
+        // Apply stored options
+        if (speed !== 1) {
+          await newSound.setRateAsync(speed, false);
         }
+      } else {
+        if (options?.position !== undefined) {
+          await sound.setPositionAsync(options.position);
+        }
+        await sound.playAsync();
+        setIsPlaying(true);
       }
     } catch (error) {
-      logger.error("Failed to play or pause the audio:", error);
-      show({ type: "error", message: "Failed to play or pause the audio" });
+      logger.error("Failed to play the audio:", error);
+      show({ type: "error", message: "Failed to play the audio" });
+    }
+  };
+
+  const pause = async () => {
+    if (!audioUri || !sound) return;
+    try {
+      await sound.pauseAsync();
+      setIsPlaying(false);
+    } catch (error) {
+      logger.error("Failed to pause the audio:", error);
+      show({ type: "error", message: "Failed to pause the audio" });
+    }
+  };
+
+  const updatePlaybackOptions = async (options: UpdatePlaybackOptions) => {
+    logger.debug("Updating playback options:", options);
+    if (options.position !== undefined) {
+      logger.debug(`Set playback position to ${options.position}`);
+      setPosition(options.position);
+      if (sound) {
+        await sound.setPositionAsync(options.position);
+      }
+    }
+    if (options.speed !== undefined) {
+      logger.debug(`Set playback speed to ${options.speed}`);
+      setSpeed(options.speed);
+      if (sound) {
+        await sound.setRateAsync(options.speed, false);
+      }
     }
   };
 
@@ -118,6 +164,9 @@ export const useAudio = (
     audioAnalysis,
     isPlaying,
     position,
-    togglePlayPause,
+    processing,
+    play,
+    pause,
+    updatePlaybackOptions,
   };
 };
