@@ -129,6 +129,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   // const canvasWidth = Math.min(totalCandleWidth, width);
   const canvasWidth = screenWidth;
 
+  const [selectedCandle, setSelectedCandle] = useState<DataPoint | null>(null);
+
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
     setScreenWidth(width);
@@ -308,11 +310,17 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   const touchHandler = useTouchHandler({
     onEnd: (event) => {
+      // disable in live mode
+      if (mode === "live") return;
       const { x } = event;
       // const adjustedX = x - paddingLeft + translateX.value;
-      const plotStart = screenWidth / 2 + translateX.value;
+      const paddingValue = 10;
+      const plotStart = screenWidth / 2 + translateX.value + paddingValue;
       const plotEnd = plotStart + totalCandleWidth;
 
+      console.log(
+        `TouchEnd: ${x} screenWidth=${screenWidth} [${plotStart}, ${plotEnd}]`,
+      );
       if (x < plotStart || x > plotEnd) {
         console.log(`NOT WITHIN RANGE ${x} [${plotStart}, ${plotEnd}]`);
         return;
@@ -324,6 +332,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       console.log(`Index: ${index} AdjustedX: ${adjustedX}`, candle);
 
       // recompute active speech and silence detection
+      setSelectedCandle(candle);
 
       const RMS_THRESHOLD = 0.02;
       const ZCR_THRESHOLD = 0.1;
@@ -351,7 +360,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   return (
     <View style={styles.container} onLayout={handleLayout}>
-      <Text style={styles.text}>dataPoints: {dataPoints.length}</Text>
+      {/* <Text style={styles.text}>dataPoints: {dataPoints.length}</Text>
       <Text>activePoints: {activePoints.length}</Text>
       <Text style={styles.text}>canvasHeight: {canvasHeight}</Text>
       <Text style={styles.text}>canvasWidth: {canvasWidth}</Text>
@@ -363,7 +372,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         Amplitude: [ {audioData.amplitudeRange.min},
         {audioData.amplitudeRange.max} ]{" "}
       </Text>
-      <Text>canvasHeight: {canvasHeight}</Text>
+      <Text>canvasHeight: {canvasHeight}</Text> */}
+      <Text>{JSON.stringify(selectedCandle, null, 2)}</Text>
       <Text style={styles.text}>currentTime: {currentTime}</Text>
       <Text style={styles.text}>durationMs: {audioData.durationMs}</Text>
       <Text style={styles.text}>TranslateX: {translateX.value}</Text>
