@@ -8,7 +8,7 @@ import {
 } from "@shopify/react-native-skia";
 import { Button } from "@siteed/design-system";
 import { AudioAnalysisData, DataPoint } from "@siteed/expo-audio-stream";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { LayoutChangeEvent, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Text } from "react-native-paper";
@@ -104,11 +104,12 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     return path;
   }, [canvasHeight, screenWidth]);
 
-  const totalCandleWidth =
-    audioData.dataPoints.length * (candleWidth + candleSpace);
+  const [dataPoints, setDataPoints] = useState<DataPoint[]>(
+    audioData.dataPoints,
+  );
+
+  const totalCandleWidth = dataPoints.length * (candleWidth + candleSpace);
   const paddingLeft = screenWidth / 2; // padding from left side
-  const paddingRight = screenWidth / 2; // padding from right side
-  // const canvasWidth = Math.min(totalCandleWidth, width);
   const canvasWidth = screenWidth;
 
   const [selectedCandle, setSelectedCandle] = useState<DataPoint | null>(null);
@@ -125,12 +126,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     [screenWidth, canvasWidth],
   );
 
-  const [dataPoints, setDataPoints] = useState<DataPoint[]>(
-    audioData.dataPoints,
-  );
-
-  const maxTranslateX =
-    dataPoints.length * (candleWidth + candleSpace) + canvasWidth;
+  const maxTranslateX = totalCandleWidth;
 
   const maxDisplayedItems = Math.ceil(
     screenWidth / (candleWidth + candleSpace),
@@ -138,15 +134,13 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   const [activePoints, setActivePoints] = useState<
     { amplitude: number; id: number; visible: boolean }[]
-  >(
-    new Array(maxDisplayedItems * 3).fill({
-      amplitude: 0,
-      id: -1,
-      visible: false,
-    }),
-  );
+  >([]);
 
+  const lastUpdatedTranslateX = useRef<number>(0);
   const updateActivePoints = (x: number) => {
+    if (x === lastUpdatedTranslateX.current && activePoints.length > 0) return; // Exit if x has not changed
+    lastUpdatedTranslateX.current = x;
+
     if (mode === "live") {
       const totalItems = dataPoints.length;
       // Only display items on the left of the middle line
@@ -230,9 +224,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       }
 
       const newTranslateX = translateX.value + e.changeX;
-      console.log(`NewTranslateX: ${newTranslateX}`);
       const clampedTranslateX = Math.max(
-        -maxTranslateX + screenWidth,
+        -maxTranslateX,
         Math.min(0, newTranslateX),
       ); // Clamping within bounds
       translateX.value = clampedTranslateX;
@@ -245,13 +238,13 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       console.log(`onEnd: translateX: ${translateX.value} `, _e);
       runOnJS(updateActivePoints)(translateX.value);
 
-      // if (audioData.durationMs) {
-      //   const allowedTranslateX = Math.abs(maxTranslateX - minTranslateX);
-      //   const progressRatio = -translateX.value / allowedTranslateX;
-      //   const newTime = (progressRatio * audioData.durationMs) / 1000;
-      //   // console.log(`NewTime: ${newTime}`);
-      //   onSeekEnd?.(newTime);
-      // }
+      if (audioData.durationMs && onSeekEnd) {
+        const allowedTranslateX = maxTranslateX;
+        const progressRatio = -translateX.value / allowedTranslateX;
+        const newTime = (progressRatio * audioData.durationMs) / 1000;
+        console.log(`NewTime: ${newTime}`);
+        runOnJS(onSeekEnd)(newTime);
+      }
     });
 
   const SYNC_DURATION = 100; // Duration for the timing animation
@@ -272,7 +265,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     if (durationMs) {
       const currentTimeInMs = currentTime * 1000; // Convert currentTime to milliseconds
       const progressRatio = currentTimeInMs / durationMs;
-      const allowedTranslateX = -(-maxTranslateX + screenWidth);
+      const allowedTranslateX = maxTranslateX;
       const x = -(progressRatio * allowedTranslateX);
       console.log(
         `SyncTranslateX: ${x} progressRatio: ${progressRatio} allowedTranslateX: ${allowedTranslateX} other=${-maxTranslateX + screenWidth}`,
