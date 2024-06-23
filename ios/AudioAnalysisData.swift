@@ -7,16 +7,16 @@
 
 import Foundation
 
-struct AudioAnalysisData {
-    var pointsPerSecond: Int
-    var durationMs: Float
-    var bitDepth: Int
-    var numberOfChannels: Int
-    var sampleRate: Float
-    var dataPoints: [DataPoint]
-    var amplitudeRange: (min: Float, max: Float)
-    var speakerChanges: [(timestamp: Float, speaker: Int)]?
-    var extractionTimeMs: Double
+public struct AudioAnalysisData {
+    public var pointsPerSecond: Int
+    public var durationMs: Float
+    public var bitDepth: Int
+    public var numberOfChannels: Int
+    public var sampleRate: Float
+    public var dataPoints: [DataPoint]
+    public var amplitudeRange: (min: Float, max: Float)
+    public var speakerChanges: [(timestamp: Float, speaker: Int)]?
+    public var extractionTimeMs: Float
 }
 
 extension AudioAnalysisData {

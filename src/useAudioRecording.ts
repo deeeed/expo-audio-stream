@@ -1,8 +1,10 @@
-import { Platform } from "expo-modules-core";
+import { Platform, Subscription } from "expo-modules-core";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 
-import { addAudioEventListener } from ".";
+import { addAudioAnalysisListener, addAudioEventListener } from ".";
 import {
+  AudioAnalysisData,
+  AudioDataEvent,
   AudioEventPayload,
   AudioStreamResult,
   AudioStreamStatus,
@@ -12,47 +14,7 @@ import {
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 import { WavFileInfo } from "./utils";
 
-export interface AudioDataEvent {
-  data: string | ArrayBuffer;
-  position: number;
-  fileUri: string;
-  eventDataSize: number;
-  totalSize: number;
-}
-
-export interface DataPoint {
-  amplitude: number;
-  activeSpeech?: boolean;
-  dB?: number;
-  silent?: boolean;
-  features?: {
-    energy: number;
-    mfcc: number[];
-    rms: number;
-    zcr: number;
-    spectralCentroid: number;
-    spectralFlatness: number;
-  };
-  timestamp?: number;
-  speaker?: number;
-}
-
-export interface AudioAnalysisData {
-  pointsPerSecond: number; // How many consolidated value per second
-  durationMs?: number; // Duration of the audio in milliseconds
-  bitDepth: number; // Bit depth of the audio
-  numberOfChannels: number; // Number of audio channels
-  sampleRate: number; // Sample rate of the audio
-  dataPoints: DataPoint[];
-  amplitudeRange: {
-    min: number;
-    max: number;
-  };
-  speakerChanges?: {
-    timestamp: number;
-    speaker: number;
-  }[];
-}
+const MAX_VISUALIZATION_DURATION_MS = 10000; // Default maximum duration for visualization
 
 export interface ExtractMetadataProps {
   fileUri: string;
@@ -76,6 +38,7 @@ export interface UseAudioRecorderState {
   isPaused: boolean;
   duration: number; // Duration of the recording
   size: number; // Size in bytes of the recorded audio
+  analysisData?: AudioAnalysisData;
 }
 
 interface RecorderState {
@@ -83,11 +46,13 @@ interface RecorderState {
   isPaused: boolean;
   duration: number;
   size: number;
+  analysisData?: AudioAnalysisData;
 }
 
 type RecorderAction =
   | { type: "START" | "STOP" | "PAUSE" | "RESUME" }
-  | { type: "UPDATE_STATUS"; payload: { duration: number; size: number } };
+  | { type: "UPDATE_STATUS"; payload: { duration: number; size: number } }
+  | { type: "UPDATE_ANALYSIS"; payload: AudioAnalysisData };
 
 function recorderReducer(
   state: RecorderState,
@@ -114,6 +79,11 @@ function recorderReducer(
         duration: action.payload.duration,
         size: action.payload.size,
       };
+    case "UPDATE_ANALYSIS":
+      return {
+        ...state,
+        analysisData: action.payload,
+      };
     default:
       return state;
   }
@@ -128,6 +98,21 @@ export function useAudioRecorder({
     isPaused: false,
     duration: 0,
     size: 0,
+    analysisData: undefined,
+  });
+
+  const analysisListenerRef = useRef<Subscription | null>(null);
+
+  const audioAnalysisData = useRef<AudioAnalysisData>({
+    pointsPerSecond: 20,
+    bitDepth: 32,
+    numberOfChannels: 1,
+    sampleRate: 44100,
+    dataPoints: [],
+    amplitudeRange: {
+      min: Number.MAX_VALUE,
+      max: Number.MIN_VALUE,
+    },
   });
 
   const onAudioStreamRef = useRef<
@@ -147,6 +132,47 @@ export function useAudioRecorder({
     [debug],
   );
 
+  const handleAudioAnalysis = useCallback(
+    async (analysis: AudioAnalysisData, visualizationDuration: number) => {
+      const analysisData = audioAnalysisData.current;
+      const maxDuration = visualizationDuration;
+      const newDurationMs =
+        (analysisData.durationMs || 0) + (analysis.durationMs || 0);
+
+      // Combine data points
+      analysisData.dataPoints = [
+        ...analysisData.dataPoints,
+        ...analysis.dataPoints,
+      ];
+
+      // Trim data points to keep within the maximum duration
+      let totalDuration = newDurationMs;
+      while (
+        totalDuration > maxDuration &&
+        analysisData.dataPoints.length > 0
+      ) {
+        const removedPoint = analysisData.dataPoints.shift();
+        totalDuration -= removedPoint ? 1000 / analysis.pointsPerSecond : 0;
+      }
+
+      analysisData.durationMs = totalDuration;
+
+      // Update amplitude range
+      analysisData.amplitudeRange.min = Math.min(
+        analysisData.amplitudeRange.min,
+        analysis.amplitudeRange.min,
+      );
+      analysisData.amplitudeRange.max = Math.max(
+        analysisData.amplitudeRange.max,
+        analysis.amplitudeRange.max,
+      );
+
+      // Dispatch the updated analysis data
+      dispatch({ type: "UPDATE_ANALYSIS", payload: { ...analysisData } });
+    },
+    [logDebug],
+  );
+
   const handleAudioEvent = useCallback(
     async (eventData: AudioEventPayload) => {
       const {
@@ -160,7 +186,7 @@ export function useAudioRecorder({
         mimeType,
         buffer,
       } = eventData;
-      logDebug(`useAudioRecorder] Received audio event:`, {
+      logDebug(`[handleAudioEvent] Received audio event:`, {
         fileUri,
         deltaSize,
         totalSize,
@@ -244,24 +270,27 @@ export function useAudioRecorder({
   }, [checkStatus, state.isRecording]);
 
   useEffect(() => {
-    logDebug(`${TAG} Registering audio event listener`);
-    const subscribe = addAudioEventListener(handleAudioEvent);
-    logDebug(`${TAG} Subscribed to audio event listener`, subscribe);
+    logDebug(`Registering audio event listener`);
+    const subscribeAudio = addAudioEventListener(handleAudioEvent);
+
+    logDebug(`Subscribed to audio event listener and analysis listener`, {
+      subscribeAudio,
+    });
 
     return () => {
-      logDebug(`${TAG} Removing audio event listener`);
-      subscribe.remove();
+      logDebug(`Removing audio event listener`);
+      subscribeAudio.remove();
     };
-  }, [handleAudioEvent, logDebug]);
+  }, [handleAudioEvent, handleAudioAnalysis, logDebug]);
 
   const startRecording = useCallback(
     async (recordingOptions: RecordingConfig) => {
       if (debug) {
-        logDebug(`${TAG} start recoding`, recordingOptions);
+        logDebug(`start recoding`, recordingOptions);
       }
 
-      // remove onAudioStream from recordingOptions
       const { onAudioStream, ...options } = recordingOptions;
+      const { maxRecentDataDuration = 10000, enableProcessing } = options;
       if (typeof onAudioStream === "function") {
         onAudioStreamRef.current = onAudioStream;
       } else {
@@ -272,6 +301,14 @@ export function useAudioRecorder({
         await ExpoAudioStreamModule.startRecording(options);
       dispatch({ type: "START" });
 
+      if (enableProcessing) {
+        const listener = addAudioAnalysisListener(async (analysisData) => {
+          await handleAudioAnalysis(analysisData, maxRecentDataDuration);
+        });
+
+        analysisListenerRef.current = listener;
+      }
+
       return startResult;
     },
     [logDebug],
@@ -279,6 +316,12 @@ export function useAudioRecorder({
 
   const stopRecording = useCallback(async () => {
     logDebug(`${TAG} stoping recording`);
+
+    if (analysisListenerRef.current) {
+      analysisListenerRef.current.remove();
+      analysisListenerRef.current = null;
+    }
+
     const stopResult: AudioStreamResult =
       await ExpoAudioStreamModule.stopRecording();
     onAudioStreamRef.current = null;
@@ -310,5 +353,6 @@ export function useAudioRecorder({
     isRecording: state.isRecording,
     duration: state.duration,
     size: state.size,
+    analysisData: state.analysisData,
   };
 }

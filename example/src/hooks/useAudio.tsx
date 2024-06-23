@@ -1,19 +1,28 @@
 import { useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
+import { extractAudioAnalysis } from "../../../src";
+import { AudioAnalysisData } from "../../../src/ExpoAudioStream.types";
 import { fetchArrayBuffer } from "../utils";
+
+interface UseAudioOptions {
+  loadArrayBuffer?: boolean;
+  extractAnalysis?: boolean;
+}
 
 export const useAudio = (
   audioUri: string | undefined,
-  showWaveform: boolean,
+  options: UseAudioOptions = { loadArrayBuffer: false, extractAnalysis: false },
 ) => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer | null>(null);
+  const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData | null>(
+    null,
+  );
   const { logger } = useLogger("useAudio");
   const { show } = useToast();
 
@@ -24,24 +33,40 @@ export const useAudio = (
   }, [sound]);
 
   useEffect(() => {
-    if (!showWaveform || !audioUri) return;
+    if (!audioUri) return;
 
-    const loadArrayBuffer = async () => {
+    const processAudioData = async () => {
       try {
-        logger.debug(`Fetching audio array buffer from ${audioUri}`);
-        const buffer = await fetchArrayBuffer(audioUri);
-        setArrayBuffer(buffer);
-        logger.debug(
-          `Fetched audio array buffer from ${audioUri} --> length: ${buffer.byteLength} bytes`,
-        );
+        if (options.loadArrayBuffer) {
+          logger.debug(`Fetching audio array buffer from ${audioUri}`);
+          const buffer = await fetchArrayBuffer(audioUri);
+          setArrayBuffer(buffer);
+          logger.debug(
+            `Fetched audio array buffer from ${audioUri} --> length: ${buffer.byteLength} bytes`,
+          );
+        }
+
+        logger.debug(`Loading audio from ${audioUri}`);
+        if (options.extractAnalysis) {
+          logger.debug(`Extracting audio analysis from ${audioUri}`);
+          const analysis = await extractAudioAnalysis({ fileUri: audioUri });
+          setAudioAnalysis(analysis);
+          logger.debug(`Extracted audio analysis from ${audioUri}`, analysis);
+        }
       } catch (error) {
-        logger.error(`Failed to fetch audio ${audioUri} array buffer:`, error);
+        logger.error(`Failed to process audio ${audioUri}:`, error);
         show({ type: "error", message: "Failed to load audio data" });
       }
     };
 
-    loadArrayBuffer().catch(logger.error);
-  }, [audioUri, showWaveform, logger, show]);
+    processAudioData().catch(logger.error);
+  }, [
+    audioUri,
+    options.loadArrayBuffer,
+    options.extractAnalysis,
+    logger,
+    show,
+  ]);
 
   const updatePlaybackStatus = useCallback(
     ({ isLoaded, didJustFinish, positionMillis, error }: any) => {
@@ -90,6 +115,7 @@ export const useAudio = (
 
   return {
     arrayBuffer,
+    audioAnalysis,
     isPlaying,
     position,
     togglePlayPause,

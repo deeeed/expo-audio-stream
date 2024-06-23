@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Features {
+public struct Features {
     var energy: Float
     var mfcc: [Float]
     var rms: Float

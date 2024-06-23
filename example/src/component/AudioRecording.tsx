@@ -1,9 +1,11 @@
 import { AppTheme, Button, useTheme, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import * as Sharing from "expo-sharing";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator } from "react-native-paper";
 
+import { AudioVisualizer } from "./audio-visualizer/audio-visualizer";
 import { RawWaveForm } from "./waveform/rawwaveform";
 import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
 import { useAudio } from "../hooks/useAudio";
@@ -56,9 +58,10 @@ export const AudioRecording = ({
   const { show } = useToast();
   const audioUri = webAudioUri ?? recording.fileUri;
   const theme = useTheme();
-  const { arrayBuffer, isPlaying, position, togglePlayPause } = useAudio(
+  const [processing, setProcessing] = useState(false);
+  const { audioAnalysis, isPlaying, position, togglePlayPause } = useAudio(
     audioUri,
-    showWaveform,
+    { extractAnalysis: true },
   );
   const styles = useMemo(
     () => getStyles({ isPlaying, theme }),
@@ -84,6 +87,12 @@ export const AudioRecording = ({
       show({ type: "error", message: "Failed to share the file" });
     }
   };
+
+  useEffect(() => {
+    return () => {
+      logger.debug("AudioRecording unmounted");
+    };
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -112,7 +121,19 @@ export const AudioRecording = ({
 
       <Text style={[styles.positionText]}>Position: {position} ms</Text>
 
-      {arrayBuffer && (
+      {processing && <ActivityIndicator />}
+
+      {audioAnalysis && (
+        <AudioVisualizer
+          canvasHeight={150}
+          playing={isPlaying}
+          showRuler
+          currentTime={position / 1000}
+          audioData={audioAnalysis}
+          showDottedLine
+        />
+      )}
+      {/* {arrayBuffer && (
         <RawWaveForm
           buffer={arrayBuffer}
           waveformHeight={200}
@@ -127,7 +148,7 @@ export const AudioRecording = ({
           channels={recording.channels}
           mode="static" // Adjust mode as needed
         />
-      )}
+      )} */}
       <View style={styles.buttons}>
         <Button onPress={togglePlayPause}>
           {isPlaying ? "Pause" : "Play"}

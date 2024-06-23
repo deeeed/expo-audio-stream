@@ -1,10 +1,10 @@
 import { useTheme } from "@siteed/design-system";
+import { AudioAnalysisData } from "@siteed/expo-audio-stream";
 import React, { useState } from "react";
 import { Button, StyleSheet } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AudioAnalysisData } from "../../../../src/useAudioRecording";
 import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
 
 const getStyles = () => {

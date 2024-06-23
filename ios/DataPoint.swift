@@ -8,14 +8,14 @@
 import Foundation
 
 
-struct DataPoint {
-    var amplitude: Float
-    var activeSpeech: Bool?
-    var dB: Float?
-    var silent: Bool?
-    var features: Features?
-    var timestamp: Float?
-    var speaker: Int?
+public struct DataPoint {
+    public var amplitude: Float
+    public var activeSpeech: Bool?
+    public var dB: Float?
+    public var silent: Bool?
+    public var features: Features?
+    public var timestamp: Float?
+    public var speaker: Int?
 }
 
 extension DataPoint {
