@@ -7,15 +7,9 @@ import {
   AudioRecorderProvider,
   useSharedAudioRecorder,
 } from "./AudioRecorder.provider";
-import { AudioEventPayload } from "./ExpoAudioStream.types";
+import { AudioAnalysisData, AudioEventPayload } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
-import {
-  AudioAnalysisData,
-  AudioDataEvent,
-  ExtractMetadataProps,
-  UseAudioRecorderState,
-  useAudioRecorder,
-} from "./useAudioRecording";
+import { ExtractMetadataProps, useAudioRecorder } from "./useAudioRecording";
 import { convertPCMToFloat32, getWavFileInfo, writeWavHeader } from "./utils";
 
 const emitter = new EventEmitter(ExpoAudioStreamModule);
@@ -29,6 +23,13 @@ export function addAudioEventListener(
 ): Subscription {
   console.log(`addAudioEventListener`, listener);
   return emitter.addListener<AudioEventPayload>("AudioData", listener);
+}
+
+export function addAudioAnalysisListener(
+  listener: (event: AudioAnalysisData) => Promise<void>,
+): Subscription {
+  console.log(`addAudioAnalysisListener`, listener);
+  return emitter.addListener<AudioAnalysisData>("AudioAnalysis", listener);
 }
 
 export const extractAudioAnalysis = async ({
@@ -68,7 +69,7 @@ export const extractAudioAnalysis = async ({
         reject(error);
       };
 
-      console.log(`before posting wavmetadata`, wavMetadata)
+      console.log(`before posting wavmetadata`, wavMetadata);
       console.log("Posting message to worker", arrayBuffer?.byteLength);
       worker.postMessage({
         channelData,
@@ -80,17 +81,39 @@ export const extractAudioAnalysis = async ({
         algorithm,
       });
     });
-  } else if(Platform.OS ==="ios" ) {
+  } else if (Platform.OS === "ios") {
     const res = await ExpoAudioStreamModule.extractAudioAnalysis({
       fileUri,
       pointsPerSecond,
       algorithm,
-    })
+    });
     console.log(`extractAudioAnalysis`, res);
     return res;
   } else {
     throw new Error("Not implemented");
   }
+};
+
+export interface ExtractWaveformProps {
+  fileUri: string;
+  numberOfSamples: number;
+  offset?: number;
+  length?: number;
+}
+export const extractWaveform = async ({
+  fileUri,
+  numberOfSamples,
+  offset = 0,
+  length,
+}: ExtractWaveformProps): Promise<unknown> => {
+  const res = await ExpoAudioStreamModule.extractAudioAnalysis({
+    fileUri,
+    numberOfSamples,
+    offset,
+    length,
+  });
+  console.log(`extractWaveform`, res);
+  return res;
 };
 
 let createWebWorker: () => Worker;
@@ -107,8 +130,10 @@ export {
   AudioRecorderProvider,
   convertPCMToFloat32,
   createWebWorker,
+  getWavFileInfo,
   useAudioRecorder,
   useSharedAudioRecorder,
   writeWavHeader as writeWaveHeader,
 };
-export type { AudioDataEvent, AudioEventPayload, UseAudioRecorderState };
+
+export * from "./ExpoAudioStream.types";

@@ -1,4 +1,15 @@
 import { Button, Picker, ScreenWrapper } from "@siteed/design-system";
+import {
+  AudioAnalysisData,
+  AudioDataEvent,
+  AudioStreamResult,
+  RecordingConfig,
+  SampleRate,
+  StartAudioStreamResult,
+  getWavFileInfo,
+  useSharedAudioRecorder,
+  writeWaveHeader,
+} from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
@@ -7,16 +18,8 @@ import { useCallback, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { atob, btoa } from "react-native-quick-base64";
 
-import { useSharedAudioRecorder, writeWaveHeader } from "../../../../src";
-import {
-  AudioStreamResult,
-  RecordingConfig,
-  SampleRate,
-  StartAudioStreamResult,
-} from "../../../../src/ExpoAudioStream.types";
-import { AudioDataEvent } from "../../../../src/useAudioRecording";
-import { getWavFileInfo } from "../../../../src/utils";
 import { AudioRecording } from "../../component/AudioRecording";
+import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
 import { RawWaveForm } from "../../component/waveform/rawwaveform";
 import { WaveformProps } from "../../component/waveform/waveform.types";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
@@ -46,6 +49,19 @@ const concatenateBuffers = (buffers: ArrayBuffer[]): ArrayBuffer => {
   return result.buffer;
 };
 
+const baseRecordingConfig: RecordingConfig = {
+  interval: 500,
+  sampleRate: 44100,
+  encoding: "pcm_32bit",
+  enableProcessing: true,
+};
+
+if (Platform.OS === "ios") {
+  baseRecordingConfig.sampleRate = 48000;
+} else if (Platform.OS === "android") {
+  baseRecordingConfig.sampleRate = 16000;
+}
+
 export default function Record() {
   const [error, setError] = useState<string | null>(null);
   const [visualizationType, setVisualizationType] =
@@ -56,9 +72,7 @@ export default function Record() {
     useState<StartAudioStreamResult | null>(null);
   const [startRecordingConfig, setStartRecordingConfig] =
     useState<RecordingConfig>({
-      interval: 500,
-      sampleRate: isWeb ? 44100 : 16000,
-      encoding: isWeb ? "pcm_32bit" : "pcm_16bit",
+      ...baseRecordingConfig,
       onAudioStream: (a) => onAudioData(a),
     });
   const [result, setResult] = useState<AudioStreamResult | null>(null);
@@ -130,8 +144,14 @@ export default function Record() {
     }
   }, []);
 
-  const { startRecording, stopRecording, duration, size, isRecording } =
-    useSharedAudioRecorder();
+  const {
+    startRecording,
+    stopRecording,
+    duration,
+    size,
+    isRecording,
+    analysisData,
+  } = useSharedAudioRecorder();
 
   const handleSaveFile = () => {
     if (webAudioUri) {
@@ -281,21 +301,16 @@ export default function Record() {
 
   const renderRecording = () => (
     <View style={{ gap: 10, display: "flex" }}>
-      {visualBuffer && (
-        <View style={styles.waveformContainer}>
-          <Text>len: {visualBuffer.byteLength}</Text>
-          <RawWaveForm
-            buffer={visualBuffer}
-            mode="live"
-            showRuler
-            debug
-            visualizationType={visualizationType}
-            sampleRate={streamConfig?.sampleRate}
-            channels={streamConfig?.channels}
-            bitDepth={streamConfig?.bitDepth}
-          />
-        </View>
+      {analysisData && (
+        <AudioVisualizer
+          candleSpace={2}
+          candleWidth={5}
+          canvasHeight={200}
+          mode="live"
+          audioData={analysisData}
+        />
       )}
+
       <Text>Duration: {formatDuration(duration)}</Text>
       <Text>Size: {formatBytes(size)}</Text>
       {streamConfig?.sampleRate ? (

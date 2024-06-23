@@ -1,45 +1,27 @@
 import {
-  Atlas,
   Canvas,
   Group,
   Path,
-  Rect,
   SkPath,
   Skia,
-  drawAsImage,
-  rect,
-  useRSXformBuffer,
   useTouchHandler,
 } from "@shopify/react-native-skia";
 import { Button } from "@siteed/design-system";
-import { set } from "lodash";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  LayoutChangeEvent,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { AudioAnalysisData, DataPoint } from "@siteed/expo-audio-stream";
+import React, { useCallback, useEffect, useState } from "react";
+import { LayoutChangeEvent, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Text } from "react-native-paper";
-import Animated, {
+import {
   SharedValue,
   runOnJS,
-  useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
 
-import AnimatedCandle, {
-  ACTIVE_SPEECH_COLOR,
-  INACTIVE_SPEECH_COLOR,
-} from "./animated-candle";
+import AnimatedCandle, { ACTIVE_SPEECH_COLOR } from "./animated-candle";
 import { SkiaTimeRuler } from "./skia-time-ruler";
-import {
-  AudioAnalysisData,
-  DataPoint,
-} from "../../../../src/useAudioRecording";
 
 const getStyles = (screenWidth: number, canvasWidth: number) => {
   return StyleSheet.create({
@@ -74,9 +56,9 @@ const getStyles = (screenWidth: number, canvasWidth: number) => {
 interface AudioVisualizerProps {
   audioData: AudioAnalysisData;
   currentTime?: number;
-  canvasHeight: number;
-  candleWidth: number;
-  candleSpace: number;
+  canvasHeight?: number;
+  candleWidth?: number;
+  candleSpace?: number;
   showDottedLine?: boolean;
   showRuler?: boolean;
   mode?: "static" | "live" | "scaled";
@@ -86,10 +68,10 @@ interface AudioVisualizerProps {
 
 export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   audioData,
-  canvasHeight,
-  candleWidth,
+  canvasHeight = 100,
+  candleWidth = 5,
   currentTime: fullCurrentTime,
-  candleSpace,
+  candleSpace = 2,
   playing = false,
   mode = "static",
   showRuler = false,
@@ -148,7 +130,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   );
 
   const maxTranslateX =
-    dataPoints.length * (candleWidth + candleSpace) + canvasWidth / 2;
+    dataPoints.length * (candleWidth + candleSpace) + canvasWidth;
 
   const maxDisplayedItems = Math.ceil(
     screenWidth / (candleWidth + candleSpace),
@@ -218,7 +200,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             visible: false,
           };
         }
-        console.log(`itemIndex: ${itemIndex} `, activePoints[i]);
+        // console.log(`itemIndex: ${itemIndex} `, activePoints[i]);
       }
 
       console.log(`Updated points:`, activePoints);
@@ -290,8 +272,11 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     if (durationMs) {
       const currentTimeInMs = currentTime * 1000; // Convert currentTime to milliseconds
       const progressRatio = currentTimeInMs / durationMs;
-      const allowedTranslateX = Math.abs(maxTranslateX - minTranslateX);
+      const allowedTranslateX = -(-maxTranslateX + screenWidth);
       const x = -(progressRatio * allowedTranslateX);
+      console.log(
+        `SyncTranslateX: ${x} progressRatio: ${progressRatio} allowedTranslateX: ${allowedTranslateX} other=${-maxTranslateX + screenWidth}`,
+      );
       translateX.value = withTiming(x, { duration: SYNC_DURATION }); // Smooth transition
     }
   };
@@ -360,7 +345,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   return (
     <View style={styles.container} onLayout={handleLayout}>
-      {/* <Text style={styles.text}>dataPoints: {dataPoints.length}</Text>
+      <Text style={styles.text}>dataPoints: {dataPoints.length}</Text>
       <Text>activePoints: {activePoints.length}</Text>
       <Text style={styles.text}>canvasHeight: {canvasHeight}</Text>
       <Text style={styles.text}>canvasWidth: {canvasWidth}</Text>
@@ -372,7 +357,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         Amplitude: [ {audioData.amplitudeRange.min},
         {audioData.amplitudeRange.max} ]{" "}
       </Text>
-      <Text>canvasHeight: {canvasHeight}</Text> */}
+      <Text>canvasHeight: {canvasHeight}</Text>
       <Text>{JSON.stringify(selectedCandle, null, 2)}</Text>
       <Text style={styles.text}>currentTime: {currentTime}</Text>
       <Text style={styles.text}>durationMs: {audioData.durationMs}</Text>
@@ -416,7 +401,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                   if (candle.amplitude === 0) return null;
 
                   let delta =
-                    Math.ceil((maxDisplayedItems + 3) / 2) *
+                    Math.ceil(maxDisplayedItems / 2) *
                     (candleWidth + candleSpace);
                   if (mode === "live") {
                     delta = 0;
@@ -460,8 +445,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             style={[
               {
                 position: "absolute",
-                top: 10 + canvasHeight / 6,
-                left: screenWidth / 2 + 10,
+                top: showRuler ? 10 + canvasHeight / 6 : canvasHeight / 6,
+                left: screenWidth / 2,
                 width: 2,
                 height: canvasHeight / 1.5,
                 backgroundColor: "red",

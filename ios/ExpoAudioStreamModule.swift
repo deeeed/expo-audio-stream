@@ -2,6 +2,7 @@ import ExpoModulesCore
 import AVFoundation
 
 let audioDataEvent: String = "AudioData"
+let audioAnalysisEvent: String = "AudioAnalysis"
 
 public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     private var streamManager = AudioStreamManager()
@@ -10,53 +11,68 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         Name("ExpoAudioStream")
         
         // Defines event names that the module can send to JavaScript.
-        Events(audioDataEvent)
+        Events([audioDataEvent, audioAnalysisEvent])
         
         OnCreate {
             print("Setting streamManager delegate")
             streamManager.delegate = self
         }
         
-        /// Asynchronously extracts audio analysis data from an audio file.
+        /// Extracts audio analysis data from an audio file.
         ///
         /// - Parameters:
         ///   - options: A dictionary containing:
         ///     - `fileUri`: The URI of the audio file.
         ///     - `pointsPerSecond`: The number of data points to extract per second of audio.
         ///     - `algorithm`: The algorithm to use for extraction.
-        ///     - Additional optional parameters to specify which features to extract (e.g., `energy`, `mfcc`, `rms`, etc.).
+        ///     - `features`: A dictionary specifying which features to extract (e.g., `energy`, `mfcc`, `rms`, etc.).
         ///   - promise: A promise to resolve with the extracted audio analysis data or reject with an error.
+        /// - Returns: Promise to be resolved with audio analysis data.
         AsyncFunction("extractAudioAnalysis") { (options: [String: Any], promise: Promise) in
             guard let fileUri = options["fileUri"] as? String,
                   let url = URL(string: fileUri),
                   let pointsPerSecond = options["pointsPerSecond"] as? Int,
-                  let algorithm = options["algorithm"] as? String else {
+                  let algorithm = options["algorithm"] as? String,
+                  let features = options["features"] as? [String: Bool] else {
                 promise.reject("INVALID_ARGUMENTS", "Invalid arguments provided")
                 return
             }
             
-            let featureOptions = self.extractFeatureOptions(from: options)
+            let featureOptions = self.extractFeatureOptions(from: features)
             
             DispatchQueue.global().async {
-                if let result = extractAudioAnalysis(fileUrl: url, pointsPerSecond: pointsPerSecond, algorithm: algorithm, featureOptions: featureOptions) {
-                    Logger.debug("Extraction result: \(result)")
-                    let resultDict = result.toDictionary()
-                    promise.resolve(resultDict)
-                } else {
-                    promise.reject("PROCESSING_ERROR", "Failed to process audio data")
+                do {
+                    let audioFile = try AVAudioFile(forReading: url)
+                    let bitDepth = audioFile.fileFormat.settings[AVLinearPCMBitDepthKey] as? Int ?? 16
+                    let numberOfChannels = Int(audioFile.fileFormat.channelCount)
+                    
+                    let audioProcessor = try AudioProcessor(url: url, resolve: { result in
+                        promise.resolve(result)
+                    }, reject: { code, message in
+                        promise.reject(code, message)
+                    })
+                    
+                    if let result = audioProcessor.processAudioData(numberOfSamples: nil, pointsPerSecond: pointsPerSecond, algorithm: algorithm, featureOptions: featureOptions, bitDepth: bitDepth, numberOfChannels: numberOfChannels) {
+                        promise.resolve(result.toDictionary())
+                    } else {
+                        promise.reject("PROCESSING_ERROR", "Failed to process audio data")
+                    }
+                } catch {
+                    promise.reject("PROCESSING_ERROR", "Failed to initialize audio processor: \(error.localizedDescription)")
                 }
             }
         }
         
-        /// Asynchronously extracts waveform data from an audio file.
+        /// Extracts waveform data from an audio file.
         ///
         /// - Parameters:
         ///   - options: A dictionary containing:
         ///     - `fileUri`: The URI of the audio file.
-        ///     - `numberOfSamples`: The number of waveform samples to extract.
-        ///     - `offset`: The offset (in samples) to start reading from (optional, default is 0).
-        ///     - `length`: The length (in samples) of the audio to read (optional).
+        ///     - `numberOfSamples`: The number of samples to extract for the waveform.
+        ///     - `offset`: The optional offset to start reading from. Defaults to 0 if not provided.
+        ///     - `length`: The optional length of the audio to read. Defaults to the entire file if not provided.
         ///   - promise: A promise to resolve with the extracted waveform data or reject with an error.
+        /// - Returns: Promise to be resolved with waveform data.
         AsyncFunction("extractWaveform") { (options: [String: Any], promise: Promise) in
             guard let fileUri = options["fileUri"] as? String,
                   let url = URL(string: fileUri),
@@ -66,22 +82,28 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             }
             
             let offset = options["offset"] as? Int ?? 0
-            let length = options["length"] as? UInt
-            
             DispatchQueue.global().async {
                 do {
-                    let extractor = try WaveformExtractor(url: url, resolve: { result in
+                    let audioFile = try AVAudioFile(forReading: url)
+                    let bitDepth = audioFile.fileFormat.settings[AVLinearPCMBitDepthKey] as? Int ?? 16
+                    let numberOfChannels = Int(audioFile.fileFormat.channelCount)
+                    
+                    // If length is not provided, default to the entire file length
+                    let length = options["length"] as? UInt ?? UInt(audioFile.length - AVAudioFramePosition(offset))
+                    
+                    let audioProcessor = try AudioProcessor(url: url, resolve: { result in
                         promise.resolve(result)
                     }, reject: { code, message in
                         promise.reject(code, message)
                     })
-                    if let waveform = extractor.extractWaveform(numberOfSamples: numberOfSamples, offset: offset, length: length) {
-                        promise.resolve(waveform)
+                    
+                    if let result = audioProcessor.processAudioData(numberOfSamples: numberOfSamples, offset: offset, length: length, pointsPerSecond: nil, algorithm: "rms", featureOptions: [:], bitDepth: bitDepth, numberOfChannels: numberOfChannels) {
+                        promise.resolve(result.toDictionary())
                     } else {
                         promise.reject("EXTRACTION_ERROR", "Failed to extract waveform")
                     }
                 } catch {
-                    promise.reject("EXTRACTION_ERROR", "Failed to initialize waveform extractor")
+                    promise.reject("EXTRACTION_ERROR", "Failed to initialize waveform extractor: \(error.localizedDescription)")
                 }
             }
         }
@@ -95,6 +117,11 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///     - `channelConfig`: The number of channels (default is 1 for mono).
         ///     - `audioFormat`: The bit depth for recording (default is 16 bits).
         ///     - `interval`: The interval in milliseconds at which to emit recording data (default is 1000 ms).
+        ///     - `enableProcessing`: Boolean to enable/disable audio processing (default is false).
+        ///     - `pointsPerSecond`: The number of data points to extract per second of audio (default is 20).
+        ///     - `algorithm`: The algorithm to use for extraction (default is "rms").
+        ///     - `featureOptions`: A dictionary of feature options to extract (default is empty).
+        ///     - `maxRecentDataDuration`: The maximum duration of recent data to keep for processing (default is 10.0 seconds).
         ///   - promise: A promise to resolve with the recording settings or reject with an error.
         AsyncFunction("startRecording") { (options: [String: Any], promise: Promise) in
             self.checkMicrophonePermission { granted in
@@ -109,7 +136,26 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 let bitDepth = options["audioFormat"] as? Int ?? 16 // 16bits
                 let interval = options["interval"] as? Int ?? 1000
                 
-                let settings = RecordingSettings(sampleRate: sampleRate, desiredSampleRate: sampleRate, numberOfChannels: numberOfChannels, bitDepth: bitDepth)
+                // Extract processing options with default values
+                let enableProcessing = options["enableProcessing"] as? Bool ?? false
+                let pointsPerSecond = options["pointsPerSecond"] as? Int ?? 20
+                let algorithm = options["algorithm"] as? String ?? "rms"
+                let featureOptions = options["featureOptions"] as? [String: Bool] ?? [:]
+                let maxRecentDataDuration = options["maxRecentDataDuration"] as? Double ?? 10.0
+                
+                // Create recording settings
+                let settings = RecordingSettings(
+                    sampleRate: sampleRate,
+                    desiredSampleRate: sampleRate,
+                    numberOfChannels: numberOfChannels,
+                    bitDepth: bitDepth,
+                    maxRecentDataDuration: enableProcessing ? maxRecentDataDuration : nil,
+                    enableProcessing: enableProcessing,
+                    pointsPerSecond: enableProcessing ? pointsPerSecond : nil,
+                    algorithm: enableProcessing ? algorithm : nil,
+                    featureOptions: enableProcessing ? featureOptions : nil
+                )
+                
                 if let result = self.streamManager.startRecording(settings: settings, intervalMilliseconds: interval) {
                     let resultDict: [String: Any] = [
                         "fileUri": result.fileUri,
@@ -207,6 +253,14 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         
         // Emit the event to JavaScript
         sendEvent(audioDataEvent, eventBody)
+    }
+    
+    func audioStreamManager(_ manager: AudioStreamManager, didReceiveProcessingResult result: AudioAnalysisData?) {
+        // Handle the processed audio data
+        // Emit the processing result event to JavaScript
+        let resultDict = result?.toDictionary() ?? [:]
+        Logger.debug("emitting \(audioAnalysisEvent) event with \(resultDict)")
+        sendEvent(audioAnalysisEvent, resultDict)
     }
     
     /// Checks microphone permission and calls the completion handler with the result.

@@ -7,7 +7,7 @@ import { AudioFilesProvider } from "../context/AudioFilesProvider";
 export default function RootLayout() {
   return (
     <LoggerProvider>
-      <AudioRecorderProvider>
+      <AudioRecorderProvider config={{ debug: true }}>
         <UIProvider>
           <AudioFilesProvider>
             <Stack>

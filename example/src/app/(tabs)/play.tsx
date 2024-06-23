@@ -1,4 +1,5 @@
 import { ScreenWrapper } from "@siteed/design-system";
+import { AudioAnalysisData } from "@siteed/expo-audio-stream";
 import { Audio } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -6,11 +7,8 @@ import { Button, Platform, StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 
 import { extractAudioAnalysis } from "../../../../src";
-import { AudioAnalysisData } from "../../../../src/useAudioRecording";
 import { WavFileInfo, getWavFileInfo } from "../../../../src/utils";
 import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
-import { RawWaveForm } from "../../component/waveform/rawwaveform";
-import { formatBytes } from "../../utils";
 
 const getStyles = () => {
   return StyleSheet.create({
