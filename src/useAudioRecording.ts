@@ -54,6 +54,18 @@ type RecorderAction =
   | { type: "UPDATE_STATUS"; payload: { duration: number; size: number } }
   | { type: "UPDATE_ANALYSIS"; payload: AudioAnalysisData };
 
+const defaultAnalysis: AudioAnalysisData = {
+  pointsPerSecond: 20,
+  bitDepth: 32,
+  numberOfChannels: 1,
+  sampleRate: 44100,
+  dataPoints: [],
+  amplitudeRange: {
+    min: Number.POSITIVE_INFINITY,
+    max: Number.NEGATIVE_INFINITY,
+  },
+};
+
 function recorderReducer(
   state: RecorderState,
   action: RecorderAction,
@@ -66,6 +78,7 @@ function recorderReducer(
         isPaused: false,
         duration: 0,
         size: 0,
+        analysisData: defaultAnalysis, // Reset analysis data
       };
     case "STOP":
       return { ...state, isRecording: false, isPaused: false };
@@ -102,18 +115,7 @@ export function useAudioRecorder({
   });
 
   const analysisListenerRef = useRef<Subscription | null>(null);
-
-  const audioAnalysisData = useRef<AudioAnalysisData>({
-    pointsPerSecond: 20,
-    bitDepth: 32,
-    numberOfChannels: 1,
-    sampleRate: 44100,
-    dataPoints: [],
-    amplitudeRange: {
-      min: Number.MAX_VALUE,
-      max: Number.MIN_VALUE,
-    },
-  });
+  const analysisRef = useRef<AudioAnalysisData>({ ...defaultAnalysis });
 
   const onAudioStreamRef = useRef<
     ((_: AudioDataEvent) => Promise<void>) | null
@@ -134,40 +136,65 @@ export function useAudioRecorder({
 
   const handleAudioAnalysis = useCallback(
     async (analysis: AudioAnalysisData, visualizationDuration: number) => {
-      const analysisData = audioAnalysisData.current;
+      let analysisData = analysisRef.current;
+      if (!analysisData) {
+        analysisData = { ...defaultAnalysis };
+      }
       const maxDuration = visualizationDuration;
-      const newDurationMs =
-        (analysisData.durationMs || 0) + (analysis.durationMs || 0);
+
+      logDebug(
+        `[handleAudioAnalysis] Received audio analysis: maxDuration=${maxDuration} analysis.dataPoints=${analysis.dataPoints.length} analysisData.dataPoints=${analysisData.dataPoints.length}`,
+        analysis,
+      );
 
       // Combine data points
-      analysisData.dataPoints = [
+      const combinedDataPoints = [
         ...analysisData.dataPoints,
         ...analysis.dataPoints,
       ];
 
-      // Trim data points to keep within the maximum duration
-      let totalDuration = newDurationMs;
-      while (
-        totalDuration > maxDuration &&
-        analysisData.dataPoints.length > 0
-      ) {
-        const removedPoint = analysisData.dataPoints.shift();
-        totalDuration -= removedPoint ? 1000 / analysis.pointsPerSecond : 0;
+      // Calculate the new duration
+      const pointsPerSecond =
+        analysis.pointsPerSecond || analysisData.pointsPerSecond;
+      const maxDataPoints = (pointsPerSecond * visualizationDuration) / 1000;
+
+      logDebug(
+        `[handleAudioAnalysis] Combined data points before trimming: combinedDataPointsLength=${combinedDataPoints.length} vs maxDataPoints=${maxDataPoints}`,
+      );
+
+      // Trim data points to keep within the maximum number of data points
+      if (combinedDataPoints.length > maxDataPoints) {
+        combinedDataPoints.splice(0, combinedDataPoints.length - maxDataPoints);
       }
 
-      analysisData.durationMs = totalDuration;
+      analysisData.dataPoints = combinedDataPoints;
+      analysisData.durationMs =
+        combinedDataPoints.length * (1000 / pointsPerSecond);
 
       // Update amplitude range
-      analysisData.amplitudeRange.min = Math.min(
+      const newMin = Math.min(
         analysisData.amplitudeRange.min,
         analysis.amplitudeRange.min,
       );
-      analysisData.amplitudeRange.max = Math.max(
+      const newMax = Math.max(
         analysisData.amplitudeRange.max,
         analysis.amplitudeRange.max,
       );
 
-      // Dispatch the updated analysis data
+      analysisData.amplitudeRange = {
+        min: newMin,
+        max: newMax,
+      };
+
+      logDebug(
+        `[handleAudioAnalysis] Updated analysis data: durationMs=${analysisData.durationMs}`,
+        analysisData,
+      );
+
+      // Update the ref
+      analysisRef.current = analysisData;
+
+      // Dispatch the updated analysis data to state to trigger re-render
       dispatch({ type: "UPDATE_ANALYSIS", payload: { ...analysisData } });
     },
     [logDebug],
@@ -186,16 +213,16 @@ export function useAudioRecorder({
         mimeType,
         buffer,
       } = eventData;
-      logDebug(`[handleAudioEvent] Received audio event:`, {
-        fileUri,
-        deltaSize,
-        totalSize,
-        position,
-        mimeType,
-        lastEmittedSize,
-        streamUuid,
-        encodedLength: encoded?.length,
-      });
+      // logDebug(`[handleAudioEvent] Received audio event:`, {
+      //   fileUri,
+      //   deltaSize,
+      //   totalSize,
+      //   position,
+      //   mimeType,
+      //   lastEmittedSize,
+      //   streamUuid,
+      //   encodedLength: encoded?.length,
+      // });
       if (deltaSize === 0) {
         // Ignore packet with no data
         return;
@@ -289,6 +316,8 @@ export function useAudioRecorder({
         logDebug(`start recoding`, recordingOptions);
       }
 
+      analysisRef.current = { ...defaultAnalysis }; // Reset analysis data
+
       const { onAudioStream, ...options } = recordingOptions;
       const { maxRecentDataDuration = 10000, enableProcessing } = options;
       if (typeof onAudioStream === "function") {
@@ -302,8 +331,13 @@ export function useAudioRecorder({
       dispatch({ type: "START" });
 
       if (enableProcessing) {
+        logDebug(`Enabling audio analysis listener`);
         const listener = addAudioAnalysisListener(async (analysisData) => {
-          await handleAudioAnalysis(analysisData, maxRecentDataDuration);
+          try {
+            await handleAudioAnalysis(analysisData, maxRecentDataDuration);
+          } catch (error) {
+            console.warn(`${TAG} Error processing audio analysis:`, error);
+          }
         });
 
         analysisListenerRef.current = listener;
