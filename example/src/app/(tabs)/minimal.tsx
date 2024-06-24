@@ -6,7 +6,7 @@ import {
   Text as SkText,
   useFont,
 } from "@shopify/react-native-skia";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Platform,
   Text,
@@ -125,7 +125,7 @@ const Minimal = () => {
     FONT_SIZE,
   );
   const [activePoints, setActivePoints] = useState<
-    { amplitude: number; id: number; visible: boolean }[]
+    { amplitude: number; id: number; visible: boolean; animated?: boolean }[]
   >(
     new Array(maxDisplayedItems * 3).fill({
       amplitude: 0,
@@ -138,10 +138,15 @@ const Minimal = () => {
   const maxTranslateX =
     wavepoints.length * (RECT_WIDTH + SPACE_BETWEEN_RECTS) + canvasWidth;
   const [startIndex, setStartIndex] = useState(0);
+  const prevLength = useRef<number>(wavepoints.length);
 
   const updateActivePoints = (x: number) => {
+    const currentLength = wavepoints.length;
+
     if (mode === "live") {
       const totalItems = wavepoints.length;
+      const newItemsCount = currentLength - prevLength.current;
+
       const startIndex = Math.max(
         0,
         totalItems - Math.floor(maxDisplayedItems / 2),
@@ -158,9 +163,15 @@ const Minimal = () => {
             id: itemIndex,
             amplitude: wavepoints[itemIndex],
             visible: true,
+            animated: itemIndex >= totalItems - newItemsCount, // Animate new items
           });
         } else {
-          updatedPoints.push({ id: -1, amplitude: 0, visible: false });
+          updatedPoints.push({
+            id: -1,
+            amplitude: 0,
+            visible: false,
+            animated: false,
+          });
         }
       }
 
@@ -219,6 +230,8 @@ const Minimal = () => {
     }
     // Force trigger re-rendering wiht counter otherwise it may not refresh when scrolling back to initial positions
     setCounter((prev) => prev + 1);
+    // Update previous length
+    prevLength.current = currentLength;
 
     // Logging for debugging
     console.log(
@@ -352,36 +365,38 @@ const Minimal = () => {
               }}
             >
               <Group transform={transform}>
-                {activePoints.map(({ id, amplitude, visible }, index) => {
-                  if (amplitude === 0 && id === -1) return null;
-                  const scaledAmplitude = amplitude * CANVAS_HEIGHT;
+                {activePoints.map(
+                  ({ id, amplitude, visible, animated }, index) => {
+                    if (amplitude === 0 && id === -1) return null;
+                    const scaledAmplitude = amplitude * CANVAS_HEIGHT;
 
-                  let delta =
-                    Math.ceil(maxDisplayedItems / 2) *
-                    (RECT_WIDTH + SPACE_BETWEEN_RECTS);
-                  if (mode === "live") {
-                    delta = 0;
-                  }
+                    let delta =
+                      Math.ceil(maxDisplayedItems / 2) *
+                      (RECT_WIDTH + SPACE_BETWEEN_RECTS);
+                    if (mode === "live") {
+                      delta = 0;
+                    }
 
-                  const x =
-                    (RECT_WIDTH + SPACE_BETWEEN_RECTS) * index +
-                    startIndex * (RECT_WIDTH + SPACE_BETWEEN_RECTS) +
-                    delta;
-                  // console.log(`x=${x} id=${id} visible=${visible}`);
-                  return (
-                    <WaveFormRect
-                      key={`r_${index}_${id}`}
-                      animated={false}
-                      x={x}
-                      y={CANVAS_HEIGHT / 2 - scaledAmplitude / 2}
-                      width={RECT_WIDTH}
-                      font={font}
-                      id={id}
-                      height={scaledAmplitude}
-                      color={visible ? "rgba(74, 144, 226, 1)" : "grey"}
-                    />
-                  );
-                })}
+                    const x =
+                      (RECT_WIDTH + SPACE_BETWEEN_RECTS) * index +
+                      startIndex * (RECT_WIDTH + SPACE_BETWEEN_RECTS) +
+                      delta;
+                    // console.log(`x=${x} id=${id} visible=${visible}`);
+                    return (
+                      <WaveFormRect
+                        key={`r_${index}_${id}`}
+                        animated={animated}
+                        x={x}
+                        y={CANVAS_HEIGHT / 2 - scaledAmplitude / 2}
+                        width={RECT_WIDTH}
+                        font={font}
+                        id={id}
+                        height={scaledAmplitude}
+                        color={visible ? "rgba(74, 144, 226, 1)" : "grey"}
+                      />
+                    );
+                  },
+                )}
               </Group>
             </Canvas>
             <View
