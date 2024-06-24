@@ -58,49 +58,52 @@ const SPACE_BETWEEN_RECTS = 2;
 const CANVAS_HEIGHT = 300;
 const FONT_SIZE = 20;
 
-const WaveFormRect = ({
-  x: targetX,
-  y: targetY,
-  id,
-  width,
-  font,
-  height: targetHeight,
-  color,
-  animated,
-}: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  id: number;
-  color: string;
-  animated?: boolean;
-  font: SkFont;
-}) => {
-  const y = useSharedValue(targetY / 2);
-  const height = useSharedValue(0);
-  const x = useSharedValue(targetX);
+const WaveFormRect = React.memo(
+  ({
+    x: targetX,
+    y: targetY,
+    id,
+    width,
+    font,
+    height: targetHeight,
+    color,
+    animated,
+  }: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    id: number;
+    color: string;
+    animated?: boolean;
+    font: SkFont;
+  }) => {
+    const y = useSharedValue(targetY / 2);
+    const height = useSharedValue(0);
+    const x = useSharedValue(targetX);
 
-  useEffect(() => {
-    if (!animated) {
-      return;
-    }
-    y.value = withTiming(targetY, { duration: 500 });
-    height.value = withTiming(targetHeight, { duration: 500 });
-    x.value = withTiming(targetX, { duration: 500 });
-  });
-  return (
-    <>
-      <Rect
-        width={width}
-        x={animated ? x : targetX}
-        y={animated ? y : targetY}
-        height={animated ? height : targetHeight}
-        color={color}
-      />
-    </>
-  );
-};
+    useEffect(() => {
+      if (!animated) {
+        return;
+      }
+      y.value = withTiming(targetY, { duration: 500 });
+      height.value = withTiming(targetHeight, { duration: 500 });
+      x.value = withTiming(targetX, { duration: 500 });
+    });
+    return (
+      <>
+        <Rect
+          width={width}
+          x={animated ? x : targetX}
+          y={animated ? y : targetY}
+          height={animated ? height : targetHeight}
+          color={color}
+        />
+      </>
+    );
+  },
+);
+WaveFormRect.displayName = "WaveFormRect";
 
 const Minimal = () => {
   const { width: screenWidth } = useWindowDimensions();
@@ -110,7 +113,7 @@ const Minimal = () => {
     [screenWidth, canvasWidth],
   );
   const translateX = useSharedValue(0);
-  const [wavepoints, setWavepoints] = useState(generateWaveform(300)); // Generate random waveform values
+  const [wavepoints, setWavepoints] = useState(generateWaveform(3000)); // Generate random waveform values
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"static" | "live">("static"); // live is always making the waveform on the right
 
@@ -200,7 +203,7 @@ const Minimal = () => {
     // Logging for debugging
     console.log(
       `updateActivePoints x: ${x} StartIndex: ${startIndex}`,
-      activePoints,
+      // activePoints,
     );
   };
 
@@ -223,7 +226,7 @@ const Minimal = () => {
       if (mode === "live") return; // Disable pan gesture in live mode
 
       const newTranslateX = translateX.value + event.changeX;
-      console.log(`onChange: translateX: ${translateX.value} `, event);
+      // console.log(`onChange: translateX: ${translateX.value} `, event);
       const clampedTranslateX = Math.max(
         -maxTranslateX + screenWidth,
         Math.min(0, newTranslateX),
@@ -347,7 +350,7 @@ const Minimal = () => {
 
                   return (
                     <WaveFormRect
-                      key={"r" + id + "_" + index}
+                      key={`r_${index}_${id}`}
                       animated={false}
                       x={x}
                       y={CANVAS_HEIGHT / 2 - scaledAmplitude / 2}

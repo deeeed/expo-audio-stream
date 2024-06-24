@@ -20,7 +20,10 @@ import {
   withTiming,
 } from "react-native-reanimated";
 
-import AnimatedCandle, { ACTIVE_SPEECH_COLOR } from "./animated-candle";
+import AnimatedCandle, {
+  ACTIVE_SPEECH_COLOR,
+  INACTIVE_SPEECH_COLOR,
+} from "./animated-candle";
 import { SkiaTimeRuler } from "./skia-time-ruler";
 
 const getStyles = (screenWidth: number, canvasWidth: number) => {
@@ -134,7 +137,13 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   const [activePoints, setActivePoints] = useState<
     { amplitude: number; id: number; visible: boolean }[]
-  >([]);
+  >(
+    new Array(maxDisplayedItems * 3).fill({
+      amplitude: 0,
+      id: -1,
+      visible: false,
+    }),
+  );
 
   const lastUpdatedTranslateX = useRef<number>(0);
   const updateActivePoints = (x: number) => {
@@ -197,7 +206,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         // console.log(`itemIndex: ${itemIndex} `, activePoints[i]);
       }
 
-      console.log(`Updated points:`, activePoints);
+      // console.log(`Updated points:`, activePoints);
       setActivePoints(activePoints);
       setStartIndex(startIndex);
     }
@@ -382,16 +391,16 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 />
               )}
               {ready &&
-                activePoints.map((candle, index) => {
+                activePoints.map(({ id, amplitude, visible }, index) => {
+                  if (amplitude === 0 && id === -1) return null;
                   // let scaledAmplitude = candle.amplitude * canvasHeight;
                   // audioData.amplitudeRange.max ==> canvasHeight
                   // candle.amplitude ==> scaledAmplitude
-                  const scalingFactor = 3; // randomly chosen to better display the candle
+                  // const scalingFactor = 3; // randomly chosen to better display the candle
                   const scaledAmplitude =
-                    (candle.amplitude * (canvasHeight - 10)) /
+                    (amplitude * (canvasHeight - 10)) /
                     audioData.amplitudeRange.max;
                   // const scaledAmplitude = candle.amplitude * scalingFactor;
-                  if (candle.amplitude === 0) return null;
                   // const scaledAmplitude = 30;
 
                   let delta =
@@ -403,7 +412,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                   const x =
                     (candleWidth + candleSpace) * index +
                     startIndex * (candleWidth + candleSpace) +
-                    // paddingLeft +
                     delta;
 
                   // console.log(
@@ -413,15 +421,17 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
                   return (
                     <AnimatedCandle
-                      key={"ca" + index}
-                      color={ACTIVE_SPEECH_COLOR}
-                      animated={false}
-                      startY={canvasHeight / 2}
-                      height={scaledAmplitude}
-                      width={candleWidth}
-                      // x={index * (candleWidth + candleSpace) + paddingLeft}
+                      key={`ac_${index}_${id}`}
+                      animated={mode === "live"}
                       x={x}
                       y={canvasHeight / 2 - scaledAmplitude / 2}
+                      startY={canvasHeight / 2}
+                      width={candleWidth}
+                      height={scaledAmplitude}
+                      color={
+                        // visible ? ACTIVE_SPEECH_COLOR : INACTIVE_SPEECH_COLOR
+                        ACTIVE_SPEECH_COLOR
+                      }
                     />
                   );
                 })}
