@@ -48,4 +48,4 @@ const AnimatedCandle: React.FC<AnimatedCandleProps> = ({
   return <Rect x={targetX} y={y} width={width} height={height} color={color} />;
 };
 
-export default AnimatedCandle;
+export default React.memo(AnimatedCandle);
