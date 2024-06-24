@@ -113,7 +113,7 @@ const Minimal = () => {
     [screenWidth, canvasWidth],
   );
   const translateX = useSharedValue(0);
-  const [wavepoints, setWavepoints] = useState(generateWaveform(3000)); // Generate random waveform values
+  const [wavepoints, setWavepoints] = useState(generateWaveform(200)); // Generate random waveform values
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"static" | "live">("static"); // live is always making the waveform on the right
 
@@ -133,9 +133,10 @@ const Minimal = () => {
       visible: false,
     }),
   );
+  const [counter, setCounter] = useState(0);
 
   const maxTranslateX =
-    wavepoints.length * (RECT_WIDTH + SPACE_BETWEEN_RECTS) + canvasWidth / 2;
+    wavepoints.length * (RECT_WIDTH + SPACE_BETWEEN_RECTS) + canvasWidth;
   const [startIndex, setStartIndex] = useState(0);
 
   const updateActivePoints = (x: number) => {
@@ -169,23 +170,40 @@ const Minimal = () => {
     } else if (mode === "static") {
       const translateX = Math.abs(x);
       console.log(`x: ${x} translateX: ${translateX}`);
+
       const hiddenItemsLeft = Math.floor(
         translateX / (RECT_WIDTH + SPACE_BETWEEN_RECTS),
       );
-      const startIndex = Math.max(0, hiddenItemsLeft - maxDisplayedItems);
+
+      let itemsOffset = Math.floor(maxDisplayedItems / 2);
+      if (hiddenItemsLeft <= itemsOffset) {
+        // Ignore up to half of maxDisplayedItems / 2 items on the left
+        itemsOffset = hiddenItemsLeft;
+      }
+
+      const startIndex = Math.max(
+        0,
+        hiddenItemsLeft - maxDisplayedItems - itemsOffset,
+      );
       console.log(
         `hiddenItemsLeft: ${hiddenItemsLeft}  maxDisplayedItems=${maxDisplayedItems}`,
       );
+      console.log(`itemsOffset: ${itemsOffset} startIndex: ${startIndex}`);
 
+      // We directly update the activePoints array to avoid "flickering" when updating the state
       for (let i = 0; i < activePoints.length; i++) {
         const itemIndex = startIndex + i;
         if (itemIndex < wavepoints.length) {
+          const limitLeft = hiddenItemsLeft - itemsOffset;
+          const limitRight = hiddenItemsLeft + maxDisplayedItems - itemsOffset;
+          const visible = itemIndex >= limitLeft && itemIndex <= limitRight;
+          // console.log(
+          //   `itemIndex: ${itemIndex} visible: ${visible} limitLeft: ${limitLeft} limitRight: ${limitRight}`,
+          // );
           activePoints[i] = {
             id: itemIndex,
             amplitude: wavepoints[itemIndex],
-            visible:
-              itemIndex >= hiddenItemsLeft &&
-              itemIndex < hiddenItemsLeft + maxDisplayedItems,
+            visible,
           };
         } else {
           activePoints[i] = {
@@ -199,6 +217,8 @@ const Minimal = () => {
       setActivePoints(activePoints);
       setStartIndex(startIndex);
     }
+    // Force trigger re-rendering wiht counter otherwise it may not refresh when scrolling back to initial positions
+    setCounter((prev) => prev + 1);
 
     // Logging for debugging
     console.log(
@@ -337,7 +357,7 @@ const Minimal = () => {
                   const scaledAmplitude = amplitude * CANVAS_HEIGHT;
 
                   let delta =
-                    Math.ceil((maxDisplayedItems + 3) / 2) *
+                    Math.ceil(maxDisplayedItems / 2) *
                     (RECT_WIDTH + SPACE_BETWEEN_RECTS);
                   if (mode === "live") {
                     delta = 0;
@@ -347,7 +367,7 @@ const Minimal = () => {
                     (RECT_WIDTH + SPACE_BETWEEN_RECTS) * index +
                     startIndex * (RECT_WIDTH + SPACE_BETWEEN_RECTS) +
                     delta;
-
+                  // console.log(`x=${x} id=${id} visible=${visible}`);
                   return (
                     <WaveFormRect
                       key={`r_${index}_${id}`}
@@ -368,10 +388,10 @@ const Minimal = () => {
               style={[
                 {
                   position: "absolute",
-                  top: 10 + CANVAS_HEIGHT / 4,
-                  left: screenWidth / 2 + 10,
+                  top: CANVAS_HEIGHT / 6,
+                  left: screenWidth / 2,
                   width: 2,
-                  height: CANVAS_HEIGHT / 2,
+                  height: CANVAS_HEIGHT / 1.5,
                   backgroundColor: "red",
                 },
               ]}
