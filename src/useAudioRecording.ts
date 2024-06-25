@@ -195,6 +195,7 @@ export function useAudioRecorder({
       analysisRef.current = savedAnalysisData;
 
       // Dispatch the updated analysis data to state to trigger re-render
+      // need to use spread operator otherwise it doesnt trigger update.
       dispatch({ type: "UPDATE_ANALYSIS", payload: { ...savedAnalysisData } });
     },
     [logDebug],
