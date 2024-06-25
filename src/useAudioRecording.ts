@@ -136,26 +136,24 @@ export function useAudioRecorder({
 
   const handleAudioAnalysis = useCallback(
     async (analysis: AudioAnalysisData, visualizationDuration: number) => {
-      let analysisData = analysisRef.current;
-      if (!analysisData) {
-        analysisData = { ...defaultAnalysis };
-      }
+      const savedAnalysisData = analysisRef.current || { ...defaultAnalysis };
+
       const maxDuration = visualizationDuration;
 
       logDebug(
-        `[handleAudioAnalysis] Received audio analysis: maxDuration=${maxDuration} analysis.dataPoints=${analysis.dataPoints.length} analysisData.dataPoints=${analysisData.dataPoints.length}`,
+        `[handleAudioAnalysis] Received audio analysis: maxDuration=${maxDuration} analysis.dataPoints=${analysis.dataPoints.length} analysisData.dataPoints=${savedAnalysisData.dataPoints.length}`,
         analysis,
       );
 
       // Combine data points
       const combinedDataPoints = [
-        ...analysisData.dataPoints,
+        ...savedAnalysisData.dataPoints,
         ...analysis.dataPoints,
       ];
 
       // Calculate the new duration
       const pointsPerSecond =
-        analysis.pointsPerSecond || analysisData.pointsPerSecond;
+        analysis.pointsPerSecond || savedAnalysisData.pointsPerSecond;
       const maxDataPoints = (pointsPerSecond * visualizationDuration) / 1000;
 
       logDebug(
@@ -167,35 +165,37 @@ export function useAudioRecorder({
         combinedDataPoints.splice(0, combinedDataPoints.length - maxDataPoints);
       }
 
-      analysisData.dataPoints = combinedDataPoints;
-      analysisData.durationMs =
+      savedAnalysisData.dataPoints = combinedDataPoints;
+      savedAnalysisData.bitDepth =
+        analysis.bitDepth || savedAnalysisData.bitDepth;
+      savedAnalysisData.durationMs =
         combinedDataPoints.length * (1000 / pointsPerSecond);
 
       // Update amplitude range
       const newMin = Math.min(
-        analysisData.amplitudeRange.min,
+        savedAnalysisData.amplitudeRange.min,
         analysis.amplitudeRange.min,
       );
       const newMax = Math.max(
-        analysisData.amplitudeRange.max,
+        savedAnalysisData.amplitudeRange.max,
         analysis.amplitudeRange.max,
       );
 
-      analysisData.amplitudeRange = {
+      savedAnalysisData.amplitudeRange = {
         min: newMin,
         max: newMax,
       };
 
       logDebug(
-        `[handleAudioAnalysis] Updated analysis data: durationMs=${analysisData.durationMs}`,
-        analysisData,
+        `[handleAudioAnalysis] Updated analysis data: durationMs=${savedAnalysisData.durationMs}`,
+        savedAnalysisData,
       );
 
       // Update the ref
-      analysisRef.current = analysisData;
+      analysisRef.current = savedAnalysisData;
 
       // Dispatch the updated analysis data to state to trigger re-render
-      dispatch({ type: "UPDATE_ANALYSIS", payload: { ...analysisData } });
+      dispatch({ type: "UPDATE_ANALYSIS", payload: { ...savedAnalysisData } });
     },
     [logDebug],
   );
