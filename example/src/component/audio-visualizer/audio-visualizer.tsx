@@ -133,7 +133,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   }, [canvasHeight, screenWidth]);
 
   const [dataPoints, setDataPoints] = useState<DataPoint[]>(
-    audioData.dataPoints,
+    audioData.dataPoints || [],
   );
 
   const totalCandleWidth = dataPoints.length * (candleWidth + candleSpace);
@@ -259,9 +259,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   };
 
   useEffect(() => {
-    console.log(
-      `EFFECT DataPoints: ${dataPoints.length} maxDisplayedItems=${maxDisplayedItems}`,
-    );
     if (maxDisplayedItems === 0) return;
     updateActivePoints(translateX.value);
   }, [dataPoints, maxDisplayedItems]);

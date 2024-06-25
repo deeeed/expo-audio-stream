@@ -34,58 +34,83 @@ export function addAudioAnalysisListener(
 
 export const extractAudioAnalysis = async ({
   fileUri,
-  wavMetadata,
   pointsPerSecond = 5,
   arrayBuffer,
+  bitDepth,
+  durationMs,
+  sampleRate,
+  numberOfChannels,
   algorithm = "rms",
+  features,
 }: ExtractMetadataProps): Promise<AudioAnalysisData> => {
   if (Platform.OS === "web") {
+    if (!arrayBuffer && !fileUri) {
+      throw new Error("Either arrayBuffer or fileUri must be provided");
+    }
+
     if (!arrayBuffer) {
-      const response = await fetch(fileUri);
+      console.log(`fetching fileUri`, fileUri);
+      const response = await fetch(fileUri!);
       arrayBuffer = await response.arrayBuffer();
     }
 
-    const audioContext = new (window.AudioContext ||
-      // @ts-ignore
-      window.webkitAudioContext)();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    console.log(
+      `extractAudioAnalysis len=${arrayBuffer.byteLength}`,
+      arrayBuffer,
+    );
 
-    const channelData = audioBuffer.getChannelData(0); // Use only the first channel
-
-    if (!wavMetadata) {
-      wavMetadata = await getWavFileInfo(arrayBuffer);
+    let copyChannelData: Float32Array;
+    try {
+      const audioContext = new (window.AudioContext ||
+        // @ts-ignore
+        window.webkitAudioContext)();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      const channelData = audioBuffer.getChannelData(0); // Use only the first channel
+      copyChannelData = channelData.slice(0); // Copy channel data
+    } catch (error) {
+      // ignore error
+      console.warn("Failed to decode audio data", error);
+      copyChannelData = new Float32Array(arrayBuffer);
     }
 
     return new Promise((resolve, reject) => {
       const worker = new Worker(
-        new URL("/wavextractor.js", window.location.href),
+        new URL("/audio-features-extractor.js", window.location.href),
       );
 
       worker.onmessage = (event) => {
-        resolve(event.data);
+        resolve(event.data.result);
       };
 
       worker.onerror = (error) => {
         reject(error);
       };
 
-      console.log(`before posting wavmetadata`, wavMetadata);
-      console.log("Posting message to worker", arrayBuffer?.byteLength);
       worker.postMessage({
-        channelData,
-        sampleRate: wavMetadata?.sampleRate,
+        command: "process",
+        channelData: copyChannelData,
+        sampleRate,
         pointsPerSecond,
-        bitDepth: wavMetadata?.bitDepth,
-        numberOfChannels: wavMetadata?.numChannels,
-        durationMs: (wavMetadata?.duration ?? 0) * 1000, // Convert to milliseconds
         algorithm,
+        bitDepth,
+        durationMs,
+        numberOfChannels,
       });
     });
   } else if (Platform.OS === "ios") {
+    if (!fileUri) {
+      throw new Error("fileUri is required");
+    }
+    console.log(`extractAudioAnalysis`, {
+      fileUri,
+      pointsPerSecond,
+      algorithm,
+    });
     const res = await ExpoAudioStreamModule.extractAudioAnalysis({
       fileUri,
       pointsPerSecond,
       algorithm,
+      features,
     });
     console.log(`extractAudioAnalysis`, res);
     return res;

@@ -1,4 +1,4 @@
-// waveextractor.js
+// audio-features-extractor.js
 
 self.onmessage = function (event) {
   const {
@@ -9,9 +9,10 @@ self.onmessage = function (event) {
     bitDepth,
     durationMs,
     numberOfChannels,
+    features,
   } = event.data;
 
-  console.log("[WAVEXTRACTOR] Worker received message", event.data);
+  console.log("[AudioFeaturesExtractor] Worker received message", event.data);
 
   const SILENCE_THRESHOLD = 0.01;
   const MIN_SILENCE_DURATION = 1.5 * sampleRate; // 1.5 seconds of silence
@@ -35,16 +36,16 @@ self.onmessage = function (event) {
     let isSpeech = false;
 
     console.log(
-      `[WAVEXTRACTOR] Extracting waveform with ${length} samples and ${pointsPerSecond} points per second --> ${pointInterval} samples per point`,
+      `[AudioFeaturesExtractor] Extracting waveform with ${length} samples and ${pointsPerSecond} points per second --> ${pointInterval} samples per point`,
     );
     console.log(
-      `[WAVEXTRACTOR] Duration: ${length / sampleRate} seconds VS ${durationMs} ms`,
+      `[AudioFeaturesExtractor] Duration: ${length / sampleRate} seconds VS ${durationMs} ms`,
     );
     const duration = durationMs / 1000;
     const expectedPoints = duration * pointsPerSecond;
     const samplesPerPoint = Math.floor(channelData.length / expectedPoints);
     console.log(
-      `[WAVEXTRACTOR] Extracting waveform with expectedPoints=${expectedPoints} , samplesPerPoints=${samplesPerPoint}`,
+      `[AudioFeaturesExtractor] Extracting waveform with expectedPoints=${expectedPoints} , samplesPerPoints=${samplesPerPoint}`,
     );
 
     for (let i = 0; i < expectedPoints; i++) {
@@ -98,7 +99,8 @@ self.onmessage = function (event) {
       }
 
       const activeSpeech =
-        (rms > RMS_THRESHOLD && zcr > ZCR_THRESHOLD) || (isSpeech && start - lastSpeechEnd < SPEECH_INERTIA_DURATION);
+        (rms > RMS_THRESHOLD && zcr > ZCR_THRESHOLD) ||
+        (isSpeech && start - lastSpeechEnd < SPEECH_INERTIA_DURATION);
 
       if (activeSpeech) {
         isSpeech = true;
@@ -127,19 +129,18 @@ self.onmessage = function (event) {
 
     return {
       pointsPerSecond,
+      durationMs,
+      bitDepth,
+      numberOfChannels,
+      sampleRate,
+      dataPoints,
       amplitudeRange: {
         min: minAmplitude,
         max: maxAmplitude,
       },
-      bitDepth,
-      numberOfChannels,
-      durationMs,
-      sampleRate,
-      dataPoints,
       speakerChanges: [], // Placeholder for future speaker detection logic
     };
   };
-
 
   try {
     const result = extractWaveform(
@@ -148,11 +149,15 @@ self.onmessage = function (event) {
       pointsPerSecond,
       algorithm,
     );
-    self.postMessage(result);
+    self.postMessage({
+      command: "features",
+      result,
+    });
   } catch (error) {
-    console.error("[WAVEXTRACTOR] Error in processing", error);
+    console.error("[AudioFeaturesExtractor] Error in processing", error);
     self.postMessage({ error: error.message });
   } finally {
-    self.close();
+    // Do not close the worker so it can be re-used for subsequent messages
+    // self.close();
   }
 };

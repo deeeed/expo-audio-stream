@@ -1,7 +1,8 @@
-import debug from "debug";
-
-import { RecordingConfig } from "./ExpoAudioStream.types";
-import { EmitAudioEventFunction } from "./ExpoAudioStreamModule.web";
+import { AudioAnalysisData, RecordingConfig } from "./ExpoAudioStream.types";
+import {
+  EmitAudioAnalysisFunction,
+  EmitAudioEventFunction,
+} from "./ExpoAudioStreamModule.web";
 import { InlineProcessorScrippt } from "./inlineAudioWebWorker";
 import { encodingToBitDepth } from "./utils";
 interface AudioWorkletEvent {
@@ -12,15 +13,24 @@ interface AudioWorkletEvent {
   };
 }
 
+interface AudioFeaturesEvent {
+  data: {
+    command: string;
+    result: AudioAnalysisData;
+  };
+}
+
 const DEFAULT_WEB_BITDEPTH = 32;
 
-const log = debug("expo-audio-stream:WebRecorder");
-
+// const log = debug("expo-audio-stream:WebRecorder");
+const log = console.log;
 export class WebRecorder {
   private audioContext: AudioContext;
   private audioWorkletNode!: AudioWorkletNode;
+  private featureExtractorWorker: Worker;
   private source: MediaStreamAudioSourceNode;
   private emitAudioEventCallback: EmitAudioEventFunction;
+  private emitAudioAnalysisCallback: EmitAudioAnalysisFunction;
   private config: RecordingConfig;
   private position: number; // Track the cumulative position
   private numberOfChannels: number; // Number of audio channels
@@ -28,15 +38,23 @@ export class WebRecorder {
   private exportBitDepth: number; // Bit depth of the audio
   private buffers: ArrayBuffer[]; // Array to store the buffers
 
-  constructor(
-    audioContext: AudioContext,
-    source: MediaStreamAudioSourceNode,
-    recordingConfig: RecordingConfig,
-    emitAudioEventCallback: EmitAudioEventFunction,
-  ) {
+  constructor({
+    audioContext,
+    source,
+    recordingConfig,
+    emitAudioEventCallback,
+    emitAudioAnalysisCallback,
+  }: {
+    audioContext: AudioContext;
+    source: MediaStreamAudioSourceNode;
+    recordingConfig: RecordingConfig;
+    emitAudioEventCallback: EmitAudioEventFunction;
+    emitAudioAnalysisCallback: EmitAudioAnalysisFunction;
+  }) {
     this.audioContext = audioContext;
     this.source = source;
     this.emitAudioEventCallback = emitAudioEventCallback;
+    this.emitAudioAnalysisCallback = emitAudioAnalysisCallback;
     this.config = recordingConfig;
     this.position = 0;
     this.buffers = []; // Initialize the buffers array
@@ -58,6 +76,15 @@ export class WebRecorder {
       }) ||
       audioContextFormat.bitDepth ||
       DEFAULT_WEB_BITDEPTH;
+
+    // Initialize the feature extractor worker
+    //TODO: create audio feature extractor from a Blob instead of url since we cannot include the url directly in the library
+    // We keep the url during dev and use the blob in production.
+    this.featureExtractorWorker = new Worker(
+      new URL("/audio-features-extractor.js", window.location.href),
+    );
+    this.featureExtractorWorker.onmessage =
+      this.handleFeatureExtractorMessage.bind(this);
   }
 
   async init() {
@@ -81,6 +108,7 @@ export class WebRecorder {
         const command = event.data.command;
         if (command === "recordedData") {
           const rawPCMDataFull = event.data.recordedData as ArrayBuffer;
+
           // Compute duration of the recorded data
           const duration =
             rawPCMDataFull.byteLength /
@@ -113,18 +141,39 @@ export class WebRecorder {
         const sampleRate =
           event.data.sampleRate ?? this.audioContext.sampleRate;
         const otherSampleRate = this.audioContext.sampleRate;
-        const duration = pcmBuffer.byteLength / sampleRate; // Calculate duration of the current buffer
+
+        // Pass the intermediary buffer to the feature extractor worker
+        const pcmBufferCopy = pcmBuffer.slice(0);
+        const channelData = new Float32Array(pcmBufferCopy);
+
+        const duration = channelData.length / sampleRate; // Calculate duration of the current buffer
         const otherDuration =
           pcmBuffer.byteLength /
           (otherSampleRate * (this.exportBitDepth / this.numberOfChannels)); // Calculate duration of the current buffer
         log(
           `sampleRate=${sampleRate} Duration: ${duration} -- otherSampleRate=${otherSampleRate} Other duration: ${otherDuration}`,
         );
+
         this.emitAudioEventCallback({
           data: pcmBuffer,
           position: this.position,
         });
         this.position += duration; // Update position
+
+        this.featureExtractorWorker.postMessage(
+          {
+            command: "process",
+            channelData,
+            sampleRate: this.audioContext.sampleRate,
+            pointsPerSecond: this.config.pointsPerSecond || 10,
+            algorithm: this.config.algorithm || "rms",
+            bitDepth: this.bitDepth,
+            durationMs: this.position * 1000,
+            numberOfChannels: this.numberOfChannels,
+            features: this.config.features,
+          },
+          [],
+        );
       };
 
       log(
@@ -147,6 +196,15 @@ export class WebRecorder {
       this.audioWorkletNode.connect(this.audioContext.destination);
     } catch (error) {
       console.error("Failed to initialize WebRecorder", error);
+    }
+  }
+
+  handleFeatureExtractorMessage(event: AudioFeaturesEvent) {
+    if (event.data.command === "features") {
+      const result = event.data.result;
+      // Handle the extracted features (e.g., emit an event or log them)
+      log("Extracted features:", result);
+      this.emitAudioAnalysisCallback(result);
     }
   }
 

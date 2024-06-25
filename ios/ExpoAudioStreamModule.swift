@@ -32,12 +32,12 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             guard let fileUri = options["fileUri"] as? String,
                   let url = URL(string: fileUri),
                   let pointsPerSecond = options["pointsPerSecond"] as? Int,
-                  let algorithm = options["algorithm"] as? String,
-                  let features = options["features"] as? [String: Bool] else {
+                  let algorithm = options["algorithm"] as? String else {
                 promise.reject("INVALID_ARGUMENTS", "Invalid arguments provided")
                 return
             }
             
+            let features = options["features"] as? [String: Bool] ?? [:]
             let featureOptions = self.extractFeatureOptions(from: features)
             
             DispatchQueue.global().async {

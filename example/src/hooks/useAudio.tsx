@@ -1,11 +1,13 @@
 import { useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
-import { log } from "console";
 import { Audio } from "expo-av";
 import { useCallback, useEffect, useState } from "react";
 
 import { extractAudioAnalysis } from "../../../src";
-import { AudioAnalysisData } from "../../../src/ExpoAudioStream.types";
+import {
+  AudioAnalysisData,
+  AudioStreamResult,
+} from "../../../src/ExpoAudioStream.types";
 import { fetchArrayBuffer } from "../utils";
 
 interface PlayOptions {
@@ -22,20 +24,30 @@ interface UseAudioOptions {
   extractAnalysis?: boolean;
 }
 
-export const useAudio = (
-  audioUri: string | undefined,
-  options: UseAudioOptions = { loadArrayBuffer: false, extractAnalysis: false },
-) => {
+export interface UseAudioProps {
+  audioUri?: string | undefined;
+  recording?: AudioStreamResult;
+  audioBuffer?: ArrayBuffer; // Priority to audioBuffer if provided
+  options: UseAudioOptions;
+}
+
+export const useAudio = ({
+  audioUri,
+  recording,
+  audioBuffer,
+  options,
+}: UseAudioProps) => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [position, setPosition] = useState(0);
   const [speed, setSpeed] = useState(1); // Add state for speed
-  const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer | null>(null);
+  const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer>();
   const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData | null>(
     null,
   );
-  const { logger } = useLogger("useAudio");
+  // const { logger } = useLogger("useAudio");
+  const logger = console;
   const { show } = useToast();
 
   useEffect(() => {
@@ -45,12 +57,18 @@ export const useAudio = (
   }, [sound]);
 
   useEffect(() => {
-    if (!audioUri) return;
+    if (!audioUri && !audioBuffer) return;
 
     const processAudioData = async () => {
       try {
         setProcessing(true);
         if (options.loadArrayBuffer) {
+          if (audioBuffer) {
+            setArrayBuffer(audioBuffer);
+            return;
+          }
+
+          if (!audioUri) return;
           logger.debug(`Fetching audio array buffer from ${audioUri}`);
           const buffer = await fetchArrayBuffer(audioUri);
           setArrayBuffer(buffer);
@@ -61,10 +79,16 @@ export const useAudio = (
 
         logger.debug(`Loading audio from ${audioUri}`);
         if (options.extractAnalysis) {
-          logger.debug(`Extracting audio analysis from ${audioUri}`);
-          const analysis = await extractAudioAnalysis({ fileUri: audioUri });
+          const analysis = await extractAudioAnalysis({
+            fileUri: audioBuffer ? undefined : audioUri, // Priority to audioBuffer if provided
+            arrayBuffer: audioBuffer,
+            sampleRate: recording?.sampleRate,
+            bitDepth: recording?.bitDepth,
+            durationMs: recording?.duration,
+            numberOfChannels: recording?.channels,
+          });
           setAudioAnalysis(analysis);
-          logger.debug(`Extracted audio analysis from ${audioUri}`, analysis);
+          // logger.debug(`Extracted audio analysis from ${audioUri}`, analysis);
         }
       } catch (error) {
         logger.error(`Failed to process audio ${audioUri}:`, error);
@@ -77,6 +101,7 @@ export const useAudio = (
     processAudioData().catch(logger.error);
   }, [
     audioUri,
+    audioBuffer,
     options.loadArrayBuffer,
     options.extractAnalysis,
     logger,
@@ -105,6 +130,7 @@ export const useAudio = (
     if (!audioUri) return;
     try {
       if (!sound) {
+        console.log(`Playing audio from ${audioUri}`);
         const { sound: newSound } = await Audio.Sound.createAsync(
           { uri: audioUri },
           { shouldPlay: true, positionMillis: options?.position || position },

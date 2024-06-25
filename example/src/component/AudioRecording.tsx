@@ -45,12 +45,14 @@ const getStyles = ({
 export interface AudioRecordingProps {
   recording: AudioStreamResult;
   webAudioUri?: string; // Allow to overwrite the audioUri for web since it cannot load from file
+  wavAudioBuffer?: ArrayBuffer;
   showWaveform?: boolean;
   onDelete?: () => Promise<void>;
 }
 export const AudioRecording = ({
   recording,
   webAudioUri,
+  wavAudioBuffer,
   showWaveform = true,
   onDelete,
 }: AudioRecordingProps) => {
@@ -66,7 +68,12 @@ export const AudioRecording = ({
     play,
     pause,
     updatePlaybackOptions,
-  } = useAudio(audioUri, { extractAnalysis: showWaveform });
+  } = useAudio({
+    audioUri,
+    audioBuffer: wavAudioBuffer,
+    recording,
+    options: { extractAnalysis: showWaveform },
+  });
   const styles = useMemo(
     () => getStyles({ isPlaying, theme }),
     [isPlaying, theme],
