@@ -45,19 +45,30 @@ export interface AudioDataEvent {
   totalSize: number;
 }
 
+export interface AudioFeatures {
+  energy: number;
+  mfcc: number[];
+  rms: number;
+  zcr: number;
+  spectralCentroid: number;
+  spectralFlatness: number;
+}
+
+export interface AudioFeaturesOptions {
+  energy?: boolean;
+  mfcc?: boolean;
+  rms?: boolean;
+  zcr?: boolean;
+  spectralCentroid?: boolean;
+  spectralFlatness?: boolean;
+}
+
 export interface DataPoint {
   amplitude: number;
   activeSpeech?: boolean;
   dB?: number;
   silent?: boolean;
-  features?: {
-    energy: number;
-    mfcc: number[];
-    rms: number;
-    zcr: number;
-    spectralCentroid: number;
-    spectralFlatness: number;
-  };
+  features?: AudioFeatures;
   timestamp?: number;
   speaker?: number;
 }
@@ -88,11 +99,12 @@ export interface RecordingConfig {
   interval?: number; // Interval in milliseconds at which to emit recording data
 
   // Optional parameters for audio processing
+  //TODO remove maxRecentDataDuration - should be replaced by maxDataPoints to 100.
   maxRecentDataDuration?: number; // Maximum duration of recent data to keep for processing (default is 10.0 seconds)
   enableProcessing?: boolean; // Boolean to enable/disable audio processing (default is false)
   pointsPerSecond?: number; // Number of data points to extract per second of audio (default is 1000)
   algorithm?: string; // Algorithm to use for extraction (default is "rms")
-  featureOptions?: { [key: string]: boolean }; // Feature options to extract (default is empty)
+  features?: AudioFeaturesOptions; // Feature options to extract (default is empty)
 
   onAudioStream?: (_: AudioDataEvent) => Promise<void>; // Callback function to handle audio stream
   onProcessingResult?: (_: AudioAnalysisData) => Promise<void>; // Callback function to handle processing results

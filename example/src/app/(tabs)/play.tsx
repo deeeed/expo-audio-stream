@@ -118,8 +118,12 @@ export const TestPage = () => {
       const startAudioAnalysis = performance.now();
       const audioAnalysis = await extractAudioAnalysis({
         fileUri: audioUri,
-        wavMetadata,
-        pointsPerSecond: 5,
+        bitDepth: wavMetadata.bitDepth,
+        durationMs: wavMetadata.duration * 1000,
+        sampleRate: wavMetadata.sampleRate,
+        numberOfChannels: wavMetadata.numChannels,
+        arrayBuffer,
+        pointsPerSecond: 20,
         algorithm: "rms",
       });
       setAudioAnalysis(audioAnalysis);

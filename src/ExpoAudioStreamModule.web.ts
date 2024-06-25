@@ -2,6 +2,7 @@ import debug from "debug";
 import { EventEmitter } from "expo-modules-core";
 
 import {
+  AudioAnalysisData,
   AudioEventPayload,
   AudioStreamResult,
   RecordingConfig,
@@ -15,6 +16,7 @@ export interface EmitAudioEventProps {
   position: number;
 }
 export type EmitAudioEventFunction = (_: EmitAudioEventProps) => void;
+export type EmitAudioAnalysisFunction = (_: AudioAnalysisData) => void;
 
 const log = debug("expo-audio-stream:useAudioRecording");
 class ExpoAudioStreamWeb extends EventEmitter {
@@ -87,18 +89,22 @@ class ExpoAudioStreamWeb extends EventEmitter {
 
     const source = audioContext.createMediaStreamSource(stream);
 
-    this.customRecorder = new WebRecorder(
+    this.customRecorder = new WebRecorder({
       audioContext,
       source,
       recordingConfig,
-      ({ data, position }: EmitAudioEventProps) => {
+      emitAudioEventCallback: ({ data, position }: EmitAudioEventProps) => {
         this.audioChunks.push(data);
         this.currentSize += data.byteLength;
         this.emitAudioEvent({ data, position });
         this.lastEmittedTime = Date.now();
         this.lastEmittedSize = this.currentSize;
       },
-    );
+      emitAudioAnalysisCallback: (audioAnalysisData: AudioAnalysisData) => {
+        console.log(`Emitted AudioAnalysis:`, audioAnalysisData);
+        this.emit("AudioAnalysis", audioAnalysisData);
+      },
+    });
     await this.customRecorder.init();
     this.customRecorder.start();
 

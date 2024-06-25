@@ -6,6 +6,7 @@ import {
   AudioAnalysisData,
   AudioDataEvent,
   AudioEventPayload,
+  AudioFeaturesOptions,
   AudioStreamResult,
   AudioStreamStatus,
   RecordingConfig,
@@ -17,13 +18,18 @@ import { WavFileInfo } from "./utils";
 const MAX_VISUALIZATION_DURATION_MS = 10000; // Default maximum duration for visualization
 
 export interface ExtractMetadataProps {
-  fileUri: string;
+  fileUri?: string; // should provide either fileUri or arrayBuffer
   wavMetadata?: WavFileInfo;
   arrayBuffer?: ArrayBuffer;
+  bitDepth?: number;
+  durationMs?: number;
+  sampleRate?: number;
+  numberOfChannels?: number;
   algorithm?: "peak" | "rms";
   position?: number; // Optional number of bytes to skip. Default is 0
   length?: number; // Optional number of bytes to read.
   pointsPerSecond?: number; // Optional number of points per second. Use to reduce the number of points and compute the number of datapoints to return.
+  features?: AudioFeaturesOptions;
 }
 
 export interface UseAudioRecorderProps {
@@ -157,7 +163,7 @@ export function useAudioRecorder({
       const maxDataPoints = (pointsPerSecond * visualizationDuration) / 1000;
 
       logDebug(
-        `[handleAudioAnalysis] Combined data points before trimming: combinedDataPointsLength=${combinedDataPoints.length} vs maxDataPoints=${maxDataPoints}`,
+        `[handleAudioAnalysis] Combined data points before trimming: pointsPerSecond=${pointsPerSecond} visualizationDuration=${visualizationDuration} combinedDataPointsLength=${combinedDataPoints.length} vs maxDataPoints=${maxDataPoints}`,
       );
 
       // Trim data points to keep within the maximum number of data points

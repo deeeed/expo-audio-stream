@@ -53,6 +53,7 @@ const baseRecordingConfig: RecordingConfig = {
   interval: 500,
   sampleRate: 44100,
   encoding: "pcm_32bit",
+  pointsPerSecond: 20,
   enableProcessing: true,
 };
 
@@ -436,8 +437,9 @@ export default function Record() {
         <View style={{ gap: 10, paddingBottom: 100 }}>
           <AudioRecording
             recording={result}
-            showWaveform
             webAudioUri={webAudioUri}
+            showWaveform
+            wavAudioBuffer={isWeb ? fullWavAudioBuffer.current! : undefined}
             onDelete={
               isWeb
                 ? undefined
