@@ -8,7 +8,13 @@ import {
 } from "@shopify/react-native-skia";
 import { Button } from "@siteed/design-system";
 import { AudioAnalysisData, DataPoint } from "@siteed/expo-audio-stream";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { LayoutChangeEvent, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Text } from "react-native-paper";
@@ -26,7 +32,25 @@ import AnimatedCandle, {
 } from "./animated-candle";
 import { SkiaTimeRuler } from "./skia-time-ruler";
 
-const getStyles = (screenWidth: number, canvasWidth: number) => {
+const calculateReferenceLinePosition = (
+  canvasWidth: number,
+  referenceLinePosition: "MIDDLE" | "RIGHT",
+): number => {
+  if (referenceLinePosition === "RIGHT") {
+    return canvasWidth - 15;
+  }
+  return canvasWidth / 2; // Default to MIDDLE
+};
+
+const getStyles = ({
+  screenWidth,
+  canvasWidth,
+  referenceLineX,
+}: {
+  screenWidth: number;
+  canvasWidth: number;
+  referenceLineX: number;
+}) => {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -41,11 +65,11 @@ const getStyles = (screenWidth: number, canvasWidth: number) => {
       gap: 5,
       borderWidth: 1,
     },
-    centeredLine: {
+    referenceLine: {
       position: "absolute",
       top: 0,
       bottom: 0,
-      left: screenWidth / 2,
+      left: referenceLineX,
       width: 2,
       backgroundColor: "red",
     },
@@ -83,6 +107,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 }) => {
   const [screenWidth, setScreenWidth] = useState(0);
   const translateX = useSharedValue(0);
+  const referenceLinePosition = mode === "live" ? "RIGHT" : "MIDDLE";
   const [currentTime, setCurrentTime] = useState<number | undefined>(
     fullCurrentTime,
   );
@@ -124,9 +149,13 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const [startIndex, setStartIndex] = useState(0);
   const [ready, setReady] = useState(false);
 
-  const styles = React.useMemo(
-    () => getStyles(screenWidth, canvasWidth),
-    [screenWidth, canvasWidth],
+  const referenceLineX = useMemo(() => {
+    return calculateReferenceLinePosition(screenWidth, referenceLinePosition);
+  }, [screenWidth, referenceLinePosition]);
+
+  const styles = useMemo(
+    () => getStyles({ screenWidth, canvasWidth, referenceLineX }),
+    [screenWidth, canvasWidth, referenceLineX],
   );
 
   const maxTranslateX = totalCandleWidth;
@@ -144,13 +173,15 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   const lastUpdatedTranslateX = useRef<number>(0);
   const updateActivePoints = (x: number) => {
-    if (x === lastUpdatedTranslateX.current && activePoints.length > 0) return; // Exit if x has not changed
+    if (dataPoints.length === 0) return;
     lastUpdatedTranslateX.current = x;
 
     if (mode === "live") {
       const totalItems = dataPoints.length;
       // Only display items on the left of the middle line
-      const liveMaxDisplayedItems = Math.floor(maxDisplayedItems / 2);
+      const liveMaxDisplayedItems = Math.floor(
+        referenceLineX / (candleWidth + candleSpace),
+      );
       const startIndex = Math.max(0, totalItems - liveMaxDisplayedItems);
       console.log(
         `\nupdateActivePoints (live) startIndex=${startIndex}, totalItems=${totalItems}, maxDisplayedItems=${maxDisplayedItems}`,
@@ -172,6 +203,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       setActivePoints(updatedPoints);
       setStartIndex(0);
     } else {
+      // if (lastUpdatedTranslateX.current === x) return;
       setIsUpdating(true); // Set updating state to true
 
       const translateX = Math.abs(x);
@@ -227,8 +259,11 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   };
 
   useEffect(() => {
+    console.log(
+      `EFFECT DataPoints: ${dataPoints.length} maxDisplayedItems=${maxDisplayedItems}`,
+    );
     if (maxDisplayedItems === 0) return;
-    debouncedUpdateActivePoints(translateX.value);
+    updateActivePoints(translateX.value);
   }, [dataPoints, maxDisplayedItems]);
 
   useEffect(() => {
@@ -458,18 +493,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
               />
             )}
           </Canvas>
-          <View
-            style={[
-              {
-                position: "absolute",
-                top: showRuler ? 10 + canvasHeight / 6 : canvasHeight / 6,
-                left: screenWidth / 2,
-                width: 2,
-                height: canvasHeight / 1.5,
-                backgroundColor: "red",
-              },
-            ]}
-          />
+          <View style={styles.referenceLine} />
         </View>
       </GestureDetector>
     </View>
