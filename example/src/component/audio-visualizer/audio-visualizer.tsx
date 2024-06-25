@@ -130,24 +130,21 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   );
 
   const maxTranslateX = totalCandleWidth;
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const maxDisplayedItems = Math.ceil(
     screenWidth / (candleWidth + candleSpace),
   );
+  const prevLength = useRef<number>(dataPoints.length);
 
   const [activePoints, setActivePoints] = useState<
     { amplitude: number; id: number; visible: boolean }[]
-  >(
-    new Array(maxDisplayedItems * 3).fill({
-      amplitude: 0,
-      id: -1,
-      visible: false,
-    }),
-  );
+  >([]);
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   const lastUpdatedTranslateX = useRef<number>(0);
   const updateActivePoints = (x: number) => {
-    // if (x === lastUpdatedTranslateX.current && activePoints.length > 0) return; // Exit if x has not changed
+    if (x === lastUpdatedTranslateX.current && activePoints.length > 0) return; // Exit if x has not changed
     lastUpdatedTranslateX.current = x;
 
     if (mode === "live") {
@@ -175,6 +172,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       setActivePoints(updatedPoints);
       setStartIndex(0);
     } else {
+      setIsUpdating(true); // Set updating state to true
+
       const translateX = Math.abs(x);
       console.log(`x: ${x} translateX: ${translateX}`);
       const hiddenItemsLeft = Math.floor(
@@ -211,11 +210,25 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       setStartIndex(startIndex);
     }
     setReady(true);
+    prevLength.current = dataPoints.length;
+    setIsUpdating(false);
+  };
+
+  const debouncedUpdateActivePoints = (x: number) => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    setIsUpdating(true);
+    debounceTimer.current = setTimeout(() => {
+      updateActivePoints(x);
+      setIsUpdating(false);
+    }, 300);
   };
 
   useEffect(() => {
     if (maxDisplayedItems === 0) return;
-    updateActivePoints(translateX.value);
+    debouncedUpdateActivePoints(translateX.value);
   }, [dataPoints, maxDisplayedItems]);
 
   useEffect(() => {
@@ -245,7 +258,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       // console.log(`Velocity: ${e.velocityX} newValue: ${translateX.value}`);
       // Reverse ratio to get currentTime
       console.log(`onEnd: translateX: ${translateX.value} `, _e);
-      runOnJS(updateActivePoints)(translateX.value);
+      runOnJS(debouncedUpdateActivePoints)(translateX.value);
 
       if (audioData.durationMs && onSeekEnd) {
         const allowedTranslateX = maxTranslateX;

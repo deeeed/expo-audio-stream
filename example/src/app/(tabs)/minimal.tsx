@@ -147,16 +147,14 @@ const Minimal = () => {
       const totalItems = wavepoints.length;
       const newItemsCount = currentLength - prevLength.current;
 
-      const startIndex = Math.max(
-        0,
-        totalItems - Math.floor(maxDisplayedItems / 2),
-      );
+      const liveMaxDisplayedItems = Math.floor(maxDisplayedItems / 2);
+      const startIndex = Math.max(0, totalItems - liveMaxDisplayedItems);
       console.log(
         `\nupdateActivePoints (live) startIndex=${startIndex}, totalItems=${totalItems}, maxDisplayedItems=${maxDisplayedItems}`,
       );
 
       const updatedPoints = [];
-      for (let i = 0; i < maxDisplayedItems; i++) {
+      for (let i = 0; i < liveMaxDisplayedItems; i++) {
         const itemIndex = startIndex + i;
         if (itemIndex < totalItems) {
           updatedPoints.push({
@@ -164,13 +162,6 @@ const Minimal = () => {
             amplitude: wavepoints[itemIndex],
             visible: true,
             animated: itemIndex >= totalItems - newItemsCount, // Animate new items
-          });
-        } else {
-          updatedPoints.push({
-            id: -1,
-            amplitude: 0,
-            visible: false,
-            animated: false,
           });
         }
       }
@@ -202,7 +193,8 @@ const Minimal = () => {
       console.log(`itemsOffset: ${itemsOffset} startIndex: ${startIndex}`);
 
       // We directly update the activePoints array to avoid "flickering" when updating the state
-      for (let i = 0; i < activePoints.length; i++) {
+      const loopTo = maxDisplayedItems * 3;
+      for (let i = 0; i < loopTo; i++) {
         const itemIndex = startIndex + i;
         if (itemIndex < wavepoints.length) {
           const limitLeft = hiddenItemsLeft - itemsOffset;
