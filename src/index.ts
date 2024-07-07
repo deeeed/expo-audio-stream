@@ -34,7 +34,7 @@ export function addAudioAnalysisListener(
 
 export const extractAudioAnalysis = async ({
   fileUri,
-  pointsPerSecond = 5,
+  pointsPerSecond = 20,
   arrayBuffer,
   bitDepth,
   durationMs,
@@ -97,7 +97,7 @@ export const extractAudioAnalysis = async ({
         numberOfChannels,
       });
     });
-  } else if (Platform.OS === "ios") {
+  } else {
     if (!fileUri) {
       throw new Error("fileUri is required");
     }
@@ -114,8 +114,6 @@ export const extractAudioAnalysis = async ({
     });
     console.log(`extractAudioAnalysis`, res);
     return res;
-  } else {
-    throw new Error("Not implemented");
   }
 };
 

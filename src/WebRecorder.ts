@@ -165,7 +165,7 @@ export class WebRecorder {
             command: "process",
             channelData,
             sampleRate: this.audioContext.sampleRate,
-            pointsPerSecond: this.config.pointsPerSecond || 10,
+            pointsPerSecond: this.config.pointsPerSecond || 20,
             algorithm: this.config.algorithm || "rms",
             bitDepth: this.bitDepth,
             durationMs: this.position * 1000,

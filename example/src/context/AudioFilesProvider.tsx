@@ -80,9 +80,13 @@ export const AudioFilesProvider = ({
             ...metadata,
           };
         } else {
-          logger.error(`No metadata found for ${audioFile}`);
+          logger.warn(`No metadata found for ${audioFile}`);
           // Remove the audio file if no metadata is found
-          await deleteAudioAndMetadata(`${directoryUri}${audioFile}`);
+          try {
+            await deleteAudioAndMetadata(`${directoryUri}${audioFile}`);
+          } catch {
+            // ignore delete error
+          }
         }
         return null;
       }),
