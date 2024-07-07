@@ -64,7 +64,7 @@ export const TestPage = () => {
         const audioAnalysis = await extractAudioAnalysis({
           fileUri: uri,
           wavMetadata,
-          pointsPerSecond: 5,
+          pointsPerSecond: 20,
           algorithm: "rms",
         });
         console.log(`AudioAnalysis:`, audioAnalysis);

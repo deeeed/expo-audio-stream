@@ -1,15 +1,16 @@
 import { AppTheme, Button, useTheme, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import * as Sharing from "expo-sharing";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 
 import { AudioVisualizer } from "./audio-visualizer/audio-visualizer";
 import { RawWaveForm } from "./waveform/rawwaveform";
-import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
+import { AudioAnalysisData, AudioStreamResult } from "../../../src/ExpoAudioStream.types";
 import { useAudio } from "../hooks/useAudio";
 import { formatBytes, formatDuration } from "../utils";
+import { extractAudioAnalysis } from "../../../src";
 
 const getStyles = ({
   isPlaying,
@@ -61,9 +62,8 @@ export const AudioRecording = ({
   const audioUri = webAudioUri ?? recording.fileUri;
   const theme = useTheme();
   const {
-    audioAnalysis,
     isPlaying,
-    processing,
+    processing: _processing,
     position,
     play,
     pause,
@@ -78,6 +78,8 @@ export const AudioRecording = ({
     () => getStyles({ isPlaying, theme }),
     [isPlaying, theme],
   );
+  const [processing, setProcessing] = useState(_processing);
+  const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData>();
 
   const handleShare = async () => {
     if (!audioUri) {
@@ -98,6 +100,35 @@ export const AudioRecording = ({
       show({ type: "error", message: "Failed to share the file" });
     }
   };
+
+
+  const extractAnalysis = useCallback(async () => {
+    setProcessing(true);
+    try {
+      const analysis = await extractAudioAnalysis({
+        fileUri: audioUri,
+        pointsPerSecond: 20,
+        arrayBuffer: wavAudioBuffer,
+        bitDepth: recording.bitDepth,
+        durationMs: recording.duration,
+        sampleRate: recording.sampleRate,
+        numberOfChannels: recording.channels,
+        algorithm: "rms",
+        features: {}, // Add necessary features here
+      });
+      setAudioAnalysis(analysis);
+    } catch (error) {
+      logger.error("Error extracting audio analysis:", error);
+      show({ type: "error", message: "Failed to extract audio analysis" });
+    } finally {
+      setProcessing(false);
+    }
+  }, [audioUri, wavAudioBuffer, recording, logger, show]);
+
+
+  useEffect(() => {
+    extractAnalysis();
+  }, [extractAnalysis]);
 
   useEffect(() => {
     return () => {
@@ -157,6 +188,7 @@ export const AudioRecording = ({
       )}
 
       <View style={styles.buttons}>
+        <Button onPress={extractAnalysis}>Extract Analysis</Button>
         <Button onPress={handlePlayPause}>
           {isPlaying ? "Pause" : "Play"}
         </Button>
