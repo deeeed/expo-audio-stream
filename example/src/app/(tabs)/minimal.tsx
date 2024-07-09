@@ -382,7 +382,9 @@ const Minimal = () => {
                       (RECT_WIDTH + SPACE_BETWEEN_RECTS) * index +
                       startIndex * (RECT_WIDTH + SPACE_BETWEEN_RECTS) +
                       delta;
-                    console.log(`x=${x} id=${id} visible=${visible} --> r_${index}_${id}`);
+                    console.log(
+                      `x=${x} id=${id} visible=${visible} --> r_${index}_${id}`,
+                    );
                     return (
                       <WaveFormRect
                         key={`r_${index}_${id}`}

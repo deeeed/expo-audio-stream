@@ -1,9 +1,8 @@
 import { Button } from "@siteed/design-system";
-import { DataPoint } from "@siteed/expo-audio-stream";
 import React, { useCallback, useEffect, useReducer, useRef } from "react";
 import { LayoutChangeEvent, View } from "react-native";
 import { Text } from "react-native-paper";
-import { useSharedValue } from "react-native-reanimated";
+import { runOnUI, useSharedValue } from "react-native-reanimated";
 
 import {
   calculateReferenceLinePosition,
@@ -11,28 +10,16 @@ import {
   syncTranslateX,
   updateActivePoints,
 } from "./audio-visualiser.helpers";
-import { AudioVisualizerProps } from "./autio-visualizer.types";
+import {
+  AudioVisualizerProps,
+  AudioVisualizerState,
+  CandleData,
+} from "./autio-visualizer.types";
 import CanvasContainer from "./canvas-container";
 import { GestureHandler } from "./gesture-handler";
 
-export type AudioVisualizerState = {
-  activePoints: DataPoint[];
-  range: {
-    start: number;
-    end: number;
-    startVisibleIndex: number;
-    endVisibleIndex: number;
-  };
-  ready: boolean;
-  triggerUpdate: number;
-  canvasWidth: number;
-  currentTime?: number;
-  hasInitialized: boolean;
-  selectedCandle: DataPoint | null;
-};
-
 export type AudioVisualiserAction =
-  | { type: "SET_ACTIVE_POINTS"; payload: DataPoint[] }
+  | { type: "SET_ACTIVE_POINTS"; payload: CandleData[] }
   | {
       type: "SET_RANGE";
       payload: {
@@ -47,7 +34,7 @@ export type AudioVisualiserAction =
   | { type: "SET_CANVAS_WIDTH"; payload: number }
   | { type: "SET_CURRENT_TIME"; payload: number }
   | { type: "SET_HAS_INITIALIZED"; payload: boolean }
-  | { type: "SET_SELECTED_CANDLE"; payload: DataPoint | null }
+  | { type: "SET_SELECTED_CANDLE"; payload: CandleData | null }
   | { type: "BATCH_UPDATE"; payload: Partial<AudioVisualizerState> };
 
 const initialState: AudioVisualizerState = {
@@ -92,7 +79,7 @@ const reducer = (
 export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   audioData,
   canvasHeight = 100,
-  candleWidth = 5,
+  candleWidth = 3,
   currentTime: fullCurrentTime,
   candleSpace = 2,
   playing = false,
@@ -105,7 +92,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const lastUpdatedTranslateX = useRef<number>(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     activePoints,
@@ -152,11 +138,14 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     if (maxDisplayedItems === 0 || hasInitialized) return;
 
-    // initialize activePoints with maxDisplayedItems * 3
-    const initialActivePoints = audioData.dataPoints.slice(
-      0,
+    // fill initialize activePoints with maxDisplayedItems * 3
+    const initialActivePoints: CandleData[] = new Array(
       maxDisplayedItems * 3,
-    );
+    ).fill({
+      id: -1,
+      amplitude: 0,
+      visible: false,
+    });
     dispatch({ type: "SET_ACTIVE_POINTS", payload: initialActivePoints });
     dispatch({ type: "SET_HAS_INITIALIZED", payload: true });
   }, [maxDisplayedItems, hasInitialized]);
@@ -226,16 +215,25 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       <Text style={styles.text}>TranslateX: {translateX.value}</Text>
       <Button
         onPress={() => {
-          // Create a copy of activePoints array and update the specific item
-          const updatedActivePoints = [...activePoints];
-          const index = 10;
-          updatedActivePoints[index] = {
-            ...updatedActivePoints[index],
-            amplitude: 50,
-          };
-          console.log("Button pressed", updatedActivePoints[index]);
-          dispatch({ type: "SET_ACTIVE_POINTS", payload: updatedActivePoints });
-          console.log("Button pressed", updatedActivePoints);
+          // Reset translateX
+          updateActivePoints({
+            x: 0,
+            dataPoints: audioData.dataPoints,
+            maxDisplayedItems,
+            activePoints,
+            dispatch,
+            referenceLineX,
+            mode,
+            range,
+            candleWidth,
+            candleSpace,
+            lastUpdatedTranslateX: lastUpdatedTranslateX.current,
+            ready,
+          });
+          runOnUI(() => {
+            translateX.value = 0;
+          })();
+          onSeekEnd?.(0);
         }}
       >
         Reset
