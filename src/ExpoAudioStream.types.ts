@@ -64,6 +64,7 @@ export interface AudioFeaturesOptions {
 }
 
 export interface DataPoint {
+  id: number;
   amplitude: number;
   activeSpeech?: boolean;
   dB?: number;
