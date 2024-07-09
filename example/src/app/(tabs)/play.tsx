@@ -229,7 +229,7 @@ export const TestPage = () => {
               <Text>currentTime: {currentTime}</Text>
               <AudioVisualizer
                 candleSpace={2}
-                mode="scaled"
+                mode="static"
                 showRuler
                 showDottedLine
                 playing={isPlaying}

@@ -15,7 +15,10 @@ public class AudioProcessor {
     private var currentProgress: Float = 0.0
     private let extractionQueue = DispatchQueue(label: "AudioProcessor", attributes: .concurrent)
     private var _abortExtraction: Bool = false
-    
+        
+    // Add a counter for unique IDs
+    private var uniqueIdCounter = 0
+
     public var abortExtraction: Bool {
         get { _abortExtraction }
         set { _abortExtraction = newValue }
@@ -205,6 +208,7 @@ public class AudioProcessor {
                 maxAmplitude = max(maxAmplitude, rms)
                 
                 dataPoints.append(DataPoint(
+                    id: uniqueIdCounter, // Assign unique ID
                     amplitude: algorithm == "peak" ? localMaxAmplitude : rms,
                     activeSpeech: nil,
                     dB: dB,
@@ -213,7 +217,8 @@ public class AudioProcessor {
                     timestamp: Float(i) / sampleRate,
                     speaker: 0
                 ))
-                
+                uniqueIdCounter += 1 // Increment the unique ID counter
+
                 resetSegmentData(&sumSquares, &zeroCrossings, &localMinAmplitude, &localMaxAmplitude, &segmentData)
             }
         }
