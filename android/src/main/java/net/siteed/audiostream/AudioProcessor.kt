@@ -27,6 +27,8 @@ class AudioProcessor(private val filesDir: File) {
 
     data class AudioData(val data: ByteArray, val sampleRate: Int, val bitDepth: Int, val channels: Int)
 
+    // Add a counter for unique IDs
+    private var uniqueIdCounter = 0L
 
     fun loadAudioFile(fileUri: String): AudioData? {
         var file = File(fileUri)
@@ -149,6 +151,7 @@ class AudioProcessor(private val filesDir: File) {
                     maxAmplitude = max(maxAmplitude, rms)
 
                     val dataPoint = DataPoint(
+                        id = uniqueIdCounter++, // Assign unique ID and increment the counter
                         amplitude = if (algorithm == "peak") localMaxAmplitude else rms,
                         activeSpeech = null,
                         dB = dB,

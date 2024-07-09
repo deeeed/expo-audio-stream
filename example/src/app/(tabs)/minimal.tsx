@@ -1,3 +1,4 @@
+// example/src/app/(tabs)/minimal.tsx
 import {
   Canvas,
   Group,
@@ -6,13 +7,20 @@ import {
   Text as SkText,
   useFont,
 } from "@shopify/react-native-skia";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Platform,
   Text,
   StyleSheet,
   View,
   useWindowDimensions,
+  LayoutChangeEvent,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Button } from "react-native-paper";
@@ -107,13 +115,14 @@ WaveFormRect.displayName = "WaveFormRect";
 
 const Minimal = () => {
   const { width: screenWidth } = useWindowDimensions();
-  const canvasWidth = screenWidth; // Canvas width is twice the screen width
+  const [canvasWidth, setCanvasWidth] = useState(0);
+
   const styles = React.useMemo(
     () => getStyles(screenWidth, canvasWidth),
     [screenWidth, canvasWidth],
   );
   const translateX = useSharedValue(0);
-  const [wavepoints, setWavepoints] = useState(generateWaveform(200)); // Generate random waveform values
+  const [wavepoints, setWavepoints] = useState(generateWaveform(20000)); // Generate random waveform values
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"static" | "live">("static"); // live is always making the waveform on the right
 
@@ -126,19 +135,19 @@ const Minimal = () => {
   );
   const [activePoints, setActivePoints] = useState<
     { amplitude: number; id: number; visible: boolean; animated?: boolean }[]
-  >(
-    new Array(maxDisplayedItems * 3).fill({
-      amplitude: 0,
-      id: -1,
-      visible: false,
-    }),
-  );
+  >([]);
   const [counter, setCounter] = useState(0);
 
   const maxTranslateX =
     wavepoints.length * (RECT_WIDTH + SPACE_BETWEEN_RECTS) + canvasWidth;
   const [startIndex, setStartIndex] = useState(0);
   const prevLength = useRef<number>(wavepoints.length);
+
+  const handleLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    console.log(`Layout width: ${width}`);
+    setCanvasWidth(width);
+  }, []);
 
   const updateActivePoints = (x: number) => {
     const currentLength = wavepoints.length;
@@ -313,7 +322,7 @@ const Minimal = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={handleLayout}>
       <View>
         <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
           <Button
@@ -373,7 +382,7 @@ const Minimal = () => {
                       (RECT_WIDTH + SPACE_BETWEEN_RECTS) * index +
                       startIndex * (RECT_WIDTH + SPACE_BETWEEN_RECTS) +
                       delta;
-                    // console.log(`x=${x} id=${id} visible=${visible}`);
+                    console.log(`x=${x} id=${id} visible=${visible} --> r_${index}_${id}`);
                     return (
                       <WaveFormRect
                         key={`r_${index}_${id}`}

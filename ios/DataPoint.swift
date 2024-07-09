@@ -9,6 +9,7 @@ import Foundation
 
 
 public struct DataPoint {
+    public var id: Int
     public var amplitude: Float
     public var activeSpeech: Bool?
     public var dB: Float?
@@ -21,6 +22,7 @@ public struct DataPoint {
 extension DataPoint {
     func toDictionary() -> [String: Any] {
         return [
+            "id": id,
             "amplitude": amplitude,
             "activeSpeech": activeSpeech ?? false,
             "dB": dB ?? 0,

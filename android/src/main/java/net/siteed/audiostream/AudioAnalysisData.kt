@@ -1,6 +1,7 @@
 package net.siteed.audiostream
 
 data class DataPoint(
+    val id: Long,
     val amplitude: Float,
     val activeSpeech: Boolean? = null,
     val dB: Float? = null,
@@ -11,6 +12,7 @@ data class DataPoint(
 ) {
     fun toDictionary(): Map<String, Any?> {
         return mapOf(
+            "id" to id,
             "amplitude" to amplitude,
             "activeSpeech" to activeSpeech,
             "dB" to dB,

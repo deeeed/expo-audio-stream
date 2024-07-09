@@ -1,3 +1,4 @@
+// example/src/component/AudioRecording.tsx
 import { AppTheme, Button, useTheme, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import * as Sharing from "expo-sharing";
@@ -6,11 +7,13 @@ import { StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 
 import { AudioVisualizer } from "./audio-visualizer/audio-visualizer";
-import { RawWaveForm } from "./waveform/rawwaveform";
-import { AudioAnalysisData, AudioStreamResult } from "../../../src/ExpoAudioStream.types";
+import { extractAudioAnalysis } from "../../../src";
+import {
+  AudioAnalysisData,
+  AudioStreamResult,
+} from "../../../src/ExpoAudioStream.types";
 import { useAudio } from "../hooks/useAudio";
 import { formatBytes, formatDuration } from "../utils";
-import { extractAudioAnalysis } from "../../../src";
 
 const getStyles = ({
   isPlaying,
@@ -101,7 +104,6 @@ export const AudioRecording = ({
     }
   };
 
-
   const extractAnalysis = useCallback(async () => {
     setProcessing(true);
     try {
@@ -124,7 +126,6 @@ export const AudioRecording = ({
       setProcessing(false);
     }
   }, [audioUri, wavAudioBuffer, recording, logger, show]);
-
 
   useEffect(() => {
     extractAnalysis();
@@ -181,9 +182,10 @@ export const AudioRecording = ({
           currentTime={position / 1000}
           audioData={audioAnalysis}
           showDottedLine
-          onSeekEnd={(newtime) =>
-            updatePlaybackOptions({ position: newtime * 1000 })
-          }
+          onSeekEnd={(newtime) => {
+            logger.log("Seeking to:", newtime);
+            updatePlaybackOptions({ position: newtime * 1000 });
+          }}
         />
       )}
 

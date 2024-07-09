@@ -1,3 +1,4 @@
+// src/index.ts
 import { EventEmitter, type Subscription } from "expo-modules-core";
 import { Platform } from "react-native";
 

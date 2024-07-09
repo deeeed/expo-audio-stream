@@ -1,3 +1,4 @@
+// example/src/component/audio-visualizer/animated-candle.tsx
 import { Rect } from "@shopify/react-native-skia";
 import React, { useEffect } from "react";
 import { useSharedValue, withTiming } from "react-native-reanimated";

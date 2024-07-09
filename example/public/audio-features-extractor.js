@@ -1,4 +1,4 @@
-// audio-features-extractor.js
+// example/public/audio-features-extractor.js
 
 self.onmessage = function (event) {
   const {
@@ -19,6 +19,9 @@ self.onmessage = function (event) {
   const SPEECH_INERTIA_DURATION = 0.1 * sampleRate; // Speech inertia duration in samples
   const RMS_THRESHOLD = 0.01;
   const ZCR_THRESHOLD = 0.1;
+
+  // Unique ID counter
+  let uniqueIdCounter = 0;
 
   const extractWaveform = (
     channelData, // Float32Array
@@ -110,6 +113,7 @@ self.onmessage = function (event) {
       }
 
       dataPoints.push({
+        id: uniqueIdCounter++, // Assign unique ID and increment the counter
         amplitude: algorithm === "peak" ? localMaxAmplitude : rms,
         activeSpeech,
         dB,
