@@ -98,17 +98,19 @@ export const drawDottedLine = ({
 
 export const updateActivePoints = ({
   x,
-  dataPoints,
-  activePoints,
-  maxDisplayedItems,
+  context: {
+    dataPoints,
+    activePoints,
+    maxDisplayedItems,
+    referenceLineX,
+    mode,
+    range,
+    candleWidth,
+    candleSpace,
+    lastUpdatedTranslateX,
+    ready,
+  },
   dispatch,
-  referenceLineX,
-  mode,
-  range,
-  candleWidth,
-  candleSpace,
-  lastUpdatedTranslateX,
-  ready,
 }: UpdateActivePointsParams) => {
   if (dataPoints.length === 0) {
     logger.debug(

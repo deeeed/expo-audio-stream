@@ -21,18 +21,15 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
 }) => {
   const initialTranslateX = useRef(0);
 
+  if (playing || mode === "live") {
+    return <>{children}</>;
+  }
+
   const gesture = Gesture.Pan()
     .onStart((_e) => {
-      if (playing || mode === "live") {
-        return;
-      }
       initialTranslateX.current = translateX.value;
     })
     .onChange((e) => {
-      if (playing || mode === "live") {
-        return;
-      }
-
       const newTranslateX = translateX.value + e.changeX;
       const clampedTranslateX = Math.max(
         -maxTranslateX,
@@ -45,8 +42,6 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
       translateX.value = clampedTranslateX;
     })
     .onEnd((_e) => {
-      if (mode === "live") return;
-
       runOnJS(onDragEnd)({
         newTranslateX: translateX.value,
       });

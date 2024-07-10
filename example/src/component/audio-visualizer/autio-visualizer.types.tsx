@@ -51,22 +51,24 @@ export interface AudioVisualizerState {
 
 export interface UpdateActivePointsParams {
   x: number;
-  dataPoints: DataPoint[];
-  activePoints: CandleData[];
-  maxDisplayedItems: number;
-  dispatch: React.Dispatch<AudioVisualiserAction>;
-  referenceLineX: number;
-  mode: "static" | "live";
-  range: {
-    start: number;
-    end: number;
-    startVisibleIndex: number;
-    endVisibleIndex: number;
+  context: {
+    dataPoints: DataPoint[];
+    activePoints: CandleData[];
+    maxDisplayedItems: number;
+    referenceLineX: number;
+    mode: "static" | "live";
+    range: {
+      start: number;
+      end: number;
+      startVisibleIndex: number;
+      endVisibleIndex: number;
+    };
+    candleWidth: number;
+    candleSpace: number;
+    lastUpdatedTranslateX: number;
+    ready: boolean;
   };
-  candleWidth: number;
-  candleSpace: number;
-  lastUpdatedTranslateX: number;
-  ready: boolean;
+  dispatch: React.Dispatch<AudioVisualiserAction>;
 }
 
 export interface DebouncedUpdateActivePointsParams
