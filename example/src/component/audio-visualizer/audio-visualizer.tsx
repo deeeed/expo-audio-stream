@@ -156,17 +156,19 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     console.log("Updating active points...");
     updateActivePoints({
       x: translateX.value,
-      dataPoints: audioData.dataPoints,
-      maxDisplayedItems,
-      activePoints,
+      context: {
+        dataPoints: audioData.dataPoints,
+        maxDisplayedItems,
+        activePoints,
+        ready,
+        referenceLineX,
+        mode,
+        range,
+        candleWidth,
+        candleSpace,
+        lastUpdatedTranslateX: lastUpdatedTranslateX.current,
+      },
       dispatch,
-      referenceLineX,
-      mode,
-      range,
-      candleWidth,
-      candleSpace,
-      lastUpdatedTranslateX: lastUpdatedTranslateX.current,
-      ready,
     });
   }, [audioData.dataPoints, hasInitialized, maxDisplayedItems, canvasWidth]);
 
@@ -199,34 +201,38 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     updateActivePoints({
       x: newTranslateX,
-      dataPoints: audioData.dataPoints,
-      maxDisplayedItems,
-      activePoints,
+      context: {
+        dataPoints: audioData.dataPoints,
+        maxDisplayedItems,
+        activePoints,
+        referenceLineX,
+        mode,
+        range,
+        candleWidth,
+        candleSpace,
+        lastUpdatedTranslateX: lastUpdatedTranslateX.current,
+        ready,
+      },
       dispatch,
-      referenceLineX,
-      mode,
-      range,
-      candleWidth,
-      candleSpace,
-      lastUpdatedTranslateX: lastUpdatedTranslateX.current,
-      ready,
     });
   };
 
   const handleReset = () => {
     updateActivePoints({
       x: 0,
-      dataPoints: audioData.dataPoints,
-      maxDisplayedItems,
-      activePoints,
+      context: {
+        dataPoints: audioData.dataPoints,
+        maxDisplayedItems,
+        activePoints,
+        referenceLineX,
+        mode,
+        range,
+        candleWidth,
+        candleSpace,
+        lastUpdatedTranslateX: lastUpdatedTranslateX.current,
+        ready,
+      },
       dispatch,
-      referenceLineX,
-      mode,
-      range,
-      candleWidth,
-      candleSpace,
-      lastUpdatedTranslateX: lastUpdatedTranslateX.current,
-      ready,
     });
     runOnUI(() => {
       translateX.value = 0;
