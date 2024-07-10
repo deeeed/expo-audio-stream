@@ -1,54 +1,22 @@
-import { AudioAnalysisData, DataPoint } from "@siteed/expo-audio-stream";
 import React, { useRef } from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SharedValue, runOnJS } from "react-native-reanimated";
 
-import { updateActivePoints } from "./audio-visualiser.helpers";
-import { AudioVisualiserAction } from "./audio-visualizer";
-import { CandleData } from "./autio-visualizer.types";
-
 interface GestureHandlerProps {
-  dispatch: React.Dispatch<AudioVisualiserAction>;
   playing: boolean;
   mode: "static" | "live";
   translateX: SharedValue<number>;
   maxTranslateX: number;
-  onSeekEnd?: (newTime: number) => void;
-  audioData: AudioAnalysisData;
-  dataPoints: DataPoint[];
-  activePoints: CandleData[];
-  maxDisplayedItems: number;
-  referenceLineX: number;
-  candleWidth: number;
-  candleSpace: number;
-  lastUpdatedTranslateX: number;
-  ready: boolean;
-  range: {
-    start: number;
-    end: number;
-    startVisibleIndex: number;
-    endVisibleIndex: number;
-  };
+  onDragEnd: (params: { newTranslateX: number }) => void;
   children: React.ReactNode;
 }
 
 export const GestureHandler: React.FC<GestureHandlerProps> = ({
   playing,
   mode,
-  dispatch,
   translateX,
   maxTranslateX,
-  onSeekEnd,
-  audioData,
-  activePoints,
-  dataPoints,
-  maxDisplayedItems,
-  referenceLineX,
-  candleWidth,
-  candleSpace,
-  lastUpdatedTranslateX,
-  ready,
-  range,
+  onDragEnd,
   children,
 }) => {
   const initialTranslateX = useRef(0);
@@ -79,26 +47,8 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
     .onEnd((_e) => {
       if (mode === "live") return;
 
-      if (audioData.durationMs && onSeekEnd) {
-        const allowedTranslateX = maxTranslateX;
-        const progressRatio = -translateX.value / allowedTranslateX;
-        const newTime = (progressRatio * audioData.durationMs) / 1000;
-        runOnJS(onSeekEnd)(newTime);
-      }
-
-      runOnJS(updateActivePoints)({
-        x: translateX.value,
-        dataPoints,
-        maxDisplayedItems,
-        activePoints,
-        referenceLineX,
-        dispatch,
-        range,
-        mode,
-        candleWidth,
-        candleSpace,
-        lastUpdatedTranslateX,
-        ready,
+      runOnJS(onDragEnd)({
+        newTranslateX: translateX.value,
       });
     });
 

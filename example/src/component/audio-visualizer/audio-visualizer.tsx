@@ -189,6 +189,51 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     }
   }, [playing, currentTime, audioData.durationMs, canvasWidth, translateX]);
 
+  const handleDragEnd = ({ newTranslateX }: { newTranslateX: number }) => {
+    if (audioData.durationMs && onSeekEnd) {
+      const allowedTranslateX = maxTranslateX;
+      const progressRatio = -newTranslateX / allowedTranslateX;
+      const newTime = (progressRatio * audioData.durationMs) / 1000;
+      onSeekEnd(newTime);
+    }
+
+    updateActivePoints({
+      x: newTranslateX,
+      dataPoints: audioData.dataPoints,
+      maxDisplayedItems,
+      activePoints,
+      dispatch,
+      referenceLineX,
+      mode,
+      range,
+      candleWidth,
+      candleSpace,
+      lastUpdatedTranslateX: lastUpdatedTranslateX.current,
+      ready,
+    });
+  };
+
+  const handleReset = () => {
+    updateActivePoints({
+      x: 0,
+      dataPoints: audioData.dataPoints,
+      maxDisplayedItems,
+      activePoints,
+      dispatch,
+      referenceLineX,
+      mode,
+      range,
+      candleWidth,
+      candleSpace,
+      lastUpdatedTranslateX: lastUpdatedTranslateX.current,
+      ready,
+    });
+    runOnUI(() => {
+      translateX.value = 0;
+    })();
+    onSeekEnd?.(0);
+  };
+
   console.log(
     `render AudioVisualizer[${translateX.value}]: ${activePoints.length} firstId=${activePoints[0]?.id} lastId=${activePoints[activePoints.length - 1]?.id}`,
   );
@@ -213,48 +258,13 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       <Text style={styles.text}>currentTime: {currentTime}</Text>
       <Text style={styles.text}>durationMs: {audioData.durationMs}</Text>
       <Text style={styles.text}>TranslateX: {translateX.value}</Text>
-      <Button
-        onPress={() => {
-          // Reset translateX
-          updateActivePoints({
-            x: 0,
-            dataPoints: audioData.dataPoints,
-            maxDisplayedItems,
-            activePoints,
-            dispatch,
-            referenceLineX,
-            mode,
-            range,
-            candleWidth,
-            candleSpace,
-            lastUpdatedTranslateX: lastUpdatedTranslateX.current,
-            ready,
-          });
-          runOnUI(() => {
-            translateX.value = 0;
-          })();
-          onSeekEnd?.(0);
-        }}
-      >
-        Reset
-      </Button>
+      <Button onPress={handleReset}>Reset</Button>
       <GestureHandler
         playing={playing}
         mode={mode}
         translateX={translateX}
         maxTranslateX={maxTranslateX}
-        onSeekEnd={onSeekEnd}
-        audioData={audioData}
-        dataPoints={audioData.dataPoints}
-        dispatch={dispatch}
-        lastUpdatedTranslateX={lastUpdatedTranslateX.current}
-        maxDisplayedItems={maxDisplayedItems}
-        range={range}
-        activePoints={activePoints}
-        referenceLineX={referenceLineX}
-        candleWidth={candleWidth}
-        candleSpace={candleSpace}
-        ready={ready}
+        onDragEnd={handleDragEnd}
       >
         <View>
           {ready && (
