@@ -341,23 +341,17 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
           {ready && (
             <>
               <CanvasContainer
-                currentTime={currentTime}
                 canvasHeight={canvasHeight}
                 candleWidth={candleWidth}
                 candleSpace={candleSpace}
                 showDottedLine={showDottedLine}
                 showRuler={showRuler}
                 mode={mode}
-                playing={playing}
                 dispatch={dispatch}
                 startIndex={updateActivePointsResult.current.range.start}
                 translateX={translateX}
                 activePoints={updateActivePointsResult.current.activePoints}
-                lastUpdatedTranslateX={
-                  updateActivePointsResult.current.lastUpdatedTranslateX
-                }
                 maxDisplayedItems={maxDisplayedItems}
-                maxTranslateX={maxTranslateX}
                 paddingLeft={paddingLeft}
                 totalCandleWidth={totalCandleWidth}
                 canvasWidth={canvasWidth}
