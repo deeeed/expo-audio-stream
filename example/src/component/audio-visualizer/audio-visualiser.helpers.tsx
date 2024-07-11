@@ -3,7 +3,7 @@ import { Skia, SkPath } from "@shopify/react-native-skia";
 import { getLogger } from "@siteed/react-native-logger";
 import { log } from "console";
 import { StyleSheet } from "react-native";
-import { withTiming } from "react-native-reanimated";
+import { Easing, withSpring, withTiming } from "react-native-reanimated";
 
 import {
   AudioVisualizerState,
@@ -62,7 +62,6 @@ export const getStyles = ({
   });
 };
 
-const SYNC_DURATION = 100; // Duration for the timing animation
 export const syncTranslateX = ({
   currentTime,
   durationMs,
@@ -75,7 +74,11 @@ export const syncTranslateX = ({
     const progressRatio = currentTimeInMs / durationMs;
     const allowedTranslateX = maxTranslateX;
     const x = -(progressRatio * allowedTranslateX);
-    translateX.value = withTiming(x, { duration: SYNC_DURATION }); // Smooth transition
+    translateX.value = withSpring(x, {
+      damping: 20, // Adjust damping for smoother effect
+      stiffness: 90, // Adjust stiffness for smoother effect
+    });
+
     return x;
   }
   return translateX.value;
