@@ -3,7 +3,7 @@ import { Button, Result, Skeleton, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, View } from "react-native";
 
 import { AudioStreamResult } from "../../../../src/ExpoAudioStream.types";
 import { AudioRecording } from "../../component/AudioRecording";
@@ -83,7 +83,7 @@ export default function Files() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Button onPress={clearFiles}>
+      <Button onPress={clearFiles} buttonColor="red" textColor="white">
         Clear Directory ({formatBytes(totalAudioStorageSize)})
       </Button>
       {renderRecordings()}
@@ -95,10 +95,11 @@ const styles = StyleSheet.create({
   container: {
     gap: 10,
     backgroundColor: "#fff",
-    paddingBottom: 80,
-    alignItems: "center",
+    paddingTop: 10,
+    marginBottom: 80,
+    paddingHorizontal: 20,
+    minHeight: "100%",
     justifyContent: "center",
-    flexGrow: 1,
   },
   recordingContainer: {
     gap: 10,
