@@ -1,6 +1,7 @@
 // playground/src/app/(tabs)/play.tsx
 import { ScreenWrapper } from "@siteed/design-system";
 import { AudioAnalysisData } from "@siteed/expo-audio-stream";
+import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -22,7 +23,7 @@ const getStyles = () => {
 };
 const isWeb = Platform.OS === "web";
 
-export const TestPage = () => {
+export const PlayPage = () => {
   const styles = useMemo(() => getStyles(), []);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
@@ -33,6 +34,7 @@ export const TestPage = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [processing, setProcessing] = useState<boolean>(false);
+  const { logger } = useLogger("PlayPage");
 
   const pickAudioFile = async () => {
     try {
@@ -68,11 +70,11 @@ export const TestPage = () => {
           pointsPerSecond: 20,
           algorithm: "rms",
         });
-        console.log(`AudioAnalysis:`, audioAnalysis);
+        logger.log(`AudioAnalysis:`, audioAnalysis);
         setAudioAnalysis(audioAnalysis);
       }
     } catch (error) {
-      console.error("Error picking audio file:", error);
+      logger.error("Error picking audio file:", error);
     } finally {
       setProcessing(false);
     }
@@ -132,11 +134,11 @@ export const TestPage = () => {
 
       timings["Total Time"] = performance.now() - startOverall;
 
-      console.log("Timings:", timings);
-      console.log(`AudioAnalysis:`, audioAnalysis);
-      console.log(`wavMetadata:`, wavMetadata);
+      logger.log("Timings:", timings);
+      logger.log(`AudioAnalysis:`, audioAnalysis);
+      logger.log(`wavMetadata:`, wavMetadata);
     } catch (error) {
-      console.error("Error loading audio file:", error);
+      logger.error("Error loading audio file:", error);
     }
   };
 
@@ -179,11 +181,11 @@ export const TestPage = () => {
   useEffect(() => {
     return sound
       ? () => {
-          console.log("Unloading sound");
+          logger.log("Unloading sound");
           sound.unloadAsync();
         }
       : undefined;
-  }, [sound]);
+  }, [sound, logger]);
 
   return (
     <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
@@ -198,7 +200,7 @@ export const TestPage = () => {
                 audioUri: "/audio_samples/recorder_jre_lex_watch.wav",
               });
             } catch (error) {
-              console.error("Error loading audio file:", error);
+              logger.error("Error loading audio file:", error);
             }
           }}
         />
@@ -257,4 +259,4 @@ export const TestPage = () => {
   );
 };
 
-export default TestPage;
+export default PlayPage;

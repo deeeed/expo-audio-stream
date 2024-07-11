@@ -12,6 +12,7 @@ export interface AudioEventPayload {
 
 export interface AudioStreamResult {
   fileUri: string;
+  webAudioUri?: string;
   duration: number;
   size: number;
   mimeType: string;

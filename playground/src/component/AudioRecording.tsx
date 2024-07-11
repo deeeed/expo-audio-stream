@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 
-import { AudioVisualizer } from "./audio-visualizer/audio-visualizer";
 import { extractAudioAnalysis } from "../../../src";
 import {
   AudioAnalysisData,
@@ -14,6 +13,7 @@ import {
 } from "../../../src/ExpoAudioStream.types";
 import { useAudio } from "../hooks/useAudio";
 import { formatBytes, formatDuration } from "../utils";
+import { AudioVisualizer } from "./audio-visualizer/audio-visualizer";
 
 const getStyles = ({
   isPlaying,
@@ -48,21 +48,17 @@ const getStyles = ({
 
 export interface AudioRecordingProps {
   recording: AudioStreamResult;
-  webAudioUri?: string; // Allow to overwrite the audioUri for web since it cannot load from file
-  wavAudioBuffer?: ArrayBuffer;
   showWaveform?: boolean;
   onDelete?: () => Promise<void>;
 }
 export const AudioRecording = ({
   recording,
-  webAudioUri,
-  wavAudioBuffer,
   showWaveform = true,
   onDelete,
 }: AudioRecordingProps) => {
   const { logger } = useLogger("AudioRecording");
   const { show } = useToast();
-  const audioUri = webAudioUri ?? recording.fileUri;
+  const audioUri = recording.webAudioUri ?? recording.fileUri;
   const theme = useTheme();
   const {
     isPlaying,
@@ -73,7 +69,6 @@ export const AudioRecording = ({
     updatePlaybackOptions,
   } = useAudio({
     audioUri,
-    audioBuffer: wavAudioBuffer,
     recording,
     options: { extractAnalysis: showWaveform },
   });
@@ -108,9 +103,8 @@ export const AudioRecording = ({
     setProcessing(true);
     try {
       const analysis = await extractAudioAnalysis({
-        fileUri: audioUri,
+        fileUri: recording.webAudioUri ?? recording.fileUri,
         pointsPerSecond: 20,
-        arrayBuffer: wavAudioBuffer,
         bitDepth: recording.bitDepth,
         durationMs: recording.duration,
         sampleRate: recording.sampleRate,
@@ -125,9 +119,10 @@ export const AudioRecording = ({
     } finally {
       setProcessing(false);
     }
-  }, [audioUri, wavAudioBuffer, recording, logger, show]);
+  }, [audioUri, recording, logger, show]);
 
   useEffect(() => {
+    logger.debug("Extracting analysis from useEffect...");
     extractAnalysis();
   }, [extractAnalysis]);
 

@@ -1,3 +1,4 @@
+// playground/src/app/(tabs)/_layout.tsx
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useTheme } from "@siteed/design-system";
@@ -8,7 +9,7 @@ import { Text } from "react-native-paper";
 
 import { useSharedAudioRecorder } from "../../../../src";
 
-const recordingColor = "red";
+const recordingColor = "rgba(255, 99, 71, 1)";
 
 const isWeb = Platform.OS === "web";
 

@@ -143,13 +143,11 @@ export const AudioFilesProvider = ({
         const metadata = sessionStorage.getItem(key);
         try {
           return metadata ? JSON.parse(metadata).fileUri === fileUri : false;
-        } catch (_error) {
-          // logger.error(`Failed to parse metadata for key: ${key}`, error);
-          logger.error(
-            `Failed to parse metadata for key: ${key}`,
+        } catch (error) {
+          logger.error(`Failed to parse metadata for key: ${key}`, {
             metadata,
             error,
-          );
+          });
           return false;
         }
       });

@@ -82,7 +82,6 @@ export default function Record() {
   const [result, setResult] = useState<AudioStreamResult | null>(null);
   const currentSize = useRef(0);
   const { refreshFiles, removeFile } = useAudioFiles();
-  const [webAudioUri, setWebAudioUri] = useState<string>();
 
   // Ref for full WAV audio buffer
   const fullWavAudioBuffer = useRef<ArrayBuffer | null>(null);
@@ -158,9 +157,9 @@ export default function Record() {
   } = useSharedAudioRecorder();
 
   const handleSaveFile = () => {
-    if (webAudioUri) {
+    if (result?.webAudioUri) {
       const a = document.createElement("a");
-      a.href = webAudioUri;
+      a.href = result.webAudioUri;
       a.download = `recording_${result?.sampleRate ?? "NOSAMPLE"}_${result?.bitDepth ?? "NOBITDEPTH"}.wav`;
       a.click();
     }
@@ -214,7 +213,6 @@ export default function Record() {
     const result = await stopRecording();
     // TODO: compare accumulated audio chunks with the result
     logger.debug(`Recording stopped. `, result);
-    setResult(result);
 
     if (!result) {
       logger.warn(`No result found`);
@@ -223,6 +221,7 @@ export default function Record() {
 
     if (!isWeb && result) {
       try {
+        setResult(result);
         const jsonPath = result.fileUri.replace(/\.wav$/, ".json"); // Assuming fileUri has a .wav extension
         await FileSystem.writeAsStringAsync(
           jsonPath,
@@ -240,18 +239,19 @@ export default function Record() {
 
     if (isWeb && fullWavAudioBuffer.current) {
       const wavConfig = {
-        buffer: fullWavAudioBuffer.current,
+        buffer: fullWavAudioBuffer.current.slice(0),
         sampleRate: result?.sampleRate || 44100,
         numChannels: result?.channels || 1,
         bitDepth: result?.bitDepth || 32,
       };
       logger.debug(`Writing wav header`, wavConfig);
-      const wavBuffer = writeWaveHeader(wavConfig);
+      const wavBuffer = writeWaveHeader(wavConfig).slice(0);
 
       const blob = new Blob([wavBuffer], { type: result.mimeType });
       const url = URL.createObjectURL(blob);
       console.log(`Generated URL: ${url}`);
-      setWebAudioUri(url);
+      result.webAudioUri = url;
+      setResult(result);
 
       // Generate unique identifier for the recording
       const storageKey = `${WEB_STORAGE_KEY_PREFIX}${result.fileUri}`;
@@ -489,9 +489,7 @@ export default function Record() {
         <View style={{ gap: 10, paddingBottom: 100 }}>
           <AudioRecording
             recording={result}
-            webAudioUri={webAudioUri}
             showWaveform
-            wavAudioBuffer={isWeb ? fullWavAudioBuffer.current! : undefined}
             onDelete={
               isWeb
                 ? undefined
@@ -501,14 +499,14 @@ export default function Record() {
                   }
             }
           />
-          {isWeb && webAudioUri && (
+          {isWeb && (
             <>
               <Button mode="contained" onPress={handleSaveFile}>
                 Save to Disk
               </Button>
               <Button
                 mode="contained"
-                onPress={() => handleFileInfo(webAudioUri)}
+                onPress={() => handleFileInfo(result.webAudioUri!)}
               >
                 Get Wav Info
               </Button>
