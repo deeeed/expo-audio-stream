@@ -12,27 +12,25 @@ import { View } from "react-native";
 import { useDerivedValue } from "react-native-reanimated";
 
 import AnimatedCandle, {
-  ACTIVE_SPEECH_COLOR,
-  INACTIVE_SPEECH_COLOR,
+  CANDLE_ACTIVE_AUDIO_COLOR,
+  CANDLE_ACTIVE_SPEECH_COLOR,
+  CANDLE_OFFCANVAS_COLOR,
+  CANDLE_SELECTED_COLOR,
 } from "./animated-candle";
 import { drawDottedLine } from "./audio-visualiser.helpers";
 import { CanvasContainerProps } from "./autio-visualizer.types";
 import { SkiaTimeRuler } from "./skia-time-ruler";
 
 const CanvasContainer: React.FC<CanvasContainerProps> = ({
-  currentTime,
   canvasHeight,
   candleWidth,
   candleSpace,
   showDottedLine,
   showRuler,
   mode,
-  playing,
   translateX,
   activePoints,
-  lastUpdatedTranslateX,
   maxDisplayedItems,
-  maxTranslateX,
   paddingLeft,
   totalCandleWidth,
   startIndex,
@@ -52,7 +50,6 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
   const touchHandler = useTouchHandler({
     onStart: () => {
-      console.log("TouchStart");
       setDragging(false);
     },
     onActive: () => setDragging(true),
@@ -138,9 +135,13 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
           startIndex * (candleWidth + candleSpace) +
           delta;
 
-        let color = visible ? ACTIVE_SPEECH_COLOR : INACTIVE_SPEECH_COLOR;
-        if (selectedCandle && selectedCandle.id === id) {
-          color = "red";
+        let color = CANDLE_ACTIVE_AUDIO_COLOR;
+        if (!visible) {
+          color = CANDLE_OFFCANVAS_COLOR;
+        } else if (selectedCandle && selectedCandle.id === id) {
+          color = CANDLE_SELECTED_COLOR;
+        } else if (activeSpeech) {
+          color = CANDLE_ACTIVE_SPEECH_COLOR;
         }
 
         const key = `${id}`;
@@ -170,8 +171,6 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     mode,
     startIndex,
     selectedCandle,
-    ACTIVE_SPEECH_COLOR,
-    INACTIVE_SPEECH_COLOR,
   ]);
 
   return (

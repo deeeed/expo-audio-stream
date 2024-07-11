@@ -91,21 +91,17 @@ export interface AudioVisualizerProps {
 }
 
 export interface CanvasContainerProps {
-  currentTime?: number;
   canvasHeight: number;
   candleWidth: number;
   candleSpace: number;
   showDottedLine: boolean;
   showRuler: boolean;
   mode: "static" | "live" | "scaled";
-  playing: boolean;
   onSeekEnd?: (newTime: number) => void;
   dispatch: React.Dispatch<AudioVisualiserAction>;
   translateX: SharedValue<number>;
   activePoints: CandleData[];
-  lastUpdatedTranslateX: number;
   maxDisplayedItems: number;
-  maxTranslateX: number;
   paddingLeft: number;
   totalCandleWidth: number;
   startIndex: number;

@@ -1,3 +1,4 @@
+// example/src/app/(tabs)/play.tsx
 import { ScreenWrapper } from "@siteed/design-system";
 import { AudioAnalysisData } from "@siteed/expo-audio-stream";
 import { Audio } from "expo-av";
@@ -193,9 +194,9 @@ export const TestPage = () => {
           title="Auto Load"
           onPress={async () => {
             try {
-              // await loadWebAudioFile({ audioUri: "/arthurdanette.wav" });
-              // await loadWebAudioFile({ audioUri: "/arthurdanette.wav" });
-              await loadWebAudioFile({ audioUri: "/sdk_sample.wav" });
+              await loadWebAudioFile({
+                audioUri: "/audio_samples/recorder_jre_lex_watch.wav",
+              });
             } catch (error) {
               console.error("Error loading audio file:", error);
             }

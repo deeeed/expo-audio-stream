@@ -11,11 +11,13 @@ interface AnimatedCandleProps {
   width: number;
   color: string;
   animated?: boolean;
-  onPress?: () => void;
 }
 
-export const ACTIVE_SPEECH_COLOR = "rgba(74, 144, 226, 1)";
-export const INACTIVE_SPEECH_COLOR = "rgba(211, 211, 211, 1)";
+
+export const CANDLE_ACTIVE_AUDIO_COLOR = "rgba(74, 144, 226, 1)";
+export const CANDLE_ACTIVE_SPEECH_COLOR = "rgba(114, 191, 106, 1)";
+export const CANDLE_SELECTED_COLOR = "rgba(255, 99, 71, 1)";
+export const CANDLE_OFFCANVAS_COLOR = "rgba(211, 211, 211, 1)";
 
 const AnimatedCandle: React.FC<AnimatedCandleProps> = ({
   color: targetColor,
@@ -25,12 +27,11 @@ const AnimatedCandle: React.FC<AnimatedCandleProps> = ({
   height: targetHeight,
   width,
   animated = true,
-  onPress,
 }) => {
   const y = useSharedValue(startY);
   const height = useSharedValue(0);
   const x = useSharedValue(targetX);
-  const color = useSharedValue(INACTIVE_SPEECH_COLOR);
+  const color = useSharedValue(CANDLE_OFFCANVAS_COLOR);
 
   useEffect(() => {
     if (animated) {
