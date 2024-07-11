@@ -13,7 +13,6 @@ interface AnimatedCandleProps {
   animated?: boolean;
 }
 
-
 export const CANDLE_ACTIVE_AUDIO_COLOR = "rgba(74, 144, 226, 1)";
 export const CANDLE_ACTIVE_SPEECH_COLOR = "rgba(114, 191, 106, 1)";
 export const CANDLE_SELECTED_COLOR = "rgba(255, 99, 71, 1)";

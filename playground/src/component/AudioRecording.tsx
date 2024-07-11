@@ -12,7 +12,7 @@ import {
   AudioStreamResult,
 } from "../../../src/ExpoAudioStream.types";
 import { useAudio } from "../hooks/useAudio";
-import { formatBytes, formatDuration } from "../utils";
+import { formatBytes, formatDuration } from "../utils/utils";
 import { AudioVisualizer } from "./audio-visualizer/audio-visualizer";
 
 const getStyles = ({
@@ -199,7 +199,7 @@ export const AudioRecording = ({
       )}
 
       <View style={styles.buttons}>
-        <Button onPress={extractAnalysis}>Extract Analysis</Button>
+        <Button onPress={extractAnalysis}>Visualize</Button>
         <Button onPress={handlePlayPause}>
           {isPlaying ? "Pause" : "Play"}
         </Button>

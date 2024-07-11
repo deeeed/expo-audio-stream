@@ -1,6 +1,5 @@
 // playground/src/context/AudioFilesProvider.tsx
 import { useLogger } from "@siteed/react-native-logger";
-import { error } from "console";
 import * as FileSystem from "expo-file-system";
 import React, {
   createContext,
@@ -13,9 +12,9 @@ import { Platform } from "react-native";
 
 import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
 import {
-  WEB_STORAGE_KEY_PREFIX,
-  WEB_STORAGE_METADATA_KEY_PREFIX,
-} from "../constants";
+  deleteAudioFile,
+  listAudioFiles as listIndexedDBAudioFiles,
+} from "../utils/indexedDB";
 
 interface AudioFilesContextValue {
   files: AudioStreamResult[];
@@ -41,20 +40,8 @@ export const AudioFilesProvider = ({
 
   const listAudioFiles = useCallback(async () => {
     if (Platform.OS === "web") {
-      const keys = Object.keys(sessionStorage).filter((key) =>
-        key.startsWith(WEB_STORAGE_KEY_PREFIX),
-      );
-
-      return keys
-        .map((key) => {
-          const fileId = key.replace(WEB_STORAGE_KEY_PREFIX, "");
-          const metadata = sessionStorage.getItem(
-            `${WEB_STORAGE_METADATA_KEY_PREFIX}${fileId}`,
-          );
-
-          return metadata ? JSON.parse(metadata) : null;
-        })
-        .filter((file) => file !== null) as AudioStreamResult[];
+      const records = await listIndexedDBAudioFiles();
+      return records.map((record) => record.metadata);
     } else {
       const directoryUri = FileSystem.documentDirectory;
       if (!directoryUri) {
@@ -114,22 +101,26 @@ export const AudioFilesProvider = ({
   }, []);
 
   const deleteAudioAndMetadata = async (audioUri: string) => {
-    const jsonPath = audioUri.replace(/\.wav$/, ".json");
-    // logger.debug(`Deleting audio and metadata for ${audioUri}`);
-    // check if exists before deletion
-    if (!(await FileSystem.getInfoAsync(audioUri))) {
-      logger.error(`Audio file does not exist at ${audioUri}`);
+    if (Platform.OS === "web") {
+      await deleteAudioFile({ fileName: audioUri });
     } else {
-      await FileSystem.deleteAsync(audioUri);
-    }
+      const jsonPath = audioUri.replace(/\.wav$/, ".json");
+      // logger.debug(`Deleting audio and metadata for ${audioUri}`);
+      // check if exists before deletion
+      if (!(await FileSystem.getInfoAsync(audioUri))) {
+        logger.error(`Audio file does not exist at ${audioUri}`);
+      } else {
+        await FileSystem.deleteAsync(audioUri);
+      }
 
-    logger.debug(`Deleted audio for ${jsonPath}`);
-    if (!(await FileSystem.getInfoAsync(jsonPath))) {
-      logger.error(`Metadata file does not exist at ${jsonPath}`);
-    } else {
-      await FileSystem.deleteAsync(jsonPath);
+      logger.debug(`Deleted audio for ${jsonPath}`);
+      if (!(await FileSystem.getInfoAsync(jsonPath))) {
+        logger.error(`Metadata file does not exist at ${jsonPath}`);
+      } else {
+        await FileSystem.deleteAsync(jsonPath);
+      }
+      logger.debug(`Deleted audio and metadata for ${audioUri}`);
     }
-    logger.debug(`Deleted audio and metadata for ${audioUri}`);
   };
 
   const refreshFiles = useCallback(async () => {
@@ -138,46 +129,20 @@ export const AudioFilesProvider = ({
   }, []);
 
   const removeFile = useCallback(async (fileUri: string) => {
-    if (Platform.OS === "web") {
-      const metadataKey = Object.keys(sessionStorage).find((key) => {
-        const metadata = sessionStorage.getItem(key);
-        try {
-          return metadata ? JSON.parse(metadata).fileUri === fileUri : false;
-        } catch (error) {
-          logger.error(`Failed to parse metadata for key: ${key}`, {
-            metadata,
-            error,
-          });
-          return false;
-        }
-      });
-
-      if (metadataKey) {
-        const fileId = metadataKey.replace(WEB_STORAGE_METADATA_KEY_PREFIX, "");
-        sessionStorage.removeItem(`${WEB_STORAGE_KEY_PREFIX}${fileId}`);
-        sessionStorage.removeItem(metadataKey);
-      }
-    } else {
-      await deleteAudioAndMetadata(fileUri);
-    }
+    await deleteAudioAndMetadata(fileUri);
     await refreshFiles();
   }, []);
 
   const clearFiles = useCallback(async () => {
     try {
       if (Platform.OS === "web") {
-        const keys = Object.keys(sessionStorage).filter((key) =>
-          key.startsWith(WEB_STORAGE_KEY_PREFIX),
-        );
-
-        keys.forEach((key) => {
-          const fileId = key.replace(WEB_STORAGE_KEY_PREFIX, "");
-          sessionStorage.removeItem(key);
-          sessionStorage.removeItem(
-            `${WEB_STORAGE_METADATA_KEY_PREFIX}${fileId}`,
+        await listIndexedDBAudioFiles().then((records) => {
+          return Promise.all(
+            records.map((record) =>
+              deleteAudioFile({ fileName: record.metadata.fileUri }),
+            ),
           );
         });
-
         setFiles([]);
       } else {
         const directoryUri = FileSystem.documentDirectory;
