@@ -86,7 +86,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   playing = false,
   mode = "static",
   showRuler = false,
-  showDottedLine = false,
+  showDottedLine = true,
   onSeekEnd,
 }) => {
   const translateX = useSharedValue(0);
