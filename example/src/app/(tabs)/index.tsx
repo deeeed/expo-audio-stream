@@ -1,20 +1,27 @@
-import { Button } from "@siteed/design-system";
+import { Button, Picker, ScreenWrapper } from "@siteed/design-system";
+import {
+  AudioAnalysisData,
+  AudioDataEvent,
+  AudioStreamResult,
+  RecordingConfig,
+  SampleRate,
+  StartAudioStreamResult,
+  getWavFileInfo,
+  useSharedAudioRecorder,
+  writeWaveHeader,
+} from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
 import isBase64 from "is-base64";
 import { useCallback, useRef, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { atob, btoa } from "react-native-quick-base64";
 
-import { useSharedAudioRecorder } from "../../../../src";
-import {
-  AudioStreamResult,
-  RecordingConfig,
-  StartAudioStreamResult,
-} from "../../../../src/ExpoAudioStream.types";
-import { AudioDataEvent } from "../../../../src/useAudioRecording";
 import { AudioRecording } from "../../component/AudioRecording";
+import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
+import { RawWaveForm } from "../../component/waveform/rawwaveform";
+import { WaveformProps } from "../../component/waveform/waveform.types";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { formatBytes, formatDuration } from "../../utils";
 
@@ -24,16 +31,65 @@ if (isWeb) {
   localStorage.debug = "expo-audio-stream:*";
 }
 
+const LIVE_WAVE_FORM_CHUNKS_LENGTH = 5000;
+
+const concatenateBuffers = (buffers: ArrayBuffer[]): ArrayBuffer => {
+  // Filter out any undefined or null buffers
+  const validBuffers = buffers.filter((buffer) => buffer);
+  const totalLength = validBuffers.reduce(
+    (sum, buffer) => sum + buffer.byteLength,
+    0,
+  );
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const buffer of validBuffers) {
+    result.set(new Uint8Array(buffer), offset);
+    offset += buffer.byteLength;
+  }
+  return result.buffer;
+};
+
+const baseRecordingConfig: RecordingConfig = {
+  interval: 500,
+  sampleRate: 44100,
+  encoding: "pcm_32bit",
+  pointsPerSecond: 20,
+  enableProcessing: true,
+};
+
+if (Platform.OS === "ios") {
+  baseRecordingConfig.sampleRate = 48000;
+} else if (Platform.OS === "android") {
+  baseRecordingConfig.sampleRate = 16000;
+}
+
 export default function Record() {
   const [error, setError] = useState<string | null>(null);
+  const [visualizationType, setVisualizationType] =
+    useState<WaveformProps["visualizationType"]>("candlestick");
   const audioChunks = useRef<string[]>([]);
-  const audioChunksBlobs = useRef<Blob[]>([]);
+  const audioChunksBlobs = useRef<ArrayBuffer[]>([]);
   const [streamConfig, setStreamConfig] =
     useState<StartAudioStreamResult | null>(null);
+  const [startRecordingConfig, setStartRecordingConfig] =
+    useState<RecordingConfig>({
+      ...baseRecordingConfig,
+      onAudioStream: (a) => onAudioData(a),
+    });
   const [result, setResult] = useState<AudioStreamResult | null>(null);
   const currentSize = useRef(0);
   const { refreshFiles, removeFile } = useAudioFiles();
   const [webAudioUri, setWebAudioUri] = useState<string>();
+
+  // Ref for full WAV audio buffer
+  const fullWavAudioBuffer = useRef<ArrayBuffer | null>(null);
+
+  // Prevent displaying the entiere audio in the live visualization
+  const liveWavFormBufferIndex = useRef(0);
+  const liveWavFormBuffer = useRef<ArrayBuffer[]>(
+    new Array(LIVE_WAVE_FORM_CHUNKS_LENGTH),
+  ); // Circular buffer for live waveform visualization
+
   const { logger } = useLogger("Record");
 
   const onAudioData = useCallback(async (event: AudioDataEvent) => {
@@ -57,24 +113,69 @@ export default function Record() {
           logger.warn(
             `Invalid base64 data for chunks#${audioChunks.current.length} position=${position}`,
           );
+        } else {
+          const binaryString = atob(data);
+          const len = binaryString.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const wavAudioBuffer = bytes.buffer;
+          liveWavFormBuffer.current[liveWavFormBufferIndex.current] =
+            wavAudioBuffer;
+          liveWavFormBufferIndex.current =
+            (liveWavFormBufferIndex.current + 1) % LIVE_WAVE_FORM_CHUNKS_LENGTH;
         }
-      } else if (data instanceof Blob) {
-        // Append the audio data to the audioRef
+      } else if (data instanceof ArrayBuffer) {
         audioChunksBlobs.current.push(data);
+
+        // Store the arrayBuffer
+        fullWavAudioBuffer.current = concatenateBuffers([
+          ...(fullWavAudioBuffer.current ? [fullWavAudioBuffer.current] : []),
+          data,
+        ]);
+
+        // Update the circular buffer for visualization
+        liveWavFormBuffer.current[liveWavFormBufferIndex.current] = data;
+        liveWavFormBufferIndex.current =
+          (liveWavFormBufferIndex.current + 1) % LIVE_WAVE_FORM_CHUNKS_LENGTH;
       }
     } catch (error) {
       logger.error(`Error while processing audio data`, error);
     }
   }, []);
 
-  const [recordingConfig, setRecordingConfig] = useState<RecordingConfig>({
-    interval: 500,
-    sampleRate: 16000,
-    onAudioStream: (a) => onAudioData(a),
-  });
+  const {
+    startRecording,
+    stopRecording,
+    duration,
+    size,
+    isRecording,
+    analysisData,
+  } = useSharedAudioRecorder();
 
-  const { startRecording, stopRecording, duration, size, isRecording } =
-    useSharedAudioRecorder();
+  const handleSaveFile = () => {
+    if (webAudioUri) {
+      const a = document.createElement("a");
+      a.href = webAudioUri;
+      a.download = `recording_${result?.sampleRate ?? "NOSAMPLE"}_${result?.bitDepth ?? "NOBITDEPTH"}.wav`;
+      a.click();
+    }
+  };
+
+  const handleFileInfo = async (uri: string) => {
+    logger.debug(`Getting file info...`, uri);
+    try {
+      const response = await fetch(uri);
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Decode the audio file to get metadata
+      const wavMetadata = await getWavFileInfo(arrayBuffer);
+      console.log(`Decoded audio:`, wavMetadata);
+    } catch (error) {
+      console.error("Error picking audio file:", error);
+    }
+  };
 
   const handleStart = async () => {
     try {
@@ -82,21 +183,31 @@ export default function Record() {
       if (!granted) {
         setError("Permission not granted!");
       }
+
       // Clear previous audio chunks
       audioChunks.current = [];
       audioChunksBlobs.current = [];
+      liveWavFormBuffer.current = new Array(LIVE_WAVE_FORM_CHUNKS_LENGTH);
+      liveWavFormBufferIndex.current = 0;
+      fullWavAudioBuffer.current = null;
       currentSize.current = 0;
+      console.log(`Starting recording...`, startRecordingConfig);
       const streamConfig: StartAudioStreamResult =
-        await startRecording(recordingConfig);
+        await startRecording(startRecordingConfig);
       logger.debug(`Recording started `, streamConfig);
-      setStreamConfig((prev) => ({ ...prev, ...streamConfig }));
+      setStreamConfig(streamConfig);
+
+      // // Debug Only with fixed audio buffer
+      // setTimeout(async () => {
+      //   console.log("AUTO Stopping recording");
+      //   await handleStopRecording();
+      // }, 3000);
     } catch (error) {
       logger.error(`Error while starting recording`, error);
     }
   };
 
   const handleStopRecording = useCallback(async () => {
-    if (!isRecording) return;
     const result = await stopRecording();
     // TODO: compare accumulated audio chunks with the result
     logger.debug(`Recording stopped. `, result);
@@ -124,12 +235,23 @@ export default function Record() {
       }
     }
 
-    if (isWeb) {
-      const blob = new Blob(audioChunksBlobs.current, {
-        type: "audio/webm",
-      });
+    if (isWeb && fullWavAudioBuffer.current) {
+      const wavConfig = {
+        buffer: fullWavAudioBuffer.current,
+        sampleRate: result?.sampleRate || 44100,
+        numChannels: result?.channels || 1,
+        bitDepth: result?.bitDepth || 32,
+      };
+      logger.debug(`Writing wav header`, wavConfig);
+      const wavBuffer = writeWaveHeader(wavConfig);
+
+      const blob = new Blob([wavBuffer], { type: result.mimeType });
       const url = URL.createObjectURL(blob);
+      console.log(`Generated URL: ${url}`);
       setWebAudioUri(url);
+
+      await handleFileInfo(url);
+      return;
     }
 
     // Verify data integrity to make sure we streamed the correct data
@@ -177,11 +299,24 @@ export default function Record() {
   }, [isRecording, refreshFiles]);
 
   const renderRecording = () => (
-    <View style={{ gap: 10 }}>
+    <View style={{ gap: 10, display: "flex" }}>
+      {analysisData && (
+        <AudioVisualizer
+          candleSpace={2}
+          candleWidth={5}
+          canvasHeight={200}
+          mode="live"
+          audioData={analysisData}
+        />
+      )}
+
       <Text>Duration: {formatDuration(duration)}</Text>
       <Text>Size: {formatBytes(size)}</Text>
       {streamConfig?.sampleRate ? (
         <Text>sampleRate: {streamConfig?.sampleRate}</Text>
+      ) : null}
+      {streamConfig?.bitDepth ? (
+        <Text>bitDepth: {streamConfig?.bitDepth}</Text>
       ) : null}
       {streamConfig?.channels ? (
         <Text>channels: {streamConfig?.channels}</Text>
@@ -194,35 +329,117 @@ export default function Record() {
 
   const renderStopped = () => (
     <View style={{ gap: 10 }}>
-      {/* <Picker
+      <Picker
         label="Sample Rate"
         multi={false}
         options={[
           {
             label: "16000",
             value: "16000",
-            selected: recordingConfig.sampleRate === 16000,
+            selected: startRecordingConfig.sampleRate === 16000,
           },
           {
             label: "44100",
             value: "44100",
-            selected: recordingConfig.sampleRate === 44100,
+            selected: startRecordingConfig.sampleRate === 44100,
           },
           {
             label: "48000",
             value: "48000",
-            selected: recordingConfig.sampleRate === 48000,
+            selected: startRecordingConfig.sampleRate === 48000,
           },
         ]}
         onFinish={(options) => {
-          const selected = options.find((option) => option.selected);
+          console.log(`Selected options`, options);
+          const selected = options?.find((option) => option.selected);
           if (!selected) return;
-          setRecordingConfig((prev) => ({
+          setStartRecordingConfig((prev) => ({
             ...prev,
-            sampleRate: parseInt(selected.value, 10) as 16000 | 44100 | 48000,
+            sampleRate: parseInt(selected.value, 10) as SampleRate,
           }));
         }}
-      /> */}
+      />
+      <Picker
+        label="Encoding"
+        multi={false}
+        options={[
+          {
+            label: "pcm_16bit",
+            value: "pcm_16bit",
+            selected: startRecordingConfig.encoding === "pcm_16bit",
+          },
+          {
+            label: "pcm_32bit",
+            value: "pcm_32bit",
+            selected: startRecordingConfig.encoding === "pcm_32bit",
+          },
+          {
+            label: "pcm_8bit",
+            value: "pcm_8bit",
+            selected: startRecordingConfig.encoding === "pcm_8bit",
+          },
+        ]}
+        onFinish={(options) => {
+          const selected = options?.find((option) => option.selected);
+          if (!selected) return;
+          setStartRecordingConfig((prev) => ({
+            ...prev,
+            encoding: selected.value as RecordingConfig["encoding"],
+          }));
+        }}
+      />
+      <Picker
+        label="Visualization Type"
+        multi={false}
+        options={[
+          {
+            label: "Candlestick",
+            value: "candlestick",
+            selected: visualizationType === "candlestick",
+          },
+          {
+            label: "Line",
+            value: "line",
+            selected: visualizationType === "line",
+          },
+        ]}
+        onFinish={(options) => {
+          const selected = options?.find((option) => option.selected);
+          if (!selected) return;
+          setVisualizationType(
+            selected.value as WaveformProps["visualizationType"],
+          );
+        }}
+      />
+      <Picker
+        label="Points Per Second"
+        multi={false}
+        options={[
+          {
+            label: "20",
+            value: "20",
+            selected: startRecordingConfig.pointsPerSecond === 20,
+          },
+          {
+            label: "10",
+            value: "10",
+            selected: startRecordingConfig.pointsPerSecond === 10,
+          },
+          {
+            label: "1",
+            value: "1",
+            selected: startRecordingConfig.pointsPerSecond === 1,
+          },
+        ]}
+        onFinish={(options) => {
+          const selected = options?.find((option) => option.selected);
+          if (!selected) return;
+          setStartRecordingConfig((prev) => ({
+            ...prev,
+            pointsPerSecond: parseInt(selected.value, 10),
+          }));
+        }}
+      />
       <Button mode="contained" onPress={() => handleStart()}>
         Start Recording
       </Button>
@@ -239,17 +456,19 @@ export default function Record() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
       {/* {audioUri && (
         <View>
           <Text>Audio URI: {audioUri}</Text>
         </View>
       )} */}
       {result && (
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: 10, paddingBottom: 100 }}>
           <AudioRecording
             recording={result}
             webAudioUri={webAudioUri}
+            showWaveform
+            wavAudioBuffer={isWeb ? fullWavAudioBuffer.current! : undefined}
             onDelete={
               isWeb
                 ? undefined
@@ -259,14 +478,27 @@ export default function Record() {
                   }
             }
           />
-          <Button mode="outlined" onPress={() => setResult(null)}>
+          {isWeb && webAudioUri && (
+            <>
+              <Button mode="contained" onPress={handleSaveFile}>
+                Save to Disk
+              </Button>
+              <Button
+                mode="contained"
+                onPress={() => handleFileInfo(webAudioUri)}
+              >
+                Get Wav Info
+              </Button>
+            </>
+          )}
+          <Button mode="contained" onPress={() => setResult(null)}>
             Record Again
           </Button>
         </View>
       )}
       {isRecording && renderRecording()}
       {!result && !isRecording && renderStopped()}
-    </ScrollView>
+    </ScreenWrapper>
   );
 }
 
@@ -274,9 +506,13 @@ const styles = StyleSheet.create({
   container: {
     gap: 10,
     padding: 10,
-    flex: 1,
+    // flex: 1,
     // alignItems: "center",
     justifyContent: "center",
+    paddingBottom: 80,
+  },
+  waveformContainer: {
+    borderRadius: 10,
   },
   recordingContainer: {
     gap: 10,

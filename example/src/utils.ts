@@ -1,3 +1,5 @@
+import * as FileSystem from "expo-file-system";
+import { Platform } from "react-native";
 /**
  * Formats bytes into a human-readable format.
  *
@@ -34,3 +36,56 @@ export function formatDuration(ms: number): string {
 
   return `${paddedMinutes}:${paddedSeconds}`;
 }
+
+const MAX_8BIT = 255;
+const MAX_16BIT = 32768;
+const MAX_24BIT = 8388608;
+export const normalizeValue = (
+  value: number,
+  amplitude: number,
+  bitDepth: number,
+): number => {
+  switch (bitDepth) {
+    case 8:
+      return (1 - value / MAX_8BIT) * amplitude;
+    case 16:
+      return (1 - value / MAX_16BIT) * amplitude;
+    case 24:
+      return (1 - value / MAX_24BIT) * amplitude;
+    default:
+      throw new Error("Unsupported bit depth");
+  }
+};
+
+export const fetchArrayBuffer = async (uri: string): Promise<ArrayBuffer> => {
+  try {
+    console.log(`Reading file from: ${uri}`);
+    if (Platform.OS === "web") {
+      const response = await fetch(uri);
+      const arrayBuffer = await response.arrayBuffer();
+      return arrayBuffer;
+    } else {
+      const fileUri = uri;
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+
+      if (!fileInfo.exists) {
+        throw new Error(`File does not exist at ${fileUri}`);
+      }
+
+      const fileData = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const binaryString = atob(fileData);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+  } catch (error) {
+    console.error(`Failed to read file from ${uri}:`, error);
+    throw error;
+  }
+};

@@ -14,25 +14,55 @@ class AudioFileHandler(private val filesDir: File) {
 
         // RIFF/WAVE header
         "RIFF".toByteArray().copyInto(header, 0)
-        header[4] = 0 // Size will be updated later
+        // (file size - 8) to be updated later
+        header[4] = 0 // Placeholder
+        header[5] = 0 // Placeholder
+        header[6] = 0 // Placeholder
+        header[7] = 0 // Placeholder
         "WAVE".toByteArray().copyInto(header, 8)
         "fmt ".toByteArray().copyInto(header, 12)
 
         // 16 for PCM
         header[16] = 16
+        header[17] = 0
+        header[18] = 0
+        header[19] = 0
+
+        // PCM format ID
         header[20] = 1 // Audio format 1 for PCM (not compressed)
-        header[22] = channels.toByte()
+        header[21] = 0
+
+        // Number of channels
+        header[22] = (channels and 0xff).toByte()
+        header[23] = (channels shr 8 and 0xff).toByte()
+
+        // Sample rate
         header[24] = (sampleRateInHz and 0xff).toByte()
         header[25] = (sampleRateInHz shr 8 and 0xff).toByte()
         header[26] = (sampleRateInHz shr 16 and 0xff).toByte()
         header[27] = (sampleRateInHz shr 24 and 0xff).toByte()
+
+        // Byte rate
         header[28] = (byteRate and 0xff).toByte()
         header[29] = (byteRate shr 8 and 0xff).toByte()
         header[30] = (byteRate shr 16 and 0xff).toByte()
         header[31] = (byteRate shr 24 and 0xff).toByte()
-        header[32] = blockAlign.toByte()
-        header[34] = bitDepth.toByte()
+
+        // Block align
+        header[32] = (blockAlign and 0xff).toByte()
+        header[33] = (blockAlign shr 8 and 0xff).toByte()
+
+        // Bits per sample
+        header[34] = (bitDepth and 0xff).toByte()
+        header[35] = (bitDepth shr 8 and 0xff).toByte()
+
+        // Data chunk
         "data".toByteArray().copyInto(header, 36)
+        // Data size to be updated later
+        header[40] = 0 // Placeholder
+        header[41] = 0 // Placeholder
+        header[42] = 0 // Placeholder
+        header[43] = 0 // Placeholder
 
         out.write(header, 0, 44)
     }

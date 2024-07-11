@@ -10,6 +10,7 @@ import expo.modules.kotlin.modules.ModuleDefinition
 
 class ExpoAudioStreamModule() : Module(), EventSender {
     private lateinit var audioRecorderManager: AudioRecorderManager
+    private lateinit var audioProcessor: AudioProcessor
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun definition() = ModuleDefinition {
@@ -18,7 +19,7 @@ class ExpoAudioStreamModule() : Module(), EventSender {
         // The module will be accessible from `requireNativeModule('ExpoAudioStream')` in JavaScript.
         Name("ExpoAudioStream")
 
-        Events(Constants.AUDIO_EVENT_NAME)
+        Events(Constants.AUDIO_EVENT_NAME, Constants.AUDIO_ANALYSIS_EVENT_NAME)
 
         // Initialize AudioRecorderManager
         initializeManager()
@@ -43,6 +44,48 @@ class ExpoAudioStreamModule() : Module(), EventSender {
             audioRecorderManager.pauseRecording(promise)
         }
 
+
+        AsyncFunction("extractAudioAnalysis") { options: Map<String, Any>, promise: Promise ->
+            val fileUri = options["fileUri"] as? String
+            val pointsPerSecond = options["pointsPerSecond"] as? Int ?: 20
+            val algorithm = options["algorithm"] as? String ?: "rms"
+            val featuresMap = options["features"] as? Map<*, *>
+            val features = featuresMap?.filterKeys { it is String }
+                ?.filterValues { it is Boolean }
+                ?.mapKeys { it.key as String }
+                ?.mapValues { it.value as Boolean }
+                ?: emptyMap()
+
+            if (fileUri == null) {
+                promise.reject("INVALID_ARGUMENTS", "fileUri is required", null)
+                return@AsyncFunction
+            }
+
+            try {
+                val audioData = audioProcessor.loadAudioFile(fileUri)
+                if (audioData == null) {
+                    promise.reject("PROCESSING_ERROR", "Failed to load audio file", null)
+                    return@AsyncFunction
+                }
+
+                val recordingConfig = RecordingConfig(
+                    sampleRate = audioData.sampleRate,
+                    channels = audioData.channels,
+                    encoding = "pcm_${audioData.bitDepth}bit",
+                    pointsPerSecond = pointsPerSecond,
+                    algorithm = algorithm,
+                    features = features
+                )
+
+                Log.d("ExpoAudioStreamModule", "extractAudioAnalysis: $recordingConfig")
+
+                val analysisData = audioProcessor.processAudioData(audioData.data, recordingConfig)
+                promise.resolve(analysisData.toDictionary())
+            } catch (e: Exception) {
+                promise.reject("PROCESSING_ERROR", "Failed to process audio file: ${e.message}", e)
+            }
+        }
+
         AsyncFunction("resumeRecording") { promise: Promise ->
             audioRecorderManager.resumeRecording(promise)
         }
@@ -59,10 +102,12 @@ class ExpoAudioStreamModule() : Module(), EventSender {
         val audioEncoder = AudioDataEncoder()
         audioRecorderManager =
             AudioRecorderManager(androidContext.filesDir, permissionUtils, audioEncoder, this)
+        audioProcessor = AudioProcessor(androidContext.filesDir) // Instantiate here with filesDir
     }
 
     override fun sendExpoEvent(eventName: String, params: Bundle) {
-        this@ExpoAudioStreamModule.sendEvent(Constants.AUDIO_EVENT_NAME, params)
+        Log.d(Constants.TAG, "Sending event: $eventName")
+        this@ExpoAudioStreamModule.sendEvent(eventName, params)
     }
 
 }
