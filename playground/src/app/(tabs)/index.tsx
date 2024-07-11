@@ -1,6 +1,6 @@
+// playground/src/app/(tabs)/index.tsx
 import { Button, Picker, ScreenWrapper } from "@siteed/design-system";
 import {
-  AudioAnalysisData,
   AudioDataEvent,
   AudioStreamResult,
   RecordingConfig,
@@ -20,7 +20,6 @@ import { atob, btoa } from "react-native-quick-base64";
 
 import { AudioRecording } from "../../component/AudioRecording";
 import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
-import { RawWaveForm } from "../../component/waveform/rawwaveform";
 import { WaveformProps } from "../../component/waveform/waveform.types";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { formatBytes, formatDuration } from "../../utils";
