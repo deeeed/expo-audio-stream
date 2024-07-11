@@ -1,6 +1,7 @@
 // playground/src/app/(tabs)/files.tsx
-import { Button, useToast } from "@siteed/design-system";
+import { Button, Result, Skeleton, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
+import { useRouter } from "expo-router";
 import { useCallback, useEffect } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
@@ -12,9 +13,16 @@ import { formatBytes } from "../../utils/utils";
 export default function Files() {
   const { logger } = useLogger("Files");
   const { show } = useToast();
+  const router = useRouter();
 
-  const { files, totalAudioStorageSize, removeFile, clearFiles, refreshFiles } =
-    useAudioFiles();
+  const {
+    ready,
+    files,
+    totalAudioStorageSize,
+    removeFile,
+    clearFiles,
+    refreshFiles,
+  } = useAudioFiles();
 
   useEffect(() => {
     refreshFiles();
@@ -47,6 +55,32 @@ export default function Files() {
     </View>
   );
 
+  if (!ready) {
+    return (
+      <Skeleton
+        items={[
+          { circles: 1, bars: 3 },
+          { circles: 1, bars: 3 },
+        ]}
+      />
+    );
+  }
+
+  if (!files || files.length === 0) {
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <Result
+          title="No recordings found"
+          status="info"
+          buttonText="Record"
+          onButtonPress={() => {
+            router.push("/");
+          }}
+        />
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Button onPress={clearFiles}>
@@ -61,9 +95,10 @@ const styles = StyleSheet.create({
   container: {
     gap: 10,
     backgroundColor: "#fff",
-    marginBottom: 80,
-    // alignItems: "center",
-    // justifyContent: "center",
+    paddingBottom: 80,
+    alignItems: "center",
+    justifyContent: "center",
+    flexGrow: 1,
   },
   recordingContainer: {
     gap: 10,
