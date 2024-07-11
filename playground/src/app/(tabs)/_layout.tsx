@@ -45,7 +45,7 @@ export default function TabLayout() {
         name="files"
         options={{
           title: "Files",
-          href: isWeb ? null : "files",
+          href: "files",
           tabBarIcon: ({ color }) => (
             <FontAwesome size={28} name="cog" color={color} />
           ),
