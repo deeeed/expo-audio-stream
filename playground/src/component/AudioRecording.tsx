@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 
+import { AudioVisualizer } from "./audio-visualizer/audio-visualizer";
 import { extractAudioAnalysis } from "../../../src";
 import {
   AudioAnalysisData,
@@ -13,7 +14,6 @@ import {
 } from "../../../src/ExpoAudioStream.types";
 import { useAudio } from "../hooks/useAudio";
 import { formatBytes, formatDuration } from "../utils/utils";
-import { AudioVisualizer } from "./audio-visualizer/audio-visualizer";
 
 const getStyles = ({
   isPlaying,
