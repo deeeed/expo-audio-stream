@@ -2742,9 +2742,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@siteed/design-system@npm:^0.8.2":
-  version: 0.8.2
-  resolution: "@siteed/design-system@npm:0.8.2"
+"@siteed/design-system@npm:^0.8.4":
+  version: 0.8.4
+  resolution: "@siteed/design-system@npm:0.8.4"
   dependencies:
     "@pchmn/expo-material3-theme": "npm:^1.3.2"
     i18n-js: "npm:^4.4.3"
@@ -2763,7 +2763,7 @@ __metadata:
     react-native-gesture-handler: "*"
     react-native-paper: "*"
     react-native-vector-icons: "*"
-  checksum: 10c0/3a5e18517669b9a1e10176192cd8ccec35645d2fb501d44cdf5067f0549aa89f5ad3235399ed61c5e27103190dff498ad8b1ab8fb8d388c2abb4db60fead4da8
+  checksum: 10c0/d3f259f7d6c9c5d1bd36d16905d47aa3fd21598fae167fc1ed16a5ce0ba75d6dfd4d55d0a71f11cda956dbeb2e78920113c60e72bb02e35edcfa0a2b357d1d7b
   languageName: node
   linkType: hard
 
@@ -3678,7 +3678,7 @@ __metadata:
     "@react-navigation/native": "npm:^6.1.17"
     "@shopify/react-native-skia": "npm:1.2.3"
     "@simform_solutions/react-native-audio-waveform": "npm:^1.0.1"
-    "@siteed/design-system": "npm:^0.8.2"
+    "@siteed/design-system": "npm:^0.8.4"
     "@siteed/react-native-logger": "npm:^0.7.1"
     "@types/is-base64": "npm:^1.1.3"
     "@types/lodash": "npm:^4"
