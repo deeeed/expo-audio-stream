@@ -21,6 +21,9 @@ interface AudioFeaturesEvent {
 }
 
 const DEFAULT_WEB_BITDEPTH = 32;
+const DEFAULT_WEB_POINTS_PER_SECOND = 20;
+const DEFAULT_WEB_INTERVAL = 500;
+const DEFAULT_WEB_NUMBER_OF_CHANNELS = 1;
 
 // const log = debug("expo-audio-stream:WebRecorder");
 const log = console.log;
@@ -37,6 +40,7 @@ export class WebRecorder {
   private bitDepth: number; // Bit depth of the audio
   private exportBitDepth: number; // Bit depth of the audio
   private buffers: ArrayBuffer[]; // Array to store the buffers
+  private audioAnalysisData: AudioAnalysisData; // Keep updating the full audio analysis data with latest events
 
   constructor({
     audioContext,
@@ -69,13 +73,26 @@ export class WebRecorder {
     });
 
     this.bitDepth = audioContextFormat.bitDepth;
-    this.numberOfChannels = audioContextFormat.numberOfChannels || 1; // Default to 1 if not available
+    this.numberOfChannels =
+      audioContextFormat.numberOfChannels || DEFAULT_WEB_NUMBER_OF_CHANNELS; // Default to 1 if not available
     this.exportBitDepth =
       encodingToBitDepth({
         encoding: recordingConfig.encoding ?? "pcm_32bit",
       }) ||
       audioContextFormat.bitDepth ||
       DEFAULT_WEB_BITDEPTH;
+
+    this.audioAnalysisData = {
+      amplitudeRange: { min: 0, max: 0 },
+      dataPoints: [],
+      durationMs: 0,
+      bitDepth: this.bitDepth,
+      numberOfChannels: this.numberOfChannels,
+      sampleRate: this.config.sampleRate || this.audioContext.sampleRate,
+      pointsPerSecond:
+        this.config.pointsPerSecond || DEFAULT_WEB_POINTS_PER_SECOND,
+      speakerChanges: [],
+    };
 
     // Initialize the feature extractor worker
     //TODO: create audio feature extractor from a Blob instead of url since we cannot include the url directly in the library
@@ -165,10 +182,11 @@ export class WebRecorder {
             command: "process",
             channelData,
             sampleRate: this.audioContext.sampleRate,
-            pointsPerSecond: this.config.pointsPerSecond || 20,
+            pointsPerSecond:
+              this.config.pointsPerSecond || DEFAULT_WEB_POINTS_PER_SECOND,
             algorithm: this.config.algorithm || "rms",
             bitDepth: this.bitDepth,
-            durationMs: this.position * 1000,
+            fullAudioDurationMs: this.position * 1000,
             numberOfChannels: this.numberOfChannels,
             features: this.config.features,
           },
@@ -188,7 +206,7 @@ export class WebRecorder {
         bitDepth: this.bitDepth,
         exportBitDepth: this.exportBitDepth,
         channels: this.numberOfChannels,
-        interval: this.config.interval ?? 500,
+        interval: this.config.interval ?? DEFAULT_WEB_INTERVAL,
       });
 
       // Connect the source to the AudioWorkletNode and start recording
@@ -201,10 +219,30 @@ export class WebRecorder {
 
   handleFeatureExtractorMessage(event: AudioFeaturesEvent) {
     if (event.data.command === "features") {
-      const result = event.data.result;
+      const segmentResult = event.data.result;
+
+      // Merge the segment result with the full audio analysis data
+      this.audioAnalysisData.dataPoints.push(...segmentResult.dataPoints);
+      this.audioAnalysisData.speakerChanges?.push(
+        ...(segmentResult.speakerChanges ?? []),
+      );
+      this.audioAnalysisData.durationMs = segmentResult.durationMs;
+      if (segmentResult.amplitudeRange) {
+        this.audioAnalysisData.amplitudeRange = {
+          min: Math.min(
+            this.audioAnalysisData.amplitudeRange.min,
+            segmentResult.amplitudeRange.min,
+          ),
+          max: Math.max(
+            this.audioAnalysisData.amplitudeRange.max,
+            segmentResult.amplitudeRange.max,
+          ),
+        };
+      }
       // Handle the extracted features (e.g., emit an event or log them)
-      log("Extracted features:", result);
-      this.emitAudioAnalysisCallback(result);
+      log("features event segmentResult", segmentResult);
+      log("features event audioAnalysisData", this.audioAnalysisData);
+      this.emitAudioAnalysisCallback(segmentResult);
     }
   }
 

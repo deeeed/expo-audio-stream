@@ -71,6 +71,16 @@ export interface UpdateActivePointsParams {
   dispatch: React.Dispatch<AudioVisualiserAction>;
 }
 
+export interface UpdateActivePointsResult {
+  activePoints: CandleData[];
+  range: {
+    start: number;
+    end: number;
+    startVisibleIndex: number;
+    endVisibleIndex: number;
+  };
+}
+
 export interface DebouncedUpdateActivePointsParams
   extends UpdateActivePointsParams {
   debounceTimer: NodeJS.Timeout | null;

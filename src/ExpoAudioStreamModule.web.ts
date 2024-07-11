@@ -1,3 +1,4 @@
+// src/ExpoAudioStreamModule.web.ts
 import debug from "debug";
 import { EventEmitter } from "expo-modules-core";
 

@@ -1,6 +1,7 @@
 // example/src/component/audio-visualizer/audio-visualiser.helpers.tsx
 import { Skia, SkPath } from "@shopify/react-native-skia";
 import { getLogger } from "@siteed/react-native-logger";
+import { log } from "console";
 import { StyleSheet } from "react-native";
 import { withTiming } from "react-native-reanimated";
 
@@ -11,6 +12,7 @@ import {
   GetStylesParams,
   SyncTranslateXParams,
   UpdateActivePointsParams,
+  UpdateActivePointsResult,
 } from "./autio-visualizer.types";
 
 const logger = getLogger("audio-visualiser.helpers");
@@ -111,12 +113,12 @@ export const updateActivePoints = ({
     ready,
   },
   dispatch,
-}: UpdateActivePointsParams) => {
+}: UpdateActivePointsParams): UpdateActivePointsResult => {
   if (dataPoints.length === 0) {
     logger.debug(
       `No data points to update or already updated. Skipping... lastUpdatedTranslateX=${lastUpdatedTranslateX}, x=${x}, ready=${ready}`,
     );
-    return;
+    return { activePoints, range };
   }
 
   logger.debug(
@@ -128,26 +130,57 @@ export const updateActivePoints = ({
     triggerUpdate: 0,
     range: { ...range }, // Initialize range to avoid it being undefined
   };
+  let lastPointIndex = -1;
 
   if (mode === "live") {
-    const totalItems = activePoints.length;
+    const totalItems = dataPoints.length;
     const liveMaxDisplayedItems = Math.floor(
       referenceLineX / (candleWidth + candleSpace),
     );
     const startIndex = Math.max(0, totalItems - liveMaxDisplayedItems);
 
-    const updatedPoints = [];
+    const updatedPoints = [...activePoints];
+    let addedPointsCount = 0;
+
+    const lastUpdatedPointId = activePoints[activePoints.length - 1]?.id ?? -1;
+    logger.log(
+      `Last updated point ID: ${lastUpdatedPointId} activePoints.length=${activePoints.length}`,
+    );
+    // TODO: can we have a single pass on the data instead of first searching for the last updated point? Worst case is O(n) currently.
+    // find lastPointIndex by searching for lastUpdatedPointId from the end
+    for (let i = dataPoints.length - 1; i >= 0; i--) {
+      if (dataPoints[i].id === lastUpdatedPointId) {
+        lastPointIndex = i;
+        break;
+      }
+    }
+    logger.log(`Last point index: ${lastPointIndex}`);
     for (let i = 0; i < liveMaxDisplayedItems; i++) {
       const itemIndex = startIndex + i;
       if (itemIndex < totalItems) {
-        updatedPoints.push({
-          ...dataPoints[itemIndex],
-          visible: true,
-        });
+        if (i > lastPointIndex) {
+          updatedPoints.push({
+            ...dataPoints[itemIndex],
+            visible: true,
+          });
+          addedPointsCount++;
+        }
       }
     }
-    logger.log(`Live mode: Updated ${updatedPoints.length} active points`);
-    updates.activePoints = [...updatedPoints];
+    logger.log(
+      `Live mode: Updated ${updatedPoints.length} active points`,
+      updatedPoints,
+    );
+
+    // Ensure activePoints does not exceed liveMaxDisplayedItems
+    const finalUpdatedPoints = updatedPoints.slice(-liveMaxDisplayedItems);
+    updates.activePoints = [...finalUpdatedPoints];
+
+    logger.log(
+      `Live mode: Updated ${finalUpdatedPoints.length} active points`,
+      finalUpdatedPoints,
+    );
+    logger.log(`Number of new points added: ${addedPointsCount}`);
   } else {
     const translateX = Math.abs(x);
     const rawHiddenItemsLeft = Math.floor(
@@ -205,4 +238,9 @@ export const updateActivePoints = ({
   logger.debug(
     `Active points updated. First point ID: ${activePoints[0]?.id}, Last point ID: ${activePoints[activePoints.length - 1]?.id}`,
   );
+
+  return {
+    activePoints: updates.activePoints,
+    range: { ...range, ...updates.range },
+  };
 };
