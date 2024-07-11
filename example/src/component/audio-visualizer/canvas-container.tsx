@@ -121,42 +121,44 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
   });
 
   const memoizedCandles = useMemo(() => {
-    return activePoints.map(({ id, amplitude, visible }, index) => {
-      if (amplitude === 0 && id === -1) return null;
+    return activePoints.map(
+      ({ id, amplitude, visible, activeSpeech, silent }, index) => {
+        if (id === -1 || silent) return null;
 
-      const scaledAmplitude =
-        ((amplitude - minAmplitude) * (canvasHeight - 10)) /
-        (maxAmplitude - minAmplitude);
-      let delta =
-        Math.ceil(maxDisplayedItems / 2) * (candleWidth + candleSpace);
-      if (mode === "live") {
-        delta = 0;
-      }
-      const x =
-        (candleWidth + candleSpace) * index +
-        startIndex * (candleWidth + candleSpace) +
-        delta;
+        const scaledAmplitude =
+          ((amplitude - minAmplitude) * (canvasHeight - 10)) /
+          (maxAmplitude - minAmplitude);
+        let delta =
+          Math.ceil(maxDisplayedItems / 2) * (candleWidth + candleSpace);
+        if (mode === "live") {
+          delta = 0;
+        }
+        const x =
+          (candleWidth + candleSpace) * index +
+          startIndex * (candleWidth + candleSpace) +
+          delta;
 
-      let color = visible ? ACTIVE_SPEECH_COLOR : INACTIVE_SPEECH_COLOR;
-      if (selectedCandle && selectedCandle.id === id) {
-        color = "red";
-      }
+        let color = visible ? ACTIVE_SPEECH_COLOR : INACTIVE_SPEECH_COLOR;
+        if (selectedCandle && selectedCandle.id === id) {
+          color = "red";
+        }
 
-      const key = `${id}`;
+        const key = `${id}`;
 
-      return (
-        <AnimatedCandle
-          key={`${key}`}
-          animated
-          x={x}
-          y={canvasHeight / 2 - scaledAmplitude / 2}
-          startY={canvasHeight / 2}
-          width={candleWidth}
-          height={scaledAmplitude}
-          color={color}
-        />
-      );
-    });
+        return (
+          <AnimatedCandle
+            key={`${key}`}
+            animated
+            x={x}
+            y={canvasHeight / 2 - scaledAmplitude / 2}
+            startY={canvasHeight / 2}
+            width={candleWidth}
+            height={scaledAmplitude}
+            color={color}
+          />
+        );
+      },
+    );
   }, [
     activePoints,
     canvasHeight,
