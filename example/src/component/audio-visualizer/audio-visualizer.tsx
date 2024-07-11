@@ -1,4 +1,5 @@
 import { Button } from "@siteed/design-system";
+import { useLogger } from "@siteed/react-native-logger";
 import React, { useCallback, useEffect, useReducer, useRef } from "react";
 import { LayoutChangeEvent, View } from "react-native";
 import { Text } from "react-native-paper";
@@ -92,6 +93,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const lastUpdatedTranslateX = useRef<number>(0);
+  const { logger } = useLogger("AudioVisualizer");
 
   const {
     activePoints,
@@ -106,7 +108,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
-    console.log(`Layout width: ${width}`);
+    logger.log(`Layout width: ${width}`);
     dispatch({ type: "SET_CANVAS_WIDTH", payload: width });
   }, []);
 
@@ -130,36 +132,43 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const totalCandleWidth =
     audioData.dataPoints.length * (candleWidth + candleSpace);
 
+  const activePointsRef = useRef(activePoints);
+
   // Initialize activePoints
   useEffect(() => {
-    console.log("useEffect - Initialize activePoints");
-    console.log("maxDisplayedItems:", maxDisplayedItems);
-    console.log("hasInitialized:", hasInitialized);
+    logger.log("useEffect - Initialize activePoints");
+    logger.log("maxDisplayedItems:", maxDisplayedItems);
+    logger.log("hasInitialized:", hasInitialized);
 
     if (maxDisplayedItems === 0 || hasInitialized) return;
 
-    // fill initialize activePoints with maxDisplayedItems * 3
-    const initialActivePoints: CandleData[] = new Array(
-      maxDisplayedItems * 3,
-    ).fill({
-      id: -1,
-      amplitude: 0,
-      visible: false,
-    });
-    dispatch({ type: "SET_ACTIVE_POINTS", payload: initialActivePoints });
+    if (mode !== "live") {
+      // fill initialize activePoints with maxDisplayedItems * 3
+      const initialActivePoints: CandleData[] = new Array(
+        maxDisplayedItems * 3,
+      ).fill({
+        id: -1,
+        amplitude: 0,
+        visible: false,
+      });
+      dispatch({ type: "SET_ACTIVE_POINTS", payload: initialActivePoints });
+    }
     dispatch({ type: "SET_HAS_INITIALIZED", payload: true });
-  }, [maxDisplayedItems, hasInitialized]);
+  }, [maxDisplayedItems, mode, hasInitialized]);
 
   useEffect(() => {
     if (!hasInitialized) return;
 
-    console.log("Updating active points...");
-    updateActivePoints({
+    logger.log(
+      `Updating active points... dataPoints.length: ${audioData.dataPoints.length} activePointsRef.length: ${activePointsRef.current.length}`,
+      audioData.dataPoints,
+    );
+    const { activePoints: updatedActivePoints } = updateActivePoints({
       x: translateX.value,
       context: {
         dataPoints: audioData.dataPoints,
         maxDisplayedItems,
-        activePoints,
+        activePoints: activePointsRef.current,
         ready,
         referenceLineX,
         mode,
@@ -170,6 +179,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       },
       dispatch,
     });
+    logger.log(`Updated active points: ${updatedActivePoints.length}`);
+    activePointsRef.current = updatedActivePoints;
   }, [audioData.dataPoints, hasInitialized, maxDisplayedItems, canvasWidth]);
 
   useEffect(() => {
@@ -180,7 +191,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   useEffect(() => {
     if (playing && currentTime && audioData.durationMs) {
-      console.log(`Syncing translateX... currentTime=${currentTime}`);
+      logger.log(`Syncing translateX... currentTime=${currentTime}`);
       syncTranslateX({
         currentTime,
         durationMs: audioData.durationMs,
@@ -240,9 +251,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     onSeekEnd?.(0);
   };
 
-  console.log(
-    `render AudioVisualizer[${translateX.value}]: ${activePoints.length} firstId=${activePoints[0]?.id} lastId=${activePoints[activePoints.length - 1]?.id}`,
-  );
   return (
     <View style={styles.container} onLayout={handleLayout}>
       <Text style={styles.text}>dataPoints: {audioData.dataPoints.length}</Text>

@@ -1,13 +1,16 @@
 // example/public/audio-features-extractor.js
 
+// Unique ID counter
+let uniqueIdCounter = 0;
+
 self.onmessage = function (event) {
   const {
-    channelData,
+    channelData, // this is only the newly recorded data when live recording.
     sampleRate,
     pointsPerSecond,
     algorithm,
     bitDepth,
-    durationMs,
+    fullAudioDurationMs,
     numberOfChannels,
     features,
   } = event.data;
@@ -19,9 +22,6 @@ self.onmessage = function (event) {
   const SPEECH_INERTIA_DURATION = 0.1 * sampleRate; // Speech inertia duration in samples
   const RMS_THRESHOLD = 0.01;
   const ZCR_THRESHOLD = 0.1;
-
-  // Unique ID counter
-  let uniqueIdCounter = 0;
 
   const extractWaveform = (
     channelData, // Float32Array
@@ -38,14 +38,14 @@ self.onmessage = function (event) {
     let lastSpeechEnd = -Infinity;
     let isSpeech = false;
 
+    const segmentDuration = length / sampleRate;
     console.log(
       `[AudioFeaturesExtractor] Extracting waveform with ${length} samples and ${pointsPerSecond} points per second --> ${pointInterval} samples per point`,
     );
     console.log(
-      `[AudioFeaturesExtractor] Duration: ${length / sampleRate} seconds VS ${durationMs} ms`,
+      `[AudioFeaturesExtractor] segmentDuration: ${segmentDuration} seconds VS fullAudioDurationMs=${fullAudioDurationMs} ms`,
     );
-    const duration = durationMs / 1000;
-    const expectedPoints = duration * pointsPerSecond;
+    const expectedPoints = segmentDuration * pointsPerSecond;
     const samplesPerPoint = Math.floor(channelData.length / expectedPoints);
     console.log(
       `[AudioFeaturesExtractor] Extracting waveform with expectedPoints=${expectedPoints} , samplesPerPoints=${samplesPerPoint}`,
@@ -133,7 +133,7 @@ self.onmessage = function (event) {
 
     return {
       pointsPerSecond,
-      durationMs,
+      durationMs: fullAudioDurationMs,
       bitDepth,
       numberOfChannels,
       sampleRate,

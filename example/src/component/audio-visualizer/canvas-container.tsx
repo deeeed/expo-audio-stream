@@ -142,7 +142,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
         color = "red";
       }
 
-      const key = mode === "live" ? `${id}-${index}` : `${id}`;
+      const key = `${id}`;
 
       return (
         <AnimatedCandle

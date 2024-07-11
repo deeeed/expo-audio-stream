@@ -411,6 +411,35 @@ export default function Record() {
           );
         }}
       />
+      <Picker
+        label="Points Per Second"
+        multi={false}
+        options={[
+          {
+            label: "20",
+            value: "20",
+            selected: startRecordingConfig.pointsPerSecond === 20,
+          },
+          {
+            label: "10",
+            value: "10",
+            selected: startRecordingConfig.pointsPerSecond === 10,
+          },
+          {
+            label: "1",
+            value: "1",
+            selected: startRecordingConfig.pointsPerSecond === 1,
+          },
+        ]}
+        onFinish={(options) => {
+          const selected = options?.find((option) => option.selected);
+          if (!selected) return;
+          setStartRecordingConfig((prev) => ({
+            ...prev,
+            pointsPerSecond: parseInt(selected.value, 10),
+          }));
+        }}
+      />
       <Button mode="contained" onPress={() => handleStart()}>
         Start Recording
       </Button>
