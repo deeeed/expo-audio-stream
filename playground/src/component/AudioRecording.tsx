@@ -3,7 +3,7 @@ import { AppTheme, Button, useTheme, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 
 import { AudioVisualizer } from "./audio-visualizer/audio-visualizer";
@@ -97,6 +97,21 @@ export const AudioRecording = ({
       logger.error("Error sharing the audio file:", error);
       show({ type: "error", message: "Failed to share the file" });
     }
+  };
+
+  const handleSaveToDisk = async () => {
+    if (Platform.OS !== "web" || !recording.webAudioUri) {
+      logger.warn(
+        "Save to disk is only supported on web",
+        recording.webAudioUri,
+      );
+      return;
+    }
+
+    const a = document.createElement("a");
+    a.href = recording.webAudioUri;
+    a.download = `rec_${recording.fileUri}_${recording?.sampleRate ?? "NOSAMPLE"}_${recording?.bitDepth ?? "NOBITDEPTH"}.wav`;
+    a.click();
   };
 
   const extractAnalysis = useCallback(async () => {
@@ -203,7 +218,11 @@ export const AudioRecording = ({
         <Button onPress={handlePlayPause}>
           {isPlaying ? "Pause" : "Play"}
         </Button>
-        <Button onPress={handleShare}>Share</Button>
+        {Platform.OS === "web" ? (
+          <Button onPress={handleSaveToDisk}>Save</Button>
+        ) : (
+          <Button onPress={handleShare}>Share</Button>
+        )}
         {onDelete && (
           <Button
             buttonColor={theme.colors.error}
