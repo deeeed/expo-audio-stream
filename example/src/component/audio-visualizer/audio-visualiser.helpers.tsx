@@ -1,9 +1,8 @@
 // example/src/component/audio-visualizer/audio-visualiser.helpers.tsx
 import { Skia, SkPath } from "@shopify/react-native-skia";
 import { getLogger } from "@siteed/react-native-logger";
-import { log } from "console";
 import { StyleSheet } from "react-native";
-import { Easing, withSpring, withTiming } from "react-native-reanimated";
+import { withSpring } from "react-native-reanimated";
 
 import {
   AudioVisualizerState,
