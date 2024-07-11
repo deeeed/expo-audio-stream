@@ -137,11 +137,28 @@ export const AudioRecording = ({
     };
   }, []);
 
-  const handlePlayPause = () => {
-    if (isPlaying) {
-      pause();
-    } else {
-      play();
+  const handlePlayPause = async () => {
+    try {
+      if (isPlaying) {
+        pause();
+      } else {
+        play();
+      }
+    } catch (error) {
+      logger.error("Error playing audio:", error);
+    }
+  };
+
+  const handleOnSeekEnd = async (newtime: number) => {
+    try {
+      logger.log("Seeking to:", newtime);
+
+      if (isPlaying) {
+        await pause();
+      }
+      await updatePlaybackOptions({ position: newtime * 1000 });
+    } catch (error) {
+      logger.error("Error seeking audio:", error);
     }
   };
 
@@ -182,10 +199,7 @@ export const AudioRecording = ({
           currentTime={position / 1000}
           audioData={audioAnalysis}
           showDottedLine
-          onSeekEnd={(newtime) => {
-            logger.log("Seeking to:", newtime);
-            updatePlaybackOptions({ position: newtime * 1000 });
-          }}
+          onSeekEnd={handleOnSeekEnd}
         />
       )}
 
