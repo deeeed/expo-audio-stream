@@ -41,10 +41,10 @@ android/keystores/debug.keystore
 
 # Cocoapods
 #
-example/ios/Pods
+playground/ios/Pods
 
 # Ruby
-example/vendor/
+playground/vendor/
 
 # node.js
 #

@@ -1,4 +1,4 @@
-// example/src/component/audio-visualizer/audio-visualizer.tsx
+// playground/src/component/audio-visualizer/audio-visualizer.tsx
 import { Button } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import React, { useCallback, useEffect, useReducer, useRef } from "react";

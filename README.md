@@ -11,7 +11,7 @@
 - Listeners for audio data events with detailed event payloads.
 - Utility functions for recording control and file management.
 
-## Example Application
+## Playground Example Application
 
 The project comes with a fully functional example application that demonstrates how to use the library in a real-world scenario.
 
@@ -23,9 +23,9 @@ To try it:
 git clone https://github.com/deeeed/expo-audio-stream.git
 cd expo-audio-stream
 yarn
-yarn example ios
-yarn example android
-yarn example web
+yarn playground ios
+yarn playground android
+yarn playground web
 ```
 
 ## Installation
@@ -60,7 +60,7 @@ This library provides two hooks: `useAudioRecorder` for standalone use and `useS
 
 ### Standalone Recording
 
-The `example/` folder contains a fully functional React Native application demonstrating how to integrate and use `useAudioRecorder` from `@siteed/expo-audio-stream`. This includes starting and stopping recordings, handling permissions, and processing live audio data.
+The `playground/` folder contains a fully functional React Native application demonstrating how to integrate and use `useAudioRecorder` from `@siteed/expo-audio-stream`. This includes starting and stopping recordings, handling permissions, and processing live audio data.
 
 
 #### Standalone Usage

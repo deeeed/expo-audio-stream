@@ -29,8 +29,8 @@
     "prepublishOnly": "expo-module prepublishOnly",
     "release": "release-it",
     "expo-module": "expo-module",
-    "open:ios": "open -a \"Xcode\" example/ios",
-    "open:android": "open -a \"Android Studio\" example/android"
+    "open:ios": "open -a \"Xcode\" playground/ios",
+    "open:android": "open -a \"Android Studio\" playground/android"
   },
   "dependencies": {
     "react-native-quick-base64": "^2.1.2"

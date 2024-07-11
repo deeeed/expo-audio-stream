@@ -1,4 +1,4 @@
-// example/src/app/(tabs)/play.tsx
+// playground/src/app/(tabs)/play.tsx
 import { ScreenWrapper } from "@siteed/design-system";
 import { AudioAnalysisData } from "@siteed/expo-audio-stream";
 import { Audio } from "expo-av";

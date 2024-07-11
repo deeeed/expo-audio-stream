@@ -1,4 +1,4 @@
-// example/src/component/audio-visualizer/canvas-container.tsx
+// playground/src/component/audio-visualizer/canvas-container.tsx
 import {
   Canvas,
   ExtendedTouchInfo,
