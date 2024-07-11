@@ -9,7 +9,7 @@ import {
   AudioAnalysisData,
   AudioStreamResult,
 } from "../../../src/ExpoAudioStream.types";
-import { fetchArrayBuffer } from "../utils";
+import { fetchArrayBuffer } from "../utils/utils";
 
 interface PlayOptions {
   position?: number;
