@@ -7,12 +7,14 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { AudioStreamResult } from "../../../../src/ExpoAudioStream.types";
 import { AudioRecording } from "../../component/AudioRecording";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
+import { formatBytes } from "../../utils/utils";
 
 export default function Files() {
   const { logger } = useLogger("Files");
   const { show } = useToast();
 
-  const { files, removeFile, clearFiles, refreshFiles } = useAudioFiles();
+  const { files, totalAudioStorageSize, removeFile, clearFiles, refreshFiles } =
+    useAudioFiles();
 
   useEffect(() => {
     refreshFiles();
@@ -47,7 +49,9 @@ export default function Files() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Button onPress={clearFiles}>Clear Directory</Button>
+      <Button onPress={clearFiles}>
+        Clear Directory ({formatBytes(totalAudioStorageSize)})
+      </Button>
       {renderRecordings()}
     </ScrollView>
   );
