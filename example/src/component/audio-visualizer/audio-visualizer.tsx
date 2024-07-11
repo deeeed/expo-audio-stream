@@ -132,7 +132,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const totalCandleWidth =
     audioData.dataPoints.length * (candleWidth + candleSpace);
 
-  const activePointsRef = useRef([]);
+  const activePointsRef = useRef<CandleData[]>([]);
 
   // Initialize activePoints
   useEffect(() => {
