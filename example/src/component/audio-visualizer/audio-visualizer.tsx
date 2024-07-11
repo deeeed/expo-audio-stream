@@ -1,3 +1,4 @@
+// example/src/component/audio-visualizer/audio-visualizer.tsx
 import { Button } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import React, { useCallback, useEffect, useReducer, useRef } from "react";
@@ -175,10 +176,10 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         range,
         candleWidth,
         candleSpace,
-        lastUpdatedTranslateX: lastUpdatedTranslateX.current,
       },
       dispatch,
     });
+    lastUpdatedTranslateX.current = translateX.value;
     logger.log(`Updated active points: ${updatedActivePoints.length}`);
     activePointsRef.current = updatedActivePoints;
   }, [audioData.dataPoints, hasInitialized, maxDisplayedItems, canvasWidth]);
@@ -192,13 +193,44 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   useEffect(() => {
     if (playing && currentTime && audioData.durationMs) {
       logger.log(`Syncing translateX... currentTime=${currentTime}`);
-      syncTranslateX({
+      const newTranslateX = syncTranslateX({
         currentTime,
         durationMs: audioData.durationMs,
         maxTranslateX,
         minTranslateX: 0,
         translateX,
       });
+
+      // Check if the translateX has moved by at least half of canvasWidth
+      const movedDistance = Math.abs(
+        newTranslateX - lastUpdatedTranslateX.current,
+      );
+
+      // Define a threshold to update active points
+      const translateXThreshold = canvasWidth / 2;
+
+      logger.log(
+        `[${movedDistance > translateXThreshold ? "YEAH" : "NO"}] Moved distance: ${movedDistance} newTranslateX: ${newTranslateX} Threshold: ${translateXThreshold}`,
+      );
+      if (movedDistance >= translateXThreshold) {
+        const { activePoints: updatedActivePoints } = updateActivePoints({
+          x: newTranslateX,
+          context: {
+            dataPoints: audioData.dataPoints,
+            maxDisplayedItems,
+            activePoints: activePointsRef.current,
+            ready,
+            referenceLineX,
+            mode,
+            range,
+            candleWidth,
+            candleSpace,
+          },
+          dispatch,
+        });
+        lastUpdatedTranslateX.current = translateX.value;
+        activePointsRef.current = updatedActivePoints;
+      }
     }
   }, [playing, currentTime, audioData.durationMs, canvasWidth, translateX]);
 
@@ -221,11 +253,11 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         range,
         candleWidth,
         candleSpace,
-        lastUpdatedTranslateX: lastUpdatedTranslateX.current,
         ready,
       },
       dispatch,
     });
+    lastUpdatedTranslateX.current = newTranslateX;
   };
 
   const handleReset = () => {
@@ -240,11 +272,11 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         range,
         candleWidth,
         candleSpace,
-        lastUpdatedTranslateX: lastUpdatedTranslateX.current,
         ready,
       },
       dispatch,
     });
+    lastUpdatedTranslateX.current = 0;
     runOnUI(() => {
       translateX.value = 0;
     })();
