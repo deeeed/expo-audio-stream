@@ -1,3 +1,4 @@
+// net/siteed/audiostream/AudioRecorderManager.kt
 package net.siteed.audiostream
 
 import android.media.AudioFormat
@@ -537,40 +538,7 @@ class AudioRecorderManager(
 
     private fun processAudioData(audioData: ByteArray) {
         val audioAnalysisData = audioProcessor.processAudioData(audioData, recordingConfig)
-
-        val dataPointsBundleArray = audioAnalysisData.dataPoints.map { dataPoint ->
-            bundleOf(
-                "amplitude" to dataPoint.amplitude,
-                "activeSpeech" to dataPoint.activeSpeech,
-                "dB" to dataPoint.dB,
-                "silent" to dataPoint.silent,
-                "features" to dataPoint.features?.toDictionary(),
-                "timestamp" to dataPoint.timestamp,
-                "speaker" to dataPoint.speaker
-            )
-        }.toTypedArray()
-
-        val speakerChangesBundleArray = audioAnalysisData.speakerChanges.map { speakerChange ->
-            bundleOf(
-                "timestamp" to speakerChange.timestamp,
-                "speaker" to speakerChange.speaker
-            )
-        }.toTypedArray()
-
-        val analysisBundle = bundleOf(
-            "pointsPerSecond" to audioAnalysisData.pointsPerSecond,
-            "durationMs" to audioAnalysisData.durationMs,
-            "bitDepth" to audioAnalysisData.bitDepth,
-            "numberOfChannels" to audioAnalysisData.numberOfChannels,
-            "sampleRate" to audioAnalysisData.sampleRate,
-            "amplitudeRange" to bundleOf(
-                "min" to audioAnalysisData.amplitudeRange.min,
-                "max" to audioAnalysisData.amplitudeRange.max
-            ),
-            "dataPoints" to dataPointsBundleArray,
-            "speakerChanges" to speakerChangesBundleArray,
-            "extractionTimeMs" to audioAnalysisData.extractionTimeMs
-        )
+        val analysisBundle = audioAnalysisData.toBundle()
 
         mainHandler.post {
             try {

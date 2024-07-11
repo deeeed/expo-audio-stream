@@ -1,4 +1,8 @@
+// net/siteed/audiostream/AudioAnalysisData.kt
 package net.siteed.audiostream
+
+import android.os.Bundle
+import androidx.core.os.bundleOf
 
 data class DataPoint(
     val id: Long,
@@ -22,6 +26,19 @@ data class DataPoint(
             "speaker" to speaker
         )
     }
+
+    fun toBundle(): Bundle {
+        return bundleOf(
+            "id" to id,
+            "amplitude" to amplitude,
+            "activeSpeech" to activeSpeech,
+            "dB" to dB,
+            "silent" to silent,
+            "features" to features?.toBundle(),
+            "timestamp" to timestamp,
+            "speaker" to speaker
+        )
+    }
 }
 
 data class AudioAnalysisData(
@@ -39,11 +56,19 @@ data class AudioAnalysisData(
         fun toDictionary(): Map<String, Float> {
             return mapOf("min" to min, "max" to max)
         }
+
+        fun toBundle(): Bundle {
+            return bundleOf("min" to min, "max" to max)
+        }
     }
 
     data class SpeakerChange(val timestamp: Float, val speaker: Int) {
         fun toDictionary(): Map<String, Any> {
             return mapOf("timestamp" to timestamp, "speaker" to speaker)
+        }
+
+        fun toBundle(): Bundle {
+            return bundleOf("timestamp" to timestamp, "speaker" to speaker)
         }
     }
 
@@ -57,6 +82,23 @@ data class AudioAnalysisData(
             "dataPoints" to dataPoints.map { it.toDictionary() },
             "amplitudeRange" to amplitudeRange.toDictionary(),
             "speakerChanges" to speakerChanges.map { it.toDictionary() },
+            "extractionTimeMs" to extractionTimeMs
+        )
+    }
+
+    fun toBundle(): Bundle {
+        val dataPointsBundleArray = dataPoints.map { it.toBundle() }.toTypedArray()
+        val speakerChangesBundleArray = speakerChanges.map { it.toBundle() }.toTypedArray()
+
+        return bundleOf(
+            "pointsPerSecond" to pointsPerSecond,
+            "durationMs" to durationMs,
+            "bitDepth" to bitDepth,
+            "numberOfChannels" to numberOfChannels,
+            "sampleRate" to sampleRate,
+            "dataPoints" to dataPointsBundleArray,
+            "amplitudeRange" to amplitudeRange.toBundle(),
+            "speakerChanges" to speakerChangesBundleArray,
             "extractionTimeMs" to extractionTimeMs
         )
     }
