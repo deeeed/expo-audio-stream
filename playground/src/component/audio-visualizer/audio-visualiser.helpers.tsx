@@ -1,4 +1,4 @@
-// example/src/component/audio-visualizer/audio-visualiser.helpers.tsx
+// playground/src/component/audio-visualizer/audio-visualiser.helpers.tsx
 import { Skia, SkPath } from "@shopify/react-native-skia";
 import { getLogger } from "@siteed/react-native-logger";
 import { StyleSheet } from "react-native";

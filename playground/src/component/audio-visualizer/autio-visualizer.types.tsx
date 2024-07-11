@@ -1,4 +1,4 @@
-// example/src/component/audio-visualizer/autio-visualizer.types.ts
+// playground/src/component/audio-visualizer/autio-visualizer.types.ts
 import { AudioAnalysisData, DataPoint } from "@siteed/expo-audio-stream";
 import { StyleProp, ViewStyle } from "react-native";
 import { SharedValue } from "react-native-reanimated";

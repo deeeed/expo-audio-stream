@@ -1,4 +1,4 @@
-// example/public/audio-features-extractor.js
+// playground/public/audio-features-extractor.js
 
 // Unique ID counter
 let uniqueIdCounter = 0;

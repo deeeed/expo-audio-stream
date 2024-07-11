@@ -1,4 +1,4 @@
-// example/src/component/AudioRecording.tsx
+// playground/src/component/AudioRecording.tsx
 import { AppTheme, Button, useTheme, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import * as Sharing from "expo-sharing";
