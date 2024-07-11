@@ -18,6 +18,7 @@ import {
 
 interface AudioFilesContextValue {
   files: AudioStreamResult[];
+  totalAudioStorageSize: number;
   refreshFiles: () => Promise<void>;
   removeFile: (fileUri: string) => Promise<void>;
   clearFiles: () => Promise<void>;
@@ -25,6 +26,7 @@ interface AudioFilesContextValue {
 
 const AudioFilesContext = createContext<AudioFilesContextValue>({
   files: [],
+  totalAudioStorageSize: 0,
   refreshFiles: async () => {},
   removeFile: async () => {},
   clearFiles: async () => {},
@@ -36,12 +38,26 @@ export const AudioFilesProvider = ({
   children: React.ReactNode;
 }) => {
   const [files, setFiles] = useState<AudioStreamResult[]>([]);
+  const [totalAudioStorageSize, setTotalAudioStorageSize] = useState<number>(0);
   const { logger } = useLogger("AudioFilesProvider");
+
+  const calculateTotalAudioStorageSize = useCallback(
+    (files: AudioStreamResult[]) => {
+      return files.reduce((total, file) => total + file.size, 0);
+    },
+    [],
+  );
 
   const listAudioFiles = useCallback(async () => {
     if (Platform.OS === "web") {
       const records = await listIndexedDBAudioFiles();
-      return records.map((record) => record.metadata);
+      return records.map((record) => {
+        const blob = new Blob([record.arrayBuffer], {
+          type: record.metadata.mimeType,
+        });
+        const webAudioUri = URL.createObjectURL(blob);
+        return { ...record.metadata, webAudioUri };
+      });
     } else {
       const directoryUri = FileSystem.documentDirectory;
       if (!directoryUri) {
@@ -174,9 +190,19 @@ export const AudioFilesProvider = ({
     refreshFiles();
   }, []);
 
+  useEffect(() => {
+    setTotalAudioStorageSize(calculateTotalAudioStorageSize(files));
+  }, [files]);
+
   return (
     <AudioFilesContext.Provider
-      value={{ files, refreshFiles, removeFile, clearFiles }}
+      value={{
+        files,
+        totalAudioStorageSize,
+        refreshFiles,
+        removeFile,
+        clearFiles,
+      }}
     >
       {children}
     </AudioFilesContext.Provider>

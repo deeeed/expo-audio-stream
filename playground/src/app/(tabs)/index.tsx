@@ -262,6 +262,8 @@ export default function Record() {
         result.webAudioUri = url;
         setResult(result);
 
+        await refreshFiles();
+
         return;
       }
 
