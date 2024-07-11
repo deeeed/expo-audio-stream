@@ -1,4 +1,4 @@
-// example/src/app/(tabs)/minimal.tsx
+// playground/src/app/(tabs)/minimal.tsx
 import {
   Canvas,
   Group,
