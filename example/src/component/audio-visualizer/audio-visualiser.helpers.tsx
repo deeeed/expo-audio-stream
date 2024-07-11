@@ -158,7 +158,7 @@ export const updateActivePoints = ({
     for (let i = 0; i < liveMaxDisplayedItems; i++) {
       const itemIndex = startIndex + i;
       if (itemIndex < totalItems) {
-        if (i > lastPointIndex) {
+        if (itemIndex > lastPointIndex) {
           updatedPoints.push({
             ...dataPoints[itemIndex],
             visible: true,
