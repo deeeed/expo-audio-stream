@@ -1,11 +1,18 @@
+// example/src/component/AudioRecording.tsx
 import { AppTheme, Button, useTheme, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
-import { Audio } from "expo-av";
 import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator } from "react-native-paper";
 
-import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
+import { AudioVisualizer } from "./audio-visualizer/audio-visualizer";
+import { extractAudioAnalysis } from "../../../src";
+import {
+  AudioAnalysisData,
+  AudioStreamResult,
+} from "../../../src/ExpoAudioStream.types";
+import { useAudio } from "../hooks/useAudio";
 import { formatBytes, formatDuration } from "../utils";
 
 const getStyles = ({
@@ -42,48 +49,40 @@ const getStyles = ({
 export interface AudioRecordingProps {
   recording: AudioStreamResult;
   webAudioUri?: string; // Allow to overwrite the audioUri for web since it cannot load from file
+  wavAudioBuffer?: ArrayBuffer;
+  showWaveform?: boolean;
   onDelete?: () => Promise<void>;
 }
 export const AudioRecording = ({
   recording,
   webAudioUri,
+  wavAudioBuffer,
+  showWaveform = true,
   onDelete,
 }: AudioRecordingProps) => {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
   const { logger } = useLogger("AudioRecording");
   const { show } = useToast();
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [position, setPosition] = useState(0);
   const audioUri = webAudioUri ?? recording.fileUri;
-
   const theme = useTheme();
+  const {
+    isPlaying,
+    processing: _processing,
+    position,
+    play,
+    pause,
+    updatePlaybackOptions,
+  } = useAudio({
+    audioUri,
+    audioBuffer: wavAudioBuffer,
+    recording,
+    options: { extractAnalysis: showWaveform },
+  });
   const styles = useMemo(
     () => getStyles({ isPlaying, theme }),
     [isPlaying, theme],
   );
-  useEffect(() => {
-    return () => {
-      sound?.unloadAsync();
-    };
-  }, [sound]);
-
-  const updatePlaybackStatus = useCallback(
-    ({ isLoaded, didJustFinish, positionMillis, error }: any) => {
-      if (error) {
-        logger.error(`Playback Error: ${error}`);
-        return;
-      }
-      if (!isLoaded) {
-        return;
-      }
-      setPosition(positionMillis);
-      if (didJustFinish) {
-        setIsPlaying(false);
-        setPosition(0); // Reset position when playback finishes
-      }
-    },
-    [],
-  );
+  const [processing, setProcessing] = useState(_processing);
+  const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData>();
 
   const handleShare = async () => {
     if (!audioUri) {
@@ -105,33 +104,61 @@ export const AudioRecording = ({
     }
   };
 
-  const togglePlayPause = async () => {
+  const extractAnalysis = useCallback(async () => {
+    setProcessing(true);
     try {
-      if (!sound) {
-        // No sound object, create a new one and play
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri: audioUri },
-          { shouldPlay: true },
-        );
-        newSound.setOnPlaybackStatusUpdate(updatePlaybackStatus);
-        setSound(newSound);
-        setIsPlaying(true);
+      const analysis = await extractAudioAnalysis({
+        fileUri: audioUri,
+        pointsPerSecond: 20,
+        arrayBuffer: wavAudioBuffer,
+        bitDepth: recording.bitDepth,
+        durationMs: recording.duration,
+        sampleRate: recording.sampleRate,
+        numberOfChannels: recording.channels,
+        algorithm: "rms",
+        features: {}, // Add necessary features here
+      });
+      setAudioAnalysis(analysis);
+    } catch (error) {
+      logger.error("Error extracting audio analysis:", error);
+      show({ type: "error", message: "Failed to extract audio analysis" });
+    } finally {
+      setProcessing(false);
+    }
+  }, [audioUri, wavAudioBuffer, recording, logger, show]);
+
+  useEffect(() => {
+    extractAnalysis();
+  }, [extractAnalysis]);
+
+  useEffect(() => {
+    return () => {
+      logger.debug("AudioRecording unmounted");
+    };
+  }, []);
+
+  const handlePlayPause = async () => {
+    try {
+      if (isPlaying) {
+        pause();
       } else {
-        // Sound object exists
-        if (isPlaying) {
-          // If already playing, pause it
-          await sound.pauseAsync();
-          setIsPlaying(false);
-        } else {
-          // Not playing, make sure we start from the beginning
-          await sound.setPositionAsync(0); // Reset the position to the start
-          await sound.playAsync();
-          setIsPlaying(true);
-        }
+        play();
       }
     } catch (error) {
-      logger.error("Failed to play or pause the audio:", error);
-      show({ type: "error", message: "Failed to play or pause the audio" });
+      logger.error("Error playing audio:", error);
+    }
+  };
+
+  const handleOnSeekEnd = async (newtime: number) => {
+    try {
+      logger.log("Seeking to:", newtime);
+
+      if (isPlaying) {
+        await pause();
+      }
+      await updatePlaybackOptions({ position: newtime * 1000 });
+    } catch (error) {
+      logger.error("Error seeking audio:", error);
     }
   };
 
@@ -161,8 +188,24 @@ export const AudioRecording = ({
       ) : null}
 
       <Text style={[styles.positionText]}>Position: {position} ms</Text>
+
+      {processing && <ActivityIndicator />}
+
+      {!processing && audioAnalysis && (
+        <AudioVisualizer
+          canvasHeight={150}
+          playing={isPlaying}
+          showRuler
+          currentTime={position / 1000}
+          audioData={audioAnalysis}
+          showDottedLine
+          onSeekEnd={handleOnSeekEnd}
+        />
+      )}
+
       <View style={styles.buttons}>
-        <Button onPress={togglePlayPause}>
+        <Button onPress={extractAnalysis}>Extract Analysis</Button>
+        <Button onPress={handlePlayPause}>
           {isPlaying ? "Pause" : "Play"}
         </Button>
         <Button onPress={handleShare}>Share</Button>

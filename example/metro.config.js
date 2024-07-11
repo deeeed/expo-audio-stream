@@ -19,6 +19,11 @@ config.resolver.nodeModulesPaths = [
   path.resolve(__dirname, "../node_modules"),
 ];
 
+config.resolver.assetExts.push(
+  // Adds support for `.wasm` files for WebAssembly
+  "wasm",
+);
+
 config.resolver.extraNodeModules = {
   "expo-audio-stream": "..",
 };

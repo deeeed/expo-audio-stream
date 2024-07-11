@@ -1,22 +1,35 @@
-import { Platform } from "expo-modules-core";
+import { Platform, Subscription } from "expo-modules-core";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 
-import { addAudioEventListener } from ".";
+import { addAudioAnalysisListener, addAudioEventListener } from ".";
 import {
+  AudioAnalysisData,
+  AudioDataEvent,
   AudioEventPayload,
+  AudioFeaturesOptions,
   AudioStreamResult,
   AudioStreamStatus,
   RecordingConfig,
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
+import { WavFileInfo } from "./utils";
 
-export interface AudioDataEvent {
-  data: string | Blob;
-  position: number;
-  fileUri: string;
-  eventDataSize: number;
-  totalSize: number;
+const MAX_VISUALIZATION_DURATION_MS = 10000; // Default maximum duration for visualization
+
+export interface ExtractMetadataProps {
+  fileUri?: string; // should provide either fileUri or arrayBuffer
+  wavMetadata?: WavFileInfo;
+  arrayBuffer?: ArrayBuffer;
+  bitDepth?: number;
+  durationMs?: number;
+  sampleRate?: number;
+  numberOfChannels?: number;
+  algorithm?: "peak" | "rms";
+  position?: number; // Optional number of bytes to skip. Default is 0
+  length?: number; // Optional number of bytes to read.
+  pointsPerSecond?: number; // Optional number of points per second. Use to reduce the number of points and compute the number of datapoints to return.
+  features?: AudioFeaturesOptions;
 }
 
 export interface UseAudioRecorderProps {
@@ -31,6 +44,7 @@ export interface UseAudioRecorderState {
   isPaused: boolean;
   duration: number; // Duration of the recording
   size: number; // Size in bytes of the recorded audio
+  analysisData?: AudioAnalysisData;
 }
 
 interface RecorderState {
@@ -38,11 +52,25 @@ interface RecorderState {
   isPaused: boolean;
   duration: number;
   size: number;
+  analysisData?: AudioAnalysisData;
 }
 
 type RecorderAction =
   | { type: "START" | "STOP" | "PAUSE" | "RESUME" }
-  | { type: "UPDATE_STATUS"; payload: { duration: number; size: number } };
+  | { type: "UPDATE_STATUS"; payload: { duration: number; size: number } }
+  | { type: "UPDATE_ANALYSIS"; payload: AudioAnalysisData };
+
+const defaultAnalysis: AudioAnalysisData = {
+  pointsPerSecond: 20,
+  bitDepth: 32,
+  numberOfChannels: 1,
+  sampleRate: 44100,
+  dataPoints: [],
+  amplitudeRange: {
+    min: Number.POSITIVE_INFINITY,
+    max: Number.NEGATIVE_INFINITY,
+  },
+};
 
 function recorderReducer(
   state: RecorderState,
@@ -56,6 +84,7 @@ function recorderReducer(
         isPaused: false,
         duration: 0,
         size: 0,
+        analysisData: defaultAnalysis, // Reset analysis data
       };
     case "STOP":
       return { ...state, isRecording: false, isPaused: false };
@@ -68,6 +97,11 @@ function recorderReducer(
         ...state,
         duration: action.payload.duration,
         size: action.payload.size,
+      };
+    case "UPDATE_ANALYSIS":
+      return {
+        ...state,
+        analysisData: action.payload,
       };
     default:
       return state;
@@ -83,7 +117,11 @@ export function useAudioRecorder({
     isPaused: false,
     duration: 0,
     size: 0,
+    analysisData: undefined,
   });
+
+  const analysisListenerRef = useRef<Subscription | null>(null);
+  const analysisRef = useRef<AudioAnalysisData>({ ...defaultAnalysis });
 
   const onAudioStreamRef = useRef<
     ((_: AudioDataEvent) => Promise<void>) | null
@@ -102,6 +140,73 @@ export function useAudioRecorder({
     [debug],
   );
 
+  const handleAudioAnalysis = useCallback(
+    async (analysis: AudioAnalysisData, visualizationDuration: number) => {
+      const savedAnalysisData = analysisRef.current || { ...defaultAnalysis };
+
+      const maxDuration = visualizationDuration;
+
+      logDebug(
+        `[handleAudioAnalysis] Received audio analysis: maxDuration=${maxDuration} analysis.dataPoints=${analysis.dataPoints.length} analysisData.dataPoints=${savedAnalysisData.dataPoints.length}`,
+        analysis,
+      );
+
+      // Combine data points
+      const combinedDataPoints = [
+        ...savedAnalysisData.dataPoints,
+        ...analysis.dataPoints,
+      ];
+
+      // Calculate the new duration
+      const pointsPerSecond =
+        analysis.pointsPerSecond || savedAnalysisData.pointsPerSecond;
+      const maxDataPoints = (pointsPerSecond * visualizationDuration) / 1000;
+
+      logDebug(
+        `[handleAudioAnalysis] Combined data points before trimming: pointsPerSecond=${pointsPerSecond} visualizationDuration=${visualizationDuration} combinedDataPointsLength=${combinedDataPoints.length} vs maxDataPoints=${maxDataPoints}`,
+      );
+
+      // Trim data points to keep within the maximum number of data points
+      if (combinedDataPoints.length > maxDataPoints) {
+        combinedDataPoints.splice(0, combinedDataPoints.length - maxDataPoints);
+      }
+
+      savedAnalysisData.dataPoints = combinedDataPoints;
+      savedAnalysisData.bitDepth =
+        analysis.bitDepth || savedAnalysisData.bitDepth;
+      savedAnalysisData.durationMs =
+        combinedDataPoints.length * (1000 / pointsPerSecond);
+
+      // Update amplitude range
+      const newMin = Math.min(
+        savedAnalysisData.amplitudeRange.min,
+        analysis.amplitudeRange.min,
+      );
+      const newMax = Math.max(
+        savedAnalysisData.amplitudeRange.max,
+        analysis.amplitudeRange.max,
+      );
+
+      savedAnalysisData.amplitudeRange = {
+        min: newMin,
+        max: newMax,
+      };
+
+      logDebug(
+        `[handleAudioAnalysis] Updated analysis data: durationMs=${savedAnalysisData.durationMs}`,
+        savedAnalysisData,
+      );
+
+      // Update the ref
+      analysisRef.current = savedAnalysisData;
+
+      // Dispatch the updated analysis data to state to trigger re-render
+      // need to use spread operator otherwise it doesnt trigger update.
+      dispatch({ type: "UPDATE_ANALYSIS", payload: { ...savedAnalysisData } });
+    },
+    [logDebug],
+  );
+
   const handleAudioEvent = useCallback(
     async (eventData: AudioEventPayload) => {
       const {
@@ -115,16 +220,16 @@ export function useAudioRecorder({
         mimeType,
         buffer,
       } = eventData;
-      logDebug(`useAudioRecorder] Received audio event:`, {
-        fileUri,
-        deltaSize,
-        totalSize,
-        position,
-        mimeType,
-        lastEmittedSize,
-        streamUuid,
-        encodedLength: encoded?.length,
-      });
+      // logDebug(`[handleAudioEvent] Received audio event:`, {
+      //   fileUri,
+      //   deltaSize,
+      //   totalSize,
+      //   position,
+      //   mimeType,
+      //   lastEmittedSize,
+      //   streamUuid,
+      //   encodedLength: encoded?.length,
+      // });
       if (deltaSize === 0) {
         // Ignore packet with no data
         return;
@@ -199,23 +304,29 @@ export function useAudioRecorder({
   }, [checkStatus, state.isRecording]);
 
   useEffect(() => {
-    logDebug(`${TAG} Registering audio event listener`);
-    const subscribe = addAudioEventListener(handleAudioEvent);
-    logDebug(`${TAG} Subscribed to audio event listener`, subscribe);
+    logDebug(`Registering audio event listener`);
+    const subscribeAudio = addAudioEventListener(handleAudioEvent);
+
+    logDebug(`Subscribed to audio event listener and analysis listener`, {
+      subscribeAudio,
+    });
 
     return () => {
-      logDebug(`${TAG} Removing audio event listener`);
-      subscribe.remove();
+      logDebug(`Removing audio event listener`);
+      subscribeAudio.remove();
     };
-  }, [handleAudioEvent, logDebug]);
+  }, [handleAudioEvent, handleAudioAnalysis, logDebug]);
 
   const startRecording = useCallback(
     async (recordingOptions: RecordingConfig) => {
       if (debug) {
-        logDebug(`${TAG} start recoding`, recordingOptions);
+        logDebug(`start recoding`, recordingOptions);
       }
-      // remove onAudioStream from recordingOptions
+
+      analysisRef.current = { ...defaultAnalysis }; // Reset analysis data
+
       const { onAudioStream, ...options } = recordingOptions;
+      const { maxRecentDataDuration = 10000, enableProcessing } = options;
       if (typeof onAudioStream === "function") {
         onAudioStreamRef.current = onAudioStream;
       } else {
@@ -226,6 +337,19 @@ export function useAudioRecorder({
         await ExpoAudioStreamModule.startRecording(options);
       dispatch({ type: "START" });
 
+      if (enableProcessing) {
+        logDebug(`Enabling audio analysis listener`);
+        const listener = addAudioAnalysisListener(async (analysisData) => {
+          try {
+            await handleAudioAnalysis(analysisData, maxRecentDataDuration);
+          } catch (error) {
+            console.warn(`${TAG} Error processing audio analysis:`, error);
+          }
+        });
+
+        analysisListenerRef.current = listener;
+      }
+
       return startResult;
     },
     [logDebug],
@@ -233,6 +357,12 @@ export function useAudioRecorder({
 
   const stopRecording = useCallback(async () => {
     logDebug(`${TAG} stoping recording`);
+
+    if (analysisListenerRef.current) {
+      analysisListenerRef.current.remove();
+      analysisListenerRef.current = null;
+    }
+
     const stopResult: AudioStreamResult =
       await ExpoAudioStreamModule.stopRecording();
     onAudioStreamRef.current = null;
@@ -264,5 +394,6 @@ export function useAudioRecorder({
     isRecording: state.isRecording,
     duration: state.duration,
     size: state.size,
+    analysisData: state.analysisData,
   };
 }
