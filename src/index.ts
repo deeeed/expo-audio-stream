@@ -52,12 +52,25 @@ export const extractAudioAnalysis = async ({
     if (!arrayBuffer) {
       console.log(`fetching fileUri`, fileUri);
       const response = await fetch(fileUri!);
-      arrayBuffer = await response.arrayBuffer();
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch fileUri: ${response.statusText}`);
+      }
+
+      arrayBuffer = (await response.arrayBuffer()).slice(0);
+      console.log(`fetched fileUri`, arrayBuffer.byteLength, arrayBuffer);
     }
 
     console.log(
       `extractAudioAnalysis len=${arrayBuffer.byteLength}`,
-      arrayBuffer,
+      arrayBuffer.slice(0, 100),
+    );
+
+    // Create a new copy of the ArrayBuffer to avoid detachment issues
+    const bufferCopy = arrayBuffer.slice(0);
+    console.log(
+      `extractAudioAnalysis len=${bufferCopy.byteLength}`,
+      bufferCopy.slice(0, 100),
     );
 
     let copyChannelData: Float32Array;
@@ -65,13 +78,13 @@ export const extractAudioAnalysis = async ({
       const audioContext = new (window.AudioContext ||
         // @ts-ignore
         window.webkitAudioContext)();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      const audioBuffer = await audioContext.decodeAudioData(bufferCopy);
       const channelData = audioBuffer.getChannelData(0); // Use only the first channel
-      copyChannelData = channelData.slice(0); // Copy channel data
+      copyChannelData = new Float32Array(channelData); // Create a new Float32Array
     } catch (error) {
-      // ignore error
-      console.warn("Failed to decode audio data", error);
-      copyChannelData = new Float32Array(arrayBuffer);
+      console.warn("Failed to decode audio data:", error);
+      // Fall back to creating a new Float32Array from the ArrayBuffer if decoding fails
+      copyChannelData = new Float32Array(bufferCopy);
     }
 
     return new Promise((resolve, reject) => {

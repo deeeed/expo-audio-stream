@@ -19,7 +19,8 @@ export interface EmitAudioEventProps {
 export type EmitAudioEventFunction = (_: EmitAudioEventProps) => void;
 export type EmitAudioAnalysisFunction = (_: AudioAnalysisData) => void;
 
-const log = debug("expo-audio-stream:useAudioRecording");
+// const log = debug("expo-audio-stream:useAudioRecording");
+const log = console;
 class ExpoAudioStreamWeb extends EventEmitter {
   customRecorder: WebRecorder | null;
   audioChunks: ArrayBuffer[];
@@ -153,7 +154,8 @@ class ExpoAudioStreamWeb extends EventEmitter {
   // Stop recording
   async stopRecording(): Promise<AudioStreamResult | null> {
     if (this.customRecorder) {
-      this.customRecorder.stopAndPlay();
+      const fullPcmBuffer = await this.customRecorder.stop();
+      log.debug(`Stopped recording`, fullPcmBuffer);
     }
     this.isRecording = false;
     this.currentDurationMs = Date.now() - this.recordingStartTime;

@@ -4,7 +4,6 @@ import {
   Group,
   Rect,
   SkFont,
-  Text as SkText,
   useFont,
 } from "@shopify/react-native-skia";
 import React, {
@@ -15,12 +14,11 @@ import React, {
   useState,
 } from "react";
 import {
-  Platform,
-  Text,
+  LayoutChangeEvent,
   StyleSheet,
+  Text,
   View,
   useWindowDimensions,
-  LayoutChangeEvent,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Button } from "react-native-paper";
@@ -279,25 +277,6 @@ const Minimal = () => {
     return [{ translateX: translateX.value }];
   });
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setWavepoints([]); // Clear the wavepoints state
-      const response = await fetch("/googlewaveform.json");
-      const data = await response.json();
-      setWavepoints(data[0]); // Update the wavepoints state with the fetched data
-      // count non zera wavepoints
-      const count = data[0].filter(
-        (amplitude: number) => amplitude !== 0,
-      ).length;
-      console.log(`non zero wavepoints: ${count} vs ${data[0].length}`);
-    } catch (error) {
-      console.error("Error fetching waveform data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const addWavePoints = () => {
     setWavepoints([...wavepoints, ...generateWaveform(1)]);
   };
@@ -341,9 +320,6 @@ const Minimal = () => {
             reset
           </Button>
           <Button onPress={addWavePoints}>Add Wavepoints</Button>
-          {Platform.OS === "web" && (
-            <Button onPress={loadData}>Load Remote Data</Button>
-          )}
         </View>
         <View>
           <Text>translareX: {translateX.value}</Text>
@@ -382,9 +358,6 @@ const Minimal = () => {
                       (RECT_WIDTH + SPACE_BETWEEN_RECTS) * index +
                       startIndex * (RECT_WIDTH + SPACE_BETWEEN_RECTS) +
                       delta;
-                    console.log(
-                      `x=${x} id=${id} visible=${visible} --> r_${index}_${id}`,
-                    );
                     return (
                       <WaveFormRect
                         key={`r_${index}_${id}`}

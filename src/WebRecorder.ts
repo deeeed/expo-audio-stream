@@ -1,3 +1,4 @@
+// src/WebRecorder.ts
 import { AudioAnalysisData, RecordingConfig } from "./ExpoAudioStream.types";
 import {
   EmitAudioAnalysisFunction,
@@ -123,29 +124,9 @@ export class WebRecorder {
         event: AudioWorkletEvent,
       ) => {
         const command = event.data.command;
-        if (command === "recordedData") {
-          const rawPCMDataFull = event.data.recordedData as ArrayBuffer;
-
-          // Compute duration of the recorded data
-          const duration =
-            rawPCMDataFull.byteLength /
-            (this.audioContext.sampleRate *
-              (this.exportBitDepth / this.numberOfChannels));
-          log(
-            `Received recorded data -- Duration: ${duration} vs ${rawPCMDataFull.byteLength / this.audioContext.sampleRate} seconds`,
-          );
-          log(
-            `recordedData.length=${rawPCMDataFull.byteLength} vs transmittedData.length=${this.buffers[0].byteLength}`,
-          );
-          // const mergedBuffers = mergeBuffers(this.buffers); // Int16Array or Int32Array
-          // this.playRecordedData({
-          //   recordedData: mergedBuffers,
-          //   mimeType: 'audio/wav'
-          // });
-          // this.playRecordedData({recordedData: wavMergedBuffer, sampleRate: this.config.sampleRate ?? this.audioContext.sampleRate, numberOfChannels: this.numberOfChannels, bitDepth: this.bitDepth});
+        if (command !== "newData") {
           return;
         }
-
         // Handle the audio blob (e.g., send it to the server or process it further)
         log("Received audio blob from processor", event);
         const pcmBuffer = event.data.recordedData;
@@ -252,14 +233,63 @@ export class WebRecorder {
   }
 
   stop() {
-    if (this.audioWorkletNode) {
-      this.source.disconnect(this.audioWorkletNode);
-      this.audioWorkletNode.disconnect(this.audioContext.destination);
-      this.audioWorkletNode.port.postMessage({ command: "stop" });
-    }
+    return new Promise((resolve, reject) => {
+      try {
+        if (this.audioWorkletNode) {
+          // this.source.disconnect(this.audioWorkletNode);
+          // this.audioWorkletNode.disconnect(this.audioContext.destination);
+          this.audioWorkletNode.port.postMessage({ command: "stop" });
 
-    // Stop all media stream tracks to stop the browser recording
-    this.stopMediaStreamTracks();
+          // Set a timeout to reject the promise if no message is received within 5 seconds
+          const timeout = setTimeout(() => {
+            this.audioWorkletNode.port.removeEventListener(
+              "message",
+              onMessage,
+            );
+            reject(
+              new Error("Timeout error, audioWorkletNode didn't complete."),
+            );
+          }, 5000);
+
+          // Listen for the recordedData message to confirm stopping
+          const onMessage = async (event: AudioWorkletEvent) => {
+            const command = event.data.command;
+            if (command === "recordedData") {
+              clearTimeout(timeout); // Clear the timeout
+
+              const rawPCMDataFull = event.data.recordedData?.slice(
+                0,
+              ) as ArrayBuffer;
+
+              // Compute duration of the recorded data
+              const duration =
+                rawPCMDataFull.byteLength /
+                (this.audioContext.sampleRate *
+                  (this.exportBitDepth / this.numberOfChannels));
+              log(
+                `Received recorded data -- Duration: ${duration} vs ${rawPCMDataFull.byteLength / this.audioContext.sampleRate} seconds`,
+              );
+              log(
+                `recordedData.length=${rawPCMDataFull.byteLength} vs transmittedData.length=${this.buffers[0].byteLength}`,
+              );
+
+              // Remove the event listener after receiving the final data
+              this.audioWorkletNode.port.removeEventListener(
+                "message",
+                onMessage,
+              );
+              resolve(this.buffers); // Resolve the promise with the collected buffers
+            }
+          };
+          this.audioWorkletNode.port.addEventListener("message", onMessage);
+        }
+
+        // Stop all media stream tracks to stop the browser recording
+        this.stopMediaStreamTracks();
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   pause() {
@@ -268,10 +298,6 @@ export class WebRecorder {
     this.audioWorkletNode.port.postMessage({ command: "pause" });
   }
 
-  stopAndPlay() {
-    this.stop();
-    this.audioWorkletNode.port.postMessage({ command: "getRecordedData" });
-  }
 
   stopMediaStreamTracks() {
     // Stop all audio tracks to stop the recording icon
