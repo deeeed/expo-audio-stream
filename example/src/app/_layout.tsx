@@ -1,3 +1,4 @@
+// example/src/app/_layout.tsx
 import { UIProvider } from "@siteed/design-system";
 import { LoggerProvider } from "@siteed/react-native-logger";
 import { Stack } from "expo-router/stack";
@@ -7,7 +8,7 @@ import { AudioFilesProvider } from "../context/AudioFilesProvider";
 export default function RootLayout() {
   return (
     <LoggerProvider>
-      <AudioRecorderProvider>
+      <AudioRecorderProvider config={{ debug: true }}>
         <UIProvider>
           <AudioFilesProvider>
             <Stack>

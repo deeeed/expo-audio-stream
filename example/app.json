@@ -28,7 +28,7 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
     },
     "plugins": [
       [
@@ -38,6 +38,12 @@
         }
       ],
       "expo-localization",
+      [
+        "expo-asset",
+        {
+          "assets": ["./public/test.wav"]
+        }
+      ],
       "expo-router"
     ]
   }

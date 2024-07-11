@@ -89,4 +89,9 @@ repositories {
 dependencies {
   implementation project(':expo-modules-core')
   implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${getKotlinVersion()}"
+
+  // Add testing dependencies
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.jetbrains.kotlin:kotlin-test:1.8.10'
+  testImplementation 'org.jetbrains.kotlin:kotlin-test-junit:1.8.10'
 }
