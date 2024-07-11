@@ -34,13 +34,6 @@ export interface CandleData extends DataPoint {
 }
 
 export interface AudioVisualizerState {
-  activePoints: CandleData[];
-  range: {
-    start: number;
-    end: number;
-    startVisibleIndex: number;
-    endVisibleIndex: number;
-  };
   ready: boolean;
   triggerUpdate: number;
   canvasWidth: number;
@@ -65,9 +58,7 @@ export interface UpdateActivePointsParams {
     };
     candleWidth: number;
     candleSpace: number;
-    ready: boolean;
   };
-  dispatch: React.Dispatch<AudioVisualiserAction>;
 }
 
 export interface UpdateActivePointsResult {
@@ -78,6 +69,7 @@ export interface UpdateActivePointsResult {
     startVisibleIndex: number;
     endVisibleIndex: number;
   };
+  lastUpdatedTranslateX: number;
 }
 
 export interface DebouncedUpdateActivePointsParams

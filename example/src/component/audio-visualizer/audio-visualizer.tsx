@@ -16,32 +16,17 @@ import {
   AudioVisualizerProps,
   AudioVisualizerState,
   CandleData,
+  UpdateActivePointsResult,
 } from "./autio-visualizer.types";
 import CanvasContainer from "./canvas-container";
 import { GestureHandler } from "./gesture-handler";
 
-export type AudioVisualiserAction =
-  | { type: "SET_ACTIVE_POINTS"; payload: CandleData[] }
-  | {
-      type: "SET_RANGE";
-      payload: {
-        start: number;
-        end: number;
-        startVisibleIndex: number;
-        endVisibleIndex: number;
-      };
-    }
-  | { type: "SET_READY"; payload: boolean }
-  | { type: "SET_TRIGGER_UPDATE"; payload: number }
-  | { type: "SET_CANVAS_WIDTH"; payload: number }
-  | { type: "SET_CURRENT_TIME"; payload: number }
-  | { type: "SET_HAS_INITIALIZED"; payload: boolean }
-  | { type: "SET_SELECTED_CANDLE"; payload: CandleData | null }
-  | { type: "BATCH_UPDATE"; payload: Partial<AudioVisualizerState> };
+export type AudioVisualiserAction = {
+  type: "UPDATE_STATE";
+  state: Partial<AudioVisualizerState>;
+};
 
 const initialState: AudioVisualizerState = {
-  activePoints: [],
-  range: { start: 0, end: 0, startVisibleIndex: 0, endVisibleIndex: 0 },
   ready: false,
   triggerUpdate: 0,
   canvasWidth: 0,
@@ -55,24 +40,8 @@ const reducer = (
   action: AudioVisualiserAction,
 ): AudioVisualizerState => {
   switch (action.type) {
-    case "SET_ACTIVE_POINTS":
-      return { ...state, activePoints: action.payload };
-    case "SET_RANGE":
-      return { ...state, range: action.payload };
-    case "SET_READY":
-      return { ...state, ready: action.payload };
-    case "SET_TRIGGER_UPDATE":
-      return { ...state, triggerUpdate: action.payload };
-    case "SET_CANVAS_WIDTH":
-      return { ...state, canvasWidth: action.payload };
-    case "SET_CURRENT_TIME":
-      return { ...state, currentTime: action.payload };
-    case "SET_HAS_INITIALIZED":
-      return { ...state, hasInitialized: action.payload };
-    case "SET_SELECTED_CANDLE":
-      return { ...state, selectedCandle: action.payload };
-    case "BATCH_UPDATE":
-      return { ...state, ...action.payload };
+    case "UPDATE_STATE":
+      return { ...state, ...action.state };
     default:
       return state;
   }
@@ -93,12 +62,9 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const translateX = useSharedValue(0);
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const lastUpdatedTranslateX = useRef<number>(0);
   const { logger } = useLogger("AudioVisualizer");
 
   const {
-    activePoints,
-    range,
     ready,
     triggerUpdate,
     canvasWidth,
@@ -110,7 +76,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
     logger.log(`Layout width: ${width}`);
-    dispatch({ type: "SET_CANVAS_WIDTH", payload: width });
+    dispatch({ type: "UPDATE_STATE", state: { canvasWidth: width } });
   }, []);
 
   const referenceLineX = calculateReferenceLinePosition({
@@ -133,18 +99,17 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const totalCandleWidth =
     audioData.dataPoints.length * (candleWidth + candleSpace);
 
-  const activePointsRef = useRef<CandleData[]>([]);
+  const updateActivePointsResult = useRef<UpdateActivePointsResult>({
+    activePoints: [],
+    range: { start: 0, end: 0, startVisibleIndex: 0, endVisibleIndex: 0 },
+    lastUpdatedTranslateX: 0,
+  });
 
   // Initialize activePoints
   useEffect(() => {
-    logger.log("useEffect - Initialize activePoints");
-    logger.log("maxDisplayedItems:", maxDisplayedItems);
-    logger.log("hasInitialized:", hasInitialized);
-
     if (maxDisplayedItems === 0 || hasInitialized) return;
 
     if (mode !== "live") {
-      // fill initialize activePoints with maxDisplayedItems * 3
       const initialActivePoints: CandleData[] = new Array(
         maxDisplayedItems * 3,
       ).fill({
@@ -152,41 +117,61 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         amplitude: 0,
         visible: false,
       });
-      dispatch({ type: "SET_ACTIVE_POINTS", payload: initialActivePoints });
+      updateActivePointsResult.current = {
+        ...updateActivePointsResult.current,
+        activePoints: initialActivePoints,
+      };
     }
-    dispatch({ type: "SET_HAS_INITIALIZED", payload: true });
+    dispatch({
+      type: "UPDATE_STATE",
+      state: { hasInitialized: true, ready: true },
+    });
   }, [maxDisplayedItems, mode, hasInitialized]);
 
   useEffect(() => {
     if (!hasInitialized) return;
 
-    logger.log(
-      `Updating active points... dataPoints.length: ${audioData.dataPoints.length} activePointsRef.length: ${activePointsRef.current.length}`,
-      audioData.dataPoints,
-    );
-    const { activePoints: updatedActivePoints } = updateActivePoints({
+    const {
+      activePoints: updatedActivePoints,
+      range: updatedRange,
+      lastUpdatedTranslateX: updatedLastUpdatedTranslateX,
+    } = updateActivePoints({
       x: translateX.value,
       context: {
         dataPoints: audioData.dataPoints,
         maxDisplayedItems,
-        activePoints: activePointsRef.current,
-        ready,
+        activePoints: updateActivePointsResult.current.activePoints,
+        range: updateActivePointsResult.current.range,
         referenceLineX,
         mode,
-        range,
         candleWidth,
         candleSpace,
       },
-      dispatch,
     });
-    lastUpdatedTranslateX.current = translateX.value;
     logger.log(`Updated active points: ${updatedActivePoints.length}`);
-    activePointsRef.current = updatedActivePoints;
-  }, [audioData.dataPoints, hasInitialized, maxDisplayedItems, canvasWidth]);
+    updateActivePointsResult.current = {
+      activePoints: updatedActivePoints,
+      range: updatedRange,
+      lastUpdatedTranslateX: updatedLastUpdatedTranslateX,
+    };
+    dispatch({
+      type: "UPDATE_STATE",
+      state: { triggerUpdate: triggerUpdate + 1 },
+    });
+  }, [
+    audioData.dataPoints,
+    dispatch,
+    hasInitialized,
+    maxDisplayedItems,
+    canvasWidth,
+  ]);
 
   useEffect(() => {
     if (fullCurrentTime) {
-      dispatch({ type: "SET_CURRENT_TIME", payload: fullCurrentTime });
+      dispatch({
+        type: "UPDATE_STATE",
+        state: { currentTime: fullCurrentTime },
+      });
     }
   }, [fullCurrentTime]);
 
@@ -203,97 +188,137 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
       // Check if the translateX has moved by at least half of canvasWidth
       const movedDistance = Math.abs(
-        newTranslateX - lastUpdatedTranslateX.current,
+        newTranslateX - updateActivePointsResult.current.lastUpdatedTranslateX,
       );
 
       // Define a threshold to update active points
-      const translateXThreshold = canvasWidth / 2;
+      const translateXThreshold = canvasWidth;
 
       logger.log(
-        `[${movedDistance > translateXThreshold ? "YEAH" : "NO"}] Moved distance: ${movedDistance} newTranslateX: ${newTranslateX} Threshold: ${translateXThreshold}`,
+        `Moved distance: ${movedDistance} newTranslateX: ${newTranslateX} Threshold: ${translateXThreshold}`,
       );
       if (movedDistance >= translateXThreshold) {
-        const { activePoints: updatedActivePoints } = updateActivePoints({
+        const {
+          activePoints: updatedActivePoints,
+          range: updatedRange,
+          lastUpdatedTranslateX: updatedLastUpdatedTranslateX,
+        } = updateActivePoints({
           x: newTranslateX,
           context: {
             dataPoints: audioData.dataPoints,
             maxDisplayedItems,
-            activePoints: activePointsRef.current,
-            ready,
+            activePoints: updateActivePointsResult.current.activePoints,
             referenceLineX,
             mode,
-            range,
+            range: updateActivePointsResult.current.range,
             candleWidth,
             candleSpace,
           },
-          dispatch,
         });
-        lastUpdatedTranslateX.current = translateX.value;
-        activePointsRef.current = updatedActivePoints;
+        updateActivePointsResult.current = {
+          activePoints: updatedActivePoints,
+          range: updatedRange,
+          lastUpdatedTranslateX: updatedLastUpdatedTranslateX,
+        };
+
+        dispatch({
+          type: "UPDATE_STATE",
+          state: { triggerUpdate: triggerUpdate + 1 },
+        });
       }
     }
   }, [playing, currentTime, audioData.durationMs, canvasWidth, translateX]);
 
-  const handleDragEnd = ({ newTranslateX }: { newTranslateX: number }) => {
-    if (audioData.durationMs && onSeekEnd) {
-      const allowedTranslateX = maxTranslateX;
-      const progressRatio = -newTranslateX / allowedTranslateX;
-      const newTime = (progressRatio * audioData.durationMs) / 1000;
-      onSeekEnd(newTime);
-    }
+  const handleDragEnd = useCallback(
+    ({ newTranslateX }: { newTranslateX: number }) => {
+      if (audioData.durationMs && onSeekEnd) {
+        const allowedTranslateX = maxTranslateX;
+        const progressRatio = -newTranslateX / allowedTranslateX;
+        const newTime = (progressRatio * audioData.durationMs) / 1000;
+        onSeekEnd(newTime);
+      }
 
-    updateActivePoints({
-      x: newTranslateX,
-      context: {
-        dataPoints: audioData.dataPoints,
-        maxDisplayedItems,
-        activePoints,
-        referenceLineX,
-        mode,
-        range,
-        candleWidth,
-        candleSpace,
-        ready,
-      },
-      dispatch,
-    });
-    lastUpdatedTranslateX.current = newTranslateX;
-  };
+      const {
+        activePoints: updatedActivePoints,
+        range: updatedRange,
+        lastUpdatedTranslateX: updatedLastUpdatedTranslateX,
+      } = updateActivePoints({
+        x: newTranslateX,
+        context: {
+          dataPoints: audioData.dataPoints,
+          maxDisplayedItems,
+          activePoints: updateActivePointsResult.current.activePoints,
+          referenceLineX,
+          mode,
+          range: updateActivePointsResult.current.range,
+          candleWidth,
+          candleSpace,
+        },
+      });
+      updateActivePointsResult.current = {
+        activePoints: updatedActivePoints,
+        range: updatedRange,
+        lastUpdatedTranslateX: updatedLastUpdatedTranslateX,
+      };
 
-  const handleReset = () => {
-    updateActivePoints({
+      dispatch({
+        type: "UPDATE_STATE",
+        state: { triggerUpdate: triggerUpdate + 1 },
+      });
+    },
+    [onSeekEnd, audioData.dataPoints, maxDisplayedItems],
+  );
+
+  const handleReset = useCallback(() => {
+    const {
+      activePoints: updatedActivePoints,
+      range: updatedRange,
+      lastUpdatedTranslateX: updatedLastUpdatedTranslateX,
+    } = updateActivePoints({
       x: 0,
       context: {
         dataPoints: audioData.dataPoints,
         maxDisplayedItems,
-        activePoints,
+        activePoints: updateActivePointsResult.current.activePoints,
         referenceLineX,
         mode,
-        range,
+        range: updateActivePointsResult.current.range,
         candleWidth,
         candleSpace,
-        ready,
       },
-      dispatch,
     });
-    lastUpdatedTranslateX.current = 0;
+    updateActivePointsResult.current = {
+      activePoints: updatedActivePoints,
+      range: updatedRange,
+      lastUpdatedTranslateX: updatedLastUpdatedTranslateX,
+    };
+
     runOnUI(() => {
       translateX.value = 0;
     })();
     onSeekEnd?.(0);
-  };
+
+    dispatch({
+      type: "UPDATE_STATE",
+      state: { triggerUpdate: triggerUpdate + 1 },
+    });
+  }, [onSeekEnd, audioData.dataPoints, maxDisplayedItems]);
 
   return (
     <View style={styles.container} onLayout={handleLayout}>
       <Text style={styles.text}>dataPoints: {audioData.dataPoints.length}</Text>
-      <Text>activePoints: {activePoints.length}</Text>
+      <Text>
+        activePoints: {updateActivePointsResult.current.activePoints.length}
+      </Text>
       <Text style={styles.text}>canvasHeight: {canvasHeight}</Text>
       <Text style={styles.text}>canvasWidth: {canvasWidth}</Text>
       <Text style={styles.text}>maxDisplayedItems: {maxDisplayedItems}</Text>
       <Text style={styles.text}>
         pointsPerSecond: {audioData.pointsPerSecond}
       </Text>
-      <Text style={styles.text}>Range: {JSON.stringify(range)}</Text>
+      <Text style={styles.text}>
+        Range: {JSON.stringify(updateActivePointsResult.current.range)}
+      </Text>
       <Text style={styles.text}>
         Amplitude: [ {audioData.amplitudeRange.min},
         {audioData.amplitudeRange.max} ]
@@ -325,10 +350,12 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 mode={mode}
                 playing={playing}
                 dispatch={dispatch}
-                startIndex={range.start}
+                startIndex={updateActivePointsResult.current.range.start}
                 translateX={translateX}
-                activePoints={activePoints}
-                lastUpdatedTranslateX={lastUpdatedTranslateX.current}
+                activePoints={updateActivePointsResult.current.activePoints}
+                lastUpdatedTranslateX={
+                  updateActivePointsResult.current.lastUpdatedTranslateX
+                }
                 maxDisplayedItems={maxDisplayedItems}
                 maxTranslateX={maxTranslateX}
                 paddingLeft={paddingLeft}
