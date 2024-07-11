@@ -1,4 +1,4 @@
-package net.siteed.audiostream.example
+package net.siteed.audiostream.audioplayground
 
 import android.os.Build
 import android.os.Bundle

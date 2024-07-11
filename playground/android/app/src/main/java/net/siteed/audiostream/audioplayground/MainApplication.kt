@@ -1,4 +1,4 @@
-package net.siteed.audiostream.example
+package net.siteed.audiostream.audioplayground
 
 import android.app.Application
 import android.content.res.Configuration

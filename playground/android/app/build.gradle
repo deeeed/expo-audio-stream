@@ -83,9 +83,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'net.siteed.audiostream.example'
+    namespace 'net.siteed.audiostream.audioplayground'
     defaultConfig {
-        applicationId 'net.siteed.audiostream.example'
+        applicationId 'net.siteed.audiostream.audioplayground'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
