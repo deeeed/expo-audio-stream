@@ -111,14 +111,13 @@ export const updateActivePoints = ({
     range,
     candleWidth,
     candleSpace,
-    lastUpdatedTranslateX,
     ready,
   },
   dispatch,
 }: UpdateActivePointsParams): UpdateActivePointsResult => {
   if (dataPoints.length === 0) {
     logger.debug(
-      `No data points to update or already updated. Skipping... lastUpdatedTranslateX=${lastUpdatedTranslateX}, x=${x}, ready=${ready}`,
+      `No data points to update or already updated. Skipping... x=${x}, ready=${ready}`,
     );
     return { activePoints, range };
   }
@@ -232,7 +231,6 @@ export const updateActivePoints = ({
       `Range updated: start=${startIndex}, end=${endIndex}, startVisibleIndex=${startVisibleIndex}, endVisibleIndex=${endVisibleIndex}`,
     );
   }
-  lastUpdatedTranslateX = x;
 
   // Batch state updates
   dispatch({ type: "BATCH_UPDATE", payload: updates });

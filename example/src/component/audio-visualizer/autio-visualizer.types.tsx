@@ -65,7 +65,6 @@ export interface UpdateActivePointsParams {
     };
     candleWidth: number;
     candleSpace: number;
-    lastUpdatedTranslateX: number;
     ready: boolean;
   };
   dispatch: React.Dispatch<AudioVisualiserAction>;
