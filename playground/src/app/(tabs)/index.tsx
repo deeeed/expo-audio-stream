@@ -498,19 +498,6 @@ export default function Record() {
                   }
             }
           />
-          {isWeb && (
-            <>
-              <Button mode="contained" onPress={handleSaveFile}>
-                Save to Disk
-              </Button>
-              <Button
-                mode="contained"
-                onPress={() => handleFileInfo(result.webAudioUri!)}
-              >
-                Get Wav Info
-              </Button>
-            </>
-          )}
           <Button mode="contained" onPress={() => setResult(null)}>
             Record Again
           </Button>

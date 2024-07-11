@@ -3,7 +3,7 @@ import { Button, Result, Skeleton, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect } from "react";
-import { Platform, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { AudioStreamResult } from "../../../../src/ExpoAudioStream.types";
 import { AudioRecording } from "../../component/AudioRecording";
