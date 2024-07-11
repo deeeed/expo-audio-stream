@@ -5,7 +5,6 @@ import { StyleSheet } from "react-native";
 import { withSpring } from "react-native-reanimated";
 
 import {
-  AudioVisualizerState,
   CalculateReferenceLinePositionParams,
   DrawDottedLineParams,
   GetStylesParams,
@@ -102,7 +101,9 @@ export const drawDottedLine = ({
 
 export const updateActivePoints = ({
   x,
-  context: {
+  context,
+}: UpdateActivePointsParams): UpdateActivePointsResult => {
+  const {
     dataPoints,
     activePoints,
     maxDisplayedItems,
@@ -111,25 +112,25 @@ export const updateActivePoints = ({
     range,
     candleWidth,
     candleSpace,
-    ready,
-  },
-  dispatch,
-}: UpdateActivePointsParams): UpdateActivePointsResult => {
+  } = context;
+
   if (dataPoints.length === 0) {
-    logger.debug(
-      `No data points to update or already updated. Skipping... x=${x}, ready=${ready}`,
-    );
-    return { activePoints, range };
+    return { activePoints, range, lastUpdatedTranslateX: x };
   }
 
   logger.debug(
     `Updating active points x=${x}, mode=${mode}, dataPoints.length=${dataPoints.length}, activePoints.length=${activePoints.length}, referenceLineX=${referenceLineX}, maxDisplayedItems=${maxDisplayedItems}`,
   );
 
-  const updates: Partial<AudioVisualizerState> = {
-    ready: true,
-    triggerUpdate: 0,
-    range: { ...range }, // Initialize range to avoid it being undefined
+  const result: UpdateActivePointsResult = {
+    activePoints: [],
+    range: {
+      start: 0,
+      end: 0,
+      startVisibleIndex: 0,
+      endVisibleIndex: 0,
+    },
+    lastUpdatedTranslateX: x,
   };
   let lastPointIndex = -1;
 
@@ -175,7 +176,7 @@ export const updateActivePoints = ({
 
     // Ensure activePoints does not exceed liveMaxDisplayedItems
     const finalUpdatedPoints = updatedPoints.slice(-liveMaxDisplayedItems);
-    updates.activePoints = [...finalUpdatedPoints];
+    result.activePoints = [...finalUpdatedPoints];
 
     logger.log(
       `Live mode: Updated ${finalUpdatedPoints.length} active points`,
@@ -220,8 +221,8 @@ export const updateActivePoints = ({
         };
       }
     }
-    updates.activePoints = [...activePoints];
-    updates.range = {
+    result.activePoints = [...activePoints];
+    result.range = {
       start: startIndex,
       end: endIndex,
       startVisibleIndex,
@@ -232,15 +233,9 @@ export const updateActivePoints = ({
     );
   }
 
-  // Batch state updates
-  dispatch({ type: "BATCH_UPDATE", payload: updates });
-
   logger.debug(
     `Active points updated. First point ID: ${activePoints[0]?.id}, Last point ID: ${activePoints[activePoints.length - 1]?.id}`,
   );
 
-  return {
-    activePoints: updates.activePoints,
-    range: { ...range, ...updates.range },
-  };
+  return result;
 };

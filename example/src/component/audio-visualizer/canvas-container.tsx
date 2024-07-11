@@ -83,8 +83,8 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
         // Dispatch action to update the selected candle
         dispatch({
-          type: "SET_SELECTED_CANDLE",
-          payload: candle,
+          type: "UPDATE_STATE",
+          state: { selectedCandle: candle },
         });
 
         const RMS_THRESHOLD = 0.02;
