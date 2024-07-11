@@ -41,7 +41,7 @@
       [
         "expo-asset",
         {
-          "assets": ["./public/test.wav"]
+          "assets": ["./public/audio_samples/recorder_hello_world.wav"]
         }
       ],
       "expo-router"
