@@ -1,7 +1,7 @@
 // playground/src/app/(tabs)/files.tsx
 import { Button, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
 import { AudioStreamResult } from "../../../../src/ExpoAudioStream.types";
@@ -12,7 +12,11 @@ export default function Files() {
   const { logger } = useLogger("Files");
   const { show } = useToast();
 
-  const { files, removeFile, clearFiles } = useAudioFiles();
+  const { files, removeFile, clearFiles, refreshFiles } = useAudioFiles();
+
+  useEffect(() => {
+    refreshFiles();
+  }, [refreshFiles]);
 
   const handleDelete = useCallback(
     async (recording: AudioStreamResult) => {

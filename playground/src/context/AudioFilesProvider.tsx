@@ -1,5 +1,6 @@
 // playground/src/context/AudioFilesProvider.tsx
 import { useLogger } from "@siteed/react-native-logger";
+import { error } from "console";
 import * as FileSystem from "expo-file-system";
 import React, {
   createContext,
@@ -11,6 +12,10 @@ import React, {
 import { Platform } from "react-native";
 
 import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
+import {
+  WEB_STORAGE_KEY_PREFIX,
+  WEB_STORAGE_METADATA_KEY_PREFIX,
+} from "../constants";
 
 interface AudioFilesContextValue {
   files: AudioStreamResult[];
@@ -34,81 +39,78 @@ export const AudioFilesProvider = ({
   const [files, setFiles] = useState<AudioStreamResult[]>([]);
   const { logger } = useLogger("AudioFilesProvider");
 
-  useEffect(() => {
-    const testFileUri = async (uri: string) => {
-      try {
-        const info = await FileSystem.getInfoAsync(uri);
-        if (!info.exists) {
-          logger.error(`File does not exist at ${uri}`);
-        } else {
-          logger.debug(`File exists at ${uri}`);
-        }
-      } catch (error) {
-        logger.error(`Error accessing file at ${uri}:`, error);
-      }
-    };
-
-    files.forEach((file) => testFileUri(file.fileUri));
-  }, [files]);
-
   const listAudioFiles = useCallback(async () => {
     if (Platform.OS === "web") {
-      return [];
-    }
-    const directoryUri = FileSystem.documentDirectory;
-    if (!directoryUri) {
-      throw new Error(`No directoryUri found`);
-    }
+      const keys = Object.keys(sessionStorage).filter((key) =>
+        key.startsWith(WEB_STORAGE_KEY_PREFIX),
+      );
 
-    const fileList = await FileSystem.readDirectoryAsync(directoryUri);
-    logger.debug(`Found files in directory`, fileList);
-    const audioFiles = fileList.filter((file) => file.endsWith(".wav"));
-    const jsonFiles = fileList.filter((file) => file.endsWith(".json"));
-
-    const audioStreamResults = await Promise.all(
-      audioFiles.map(async (audioFile) => {
-        const jsonFile = jsonFiles.find(
-          (jf) => jf.replace(".json", "") === audioFile.replace(".wav", ""),
-        );
-        if (jsonFile) {
-          const jsonData = await FileSystem.readAsStringAsync(
-            `${directoryUri}${jsonFile}`,
+      return keys
+        .map((key) => {
+          const fileId = key.replace(WEB_STORAGE_KEY_PREFIX, "");
+          const metadata = sessionStorage.getItem(
+            `${WEB_STORAGE_METADATA_KEY_PREFIX}${fileId}`,
           );
-          const metadata = JSON.parse(jsonData);
-          logger.debug(`Loaded metadata for ${audioFile}`, metadata);
-          return {
-            fileUri: `${directoryUri}${audioFile}`,
-            ...metadata,
-          };
-        } else {
-          logger.warn(`No metadata found for ${audioFile}`);
-          // Remove the audio file if no metadata is found
-          try {
-            await deleteAudioAndMetadata(`${directoryUri}${audioFile}`);
-          } catch {
-            // ignore delete error
+
+          return metadata ? JSON.parse(metadata) : null;
+        })
+        .filter((file) => file !== null) as AudioStreamResult[];
+    } else {
+      const directoryUri = FileSystem.documentDirectory;
+      if (!directoryUri) {
+        throw new Error(`No directoryUri found`);
+      }
+
+      const fileList = await FileSystem.readDirectoryAsync(directoryUri);
+      logger.debug(`Found files in directory`, fileList);
+      const audioFiles = fileList.filter((file) => file.endsWith(".wav"));
+      const jsonFiles = fileList.filter((file) => file.endsWith(".json"));
+
+      const audioStreamResults = await Promise.all(
+        audioFiles.map(async (audioFile) => {
+          const jsonFile = jsonFiles.find(
+            (jf) => jf.replace(".json", "") === audioFile.replace(".wav", ""),
+          );
+          if (jsonFile) {
+            const jsonData = await FileSystem.readAsStringAsync(
+              `${directoryUri}${jsonFile}`,
+            );
+            const metadata = JSON.parse(jsonData);
+            logger.debug(`Loaded metadata for ${audioFile}`, metadata);
+            return {
+              fileUri: `${directoryUri}${audioFile}`,
+              ...metadata,
+            };
+          } else {
+            logger.warn(`No metadata found for ${audioFile}`);
+            // Remove the audio file if no metadata is found
+            try {
+              await deleteAudioAndMetadata(`${directoryUri}${audioFile}`);
+            } catch {
+              // ignore delete error
+            }
           }
-        }
-        return null;
-      }),
-    );
+          return null;
+        }),
+      );
 
-    // // Iterate through json files and remove any that don't have a corresponding audio file
-    // await Promise.all(
-    //   jsonFiles.map(async (jsonFile) => {
-    //     const audioFile = audioFiles.find(
-    //       (af) => af.replace(".wav", "") === jsonFile.replace(".json", ""),
-    //     );
-    //     if (!audioFile) {
-    //       logger.error(`No audio file found for ${jsonFile}`);
-    //       await FileSystem.deleteAsync(`${directoryUri}${jsonFile}`);
-    //     }
-    //   }),
-    // );
+      // // Iterate through json files and remove any that don't have a corresponding audio file
+      // await Promise.all(
+      //   jsonFiles.map(async (jsonFile) => {
+      //     const audioFile = audioFiles.find(
+      //       (af) => af.replace(".wav", "") === jsonFile.replace(".json", ""),
+      //     );
+      //     if (!audioFile) {
+      //       logger.error(`No audio file found for ${jsonFile}`);
+      //       await FileSystem.deleteAsync(`${directoryUri}${jsonFile}`);
+      //     }
+      //   }),
+      // );
 
-    return audioStreamResults.filter(
-      (result) => result !== null,
-    ) as AudioStreamResult[];
+      return audioStreamResults.filter(
+        (result) => result !== null,
+      ) as AudioStreamResult[];
+    }
   }, []);
 
   const deleteAudioAndMetadata = async (audioUri: string) => {
@@ -136,33 +138,73 @@ export const AudioFilesProvider = ({
   }, []);
 
   const removeFile = useCallback(async (fileUri: string) => {
-    await deleteAudioAndMetadata(fileUri);
+    if (Platform.OS === "web") {
+      const metadataKey = Object.keys(sessionStorage).find((key) => {
+        const metadata = sessionStorage.getItem(key);
+        try {
+          return metadata ? JSON.parse(metadata).fileUri === fileUri : false;
+        } catch (_error) {
+          // logger.error(`Failed to parse metadata for key: ${key}`, error);
+          logger.error(
+            `Failed to parse metadata for key: ${key}`,
+            metadata,
+            error,
+          );
+          return false;
+        }
+      });
+
+      if (metadataKey) {
+        const fileId = metadataKey.replace(WEB_STORAGE_METADATA_KEY_PREFIX, "");
+        sessionStorage.removeItem(`${WEB_STORAGE_KEY_PREFIX}${fileId}`);
+        sessionStorage.removeItem(metadataKey);
+      }
+    } else {
+      await deleteAudioAndMetadata(fileUri);
+    }
     await refreshFiles();
   }, []);
 
   const clearFiles = useCallback(async () => {
-    if (Platform.OS === "web") {
-      return;
-    }
-    const directoryUri = FileSystem.documentDirectory;
-    if (!directoryUri) {
-      throw new Error(`No directoryUri found`);
-    }
+    try {
+      if (Platform.OS === "web") {
+        const keys = Object.keys(sessionStorage).filter((key) =>
+          key.startsWith(WEB_STORAGE_KEY_PREFIX),
+        );
 
-    const fileList = await FileSystem.readDirectoryAsync(directoryUri);
-    logger.debug(`Found files in directory`, fileList);
-    // delete all files
-    await Promise.all(
-      fileList.map(async (file) => {
-        try {
-          logger.debug(`Deleting file: ${file}`);
-          await FileSystem.deleteAsync(`${directoryUri}${file}`);
-        } catch (error) {
-          logger.error(`Failed to delete file: ${file}`, error);
+        keys.forEach((key) => {
+          const fileId = key.replace(WEB_STORAGE_KEY_PREFIX, "");
+          sessionStorage.removeItem(key);
+          sessionStorage.removeItem(
+            `${WEB_STORAGE_METADATA_KEY_PREFIX}${fileId}`,
+          );
+        });
+
+        setFiles([]);
+      } else {
+        const directoryUri = FileSystem.documentDirectory;
+        if (!directoryUri) {
+          throw new Error(`No directoryUri found`);
         }
-      }),
-    );
-    await refreshFiles();
+
+        const fileList = await FileSystem.readDirectoryAsync(directoryUri);
+        logger.debug(`Found files in directory`, fileList);
+        // delete all files
+        await Promise.all(
+          fileList.map(async (file) => {
+            try {
+              logger.debug(`Deleting file: ${file}`);
+              await FileSystem.deleteAsync(`${directoryUri}${file}`);
+            } catch (error) {
+              logger.error(`Failed to delete file: ${file}`, error);
+            }
+          }),
+        );
+        await refreshFiles();
+      }
+    } catch (error) {
+      logger.error(`Failed to clear files`, error);
+    }
   }, []);
 
   useEffect(() => {
