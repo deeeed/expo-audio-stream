@@ -10,7 +10,7 @@ import {
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
 import { WebRecorder } from "./WebRecorder";
-import { encodingToBitDepth, quickUUID } from "./utils";
+import { encodingToBitDepth } from "./utils";
 
 export interface EmitAudioEventProps {
   data: ArrayBuffer;
@@ -122,7 +122,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
     this.pausedTime = 0;
     this.lastEmittedSize = 0;
     this.lastEmittedTime = 0;
-    this.streamUuid = quickUUID(); // Generate a UUID for the new recording session
+    this.streamUuid = Date.now().toString();
     const fileUri = `${this.streamUuid}.${this.extension}`;
     const streamConfig: StartAudioStreamResult = {
       fileUri,

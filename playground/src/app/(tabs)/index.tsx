@@ -21,6 +21,10 @@ import { atob, btoa } from "react-native-quick-base64";
 import { AudioRecording } from "../../component/AudioRecording";
 import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
 import { WaveformProps } from "../../component/waveform/waveform.types";
+import {
+  WEB_STORAGE_KEY_PREFIX,
+  WEB_STORAGE_METADATA_KEY_PREFIX,
+} from "../../constants";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { formatBytes, formatDuration } from "../../utils";
 
@@ -248,6 +252,26 @@ export default function Record() {
       const url = URL.createObjectURL(blob);
       console.log(`Generated URL: ${url}`);
       setWebAudioUri(url);
+
+      // Generate unique identifier for the recording
+      const storageKey = `${WEB_STORAGE_KEY_PREFIX}${result.fileUri}`;
+      const metadataKey = `${WEB_STORAGE_METADATA_KEY_PREFIX}${result.fileUri}`;
+
+      // Save to sessionStorage
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64data = reader.result?.toString().split(",")[1];
+          if (base64data) {
+            sessionStorage.setItem(storageKey, base64data);
+            sessionStorage.setItem(metadataKey, JSON.stringify(result));
+          }
+          await refreshFiles();
+        } catch (error) {
+          logger.error(`Failed to save audio data to session storage`, error);
+        }
+      };
+      reader.readAsDataURL(blob);
 
       await handleFileInfo(url);
       return;
