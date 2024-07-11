@@ -17,6 +17,7 @@ import {
 } from "../utils/indexedDB";
 
 interface AudioFilesContextValue {
+  ready: boolean;
   files: AudioStreamResult[];
   totalAudioStorageSize: number;
   refreshFiles: () => Promise<void>;
@@ -25,6 +26,7 @@ interface AudioFilesContextValue {
 }
 
 const AudioFilesContext = createContext<AudioFilesContextValue>({
+  ready: false,
   files: [],
   totalAudioStorageSize: 0,
   refreshFiles: async () => {},
@@ -38,6 +40,7 @@ export const AudioFilesProvider = ({
   children: React.ReactNode;
 }) => {
   const [files, setFiles] = useState<AudioStreamResult[]>([]);
+  const [ready, setReady] = useState<boolean>(false);
   const [totalAudioStorageSize, setTotalAudioStorageSize] = useState<number>(0);
   const { logger } = useLogger("AudioFilesProvider");
 
@@ -49,70 +52,76 @@ export const AudioFilesProvider = ({
   );
 
   const listAudioFiles = useCallback(async () => {
-    if (Platform.OS === "web") {
-      const records = await listIndexedDBAudioFiles();
-      return records.map((record) => {
-        const blob = new Blob([record.arrayBuffer], {
-          type: record.metadata.mimeType,
+    try {
+      if (Platform.OS === "web") {
+        const records = await listIndexedDBAudioFiles();
+        return records.map((record) => {
+          const blob = new Blob([record.arrayBuffer], {
+            type: record.metadata.mimeType,
+          });
+          const webAudioUri = URL.createObjectURL(blob);
+          return { ...record.metadata, webAudioUri };
         });
-        const webAudioUri = URL.createObjectURL(blob);
-        return { ...record.metadata, webAudioUri };
-      });
-    } else {
-      const directoryUri = FileSystem.documentDirectory;
-      if (!directoryUri) {
-        throw new Error(`No directoryUri found`);
-      }
+      } else {
+        const directoryUri = FileSystem.documentDirectory;
+        if (!directoryUri) {
+          throw new Error(`No directoryUri found`);
+        }
 
-      const fileList = await FileSystem.readDirectoryAsync(directoryUri);
-      logger.debug(`Found files in directory`, fileList);
-      const audioFiles = fileList.filter((file) => file.endsWith(".wav"));
-      const jsonFiles = fileList.filter((file) => file.endsWith(".json"));
+        const fileList = await FileSystem.readDirectoryAsync(directoryUri);
+        logger.debug(`Found files in directory`, fileList);
+        const audioFiles = fileList.filter((file) => file.endsWith(".wav"));
+        const jsonFiles = fileList.filter((file) => file.endsWith(".json"));
 
-      const audioStreamResults = await Promise.all(
-        audioFiles.map(async (audioFile) => {
-          const jsonFile = jsonFiles.find(
-            (jf) => jf.replace(".json", "") === audioFile.replace(".wav", ""),
-          );
-          if (jsonFile) {
-            const jsonData = await FileSystem.readAsStringAsync(
-              `${directoryUri}${jsonFile}`,
+        const audioStreamResults = await Promise.all(
+          audioFiles.map(async (audioFile) => {
+            const jsonFile = jsonFiles.find(
+              (jf) => jf.replace(".json", "") === audioFile.replace(".wav", ""),
             );
-            const metadata = JSON.parse(jsonData);
-            logger.debug(`Loaded metadata for ${audioFile}`, metadata);
-            return {
-              fileUri: `${directoryUri}${audioFile}`,
-              ...metadata,
-            };
-          } else {
-            logger.warn(`No metadata found for ${audioFile}`);
-            // Remove the audio file if no metadata is found
-            try {
-              await deleteAudioAndMetadata(`${directoryUri}${audioFile}`);
-            } catch {
-              // ignore delete error
+            if (jsonFile) {
+              const jsonData = await FileSystem.readAsStringAsync(
+                `${directoryUri}${jsonFile}`,
+              );
+              const metadata = JSON.parse(jsonData);
+              logger.debug(`Loaded metadata for ${audioFile}`, metadata);
+              return {
+                fileUri: `${directoryUri}${audioFile}`,
+                ...metadata,
+              };
+            } else {
+              logger.warn(`No metadata found for ${audioFile}`);
+              // Remove the audio file if no metadata is found
+              try {
+                await deleteAudioAndMetadata(`${directoryUri}${audioFile}`);
+              } catch {
+                // ignore delete error
+              }
             }
-          }
-          return null;
-        }),
-      );
+            return null;
+          }),
+        );
 
-      // // Iterate through json files and remove any that don't have a corresponding audio file
-      // await Promise.all(
-      //   jsonFiles.map(async (jsonFile) => {
-      //     const audioFile = audioFiles.find(
-      //       (af) => af.replace(".wav", "") === jsonFile.replace(".json", ""),
-      //     );
-      //     if (!audioFile) {
-      //       logger.error(`No audio file found for ${jsonFile}`);
-      //       await FileSystem.deleteAsync(`${directoryUri}${jsonFile}`);
-      //     }
-      //   }),
-      // );
+        // // Iterate through json files and remove any that don't have a corresponding audio file
+        // await Promise.all(
+        //   jsonFiles.map(async (jsonFile) => {
+        //     const audioFile = audioFiles.find(
+        //       (af) => af.replace(".wav", "") === jsonFile.replace(".json", ""),
+        //     );
+        //     if (!audioFile) {
+        //       logger.error(`No audio file found for ${jsonFile}`);
+        //       await FileSystem.deleteAsync(`${directoryUri}${jsonFile}`);
+        //     }
+        //   }),
+        // );
 
-      return audioStreamResults.filter(
-        (result) => result !== null,
-      ) as AudioStreamResult[];
+        return audioStreamResults.filter(
+          (result) => result !== null,
+        ) as AudioStreamResult[];
+      }
+    } catch (error) {
+      logger.error(`Failed to list audio files`, error);
+    } finally {
+      setReady(true);
     }
   }, []);
 
@@ -140,7 +149,7 @@ export const AudioFilesProvider = ({
   };
 
   const refreshFiles = useCallback(async () => {
-    const loadedFiles = await listAudioFiles();
+    const loadedFiles = (await listAudioFiles()) || [];
     setFiles(loadedFiles);
   }, []);
 
@@ -197,6 +206,7 @@ export const AudioFilesProvider = ({
   return (
     <AudioFilesContext.Provider
       value={{
+        ready,
         files,
         totalAudioStorageSize,
         refreshFiles,
