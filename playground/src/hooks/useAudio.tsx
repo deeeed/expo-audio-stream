@@ -9,7 +9,7 @@ import {
   AudioAnalysisData,
   AudioStreamResult,
 } from "../../../src/ExpoAudioStream.types";
-import { fetchArrayBuffer } from "../utils";
+import { fetchArrayBuffer } from "../utils/utils";
 
 interface PlayOptions {
   position?: number;
@@ -28,16 +28,10 @@ interface UseAudioOptions {
 export interface UseAudioProps {
   audioUri?: string | undefined;
   recording?: AudioStreamResult;
-  audioBuffer?: ArrayBuffer; // Priority to audioBuffer if provided
   options: UseAudioOptions;
 }
 
-export const useAudio = ({
-  audioUri,
-  recording,
-  audioBuffer,
-  options,
-}: UseAudioProps) => {
+export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -47,8 +41,7 @@ export const useAudio = ({
   const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData | null>(
     null,
   );
-  // const { logger } = useLogger("useAudio");
-  const logger = console;
+  const { logger } = useLogger("useAudio");
   const { show } = useToast();
 
   useEffect(() => {
@@ -58,31 +51,28 @@ export const useAudio = ({
   }, [sound]);
 
   useEffect(() => {
-    if (!audioUri && !audioBuffer) return;
+    if (!audioUri) return;
 
     const processAudioData = async () => {
       try {
         setProcessing(true);
-        if (options.loadArrayBuffer) {
-          if (audioBuffer) {
-            setArrayBuffer(audioBuffer);
-            return;
-          }
+        let actualAudioBuffer: ArrayBuffer | undefined;
 
+        if (options.loadArrayBuffer) {
           if (!audioUri) return;
           logger.debug(`Fetching audio array buffer from ${audioUri}`);
           const buffer = await fetchArrayBuffer(audioUri);
-          setArrayBuffer(buffer);
+          actualAudioBuffer = buffer.slice(0);
+          setArrayBuffer(actualAudioBuffer);
           logger.debug(
             `Fetched audio array buffer from ${audioUri} --> length: ${buffer.byteLength} bytes`,
           );
         }
 
-        logger.debug(`Loading audio from ${audioUri}`);
         if (options.extractAnalysis) {
           const analysis = await extractAudioAnalysis({
-            fileUri: audioBuffer ? undefined : audioUri, // Priority to audioBuffer if provided
-            arrayBuffer: audioBuffer,
+            fileUri: actualAudioBuffer ? undefined : audioUri, // Priority to audioBuffer if provided
+            arrayBuffer: actualAudioBuffer,
             sampleRate: recording?.sampleRate,
             bitDepth: recording?.bitDepth,
             durationMs: recording?.duration,
@@ -102,7 +92,6 @@ export const useAudio = ({
     processAudioData().catch(logger.error);
   }, [
     audioUri,
-    audioBuffer,
     options.loadArrayBuffer,
     options.extractAnalysis,
     logger,

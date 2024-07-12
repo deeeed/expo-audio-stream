@@ -1,12 +1,11 @@
+// playground/src/app/(tabs)/index.tsx
 import { Button, Picker, ScreenWrapper } from "@siteed/design-system";
 import {
-  AudioAnalysisData,
   AudioDataEvent,
   AudioStreamResult,
   RecordingConfig,
   SampleRate,
   StartAudioStreamResult,
-  getWavFileInfo,
   useSharedAudioRecorder,
   writeWaveHeader,
 } from "@siteed/expo-audio-stream";
@@ -16,16 +15,15 @@ import * as FileSystem from "expo-file-system";
 import isBase64 from "is-base64";
 import { useCallback, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator } from "react-native-paper";
 import { atob, btoa } from "react-native-quick-base64";
 
 import { AudioRecording } from "../../component/AudioRecording";
 import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
-import { RawWaveForm } from "../../component/waveform/rawwaveform";
 import { WaveformProps } from "../../component/waveform/waveform.types";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
-import { formatBytes, formatDuration } from "../../utils";
-
-const isWeb = Platform.OS === "web";
+import { storeAudioFile } from "../../utils/indexedDB";
+import { formatBytes, formatDuration, isWeb } from "../../utils/utils";
 
 if (isWeb) {
   localStorage.debug = "expo-audio-stream:*";
@@ -77,9 +75,9 @@ export default function Record() {
       onAudioStream: (a) => onAudioData(a),
     });
   const [result, setResult] = useState<AudioStreamResult | null>(null);
+  const [processing, setProcessing] = useState(false);
   const currentSize = useRef(0);
   const { refreshFiles, removeFile } = useAudioFiles();
-  const [webAudioUri, setWebAudioUri] = useState<string>();
 
   // Ref for full WAV audio buffer
   const fullWavAudioBuffer = useRef<ArrayBuffer | null>(null);
@@ -154,29 +152,6 @@ export default function Record() {
     analysisData,
   } = useSharedAudioRecorder();
 
-  const handleSaveFile = () => {
-    if (webAudioUri) {
-      const a = document.createElement("a");
-      a.href = webAudioUri;
-      a.download = `recording_${result?.sampleRate ?? "NOSAMPLE"}_${result?.bitDepth ?? "NOBITDEPTH"}.wav`;
-      a.click();
-    }
-  };
-
-  const handleFileInfo = async (uri: string) => {
-    logger.debug(`Getting file info...`, uri);
-    try {
-      const response = await fetch(uri);
-      const arrayBuffer = await response.arrayBuffer();
-
-      // Decode the audio file to get metadata
-      const wavMetadata = await getWavFileInfo(arrayBuffer);
-      console.log(`Decoded audio:`, wavMetadata);
-    } catch (error) {
-      console.error("Error picking audio file:", error);
-    }
-  };
-
   const handleStart = async () => {
     try {
       const { granted } = await Audio.requestPermissionsAsync();
@@ -208,93 +183,110 @@ export default function Record() {
   };
 
   const handleStopRecording = useCallback(async () => {
-    const result = await stopRecording();
-    // TODO: compare accumulated audio chunks with the result
-    logger.debug(`Recording stopped. `, result);
-    setResult(result);
+    try {
+      setProcessing(true);
+      const result = await stopRecording();
+      // TODO: compare accumulated audio chunks with the result
+      logger.debug(`Recording stopped. `, result);
 
-    if (!result) {
-      logger.warn(`No result found`);
-      return;
-    }
-
-    if (!isWeb && result) {
-      try {
-        const jsonPath = result.fileUri.replace(/\.wav$/, ".json"); // Assuming fileUri has a .wav extension
-        await FileSystem.writeAsStringAsync(
-          jsonPath,
-          JSON.stringify(result, null, 2),
-          {
-            encoding: FileSystem.EncodingType.UTF8,
-          },
-        );
-        logger.log(`Metadata saved to ${jsonPath}`);
-        refreshFiles();
-      } catch (error) {
-        logger.error(`Error saving metadata`, error);
+      if (!result) {
+        logger.warn(`No result found`);
+        return;
       }
-    }
 
-    if (isWeb && fullWavAudioBuffer.current) {
-      const wavConfig = {
-        buffer: fullWavAudioBuffer.current,
-        sampleRate: result?.sampleRate || 44100,
-        numChannels: result?.channels || 1,
-        bitDepth: result?.bitDepth || 32,
-      };
-      logger.debug(`Writing wav header`, wavConfig);
-      const wavBuffer = writeWaveHeader(wavConfig);
-
-      const blob = new Blob([wavBuffer], { type: result.mimeType });
-      const url = URL.createObjectURL(blob);
-      console.log(`Generated URL: ${url}`);
-      setWebAudioUri(url);
-
-      await handleFileInfo(url);
-      return;
-    }
-
-    // Verify data integrity to make sure we streamed the correct data
-    if (audioChunks.current.length > 0) {
-      try {
-        // Remove padding, concatenate, then re-add padding if necessary
-        const concatenatedBase64Chunks = audioChunks.current
-          .map((chunk) => chunk.replace(/=*$/, ""))
-          .join("");
-        const padding = (4 - (concatenatedBase64Chunks.length % 4)) % 4;
-        const paddedBase64Chunks =
-          concatenatedBase64Chunks + "=".repeat(padding);
-
-        if (!isBase64(paddedBase64Chunks)) {
-          // FIXME: ios concatenation seems to sometime fail -- investigate
-          logger.warn(`Invalid base64 data`);
-          return;
+      if (!isWeb && result) {
+        try {
+          setResult(result);
+          const jsonPath = result.fileUri.replace(/\.wav$/, ".json"); // Assuming fileUri has a .wav extension
+          await FileSystem.writeAsStringAsync(
+            jsonPath,
+            JSON.stringify(result, null, 2),
+            {
+              encoding: FileSystem.EncodingType.UTF8,
+            },
+          );
+          logger.log(`Metadata saved to ${jsonPath}`);
+          refreshFiles();
+        } catch (error) {
+          logger.error(`Error saving metadata`, error);
         }
-        const binaryChunkData = atob(paddedBase64Chunks);
-
-        // Read the equivalent length of data from the file, skipping the header
-        const fileDataInBase64 = await FileSystem.readAsStringAsync(
-          result.fileUri,
-          {
-            encoding: FileSystem.EncodingType.Base64,
-            position: 0,
-            length: 5000,
-          },
-        );
-        const binaryFileData = atob(fileDataInBase64);
-
-        // Ignore first 44bytes (header) and compare the next 500 bytes
-        const binaryChunkDataBase64 = btoa(binaryChunkData.slice(44, 500));
-        const binaryFileDataBase64 = btoa(binaryFileData.slice(44, 500));
-        // Perform binary comparison
-        logger.log(`Binary data from chunks:`, binaryChunkDataBase64);
-        logger.log(`Binary data from file:`, binaryFileDataBase64);
-
-        const isEqual = binaryChunkDataBase64 === binaryFileDataBase64;
-        logger.log(`Comparison result:`, isEqual);
-      } catch (error) {
-        logger.error(`Error while comparing audio data`, error);
       }
+
+      if (isWeb && fullWavAudioBuffer.current) {
+        const wavConfig = {
+          buffer: fullWavAudioBuffer.current.slice(0),
+          sampleRate: result?.sampleRate || 44100,
+          numChannels: result?.channels || 1,
+          bitDepth: result?.bitDepth || 32,
+        };
+        logger.debug(`Writing wav header`, wavConfig);
+        const wavBuffer = writeWaveHeader(wavConfig).slice(0);
+
+        const blob = new Blob([wavBuffer], { type: result.mimeType });
+        const url = URL.createObjectURL(blob);
+        console.log(`Generated URL: ${url}`);
+
+        // Store the audio file and metadata in IndexedDB
+        await storeAudioFile({
+          fileName: result.fileUri,
+          arrayBuffer: wavBuffer,
+          metadata: result,
+        });
+
+        result.webAudioUri = url;
+        setResult(result);
+
+        await refreshFiles();
+
+        return;
+      }
+
+      // Verify data integrity to make sure we streamed the correct data
+      if (audioChunks.current.length > 0) {
+        try {
+          // Remove padding, concatenate, then re-add padding if necessary
+          const concatenatedBase64Chunks = audioChunks.current
+            .map((chunk) => chunk.replace(/=*$/, ""))
+            .join("");
+          const padding = (4 - (concatenatedBase64Chunks.length % 4)) % 4;
+          const paddedBase64Chunks =
+            concatenatedBase64Chunks + "=".repeat(padding);
+
+          if (!isBase64(paddedBase64Chunks)) {
+            // FIXME: ios concatenation seems to sometime fail -- investigate
+            logger.warn(`Invalid base64 data`);
+            return;
+          }
+          const binaryChunkData = atob(paddedBase64Chunks);
+
+          // Read the equivalent length of data from the file, skipping the header
+          const fileDataInBase64 = await FileSystem.readAsStringAsync(
+            result.fileUri,
+            {
+              encoding: FileSystem.EncodingType.Base64,
+              position: 0,
+              length: 5000,
+            },
+          );
+          const binaryFileData = atob(fileDataInBase64);
+
+          // Ignore first 44bytes (header) and compare the next 500 bytes
+          const binaryChunkDataBase64 = btoa(binaryChunkData.slice(44, 500));
+          const binaryFileDataBase64 = btoa(binaryFileData.slice(44, 500));
+          // Perform binary comparison
+          logger.log(`Binary data from chunks:`, binaryChunkDataBase64);
+          logger.log(`Binary data from file:`, binaryFileDataBase64);
+
+          const isEqual = binaryChunkDataBase64 === binaryFileDataBase64;
+          logger.log(`Comparison result:`, isEqual);
+        } catch (error) {
+          logger.error(`Error while comparing audio data`, error);
+        }
+      }
+    } catch (error) {
+      logger.error(`Error while stopping recording`, error);
+    } finally {
+      setProcessing(false);
     }
   }, [isRecording, refreshFiles]);
 
@@ -455,6 +447,10 @@ export default function Record() {
     );
   }
 
+  if (processing) {
+    return <ActivityIndicator size="large" />;
+  }
+
   return (
     <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
       {/* {audioUri && (
@@ -466,9 +462,7 @@ export default function Record() {
         <View style={{ gap: 10, paddingBottom: 100 }}>
           <AudioRecording
             recording={result}
-            webAudioUri={webAudioUri}
             showWaveform
-            wavAudioBuffer={isWeb ? fullWavAudioBuffer.current! : undefined}
             onDelete={
               isWeb
                 ? undefined
@@ -478,19 +472,6 @@ export default function Record() {
                   }
             }
           />
-          {isWeb && webAudioUri && (
-            <>
-              <Button mode="contained" onPress={handleSaveFile}>
-                Save to Disk
-              </Button>
-              <Button
-                mode="contained"
-                onPress={() => handleFileInfo(webAudioUri)}
-              >
-                Get Wav Info
-              </Button>
-            </>
-          )}
           <Button mode="contained" onPress={() => setResult(null)}>
             Record Again
           </Button>
