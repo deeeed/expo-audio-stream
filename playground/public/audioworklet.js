@@ -1,3 +1,4 @@
+// playground/public/audioworklet.js
 const DEFAULT_BIT_DEPTH = 32;
 const DEFAULT_SAMPLE_RATE = 44100;
 
@@ -216,6 +217,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
     // to the main thread, avoiding the need to copy the buffer and improving performance
     // this.port.postMessage({ recordedData: encodedWav.buffer, sampleRate: this.recordSampleRate }, [encodedWav.buffer]);
     this.port.postMessage({
+      command: "newData",
       recordedData: finalBuffer.buffer,
       sampleRate: this.exportSampleRate,
       bitDepth: this.exportBitDepth,

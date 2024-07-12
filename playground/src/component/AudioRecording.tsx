@@ -13,7 +13,7 @@ import {
   AudioStreamResult,
 } from "../../../src/ExpoAudioStream.types";
 import { useAudio } from "../hooks/useAudio";
-import { formatBytes, formatDuration } from "../utils";
+import { formatBytes, formatDuration, isWeb } from "../utils/utils";
 
 const getStyles = ({
   isPlaying,
@@ -48,21 +48,17 @@ const getStyles = ({
 
 export interface AudioRecordingProps {
   recording: AudioStreamResult;
-  webAudioUri?: string; // Allow to overwrite the audioUri for web since it cannot load from file
-  wavAudioBuffer?: ArrayBuffer;
   showWaveform?: boolean;
   onDelete?: () => Promise<void>;
 }
 export const AudioRecording = ({
   recording,
-  webAudioUri,
-  wavAudioBuffer,
   showWaveform = true,
   onDelete,
 }: AudioRecordingProps) => {
   const { logger } = useLogger("AudioRecording");
   const { show } = useToast();
-  const audioUri = webAudioUri ?? recording.fileUri;
+  const audioUri = recording.webAudioUri ?? recording.fileUri;
   const theme = useTheme();
   const {
     isPlaying,
@@ -73,7 +69,6 @@ export const AudioRecording = ({
     updatePlaybackOptions,
   } = useAudio({
     audioUri,
-    audioBuffer: wavAudioBuffer,
     recording,
     options: { extractAnalysis: showWaveform },
   });
@@ -104,13 +99,27 @@ export const AudioRecording = ({
     }
   };
 
+  const handleSaveToDisk = async () => {
+    if (!isWeb || !recording.webAudioUri) {
+      logger.warn(
+        "Save to disk is only supported on web",
+        recording.webAudioUri,
+      );
+      return;
+    }
+
+    const a = document.createElement("a");
+    a.href = recording.webAudioUri;
+    a.download = `rec_${recording.fileUri}_${recording?.sampleRate ?? "NOSAMPLE"}_${recording?.bitDepth ?? "NOBITDEPTH"}.wav`;
+    a.click();
+  };
+
   const extractAnalysis = useCallback(async () => {
     setProcessing(true);
     try {
       const analysis = await extractAudioAnalysis({
-        fileUri: audioUri,
+        fileUri: recording.webAudioUri ?? recording.fileUri,
         pointsPerSecond: 20,
-        arrayBuffer: wavAudioBuffer,
         bitDepth: recording.bitDepth,
         durationMs: recording.duration,
         sampleRate: recording.sampleRate,
@@ -125,9 +134,10 @@ export const AudioRecording = ({
     } finally {
       setProcessing(false);
     }
-  }, [audioUri, wavAudioBuffer, recording, logger, show]);
+  }, [audioUri, recording, logger, show]);
 
   useEffect(() => {
+    logger.debug("Extracting analysis from useEffect...");
     extractAnalysis();
   }, [extractAnalysis]);
 
@@ -204,11 +214,15 @@ export const AudioRecording = ({
       )}
 
       <View style={styles.buttons}>
-        <Button onPress={extractAnalysis}>Extract Analysis</Button>
+        <Button onPress={extractAnalysis}>Visualize</Button>
         <Button onPress={handlePlayPause}>
           {isPlaying ? "Pause" : "Play"}
         </Button>
-        <Button onPress={handleShare}>Share</Button>
+        {isWeb ? (
+          <Button onPress={handleSaveToDisk}>Save</Button>
+        ) : (
+          <Button onPress={handleShare}>Share</Button>
+        )}
         {onDelete && (
           <Button
             buttonColor={theme.colors.error}

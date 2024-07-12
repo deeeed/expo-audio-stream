@@ -1,5 +1,7 @@
 import * as FileSystem from "expo-file-system";
 import { Platform } from "react-native";
+
+export const isWeb = Platform.OS === "web";
 /**
  * Formats bytes into a human-readable format.
  *
@@ -60,7 +62,7 @@ export const normalizeValue = (
 export const fetchArrayBuffer = async (uri: string): Promise<ArrayBuffer> => {
   try {
     console.log(`Reading file from: ${uri}`);
-    if (Platform.OS === "web") {
+    if (isWeb) {
       const response = await fetch(uri);
       const arrayBuffer = await response.arrayBuffer();
       return arrayBuffer;

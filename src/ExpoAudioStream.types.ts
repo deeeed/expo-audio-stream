@@ -12,6 +12,7 @@ export interface AudioEventPayload {
 
 export interface AudioStreamResult {
   fileUri: string;
+  webAudioUri?: string;
   duration: number;
   size: number;
   mimeType: string;
@@ -76,7 +77,7 @@ export interface DataPoint {
 
 export interface AudioAnalysisData {
   pointsPerSecond: number; // How many consolidated value per second
-  durationMs?: number; // Duration of the audio in milliseconds
+  durationMs: number; // Duration of the audio in milliseconds
   bitDepth: number; // Bit depth of the audio
   numberOfChannels: number; // Number of audio channels
   sampleRate: number; // Sample rate of the audio
