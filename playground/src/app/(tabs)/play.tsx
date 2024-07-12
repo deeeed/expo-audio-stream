@@ -5,12 +5,13 @@ import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Platform, StyleSheet, Text, View } from "react-native";
+import { Button, StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 
 import { extractAudioAnalysis } from "../../../../src";
-import { WavFileInfo, getWavFileInfo } from "../../../../src/utils";
+import { getWavFileInfo } from "../../../../src/utils";
 import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
+import { isWeb } from "../../utils/utils";
 
 const getStyles = () => {
   return StyleSheet.create({
@@ -21,16 +22,13 @@ const getStyles = () => {
     button: {},
   });
 };
-const isWeb = Platform.OS === "web";
 
 export const PlayPage = () => {
   const styles = useMemo(() => getStyles(), []);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [audioBuffer, setAudioBuffer] = useState<ArrayBuffer>();
   const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData>();
-  const [audioMetadata, setAudioMetadata] = useState<WavFileInfo>();
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [processing, setProcessing] = useState<boolean>(false);
@@ -52,7 +50,6 @@ export const PlayPage = () => {
         // Fetch the audio file as an ArrayBuffer
         const response = await fetch(uri);
         const arrayBuffer = await response.arrayBuffer();
-        setAudioBuffer(arrayBuffer);
 
         // Unload any existing sound
         if (sound) {
@@ -62,7 +59,6 @@ export const PlayPage = () => {
         setProcessing(true);
         // Decode the audio file to get metadata
         const wavMetadata = await getWavFileInfo(arrayBuffer);
-        setAudioMetadata(wavMetadata);
 
         const audioAnalysis = await extractAudioAnalysis({
           fileUri: uri,
@@ -102,13 +98,11 @@ export const PlayPage = () => {
       const startFetchAudio = performance.now();
       const response = await fetch(audioUri);
       const arrayBuffer = await response.arrayBuffer();
-      setAudioBuffer(arrayBuffer);
       timings["Fetch and Convert Audio"] = performance.now() - startFetchAudio;
 
       const startDecodeAudio = performance.now();
       // Decode the audio file to get metadata
       const wavMetadata = await getWavFileInfo(arrayBuffer);
-      setAudioMetadata(wavMetadata);
       timings["Decode Audio"] = performance.now() - startDecodeAudio;
 
       const startExtractFileName = performance.now();
@@ -208,19 +202,6 @@ export const PlayPage = () => {
       {processing && <ActivityIndicator size="large" />}
       {audioUri && (
         <View>
-          {/* {audioBuffer && audioMetadata && (
-            <RawWaveForm
-              buffer={audioBuffer}
-              mode="static"
-              showRuler
-              currentTime={currentTime}
-              debug
-              visualizationType="candlestick"
-              sampleRate={audioMetadata?.sampleRate}
-              channels={audioMetadata?.numChannels}
-              bitDepth={audioMetadata.bitDepth}
-            />
-          )} */}
           {audioAnalysis && (
             <>
               <Button

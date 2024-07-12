@@ -4,14 +4,12 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useTheme } from "@siteed/design-system";
 import { Tabs } from "expo-router";
 import React from "react";
-import { Platform } from "react-native";
 import { Text } from "react-native-paper";
 
 import { useSharedAudioRecorder } from "../../../../src";
+import { isWeb } from "../../utils/utils";
 
 const recordingColor = "rgba(255, 99, 71, 1)";
-
-const isWeb = Platform.OS === "web";
 
 export default function TabLayout() {
   const { isRecording } = useSharedAudioRecorder();
