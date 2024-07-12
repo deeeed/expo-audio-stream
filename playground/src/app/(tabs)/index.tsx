@@ -6,7 +6,6 @@ import {
   RecordingConfig,
   SampleRate,
   StartAudioStreamResult,
-  getWavFileInfo,
   useSharedAudioRecorder,
   writeWaveHeader,
 } from "@siteed/expo-audio-stream";
@@ -152,29 +151,6 @@ export default function Record() {
     isRecording,
     analysisData,
   } = useSharedAudioRecorder();
-
-  const handleSaveFile = () => {
-    if (result?.webAudioUri) {
-      const a = document.createElement("a");
-      a.href = result.webAudioUri;
-      a.download = `recording_${result?.sampleRate ?? "NOSAMPLE"}_${result?.bitDepth ?? "NOBITDEPTH"}.wav`;
-      a.click();
-    }
-  };
-
-  const handleFileInfo = async (uri: string) => {
-    logger.debug(`Getting file info...`, uri);
-    try {
-      const response = await fetch(uri);
-      const arrayBuffer = await response.arrayBuffer();
-
-      // Decode the audio file to get metadata
-      const wavMetadata = await getWavFileInfo(arrayBuffer);
-      console.log(`Decoded audio:`, wavMetadata);
-    } catch (error) {
-      console.error("Error picking audio file:", error);
-    }
-  };
 
   const handleStart = async () => {
     try {
