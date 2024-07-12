@@ -1,5 +1,11 @@
 // playground/src/app/(tabs)/files.tsx
-import { Button, Result, Skeleton, useToast } from "@siteed/design-system";
+import {
+  Button,
+  Result,
+  Skeleton,
+  useToast,
+  RefreshControl,
+} from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect } from "react";
@@ -68,7 +74,12 @@ export default function Files() {
 
   if (!files || files.length === 0) {
     return (
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={false} onRefresh={refreshFiles} />
+        }
+      >
         <Result
           title="No recordings found"
           status="info"
@@ -82,7 +93,12 @@ export default function Files() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={false} onRefresh={refreshFiles} />
+      }
+    >
       <Button onPress={clearFiles} buttonColor="red" textColor="white">
         Clear Directory ({formatBytes(totalAudioStorageSize)})
       </Button>
