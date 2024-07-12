@@ -1,18 +1,32 @@
 // playground/src/app/(tabs)/files.tsx
-import { Button, useToast } from "@siteed/design-system";
+import { Button, Result, Skeleton, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
-import { useCallback } from "react";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
 import { AudioStreamResult } from "../../../../src/ExpoAudioStream.types";
 import { AudioRecording } from "../../component/AudioRecording";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
+import { formatBytes } from "../../utils/utils";
 
 export default function Files() {
   const { logger } = useLogger("Files");
   const { show } = useToast();
+  const router = useRouter();
 
-  const { files, removeFile, clearFiles } = useAudioFiles();
+  const {
+    ready,
+    files,
+    totalAudioStorageSize,
+    removeFile,
+    clearFiles,
+    refreshFiles,
+  } = useAudioFiles();
+
+  useEffect(() => {
+    refreshFiles();
+  }, [refreshFiles]);
 
   const handleDelete = useCallback(
     async (recording: AudioStreamResult) => {
@@ -41,9 +55,37 @@ export default function Files() {
     </View>
   );
 
+  if (!ready) {
+    return (
+      <Skeleton
+        items={[
+          { circles: 1, bars: 3 },
+          { circles: 1, bars: 3 },
+        ]}
+      />
+    );
+  }
+
+  if (!files || files.length === 0) {
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <Result
+          title="No recordings found"
+          status="info"
+          buttonText="Record"
+          onButtonPress={() => {
+            router.push("/");
+          }}
+        />
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Button onPress={clearFiles}>Clear Directory</Button>
+      <Button onPress={clearFiles} buttonColor="red" textColor="white">
+        Clear Directory ({formatBytes(totalAudioStorageSize)})
+      </Button>
       {renderRecordings()}
     </ScrollView>
   );
@@ -53,9 +95,11 @@ const styles = StyleSheet.create({
   container: {
     gap: 10,
     backgroundColor: "#fff",
+    paddingTop: 10,
     marginBottom: 80,
-    // alignItems: "center",
-    // justifyContent: "center",
+    paddingHorizontal: 20,
+    minHeight: "100%",
+    justifyContent: "center",
   },
   recordingContainer: {
     gap: 10,

@@ -1,16 +1,15 @@
+// playground/src/app/(tabs)/_layout.tsx
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useTheme } from "@siteed/design-system";
 import { Tabs } from "expo-router";
 import React from "react";
-import { Platform } from "react-native";
 import { Text } from "react-native-paper";
 
 import { useSharedAudioRecorder } from "../../../../src";
+import { isWeb } from "../../utils/utils";
 
-const recordingColor = "red";
-
-const isWeb = Platform.OS === "web";
+const recordingColor = "rgba(255, 99, 71, 1)";
 
 export default function TabLayout() {
   const { isRecording } = useSharedAudioRecorder();
@@ -45,7 +44,7 @@ export default function TabLayout() {
         name="files"
         options={{
           title: "Files",
-          href: isWeb ? null : "files",
+          href: "files",
           tabBarIcon: ({ color }) => (
             <FontAwesome size={28} name="cog" color={color} />
           ),

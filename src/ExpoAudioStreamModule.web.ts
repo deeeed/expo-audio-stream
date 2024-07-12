@@ -10,7 +10,7 @@ import {
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
 import { WebRecorder } from "./WebRecorder";
-import { encodingToBitDepth, quickUUID } from "./utils";
+import { encodingToBitDepth } from "./utils";
 
 export interface EmitAudioEventProps {
   data: ArrayBuffer;
@@ -19,7 +19,8 @@ export interface EmitAudioEventProps {
 export type EmitAudioEventFunction = (_: EmitAudioEventProps) => void;
 export type EmitAudioAnalysisFunction = (_: AudioAnalysisData) => void;
 
-const log = debug("expo-audio-stream:useAudioRecording");
+// const log = debug("expo-audio-stream:useAudioRecording");
+const log = console;
 class ExpoAudioStreamWeb extends EventEmitter {
   customRecorder: WebRecorder | null;
   audioChunks: ArrayBuffer[];
@@ -122,7 +123,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
     this.pausedTime = 0;
     this.lastEmittedSize = 0;
     this.lastEmittedTime = 0;
-    this.streamUuid = quickUUID(); // Generate a UUID for the new recording session
+    this.streamUuid = Date.now().toString();
     const fileUri = `${this.streamUuid}.${this.extension}`;
     const streamConfig: StartAudioStreamResult = {
       fileUri,
@@ -153,7 +154,8 @@ class ExpoAudioStreamWeb extends EventEmitter {
   // Stop recording
   async stopRecording(): Promise<AudioStreamResult | null> {
     if (this.customRecorder) {
-      this.customRecorder.stopAndPlay();
+      const fullPcmBuffer = await this.customRecorder.stop();
+      log.debug(`Stopped recording`, fullPcmBuffer);
     }
     this.isRecording = false;
     this.currentDurationMs = Date.now() - this.recordingStartTime;
