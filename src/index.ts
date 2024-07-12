@@ -109,7 +109,7 @@ export const extractAudioAnalysis = async ({
         pointsPerSecond,
         algorithm,
         bitDepth,
-        durationMs,
+        fullAudioDurationMs: durationMs,
         numberOfChannels,
       });
     });
