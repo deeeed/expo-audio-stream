@@ -24,9 +24,7 @@ import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualiz
 import { WaveformProps } from "../../component/waveform/waveform.types";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { storeAudioFile } from "../../utils/indexedDB";
-import { formatBytes, formatDuration } from "../../utils/utils";
-
-const isWeb = Platform.OS === "web";
+import { formatBytes, formatDuration, isWeb } from "../../utils/utils";
 
 if (isWeb) {
   localStorage.debug = "expo-audio-stream:*";

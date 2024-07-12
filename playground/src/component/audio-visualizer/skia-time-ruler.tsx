@@ -1,6 +1,7 @@
 import { Line as SkiaLine, Text, useFont } from "@shopify/react-native-skia";
 import React from "react";
 import { Platform } from "react-native";
+import { isWeb } from "../../utils/utils";
 
 export interface TimeRulerProps {
   duration: number;
@@ -59,7 +60,7 @@ export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
           startMargin + (i * (width - startMargin)) / numTicks + paddingLeft;
         const label = labelFormatter(i * interval);
         let labelWidth = 0;
-        if (Platform.OS !== "web") {
+        if (!isWeb) {
           labelWidth = font?.measureText(label)?.width || 0;
         }
         const shouldDrawLabel = i % labelInterval === 0;

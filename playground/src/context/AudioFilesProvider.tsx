@@ -8,13 +8,13 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { Platform } from "react-native";
 
 import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
 import {
   deleteAudioFile,
   listAudioFiles as listIndexedDBAudioFiles,
 } from "../utils/indexedDB";
+import { isWeb } from "../utils/utils";
 
 interface AudioFilesContextValue {
   ready: boolean;
@@ -53,7 +53,7 @@ export const AudioFilesProvider = ({
 
   const listAudioFiles = useCallback(async () => {
     try {
-      if (Platform.OS === "web") {
+      if (isWeb) {
         const records = await listIndexedDBAudioFiles();
         return records.map((record) => {
           const blob = new Blob([record.arrayBuffer], {
@@ -126,7 +126,7 @@ export const AudioFilesProvider = ({
   }, []);
 
   const deleteAudioAndMetadata = async (audioUri: string) => {
-    if (Platform.OS === "web") {
+    if (isWeb) {
       await deleteAudioFile({ fileName: audioUri });
     } else {
       const jsonPath = audioUri.replace(/\.wav$/, ".json");
@@ -160,7 +160,7 @@ export const AudioFilesProvider = ({
 
   const clearFiles = useCallback(async () => {
     try {
-      if (Platform.OS === "web") {
+      if (isWeb) {
         await listIndexedDBAudioFiles().then((records) => {
           return Promise.all(
             records.map((record) =>
