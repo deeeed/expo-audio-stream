@@ -7,7 +7,7 @@ import {
   RefreshControl,
 } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
@@ -30,9 +30,11 @@ export default function Files() {
     refreshFiles,
   } = useAudioFiles();
 
-  useEffect(() => {
-    refreshFiles();
-  }, [refreshFiles]);
+  useFocusEffect(
+    useCallback(() => {
+      refreshFiles();
+    }, [refreshFiles]),
+  );
 
   const handleDelete = useCallback(
     async (recording: AudioStreamResult) => {

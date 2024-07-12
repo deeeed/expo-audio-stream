@@ -1,5 +1,5 @@
 // playground/src/app/(tabs)/_layout.tsx
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useTheme } from "@siteed/design-system";
 import { Tabs } from "expo-router";
@@ -48,6 +48,37 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <FontAwesome size={28} name="cog" color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="play"
+        options={{
+          title: "Play",
+          href: "play",
+          tabBarIcon: ({ color }) => (
+            <FontAwesome size={28} name="play" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="more"
+        options={{
+          title: "More",
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="more-horiz" size={28} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="logs"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="minimal"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

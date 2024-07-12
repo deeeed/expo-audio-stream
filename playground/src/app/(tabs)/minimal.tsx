@@ -127,10 +127,7 @@ const Minimal = () => {
   const maxDisplayedItems = Math.ceil(
     screenWidth / (RECT_WIDTH + SPACE_BETWEEN_RECTS),
   );
-  const font = useFont(
-    require("../../../assets/Roboto/Roboto-Regular.ttf"),
-    FONT_SIZE,
-  );
+  const font = useFont(require("@assets/Roboto/Roboto-Regular.ttf"), FONT_SIZE);
   const [activePoints, setActivePoints] = useState<
     { amplitude: number; id: number; visible: boolean; animated?: boolean }[]
   >([]);
