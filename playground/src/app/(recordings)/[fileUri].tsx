@@ -6,20 +6,20 @@ import {
 } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import {
-    router,
+  router,
   useFocusEffect,
   useLocalSearchParams,
   useNavigation,
 } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { ActivityIndicator, Text } from "react-native-paper";
 
 import { AudioAnalysisData, extractAudioAnalysis } from "../../../../src";
 import { AudioRecording } from "../../component/audio-recording/audio-recording";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 
-const getStyles = ({}: { theme: AppTheme }) => {
+const getStyles = (_: { theme: AppTheme }) => {
   return StyleSheet.create({
     container: {},
   });
