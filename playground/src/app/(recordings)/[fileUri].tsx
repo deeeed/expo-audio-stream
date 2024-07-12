@@ -6,13 +6,14 @@ import {
 } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import {
+    router,
   useFocusEffect,
-  useGlobalSearchParams,
   useLocalSearchParams,
+  useNavigation,
 } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
-import { StyleSheet, Text } from "react-native";
-import { ActivityIndicator } from "react-native-paper";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Pressable, StyleSheet } from "react-native";
+import { ActivityIndicator, Text } from "react-native-paper";
 
 import { AudioAnalysisData, extractAudioAnalysis } from "../../../../src";
 import { AudioRecording } from "../../component/audio-recording/audio-recording";
@@ -30,11 +31,6 @@ export const FullAudioViewerPage = () => {
   const { logger } = useLogger("AudioRecording");
   const { show } = useToast();
 
-  const global = useGlobalSearchParams<{
-    fileUri: string;
-    tab?: string;
-  }>();
-
   const local = useLocalSearchParams<{
     fileUri: string;
     tab?: string;
@@ -46,6 +42,20 @@ export const FullAudioViewerPage = () => {
   const { fileUri } = local;
   const selectedFile = files.find((file) => file.fileUri === fileUri);
   const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData>();
+  const navigator = useNavigation();
+
+  useEffect(() => {
+    // Set navbar title
+    navigator.setOptions({
+      headerShow: true,
+      // headerTitle: "Recording",
+      headerTitle: ({ tintColor }: { tintColor: string }) => {
+        return (
+          <Text style={{ fontSize: 16, fontWeight: "bold" }}>Analysis</Text>
+        );
+      },
+    });
+  }, [navigator, selectedFile, logger, show]);
 
   const extractAnalysis = useCallback(async () => {
     if (!selectedFile) return;
@@ -79,9 +89,6 @@ export const FullAudioViewerPage = () => {
 
   return (
     <ScreenWrapper contentContainerStyle={styles.container}>
-      <Text>global: {global.fileUri}</Text>
-      <Text>local: {fileUri}</Text>
-      <Text>f: {selectedFile?.size}</Text>
       {processing && <ActivityIndicator />}
       {selectedFile && (
         <AudioRecording
@@ -92,6 +99,7 @@ export const FullAudioViewerPage = () => {
           onDelete={async () => {
             if (!selectedFile) return;
             await removeFile(selectedFile.fileUri);
+            router.push("/files");
           }}
         />
       )}

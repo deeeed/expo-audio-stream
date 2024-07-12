@@ -166,7 +166,7 @@ export default function Record() {
       liveWavFormBufferIndex.current = 0;
       fullWavAudioBuffer.current = null;
       currentSize.current = 0;
-      console.log(`Starting recording...`, startRecordingConfig);
+      logger.log(`Starting recording...`, startRecordingConfig);
       const streamConfig: StartAudioStreamResult =
         await startRecording(startRecordingConfig);
       logger.debug(`Recording started `, streamConfig);
