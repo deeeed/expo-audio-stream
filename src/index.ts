@@ -33,6 +33,8 @@ export function addAudioAnalysisListener(
   return emitter.addListener<AudioAnalysisData>("AudioAnalysis", listener);
 }
 
+const isWeb = Platform.OS === "web";
+
 export const extractAudioAnalysis = async ({
   fileUri,
   pointsPerSecond = 20,
@@ -44,7 +46,7 @@ export const extractAudioAnalysis = async ({
   algorithm = "rms",
   features,
 }: ExtractMetadataProps): Promise<AudioAnalysisData> => {
-  if (Platform.OS === "web") {
+  if (isWeb) {
     if (!arrayBuffer && !fileUri) {
       throw new Error("Either arrayBuffer or fileUri must be provided");
     }
@@ -155,7 +157,7 @@ export const extractWaveform = async ({
 
 let createWebWorker: () => Worker;
 
-if (Platform.OS === "web") {
+if (isWeb) {
   createWebWorker = require("./WebWorker.web").default;
 } else {
   createWebWorker = () => {

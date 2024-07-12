@@ -3,17 +3,17 @@ import { AppTheme, Button, useTheme, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 
-import { AudioVisualizer } from "./audio-visualizer/audio-visualizer";
 import { extractAudioAnalysis } from "../../../src";
 import {
   AudioAnalysisData,
   AudioStreamResult,
 } from "../../../src/ExpoAudioStream.types";
 import { useAudio } from "../hooks/useAudio";
-import { formatBytes, formatDuration } from "../utils/utils";
+import { formatBytes, formatDuration, isWeb } from "../utils/utils";
+import { AudioVisualizer } from "./audio-visualizer/audio-visualizer";
 
 const getStyles = ({
   isPlaying,
@@ -100,7 +100,7 @@ export const AudioRecording = ({
   };
 
   const handleSaveToDisk = async () => {
-    if (Platform.OS !== "web" || !recording.webAudioUri) {
+    if (!isWeb || !recording.webAudioUri) {
       logger.warn(
         "Save to disk is only supported on web",
         recording.webAudioUri,
@@ -218,7 +218,7 @@ export const AudioRecording = ({
         <Button onPress={handlePlayPause}>
           {isPlaying ? "Pause" : "Play"}
         </Button>
-        {Platform.OS === "web" ? (
+        {isWeb ? (
           <Button onPress={handleSaveToDisk}>Save</Button>
         ) : (
           <Button onPress={handleShare}>Share</Button>
