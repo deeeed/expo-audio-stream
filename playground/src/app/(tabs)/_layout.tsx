@@ -69,18 +69,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="logs"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="minimal"
-        options={{
-          href: null,
-        }}
-      />
     </Tabs>
   );
 }

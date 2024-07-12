@@ -1,5 +1,5 @@
 // playground/src/app/(tabs)/index.tsx
-import { Button, Picker, ScreenWrapper } from "@siteed/design-system";
+import { Button, Picker, ScreenWrapper, useToast } from "@siteed/design-system";
 import {
   AudioDataEvent,
   AudioStreamResult,
@@ -12,13 +12,14 @@ import {
 import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
+import { useRouter } from "expo-router";
 import isBase64 from "is-base64";
 import { useCallback, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 import { atob, btoa } from "react-native-quick-base64";
 
-import { AudioRecording } from "../../component/AudioRecording";
+import { AudioRecording } from "../../component/audio-recording/audio-recording";
 import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
 import { WaveformProps } from "../../component/waveform/waveform.types";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
@@ -78,6 +79,8 @@ export default function Record() {
   const [processing, setProcessing] = useState(false);
   const currentSize = useRef(0);
   const { refreshFiles, removeFile } = useAudioFiles();
+  const { show } = useToast();
+  const router = useRouter();
 
   // Ref for full WAV audio buffer
   const fullWavAudioBuffer = useRef<ArrayBuffer | null>(null);
@@ -101,9 +104,6 @@ export default function Record() {
 
       currentSize.current += eventDataSize;
 
-      // console.log(
-      //   `CHECK DATA position=${position} currentSize.current=${currentSize.current} vs ${totalSize} difference: ${totalSize - currentSize.current}`,
-      // );
       if (typeof data === "string") {
         // Append the audio data to the audioRef
         audioChunks.current.push(data);
@@ -319,6 +319,21 @@ export default function Record() {
     </View>
   );
 
+  const handleDelete = useCallback(
+    async (recording: AudioStreamResult) => {
+      logger.debug(`Deleting recording: ${recording.fileUri}`);
+      try {
+        await removeFile(recording.fileUri);
+        show({ type: "success", message: "Recording deleted" });
+        setResult(null);
+      } catch (error) {
+        logger.error(`Failed to delete recording: ${recording.fileUri}`, error);
+        show({ type: "error", message: "Failed to load audio data" });
+      }
+    },
+    [removeFile],
+  );
+
   const renderStopped = () => (
     <View style={{ gap: 10 }}>
       <Picker
@@ -462,15 +477,11 @@ export default function Record() {
         <View style={{ gap: 10, paddingBottom: 100 }}>
           <AudioRecording
             recording={result}
-            showWaveform
-            onDelete={
-              isWeb
-                ? undefined
-                : () => {
-                    setResult(null);
-                    return removeFile(result.fileUri);
-                  }
-            }
+            onDelete={() => handleDelete(result)}
+            onActionPress={() => {
+              router.push(`(recordings)/${result.fileUri}`);
+            }}
+            actionText="Visualize"
           />
           <Button mode="contained" onPress={() => setResult(null)}>
             Record Again

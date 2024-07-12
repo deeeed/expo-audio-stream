@@ -12,7 +12,7 @@ import { useCallback, useEffect } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
 import { AudioStreamResult } from "../../../../src/ExpoAudioStream.types";
-import { AudioRecording } from "../../component/AudioRecording";
+import { AudioRecording } from "../../component/audio-recording/audio-recording";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { formatBytes } from "../../utils/utils";
 
@@ -48,19 +48,6 @@ export default function Files() {
       }
     },
     [removeFile],
-  );
-
-  const renderRecordings = () => (
-    <View style={styles.recordingContainer}>
-      {files?.map((recording, index) => (
-        <AudioRecording
-          key={index}
-          recording={recording}
-          showWaveform
-          onDelete={() => handleDelete(recording)}
-        />
-      ))}
-    </View>
   );
 
   if (!ready) {
@@ -104,7 +91,19 @@ export default function Files() {
       <Button onPress={clearFiles} buttonColor="red" textColor="white">
         Clear Directory ({formatBytes(totalAudioStorageSize)})
       </Button>
-      {renderRecordings()}
+      <View style={styles.recordingContainer}>
+        {files?.map((recording, index) => (
+          <AudioRecording
+            key={index}
+            recording={recording}
+            onDelete={() => handleDelete(recording)}
+            onActionPress={() => {
+              router.push(`(recordings)/${recording.fileUri}`);
+            }}
+            actionText="Visualize"
+          />
+        ))}
+      </View>
     </ScrollView>
   );
 }

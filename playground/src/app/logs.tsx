@@ -36,6 +36,11 @@ export const LogViewer = (_: LogViewerProps) => {
     }
   }, []);
 
+  const handleRefresh = useCallback(() => {
+    refreshLogs();
+    show({ iconVisible: true, message: "Logs have been updated" });
+  }, [refreshLogs, show]);
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.viewer}>
@@ -52,7 +57,7 @@ export const LogViewer = (_: LogViewerProps) => {
       <Button mode="outlined" onPress={handleCopy}>
         Copy
       </Button>
-      <Button mode="outlined" onPress={refreshLogs}>
+      <Button mode="outlined" onPress={handleRefresh}>
         Refresh
       </Button>
       <Button mode="outlined" onPress={handleClear}>
