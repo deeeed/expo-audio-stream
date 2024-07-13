@@ -1,7 +1,9 @@
 // playground/src/app/(recordings)/[fileUri].tsx
+import { Entypo } from "@expo/vector-icons";
 import {
   AppTheme,
   ScreenWrapper,
+  useBottomModal,
   useTheme,
   useToast,
 } from "@siteed/design-system";
@@ -13,11 +15,15 @@ import {
   useNavigation,
 } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Text } from "react-native-paper";
 
 import { AudioAnalysisData, extractAudioAnalysis } from "../../../../src";
 import { AudioRecording } from "../../component/audio-recording/audio-recording";
+import {
+  AudioRecordingConfigForm,
+  SelectedAudioVisualizerProps,
+} from "../../component/audio-recording-config/audio-recording-config-form";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 
 const getStyles = (_: { theme: AppTheme }) => {
@@ -28,6 +34,8 @@ const getStyles = (_: { theme: AppTheme }) => {
 
 export const FullAudioViewerPage = () => {
   const theme = useTheme();
+  const { colors } = theme;
+
   const styles = useMemo(() => getStyles({ theme }), [theme]);
   const { logger } = useLogger("AudioRecording");
   const { show } = useToast();
@@ -45,18 +53,55 @@ export const FullAudioViewerPage = () => {
   const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData>();
   const navigator = useNavigation();
 
+  const { openDrawer } = useBottomModal();
+
+  const [config, setConfig] = useState<SelectedAudioVisualizerProps>({
+    candleSpace: 2,
+    candleWidth: 10,
+    canvasHeight: 150,
+  });
+
   useEffect(() => {
     // Set navbar title
     navigator.setOptions({
       headerShow: true,
-      // headerTitle: "Recording",
       headerTitle: ({ tintColor }: { tintColor: string }) => {
         return (
-          <Text style={{ fontSize: 16, fontWeight: "bold" }}>Analysis</Text>
+          <Text style={{ fontSize: 16, fontWeight: "bold", color: tintColor }}>
+            Analysis
+          </Text>
         );
       },
+      headerRight: () => (
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Pressable
+            onPress={async () => {
+              await openDrawer({
+                render: () => (
+                  <AudioRecordingConfigForm
+                    config={config}
+                    onChange={setConfig}
+                  />
+                ),
+              });
+            }}
+          >
+            {({ pressed }) => (
+              <Entypo
+                name="sound-mix"
+                size={25}
+                style={{
+                  marginRight: 15,
+                  opacity: pressed ? 0.5 : 1,
+                  color: pressed ? colors.primary : colors.text,
+                }}
+              />
+            )}
+          </Pressable>
+        </View>
+      ),
     });
-  }, [navigator, selectedFile, logger, show]);
+  }, [navigator, selectedFile, logger, setConfig, openDrawer, show]);
 
   const extractAnalysis = useCallback(async () => {
     if (!selectedFile) return;
@@ -96,6 +141,7 @@ export const FullAudioViewerPage = () => {
           recording={selectedFile}
           audioAnalysis={audioAnalysis}
           actionText="Refresh"
+          visualConfig={config}
           onActionPress={extractAnalysis}
           onDelete={async () => {
             if (!selectedFile) return;
