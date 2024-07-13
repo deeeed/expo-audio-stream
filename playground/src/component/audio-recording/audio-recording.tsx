@@ -2,18 +2,20 @@
 import { AppTheme, Button, useTheme, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import * as Sharing from "expo-sharing";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 
-import { extractAudioAnalysis } from "../../../../src";
 import {
   AudioAnalysisData,
   AudioStreamResult,
+  DataPoint,
 } from "../../../../src/ExpoAudioStream.types";
 import { useAudio } from "../../hooks/useAudio";
 import { formatBytes, formatDuration, isWeb } from "../../utils/utils";
+import { SelectedAudioVisualizerProps } from "../audio-recording-config/audio-recording-config-form";
 import { AudioVisualizer } from "../audio-visualizer/audio-visualizer";
+import { DataPointViewer } from "../data-viewer/data-viewer";
 
 const getStyles = ({
   isPlaying,
@@ -50,6 +52,7 @@ export interface AudioRecordingProps {
   recording: AudioStreamResult;
   audioAnalysis?: AudioAnalysisData;
   actionText?: string;
+  visualConfig?: SelectedAudioVisualizerProps;
   onActionPress?: () => void;
   onDelete?: () => Promise<void>;
 }
@@ -57,6 +60,7 @@ export const AudioRecording = ({
   recording,
   actionText,
   audioAnalysis,
+  visualConfig,
   onActionPress,
   onDelete,
 }: AudioRecordingProps) => {
@@ -81,6 +85,7 @@ export const AudioRecording = ({
     [isPlaying, theme],
   );
 
+  const [selectedDataPoint, setSelectedDataPoint] = useState<DataPoint>();
   const handleShare = async () => {
     if (!audioUri) {
       show({ type: "error", message: "No file to share" });
@@ -141,6 +146,11 @@ export const AudioRecording = ({
     }
   };
 
+  const handleSelection = (dataPoint: DataPoint) => {
+    logger.log("Selected data point:", dataPoint);
+    setSelectedDataPoint(dataPoint);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={[styles.detailText, { fontWeight: "bold" }]}>
@@ -171,16 +181,19 @@ export const AudioRecording = ({
       {processing && <ActivityIndicator />}
 
       {audioAnalysis && (
-        <AudioVisualizer
-          canvasHeight={150}
-          playing={isPlaying}
-          showRuler
-          currentTime={position / 1000}
-          audioData={audioAnalysis}
-          showDottedLine
-          onSeekEnd={handleOnSeekEnd}
-        />
+        <View>
+          <AudioVisualizer
+            {...visualConfig}
+            playing={isPlaying}
+            onSelection={handleSelection}
+            currentTime={position / 1000}
+            audioData={audioAnalysis}
+            onSeekEnd={handleOnSeekEnd}
+          />
+        </View>
       )}
+
+      {selectedDataPoint && <DataPointViewer dataPoint={selectedDataPoint} />}
 
       <View style={styles.buttons}>
         {onActionPress && (
