@@ -1,3 +1,4 @@
+// playground/src/app/(recordings)/[fileUri].tsx
 import {
   AppTheme,
   ScreenWrapper,

@@ -9,14 +9,14 @@ import {
 import { useLogger } from "@siteed/react-native-logger";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, ScrollView, StyleSheet, View } from "react-native";
 
 import { AudioStreamResult } from "../../../../src/ExpoAudioStream.types";
 import { AudioRecording } from "../../component/audio-recording/audio-recording";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { formatBytes } from "../../utils/utils";
 
-export default function Files() {
+const FilesScreen = () => {
   const { logger } = useLogger("Files");
   const { show } = useToast();
   const router = useRouter();
@@ -63,59 +63,61 @@ export default function Files() {
 
   if (!files || files.length === 0) {
     return (
-      <ScrollView
+      <FlatList
+        data={[]}
         contentContainerStyle={styles.container}
         refreshControl={
           <RefreshControl refreshing={false} onRefresh={refreshFiles} />
         }
-      >
-        <Result
-          title="No recordings found"
-          status="info"
-          buttonText="Record"
-          onButtonPress={() => {
-            router.push("/");
-          }}
-        />
-      </ScrollView>
+        ListEmptyComponent={
+          <Result
+            title="No recordings found"
+            status="info"
+            buttonText="Record"
+            onButtonPress={() => {
+              router.push("/");
+            }}
+          />
+        }
+        renderItem={() => null}
+      />
     );
   }
 
   return (
-    <ScrollView
+    <FlatList
+      data={files}
+      keyExtractor={(item) => item.fileUri}
       contentContainerStyle={styles.container}
       refreshControl={
         <RefreshControl refreshing={false} onRefresh={refreshFiles} />
       }
-    >
-      <Button onPress={clearFiles} buttonColor="red" textColor="white">
-        Clear Directory ({formatBytes(totalAudioStorageSize)})
-      </Button>
-      <View style={styles.recordingContainer}>
-        {files?.map((recording, index) => (
-          <AudioRecording
-            key={index}
-            recording={recording}
-            onDelete={() => handleDelete(recording)}
-            onActionPress={() => {
-              router.push(`(recordings)/${recording.fileUri}`);
-            }}
-            actionText="Visualize"
-          />
-        ))}
-      </View>
-    </ScrollView>
+      ListHeaderComponent={
+        <Button onPress={clearFiles} buttonColor="red" textColor="white">
+          Clear Directory ({formatBytes(totalAudioStorageSize)})
+        </Button>
+      }
+      renderItem={({ item }) => (
+        <AudioRecording
+          recording={item}
+          onDelete={() => handleDelete(item)}
+          onActionPress={() => {
+            router.push(`(recordings)/${item.fileUri}`);
+          }}
+          actionText="Visualize"
+        />
+      )}
+    />
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     gap: 10,
     backgroundColor: "#fff",
     paddingTop: 10,
-    marginBottom: 80,
+    paddingBottom: 80,
     paddingHorizontal: 20,
-    minHeight: "100%",
     justifyContent: "center",
   },
   recordingContainer: {
@@ -123,3 +125,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 });
+
+export default FilesScreen;
