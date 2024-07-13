@@ -308,15 +308,22 @@ const Minimal = () => {
           >
             Toggle Mode (Current: {mode})
           </Button>
-          <Button
-            onPress={() => {
-              translateX.value = 0;
-              updateActivePoints(0);
-            }}
-          >
-            reset
-          </Button>
-          <Button onPress={addWavePoints}>Add Wavepoints</Button>
+          {mode === "live" ? (
+            <>
+              <Button onPress={addWavePoints}>Add Wavepoints</Button>
+            </>
+          ) : (
+            <>
+              <Button
+                onPress={() => {
+                  translateX.value = 0;
+                  updateActivePoints(0);
+                }}
+              >
+                reset
+              </Button>
+            </>
+          )}
         </View>
         <View>
           <Text>translareX: {translateX.value}</Text>
@@ -325,9 +332,6 @@ const Minimal = () => {
           <Text>canvasWidth: {canvasWidth}</Text>
           <Text>MaxDisplayedItems: {maxDisplayedItems}</Text>
           <Text>StartIndex: {startIndex}</Text>
-          <Text>
-            range: {min} , {max}
-          </Text>
         </View>
         <GestureDetector gesture={panGesture}>
           <View style={styles.canvasContainer}>
