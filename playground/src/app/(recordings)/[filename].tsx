@@ -41,15 +41,17 @@ export const FullAudioViewerPage = () => {
   const { show } = useToast();
 
   const local = useLocalSearchParams<{
-    fileUri: string;
+    filename: string;
     tab?: string;
   }>();
 
   const { files, removeFile } = useAudioFiles();
   const [processing, setProcessing] = useState(false);
 
-  const { fileUri } = local;
-  const selectedFile = files.find((file) => file.fileUri === fileUri);
+  const { filename } = local;
+  const selectedFile = files.find(
+    (file) => file.fileUri.split("/").pop() === filename,
+  );
   const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData>();
   const navigator = useNavigation();
 
