@@ -146,18 +146,25 @@ export const AudioRecording = ({
     }
   };
 
-  const handleSelection = (dataPoint: DataPoint) => {
-    logger.log("Selected data point:", dataPoint);
+  const handleSelection = ({
+    dataPoint,
+    index,
+  }: {
+    dataPoint: DataPoint;
+    index: number;
+  }) => {
+    logger.log(`Selected data point index=${index}`, dataPoint);
     setSelectedDataPoint(dataPoint);
   };
 
+  logger.log("AudioRecording render", recording);
   return (
     <View style={styles.container}>
       <Text style={[styles.detailText, { fontWeight: "bold" }]}>
         {recording.fileUri}
       </Text>
       <Text style={styles.detailText}>
-        Duration: {formatDuration(recording.duration)}
+        Duration: {formatDuration(recording.durationMs)}
       </Text>
       <Text style={styles.detailText}>Size: {formatBytes(recording.size)}</Text>
       <Text style={styles.detailText}>Format: {recording.mimeType}</Text>

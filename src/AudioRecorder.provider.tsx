@@ -9,7 +9,7 @@ import {
 const AudioRecorderContext = createContext<UseAudioRecorderState>({
   isRecording: false,
   isPaused: false,
-  duration: 0,
+  durationMs: 0,
   size: 0,
   // other properties filled on useAudioRecorder
 } as UseAudioRecorderState);

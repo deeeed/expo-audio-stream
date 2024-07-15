@@ -11,7 +11,8 @@ data class DataPoint(
     val dB: Float? = null,
     val silent: Boolean? = null,
     val features: Features? = null,
-    val timestamp: Float? = null,
+    val startTime: Float? = null,
+    val endTime: Float? = null,
     val speaker: Int? = null
 ) {
     fun toDictionary(): Map<String, Any?> {
@@ -22,7 +23,8 @@ data class DataPoint(
             "dB" to dB,
             "silent" to silent,
             "features" to features?.toDictionary(),
-            "timestamp" to timestamp,
+            "startTime" to startTime,
+            "endTime" to endTime,
             "speaker" to speaker
         )
     }
@@ -35,7 +37,8 @@ data class DataPoint(
             "dB" to dB,
             "silent" to silent,
             "features" to features?.toBundle(),
-            "timestamp" to timestamp,
+            "startTime" to startTime,
+            "endTime" to endTime,
             "speaker" to speaker
         )
     }

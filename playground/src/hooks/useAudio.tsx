@@ -75,7 +75,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
             arrayBuffer: actualAudioBuffer,
             sampleRate: recording?.sampleRate,
             bitDepth: recording?.bitDepth,
-            durationMs: recording?.duration,
+            durationMs: recording?.durationMs,
             numberOfChannels: recording?.channels,
           });
           setAudioAnalysis(analysis);

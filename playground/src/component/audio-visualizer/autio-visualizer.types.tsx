@@ -38,6 +38,7 @@ export interface AudioVisualizerState {
   currentTime?: number;
   hasInitialized: boolean;
   selectedCandle: CandleData | null;
+  selectedIndex: number;
 }
 
 export interface UpdateActivePointsParams {
@@ -84,7 +85,13 @@ export interface AudioVisualizerProps {
   showDottedLine?: boolean;
   showRuler?: boolean;
   showSilence?: boolean;
-  onSelection?: (dataPoint: DataPoint) => void;
+  onSelection?: ({
+    dataPoint,
+    index,
+  }: {
+    dataPoint: DataPoint;
+    index: number;
+  }) => void;
   mode?: "static" | "live";
   playing?: boolean;
   onSeekEnd?: (newTime: number) => void;

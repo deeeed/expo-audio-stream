@@ -3,16 +3,11 @@ package net.siteed.audiostream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.*
-import android.media.MediaExtractor
-import android.media.MediaFormat
-import android.os.Build
 import android.util.Log
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 import kotlin.system.measureTimeMillis
-import kotlinx.coroutines.*
 
 class AudioProcessor(private val filesDir: File) {
     companion object {
@@ -30,7 +25,9 @@ class AudioProcessor(private val filesDir: File) {
     // Add a counter for unique IDs
     private var uniqueIdCounter = 0L
 
-    fun loadAudioFile(fileUri: String): AudioData? {
+    fun loadAudioFile(originalFileUri: String): AudioData? {
+        // Remove the file:// prefix if present
+        val fileUri = originalFileUri.removePrefix("file://")
         var file = File(fileUri)
 
         // Check if the file exists at the provided fileUri
@@ -157,7 +154,8 @@ class AudioProcessor(private val filesDir: File) {
                         dB = dB,
                         silent = silent,
                         features = features,
-                        timestamp = i / sampleRate,
+                        startTime = i / sampleRate,
+                        endTime = (i + segmentData.size) / sampleRate,
                         speaker = 0
                     )
 

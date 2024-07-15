@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "main": "src/index",
   "scripts": {
-    "start": "expo start --dev-client",
-    "android": "expo run:android",
-    "ios": "expo run:ios --device",
-    "web": "expo start --web",
+    "start": "expo start --dev-client --port 7365",
+    "android": "expo run:android --port 7365",
+    "ios": "expo run:ios --device --port 7365",
+    "web": "expo start --web --port 7365",
     "ts:check": "tsc"
   },
   "dependencies": {
@@ -16,7 +16,7 @@
     "@react-navigation/native": "^6.1.17",
     "@shopify/react-native-skia": "1.2.3",
     "@simform_solutions/react-native-audio-waveform": "^1.0.1",
-    "@siteed/design-system": "^0.8.10",
+    "@siteed/design-system": "^0.8.14",
     "@siteed/react-native-logger": "^0.7.1",
     "buffer": "^6.0.3",
     "debug": "^4.3.4",

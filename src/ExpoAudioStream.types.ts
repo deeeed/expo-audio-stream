@@ -13,7 +13,7 @@ export interface AudioEventPayload {
 export interface AudioStreamResult {
   fileUri: string;
   webAudioUri?: string;
-  duration: number;
+  durationMs: number;
   size: number;
   mimeType: string;
   channels?: number;
@@ -32,7 +32,7 @@ export interface StartAudioStreamResult {
 export interface AudioStreamStatus {
   isRecording: boolean;
   isPaused: boolean;
-  duration: number;
+  durationMs: number;
   size: number;
   interval: number;
   mimeType: string;
@@ -71,7 +71,8 @@ export interface DataPoint {
   dB?: number;
   silent?: boolean;
   features?: AudioFeatures;
-  timestamp?: number;
+  startTime?: number;
+  endTime?: number;
   speaker?: number;
 }
 

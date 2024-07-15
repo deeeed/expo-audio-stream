@@ -15,7 +15,8 @@ public struct DataPoint {
     public var dB: Float?
     public var silent: Bool?
     public var features: Features?
-    public var timestamp: Float?
+    public var startTime: Float?
+    public var endTime: Float?
     public var speaker: Int?
 }
 
@@ -28,7 +29,8 @@ extension DataPoint {
             "dB": dB ?? 0,
             "silent": silent ?? false,
             "features": features?.toDictionary() ?? [:],
-            "timestamp": timestamp ?? 0,
+            "startTime": startTime ?? 0,
+            "endTime": endTime ?? 0,
             "speaker": speaker ?? 0
         ]
     }

@@ -1,15 +1,15 @@
 // playground/src/app/(tabs)/files.tsx
 import {
   Button,
+  RefreshControl,
   Result,
   Skeleton,
   useToast,
-  RefreshControl,
 } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect } from "react";
-import { FlatList, ScrollView, StyleSheet, View } from "react-native";
+import { useCallback } from "react";
+import { FlatList, StyleSheet, View } from "react-native";
 
 import { AudioStreamResult } from "../../../../src/ExpoAudioStream.types";
 import { AudioRecording } from "../../component/audio-recording/audio-recording";

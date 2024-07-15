@@ -146,7 +146,7 @@ export default function Record() {
   const {
     startRecording,
     stopRecording,
-    duration,
+    durationMs: duration,
     size,
     isRecording,
     analysisData,
@@ -479,7 +479,7 @@ export default function Record() {
             recording={result}
             onDelete={() => handleDelete(result)}
             onActionPress={() => {
-              router.push(`(recordings)/${result.fileUri}`);
+              router.push(`(recordings)/${result.fileUri.split("/").pop()}`);
             }}
             actionText="Visualize"
           />

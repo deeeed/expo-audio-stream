@@ -1,5 +1,5 @@
 import { FontAwesome } from "@expo/vector-icons";
-import { ItemView } from "@siteed/design-system";
+import { EditableInfoCard } from "@siteed/design-system";
 import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -29,10 +29,10 @@ const getStyles = () => {
 
 export interface DataPointViewerProps {
   dataPoint: DataPoint;
+  index?: number;
 }
 export const DataPointViewer = ({ dataPoint }: DataPointViewerProps) => {
   const styles = useMemo(() => getStyles(), []);
-
   return (
     <View style={styles.container}>
       <View style={styles.mainInfoContainer}>
@@ -41,8 +41,10 @@ export const DataPointViewer = ({ dataPoint }: DataPointViewerProps) => {
           <Text style={styles.value}>{dataPoint.dB?.toFixed(2)}</Text>
         </View>
         <View style={styles.attributeContainer}>
-          <Text style={styles.label}>Timestamp:</Text>
-          <Text style={styles.value}>{dataPoint.timestamp?.toFixed(2)}</Text>
+          <Text style={styles.label}>Segment:</Text>
+          <Text style={styles.value}>
+            {dataPoint.startTime?.toFixed(2)}-{dataPoint.endTime?.toFixed(2)}
+          </Text>
         </View>
         <View style={styles.attributeContainer}>
           <Text style={styles.label}>Silent</Text>
@@ -63,9 +65,9 @@ export const DataPointViewer = ({ dataPoint }: DataPointViewerProps) => {
           />
         </View>
       </View>
-      <ItemView
+      <EditableInfoCard
         label="Features"
-        value={JSON.stringify(dataPoint.features)}
+        value={JSON.stringify(dataPoint.features ?? {})}
         containerStyle={{ margin: 0 }}
       />
     </View>

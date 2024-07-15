@@ -102,7 +102,7 @@ export interface WavFileInfo {
   numChannels: number;
   bitDepth: number;
   size: number; // in bytes
-  duration: number; // in seconds
+  durationMs: number; // in seconds
 }
 
 export const getWavFileInfo = async (
@@ -152,14 +152,14 @@ export const getWavFileInfo = async (
   // Calculate duration
   const bytesPerSample = bitDepth / 8;
   const numSamples = dataChunkSize / (numChannels * bytesPerSample);
-  const duration = numSamples / sampleRate;
+  const durationMs = (numSamples / sampleRate) * 1000;
 
   return {
     sampleRate,
     numChannels,
     bitDepth,
     size: arrayBuffer.byteLength,
-    duration,
+    durationMs,
   };
 };
 

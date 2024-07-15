@@ -1,5 +1,6 @@
+// playground/src/component/audio-recording-config/audio-recording-config-form.tsx
 import { LabelSwitch, NumberAdjuster } from "@siteed/design-system";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { AudioVisualizerProps } from "../audio-visualizer/autio-visualizer.types";
@@ -21,7 +22,9 @@ export type SelectedAudioVisualizerProps = Pick<
   | "showDottedLine"
   | "showSilence"
   | "showRuler"
->;
+> & {
+  pointsPerSeconds?: number;
+};
 
 export interface AudioRecordingConfigFormProps {
   config: SelectedAudioVisualizerProps;
@@ -42,16 +45,19 @@ export const AudioRecordingConfigForm = ({
     setTempConfig({ ...config });
   }, [config]);
 
-  const handleChange = (
-    key: keyof SelectedAudioVisualizerProps,
-    value: number | boolean,
-  ) => {
-    setTempConfig((prevConfig) => {
-      const newConfig = { ...prevConfig, [key]: value };
-      onChange?.(newConfig);
-      return newConfig;
-    });
-  };
+  const handleChange = useCallback(
+    (key: keyof SelectedAudioVisualizerProps, value: number | boolean) => {
+      setTempConfig((prevConfig) => {
+        const newConfig = { ...prevConfig, [key]: value };
+        // Defer the state update to avoid updating state during render
+        setTimeout(() => {
+          onChange?.(newConfig);
+        }, 0);
+        return newConfig;
+      });
+    },
+    [onChange],
+  );
 
   return (
     <View style={styles.container}>

@@ -42,7 +42,7 @@ export interface UseAudioRecorderState {
   resumeRecording: () => void;
   isRecording: boolean;
   isPaused: boolean;
-  duration: number; // Duration of the recording
+  durationMs: number; // Duration of the recording
   size: number; // Size in bytes of the recorded audio
   analysisData?: AudioAnalysisData;
 }
@@ -50,14 +50,14 @@ export interface UseAudioRecorderState {
 interface RecorderState {
   isRecording: boolean;
   isPaused: boolean;
-  duration: number;
+  durationMs: number;
   size: number;
   analysisData?: AudioAnalysisData;
 }
 
 type RecorderAction =
   | { type: "START" | "STOP" | "PAUSE" | "RESUME" }
-  | { type: "UPDATE_STATUS"; payload: { duration: number; size: number } }
+  | { type: "UPDATE_STATUS"; payload: { durationMs: number; size: number } }
   | { type: "UPDATE_ANALYSIS"; payload: AudioAnalysisData };
 
 const defaultAnalysis: AudioAnalysisData = {
@@ -83,7 +83,7 @@ function recorderReducer(
         ...state,
         isRecording: true,
         isPaused: false,
-        duration: 0,
+        durationMs: 0,
         size: 0,
         analysisData: defaultAnalysis, // Reset analysis data
       };
@@ -96,7 +96,7 @@ function recorderReducer(
     case "UPDATE_STATUS":
       return {
         ...state,
-        duration: action.payload.duration,
+        durationMs: action.payload.durationMs,
         size: action.payload.size,
       };
     case "UPDATE_ANALYSIS":
@@ -116,7 +116,7 @@ export function useAudioRecorder({
   const [state, dispatch] = useReducer(recorderReducer, {
     isRecording: false,
     isPaused: false,
-    duration: 0,
+    durationMs: 0,
     size: 0,
     analysisData: undefined,
   });
@@ -221,16 +221,16 @@ export function useAudioRecorder({
         mimeType,
         buffer,
       } = eventData;
-      // logDebug(`[handleAudioEvent] Received audio event:`, {
-      //   fileUri,
-      //   deltaSize,
-      //   totalSize,
-      //   position,
-      //   mimeType,
-      //   lastEmittedSize,
-      //   streamUuid,
-      //   encodedLength: encoded?.length,
-      // });
+      logDebug(`[handleAudioEvent] Received audio event:`, {
+        fileUri,
+        deltaSize,
+        totalSize,
+        position,
+        mimeType,
+        lastEmittedSize,
+        streamUuid,
+        encodedLength: encoded?.length,
+      });
       if (deltaSize === 0) {
         // Ignore packet with no data
         return;
@@ -284,7 +284,7 @@ export function useAudioRecorder({
       } else {
         dispatch({
           type: "UPDATE_STATUS",
-          payload: { duration: status.duration, size: status.size },
+          payload: { durationMs: status.durationMs, size: status.size },
         });
       }
     } catch (error) {
@@ -393,7 +393,7 @@ export function useAudioRecorder({
     resumeRecording,
     isPaused: state.isPaused,
     isRecording: state.isRecording,
-    duration: state.duration,
+    durationMs: state.durationMs,
     size: state.size,
     analysisData: state.analysisData,
   };

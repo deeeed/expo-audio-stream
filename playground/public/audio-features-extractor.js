@@ -126,7 +126,8 @@ self.onmessage = function (event) {
           spectralCentroid: 0, // Placeholder for spectral centroid
           spectralFlatness: 0, // Placeholder for spectral flatness
         },
-        timestamp: start / sampleRate,
+        startTime: start / sampleRate,
+        endTime: end / sampleRate,
         speaker: 0, // Assuming speaker detection is to be handled later
       });
     }

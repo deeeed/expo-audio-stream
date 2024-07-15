@@ -15,7 +15,15 @@ export default function RootLayout() {
     <LoggerProvider>
       <ApplicationContextProvider debugMode>
         <AudioRecorderProvider config={{ debug: true }}>
-          <UIProvider>
+          <UIProvider
+            toastProviderProps={{
+              overrides: {
+                snackbarStyle: {
+                  marginBottom: 40,
+                },
+              },
+            }}
+          >
             <AudioFilesProvider>
               <Stack
                 screenOptions={{

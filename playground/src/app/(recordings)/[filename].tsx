@@ -1,4 +1,4 @@
-// playground/src/app/(recordings)/[fileUri].tsx
+// playground/src/app/(recordings)/[filename].tsx
 import { Entypo } from "@expo/vector-icons";
 import {
   AppTheme,
@@ -61,12 +61,16 @@ export const FullAudioViewerPage = () => {
     candleSpace: 2,
     candleWidth: 10,
     canvasHeight: 150,
+    showRuler: true,
+    showDottedLine: true,
+    showSilence: false,
   });
 
   useEffect(() => {
     // Set navbar title
     navigator.setOptions({
       headerShow: true,
+      headerBackTitleVisible: false,
       headerTitle: ({ tintColor }: { tintColor: string }) => {
         return (
           <Text style={{ fontSize: 16, fontWeight: "bold", color: tintColor }}>
@@ -113,7 +117,7 @@ export const FullAudioViewerPage = () => {
         fileUri: selectedFile.webAudioUri ?? selectedFile.fileUri,
         pointsPerSecond: 20,
         bitDepth: selectedFile.bitDepth,
-        durationMs: selectedFile.duration,
+        durationMs: selectedFile.durationMs,
         sampleRate: selectedFile.sampleRate,
         numberOfChannels: selectedFile.channels,
         algorithm: "rms",

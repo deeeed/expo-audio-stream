@@ -207,6 +207,13 @@ public class AudioProcessor {
                 minAmplitude = min(minAmplitude, rms)
                 maxAmplitude = max(maxAmplitude, rms)
                 
+                let segmentSize = segmentData.count
+                let segmentDuration = Float(segmentSize) / sampleRate
+                
+                // Calculate start time and end time
+                let segmentStartTime = Float(i - segmentSize + 1) / sampleRate
+                let segmentEndTime = Float(i + 1) / sampleRate
+                            
                 dataPoints.append(DataPoint(
                     id: uniqueIdCounter, // Assign unique ID
                     amplitude: algorithm == "peak" ? localMaxAmplitude : rms,
@@ -214,7 +221,8 @@ public class AudioProcessor {
                     dB: dB,
                     silent: silent,
                     features: features,
-                    timestamp: Float(i) / sampleRate,
+                    startTime: segmentStartTime,
+                    endTime: segmentEndTime,
                     speaker: 0
                 ))
                 uniqueIdCounter += 1 // Increment the unique ID counter
