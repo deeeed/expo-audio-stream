@@ -1,5 +1,5 @@
 // playground/src/component/audio-recording-config/audio-recording-config-form.tsx
-import { LabelSwitch, NumberAdjuster } from "@siteed/design-system";
+import { LabelSwitch, NumberAdjuster, Picker } from "@siteed/design-system";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -22,9 +22,7 @@ export type SelectedAudioVisualizerProps = Pick<
   | "showDottedLine"
   | "showSilence"
   | "showRuler"
-> & {
-  pointsPerSeconds?: number;
-};
+>;
 
 export interface AudioRecordingConfigFormProps {
   config: SelectedAudioVisualizerProps;

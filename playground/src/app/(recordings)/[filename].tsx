@@ -146,9 +146,7 @@ export const FullAudioViewerPage = () => {
         <AudioRecording
           recording={selectedFile}
           audioAnalysis={audioAnalysis}
-          actionText="Refresh"
           visualConfig={config}
-          onActionPress={extractAnalysis}
           onDelete={async () => {
             if (!selectedFile) return;
             await removeFile(selectedFile.fileUri);

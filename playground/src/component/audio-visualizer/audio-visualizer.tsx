@@ -161,7 +161,11 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     };
     dispatch({
       type: "UPDATE_STATE",
-      state: { triggerUpdate: triggerUpdate + 1 },
+      state: {
+        triggerUpdate: triggerUpdate + 1,
+        selectedCandle: null,
+        selectedIndex: -1,
+      },
     });
   }, [
     audioData.dataPoints,
@@ -367,6 +371,32 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   return (
     <View style={styles.container} onLayout={handleLayout}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          width: "100%",
+        }}
+      >
+        <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+          <Button
+            onPress={() => handlePrevNextSelection("prev")}
+            disabled={selectedCandle === null}
+          >
+            Prev
+          </Button>
+          <Button
+            onPress={() => handlePrevNextSelection("next")}
+            disabled={selectedCandle === null}
+          >
+            Next
+          </Button>
+          {selectedCandle && (
+            <Text>{`${selectedIndex + 1} / ${audioData.dataPoints.length}`}</Text>
+          )}
+        </View>
+        <Button onPress={handleReset}>Reset</Button>
+      </View>
       <GestureHandler
         playing={playing}
         mode={mode}
@@ -375,33 +405,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         onDragEnd={handleDragEnd}
       >
         <View>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-            }}
-          >
-            <View
-              style={{ flexDirection: "row", gap: 10, alignItems: "center" }}
-            >
-              <Button
-                onPress={() => handlePrevNextSelection("prev")}
-                disabled={selectedCandle === null}
-              >
-                Prev
-              </Button>
-              <Button
-                onPress={() => handlePrevNextSelection("next")}
-                disabled={selectedCandle === null}
-              >
-                Next
-              </Button>
-              {selectedCandle && (
-                <Text>{`${selectedIndex + 1} / ${audioData.dataPoints.length}`}</Text>
-              )}
-            </View>
-            <Button onPress={handleReset}>Reset</Button>
-          </View>
           {ready && (
             <>
               <CanvasContainer

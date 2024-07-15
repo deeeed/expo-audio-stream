@@ -47,7 +47,7 @@ class ExpoAudioStreamModule() : Module(), EventSender {
 
         AsyncFunction("extractAudioAnalysis") { options: Map<String, Any>, promise: Promise ->
             val fileUri = options["fileUri"] as? String
-            val pointsPerSecond = options["pointsPerSecond"] as? Int ?: 20
+            val pointsPerSecond =  (options["pointsPerSecond"] as? Double) ?: 20.0
             val algorithm = options["algorithm"] as? String ?: "rms"
             val featuresMap = options["features"] as? Map<*, *>
             val features = featuresMap?.filterKeys { it is String }

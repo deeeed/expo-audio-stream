@@ -45,7 +45,7 @@ data class DataPoint(
 }
 
 data class AudioAnalysisData(
-    val pointsPerSecond: Int,
+    val pointsPerSecond: Double,
     val durationMs: Int,
     val bitDepth: Int,
     val numberOfChannels: Int,

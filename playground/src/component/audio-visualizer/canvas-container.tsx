@@ -172,6 +172,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
         onTouch={touchHandler}
       >
         <Group transform={groupTransform}>
+          {memoizedCandles}
           {showRuler && (
             <SkiaTimeRuler
               duration={durationMs ?? 0 / 1000}
@@ -179,7 +180,6 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
               width={totalCandleWidth}
             />
           )}
-          {memoizedCandles}
         </Group>
         {showDottedLine && (
           <Path

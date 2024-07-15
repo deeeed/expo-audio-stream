@@ -1,5 +1,13 @@
 // playground/src/component/AudioRecording.tsx
-import { AppTheme, Button, useTheme, useToast } from "@siteed/design-system";
+import {
+  AppTheme,
+  Button,
+  EditableInfoCard,
+  Picker,
+  useBottomModal,
+  useTheme,
+  useToast,
+} from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
 import * as Sharing from "expo-sharing";
 import React, { useMemo, useState } from "react";
@@ -13,6 +21,10 @@ import {
 } from "../../../../src/ExpoAudioStream.types";
 import { useAudio } from "../../hooks/useAudio";
 import { formatBytes, formatDuration, isWeb } from "../../utils/utils";
+import {
+  AudioRecordingAnalysisConfig,
+  SelectedAnalysisConfig,
+} from "../audio-recording-analysis-config/audio-recording-analysis-config";
 import { SelectedAudioVisualizerProps } from "../audio-recording-config/audio-recording-config-form";
 import { AudioVisualizer } from "../audio-visualizer/audio-visualizer";
 import { DataPointViewer } from "../data-viewer/data-viewer";
@@ -59,7 +71,7 @@ export interface AudioRecordingProps {
 export const AudioRecording = ({
   recording,
   actionText,
-  audioAnalysis,
+  audioAnalysis: _audioAnalysis,
   visualConfig,
   onActionPress,
   onDelete,
@@ -68,8 +80,16 @@ export const AudioRecording = ({
   const { show } = useToast();
   const audioUri = recording.webAudioUri ?? recording.fileUri;
   const theme = useTheme();
+  const [selectedDataPoint, setSelectedDataPoint] = useState<DataPoint>();
+  const [selectedAnalysisConfig, setSelectedAnalysisConfig] =
+    useState<SelectedAnalysisConfig>({
+      pointsPerSecond: 20,
+      features: {},
+    });
+
   const {
     isPlaying,
+    audioAnalysis: actualAnalysis,
     processing,
     position,
     play,
@@ -78,14 +98,20 @@ export const AudioRecording = ({
   } = useAudio({
     audioUri,
     recording,
-    options: { extractAnalysis: false },
+    options: {
+      extractAnalysis: !!_audioAnalysis,
+      analysisOptions: selectedAnalysisConfig,
+    },
   });
+
+  const audioAnalysis = actualAnalysis ?? _audioAnalysis;
+
   const styles = useMemo(
     () => getStyles({ isPlaying, theme }),
     [isPlaying, theme],
   );
+  const { openDrawer, dismiss } = useBottomModal();
 
-  const [selectedDataPoint, setSelectedDataPoint] = useState<DataPoint>();
   const handleShare = async () => {
     if (!audioUri) {
       show({ type: "error", message: "No file to share" });
@@ -183,7 +209,28 @@ export const AudioRecording = ({
         <Text style={styles.detailText}>Bit Depth: {recording.bitDepth}</Text>
       ) : null}
 
-      <Text style={[styles.positionText]}>Position: {position} ms</Text>
+      <Text style={[styles.positionText]}>Position: {position / 1000}</Text>
+
+      <EditableInfoCard
+        label="Analysis Config"
+        value={JSON.stringify(selectedAnalysisConfig)}
+        containerStyle={{ margin: 0 }}
+        editable
+        onEdit={async () => {
+          logger.log("Edit analysis config");
+          openDrawer({
+            render: () => (
+              <AudioRecordingAnalysisConfig
+                config={selectedAnalysisConfig}
+                onChange={(newConfig) => {
+                  dismiss();
+                  setSelectedAnalysisConfig(newConfig);
+                }}
+              />
+            ),
+          });
+        }}
+      />
 
       {processing && <ActivityIndicator />}
 

@@ -78,7 +78,7 @@ class AudioRecorderManager(
             encoding = options["encoding"] as? String ?: "pcm_16bit",
             interval = (options["interval"] as? Number)?.toLong() ?: Constants.DEFAULT_INTERVAL,
             enableProcessing = options["enableProcessing"] as? Boolean ?: false,
-            pointsPerSecond = (options["pointsPerSecond"] as? Number)?.toInt() ?: 20,
+            pointsPerSecond = (options["pointsPerSecond"] as? Number)?.toDouble() ?: 20.0,
             algorithm = options["algorithm"] as? String ?: "rms",
             features = features
         )
