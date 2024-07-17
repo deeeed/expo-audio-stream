@@ -9,8 +9,13 @@ import {
 let ExpoAudioStreamModule: any;
 
 if (Platform.OS === "web") {
+  let instance: ExpoAudioStreamWeb | null = null;
+
   ExpoAudioStreamModule = (webProps: ExpoAudioStreamWebProps) => {
-    return new ExpoAudioStreamWeb(webProps);
+    if (!instance) {
+      instance = new ExpoAudioStreamWeb(webProps);
+    }
+    return instance;
   };
 } else {
   ExpoAudioStreamModule = requireNativeModule("ExpoAudioStream");
