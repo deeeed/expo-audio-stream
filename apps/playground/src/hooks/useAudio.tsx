@@ -1,14 +1,14 @@
 // playground/src/hooks/useAudio.tsx
 import { useToast } from "@siteed/design-system";
+import {
+  AudioAnalysisData,
+  AudioStreamResult,
+  extractAudioAnalysis,
+} from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import { useCallback, useEffect, useState } from "react";
 
-import { extractAudioAnalysis, useAudioRecorder } from "../../../src";
-import {
-  AudioAnalysisData,
-  AudioStreamResult,
-} from "../../../src/ExpoAudioStream.types";
 import { SelectedAnalysisConfig } from "../component/audio-recording-analysis-config/audio-recording-analysis-config";
 import { config } from "../config";
 import { fetchArrayBuffer } from "../utils/utils";
@@ -47,7 +47,6 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
   const { logger } = useLogger("useAudio");
   const { show } = useToast();
 
-  logger.log(`analysisOptions:`, options);
   useEffect(() => {
     return () => {
       sound?.unloadAsync();

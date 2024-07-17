@@ -1,3 +1,4 @@
+// apps/playground/metro.config.js
 /* eslint-disable no-undef */
 // Learn more https://docs.expo.io/guides/customizing-metro
 const { getDefaultConfig } = require("expo/metro-config");
@@ -20,12 +21,12 @@ const expoAudioStream = path.resolve(
 config.resolver.blockList = [
   ...Array.from(config.resolver.blockList ?? []),
   new RegExp(path.resolve("..", "node_modules", "react")),
-  new RegExp(path.resolve("..", "node_modules", "react-native")),
+  // new RegExp(path.resolve("..", "node_modules", "react-native")),
 ];
 
 config.resolver.nodeModulesPaths = [
   path.resolve(__dirname, "./node_modules"),
-  path.resolve(__dirname, "../node_modules"),
+  // path.resolve(__dirname, "../node_modules"),
 ];
 
 config.resolver.assetExts.push(
@@ -46,31 +47,9 @@ config.resolver = {
       "../../packages/expo-audio-stream",
     ),
   },
-  resolveRequest: (context, moduleName, platform) => {
-    if (moduleName.startsWith("@siteed/expo-audio-stream")) {
-      // Logic to resolve the module name to a file path...
-      // NOTE: Throw an error if there is no resolution.
-      return {
-        filePath: expoAudioStream + "/src/index.ts",
-        type: "sourceFile",
-      };
-    } else if (moduleName === "react" || moduleName === "react-dom") {
-      console.log(
-        `Resolving ${moduleName} to ${path.resolve(projectRoot, `node_modules/${moduleName}`)}`,
-      );
-      // Force resolution to the local versions specified in extraNodeModules
-      return {
-        filePath: path.resolve(
-          projectRoot,
-          `node_modules/${moduleName}/index.js`,
-        ),
-        type: "sourceFile",
-      };
-    }
-  },
 };
 
-config.watchFolders = [path.resolve(__dirname, "..")];
+config.watchFolders = [path.resolve(__dirname, "../..")];
 
 config.transformer.getTransformOptions = async () => ({
   transform: {

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "main": "src/index",
   "scripts": {
-    "start": "NODE_ENV=development expo start --dev-client --port 7365",
+    "start": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --dev-client --port 7365",
     "android": "NODE_ENV=development expo run:android --port 7365",
     "ios": "NODE_ENV=development expo run:ios --device --port 7365",
     "web": "NODE_ENV=development expo start --web --port 7365",
