@@ -147,7 +147,7 @@ class AudioStreamManager: NSObject {
         let durationInMilliseconds = Int(durationInSeconds * 1000)
         
         return [
-            "duration": durationInMilliseconds,
+            "durationMs": durationInMilliseconds,
             "isRecording": isRecording,
             "isPaused": isPaused,
             "mimeType": mimeType,
