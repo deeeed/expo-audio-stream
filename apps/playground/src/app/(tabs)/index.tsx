@@ -235,6 +235,9 @@ export default function Record() {
 
         await refreshFiles();
 
+        // Go to the newly saved page.
+        router.push(`(recordings)/${result.fileUri.split("/").pop()}`);
+
         return;
       }
 
