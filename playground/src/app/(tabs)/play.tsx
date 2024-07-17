@@ -75,7 +75,7 @@ export const PlayPage = () => {
 
         const audioAnalysis = await extractAudioAnalysis({
           fileUri: uri,
-          pointsPerSecond: 20,
+          pointsPerSecond: 10,
           algorithm: "rms",
         });
         logger.log(`AudioAnalysis:`, audioAnalysis);
@@ -90,6 +90,7 @@ export const PlayPage = () => {
 
   const loadWebAudioFile = async ({ audioUri }: { audioUri: string }) => {
     try {
+      logger.log("Loading audio file:", audioUri);
       const timings: { [key: string]: number } = {};
 
       const startOverall = performance.now();
@@ -133,7 +134,7 @@ export const PlayPage = () => {
         sampleRate: wavMetadata.sampleRate,
         numberOfChannels: wavMetadata.numChannels,
         arrayBuffer,
-        pointsPerSecond: 20,
+        pointsPerSecond: 10,
         algorithm: "rms",
       });
       logger.info(`AudioAnalysis:`, audioAnalysis);
@@ -273,7 +274,7 @@ export const PlayPage = () => {
           onPress={async () => {
             try {
               await loadWebAudioFile({
-                audioUri: "/audio_samples/recorder_jre_lex_watch.wav",
+                audioUri: "audio_samples/recorder_jre_lex_watch.wav",
               });
             } catch (error) {
               logger.error("Error loading audio file:", error);

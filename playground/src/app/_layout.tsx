@@ -2,6 +2,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { UIProvider } from "@siteed/design-system";
 import { LoggerProvider } from "@siteed/react-native-logger";
+import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Stack } from "expo-router/stack";
 
@@ -10,11 +11,18 @@ import { AudioFilesProvider } from "../context/AudioFilesProvider";
 import { ApplicationContextProvider } from "../context/application-context";
 export default function RootLayout() {
   const router = useRouter();
+  const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? "";
 
   return (
     <LoggerProvider>
       <ApplicationContextProvider debugMode>
-        <AudioRecorderProvider config={{ debug: true }}>
+        <AudioRecorderProvider
+          config={{
+            debug: true,
+            audioWorkletUrl: `${baseUrl}/audioworklet.js`,
+            featuresExtratorUrl: `${baseUrl}/audio-features-extractor.js`,
+          }}
+        >
           <UIProvider
             toastProviderProps={{
               overrides: {
