@@ -8,17 +8,11 @@ import {
   useToast,
 } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
-import {
-  router,
-  useFocusEffect,
-  useLocalSearchParams,
-  useNavigation,
-} from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Text } from "react-native-paper";
+import { Text } from "react-native-paper";
 
-import { AudioAnalysisData, extractAudioAnalysis } from "../../../../src";
 import { AudioRecording } from "../../component/audio-recording/audio-recording";
 import {
   AudioRecordingConfigForm,
@@ -28,7 +22,9 @@ import { useAudioFiles } from "../../context/AudioFilesProvider";
 
 const getStyles = (_: { theme: AppTheme }) => {
   return StyleSheet.create({
-    container: {},
+    container: {
+      paddingBottom: 80,
+    },
   });
 };
 
@@ -46,13 +42,11 @@ export const FullAudioViewerPage = () => {
   }>();
 
   const { files, removeFile } = useAudioFiles();
-  const [processing, setProcessing] = useState(false);
 
   const { filename } = local;
   const selectedFile = files.find(
     (file) => file.fileUri.split("/").pop() === filename,
   );
-  const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData>();
   const navigator = useNavigation();
 
   const { openDrawer } = useBottomModal();
@@ -109,43 +103,12 @@ export const FullAudioViewerPage = () => {
     });
   }, [navigator, selectedFile, logger, setConfig, openDrawer, show]);
 
-  const extractAnalysis = useCallback(async () => {
-    if (!selectedFile) return;
-    setProcessing(true);
-    try {
-      const analysis = await extractAudioAnalysis({
-        fileUri: selectedFile.webAudioUri ?? selectedFile.fileUri,
-        pointsPerSecond: 20,
-        bitDepth: selectedFile.bitDepth,
-        durationMs: selectedFile.durationMs,
-        sampleRate: selectedFile.sampleRate,
-        numberOfChannels: selectedFile.channels,
-        algorithm: "rms",
-        features: {}, // Add necessary features here
-      });
-      setAudioAnalysis(analysis);
-    } catch (error) {
-      logger.error("Error extracting audio analysis:", error);
-      show({ type: "error", message: "Failed to extract audio analysis" });
-    } finally {
-      setProcessing(false);
-    }
-  }, [selectedFile, logger, show]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!selectedFile) return;
-      extractAnalysis();
-    }, [selectedFile, extractAnalysis]),
-  );
-
   return (
     <ScreenWrapper contentContainerStyle={styles.container}>
-      {processing && <ActivityIndicator />}
       {selectedFile && (
         <AudioRecording
           recording={selectedFile}
-          audioAnalysis={audioAnalysis}
+          extractAnalysis
           visualConfig={config}
           onDelete={async () => {
             if (!selectedFile) return;

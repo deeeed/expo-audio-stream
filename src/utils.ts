@@ -1,30 +1,38 @@
 import { EncodingType } from "./ExpoAudioStream.types";
 
-export const convertPCMToFloat32 = (
-  buffer: ArrayBuffer,
-  bitDepth: number,
-): { pcmValues: Float32Array; min: number; max: number } => {
+export const WAV_HEADER_SIZE = 44;
+export const convertPCMToFloat32 = ({
+  bitDepth,
+  buffer,
+  skipWavHeader = false,
+}: {
+  buffer: ArrayBuffer;
+  bitDepth: number;
+  skipWavHeader?: boolean;
+}): { pcmValues: Float32Array; min: number; max: number } => {
   const dataView = new DataView(buffer);
-  const length = buffer.byteLength / (bitDepth / 8);
-  const float32Array = new Float32Array(length);
+  const headerOffset = skipWavHeader ? WAV_HEADER_SIZE : 0;
+  const dataLength = buffer.byteLength - headerOffset;
+  const sampleLength = dataLength / (bitDepth / 8);
+  const float32Array = new Float32Array(sampleLength);
   let min = Infinity;
   let max = -Infinity;
 
-  for (let i = 0; i < length; i++) {
+  for (let i = 0; i < sampleLength; i++) {
     let value = 0;
-    const offset = i * (bitDepth / 8);
+    const offset = headerOffset + i * (bitDepth / 8);
     switch (bitDepth) {
       case 8:
-        value = dataView.getInt8(offset) / 128;
+        value = dataView.getUint8(offset) / 128;
         break;
       case 16:
         value = dataView.getInt16(offset, true) / 32768;
         break;
       case 24:
         value =
-          (dataView.getInt8(offset) +
-            (dataView.getInt8(offset + 1) << 8) +
-            (dataView.getInt8(offset + 2) << 16)) /
+          (dataView.getUint8(offset) +
+            (dataView.getUint8(offset + 1) << 8) +
+            (dataView.getUint8(offset + 2) << 16)) /
           8388608;
         break;
       case 32:

@@ -56,6 +56,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
   useEffect(() => {
     if (!audioUri) return;
 
+    logger.debug(`useEffect Audio URI: ${audioUri}`);
     const processAudioData = async () => {
       try {
         setProcessing(true);
@@ -75,6 +76,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         if (options.extractAnalysis) {
           const analysis = await extractAudioAnalysis({
             fileUri: actualAudioBuffer ? undefined : audioUri, // Priority to audioBuffer if provided
+            skipWavHeader: options.analysisOptions?.skipWavHeader,
             arrayBuffer: actualAudioBuffer,
             sampleRate: recording?.sampleRate,
             bitDepth: recording?.bitDepth,
@@ -99,6 +101,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     audioUri,
     options.loadArrayBuffer,
     options.extractAnalysis,
+    options.analysisOptions?.skipWavHeader,
     options.analysisOptions?.pointsPerSecond,
     logger,
     show,

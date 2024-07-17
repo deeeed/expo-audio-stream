@@ -13,6 +13,9 @@ data class DataPoint(
     val features: Features? = null,
     val startTime: Float? = null,
     val endTime: Float? = null,
+    val startPosition: Int? = null,
+    val endPosition: Int? = null,
+    val samples: Int = 0,
     val speaker: Int? = null
 ) {
     fun toDictionary(): Map<String, Any?> {
@@ -25,6 +28,9 @@ data class DataPoint(
             "features" to features?.toDictionary(),
             "startTime" to startTime,
             "endTime" to endTime,
+            "startPosition" to startPosition,
+            "endPosition" to endPosition,
+            "samples" to samples,
             "speaker" to speaker
         )
     }
@@ -39,6 +45,9 @@ data class DataPoint(
             "features" to features?.toBundle(),
             "startTime" to startTime,
             "endTime" to endTime,
+            "startPosition" to startPosition,
+            "endPosition" to endPosition,
+            "samples" to samples,
             "speaker" to speaker
         )
     }
@@ -50,6 +59,7 @@ data class AudioAnalysisData(
     val bitDepth: Int,
     val numberOfChannels: Int,
     val sampleRate: Int,
+    val samples: Int,
     val dataPoints: List<DataPoint>,
     val amplitudeRange: AmplitudeRange,
     val speakerChanges: List<SpeakerChange>,
@@ -82,6 +92,7 @@ data class AudioAnalysisData(
             "bitDepth" to bitDepth,
             "numberOfChannels" to numberOfChannels,
             "sampleRate" to sampleRate,
+            "samples" to samples,
             "dataPoints" to dataPoints.map { it.toDictionary() },
             "amplitudeRange" to amplitudeRange.toDictionary(),
             "speakerChanges" to speakerChanges.map { it.toDictionary() },
@@ -99,6 +110,7 @@ data class AudioAnalysisData(
             "bitDepth" to bitDepth,
             "numberOfChannels" to numberOfChannels,
             "sampleRate" to sampleRate,
+            "samples" to samples,
             "dataPoints" to dataPointsBundleArray,
             "amplitudeRange" to amplitudeRange.toBundle(),
             "speakerChanges" to speakerChangesBundleArray,

@@ -22,6 +22,7 @@ export interface ExtractMetadataProps {
   wavMetadata?: WavFileInfo;
   arrayBuffer?: ArrayBuffer;
   bitDepth?: number;
+  skipWavHeader?: boolean;
   durationMs?: number;
   sampleRate?: number;
   numberOfChannels?: number;

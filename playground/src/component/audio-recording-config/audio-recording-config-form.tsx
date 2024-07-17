@@ -11,6 +11,9 @@ const getStyles = () => {
       gap: 10,
       padding: 20,
     },
+    labelContainerStyle: {
+      margin: 0,
+    },
   });
 };
 
@@ -65,6 +68,7 @@ export const AudioRecordingConfigForm = ({
           handleChange("showSilence", value);
         }}
         value={tempConfig.showSilence ?? false}
+        containerStyle={styles.labelContainerStyle}
       />
       <LabelSwitch
         label="Show Ruler"
@@ -72,6 +76,7 @@ export const AudioRecordingConfigForm = ({
           handleChange("showRuler", value);
         }}
         value={tempConfig.showRuler ?? false}
+        containerStyle={styles.labelContainerStyle}
       />
       <LabelSwitch
         label="Show Dotted Line"
@@ -79,6 +84,7 @@ export const AudioRecordingConfigForm = ({
           handleChange("showDottedLine", value);
         }}
         value={tempConfig.showDottedLine ?? true}
+        containerStyle={styles.labelContainerStyle}
       />
       <NumberAdjuster
         label="Candle Space"

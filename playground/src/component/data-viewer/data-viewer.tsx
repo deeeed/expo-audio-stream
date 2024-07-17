@@ -37,7 +37,15 @@ export const DataPointViewer = ({ dataPoint }: DataPointViewerProps) => {
     <View style={styles.container}>
       <View style={styles.mainInfoContainer}>
         <View style={styles.attributeContainer}>
-          <Text style={styles.label}>db</Text>
+          <Text style={styles.label}>Samples:</Text>
+          <Text style={styles.value}>{dataPoint.samples}</Text>
+        </View>
+        <View style={styles.attributeContainer}>
+          <Text style={styles.label}>Amplitude:</Text>
+          <Text style={styles.value}>{dataPoint.amplitude.toFixed(2)}</Text>
+        </View>
+        <View style={styles.attributeContainer}>
+          <Text style={styles.label}>db:</Text>
           <Text style={styles.value}>{dataPoint.dB?.toFixed(2)}</Text>
         </View>
         <View style={styles.attributeContainer}>
@@ -67,7 +75,7 @@ export const DataPointViewer = ({ dataPoint }: DataPointViewerProps) => {
       </View>
       <EditableInfoCard
         label="Features"
-        value={JSON.stringify(dataPoint.features ?? {})}
+        value={JSON.stringify(dataPoint.features ?? {}, null, 2)}
         containerStyle={{ margin: 0 }}
       />
     </View>

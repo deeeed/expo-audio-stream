@@ -17,6 +17,8 @@ public struct DataPoint {
     public var features: Features?
     public var startTime: Float?
     public var endTime: Float?
+    public var startPosition: Int?
+    public var endPosition: Int?
     public var speaker: Int?
 }
 
@@ -31,6 +33,8 @@ extension DataPoint {
             "features": features?.toDictionary() ?? [:],
             "startTime": startTime ?? 0,
             "endTime": endTime ?? 0,
+            "startPosition": startPosition ?? 0,
+            "endPosition": endPosition ?? 0,
             "speaker": speaker ?? 0
         ]
     }

@@ -370,33 +370,44 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   }, [dispatch]);
 
   return (
-    <View style={styles.container} onLayout={handleLayout}>
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          width: "100%",
-        }}
-      >
-        <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
-          <Button
-            onPress={() => handlePrevNextSelection("prev")}
-            disabled={selectedCandle === null}
+    <View style={[styles.container, { marginTop: 20 }]} onLayout={handleLayout}>
+      <Text>{audioData.samples} samples</Text>
+      {mode !== "live" && (
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            width: "100%",
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 10,
+              alignItems: "center",
+            }}
           >
-            Prev
-          </Button>
-          <Button
-            onPress={() => handlePrevNextSelection("next")}
-            disabled={selectedCandle === null}
-          >
-            Next
-          </Button>
-          {selectedCandle && (
-            <Text>{`${selectedIndex + 1} / ${audioData.dataPoints.length}`}</Text>
-          )}
+            <Button
+              onPress={() => handlePrevNextSelection("prev")}
+              disabled={selectedCandle === null}
+            >
+              Prev
+            </Button>
+            <Button
+              onPress={() => handlePrevNextSelection("next")}
+              disabled={selectedCandle === null}
+            >
+              Next
+            </Button>
+            {selectedCandle ? (
+              <Text>{`${selectedIndex + 1} / ${audioData.dataPoints.length}`}</Text>
+            ) : (
+              <Text>{audioData.dataPoints.length} items</Text>
+            )}
+          </View>
+          <Button onPress={handleReset}>Reset</Button>
         </View>
-        <Button onPress={handleReset}>Reset</Button>
-      </View>
+      )}
       <GestureHandler
         playing={playing}
         mode={mode}

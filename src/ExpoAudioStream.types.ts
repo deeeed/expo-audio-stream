@@ -50,9 +50,16 @@ export interface AudioFeatures {
   energy: number;
   mfcc: number[];
   rms: number;
+  minAmplitude: number;
+  maxAmplitude: number;
   zcr: number;
   spectralCentroid: number;
   spectralFlatness: number;
+  spectralRolloff: number;
+  spectralBandwidth: number;
+  chromagram: number[];
+  tempo: number;
+  hnr: number;
 }
 
 export interface AudioFeaturesOptions {
@@ -62,6 +69,11 @@ export interface AudioFeaturesOptions {
   zcr?: boolean;
   spectralCentroid?: boolean;
   spectralFlatness?: boolean;
+  spectralRolloff?: boolean;
+  spectralBandwidth?: boolean;
+  chromagram?: boolean;
+  tempo?: boolean;
+  hnr?: boolean;
 }
 
 export interface DataPoint {
@@ -73,6 +85,12 @@ export interface DataPoint {
   features?: AudioFeatures;
   startTime?: number;
   endTime?: number;
+  // start / end position in bytes
+  startPosition?: number;
+  endPosition?: number;
+  // number of audio samples for this point (samples size depends on bit depth)
+  samples?: number;
+  // Id of the speaker for this point
   speaker?: number;
 }
 
@@ -80,6 +98,7 @@ export interface AudioAnalysisData {
   pointsPerSecond: number; // How many consolidated value per second
   durationMs: number; // Duration of the audio in milliseconds
   bitDepth: number; // Bit depth of the audio
+  samples: number; // Size of the audio in bytes
   numberOfChannels: number; // Number of audio channels
   sampleRate: number; // Sample rate of the audio
   dataPoints: DataPoint[];
