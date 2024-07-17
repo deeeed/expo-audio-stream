@@ -12,8 +12,6 @@ PODS:
     - ExpoModulesCore
   - ExpoAudioStream (1.0.1):
     - ExpoModulesCore
-  - ExpoClipboard (6.0.3):
-    - ExpoModulesCore
   - ExpoDocumentPicker (12.0.2):
     - ExpoModulesCore
   - ExpoFileSystem (17.0.1):
@@ -1401,7 +1399,6 @@ DEPENDENCIES:
   - Expo (from `../node_modules/expo`)
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
   - ExpoAudioStream (from `../../ios`)
-  - ExpoClipboard (from `../node_modules/expo-clipboard/ios`)
   - ExpoDocumentPicker (from `../node_modules/expo-document-picker/ios`)
   - ExpoFileSystem (from `../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../node_modules/expo-font/ios`)
@@ -1494,8 +1491,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-asset/ios"
   ExpoAudioStream:
     :path: "../../ios"
-  ExpoClipboard:
-    :path: "../node_modules/expo-clipboard/ios"
   ExpoDocumentPicker:
     :path: "../node_modules/expo-document-picker/ios"
   ExpoFileSystem:
@@ -1646,7 +1641,6 @@ SPEC CHECKSUMS:
   Expo: 2c34ddd7563a13699edc68eb4cd1de391a000d3d
   ExpoAsset: 323700f291684f110fb55f0d4022a3362ea9f875
   ExpoAudioStream: 0a24442d4d1b96c81c7bb19a0c4aacf539261481
-  ExpoClipboard: 23d203f5d4843699fbc45be1cc4fe1fbd811a6fa
   ExpoDocumentPicker: a82eaccc62ecb62662d5a6ca7a8ef40b71daa521
   ExpoFileSystem: 80bfe850b1f9922c16905822ecbf97acd711dc51
   ExpoFont: 43b69559cef3d773db57c7ae7edd3cb0aa0dc610

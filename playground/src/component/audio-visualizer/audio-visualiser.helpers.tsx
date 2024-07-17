@@ -42,6 +42,8 @@ export const getStyles = ({
       justifyContent: "center",
       alignItems: "center",
       gap: 5,
+      borderWidth: 3,
+      borderColor: "red",
     },
     referenceLine: {
       position: "absolute",

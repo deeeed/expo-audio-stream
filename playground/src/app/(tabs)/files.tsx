@@ -1,22 +1,16 @@
 // playground/src/app/(tabs)/files.tsx
-import {
-  Button,
-  RefreshControl,
-  Result,
-  Skeleton,
-  useToast,
-} from "@siteed/design-system";
+import { Button, Result, Skeleton, useToast } from "@siteed/design-system";
 import { useLogger } from "@siteed/react-native-logger";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { AudioStreamResult } from "../../../../src/ExpoAudioStream.types";
-import { AudioRecording } from "../../component/audio-recording/audio-recording";
+import { AudioRecording } from "../../component/AudioRecording";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { formatBytes } from "../../utils/utils";
 
-const FilesScreen = () => {
+export default function Files() {
   const { logger } = useLogger("Files");
   const { show } = useToast();
   const router = useRouter();
@@ -30,11 +24,9 @@ const FilesScreen = () => {
     refreshFiles,
   } = useAudioFiles();
 
-  useFocusEffect(
-    useCallback(() => {
-      refreshFiles();
-    }, [refreshFiles]),
-  );
+  useEffect(() => {
+    refreshFiles();
+  }, [refreshFiles]);
 
   const handleDelete = useCallback(
     async (recording: AudioStreamResult) => {
@@ -50,6 +42,19 @@ const FilesScreen = () => {
     [removeFile],
   );
 
+  const renderRecordings = () => (
+    <View style={styles.recordingContainer}>
+      {files?.map((recording, index) => (
+        <AudioRecording
+          key={index}
+          recording={recording}
+          showWaveform
+          onDelete={() => handleDelete(recording)}
+        />
+      ))}
+    </View>
+  );
+
   if (!ready) {
     return (
       <Skeleton
@@ -63,63 +68,37 @@ const FilesScreen = () => {
 
   if (!files || files.length === 0) {
     return (
-      <FlatList
-        data={[]}
-        contentContainerStyle={styles.container}
-        refreshControl={
-          <RefreshControl refreshing={false} onRefresh={refreshFiles} />
-        }
-        ListEmptyComponent={
-          <Result
-            title="No recordings found"
-            status="info"
-            buttonText="Record"
-            onButtonPress={() => {
-              router.push("/");
-            }}
-          />
-        }
-        renderItem={() => null}
-      />
+      <ScrollView contentContainerStyle={styles.container}>
+        <Result
+          title="No recordings found"
+          status="info"
+          buttonText="Record"
+          onButtonPress={() => {
+            router.push("/");
+          }}
+        />
+      </ScrollView>
     );
   }
 
   return (
-    <FlatList
-      data={files}
-      keyExtractor={(item) => item.fileUri}
-      contentContainerStyle={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={false} onRefresh={refreshFiles} />
-      }
-      ListHeaderComponent={
-        <Button onPress={clearFiles} buttonColor="red" textColor="white">
-          Clear Directory ({formatBytes(totalAudioStorageSize)})
-        </Button>
-      }
-      renderItem={({ item }) => (
-        <AudioRecording
-          recording={item}
-          onDelete={() => handleDelete(item)}
-          onActionPress={() => {
-            // extract filename from uri
-            const filename = item.fileUri.split("/").pop();
-            router.push(`(recordings)/${filename}`);
-          }}
-          actionText="Visualize"
-        />
-      )}
-    />
+    <ScrollView contentContainerStyle={styles.container}>
+      <Button onPress={clearFiles} buttonColor="red" textColor="white">
+        Clear Directory ({formatBytes(totalAudioStorageSize)})
+      </Button>
+      {renderRecordings()}
+    </ScrollView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     gap: 10,
     backgroundColor: "#fff",
     paddingTop: 10,
-    paddingBottom: 80,
+    marginBottom: 80,
     paddingHorizontal: 20,
+    minHeight: "100%",
     justifyContent: "center",
   },
   recordingContainer: {
@@ -127,5 +106,3 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 });
-
-export default FilesScreen;

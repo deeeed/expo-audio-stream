@@ -11,8 +11,6 @@ public struct Features {
     var energy: Float
     var mfcc: [Float]
     var rms: Float
-    var minAmplitude: Float
-    var maxAmplitude: Float
     var zcr: Float
     var spectralCentroid: Float
     var spectralFlatness: Float
@@ -29,8 +27,6 @@ extension Features {
             "energy": energy,
             "mfcc": mfcc,
             "rms": rms,
-            "minAmplitude": minAmplitude,
-            "maxAmplitude": maxAmplitude,
             "zcr": zcr,
             "spectralCentroid": spectralCentroid,
             "spectralFlatness": spectralFlatness,

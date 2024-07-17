@@ -1,38 +1,30 @@
 import { EncodingType } from "./ExpoAudioStream.types";
 
-export const WAV_HEADER_SIZE = 44;
-export const convertPCMToFloat32 = ({
-  bitDepth,
-  buffer,
-  skipWavHeader = false,
-}: {
-  buffer: ArrayBuffer;
-  bitDepth: number;
-  skipWavHeader?: boolean;
-}): { pcmValues: Float32Array; min: number; max: number } => {
+export const convertPCMToFloat32 = (
+  buffer: ArrayBuffer,
+  bitDepth: number,
+): { pcmValues: Float32Array; min: number; max: number } => {
   const dataView = new DataView(buffer);
-  const headerOffset = skipWavHeader ? WAV_HEADER_SIZE : 0;
-  const dataLength = buffer.byteLength - headerOffset;
-  const sampleLength = dataLength / (bitDepth / 8);
-  const float32Array = new Float32Array(sampleLength);
+  const length = buffer.byteLength / (bitDepth / 8);
+  const float32Array = new Float32Array(length);
   let min = Infinity;
   let max = -Infinity;
 
-  for (let i = 0; i < sampleLength; i++) {
+  for (let i = 0; i < length; i++) {
     let value = 0;
-    const offset = headerOffset + i * (bitDepth / 8);
+    const offset = i * (bitDepth / 8);
     switch (bitDepth) {
       case 8:
-        value = dataView.getUint8(offset) / 128;
+        value = dataView.getInt8(offset) / 128;
         break;
       case 16:
         value = dataView.getInt16(offset, true) / 32768;
         break;
       case 24:
         value =
-          (dataView.getUint8(offset) +
-            (dataView.getUint8(offset + 1) << 8) +
-            (dataView.getUint8(offset + 2) << 16)) /
+          (dataView.getInt8(offset) +
+            (dataView.getInt8(offset + 1) << 8) +
+            (dataView.getInt8(offset + 2) << 16)) /
           8388608;
         break;
       case 32:
@@ -110,7 +102,7 @@ export interface WavFileInfo {
   numChannels: number;
   bitDepth: number;
   size: number; // in bytes
-  durationMs: number; // in seconds
+  duration: number; // in seconds
 }
 
 export const getWavFileInfo = async (
@@ -160,14 +152,14 @@ export const getWavFileInfo = async (
   // Calculate duration
   const bytesPerSample = bitDepth / 8;
   const numSamples = dataChunkSize / (numChannels * bytesPerSample);
-  const durationMs = (numSamples / sampleRate) * 1000;
+  const duration = numSamples / sampleRate;
 
   return {
     sampleRate,
     numChannels,
     bitDepth,
     size: arrayBuffer.byteLength,
-    durationMs,
+    duration,
   };
 };
 

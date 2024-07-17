@@ -127,7 +127,10 @@ const Minimal = () => {
   const maxDisplayedItems = Math.ceil(
     screenWidth / (RECT_WIDTH + SPACE_BETWEEN_RECTS),
   );
-  const font = useFont(require("@assets/Roboto/Roboto-Regular.ttf"), FONT_SIZE);
+  const font = useFont(
+    require("../../../assets/Roboto/Roboto-Regular.ttf"),
+    FONT_SIZE,
+  );
   const [activePoints, setActivePoints] = useState<
     { amplitude: number; id: number; visible: boolean; animated?: boolean }[]
   >([]);
@@ -308,22 +311,15 @@ const Minimal = () => {
           >
             Toggle Mode (Current: {mode})
           </Button>
-          {mode === "live" ? (
-            <>
-              <Button onPress={addWavePoints}>Add Wavepoints</Button>
-            </>
-          ) : (
-            <>
-              <Button
-                onPress={() => {
-                  translateX.value = 0;
-                  updateActivePoints(0);
-                }}
-              >
-                reset
-              </Button>
-            </>
-          )}
+          <Button
+            onPress={() => {
+              translateX.value = 0;
+              updateActivePoints(0);
+            }}
+          >
+            reset
+          </Button>
+          <Button onPress={addWavePoints}>Add Wavepoints</Button>
         </View>
         <View>
           <Text>translareX: {translateX.value}</Text>
@@ -332,6 +328,9 @@ const Minimal = () => {
           <Text>canvasWidth: {canvasWidth}</Text>
           <Text>MaxDisplayedItems: {maxDisplayedItems}</Text>
           <Text>StartIndex: {startIndex}</Text>
+          <Text>
+            range: {min} , {max}
+          </Text>
         </View>
         <GestureDetector gesture={panGesture}>
           <View style={styles.canvasContainer}>
