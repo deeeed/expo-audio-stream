@@ -1,9 +1,18 @@
 {
-  "platforms": ["ios", "tvos", "android", "web"],
+  "platforms": [
+    "ios",
+    "tvos",
+    "android",
+    "web"
+  ],
   "ios": {
-    "modules": ["ExpoAudioStreamModule"]
+    "modules": [
+      "ExpoAudioStreamModule"
+    ]
   },
   "android": {
-    "modules": ["net.siteed.audiostream.ExpoAudioStreamModule"]
+    "modules": [
+      "net.siteed.audiostream.ExpoAudioStreamModule"
+    ]
   }
 }

@@ -9,7 +9,8 @@
   "homepage": "https://github.com/deeeed/expo-audio-stream#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deeeed/expo-audio-stream.git"
+    "url": "git+https://github.com/deeeed/expo-audio-stream.git",
+    "directory": "packages/expo-audio-stream"
   },
   "bugs": {
     "url": "https://github.com/deeeed/expo-audio-stream/issues"
@@ -27,7 +28,6 @@
     "test": "expo-module test",
     "prepare": "expo-module prepare",
     "prepublishOnly": "expo-module prepublishOnly",
-    "release": "release-it",
     "expo-module": "expo-module",
     "open:ios": "open -a \"Xcode\" playground/ios",
     "open:android": "open -a \"Android Studio\" playground/android"
@@ -37,7 +37,6 @@
   },
   "devDependencies": {
     "@expo/config-plugins": "^7.9.1",
-    "@release-it/conventional-changelog": "^8.0.1",
     "@types/debug": "^4.1.12",
     "@types/node": "^20.12.7",
     "@types/react": "^18.0.25",
@@ -51,10 +50,9 @@
     "eslint-plugin-promise": "^6.1.1",
     "eslint-plugin-react": "^7.34.1",
     "expo-module-scripts": "^3.5.2",
-    "expo-modules-core": "^1.12.12",
+    "expo-modules-core": "^1.12.19",
     "prettier": "^3.2.5",
-    "react-native": "^0.73.6",
-    "release-it": "^17.2.0"
+    "react-native": "^0.74.3"
   },
   "peerDependencies": {
     "expo": "*",
@@ -65,5 +63,5 @@
     "access": "public",
     "registry": "https://registry.npmjs.org"
   },
-  "packageManager": "yarn@4.2.2"
+  "packageManager": "yarn@4.3.1"
 }

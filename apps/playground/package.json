@@ -79,7 +79,7 @@
   "private": true,
   "expo": {
     "autolinking": {
-      "nativeModulesDir": ".."
+      "nativeModulesDir": "../../packages/expo-audio-stream/"
     }
   },
   "packageManager": "yarn@4.2.2"

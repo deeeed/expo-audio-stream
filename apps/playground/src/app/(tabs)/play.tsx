@@ -3,6 +3,8 @@ import { Button, ScreenWrapper, useToast } from "@siteed/design-system";
 import {
   AudioAnalysisData,
   AudioStreamResult,
+  extractAudioAnalysis,
+  getWavFileInfo,
 } from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
@@ -12,8 +14,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 
-import { extractAudioAnalysis } from "../../../../src";
-import { getWavFileInfo } from "../../../../src/utils";
 import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { storeAudioFile } from "../../utils/indexedDB";

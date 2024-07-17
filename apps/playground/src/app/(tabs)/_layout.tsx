@@ -2,11 +2,11 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useTheme } from "@siteed/design-system";
+import { useSharedAudioRecorder } from "@siteed/expo-audio-stream";
 import { Tabs } from "expo-router";
 import React from "react";
 import { Text } from "react-native-paper";
 
-import { useSharedAudioRecorder } from "../../../../src";
 import { isWeb } from "../../utils/utils";
 
 const recordingColor = "rgba(255, 99, 71, 1)";

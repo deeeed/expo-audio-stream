@@ -37,7 +37,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     [
-      "../app.plugin.js",
+      "../../packages/expo-audio-stream/app.plugin.js",
       {
         apiKey: "custom_secret_api",
       },
