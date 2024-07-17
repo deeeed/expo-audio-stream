@@ -111,7 +111,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
   const memoizedCandles = useMemo(() => {
     return activePoints.map(
       ({ id, amplitude, visible, activeSpeech, silent }, index) => {
-        if (id === -1 || (!showSilence && silent)) return null;
+        if (id === -1) return null;
 
         const scaledAmplitude =
           ((amplitude - minAmplitude) * (canvasHeight - 10)) /
@@ -138,16 +138,28 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
         const key = `${id}`;
 
         return (
-          <AnimatedCandle
-            key={`${key}`}
-            animated
-            x={x}
-            y={canvasHeight / 2 - scaledAmplitude / 2}
-            startY={canvasHeight / 2}
-            width={candleWidth}
-            height={scaledAmplitude}
-            color={color}
-          />
+          <React.Fragment key={key}>
+            {selectedCandle && selectedCandle.id === id && (
+              <Path
+                path={`M${x},0 L${x + candleWidth},0 L${x + candleWidth},${canvasHeight} L${x},${canvasHeight} Z`}
+                color="red"
+                style="stroke"
+                strokeWidth={2}
+                // strokeDash={[4, 4]}
+              />
+            )}
+            {(!silent || showSilence) && (
+              <AnimatedCandle
+                animated
+                x={x}
+                y={canvasHeight / 2 - scaledAmplitude / 2}
+                startY={canvasHeight / 2}
+                width={candleWidth}
+                height={scaledAmplitude}
+                color={color}
+              />
+            )}
+          </React.Fragment>
         );
       },
     );
