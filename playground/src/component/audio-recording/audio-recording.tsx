@@ -3,7 +3,6 @@ import {
   AppTheme,
   Button,
   EditableInfoCard,
-  Picker,
   useBottomModal,
   useTheme,
   useToast,
@@ -14,7 +13,7 @@ import * as Sharing from "expo-sharing";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
-import { atob, btoa } from "react-native-quick-base64";
+import { atob } from "react-native-quick-base64";
 
 import {
   AudioAnalysisData,
@@ -60,6 +59,12 @@ const getStyles = ({
       justifyContent: "space-around",
       marginTop: 10,
     },
+    attributeContainer: {
+      flexDirection: "row",
+      gap: 5,
+    },
+    label: { fontWeight: "bold" },
+    value: {},
   });
 };
 
@@ -320,10 +325,13 @@ export const AudioRecording = ({
       {selectedDataPoint && (
         <View>
           <DataPointViewer dataPoint={selectedDataPoint} />
-          <Text>
-            From: {selectedDataPoint.startPosition} to{" "}
-            {selectedDataPoint.endPosition}
-          </Text>
+          <View style={styles.attributeContainer}>
+            <Text style={styles.label}>Byte Range:</Text>
+            <Text style={styles.value}>
+              {selectedDataPoint.startPosition} to{" "}
+              {selectedDataPoint.endPosition}
+            </Text>
+          </View>
           {hexByteArray && <HexDataViewer byteArray={hexByteArray} />}
         </View>
       )}
