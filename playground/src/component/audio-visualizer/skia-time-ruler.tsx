@@ -48,10 +48,6 @@ export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
   const numTicks = Math.floor(duration / 1000 / interval);
   const minLabelSpacing = 50; // Minimum spacing in pixels between labels
 
-  console.log(
-    `duration: ${duration} numTicks: ${numTicks} width: ${width} interval: ${interval}`,
-  );
-
   if (width <= 0 || numTicks <= 0) return null; // Early return if width or numTicks is invalid
 
   const tickSpacing = (width - startMargin) / numTicks;
