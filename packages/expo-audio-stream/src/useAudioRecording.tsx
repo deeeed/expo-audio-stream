@@ -86,7 +86,6 @@ function recorderReducer(
   state: RecorderState,
   action: RecorderAction,
 ): RecorderState {
-  console.log(`AAA recorderReducer`, state, action);
   switch (action.type) {
     case "START":
       return {
