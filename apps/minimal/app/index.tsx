@@ -5,6 +5,8 @@ export default function App() {
   const { startRecording, stopRecording, durationMs, size, isRecording } =
     useAudioRecorder({
       debug: true,
+      audioWorkletUrl: "/audioworklet.js",
+      featuresExtratorUrl: "/audio-features-extractor.js",
     });
 
   const handleStart = async () => {
