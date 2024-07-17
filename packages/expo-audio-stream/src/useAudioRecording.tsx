@@ -16,8 +16,6 @@ import {
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 import { WavFileInfo } from "./utils";
 
-const MAX_VISUALIZATION_DURATION_MS = 10000; // Default maximum duration for visualization
-
 export interface ExtractMetadataProps {
   fileUri?: string; // should provide either fileUri or arrayBuffer
   wavMetadata?: WavFileInfo;
@@ -306,7 +304,7 @@ export function useAudioRecorder({
   }, [state.isRecording, logDebug]);
 
   useEffect(() => {
-    let interval: number;
+    let interval: ReturnType<typeof setTimeout>;
     if (state.isRecording) {
       interval = setInterval(checkStatus, 1000);
     }

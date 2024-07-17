@@ -1,5 +1,6 @@
 // playground/src/component/audio-visualizer/audio-visualizer.tsx
 import { Button } from "@siteed/design-system";
+import { DataPoint } from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
 import React, { useCallback, useEffect, useReducer, useRef } from "react";
 import { LayoutChangeEvent, View } from "react-native";
@@ -20,7 +21,6 @@ import {
 } from "./autio-visualizer.types";
 import CanvasContainer from "./canvas-container";
 import { GestureHandler } from "./gesture-handler";
-import { DataPoint } from "../../../../src";
 
 export type AudioVisualiserAction = {
   type: "UPDATE_STATE";

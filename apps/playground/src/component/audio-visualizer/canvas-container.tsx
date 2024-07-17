@@ -7,7 +7,7 @@ import {
   useTouchHandler,
 } from "@shopify/react-native-skia";
 import { useLogger } from "@siteed/react-native-logger";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { View } from "react-native";
 import { useDerivedValue } from "react-native-reanimated";
 

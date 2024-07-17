@@ -1,8 +1,10 @@
 import { Button, LabelSwitch, NumberAdjuster } from "@siteed/design-system";
+import {
+  AudioFeaturesOptions,
+  RecordingConfig,
+} from "@siteed/expo-audio-stream";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
-
-import { AudioFeaturesOptions, RecordingConfig } from "../../../../src";
 
 const getStyles = () => {
   return StyleSheet.create({

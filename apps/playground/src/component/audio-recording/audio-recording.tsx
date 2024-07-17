@@ -19,7 +19,7 @@ import {
   AudioAnalysisData,
   AudioStreamResult,
   DataPoint,
-} from "../../../../src/ExpoAudioStream.types";
+} from "@siteed/expo-audio-stream";
 import { useAudio } from "../../hooks/useAudio";
 import { formatBytes, formatDuration, isWeb } from "../../utils/utils";
 import {
@@ -110,7 +110,6 @@ export const AudioRecording = ({
       },
     });
 
-  logger.log(`_audioAnalysis:`, _audioAnalysis);
   const {
     isPlaying,
     audioAnalysis: actualAnalysis,

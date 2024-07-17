@@ -1,4 +1,5 @@
 // playground/src/context/AudioFilesProvider.tsx
+import { AudioStreamResult } from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
 import * as FileSystem from "expo-file-system";
 import React, {
@@ -9,7 +10,6 @@ import React, {
   useState,
 } from "react";
 
-import { AudioStreamResult } from "../../../src/ExpoAudioStream.types";
 import {
   deleteAudioFile,
   listAudioFiles as listIndexedDBAudioFiles,

@@ -1,9 +1,8 @@
 import { FontAwesome } from "@expo/vector-icons";
 import { EditableInfoCard } from "@siteed/design-system";
+import { DataPoint } from "@siteed/expo-audio-stream";
 import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
-
-import { DataPoint } from "../../../../src";
 
 const getStyles = () => {
   return StyleSheet.create({

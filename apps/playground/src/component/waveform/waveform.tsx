@@ -1,3 +1,4 @@
+import { convertPCMToFloat32 } from "@siteed/expo-audio-stream";
 import React, {
   useCallback,
   useEffect,
@@ -16,7 +17,6 @@ import {
   downsamplePeak,
   downsampleRMS,
 } from "./waveform.utils";
-import { convertPCMToFloat32 } from "../../../../src";
 import {
   DownsamplingStrategy,
   DownsamplingStrategyType,
@@ -135,7 +135,7 @@ export const WaveForm: React.FC<WaveformProps> = ({
 
   const pcmData = useMemo(() => {
     const rawData = buffer.slice(waveHeaderSize);
-    const pcmData = convertPCMToFloat32(rawData, bitDepth);
+    const pcmData = convertPCMToFloat32({ buffer: rawData, bitDepth });
     return pcmData;
   }, [buffer, bitDepth]);
 

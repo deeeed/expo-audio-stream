@@ -64,8 +64,6 @@ if (Platform.OS === "ios") {
 
 export default function Record() {
   const [error, setError] = useState<string | null>(null);
-  const [visualizationType, setVisualizationType] =
-    useState<WaveformProps["visualizationType"]>("candlestick");
   const audioChunks = useRef<string[]>([]);
   const audioChunksBlobs = useRef<ArrayBuffer[]>([]);
   const [streamConfig, setStreamConfig] =
@@ -393,29 +391,6 @@ export default function Record() {
             ...prev,
             encoding: selected.value as RecordingConfig["encoding"],
           }));
-        }}
-      />
-      <Picker
-        label="Visualization Type"
-        multi={false}
-        options={[
-          {
-            label: "Candlestick",
-            value: "candlestick",
-            selected: visualizationType === "candlestick",
-          },
-          {
-            label: "Line",
-            value: "line",
-            selected: visualizationType === "line",
-          },
-        ]}
-        onFinish={(options) => {
-          const selected = options?.find((option) => option.selected);
-          if (!selected) return;
-          setVisualizationType(
-            selected.value as WaveformProps["visualizationType"],
-          );
         }}
       />
       <Picker

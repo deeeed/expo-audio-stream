@@ -6,12 +6,12 @@ import {
   Skeleton,
   useToast,
 } from "@siteed/design-system";
+import { AudioStreamResult } from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, StyleSheet } from "react-native";
 
-import { AudioStreamResult } from "../../../../src/ExpoAudioStream.types";
 import { AudioRecording } from "../../component/audio-recording/audio-recording";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { formatBytes } from "../../utils/utils";
