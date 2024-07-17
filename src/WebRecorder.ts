@@ -3,7 +3,7 @@ import { AudioAnalysisData, RecordingConfig } from "./ExpoAudioStream.types";
 import {
   EmitAudioAnalysisFunction,
   EmitAudioEventFunction,
-} from "./ExpoAudioStreamModule.web";
+} from "./ExpoAudioStream.web";
 import { InlineProcessorScrippt } from "./inlineAudioWebWorker";
 import { encodingToBitDepth } from "./utils";
 interface AudioWorkletEvent {

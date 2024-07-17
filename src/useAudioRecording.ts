@@ -1,7 +1,9 @@
+// src/useAudioRecording.ts
 import { Platform, Subscription } from "expo-modules-core";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 
 import { addAudioAnalysisListener, addAudioEventListener } from ".";
+import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 import {
   AudioAnalysisData,
   AudioDataEvent,
@@ -12,7 +14,6 @@ import {
   RecordingConfig,
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
-import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 import { WavFileInfo } from "./utils";
 
 const MAX_VISUALIZATION_DURATION_MS = 10000; // Default maximum duration for visualization
@@ -35,7 +36,10 @@ export interface ExtractMetadataProps {
 
 export interface UseAudioRecorderProps {
   debug?: boolean;
+  audioWorkletUrl?: string;
+  featuresExtratorUrl?: string;
 }
+
 export interface UseAudioRecorderState {
   startRecording: (_: RecordingConfig) => Promise<StartAudioStreamResult>;
   stopRecording: () => Promise<AudioStreamResult | null>;
@@ -114,6 +118,8 @@ const TAG = "[ useAudioRecorder ] ";
 
 export function useAudioRecorder({
   debug = false,
+  audioWorkletUrl,
+  featuresExtratorUrl,
 }: UseAudioRecorderProps = {}): UseAudioRecorderState {
   const [state, dispatch] = useReducer(recorderReducer, {
     isRecording: false,
@@ -125,6 +131,12 @@ export function useAudioRecorder({
 
   const analysisListenerRef = useRef<Subscription | null>(null);
   const analysisRef = useRef<AudioAnalysisData>({ ...defaultAnalysis });
+
+  // Instantiate the module for web with URLs
+  const ExpoAudioStream =
+    Platform.OS === "web"
+      ? ExpoAudioStreamModule({ audioWorkletUrl, featuresExtratorUrl })
+      : ExpoAudioStreamModule;
 
   const onAudioStreamRef = useRef<
     ((_: AudioDataEvent) => Promise<void>) | null
@@ -276,7 +288,7 @@ export function useAudioRecorder({
         return;
       }
 
-      const status: AudioStreamStatus = ExpoAudioStreamModule.status();
+      const status: AudioStreamStatus = ExpoAudioStream.status();
       if (debug) {
         logDebug(`${TAG} Status:`, status);
       }
@@ -337,7 +349,7 @@ export function useAudioRecorder({
         onAudioStreamRef.current = null;
       }
       const startResult: StartAudioStreamResult =
-        await ExpoAudioStreamModule.startRecording(options);
+        await ExpoAudioStream.startRecording(options);
       dispatch({ type: "START" });
 
       if (enableProcessing) {
@@ -366,8 +378,7 @@ export function useAudioRecorder({
       analysisListenerRef.current = null;
     }
 
-    const stopResult: AudioStreamResult =
-      await ExpoAudioStreamModule.stopRecording();
+    const stopResult: AudioStreamResult = await ExpoAudioStream.stopRecording();
     onAudioStreamRef.current = null;
     logDebug(`${TAG} recording stopped`, stopResult);
     dispatch({ type: "STOP" });
@@ -376,14 +387,14 @@ export function useAudioRecorder({
 
   const pauseRecording = useCallback(async () => {
     logDebug(`${TAG} pause recording`);
-    const pauseResult = await ExpoAudioStreamModule.pauseRecording();
+    const pauseResult = await ExpoAudioStream.pauseRecording();
     dispatch({ type: "PAUSE" });
     return pauseResult;
   }, [logDebug]);
 
   const resumeRecording = useCallback(async () => {
     logDebug(`${TAG} resume recording`);
-    const resumeResult = await ExpoAudioStreamModule.resumeRecording();
+    const resumeResult = await ExpoAudioStream.resumeRecording();
     dispatch({ type: "RESUME" });
     return resumeResult;
   }, [logDebug]);

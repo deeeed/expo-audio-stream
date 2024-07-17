@@ -8,8 +8,8 @@ import {
   AudioRecorderProvider,
   useSharedAudioRecorder,
 } from "./AudioRecorder.provider";
-import { AudioAnalysisData, AudioEventPayload } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
+import { AudioAnalysisData, AudioEventPayload } from "./ExpoAudioStream.types";
 import { ExtractMetadataProps, useAudioRecorder } from "./useAudioRecording";
 import { convertPCMToFloat32, getWavFileInfo, writeWavHeader } from "./utils";
 
@@ -180,7 +180,8 @@ export {
   getWavFileInfo,
   useAudioRecorder,
   useSharedAudioRecorder,
-  writeWavHeader as writeWaveHeader,
+  writeWavHeader as writeWaveHeader
 };
 
-export * from "./ExpoAudioStream.types";
+  export * from "./ExpoAudioStream.types";
+

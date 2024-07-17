@@ -20,9 +20,14 @@ export interface EmitAudioEventProps {
 export type EmitAudioEventFunction = (_: EmitAudioEventProps) => void;
 export type EmitAudioAnalysisFunction = (_: AudioAnalysisData) => void;
 
+export interface ExpoAudioStreamWebProps {
+  audioWorkletUrl: string;
+  featuresExtratorUrl: string;
+}
+
 // const log = debug("expo-audio-stream:useAudioRecording");
 const log = console;
-class ExpoAudioStreamWeb extends EventEmitter {
+export class ExpoAudioStreamWeb extends EventEmitter {
   customRecorder: WebRecorder | null;
   audioChunks: ArrayBuffer[];
   isRecording: boolean;
@@ -38,8 +43,13 @@ class ExpoAudioStreamWeb extends EventEmitter {
   extension: "webm" | "wav" = "wav"; // Default extension is 'webm'
   recordingConfig?: RecordingConfig;
   bitDepth: number; // Bit depth of the audio
+  audioWorkletUrl: string;
+  featuresExtratorUrl: string;
 
-  constructor() {
+  constructor({
+    audioWorkletUrl,
+    featuresExtratorUrl,
+  }: ExpoAudioStreamWebProps) {
     const mockNativeModule = {
       addListener: (eventName: string) => {
         // Not used on web
@@ -63,6 +73,8 @@ class ExpoAudioStreamWeb extends EventEmitter {
     this.lastEmittedSize = 0;
     this.lastEmittedTime = 0;
     this.streamUuid = null; // Initialize UUID on first recording start
+    this.audioWorkletUrl = audioWorkletUrl;
+    this.featuresExtratorUrl = featuresExtratorUrl;
   }
 
   // Utility to handle user media stream
@@ -96,8 +108,8 @@ class ExpoAudioStreamWeb extends EventEmitter {
       audioContext,
       source,
       recordingConfig,
-      audioWorkletUrl: "audioworklet.js",
-      featuresExtratorUrl: "audio-features-extractor.js",
+      audioWorkletUrl: `${this.audioWorkletUrl}`,
+      featuresExtratorUrl: `${this.featuresExtratorUrl}`,
       emitAudioEventCallback: ({ data, position }: EmitAudioEventProps) => {
         this.audioChunks.push(data);
         this.currentSize += data.byteLength;
@@ -214,5 +226,3 @@ class ExpoAudioStreamWeb extends EventEmitter {
     return status;
   }
 }
-
-export default new ExpoAudioStreamWeb();
