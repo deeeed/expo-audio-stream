@@ -1,5 +1,19 @@
 import { requireNativeModule } from "expo-modules-core";
+import { Platform } from "react-native";
 
-// It loads the native module object from the JSI or falls back to
-// the bridge module (from NativeModulesProxy) if the remote debugger is on.
-export default requireNativeModule("ExpoAudioStream");
+import {
+  ExpoAudioStreamWeb,
+  ExpoAudioStreamWebProps,
+} from "./ExpoAudioStream.web";
+
+let ExpoAudioStreamModule: any;
+
+if (Platform.OS === "web") {
+  ExpoAudioStreamModule = (webProps: ExpoAudioStreamWebProps) => {
+    return new ExpoAudioStreamWeb(webProps);
+  };
+} else {
+  ExpoAudioStreamModule = requireNativeModule("ExpoAudioStream");
+}
+
+export default ExpoAudioStreamModule;
