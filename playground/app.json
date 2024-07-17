@@ -2,7 +2,7 @@
   "expo": {
     "name": "audio-playground",
     "slug": "audio-playground",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -30,6 +30,8 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
     },
+    "experiments": {
+    },
     "plugins": [
       [
         "../app.plugin.js",
@@ -41,7 +43,9 @@
       [
         "expo-asset",
         {
-          "assets": ["./public/audio_samples/recorder_hello_world.wav"]
+          "assets": [
+            "./public/audio_samples/recorder_hello_world.wav"
+          ]
         }
       ],
       "expo-router"
