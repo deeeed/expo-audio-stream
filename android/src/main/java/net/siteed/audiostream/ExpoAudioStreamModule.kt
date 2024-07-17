@@ -47,7 +47,7 @@ class ExpoAudioStreamModule() : Module(), EventSender {
 
         AsyncFunction("extractAudioAnalysis") { options: Map<String, Any>, promise: Promise ->
             val fileUri = options["fileUri"] as? String
-            val pointsPerSecond = options["pointsPerSecond"] as? Int ?: 20
+            val pointsPerSecond =  (options["pointsPerSecond"] as? Double) ?: 20.0
             val algorithm = options["algorithm"] as? String ?: "rms"
             val featuresMap = options["features"] as? Map<*, *>
             val features = featuresMap?.filterKeys { it is String }
@@ -55,6 +55,7 @@ class ExpoAudioStreamModule() : Module(), EventSender {
                 ?.mapKeys { it.key as String }
                 ?.mapValues { it.value as Boolean }
                 ?: emptyMap()
+            val skipWavHeader = (options["skipWavHeader"] as? Boolean) ?: false
 
             if (fileUri == null) {
                 promise.reject("INVALID_ARGUMENTS", "fileUri is required", null)
@@ -62,7 +63,7 @@ class ExpoAudioStreamModule() : Module(), EventSender {
             }
 
             try {
-                val audioData = audioProcessor.loadAudioFile(fileUri)
+                val audioData = audioProcessor.loadAudioFile(fileUri, skipWavHeader)
                 if (audioData == null) {
                     promise.reject("PROCESSING_ERROR", "Failed to load audio file", null)
                     return@AsyncFunction
