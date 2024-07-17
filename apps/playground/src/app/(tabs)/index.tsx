@@ -21,7 +21,6 @@ import { atob, btoa } from "react-native-quick-base64";
 
 import { AudioRecording } from "../../component/audio-recording/audio-recording";
 import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
-import { WaveformProps } from "../../component/waveform/waveform.types";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { storeAudioFile } from "../../utils/indexedDB";
 import { formatBytes, formatDuration, isWeb } from "../../utils/utils";

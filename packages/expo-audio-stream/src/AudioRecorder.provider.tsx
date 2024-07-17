@@ -4,7 +4,7 @@ import {
   UseAudioRecorderProps,
   UseAudioRecorderState,
   useAudioRecorder,
-} from "./useAudioRecording";
+} from "./useAudioRecorder";
 
 const AudioRecorderContext = createContext<UseAudioRecorderState>({
   isRecording: false,
