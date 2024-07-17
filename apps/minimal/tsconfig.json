@@ -5,7 +5,9 @@
     "paths": {
       "@/*": [
         "./*"
-      ]
+      ],
+      "@siteed/expo-audio-stream": ["../../packages/expo-audio-stream/src/index"],
+      "@siteed/expo-audio-stream/*": ["../../packages/expo-audio-stream/src/*"]
     }
   },
   "include": [
