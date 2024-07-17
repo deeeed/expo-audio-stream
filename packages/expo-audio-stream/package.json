@@ -29,8 +29,8 @@
     "prepare": "expo-module prepare",
     "prepublishOnly": "expo-module prepublishOnly",
     "expo-module": "expo-module",
-    "open:ios": "open -a \"Xcode\" playground/ios",
-    "open:android": "open -a \"Android Studio\" playground/android"
+    "open:ios": "open -a \"Xcode\" ../../apps/playground/ios",
+    "open:android": "open -a \"Android Studio\" ../../apps/playground/android"
   },
   "dependencies": {
     "react-native-quick-base64": "^2.1.2"
@@ -62,6 +62,5 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org"
-  },
-  "packageManager": "yarn@4.3.1"
+  }
 }
