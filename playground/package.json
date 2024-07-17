@@ -9,7 +9,7 @@
     "web": "expo start --web --port 7365",
     "ts:check": "tsc",
     "clean": "rimraf dist",
-    "deploy": "gh-pages -t -d dist",
+    "deploy": "yarn clean && yarn predeploy && gh-pages -t -d dist",
     "predeploy": "expo export -p web",
     "serve:single": "serve dist --single",
     "serve:static": "serve dist"
