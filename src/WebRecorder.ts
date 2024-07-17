@@ -33,6 +33,7 @@ export class WebRecorder {
   private audioWorkletNode!: AudioWorkletNode;
   private featureExtractorWorker: Worker;
   private source: MediaStreamAudioSourceNode;
+  private audioWorkletUrl: string;
   private emitAudioEventCallback: EmitAudioEventFunction;
   private emitAudioAnalysisCallback: EmitAudioAnalysisFunction;
   private config: RecordingConfig;
@@ -47,17 +48,22 @@ export class WebRecorder {
     audioContext,
     source,
     recordingConfig,
+    featuresExtratorUrl,
+    audioWorkletUrl,
     emitAudioEventCallback,
     emitAudioAnalysisCallback,
   }: {
     audioContext: AudioContext;
     source: MediaStreamAudioSourceNode;
     recordingConfig: RecordingConfig;
+    featuresExtratorUrl: string;
+    audioWorkletUrl: string;
     emitAudioEventCallback: EmitAudioEventFunction;
     emitAudioAnalysisCallback: EmitAudioAnalysisFunction;
   }) {
     this.audioContext = audioContext;
     this.source = source;
+    this.audioWorkletUrl = audioWorkletUrl;
     this.emitAudioEventCallback = emitAudioEventCallback;
     this.emitAudioAnalysisCallback = emitAudioAnalysisCallback;
     this.config = recordingConfig;
@@ -87,6 +93,7 @@ export class WebRecorder {
       amplitudeRange: { min: 0, max: 0 },
       dataPoints: [],
       durationMs: 0,
+      samples: 0,
       bitDepth: this.bitDepth,
       numberOfChannels: this.numberOfChannels,
       sampleRate: this.config.sampleRate || this.audioContext.sampleRate,
@@ -99,7 +106,7 @@ export class WebRecorder {
     //TODO: create audio feature extractor from a Blob instead of url since we cannot include the url directly in the library
     // We keep the url during dev and use the blob in production.
     this.featureExtractorWorker = new Worker(
-      new URL("/audio-features-extractor.js", window.location.href),
+      new URL(featuresExtratorUrl, window.location.href),
     );
     this.featureExtractorWorker.onmessage =
       this.handleFeatureExtractorMessage.bind(this);
@@ -113,7 +120,7 @@ export class WebRecorder {
       const url = URL.createObjectURL(blob);
 
       // await this.audioContext.audioWorklet.addModule(url);
-      await this.audioContext.audioWorklet.addModule("/audioworklet.js");
+      await this.audioContext.audioWorklet.addModule(this.audioWorkletUrl);
 
       this.audioWorkletNode = new AudioWorkletNode(
         this.audioContext,
@@ -297,7 +304,6 @@ export class WebRecorder {
     this.audioWorkletNode.disconnect(this.audioContext.destination); // Disconnect the AudioWorkletNode from the destination
     this.audioWorkletNode.port.postMessage({ command: "pause" });
   }
-
 
   stopMediaStreamTracks() {
     // Stop all audio tracks to stop the recording icon

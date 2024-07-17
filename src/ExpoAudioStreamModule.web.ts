@@ -96,6 +96,8 @@ class ExpoAudioStreamWeb extends EventEmitter {
       audioContext,
       source,
       recordingConfig,
+      audioWorkletUrl: "audioworklet.js",
+      featuresExtratorUrl: "audio-features-extractor.js",
       emitAudioEventCallback: ({ data, position }: EmitAudioEventProps) => {
         this.audioChunks.push(data);
         this.currentSize += data.byteLength;
