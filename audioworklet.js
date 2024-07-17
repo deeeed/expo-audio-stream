@@ -52,7 +52,10 @@ class RecorderProcessor extends AudioWorkletProcessor {
             return fullRecordedData;
           })
           .catch((error) => {
-            console.error("Error extracting recorded data:", error);
+            console.error(
+              "RecorderProcessor Error extracting recorded data:",
+              error,
+            );
           });
         break;
     }
@@ -92,7 +95,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
       output[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
     }
     console.debug(
-      "Float to 16-bit PCM conversion complete. Output byte length:",
+      "RecorderProcessor Float to 16-bit PCM conversion complete. Output byte length:",
       output.byteLength,
     );
     return output;
@@ -105,7 +108,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
       output[i] = s < 0 ? s * 0x80000000 : s * 0x7fffffff;
     }
     console.debug(
-      "Float to 32-bit PCM conversion complete. Output byte length:",
+      "RecorderProcessor Float to 32-bit PCM conversion complete. Output byte length:",
       output.byteLength,
     );
     return output;
@@ -191,10 +194,14 @@ class RecorderProcessor extends AudioWorkletProcessor {
       }
     }
 
-    console.debug(`Original buffer length: ${mergedBuffer.byteLength}`);
-    console.debug(`Resampled buffer length: ${resampledBuffer.byteLength}`);
     console.debug(
-      `Final buffer length (after conversion): ${finalBuffer.byteLength}`,
+      `RecorderProcessor - Original buffer length: ${mergedBuffer.byteLength}`,
+    );
+    console.debug(
+      `RecorderProcessor - Resampled buffer length: ${resampledBuffer.byteLength}`,
+    );
+    console.debug(
+      `RecorderProcessor - Final buffer length (after conversion): ${finalBuffer.byteLength}`,
     );
 
     const originalSize = mergedBuffer.byteLength;
@@ -202,10 +209,10 @@ class RecorderProcessor extends AudioWorkletProcessor {
     const finalSize = finalBuffer.byteLength;
 
     console.debug(
-      `Resampled buffer size ratio: ${(resampledSize / originalSize).toFixed(2)}`,
+      `RecorderProcessor - Resampled buffer size ratio: ${(resampledSize / originalSize).toFixed(2)}`,
     );
     console.debug(
-      `Final buffer size ratio: ${(finalSize / originalSize).toFixed(2)}`,
+      `RecorderProcessor - Final buffer size ratio: ${(finalSize / originalSize).toFixed(2)}`,
     );
 
     // Clear the new recorded buffers after they have been processed
@@ -225,7 +232,9 @@ class RecorderProcessor extends AudioWorkletProcessor {
   }
 
   async getAllRecordedData() {
-    console.debug(`getAllRecordedData - sampleRate: ${this.recordSampleRate}`);
+    console.debug(
+      `RecorderProcessor - getAllRecordedData - sampleRate: ${this.recordSampleRate}`,
+    );
 
     const length = this.recordedBuffers.reduce(
       (acc, buffer) => acc + buffer.length,
@@ -246,10 +255,14 @@ class RecorderProcessor extends AudioWorkletProcessor {
       }
     }
 
-    console.debug(`Original buffer length: ${mergedBuffer.byteLength}`);
-    console.debug(`Resampled buffer length: ${resampledBuffer.byteLength}`);
     console.debug(
-      `Final buffer length (after conversion): ${finalBuffer.byteLength}`,
+      `RecorderProcessor - Original buffer length: ${mergedBuffer.byteLength}`,
+    );
+    console.debug(
+      `RecorderProcessor - Resampled buffer length: ${resampledBuffer.byteLength}`,
+    );
+    console.debug(
+      `RecorderProcessor - Final buffer length (after conversion): ${finalBuffer.byteLength}`,
     );
 
     const originalSize = mergedBuffer.byteLength;
@@ -257,10 +270,10 @@ class RecorderProcessor extends AudioWorkletProcessor {
     const finalSize = finalBuffer.byteLength;
 
     console.debug(
-      `Resampled buffer size ratio: ${(resampledSize / originalSize).toFixed(2)}`,
+      `RecorderProcessor - Resampled buffer size ratio: ${(resampledSize / originalSize).toFixed(2)}`,
     );
     console.debug(
-      `Final buffer size ratio: ${(finalSize / originalSize).toFixed(2)}`,
+      `RecorderProcessor - Final buffer size ratio: ${(finalSize / originalSize).toFixed(2)}`,
     );
 
     this.recordedBuffers.length = 0; // Clear the buffers after extraction
