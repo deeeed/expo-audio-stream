@@ -90,6 +90,7 @@ export const PlayPage = () => {
 
   const loadWebAudioFile = async ({ audioUri }: { audioUri: string }) => {
     try {
+      logger.log("Loading audio file:", audioUri);
       const timings: { [key: string]: number } = {};
 
       const startOverall = performance.now();
@@ -273,7 +274,7 @@ export const PlayPage = () => {
           onPress={async () => {
             try {
               await loadWebAudioFile({
-                audioUri: "/audio_samples/recorder_jre_lex_watch.wav",
+                audioUri: "audio_samples/recorder_jre_lex_watch.wav",
               });
             } catch (error) {
               logger.error("Error loading audio file:", error);
