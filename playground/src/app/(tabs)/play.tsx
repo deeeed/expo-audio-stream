@@ -1,28 +1,21 @@
 // playground/src/app/(tabs)/play.tsx
-import { Button, ScreenWrapper, useToast } from "@siteed/design-system";
-import {
-  AudioAnalysisData,
-  AudioStreamResult,
-} from "@siteed/expo-audio-stream";
+import { ScreenWrapper } from "@siteed/design-system";
+import { AudioAnalysisData } from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Button, StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 
 import { extractAudioAnalysis } from "../../../../src";
 import { getWavFileInfo } from "../../../../src/utils";
 import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
-import { useAudioFiles } from "../../context/AudioFilesProvider";
-import { storeAudioFile } from "../../utils/indexedDB";
 import { isWeb } from "../../utils/utils";
 
 const getStyles = () => {
   return StyleSheet.create({
     container: {
-      padding: 10,
       paddingBottom: 80,
     },
     audioPlayer: {},
@@ -39,42 +32,37 @@ export const PlayPage = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [processing, setProcessing] = useState<boolean>(false);
-  const [audioResult, setAudioResult] = useState<AudioStreamResult>();
-  const { show } = useToast();
-
-  const { files, removeFile, refreshFiles } = useAudioFiles();
   const { logger } = useLogger("PlayPage");
 
   const pickAudioFile = async () => {
     try {
-      setProcessing(true);
       const result = await DocumentPicker.getDocumentAsync({
-        type: "audio/*",
+        type: "audio/wav",
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const uri = result.assets[0].uri;
         const name = result.assets[0].name;
-
-        // check if it has .wav extension
-        if (!name.endsWith(".wav")) {
-          logger.error("Invalid file format");
-          show({ type: "error", message: "Invalid file format (.wav only)" });
-          return;
-        }
-
-        // Reset playback position and stop playback
         setAudioUri(uri);
         setFileName(name);
         setIsPlaying(false);
         setCurrentTime(0);
+        // Fetch the audio file as an ArrayBuffer
+        const response = await fetch(uri);
+        const arrayBuffer = await response.arrayBuffer();
+
         // Unload any existing sound
         if (sound) {
           setSound(null);
         }
 
+        setProcessing(true);
+        // Decode the audio file to get metadata
+        const wavMetadata = await getWavFileInfo(arrayBuffer);
+
         const audioAnalysis = await extractAudioAnalysis({
           fileUri: uri,
+          wavMetadata,
           pointsPerSecond: 20,
           algorithm: "rms",
         });
@@ -115,7 +103,6 @@ export const PlayPage = () => {
       const startDecodeAudio = performance.now();
       // Decode the audio file to get metadata
       const wavMetadata = await getWavFileInfo(arrayBuffer);
-      logger.info(`WavMetadata:`, wavMetadata);
       timings["Decode Audio"] = performance.now() - startDecodeAudio;
 
       const startExtractFileName = performance.now();
@@ -129,14 +116,13 @@ export const PlayPage = () => {
       const audioAnalysis = await extractAudioAnalysis({
         fileUri: audioUri,
         bitDepth: wavMetadata.bitDepth,
-        durationMs: wavMetadata.durationMs * 1000,
+        durationMs: wavMetadata.duration * 1000,
         sampleRate: wavMetadata.sampleRate,
         numberOfChannels: wavMetadata.numChannels,
         arrayBuffer,
         pointsPerSecond: 20,
         algorithm: "rms",
       });
-      logger.info(`AudioAnalysis:`, audioAnalysis);
       setAudioAnalysis(audioAnalysis);
       timings["Audio Analysis"] = performance.now() - startAudioAnalysis;
 
@@ -186,75 +172,6 @@ export const PlayPage = () => {
     }
   }, [audioUri, sound]);
 
-  const saveToFiles = useCallback(async () => {
-    if (!fileName || !audioUri) {
-      show({ type: "error", message: "No file to save" });
-      return;
-    }
-
-    // where to save the file
-    const destination = `${FileSystem.documentDirectory ?? ""}${fileName}`;
-
-    // Check if similar file already exists by comparing only the last part of the uri
-    const fileExists = files.some((file) => file.fileUri === destination);
-    if (fileExists) {
-      show({ type: "warning", message: "File already exists" });
-      return;
-    }
-
-    // Fetch the audio file as an ArrayBuffer
-    const response = await fetch(audioUri);
-    const arrayBuffer = await response.arrayBuffer();
-
-    // Decode the audio file to get metadata
-    const wavMetadata = await getWavFileInfo(arrayBuffer);
-
-    logger.info(`saveTofiles wavMetadata:`, wavMetadata);
-    // Auto copy to local files
-    const audioResult: AudioStreamResult = {
-      fileUri: destination,
-      mimeType: "audio/wav",
-      size: arrayBuffer.byteLength,
-      durationMs: wavMetadata.durationMs,
-      sampleRate: wavMetadata.sampleRate,
-      channels: wavMetadata.numChannels,
-      bitDepth: wavMetadata.bitDepth,
-    };
-
-    logger.log("Saving file to files:", audioResult);
-    try {
-      if (isWeb) {
-        // Store the audio file and metadata in IndexedDB
-        await storeAudioFile({
-          fileName: audioResult.fileUri,
-          arrayBuffer,
-          metadata: audioResult,
-        });
-      } else {
-        await FileSystem.copyAsync({
-          from: audioUri,
-          to: audioResult.fileUri,
-        });
-
-        // Also save metadata manually on native
-        const jsonPath = audioResult.fileUri.replace(/\.wav$/, ".json");
-        await FileSystem.writeAsStringAsync(
-          jsonPath,
-          JSON.stringify(audioResult, null, 2),
-        );
-      }
-
-      // Update your context or state with the new file information
-      refreshFiles();
-      show({ iconVisible: true, type: "success", message: "File saved" });
-    } catch (error) {
-      logger.error("Error saving file to files:", error);
-      // cleanup files if failed
-      await removeFile(audioResult.fileUri);
-      throw error;
-    }
-  }, [audioResult, files, fileName, audioUri, logger, refreshFiles, show]);
-
   useEffect(() => {
     return sound
       ? () => {
@@ -267,9 +184,10 @@ export const PlayPage = () => {
   return (
     <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
       <Text>Select and play audio file</Text>
-      <Button onPress={pickAudioFile}>Select Audio File</Button>
+      <Button title="Select Audio File" onPress={pickAudioFile} />
       {isWeb && (
         <Button
+          title="Auto Load"
           onPress={async () => {
             try {
               await loadWebAudioFile({
@@ -279,9 +197,7 @@ export const PlayPage = () => {
               logger.error("Error loading audio file:", error);
             }
           }}
-        >
-          Auto Load
-        </Button>
+        />
       )}
       {processing && <ActivityIndicator size="large" />}
       {audioUri && (
@@ -289,12 +205,11 @@ export const PlayPage = () => {
           {audioAnalysis && (
             <>
               <Button
+                title="Change Time"
                 onPress={() => {
                   setCurrentTime(currentTime + 1);
                 }}
-              >
-                Change Time
-              </Button>
+              />
               <Text>currentTime: {currentTime}</Text>
               <AudioVisualizer
                 candleSpace={2}
@@ -310,16 +225,16 @@ export const PlayPage = () => {
               />
             </>
           )}
-          <Button onPress={playPauseAudio}>
-            {isPlaying ? "Pause Audio" : "Play Audio"}
-          </Button>
+          <Button
+            title={isPlaying ? "Pause Audio" : "Play Audio"}
+            onPress={playPauseAudio}
+          />
         </View>
       )}
       {fileName && (
-        <View style={{ marginTop: 20, gap: 10 }}>
+        <>
           <Text style={styles.audioPlayer}>Selected File: {fileName}</Text>
-          <Button onPress={saveToFiles}>Save to Files</Button>
-        </View>
+        </>
       )}
     </ScreenWrapper>
   );

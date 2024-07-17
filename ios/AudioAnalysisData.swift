@@ -13,7 +13,6 @@ public struct AudioAnalysisData {
     public var bitDepth: Int
     public var numberOfChannels: Int
     public var sampleRate: Float
-    public var samples: Int
     public var dataPoints: [DataPoint]
     public var amplitudeRange: (min: Float, max: Float)
     public var speakerChanges: [(timestamp: Float, speaker: Int)]?
@@ -29,7 +28,6 @@ extension AudioAnalysisData {
             "bitDepth": bitDepth,
             "numberOfChannels": numberOfChannels,
             "sampleRate": sampleRate,
-            "samples": samples,
             "dataPoints": dataPointsArray,
             "amplitudeRange": ["min": amplitudeRange.min, "max": amplitudeRange.max],
             "speakerChanges": speakerChanges?.map { ["timestamp": $0.timestamp, "speaker": $0.speaker] } ?? [],
