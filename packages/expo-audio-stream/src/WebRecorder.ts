@@ -4,6 +4,8 @@ import {
   EmitAudioAnalysisFunction,
   EmitAudioEventFunction,
 } from "./ExpoAudioStream.web";
+import { InlineFeaturesExtractor } from "./InlineFeaturesExtractor";
+import { InlineAudioWebWorker } from "./inlineAudioWebWorker";
 import { encodingToBitDepth } from "./utils";
 interface AudioWorkletEvent {
   data: {
@@ -26,11 +28,11 @@ const DEFAULT_WEB_INTERVAL = 500;
 const DEFAULT_WEB_NUMBER_OF_CHANNELS = 1;
 
 // const log = debug("expo-audio-stream:WebRecorder");
-const log = console.log;
+const log = console;
 export class WebRecorder {
   private audioContext: AudioContext;
   private audioWorkletNode!: AudioWorkletNode;
-  private featureExtractorWorker: Worker;
+  private featureExtractorWorker?: Worker;
   private source: MediaStreamAudioSourceNode;
   private audioWorkletUrl: string;
   private emitAudioEventCallback: EmitAudioEventFunction;
@@ -72,7 +74,7 @@ export class WebRecorder {
     const audioContextFormat = this.checkAudioContextFormat({
       sampleRate: this.audioContext.sampleRate,
     });
-    log("Initialized WebRecorder with config:", {
+    log.debug("Initialized WebRecorder with config:", {
       sampleRate: audioContextFormat.sampleRate,
       bitDepth: audioContextFormat.bitDepth,
       numberOfChannels: audioContextFormat.numberOfChannels,
@@ -101,26 +103,22 @@ export class WebRecorder {
       speakerChanges: [],
     };
 
-    // Initialize the feature extractor worker
-    //TODO: create audio feature extractor from a Blob instead of url since we cannot include the url directly in the library
-    // We keep the url during dev and use the blob in production.
-    this.featureExtractorWorker = new Worker(
-      new URL(featuresExtratorUrl, window.location.href),
-    );
-    this.featureExtractorWorker.onmessage =
-      this.handleFeatureExtractorMessage.bind(this);
+    if (recordingConfig.enableProcessing) {
+      this.initFeatureExtractorWorker();
+    }
   }
 
   async init() {
     try {
-      // TODO: Use the inline processor script for the audio worklet if the script is not available
-      // const blob = new Blob([InlineProcessorScrippt], {
-      //   type: "application/javascript",
-      // });
-      // const url = URL.createObjectURL(blob);
-      // await this.audioContext.audioWorklet.addModule(url);
-      await this.audioContext.audioWorklet.addModule(this.audioWorkletUrl);
-
+      if (!this.audioWorkletUrl) {
+        const blob = new Blob([InlineAudioWebWorker], {
+          type: "application/javascript",
+        });
+        const url = URL.createObjectURL(blob);
+        await this.audioContext.audioWorklet.addModule(url);
+      } else {
+        await this.audioContext.audioWorklet.addModule(this.audioWorkletUrl);
+      }
       this.audioWorkletNode = new AudioWorkletNode(
         this.audioContext,
         "recorder-processor",
@@ -134,7 +132,7 @@ export class WebRecorder {
           return;
         }
         // Handle the audio blob (e.g., send it to the server or process it further)
-        log("Received audio blob from processor", event);
+        log.debug("Received audio blob from processor", event);
         const pcmBuffer = event.data.recordedData;
 
         if (!pcmBuffer) {
@@ -154,7 +152,7 @@ export class WebRecorder {
         const otherDuration =
           pcmBuffer.byteLength /
           (otherSampleRate * (this.exportBitDepth / this.numberOfChannels)); // Calculate duration of the current buffer
-        log(
+        log.debug(
           `sampleRate=${sampleRate} Duration: ${duration} -- otherSampleRate=${otherSampleRate} Other duration: ${otherDuration}`,
         );
 
@@ -164,7 +162,7 @@ export class WebRecorder {
         });
         this.position += duration; // Update position
 
-        this.featureExtractorWorker.postMessage(
+        this.featureExtractorWorker?.postMessage(
           {
             command: "process",
             channelData,
@@ -181,7 +179,7 @@ export class WebRecorder {
         );
       };
 
-      log(
+      log.debug(
         `WebRecorder initialized -- recordSampleRate=${this.audioContext.sampleRate}`,
         this.config,
       );
@@ -200,8 +198,52 @@ export class WebRecorder {
       this.source.connect(this.audioWorkletNode);
       this.audioWorkletNode.connect(this.audioContext.destination);
     } catch (error) {
-      console.error("Failed to initialize WebRecorder", error);
+      log.error("Failed to initialize WebRecorder", error);
     }
+  }
+
+  initFeatureExtractorWorker(featuresExtratorUrl?: string) {
+    try {
+      if (featuresExtratorUrl) {
+        // Initialize the feature extractor worker
+        //TODO: create audio feature extractor from a Blob instead of url since we cannot include the url directly in the library
+        // We keep the url during dev and use the blob in production.
+        this.featureExtractorWorker = new Worker(
+          new URL(featuresExtratorUrl, window.location.href),
+        );
+        this.featureExtractorWorker.onmessage =
+          this.handleFeatureExtractorMessage.bind(this);
+        this.featureExtractorWorker.onerror = this.handleWorkerError.bind(this);
+      } else {
+        // Fallback to the inline worker if the URL is not provided
+        this.initFallbackWorker();
+      }
+    } catch (error) {
+      log.error("Failed to initialize feature extractor worker", error);
+      this.initFallbackWorker();
+    }
+  }
+
+  initFallbackWorker() {
+    try {
+      const blob = new Blob([InlineFeaturesExtractor], {
+        type: "application/javascript",
+      });
+      const url = URL.createObjectURL(blob);
+      this.featureExtractorWorker = new Worker(url);
+      this.featureExtractorWorker.onmessage =
+        this.handleFeatureExtractorMessage.bind(this);
+      this.featureExtractorWorker.onerror = (error) => {
+        log.error("Default Inline worker failed", error);
+      };
+      log.log("Inline worker initialized successfully");
+    } catch (error) {
+      log.error("Failed to initialize Inline Feature Extractor worker", error);
+    }
+  }
+
+  handleWorkerError(error: ErrorEvent) {
+    log.error("Feature extractor worker error:", error);
   }
 
   handleFeatureExtractorMessage(event: AudioFeaturesEvent) {
@@ -227,8 +269,8 @@ export class WebRecorder {
         };
       }
       // Handle the extracted features (e.g., emit an event or log them)
-      log("features event segmentResult", segmentResult);
-      log("features event audioAnalysisData", this.audioAnalysisData);
+      log.debug("features event segmentResult", segmentResult);
+      log.debug("features event audioAnalysisData", this.audioAnalysisData);
       this.emitAudioAnalysisCallback(segmentResult);
     }
   }
@@ -272,10 +314,10 @@ export class WebRecorder {
                 rawPCMDataFull.byteLength /
                 (this.audioContext.sampleRate *
                   (this.exportBitDepth / this.numberOfChannels));
-              log(
+              log.debug(
                 `Received recorded data -- Duration: ${duration} vs ${rawPCMDataFull.byteLength / this.audioContext.sampleRate} seconds`,
               );
-              log(
+              log.debug(
                 `recordedData.length=${rawPCMDataFull.byteLength} vs transmittedData.length=${this.buffers[0].byteLength}`,
               );
 
@@ -330,9 +372,9 @@ export class WebRecorder {
       bufferSource.buffer = audioBuffer;
       bufferSource.connect(this.audioContext.destination);
       bufferSource.start();
-      log("Playing recorded data", recordedData);
+      log.debug("Playing recorded data", recordedData);
     } catch (error) {
-      console.error(`Failed to play recorded data:`, error);
+      log.error(`Failed to play recorded data:`, error);
     }
   }
 

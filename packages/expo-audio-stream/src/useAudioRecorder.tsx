@@ -49,8 +49,6 @@ export interface UseAudioRecorderState {
   durationMs: number; // Duration of the recording
   size: number; // Size in bytes of the recorded audio
   analysisData?: AudioAnalysisData;
-  audioWorkletUrl?: string;
-  featuresExtratorUrl?: string;
 }
 
 interface RecorderState {
@@ -267,13 +265,18 @@ export function useAudioRecorder({
           });
         } else if (buffer) {
           // Coming from web
-          onAudioStreamRef.current?.({
+          const webEvent: AudioDataEvent = {
             data: buffer,
             position,
             fileUri,
             eventDataSize: deltaSize,
             totalSize,
-          });
+          };
+          onAudioStreamRef.current?.(webEvent);
+          logDebug(
+            `[handleAudioEvent] Audio data sent to onAudioStream`,
+            webEvent,
+          );
         }
       } catch (error) {
         console.error(`${TAG} Error processing audio event:`, error);

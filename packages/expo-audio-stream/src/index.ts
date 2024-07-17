@@ -10,7 +10,7 @@ import {
 } from "./AudioRecorder.provider";
 import { AudioAnalysisData, AudioEventPayload } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
-import { ExtractMetadataProps, useAudioRecorder } from "./useAudioRecording";
+import { ExtractMetadataProps, useAudioRecorder } from "./useAudioRecorder";
 import { convertPCMToFloat32, getWavFileInfo, writeWavHeader } from "./utils";
 
 const emitter = new EventEmitter(ExpoAudioStreamModule);
