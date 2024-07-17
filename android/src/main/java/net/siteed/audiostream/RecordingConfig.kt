@@ -6,7 +6,7 @@ data class RecordingConfig(
     val encoding: String = "pcm_16bit",
     val interval: Long = Constants.DEFAULT_INTERVAL,
     val enableProcessing: Boolean = false,
-    val pointsPerSecond: Double = 20.0,
+    val pointsPerSecond: Int = 10,
     val algorithm: String = "rms",
     val features: Map<String, Boolean> = emptyMap()
 )

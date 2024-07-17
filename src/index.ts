@@ -40,7 +40,6 @@ export const extractAudioAnalysis = async ({
   pointsPerSecond = 20,
   arrayBuffer,
   bitDepth,
-  skipWavHeader,
   durationMs,
   sampleRate,
   numberOfChannels,
@@ -64,48 +63,31 @@ export const extractAudioAnalysis = async ({
       console.log(`fetched fileUri`, arrayBuffer.byteLength, arrayBuffer);
     }
 
+    console.log(
+      `extractAudioAnalysis len=${arrayBuffer.byteLength}`,
+      arrayBuffer.slice(0, 100),
+    );
+
     // Create a new copy of the ArrayBuffer to avoid detachment issues
     const bufferCopy = arrayBuffer.slice(0);
     console.log(
-      `extractAudioAnalysis skipWavHeader=${skipWavHeader} bitDepth=${bitDepth} len=${bufferCopy.byteLength}`,
+      `extractAudioAnalysis len=${bufferCopy.byteLength}`,
       bufferCopy.slice(0, 100),
     );
 
-    let actualBitDepth = bitDepth;
-    if (!actualBitDepth) {
-      console.log(
-        `extractAudioAnalysis bitDepth not provided -- getting wav file info`,
-      );
-      const fileInfo = await getWavFileInfo(bufferCopy);
-      actualBitDepth = fileInfo.bitDepth;
+    let copyChannelData: Float32Array;
+    try {
+      const audioContext = new (window.AudioContext ||
+        // @ts-ignore
+        window.webkitAudioContext)();
+      const audioBuffer = await audioContext.decodeAudioData(bufferCopy);
+      const channelData = audioBuffer.getChannelData(0); // Use only the first channel
+      copyChannelData = new Float32Array(channelData); // Create a new Float32Array
+    } catch (error) {
+      console.warn("Failed to decode audio data:", error);
+      // Fall back to creating a new Float32Array from the ArrayBuffer if decoding fails
+      copyChannelData = new Float32Array(bufferCopy);
     }
-    console.log(`extractAudioAnalysis actualBitDepth=${actualBitDepth}`);
-    // let copyChannelData: Float32Array;
-    // try {
-    //   const audioContext = new (window.AudioContext ||
-    //     // @ts-ignore
-    //     window.webkitAudioContext)();
-    //   const audioBuffer = await audioContext.decodeAudioData(bufferCopy);
-    //   const channelData = audioBuffer.getChannelData(0); // Use only the first channel
-    //   copyChannelData = new Float32Array(channelData); // Create a new Float32Array
-    // } catch (error) {
-    //   console.warn("Failed to decode audio data:", error);
-    //   // Fall back to creating a new Float32Array from the ArrayBuffer if decoding fails
-    //   copyChannelData = new Float32Array(arrayBuffer);
-    // }
-
-    const {
-      pcmValues: channelData,
-      min,
-      max,
-    } = convertPCMToFloat32({
-      buffer: arrayBuffer,
-      bitDepth: actualBitDepth,
-      skipWavHeader,
-    });
-    console.log(
-      `extractAudioAnalysis skipWaveHeader=${skipWavHeader} convertPCMToFloat32 length=${channelData.length} range: [ ${min} :: ${max} ]`,
-    );
 
     return new Promise((resolve, reject) => {
       const worker = new Worker(
@@ -122,7 +104,7 @@ export const extractAudioAnalysis = async ({
 
       worker.postMessage({
         command: "process",
-        channelData,
+        channelData: copyChannelData,
         sampleRate,
         pointsPerSecond,
         algorithm,
@@ -143,7 +125,6 @@ export const extractAudioAnalysis = async ({
     const res = await ExpoAudioStreamModule.extractAudioAnalysis({
       fileUri,
       pointsPerSecond,
-      skipWavHeader,
       algorithm,
       features,
     });

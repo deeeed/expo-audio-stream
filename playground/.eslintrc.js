@@ -1,3 +1,5 @@
+const react = require("eslint-plugin-react");
+
 /**
  * @type {import('eslint').Linter.Config}
  */

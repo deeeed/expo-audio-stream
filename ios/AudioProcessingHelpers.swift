@@ -9,7 +9,50 @@ func extractMFCC(from segment: [Float], sampleRate: Float) -> [Float] {
 
 func extractSpectralCentroid(from segment: [Float], sampleRate: Float) -> Float {
     Logger.debug("Extracting Spectral Centroid from segment of length \(segment.count)")
-    return 0.0 // TODO: Implement spectral centroid extraction logic
+    
+    let length = segment.count
+    let log2n = UInt(round(log2(Double(length))))
+    
+    guard let fftSetup = vDSP_create_fftsetup(log2n, Int32(kFFTRadix2)) else {
+        Logger.debug("Failed to create FFT setup")
+        return 0.0
+    }
+    
+    var realp = [Float](repeating: 0, count: length / 2)
+    var imagp = [Float](repeating: 0, count: length / 2)
+    var magnitudes = [Float](repeating: 0.0, count: length / 2)
+    var spectralCentroid: Float = 0.0
+    
+    segment.withUnsafeBufferPointer { bufferPointer in
+        realp.withUnsafeMutableBufferPointer { realpPtr in
+            imagp.withUnsafeMutableBufferPointer { imagpPtr in
+                var splitComplex = DSPSplitComplex(realp: realpPtr.baseAddress!, imagp: imagpPtr.baseAddress!)
+                
+                bufferPointer.baseAddress!.withMemoryRebound(to: DSPComplex.self, capacity: length / 2) { typeConvertedTransferBuffer in
+                    vDSP_ctoz(typeConvertedTransferBuffer, 2, &splitComplex, 1, vDSP_Length(length / 2))
+                }
+                
+                vDSP_fft_zrip(fftSetup, &splitComplex, 1, log2n, Int32(FFT_FORWARD))
+                
+                vDSP_zvmags(&splitComplex, 1, &magnitudes, 1, vDSP_Length(length / 2))
+                
+                var totalMagnitude: Float = 0.0
+                var weightedSum: Float = 0.0
+                for i in 0..<magnitudes.count {
+                    let magnitude = magnitudes[i]
+                    totalMagnitude += magnitude
+                    weightedSum += Float(i) * magnitude
+                }
+                
+                spectralCentroid = totalMagnitude > 0 ? weightedSum / totalMagnitude : 0.0
+                Logger.debug("Spectral Centroid: \(spectralCentroid)")
+            }
+        }
+    }
+    
+    vDSP_destroy_fftsetup(fftSetup)
+    
+    return spectralCentroid
 }
 
 func extractSpectralFlatness(from segment: [Float]) -> Float {
