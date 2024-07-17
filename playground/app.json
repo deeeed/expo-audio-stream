@@ -31,6 +31,7 @@
       "bundler": "metro",
     },
     "experiments": {
+      "baseUrl": "/expo-audio-stream/",
     },
     "plugins": [
       [
