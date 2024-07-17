@@ -78,7 +78,7 @@ class AudioRecorderManager(
             encoding = options["encoding"] as? String ?: "pcm_16bit",
             interval = (options["interval"] as? Number)?.toLong() ?: Constants.DEFAULT_INTERVAL,
             enableProcessing = options["enableProcessing"] as? Boolean ?: false,
-            pointsPerSecond = (options["pointsPerSecond"] as? Number)?.toInt() ?: 20,
+            pointsPerSecond = (options["pointsPerSecond"] as? Number)?.toDouble() ?: 20.0,
             algorithm = options["algorithm"] as? String ?: "rms",
             features = features
         )
@@ -330,7 +330,7 @@ class AudioRecorderManager(
                 // Create result bundle
                 val result = bundleOf(
                     "fileUri" to audioFile?.toURI().toString(),
-                    "duration" to duration,
+                    "durationMs" to duration,
                     "channels" to recordingConfig.channels,
                     "bitDepth" to when (recordingConfig.encoding) {
                         "pcm_8bit" -> 8
@@ -416,7 +416,7 @@ class AudioRecorderManager(
                 else -> 0
             }
             return bundleOf(
-                "duration" to duration,
+                "durationMs" to duration,
                 "isRecording" to isRecording.get(),
                 "isPaused" to isPaused.get(),
                 "mimeType" to mimeType,
