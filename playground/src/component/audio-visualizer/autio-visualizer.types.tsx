@@ -3,8 +3,6 @@ import { AudioAnalysisData, DataPoint } from "@siteed/expo-audio-stream";
 import { StyleProp, ViewStyle } from "react-native";
 import { SharedValue } from "react-native-reanimated";
 
-import { AudioVisualiserAction } from "./audio-visualizer";
-
 export interface CalculateReferenceLinePositionParams {
   canvasWidth: number;
   referenceLinePosition: "MIDDLE" | "RIGHT";
@@ -40,6 +38,7 @@ export interface AudioVisualizerState {
   currentTime?: number;
   hasInitialized: boolean;
   selectedCandle: CandleData | null;
+  selectedIndex: number;
 }
 
 export interface UpdateActivePointsParams {
@@ -85,6 +84,14 @@ export interface AudioVisualizerProps {
   candleSpace?: number;
   showDottedLine?: boolean;
   showRuler?: boolean;
+  showSilence?: boolean;
+  onSelection?: ({
+    dataPoint,
+    index,
+  }: {
+    dataPoint: DataPoint;
+    index: number;
+  }) => void;
   mode?: "static" | "live";
   playing?: boolean;
   onSeekEnd?: (newTime: number) => void;
@@ -96,9 +103,9 @@ export interface CanvasContainerProps {
   candleSpace: number;
   showDottedLine: boolean;
   showRuler: boolean;
+  showSilence: boolean;
   mode: "static" | "live" | "scaled";
-  onSeekEnd?: (newTime: number) => void;
-  dispatch: React.Dispatch<AudioVisualiserAction>;
+  onSelection?: (dataPoint: DataPoint) => void;
   translateX: SharedValue<number>;
   activePoints: CandleData[];
   maxDisplayedItems: number;

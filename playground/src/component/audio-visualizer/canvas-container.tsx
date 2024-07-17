@@ -7,7 +7,7 @@ import {
   useTouchHandler,
 } from "@shopify/react-native-skia";
 import { useLogger } from "@siteed/react-native-logger";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { View } from "react-native";
 import { useDerivedValue } from "react-native-reanimated";
 
@@ -36,7 +36,8 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
   startIndex,
   canvasWidth,
   selectedCandle,
-  dispatch,
+  showSilence,
+  onSelection,
   durationMs,
   minAmplitude,
   maxAmplitude,
@@ -45,82 +46,72 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
   const groupTransform = useDerivedValue(() => {
     return [{ translateX: translateX.value }];
   });
-  const [dragging, setDragging] = useState(false);
   const { logger } = useLogger("CanvasContainer");
 
-  const touchHandler = useTouchHandler({
-    onStart: () => {
-      setDragging(false);
+  const hasProcessedEvent = useRef(false);
+
+  const processEvent = useCallback(
+    (event: ExtendedTouchInfo) => {
+      if (mode === "live" || hasProcessedEvent.current) return;
+
+      const { x, y } = event;
+      if (x < 0 || x > canvasWidth || y < 0 || y > canvasHeight) {
+        logger.debug(`Touch started outside the canvas: (${x}, ${y})`);
+        return;
+      }
+
+      hasProcessedEvent.current = true;
+
+      setTimeout(() => {
+        hasProcessedEvent.current = false;
+      }, 300);
+
+      const plotStart = canvasWidth / 2 + translateX.value;
+      const plotEnd = plotStart + totalCandleWidth;
+
+      logger.debug(
+        `TouchEnd: ${x} canvasWidth=${canvasWidth} [${plotStart}, ${plotEnd}]`,
+      );
+      if (x < plotStart || x > plotEnd) {
+        logger.debug(`NOT WITHIN RANGE ${x} [${plotStart}, ${plotEnd}]`);
+        return;
+      }
+
+      const adjustedX = x - plotStart;
+      const index = Math.floor(adjustedX / (candleWidth + candleSpace));
+      const candle = activePoints[index];
+      if (!candle) {
+        logger.log(`No candle found at index: ${index}`);
+        return;
+      }
+      logger.debug(`Index: ${index} AdjustedX: ${adjustedX}`, candle);
+
+      // Dispatch action to update the selected candle
+      onSelection?.(candle);
     },
-    onActive: () => setDragging(true),
-    onEnd: useCallback(
-      (event: ExtendedTouchInfo) => {
-        // disable in live mode
-        if (dragging || mode === "live") return;
-        const { x } = event;
-        const plotStart = canvasWidth / 2 + translateX.value;
-        const plotEnd = plotStart + totalCandleWidth;
+    [
+      mode,
+      canvasWidth,
+      canvasHeight,
+      translateX,
+      totalCandleWidth,
+      candleWidth,
+      candleSpace,
+      activePoints,
+      onSelection,
+      logger,
+    ],
+  );
 
-        logger.debug(
-          `TouchEnd: ${x} canvasWidth=${canvasWidth} [${plotStart}, ${plotEnd}]`,
-        );
-        if (x < plotStart || x > plotEnd) {
-          logger.debug(`NOT WITHIN RANGE ${x} [${plotStart}, ${plotEnd}]`);
-          return;
-        }
-
-        const adjustedX = x - plotStart;
-        const index = Math.floor(adjustedX / (candleWidth + candleSpace));
-        const candle = activePoints[index];
-        if (!candle) {
-          logger.log(`No candle found at index: ${index}`);
-          return;
-        }
-        logger.debug(`Index: ${index} AdjustedX: ${adjustedX}`, candle);
-
-        // Dispatch action to update the selected candle
-        dispatch({
-          type: "UPDATE_STATE",
-          state: { selectedCandle: candle },
-        });
-
-        const RMS_THRESHOLD = 0.02;
-        const ZCR_THRESHOLD = 0.1;
-        const rms = candle.features?.rms ?? 0;
-        const zcr = candle.features?.zcr ?? 0;
-        const dynActiveSpeech = rms > RMS_THRESHOLD && zcr > ZCR_THRESHOLD;
-        logger.log(
-          `Detected=${candle.activeSpeech} ActiveSpeech: ${dynActiveSpeech} rms=${rms} > (${RMS_THRESHOLD}) --> ${rms > RMS_THRESHOLD} zcr=${zcr} > (${ZCR_THRESHOLD}) --> ${zcr > ZCR_THRESHOLD}`,
-        );
-        if (!durationMs) return;
-
-        // Compute time from index
-        const canvasSize = plotEnd - plotStart; // --> 100%
-        const position = adjustedX / canvasSize; // --> x%
-        const time = position * durationMs;
-        logger.log(
-          `Time: ${time} Index: ${index} totalCandles=${activePoints.length}`,
-        );
-      },
-      [
-        dragging,
-        mode,
-        canvasWidth,
-        translateX,
-        dispatch,
-        totalCandleWidth,
-        candleWidth,
-        candleSpace,
-        activePoints,
-        durationMs,
-      ],
-    ),
+  const touchHandler = useTouchHandler({
+    onStart: () => {},
+    onEnd: processEvent,
   });
 
   const memoizedCandles = useMemo(() => {
     return activePoints.map(
       ({ id, amplitude, visible, activeSpeech, silent }, index) => {
-        if (id === -1 || silent) return null;
+        if (id === -1 || (!showSilence && silent)) return null;
 
         const scaledAmplitude =
           ((amplitude - minAmplitude) * (canvasHeight - 10)) /
@@ -166,6 +157,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     minAmplitude,
     maxAmplitude,
     maxDisplayedItems,
+    showSilence,
     candleWidth,
     candleSpace,
     mode,
@@ -180,6 +172,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
         onTouch={touchHandler}
       >
         <Group transform={groupTransform}>
+          {memoizedCandles}
           {showRuler && (
             <SkiaTimeRuler
               duration={durationMs ?? 0 / 1000}
@@ -187,7 +180,6 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
               width={totalCandleWidth}
             />
           )}
-          {memoizedCandles}
         </Group>
         {showDottedLine && (
           <Path

@@ -9,6 +9,7 @@ import {
   AudioAnalysisData,
   AudioStreamResult,
 } from "../../../src/ExpoAudioStream.types";
+import { SelectedAnalysisConfig } from "../component/audio-recording-analysis-config/audio-recording-analysis-config";
 import { fetchArrayBuffer } from "../utils/utils";
 
 interface PlayOptions {
@@ -23,6 +24,7 @@ interface UpdatePlaybackOptions {
 interface UseAudioOptions {
   loadArrayBuffer?: boolean;
   extractAnalysis?: boolean;
+  analysisOptions?: SelectedAnalysisConfig;
 }
 
 export interface UseAudioProps {
@@ -44,6 +46,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
   const { logger } = useLogger("useAudio");
   const { show } = useToast();
 
+  logger.log(`analysisOptions:`, options);
   useEffect(() => {
     return () => {
       sound?.unloadAsync();
@@ -53,6 +56,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
   useEffect(() => {
     if (!audioUri) return;
 
+    logger.debug(`useEffect Audio URI: ${audioUri}`);
     const processAudioData = async () => {
       try {
         setProcessing(true);
@@ -72,11 +76,14 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         if (options.extractAnalysis) {
           const analysis = await extractAudioAnalysis({
             fileUri: actualAudioBuffer ? undefined : audioUri, // Priority to audioBuffer if provided
+            skipWavHeader: options.analysisOptions?.skipWavHeader,
             arrayBuffer: actualAudioBuffer,
             sampleRate: recording?.sampleRate,
             bitDepth: recording?.bitDepth,
-            durationMs: recording?.duration,
+            durationMs: recording?.durationMs,
             numberOfChannels: recording?.channels,
+            pointsPerSecond: options.analysisOptions?.pointsPerSecond,
+            features: options.analysisOptions?.features,
           });
           setAudioAnalysis(analysis);
           // logger.debug(`Extracted audio analysis from ${audioUri}`, analysis);
@@ -94,6 +101,8 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     audioUri,
     options.loadArrayBuffer,
     options.extractAnalysis,
+    options.analysisOptions?.skipWavHeader,
+    options.analysisOptions?.pointsPerSecond,
     logger,
     show,
   ]);

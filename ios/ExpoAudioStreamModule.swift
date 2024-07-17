@@ -187,7 +187,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 // Convert RecordingResult to a dictionary
                 let resultDict: [String: Any] = [
                     "fileUri": recordingResult.fileUri,
-                    "duration": recordingResult.duration,
+                    "durationMs": recordingResult.duration,
                     "size": recordingResult.size,
                     "channels": recordingResult.channels,
                     "bitDepth": recordingResult.bitDepth,
