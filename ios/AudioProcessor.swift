@@ -111,7 +111,6 @@ public class AudioProcessor {
                 return nil
             }
             
-            //TODO: check if we need conversion based on bitDepth here
             guard let floatData = buffer.floatChannelData else {
                 reject("BUFFER_DATA_ERROR", "Failed to retrieve float data from buffer.")
                 return nil
@@ -196,8 +195,7 @@ public class AudioProcessor {
         var localMinAmplitude: Float = .greatestFiniteMagnitude
         var localMaxAmplitude: Float = -.greatestFiniteMagnitude
         var segmentData = [Float]()
-        var currentPosition = 0 // Track the current byte position
-
+        
         for i in 0..<length {
             updateSegmentData(channelData: channelData, index: i, sumSquares: &sumSquares, zeroCrossings: &zeroCrossings, prevValue: &prevValue, localMinAmplitude: &localMinAmplitude, localMaxAmplitude: &localMaxAmplitude, segmentData: &segmentData)
             
@@ -209,18 +207,6 @@ public class AudioProcessor {
                 minAmplitude = min(minAmplitude, rms)
                 maxAmplitude = max(maxAmplitude, rms)
                 
-                let segmentSize = segmentData.count
-                let segmentDuration = Float(segmentSize) / sampleRate
-                
-                // Calculate start time and end time
-                let segmentStartTime = Float(i - segmentSize + 1) / sampleRate
-                let segmentEndTime = Float(i + 1) / sampleRate
-               
-                // Calculate start position and end position in bytes
-               let bytesPerSample = bitDepth / 8
-               let startPosition = currentPosition
-               let endPosition = startPosition + (segmentSize * bytesPerSample * numberOfChannels)
-               
                 dataPoints.append(DataPoint(
                     id: uniqueIdCounter, // Assign unique ID
                     amplitude: algorithm == "peak" ? localMaxAmplitude : rms,
@@ -228,18 +214,12 @@ public class AudioProcessor {
                     dB: dB,
                     silent: silent,
                     features: features,
-                    startTime: segmentStartTime,
-                    endTime: segmentEndTime,
-                    startPosition: startPosition,
-                    endPosition: endPosition,
+                    timestamp: Float(i) / sampleRate,
                     speaker: 0
                 ))
                 uniqueIdCounter += 1 // Increment the unique ID counter
 
                 resetSegmentData(&sumSquares, &zeroCrossings, &localMinAmplitude, &localMaxAmplitude, &segmentData)
-                
-                // Update the current byte position
-                currentPosition = endPosition
             }
         }
         
@@ -254,7 +234,6 @@ public class AudioProcessor {
             bitDepth: bitDepth,
             numberOfChannels: numberOfChannels,
             sampleRate: sampleRate,
-            samples: channelData.count,
             dataPoints: dataPoints,
             amplitudeRange: (min: minAmplitude, max: maxAmplitude),
             speakerChanges: [],
@@ -294,8 +273,6 @@ public class AudioProcessor {
             energy: energy,
             mfcc: mfcc,
             rms: rms,
-            minAmplitude: 0,
-            maxAmplitude: 0,
             zcr: zcr,
             spectralCentroid: spectralCentroid,
             spectralFlatness: spectralFlatness,
