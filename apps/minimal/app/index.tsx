@@ -5,12 +5,18 @@ export default function App() {
   const { startRecording, stopRecording, durationMs, size, isRecording } =
     useAudioRecorder({
       debug: true,
-      audioWorkletUrl: "/audioworklet.js",
-      featuresExtratorUrl: "/audio-features-extractor.js",
+      // audioWorkletUrl: "/audioworklet.js",
+      // featuresExtratorUrl: "/audio-features-extractor.js",
     });
 
   const handleStart = async () => {
-    const fileUri = await startRecording({ interval: 500 });
+    const fileUri = await startRecording({
+      interval: 500,
+      enableProcessing: false,
+      onAudioStream: async (_) => {
+        console.log(`onAudioStream`, _);
+      },
+    });
   };
 
   const handleStop = async () => {
@@ -20,7 +26,7 @@ export default function App() {
 
   const renderRecording = () => (
     <View>
-      <Text>Duration: {durationMs} ms</Text>
+      <Text>Duration: {durationMs / 1000}</Text>
       <Text>Size: {size} bytes</Text>
       <Button title="Stop Recording" onPress={handleStop} />
     </View>
