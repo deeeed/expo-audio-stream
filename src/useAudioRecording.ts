@@ -3,7 +3,6 @@ import { Platform, Subscription } from "expo-modules-core";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 
 import { addAudioAnalysisListener, addAudioEventListener } from ".";
-import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 import {
   AudioAnalysisData,
   AudioDataEvent,
@@ -14,6 +13,7 @@ import {
   RecordingConfig,
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
+import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 import { WavFileInfo } from "./utils";
 
 const MAX_VISUALIZATION_DURATION_MS = 10000; // Default maximum duration for visualization
@@ -32,6 +32,7 @@ export interface ExtractMetadataProps {
   length?: number; // Optional number of bytes to read.
   pointsPerSecond?: number; // Optional number of points per second. Use to reduce the number of points and compute the number of datapoints to return.
   features?: AudioFeaturesOptions;
+  featuresExtratorUrl?: string;
 }
 
 export interface UseAudioRecorderProps {
@@ -50,6 +51,8 @@ export interface UseAudioRecorderState {
   durationMs: number; // Duration of the recording
   size: number; // Size in bytes of the recorded audio
   analysisData?: AudioAnalysisData;
+  audioWorkletUrl?: string;
+  featuresExtratorUrl?: string;
 }
 
 interface RecorderState {

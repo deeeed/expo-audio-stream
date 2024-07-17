@@ -8,8 +8,8 @@ import {
   AudioRecorderProvider,
   useSharedAudioRecorder,
 } from "./AudioRecorder.provider";
-import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 import { AudioAnalysisData, AudioEventPayload } from "./ExpoAudioStream.types";
+import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 import { ExtractMetadataProps, useAudioRecorder } from "./useAudioRecording";
 import { convertPCMToFloat32, getWavFileInfo, writeWavHeader } from "./utils";
 
@@ -46,6 +46,7 @@ export const extractAudioAnalysis = async ({
   numberOfChannels,
   algorithm = "rms",
   features,
+  featuresExtratorUrl = "/audio-features-extractor.js",
 }: ExtractMetadataProps): Promise<AudioAnalysisData> => {
   if (isWeb) {
     if (!arrayBuffer && !fileUri) {
@@ -109,7 +110,7 @@ export const extractAudioAnalysis = async ({
 
     return new Promise((resolve, reject) => {
       const worker = new Worker(
-        new URL("/audio-features-extractor.js", window.location.href),
+        new URL(featuresExtratorUrl, window.location.href),
       );
 
       worker.onmessage = (event) => {
@@ -180,8 +181,7 @@ export {
   getWavFileInfo,
   useAudioRecorder,
   useSharedAudioRecorder,
-  writeWavHeader as writeWaveHeader
+  writeWavHeader as writeWaveHeader,
 };
 
-  export * from "./ExpoAudioStream.types";
-
+export * from "./ExpoAudioStream.types";

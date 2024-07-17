@@ -6,5 +6,9 @@
       "@siteed/expo-audio-stream": ["../src/index"],
       "@siteed/expo-audio-stream/*": ["../src/*"]
     }
-  }
+  },
+  "include": [
+    "src",
+    "app.config.ts"
+  ]
 }

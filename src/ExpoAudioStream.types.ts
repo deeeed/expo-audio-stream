@@ -128,6 +128,8 @@ export interface RecordingConfig {
   algorithm?: string; // Algorithm to use for extraction (default is "rms")
   features?: AudioFeaturesOptions; // Feature options to extract (default is empty)
 
+  // Optional paramters from web
+
   onAudioStream?: (_: AudioDataEvent) => Promise<void>; // Callback function to handle audio stream
   onProcessingResult?: (_: AudioAnalysisData) => Promise<void>; // Callback function to handle processing results
 }

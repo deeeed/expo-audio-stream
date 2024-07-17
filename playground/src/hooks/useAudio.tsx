@@ -4,12 +4,13 @@ import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import { useCallback, useEffect, useState } from "react";
 
-import { extractAudioAnalysis } from "../../../src";
+import { extractAudioAnalysis, useAudioRecorder } from "../../../src";
 import {
   AudioAnalysisData,
   AudioStreamResult,
 } from "../../../src/ExpoAudioStream.types";
 import { SelectedAnalysisConfig } from "../component/audio-recording-analysis-config/audio-recording-analysis-config";
+import { config } from "../config";
 import { fetchArrayBuffer } from "../utils/utils";
 
 interface PlayOptions {
@@ -84,6 +85,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
             numberOfChannels: recording?.channels,
             pointsPerSecond: options.analysisOptions?.pointsPerSecond,
             features: options.analysisOptions?.features,
+            featuresExtratorUrl: config.featuresExtratorUrl,
           });
           setAudioAnalysis(analysis);
           // logger.debug(`Extracted audio analysis from ${audioUri}`, analysis);
