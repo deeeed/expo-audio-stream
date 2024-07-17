@@ -52,7 +52,7 @@ const baseRecordingConfig: RecordingConfig = {
   interval: 500,
   sampleRate: 44100,
   encoding: "pcm_32bit",
-  pointsPerSecond: 20,
+  pointsPerSecond: 10,
   enableProcessing: true,
 };
 
