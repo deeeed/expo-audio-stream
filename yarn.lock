@@ -3559,7 +3559,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@siteed/expo-audio-stream@workspace:packages/expo-audio-stream":
+"@siteed/expo-audio-stream@workspace:^, @siteed/expo-audio-stream@workspace:packages/expo-audio-stream":
   version: 0.0.0-use.local
   resolution: "@siteed/expo-audio-stream@workspace:packages/expo-audio-stream"
   dependencies:
@@ -10786,6 +10786,7 @@ __metadata:
     "@babel/core": "npm:^7.20.0"
     "@expo/vector-icons": "npm:^14.0.2"
     "@react-navigation/native": "npm:^6.0.2"
+    "@siteed/expo-audio-stream": "workspace:^"
     "@types/jest": "npm:^29.5.12"
     "@types/react": "npm:~18.2.45"
     "@types/react-test-renderer": "npm:^18.0.7"
