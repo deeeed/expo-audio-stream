@@ -15,10 +15,6 @@ import { convertPCMToFloat32, getWavFileInfo, writeWavHeader } from "./utils";
 
 const emitter = new EventEmitter(ExpoAudioStreamModule);
 
-export function test(): void {
-  return ExpoAudioStreamModule.test();
-}
-
 export function addAudioEventListener(
   listener: (event: AudioEventPayload) => Promise<void>,
 ): Subscription {
