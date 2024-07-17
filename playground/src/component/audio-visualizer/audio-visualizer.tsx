@@ -4,7 +4,7 @@ import { useLogger } from "@siteed/react-native-logger";
 import React, { useCallback, useEffect, useReducer, useRef } from "react";
 import { LayoutChangeEvent, View } from "react-native";
 import { Text } from "react-native-paper";
-import { runOnUI, useSharedValue } from "react-native-reanimated";
+import { useSharedValue } from "react-native-reanimated";
 
 import {
   calculateReferenceLinePosition,
@@ -20,6 +20,7 @@ import {
 } from "./autio-visualizer.types";
 import CanvasContainer from "./canvas-container";
 import { GestureHandler } from "./gesture-handler";
+import { DataPoint } from "../../../../src";
 
 export type AudioVisualiserAction = {
   type: "UPDATE_STATE";
@@ -33,6 +34,7 @@ const initialState: AudioVisualizerState = {
   currentTime: undefined,
   hasInitialized: false,
   selectedCandle: null,
+  selectedIndex: -1,
 };
 
 const reducer = (
@@ -57,7 +59,9 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   mode = "static",
   showRuler = false,
   showDottedLine = true,
+  showSilence = false,
   onSeekEnd,
+  onSelection,
 }) => {
   const translateX = useSharedValue(0);
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -71,6 +75,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     currentTime,
     hasInitialized,
     selectedCandle,
+    selectedIndex,
   } = state;
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
@@ -156,7 +161,11 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     };
     dispatch({
       type: "UPDATE_STATE",
-      state: { triggerUpdate: triggerUpdate + 1 },
+      state: {
+        triggerUpdate: triggerUpdate + 1,
+        selectedCandle: null,
+        selectedIndex: -1,
+      },
     });
   }, [
     audioData.dataPoints,
@@ -234,7 +243,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       if (audioData.durationMs && onSeekEnd) {
         const allowedTranslateX = maxTranslateX;
         const progressRatio = -newTranslateX / allowedTranslateX;
-        const newTime = (progressRatio * audioData.durationMs) / 1000;
+        const newTime = progressRatio * audioData.durationMs;
         onSeekEnd(newTime);
       }
 
@@ -269,67 +278,136 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     [onSeekEnd, audioData.dataPoints, maxDisplayedItems],
   );
 
+  const handleSelectionChange = useCallback(
+    (candle: DataPoint) => {
+      const currentIndex = audioData.dataPoints.findIndex(
+        (point) => point.id === candle.id,
+      );
+
+      dispatch({
+        type: "UPDATE_STATE",
+        state: {
+          selectedCandle: { ...candle, visible: true },
+          selectedIndex: currentIndex,
+        },
+      });
+
+      onSelection?.({ dataPoint: candle, index: currentIndex });
+    },
+    [onSelection, dispatch],
+  );
+
+  const handlePrevNextSelection = useCallback(
+    (direction: "prev" | "next") => {
+      logger.debug(
+        `[${direction}] Selected index: ${selectedIndex}`,
+        selectedCandle,
+      );
+      if (!selectedCandle) return;
+
+      if (selectedIndex === -1) return;
+
+      const newIndex =
+        direction === "prev" ? selectedIndex - 1 : selectedIndex + 1;
+
+      logger.debug(`New index: ${newIndex}`);
+      if (newIndex < 0 || newIndex >= audioData.dataPoints.length) return;
+
+      const newSelectedCandle = audioData.dataPoints[newIndex];
+      dispatch({
+        type: "UPDATE_STATE",
+        state: {
+          selectedCandle: { ...newSelectedCandle, visible: true },
+          selectedIndex: newIndex,
+        },
+      });
+
+      logger.debug(`New selected candle: ${newSelectedCandle.id}`, onSelection);
+      onSelection?.({ dataPoint: newSelectedCandle, index: newIndex });
+    },
+    [
+      audioData.dataPoints,
+      selectedIndex,
+      selectedCandle,
+      onSelection,
+      dispatch,
+    ],
+  );
+
   const handleReset = useCallback(() => {
+    translateX.value = 0;
     const {
       activePoints: updatedActivePoints,
       range: updatedRange,
       lastUpdatedTranslateX: updatedLastUpdatedTranslateX,
     } = updateActivePoints({
-      x: 0,
+      x: translateX.value,
       context: {
         dataPoints: audioData.dataPoints,
         maxDisplayedItems,
         activePoints: updateActivePointsResult.current.activePoints,
+        range: updateActivePointsResult.current.range,
         referenceLineX,
         mode,
-        range: updateActivePointsResult.current.range,
         candleWidth,
         candleSpace,
       },
     });
+    logger.log(`Updated active points: ${updatedActivePoints.length}`);
     updateActivePointsResult.current = {
       activePoints: updatedActivePoints,
       range: updatedRange,
       lastUpdatedTranslateX: updatedLastUpdatedTranslateX,
     };
-
-    runOnUI(() => {
-      translateX.value = 0;
-    })();
-    onSeekEnd?.(0);
-
     dispatch({
       type: "UPDATE_STATE",
-      state: { triggerUpdate: triggerUpdate + 1 },
+      state: {
+        selectedCandle: null,
+        selectedIndex: -1,
+        triggerUpdate: Date.now(),
+      },
     });
-  }, [onSeekEnd, audioData.dataPoints, maxDisplayedItems]);
+  }, [dispatch]);
 
   return (
-    <View style={styles.container} onLayout={handleLayout}>
-      <Text style={styles.text}>dataPoints: {audioData.dataPoints.length}</Text>
-      <Text>
-        activePoints: {updateActivePointsResult.current.activePoints.length}
-      </Text>
-      <Text style={styles.text}>canvasHeight: {canvasHeight}</Text>
-      <Text style={styles.text}>canvasWidth: {canvasWidth}</Text>
-      <Text style={styles.text}>maxDisplayedItems: {maxDisplayedItems}</Text>
-      <Text style={styles.text}>
-        pointsPerSecond: {audioData.pointsPerSecond}
-      </Text>
-      <Text style={styles.text}>
-        Range: {JSON.stringify(updateActivePointsResult.current.range)}
-      </Text>
-      <Text style={styles.text}>
-        Amplitude: [ {audioData.amplitudeRange.min},
-        {audioData.amplitudeRange.max} ]
-      </Text>
-      <Text>triggerUpdate: {triggerUpdate}</Text>
-      <Text>canvasHeight: {canvasHeight}</Text>
-      <Text>{JSON.stringify(selectedCandle, null, 2)}</Text>
-      <Text style={styles.text}>currentTime: {currentTime}</Text>
-      <Text style={styles.text}>durationMs: {audioData.durationMs}</Text>
-      <Text style={styles.text}>TranslateX: {translateX.value}</Text>
-      <Button onPress={handleReset}>Reset</Button>
+    <View style={[styles.container, { marginTop: 20 }]} onLayout={handleLayout}>
+      <Text>{audioData.samples} samples</Text>
+      {mode !== "live" && (
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            width: "100%",
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 10,
+              alignItems: "center",
+            }}
+          >
+            <Button
+              onPress={() => handlePrevNextSelection("prev")}
+              disabled={selectedCandle === null}
+            >
+              Prev
+            </Button>
+            <Button
+              onPress={() => handlePrevNextSelection("next")}
+              disabled={selectedCandle === null}
+            >
+              Next
+            </Button>
+            {selectedCandle ? (
+              <Text>{`${selectedIndex + 1} / ${audioData.dataPoints.length}`}</Text>
+            ) : (
+              <Text>{audioData.dataPoints.length} items</Text>
+            )}
+          </View>
+          <Button onPress={handleReset}>Reset</Button>
+        </View>
+      )}
       <GestureHandler
         playing={playing}
         mode={mode}
@@ -346,8 +424,9 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 candleSpace={candleSpace}
                 showDottedLine={showDottedLine}
                 showRuler={showRuler}
+                showSilence={showSilence}
                 mode={mode}
-                dispatch={dispatch}
+                onSelection={handleSelectionChange}
                 startIndex={updateActivePointsResult.current.range.start}
                 translateX={translateX}
                 activePoints={updateActivePointsResult.current.activePoints}
