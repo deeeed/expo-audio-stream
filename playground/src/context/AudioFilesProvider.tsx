@@ -55,6 +55,7 @@ export const AudioFilesProvider = ({
     try {
       if (isWeb) {
         const records = await listIndexedDBAudioFiles();
+        logger.debug(`Found records in indexedDB`, records);
         return records.map((record) => {
           const blob = new Blob([record.arrayBuffer], {
             type: record.metadata.mimeType,

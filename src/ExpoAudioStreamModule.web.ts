@@ -6,6 +6,7 @@ import {
   AudioAnalysisData,
   AudioEventPayload,
   AudioStreamResult,
+  AudioStreamStatus,
   RecordingConfig,
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
@@ -164,7 +165,7 @@ class ExpoAudioStreamWeb extends EventEmitter {
       bitDepth: this.bitDepth,
       channels: this.recordingConfig?.channels ?? 1,
       sampleRate: this.recordingConfig?.sampleRate ?? 44100,
-      duration: this.currentDurationMs,
+      durationMs: this.currentDurationMs,
       size: this.currentSize,
       mimeType: `audio/${this.extension}`,
     };
@@ -200,13 +201,15 @@ class ExpoAudioStreamWeb extends EventEmitter {
 
   // Get current status
   status() {
-    return {
+    const status: AudioStreamStatus = {
       isRecording: this.isRecording,
       isPaused: this.isPaused,
-      duration: Date.now() - this.recordingStartTime,
+      durationMs: Date.now() - this.recordingStartTime,
       size: this.currentSize,
       interval: this.currentInterval,
+      mimeType: `audio/${this.extension}`,
     };
+    return status;
   }
 }
 
