@@ -3,8 +3,7 @@ import { AudioAnalysisData, RecordingConfig } from "./ExpoAudioStream.types";
 import {
   EmitAudioAnalysisFunction,
   EmitAudioEventFunction,
-} from "./ExpoAudioStreamModule.web";
-import { InlineProcessorScrippt } from "./inlineAudioWebWorker";
+} from "./ExpoAudioStream.web";
 import { encodingToBitDepth } from "./utils";
 interface AudioWorkletEvent {
   data: {
@@ -22,7 +21,7 @@ interface AudioFeaturesEvent {
 }
 
 const DEFAULT_WEB_BITDEPTH = 32;
-const DEFAULT_WEB_POINTS_PER_SECOND = 20;
+const DEFAULT_WEB_POINTS_PER_SECOND = 10;
 const DEFAULT_WEB_INTERVAL = 500;
 const DEFAULT_WEB_NUMBER_OF_CHANNELS = 1;
 
@@ -33,6 +32,7 @@ export class WebRecorder {
   private audioWorkletNode!: AudioWorkletNode;
   private featureExtractorWorker: Worker;
   private source: MediaStreamAudioSourceNode;
+  private audioWorkletUrl: string;
   private emitAudioEventCallback: EmitAudioEventFunction;
   private emitAudioAnalysisCallback: EmitAudioAnalysisFunction;
   private config: RecordingConfig;
@@ -47,17 +47,22 @@ export class WebRecorder {
     audioContext,
     source,
     recordingConfig,
+    featuresExtratorUrl,
+    audioWorkletUrl,
     emitAudioEventCallback,
     emitAudioAnalysisCallback,
   }: {
     audioContext: AudioContext;
     source: MediaStreamAudioSourceNode;
     recordingConfig: RecordingConfig;
+    featuresExtratorUrl: string;
+    audioWorkletUrl: string;
     emitAudioEventCallback: EmitAudioEventFunction;
     emitAudioAnalysisCallback: EmitAudioAnalysisFunction;
   }) {
     this.audioContext = audioContext;
     this.source = source;
+    this.audioWorkletUrl = audioWorkletUrl;
     this.emitAudioEventCallback = emitAudioEventCallback;
     this.emitAudioAnalysisCallback = emitAudioAnalysisCallback;
     this.config = recordingConfig;
@@ -87,6 +92,7 @@ export class WebRecorder {
       amplitudeRange: { min: 0, max: 0 },
       dataPoints: [],
       durationMs: 0,
+      samples: 0,
       bitDepth: this.bitDepth,
       numberOfChannels: this.numberOfChannels,
       sampleRate: this.config.sampleRate || this.audioContext.sampleRate,
@@ -99,7 +105,7 @@ export class WebRecorder {
     //TODO: create audio feature extractor from a Blob instead of url since we cannot include the url directly in the library
     // We keep the url during dev and use the blob in production.
     this.featureExtractorWorker = new Worker(
-      new URL("/audio-features-extractor.js", window.location.href),
+      new URL(featuresExtratorUrl, window.location.href),
     );
     this.featureExtractorWorker.onmessage =
       this.handleFeatureExtractorMessage.bind(this);
@@ -107,13 +113,13 @@ export class WebRecorder {
 
   async init() {
     try {
-      const blob = new Blob([InlineProcessorScrippt], {
-        type: "application/javascript",
-      });
-      const url = URL.createObjectURL(blob);
-
+      // TODO: Use the inline processor script for the audio worklet if the script is not available
+      // const blob = new Blob([InlineProcessorScrippt], {
+      //   type: "application/javascript",
+      // });
+      // const url = URL.createObjectURL(blob);
       // await this.audioContext.audioWorklet.addModule(url);
-      await this.audioContext.audioWorklet.addModule("/audioworklet.js");
+      await this.audioContext.audioWorklet.addModule(this.audioWorkletUrl);
 
       this.audioWorkletNode = new AudioWorkletNode(
         this.audioContext,
@@ -297,7 +303,6 @@ export class WebRecorder {
     this.audioWorkletNode.disconnect(this.audioContext.destination); // Disconnect the AudioWorkletNode from the destination
     this.audioWorkletNode.port.postMessage({ command: "pause" });
   }
-
 
   stopMediaStreamTracks() {
     // Stop all audio tracks to stop the recording icon

@@ -46,6 +46,7 @@ export const extractAudioAnalysis = async ({
   numberOfChannels,
   algorithm = "rms",
   features,
+  featuresExtratorUrl = "/audio-features-extractor.js",
 }: ExtractMetadataProps): Promise<AudioAnalysisData> => {
   if (isWeb) {
     if (!arrayBuffer && !fileUri) {
@@ -109,7 +110,7 @@ export const extractAudioAnalysis = async ({
 
     return new Promise((resolve, reject) => {
       const worker = new Worker(
-        new URL("/audio-features-extractor.js", window.location.href),
+        new URL(featuresExtratorUrl, window.location.href),
       );
 
       worker.onmessage = (event) => {
@@ -174,20 +175,9 @@ export const extractWaveform = async ({
   return res;
 };
 
-let createWebWorker: () => Worker;
-
-if (isWeb) {
-  createWebWorker = require("./WebWorker.web").default;
-} else {
-  createWebWorker = () => {
-    throw new Error("Web Workers are not supported on this platform.");
-  };
-}
-
 export {
   AudioRecorderProvider,
   convertPCMToFloat32,
-  createWebWorker,
   getWavFileInfo,
   useAudioRecorder,
   useSharedAudioRecorder,
