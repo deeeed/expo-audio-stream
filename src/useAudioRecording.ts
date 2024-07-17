@@ -67,6 +67,7 @@ const defaultAnalysis: AudioAnalysisData = {
   numberOfChannels: 1,
   durationMs: 0,
   sampleRate: 44100,
+  samples: 0,
   dataPoints: [],
   amplitudeRange: {
     min: Number.POSITIVE_INFINITY,
