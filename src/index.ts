@@ -174,20 +174,9 @@ export const extractWaveform = async ({
   return res;
 };
 
-let createWebWorker: () => Worker;
-
-if (isWeb) {
-  createWebWorker = require("./WebWorker.web").default;
-} else {
-  createWebWorker = () => {
-    throw new Error("Web Workers are not supported on this platform.");
-  };
-}
-
 export {
   AudioRecorderProvider,
   convertPCMToFloat32,
-  createWebWorker,
   getWavFileInfo,
   useAudioRecorder,
   useSharedAudioRecorder,
