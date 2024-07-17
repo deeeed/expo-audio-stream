@@ -75,7 +75,7 @@ export const PlayPage = () => {
 
         const audioAnalysis = await extractAudioAnalysis({
           fileUri: uri,
-          pointsPerSecond: 20,
+          pointsPerSecond: 10,
           algorithm: "rms",
         });
         logger.log(`AudioAnalysis:`, audioAnalysis);
@@ -134,7 +134,7 @@ export const PlayPage = () => {
         sampleRate: wavMetadata.sampleRate,
         numberOfChannels: wavMetadata.numChannels,
         arrayBuffer,
-        pointsPerSecond: 20,
+        pointsPerSecond: 10,
         algorithm: "rms",
       });
       logger.info(`AudioAnalysis:`, audioAnalysis);

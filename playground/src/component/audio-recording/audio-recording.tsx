@@ -93,7 +93,7 @@ export const AudioRecording = ({
   const [selectedDataPoint, setSelectedDataPoint] = useState<DataPoint>();
   const [selectedAnalysisConfig, setSelectedAnalysisConfig] =
     useState<SelectedAnalysisConfig>({
-      pointsPerSecond: 20,
+      pointsPerSecond: 10,
       skipWavHeader: true,
       features: {
         energy: true,
@@ -206,13 +206,6 @@ export const AudioRecording = ({
   }) => {
     logger.log(`Selected data point index=${index}`, dataPoint);
     setSelectedDataPoint(dataPoint);
-  };
-
-  const bytesToHex = (bytes: Uint8Array) => {
-    return bytes.reduce(
-      (str, byte) => str + byte.toString(16).padStart(2, "0") + " ",
-      "",
-    );
   };
 
   useEffect(() => {

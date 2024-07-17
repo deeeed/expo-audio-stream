@@ -4,7 +4,6 @@ import {
   EmitAudioAnalysisFunction,
   EmitAudioEventFunction,
 } from "./ExpoAudioStream.web";
-import { InlineProcessorScrippt } from "./inlineAudioWebWorker";
 import { encodingToBitDepth } from "./utils";
 interface AudioWorkletEvent {
   data: {
@@ -22,7 +21,7 @@ interface AudioFeaturesEvent {
 }
 
 const DEFAULT_WEB_BITDEPTH = 32;
-const DEFAULT_WEB_POINTS_PER_SECOND = 20;
+const DEFAULT_WEB_POINTS_PER_SECOND = 10;
 const DEFAULT_WEB_INTERVAL = 500;
 const DEFAULT_WEB_NUMBER_OF_CHANNELS = 1;
 
@@ -114,11 +113,11 @@ export class WebRecorder {
 
   async init() {
     try {
-      const blob = new Blob([InlineProcessorScrippt], {
-        type: "application/javascript",
-      });
-      const url = URL.createObjectURL(blob);
-
+      // TODO: Use the inline processor script for the audio worklet if the script is not available
+      // const blob = new Blob([InlineProcessorScrippt], {
+      //   type: "application/javascript",
+      // });
+      // const url = URL.createObjectURL(blob);
       // await this.audioContext.audioWorklet.addModule(url);
       await this.audioContext.audioWorklet.addModule(this.audioWorkletUrl);
 

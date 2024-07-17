@@ -86,6 +86,7 @@ function recorderReducer(
   state: RecorderState,
   action: RecorderAction,
 ): RecorderState {
+  console.log(`AAA recorderReducer`, state, action);
   switch (action.type) {
     case "START":
       return {
@@ -296,14 +297,10 @@ export function useAudioRecorder({
         logDebug(`${TAG} Status:`, status);
       }
 
-      if (!status.isRecording) {
-        dispatch({ type: "STOP" });
-      } else {
-        dispatch({
-          type: "UPDATE_STATUS",
-          payload: { durationMs: status.durationMs, size: status.size },
-        });
-      }
+      dispatch({
+        type: "UPDATE_STATUS",
+        payload: { durationMs: status.durationMs, size: status.size },
+      });
     } catch (error) {
       console.error(`${TAG} Error getting status:`, error);
     }
