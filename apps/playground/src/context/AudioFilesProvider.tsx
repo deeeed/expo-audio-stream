@@ -1,5 +1,5 @@
 // playground/src/context/AudioFilesProvider.tsx
-import { AudioStreamResult } from "@siteed/expo-audio-stream";
+import { AudioRecordingResult } from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
 import * as FileSystem from "expo-file-system";
 import React, {
@@ -18,7 +18,7 @@ import { isWeb } from "../utils/utils";
 
 interface AudioFilesContextValue {
   ready: boolean;
-  files: AudioStreamResult[];
+  files: AudioRecordingResult[];
   totalAudioStorageSize: number;
   refreshFiles: () => Promise<void>;
   removeFile: (fileUri: string) => Promise<void>;
@@ -39,13 +39,13 @@ export const AudioFilesProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const [files, setFiles] = useState<AudioStreamResult[]>([]);
+  const [files, setFiles] = useState<AudioRecordingResult[]>([]);
   const [ready, setReady] = useState<boolean>(false);
   const [totalAudioStorageSize, setTotalAudioStorageSize] = useState<number>(0);
   const { logger } = useLogger("AudioFilesProvider");
 
   const calculateTotalAudioStorageSize = useCallback(
-    (files: AudioStreamResult[]) => {
+    (files: AudioRecordingResult[]) => {
       return files.reduce((total, file) => total + file.size, 0);
     },
     [],
@@ -117,7 +117,7 @@ export const AudioFilesProvider = ({
 
         return audioStreamResults.filter(
           (result) => result !== null,
-        ) as AudioStreamResult[];
+        ) as AudioRecordingResult[];
       }
     } catch (error) {
       logger.error(`Failed to list audio files`, error);

@@ -1,8 +1,25 @@
+// packages/expo-audio-stream/src/ExpoAudioStream.types.ts
 import {
   AudioAnalysisData,
-  AudioDataEvent,
   AudioFeaturesOptions,
 } from "./AudioAnalysis/AudioAnalysis.types";
+
+export interface AudioStreamStatus {
+  isRecording: boolean;
+  isPaused: boolean;
+  durationMs: number;
+  size: number;
+  interval: number;
+  mimeType: string;
+}
+
+export interface AudioDataEvent {
+  data: string | ArrayBuffer;
+  position: number;
+  fileUri: string;
+  eventDataSize: number;
+  totalSize: number;
+}
 
 export interface AudioEventPayload {
   encoded?: string;
@@ -16,27 +33,29 @@ export interface AudioEventPayload {
   streamUuid: string;
 }
 
-export interface AudioStreamResult {
+export type EncodingType = "pcm_32bit" | "pcm_16bit" | "pcm_8bit";
+export type SampleRate = 16000 | 44100 | 48000;
+export type BitDepth = 8 | 16 | 32;
+
+export interface AudioRecordingResult {
   fileUri: string;
   webAudioUri?: string;
   durationMs: number;
   size: number;
   mimeType: string;
-  channels?: number;
-  bitDepth?: number;
-  sampleRate?: number;
+  channels: number;
+  bitDepth: BitDepth;
+  sampleRate: SampleRate;
 }
 
-export interface StartAudioStreamResult {
+export interface StartRecordingResult {
   fileUri: string;
   mimeType: string;
   channels?: number;
-  bitDepth?: number;
-  sampleRate?: number;
+  bitDepth?: BitDepth;
+  sampleRate?: SampleRate;
 }
 
-export type EncodingType = "pcm_32bit" | "pcm_16bit" | "pcm_8bit";
-export type SampleRate = 16000 | 44100 | 48000;
 export interface RecordingConfig {
   sampleRate?: SampleRate; // Sample rate for recording
   channels?: 1 | 2; // 1 or 2 (MONO or STEREO)

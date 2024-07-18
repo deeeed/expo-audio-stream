@@ -1,15 +1,14 @@
 // src/ExpoAudioStreamModule.web.ts
 import { EventEmitter } from "expo-modules-core";
 
-import {
-  AudioAnalysisData,
-  AudioStreamStatus,
-} from "./AudioAnalysis/AudioAnalysis.types";
+import { AudioAnalysisData } from "./AudioAnalysis/AudioAnalysis.types";
 import {
   AudioEventPayload,
-  AudioStreamResult,
+  AudioRecordingResult,
+  AudioStreamStatus,
+  BitDepth,
   RecordingConfig,
-  StartAudioStreamResult,
+  StartRecordingResult,
 } from "./ExpoAudioStream.types";
 import { WebRecorder } from "./WebRecorder.web";
 import { getLogger } from "./logger";
@@ -44,7 +43,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
   streamUuid: string | null;
   extension: "webm" | "wav" = "wav"; // Default extension is 'webm'
   recordingConfig?: RecordingConfig;
-  bitDepth: number; // Bit depth of the audio
+  bitDepth: BitDepth; // Bit depth of the audio
   audioWorkletUrl: string;
   featuresExtratorUrl: string;
 
@@ -142,7 +141,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
     this.lastEmittedTime = 0;
     this.streamUuid = Date.now().toString();
     const fileUri = `${this.streamUuid}.${this.extension}`;
-    const streamConfig: StartAudioStreamResult = {
+    const streamConfig: StartRecordingResult = {
       fileUri,
       mimeType: `audio/${this.extension}`,
       bitDepth: this.bitDepth,
@@ -169,14 +168,14 @@ export class ExpoAudioStreamWeb extends EventEmitter {
   }
 
   // Stop recording
-  async stopRecording(): Promise<AudioStreamResult | null> {
+  async stopRecording(): Promise<AudioRecordingResult | null> {
     if (this.customRecorder) {
       const fullPcmBuffer = await this.customRecorder.stop();
       logger.debug(`Stopped recording`, fullPcmBuffer);
     }
     this.isRecording = false;
     this.currentDurationMs = Date.now() - this.recordingStartTime;
-    const result: AudioStreamResult = {
+    const result: AudioRecordingResult = {
       fileUri: `${this.streamUuid}.${this.extension}`,
       bitDepth: this.bitDepth,
       channels: this.recordingConfig?.channels ?? 1,

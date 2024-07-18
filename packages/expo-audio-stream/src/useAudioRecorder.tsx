@@ -4,15 +4,16 @@ import { useCallback, useEffect, useReducer, useRef } from "react";
 
 import {
   AudioAnalysisData,
-  AudioDataEvent,
+  AudioAnalysisEventPayload,
   AudioFeaturesOptions,
-  AudioStreamStatus,
 } from "./AudioAnalysis/AudioAnalysis.types";
 import {
+  AudioDataEvent,
   AudioEventPayload,
-  AudioStreamResult,
+  AudioRecordingResult,
+  AudioStreamStatus,
   RecordingConfig,
-  StartAudioStreamResult,
+  StartRecordingResult,
 } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 import { addAudioAnalysisListener, addAudioEventListener } from "./events";
@@ -46,8 +47,8 @@ export interface UseAudioRecorderProps {
 }
 
 export interface UseAudioRecorderState {
-  startRecording: (_: RecordingConfig) => Promise<StartAudioStreamResult>;
-  stopRecording: () => Promise<AudioStreamResult | null>;
+  startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>;
+  stopRecording: () => Promise<AudioRecordingResult | null>;
   pauseRecording: () => void;
   resumeRecording: () => void;
   isRecording: boolean;
@@ -57,7 +58,7 @@ export interface UseAudioRecorderState {
   analysisData?: AudioAnalysisData;
 }
 
-interface RecorderState {
+interface RecorderReducerState {
   isRecording: boolean;
   isPaused: boolean;
   durationMs: number;
@@ -84,10 +85,10 @@ const defaultAnalysis: AudioAnalysisData = {
   },
 };
 
-function recorderReducer(
-  state: RecorderState,
+function audioRecorderReducer(
+  state: RecorderReducerState,
   action: RecorderAction,
-): RecorderState {
+): RecorderReducerState {
   switch (action.type) {
     case "START":
       return {
@@ -120,17 +121,12 @@ function recorderReducer(
   }
 }
 
-export interface AudioAnalysisEventPayload {
-  analysis: AudioAnalysisData;
-  visualizationDuration: number;
-}
-
 export function useAudioRecorder({
   debug = false,
   audioWorkletUrl,
   featuresExtratorUrl,
 }: UseAudioRecorderProps = {}): UseAudioRecorderState {
-  const [state, dispatch] = useReducer(recorderReducer, {
+  const [state, dispatch] = useReducer(audioRecorderReducer, {
     isRecording: false,
     isPaused: false,
     durationMs: 0,
@@ -316,7 +312,7 @@ export function useAudioRecorder({
         console.warn(`${TAG} onAudioStream is not a function`, onAudioStream);
         onAudioStreamRef.current = null;
       }
-      const startResult: StartAudioStreamResult =
+      const startResult: StartRecordingResult =
         await ExpoAudioStream.startRecording(options);
       dispatch({ type: "START" });
 
@@ -349,7 +345,8 @@ export function useAudioRecorder({
       analysisListenerRef.current = null;
     }
 
-    const stopResult: AudioStreamResult = await ExpoAudioStream.stopRecording();
+    const stopResult: AudioRecordingResult =
+      await ExpoAudioStream.stopRecording();
     onAudioStreamRef.current = null;
     logger.debug(`recording stopped`, stopResult);
     dispatch({ type: "STOP" });

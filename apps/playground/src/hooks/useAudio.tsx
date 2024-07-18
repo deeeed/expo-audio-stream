@@ -2,7 +2,7 @@
 import { useToast } from "@siteed/design-system";
 import {
   AudioAnalysisData,
-  AudioStreamResult,
+  AudioRecordingResult,
   extractAudioAnalysis,
 } from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
@@ -30,7 +30,7 @@ interface UseAudioOptions {
 
 export interface UseAudioProps {
   audioUri?: string | undefined;
-  recording?: AudioStreamResult;
+  recording?: AudioRecordingResult;
   options: UseAudioOptions;
 }
 

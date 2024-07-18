@@ -17,7 +17,7 @@ import { atob } from "react-native-quick-base64";
 
 import {
   AudioAnalysisData,
-  AudioStreamResult,
+  AudioRecordingResult,
   DataPoint,
 } from "@siteed/expo-audio-stream";
 import { useAudio } from "../../hooks/useAudio";
@@ -69,7 +69,7 @@ const getStyles = ({
 };
 
 export interface AudioRecordingProps {
-  recording: AudioStreamResult;
+  recording: AudioRecordingResult;
   audioAnalysis?: AudioAnalysisData;
   actionText?: string;
   visualConfig?: SelectedAudioVisualizerProps;

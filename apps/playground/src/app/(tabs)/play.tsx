@@ -2,7 +2,7 @@
 import { Button, ScreenWrapper, useToast } from "@siteed/design-system";
 import {
   AudioAnalysisData,
-  AudioStreamResult,
+  AudioRecordingResult,
   extractAudioAnalysis,
   getWavFileInfo,
 } from "@siteed/expo-audio-stream";
@@ -39,7 +39,7 @@ export const PlayPage = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [processing, setProcessing] = useState<boolean>(false);
-  const [audioResult, setAudioResult] = useState<AudioStreamResult>();
+  const [audioResult, setAudioResult] = useState<AudioRecordingResult>();
   const { show } = useToast();
 
   const { files, removeFile, refreshFiles } = useAudioFiles();
@@ -212,7 +212,7 @@ export const PlayPage = () => {
 
     logger.info(`saveTofiles wavMetadata:`, wavMetadata);
     // Auto copy to local files
-    const audioResult: AudioStreamResult = {
+    const audioResult: AudioRecordingResult = {
       fileUri: destination,
       mimeType: "audio/wav",
       size: arrayBuffer.byteLength,

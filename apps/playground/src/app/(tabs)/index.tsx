@@ -2,10 +2,10 @@
 import { Button, Picker, ScreenWrapper, useToast } from "@siteed/design-system";
 import {
   AudioDataEvent,
-  AudioStreamResult,
+  AudioRecordingResult,
   RecordingConfig,
   SampleRate,
-  StartAudioStreamResult,
+  StartRecordingResult,
   useSharedAudioRecorder,
   writeWaveHeader,
 } from "@siteed/expo-audio-stream";
@@ -66,13 +66,13 @@ export default function Record() {
   const audioChunks = useRef<string[]>([]);
   const audioChunksBlobs = useRef<ArrayBuffer[]>([]);
   const [streamConfig, setStreamConfig] =
-    useState<StartAudioStreamResult | null>(null);
+    useState<StartRecordingResult | null>(null);
   const [startRecordingConfig, setStartRecordingConfig] =
     useState<RecordingConfig>({
       ...baseRecordingConfig,
       onAudioStream: (a) => onAudioData(a),
     });
-  const [result, setResult] = useState<AudioStreamResult | null>(null);
+  const [result, setResult] = useState<AudioRecordingResult | null>(null);
   const [processing, setProcessing] = useState(false);
   const currentSize = useRef(0);
   const { refreshFiles, removeFile } = useAudioFiles();
@@ -164,7 +164,7 @@ export default function Record() {
       fullWavAudioBuffer.current = null;
       currentSize.current = 0;
       logger.log(`Starting recording...`, startRecordingConfig);
-      const streamConfig: StartAudioStreamResult =
+      const streamConfig: StartRecordingResult =
         await startRecording(startRecordingConfig);
       logger.debug(`Recording started `, streamConfig);
       setStreamConfig(streamConfig);
@@ -320,7 +320,7 @@ export default function Record() {
   );
 
   const handleDelete = useCallback(
-    async (recording: AudioStreamResult) => {
+    async (recording: AudioRecordingResult) => {
       logger.debug(`Deleting recording: ${recording.fileUri}`);
       try {
         await removeFile(recording.fileUri);

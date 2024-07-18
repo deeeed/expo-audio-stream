@@ -1,10 +1,10 @@
-import { EncodingType } from "../ExpoAudioStream.types";
+import { BitDepth, EncodingType } from "../ExpoAudioStream.types";
 
 export const encodingToBitDepth = ({
   encoding,
 }: {
   encoding: EncodingType;
-}): number => {
+}): BitDepth => {
   switch (encoding) {
     case "pcm_32bit":
       return 32;

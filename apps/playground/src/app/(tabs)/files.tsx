@@ -6,7 +6,7 @@ import {
   Skeleton,
   useToast,
 } from "@siteed/design-system";
-import { AudioStreamResult } from "@siteed/expo-audio-stream";
+import { AudioRecordingResult } from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback } from "react";
@@ -37,7 +37,7 @@ const FilesScreen = () => {
   );
 
   const handleDelete = useCallback(
-    async (recording: AudioStreamResult) => {
+    async (recording: AudioRecordingResult) => {
       logger.debug(`Deleting recording: ${recording.fileUri}`);
       try {
         await removeFile(recording.fileUri);

@@ -1,16 +1,17 @@
+// packages/expo-audio-stream/src/AudioRecorder.provider.tsx
 import React, { createContext, useContext } from "react";
 
 import { AudioAnalysisData } from "./AudioAnalysis/AudioAnalysis.types";
 import {
-  AudioStreamResult,
+  AudioRecordingResult,
   RecordingConfig,
-  StartAudioStreamResult,
+  StartRecordingResult,
 } from "./ExpoAudioStream.types";
 import { UseAudioRecorderProps, useAudioRecorder } from "./useAudioRecorder";
 
 export interface UseAudioRecorderState {
-  startRecording: (_: RecordingConfig) => Promise<StartAudioStreamResult>;
-  stopRecording: () => Promise<AudioStreamResult | null>;
+  startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>;
+  stopRecording: () => Promise<AudioRecordingResult | null>;
   pauseRecording: () => void;
   resumeRecording: () => void;
   isRecording: boolean;
