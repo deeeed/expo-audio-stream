@@ -1,4 +1,4 @@
-// src/useAudioRecording.ts
+// src/useAudioRecorder.ts
 import { Platform, Subscription } from "expo-modules-core";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 
@@ -6,15 +6,21 @@ import { addAudioAnalysisListener, addAudioEventListener } from ".";
 import {
   AudioAnalysisData,
   AudioDataEvent,
-  AudioEventPayload,
   AudioFeaturesOptions,
-  AudioStreamResult,
   AudioStreamStatus,
+} from "./AudioAnalysis/AudioAnalysis.types";
+import {
+  AudioEventPayload,
+  AudioStreamResult,
   RecordingConfig,
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
-import { WavFileInfo } from "./utils";
+import { getLogger } from "./logger";
+import { WavFileInfo } from "./utils/getWavFileInfo";
+
+const TAG = "useAudioRecorder";
+const logger = getLogger(TAG);
 
 export interface ExtractMetadataProps {
   fileUri?: string; // should provide either fileUri or arrayBuffer
@@ -113,7 +119,6 @@ function recorderReducer(
       return state;
   }
 }
-const TAG = "[ useAudioRecorder ] ";
 
 export function useAudioRecorder({
   debug = false,
@@ -141,26 +146,13 @@ export function useAudioRecorder({
     ((_: AudioDataEvent) => Promise<void>) | null
   >(null);
 
-  const logDebug = useCallback(
-    (message: string, data?: any) => {
-      if (debug) {
-        if (data) {
-          console.log(`${TAG} ${message}`, data);
-        } else {
-          console.log(`${TAG} ${message}`);
-        }
-      }
-    },
-    [debug],
-  );
-
   const handleAudioAnalysis = useCallback(
     async (analysis: AudioAnalysisData, visualizationDuration: number) => {
       const savedAnalysisData = analysisRef.current || { ...defaultAnalysis };
 
       const maxDuration = visualizationDuration;
 
-      logDebug(
+      logger.debug(
         `[handleAudioAnalysis] Received audio analysis: maxDuration=${maxDuration} analysis.dataPoints=${analysis.dataPoints.length} analysisData.dataPoints=${savedAnalysisData.dataPoints.length}`,
         analysis,
       );
@@ -176,7 +168,7 @@ export function useAudioRecorder({
         analysis.pointsPerSecond || savedAnalysisData.pointsPerSecond;
       const maxDataPoints = (pointsPerSecond * visualizationDuration) / 1000;
 
-      logDebug(
+      logger.debug(
         `[handleAudioAnalysis] Combined data points before trimming: pointsPerSecond=${pointsPerSecond} visualizationDuration=${visualizationDuration} combinedDataPointsLength=${combinedDataPoints.length} vs maxDataPoints=${maxDataPoints}`,
       );
 
@@ -206,7 +198,7 @@ export function useAudioRecorder({
         max: newMax,
       };
 
-      logDebug(
+      logger.debug(
         `[handleAudioAnalysis] Updated analysis data: durationMs=${savedAnalysisData.durationMs}`,
         savedAnalysisData,
       );
@@ -218,83 +210,80 @@ export function useAudioRecorder({
       // need to use spread operator otherwise it doesnt trigger update.
       dispatch({ type: "UPDATE_ANALYSIS", payload: { ...savedAnalysisData } });
     },
-    [logDebug],
+    [dispatch],
   );
 
-  const handleAudioEvent = useCallback(
-    async (eventData: AudioEventPayload) => {
-      const {
-        fileUri,
-        deltaSize,
-        totalSize,
-        lastEmittedSize,
-        position,
-        streamUuid,
-        encoded,
-        mimeType,
-        buffer,
-      } = eventData;
-      logDebug(`[handleAudioEvent] Received audio event:`, {
-        fileUri,
-        deltaSize,
-        totalSize,
-        position,
-        mimeType,
-        lastEmittedSize,
-        streamUuid,
-        encodedLength: encoded?.length,
-      });
-      if (deltaSize === 0) {
-        // Ignore packet with no data
-        return;
-      }
-      try {
-        // Coming from native ( ios / android ) otherwise buffer is set
-        if (Platform.OS !== "web") {
-          // Read the audio file as a base64 string for comparison
-          if (!encoded) {
-            console.error(`${TAG} Encoded audio data is missing`);
-            throw new Error("Encoded audio data is missing");
-          }
-          onAudioStreamRef.current?.({
-            data: encoded,
-            position,
-            fileUri,
-            eventDataSize: deltaSize,
-            totalSize,
-          });
-        } else if (buffer) {
-          // Coming from web
-          const webEvent: AudioDataEvent = {
-            data: buffer,
-            position,
-            fileUri,
-            eventDataSize: deltaSize,
-            totalSize,
-          };
-          onAudioStreamRef.current?.(webEvent);
-          logDebug(
-            `[handleAudioEvent] Audio data sent to onAudioStream`,
-            webEvent,
-          );
+  const handleAudioEvent = useCallback(async (eventData: AudioEventPayload) => {
+    const {
+      fileUri,
+      deltaSize,
+      totalSize,
+      lastEmittedSize,
+      position,
+      streamUuid,
+      encoded,
+      mimeType,
+      buffer,
+    } = eventData;
+    logger.debug(`[handleAudioEvent] Received audio event:`, {
+      fileUri,
+      deltaSize,
+      totalSize,
+      position,
+      mimeType,
+      lastEmittedSize,
+      streamUuid,
+      encodedLength: encoded?.length,
+    });
+    if (deltaSize === 0) {
+      // Ignore packet with no data
+      return;
+    }
+    try {
+      // Coming from native ( ios / android ) otherwise buffer is set
+      if (Platform.OS !== "web") {
+        // Read the audio file as a base64 string for comparison
+        if (!encoded) {
+          console.error(`${TAG} Encoded audio data is missing`);
+          throw new Error("Encoded audio data is missing");
         }
-      } catch (error) {
-        console.error(`${TAG} Error processing audio event:`, error);
+        onAudioStreamRef.current?.({
+          data: encoded,
+          position,
+          fileUri,
+          eventDataSize: deltaSize,
+          totalSize,
+        });
+      } else if (buffer) {
+        // Coming from web
+        const webEvent: AudioDataEvent = {
+          data: buffer,
+          position,
+          fileUri,
+          eventDataSize: deltaSize,
+          totalSize,
+        };
+        onAudioStreamRef.current?.(webEvent);
+        logger.debug(
+          `[handleAudioEvent] Audio data sent to onAudioStream`,
+          webEvent,
+        );
       }
-    },
-    [logDebug],
-  );
+    } catch (error) {
+      console.error(`${TAG} Error processing audio event:`, error);
+    }
+  }, []);
 
   const checkStatus = useCallback(async () => {
     try {
       if (!state.isRecording) {
-        logDebug(`${TAG} Not recording, exiting status check.`);
+        logger.debug(`Not recording, exiting status check.`);
         return;
       }
 
       const status: AudioStreamStatus = ExpoAudioStream.status();
       if (debug) {
-        logDebug(`${TAG} Status:`, status);
+        logger.debug(`Status:`, status);
       }
 
       dispatch({
@@ -304,7 +293,7 @@ export function useAudioRecorder({
     } catch (error) {
       console.error(`${TAG} Error getting status:`, error);
     }
-  }, [state.isRecording, logDebug]);
+  }, [state.isRecording]);
 
   useEffect(() => {
     let interval: ReturnType<typeof setTimeout>;
@@ -319,24 +308,22 @@ export function useAudioRecorder({
   }, [checkStatus, state.isRecording]);
 
   useEffect(() => {
-    logDebug(`Registering audio event listener`);
+    logger.debug(`Registering audio event listener`);
     const subscribeAudio = addAudioEventListener(handleAudioEvent);
 
-    logDebug(`Subscribed to audio event listener and analysis listener`, {
+    logger.debug(`Subscribed to audio event listener and analysis listener`, {
       subscribeAudio,
     });
 
     return () => {
-      logDebug(`Removing audio event listener`);
+      logger.debug(`Removing audio event listener`);
       subscribeAudio.remove();
     };
-  }, [handleAudioEvent, handleAudioAnalysis, logDebug]);
+  }, [handleAudioEvent, handleAudioAnalysis]);
 
   const startRecording = useCallback(
     async (recordingOptions: RecordingConfig) => {
-      if (debug) {
-        logDebug(`start recoding`, recordingOptions);
-      }
+      logger.debug(`start recoding`, recordingOptions);
 
       analysisRef.current = { ...defaultAnalysis }; // Reset analysis data
 
@@ -353,7 +340,7 @@ export function useAudioRecorder({
       dispatch({ type: "START" });
 
       if (enableProcessing) {
-        logDebug(`Enabling audio analysis listener`);
+        logger.debug(`Enabling audio analysis listener`);
         const listener = addAudioAnalysisListener(async (analysisData) => {
           try {
             await handleAudioAnalysis(analysisData, maxRecentDataDuration);
@@ -367,11 +354,11 @@ export function useAudioRecorder({
 
       return startResult;
     },
-    [logDebug],
+    [handleAudioAnalysis, dispatch],
   );
 
   const stopRecording = useCallback(async () => {
-    logDebug(`${TAG} stoping recording`);
+    logger.debug(`stoping recording`);
 
     if (analysisListenerRef.current) {
       analysisListenerRef.current.remove();
@@ -380,24 +367,24 @@ export function useAudioRecorder({
 
     const stopResult: AudioStreamResult = await ExpoAudioStream.stopRecording();
     onAudioStreamRef.current = null;
-    logDebug(`${TAG} recording stopped`, stopResult);
+    logger.debug(`recording stopped`, stopResult);
     dispatch({ type: "STOP" });
     return stopResult;
-  }, [logDebug]);
+  }, [dispatch]);
 
   const pauseRecording = useCallback(async () => {
-    logDebug(`${TAG} pause recording`);
+    logger.debug(`pause recording`);
     const pauseResult = await ExpoAudioStream.pauseRecording();
     dispatch({ type: "PAUSE" });
     return pauseResult;
-  }, [logDebug]);
+  }, [dispatch]);
 
   const resumeRecording = useCallback(async () => {
-    logDebug(`${TAG} resume recording`);
+    logger.debug(`resume recording`);
     const resumeResult = await ExpoAudioStream.resumeRecording();
     dispatch({ type: "RESUME" });
     return resumeResult;
-  }, [logDebug]);
+  }, [dispatch]);
 
   return {
     startRecording,

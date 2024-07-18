@@ -4,7 +4,7 @@ import { Button, Text, View } from "react-native";
 export default function App() {
   const { startRecording, stopRecording, durationMs, size, isRecording } =
     useAudioRecorder({
-      debug: true,
+      debug: false,
       // audioWorkletUrl: "/audioworklet.js",
       // featuresExtratorUrl: "/audio-features-extractor.js",
     });

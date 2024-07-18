@@ -1,17 +1,19 @@
 // src/ExpoAudioStreamModule.web.ts
-import debug from "debug";
 import { EventEmitter } from "expo-modules-core";
 
 import {
   AudioAnalysisData,
+  AudioStreamStatus,
+} from "./AudioAnalysis/AudioAnalysis.types";
+import {
   AudioEventPayload,
   AudioStreamResult,
-  AudioStreamStatus,
   RecordingConfig,
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
 import { WebRecorder } from "./WebRecorder";
-import { encodingToBitDepth } from "./utils";
+import { getLogger } from "./logger";
+import { encodingToBitDepth } from "./utils/encodingToBitDepth";
 
 export interface EmitAudioEventProps {
   data: ArrayBuffer;
@@ -25,8 +27,8 @@ export interface ExpoAudioStreamWebProps {
   featuresExtratorUrl: string;
 }
 
-// const log = debug("expo-audio-stream:useAudioRecording");
-const log = console;
+const logger = getLogger("ExpoAudioStreamWeb");
+
 export class ExpoAudioStreamWeb extends EventEmitter {
   customRecorder: WebRecorder | null;
   audioChunks: ArrayBuffer[];
@@ -118,7 +120,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
         this.lastEmittedSize = this.currentSize;
       },
       emitAudioAnalysisCallback: (audioAnalysisData: AudioAnalysisData) => {
-        console.log(`Emitted AudioAnalysis:`, audioAnalysisData);
+        logger.log(`Emitted AudioAnalysis:`, audioAnalysisData);
         this.emit("AudioAnalysis", audioAnalysisData);
       },
     });
@@ -127,7 +129,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
 
     // // Set a timer to stop recording after 5 seconds
     // setTimeout(() => {
-    //   console.log("AUTO Stopping recording");
+    //   logger.log("AUTO Stopping recording");
     //   this.customRecorder?.stopAndPlay();
     //   this.isRecording = false;
     // }, 3000);
@@ -170,7 +172,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
   async stopRecording(): Promise<AudioStreamResult | null> {
     if (this.customRecorder) {
       const fullPcmBuffer = await this.customRecorder.stop();
-      log.debug(`Stopped recording`, fullPcmBuffer);
+      logger.debug(`Stopped recording`, fullPcmBuffer);
     }
     this.isRecording = false;
     this.currentDurationMs = Date.now() - this.recordingStartTime;

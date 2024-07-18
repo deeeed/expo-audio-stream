@@ -32,9 +32,6 @@
     "open:ios": "open -a \"Xcode\" ../../apps/playground/ios",
     "open:android": "open -a \"Android Studio\" ../../apps/playground/android"
   },
-  "dependencies": {
-    "react-native-quick-base64": "^2.1.2"
-  },
   "devDependencies": {
     "@expo/config-plugins": "^7.9.1",
     "@types/debug": "^4.1.12",

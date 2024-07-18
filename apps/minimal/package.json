@@ -1,13 +1,13 @@
 {
   "name": "minimal",
-  "main": "expo-router/entry",
+  "main": "src/index",
   "version": "1.0.0",
   "scripts": {
     "start": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --dev-client",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
-    "web": "expo start --web",
+    "android": "expo run:android --dev-client",
+    "ios": "expo run:ios --dev-client",
+    "web": "expo start --web --dev-client",
     "test": "jest --watchAll",
     "lint": "expo lint"
   },

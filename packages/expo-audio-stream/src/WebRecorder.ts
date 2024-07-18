@@ -1,12 +1,14 @@
 // src/WebRecorder.ts
-import { AudioAnalysisData, RecordingConfig } from "./ExpoAudioStream.types";
+import { AudioAnalysisData } from "./AudioAnalysis/AudioAnalysis.types";
+import { RecordingConfig } from "./ExpoAudioStream.types";
 import {
   EmitAudioAnalysisFunction,
   EmitAudioEventFunction,
 } from "./ExpoAudioStream.web";
-import { InlineFeaturesExtractor } from "./InlineFeaturesExtractor";
-import { InlineAudioWebWorker } from "./inlineAudioWebWorker";
-import { encodingToBitDepth } from "./utils";
+import { encodingToBitDepth } from "./utils/encodingToBitDepth";
+import { InlineFeaturesExtractor } from "./workers/InlineFeaturesExtractor";
+import { InlineAudioWebWorker } from "./workers/inlineAudioWebWorker";
+
 interface AudioWorkletEvent {
   data: {
     command: string;

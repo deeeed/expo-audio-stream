@@ -47,9 +47,6 @@ config.transformer.getTransformOptions = async () => ({
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === "react" || moduleName === "react-dom") {
-    console.log(
-      `Resolving ${moduleName} to ${path.resolve(projectRoot, `node_modules/${moduleName}`)}`,
-    );
     // Force resolution to the local versions specified in extraNodeModules
     return {
       filePath: path.resolve(
