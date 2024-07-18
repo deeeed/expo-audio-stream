@@ -5,6 +5,7 @@ import {
   EmitAudioAnalysisFunction,
   EmitAudioEventFunction,
 } from "./ExpoAudioStream.web";
+import { getLogger } from "./logger";
 import { encodingToBitDepth } from "./utils/encodingToBitDepth";
 import { InlineFeaturesExtractor } from "./workers/InlineFeaturesExtractor.web";
 import { InlineAudioWebWorker } from "./workers/inlineAudioWebWorker.web";
@@ -29,8 +30,9 @@ const DEFAULT_WEB_POINTS_PER_SECOND = 10;
 const DEFAULT_WEB_INTERVAL = 500;
 const DEFAULT_WEB_NUMBER_OF_CHANNELS = 1;
 
-// const log = debug("expo-audio-stream:WebRecorder");
-const log = console;
+const TAG = "WebRecorder";
+const logger = getLogger(TAG);
+
 export class WebRecorder {
   private audioContext: AudioContext;
   private audioWorkletNode!: AudioWorkletNode;
@@ -76,7 +78,7 @@ export class WebRecorder {
     const audioContextFormat = this.checkAudioContextFormat({
       sampleRate: this.audioContext.sampleRate,
     });
-    log.debug("Initialized WebRecorder with config:", {
+    logger.debug("Initialized WebRecorder with config:", {
       sampleRate: audioContextFormat.sampleRate,
       bitDepth: audioContextFormat.bitDepth,
       numberOfChannels: audioContextFormat.numberOfChannels,
@@ -134,7 +136,7 @@ export class WebRecorder {
           return;
         }
         // Handle the audio blob (e.g., send it to the server or process it further)
-        log.debug("Received audio blob from processor", event);
+        logger.debug("Received audio blob from processor", event);
         const pcmBuffer = event.data.recordedData;
 
         if (!pcmBuffer) {
@@ -154,7 +156,7 @@ export class WebRecorder {
         const otherDuration =
           pcmBuffer.byteLength /
           (otherSampleRate * (this.exportBitDepth / this.numberOfChannels)); // Calculate duration of the current buffer
-        log.debug(
+        logger.debug(
           `sampleRate=${sampleRate} Duration: ${duration} -- otherSampleRate=${otherSampleRate} Other duration: ${otherDuration}`,
         );
 
@@ -181,7 +183,7 @@ export class WebRecorder {
         );
       };
 
-      log.debug(
+      logger.debug(
         `WebRecorder initialized -- recordSampleRate=${this.audioContext.sampleRate}`,
         this.config,
       );
@@ -200,7 +202,7 @@ export class WebRecorder {
       this.source.connect(this.audioWorkletNode);
       this.audioWorkletNode.connect(this.audioContext.destination);
     } catch (error) {
-      log.error("Failed to initialize WebRecorder", error);
+      console.error(`[${TAG}] Failed to initialize WebRecorder`, error);
     }
   }
 
@@ -221,7 +223,10 @@ export class WebRecorder {
         this.initFallbackWorker();
       }
     } catch (error) {
-      log.error("Failed to initialize feature extractor worker", error);
+      console.error(
+        `[${TAG}] Failed to initialize feature extractor worker`,
+        error,
+      );
       this.initFallbackWorker();
     }
   }
@@ -236,16 +241,19 @@ export class WebRecorder {
       this.featureExtractorWorker.onmessage =
         this.handleFeatureExtractorMessage.bind(this);
       this.featureExtractorWorker.onerror = (error) => {
-        log.error("Default Inline worker failed", error);
+        console.error(`[${TAG}] Default Inline worker failed`, error);
       };
-      log.log("Inline worker initialized successfully");
+      logger.log("Inline worker initialized successfully");
     } catch (error) {
-      log.error("Failed to initialize Inline Feature Extractor worker", error);
+      console.error(
+        `[${TAG}] Failed to initialize Inline Feature Extractor worker`,
+        error,
+      );
     }
   }
 
   handleWorkerError(error: ErrorEvent) {
-    log.error("Feature extractor worker error:", error);
+    console.error(`[${TAG}] Feature extractor worker error:`, error);
   }
 
   handleFeatureExtractorMessage(event: AudioFeaturesEvent) {
@@ -271,8 +279,8 @@ export class WebRecorder {
         };
       }
       // Handle the extracted features (e.g., emit an event or log them)
-      log.debug("features event segmentResult", segmentResult);
-      log.debug("features event audioAnalysisData", this.audioAnalysisData);
+      logger.debug("features event segmentResult", segmentResult);
+      logger.debug("features event audioAnalysisData", this.audioAnalysisData);
       this.emitAudioAnalysisCallback(segmentResult);
     }
   }
@@ -316,10 +324,10 @@ export class WebRecorder {
                 rawPCMDataFull.byteLength /
                 (this.audioContext.sampleRate *
                   (this.exportBitDepth / this.numberOfChannels));
-              log.debug(
+              logger.debug(
                 `Received recorded data -- Duration: ${duration} vs ${rawPCMDataFull.byteLength / this.audioContext.sampleRate} seconds`,
               );
-              log.debug(
+              logger.debug(
                 `recordedData.length=${rawPCMDataFull.byteLength} vs transmittedData.length=${this.buffers[0].byteLength}`,
               );
 
@@ -374,9 +382,9 @@ export class WebRecorder {
       bufferSource.buffer = audioBuffer;
       bufferSource.connect(this.audioContext.destination);
       bufferSource.start();
-      log.debug("Playing recorded data", recordedData);
+      logger.debug("Playing recorded data", recordedData);
     } catch (error) {
-      log.error(`Failed to play recorded data:`, error);
+      console.error(`[${TAG}] Failed to play recorded data:`, error);
     }
   }
 

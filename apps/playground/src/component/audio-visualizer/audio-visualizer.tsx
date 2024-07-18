@@ -362,8 +362,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     dispatch({
       type: "UPDATE_STATE",
       state: {
-        selectedCandle: null,
-        selectedIndex: -1,
+        selectedCandle: { ...audioData.dataPoints[0], visible: true },
+        selectedIndex: 0,
         triggerUpdate: Date.now(),
       },
     });

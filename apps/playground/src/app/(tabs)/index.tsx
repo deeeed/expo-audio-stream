@@ -7,7 +7,7 @@ import {
   SampleRate,
   StartRecordingResult,
   useSharedAudioRecorder,
-  writeWaveHeader,
+  writeWavHeader,
 } from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
@@ -65,8 +65,9 @@ export default function Record() {
   const [error, setError] = useState<string | null>(null);
   const audioChunks = useRef<string[]>([]);
   const audioChunksBlobs = useRef<ArrayBuffer[]>([]);
-  const [streamConfig, setStreamConfig] =
-    useState<StartRecordingResult | null>(null);
+  const [streamConfig, setStreamConfig] = useState<StartRecordingResult | null>(
+    null,
+  );
   const [startRecordingConfig, setStartRecordingConfig] =
     useState<RecordingConfig>({
       ...baseRecordingConfig,
@@ -217,7 +218,7 @@ export default function Record() {
           bitDepth: result?.bitDepth || 32,
         };
         logger.debug(`Writing wav header`, wavConfig);
-        const wavBuffer = writeWaveHeader(wavConfig).slice(0);
+        const wavBuffer = writeWavHeader(wavConfig).slice(0);
 
         const blob = new Blob([wavBuffer], { type: result.mimeType });
         const url = URL.createObjectURL(blob);

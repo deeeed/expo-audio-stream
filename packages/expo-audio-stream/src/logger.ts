@@ -1,7 +1,7 @@
 // packages/expo-audio-stream/src/logger.ts
 import createDebug from "debug";
 
-import { namespace } from "./constants";
+import { DEBUG_NAMESPACE } from "./constants";
 
 type ConsoleLike = {
   log: (message: string, ...args: any[]) => void;
@@ -9,10 +9,8 @@ type ConsoleLike = {
 };
 
 export const getLogger = (tag: string): ConsoleLike => {
-  const baseLogger = createDebug(`${namespace}:${tag}`);
+  const baseLogger = createDebug(`${DEBUG_NAMESPACE}:${tag}`);
 
-  baseLogger.enabled = true;
-  baseLogger("Logger initialized");
   return {
     log: (...args: any[]) => baseLogger(args),
     debug: (...args: any[]) => baseLogger(args),
@@ -20,7 +18,7 @@ export const getLogger = (tag: string): ConsoleLike => {
 };
 
 export const enableAllLoggers = () => {
-  createDebug.enable(`${namespace}:*`);
+  createDebug.enable(`${DEBUG_NAMESPACE}:*`);
 };
 
 export const disableAllLoggers = () => {
