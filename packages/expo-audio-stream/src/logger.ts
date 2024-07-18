@@ -4,16 +4,16 @@ import createDebug from "debug";
 import { DEBUG_NAMESPACE } from "./constants";
 
 type ConsoleLike = {
-  log: (message: string, ...args: any[]) => void;
-  debug: (message: string, ...args: any[]) => void;
+  log: (message: string, ...args: unknown[]) => void;
+  debug: (message: string, ...args: unknown[]) => void;
 };
 
 export const getLogger = (tag: string): ConsoleLike => {
   const baseLogger = createDebug(`${DEBUG_NAMESPACE}:${tag}`);
 
   return {
-    log: (...args: any[]) => baseLogger(args),
-    debug: (...args: any[]) => baseLogger(args),
+    log: (...args: unknown[]) => baseLogger(...(args as [unknown])),
+    debug: (...args: unknown[]) => baseLogger(...(args as [unknown])),
   };
 };
 

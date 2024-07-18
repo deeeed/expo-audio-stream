@@ -144,6 +144,9 @@ export default function Record() {
   const {
     startRecording,
     stopRecording,
+    pauseRecording,
+    resumeRecording,
+    isPaused,
     durationMs: duration,
     size,
     isRecording,
@@ -314,6 +317,9 @@ export default function Record() {
       {streamConfig?.channels ? (
         <Text>channels: {streamConfig?.channels}</Text>
       ) : null}
+      <Button mode="contained" onPress={pauseRecording}>
+        Pause Recording
+      </Button>
       <Button mode="contained" onPress={() => handleStopRecording()}>
         Stop Recording
       </Button>
@@ -333,6 +339,37 @@ export default function Record() {
       }
     },
     [removeFile],
+  );
+
+  const renderPaused = () => (
+    <View style={{ gap: 10, display: "flex" }}>
+      {analysisData && (
+        <AudioVisualizer
+          candleSpace={2}
+          candleWidth={5}
+          canvasHeight={200}
+          mode="live"
+          audioData={analysisData}
+        />
+      )}
+      <Text>Duration: {formatDuration(duration)}</Text>
+      <Text>Size: {formatBytes(size)}</Text>
+      {streamConfig?.sampleRate ? (
+        <Text>sampleRate: {streamConfig?.sampleRate}</Text>
+      ) : null}
+      {streamConfig?.bitDepth ? (
+        <Text>bitDepth: {streamConfig?.bitDepth}</Text>
+      ) : null}
+      {streamConfig?.channels ? (
+        <Text>channels: {streamConfig?.channels}</Text>
+      ) : null}
+      <Button mode="contained" onPress={resumeRecording}>
+        Resume Recording
+      </Button>
+      <Button mode="contained" onPress={() => handleStopRecording()}>
+        Stop Recording
+      </Button>
+    </View>
   );
 
   const renderStopped = () => (
@@ -466,8 +503,9 @@ export default function Record() {
           </Button>
         </View>
       )}
-      {isRecording && renderRecording()}
-      {!result && !isRecording && renderStopped()}
+      {isRecording && !isPaused && renderRecording()}
+      {isPaused && renderPaused()}
+      {!result && !isRecording && !isPaused && renderStopped()}
     </ScreenWrapper>
   );
 }

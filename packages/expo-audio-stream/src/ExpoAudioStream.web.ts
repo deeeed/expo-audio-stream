@@ -195,7 +195,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
     }
 
     if (this.customRecorder) {
-      this.customRecorder.stop();
+      this.customRecorder.pause();
     }
     this.isPaused = true;
     this.pausedTime = Date.now();
