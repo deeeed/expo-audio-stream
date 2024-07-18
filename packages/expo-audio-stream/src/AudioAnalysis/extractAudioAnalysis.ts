@@ -6,7 +6,7 @@ import { getLogger } from "../logger";
 import { ExtractMetadataProps } from "../useAudioRecorder";
 import { convertPCMToFloat32 } from "../utils/convertPCMToFloat32";
 import { getWavFileInfo } from "../utils/getWavFileInfo";
-import { InlineFeaturesExtractor } from "../workers/InlineFeaturesExtractor";
+import { InlineFeaturesExtractor } from "../workers/InlineFeaturesExtractor.web";
 
 const logger = getLogger("extractAudioAnalysis");
 

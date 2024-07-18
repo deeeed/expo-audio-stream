@@ -6,8 +6,8 @@ import {
   EmitAudioEventFunction,
 } from "./ExpoAudioStream.web";
 import { encodingToBitDepth } from "./utils/encodingToBitDepth";
-import { InlineFeaturesExtractor } from "./workers/InlineFeaturesExtractor";
-import { InlineAudioWebWorker } from "./workers/inlineAudioWebWorker";
+import { InlineFeaturesExtractor } from "./workers/InlineFeaturesExtractor.web";
+import { InlineAudioWebWorker } from "./workers/inlineAudioWebWorker.web";
 
 interface AudioWorkletEvent {
   data: {
