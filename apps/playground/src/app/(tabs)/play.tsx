@@ -23,7 +23,12 @@ const getStyles = () => {
   return StyleSheet.create({
     container: {
       padding: 10,
+      gap: 10,
       paddingBottom: 80,
+    },
+    actionsContainer: {
+      gap: 10,
+      flexDirection: "row",
     },
     audioPlayer: {},
     button: {},
@@ -130,12 +135,11 @@ export const PlayPage = () => {
       const audioAnalysis = await extractAudioAnalysis({
         fileUri: audioUri,
         bitDepth: wavMetadata.bitDepth,
-        durationMs: wavMetadata.durationMs * 1000,
+        durationMs: wavMetadata.durationMs,
         sampleRate: wavMetadata.sampleRate,
         numberOfChannels: wavMetadata.numChannels,
         arrayBuffer,
         pointsPerSecond: 10,
-        algorithm: "rms",
       });
       logger.info(`AudioAnalysis:`, audioAnalysis);
       setAudioAnalysis(audioAnalysis);
@@ -267,36 +271,32 @@ export const PlayPage = () => {
 
   return (
     <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
-      <Text>Select and play audio file</Text>
-      <Button onPress={pickAudioFile}>Select Audio File</Button>
-      {isWeb && (
-        <Button
-          onPress={async () => {
-            try {
-              await loadWebAudioFile({
-                audioUri: "audio_samples/recorder_jre_lex_watch.wav",
-              });
-            } catch (error) {
-              logger.error("Error loading audio file:", error);
-            }
-          }}
-        >
-          Auto Load
+      <View style={styles.actionsContainer}>
+        <Button onPress={pickAudioFile} mode="contained">
+          Select Audio File
         </Button>
-      )}
+        {isWeb && (
+          <Button
+            mode="contained"
+            onPress={async () => {
+              try {
+                await loadWebAudioFile({
+                  audioUri: "audio_samples/recorder_jre_lex_watch.wav",
+                });
+              } catch (error) {
+                logger.error("Error loading audio file:", error);
+              }
+            }}
+          >
+            Auto Load
+          </Button>
+        )}
+      </View>
       {processing && <ActivityIndicator size="large" />}
       {audioUri && (
-        <View>
+        <View style={{ gap: 10 }}>
           {audioAnalysis && (
             <>
-              <Button
-                onPress={() => {
-                  setCurrentTime(currentTime + 1);
-                }}
-              >
-                Change Time
-              </Button>
-              <Text>currentTime: {currentTime}</Text>
               <AudioVisualizer
                 candleSpace={2}
                 mode="static"
@@ -311,7 +311,7 @@ export const PlayPage = () => {
               />
             </>
           )}
-          <Button onPress={playPauseAudio}>
+          <Button onPress={playPauseAudio} mode="outlined">
             {isPlaying ? "Pause Audio" : "Play Audio"}
           </Button>
         </View>
@@ -319,7 +319,9 @@ export const PlayPage = () => {
       {fileName && (
         <View style={{ marginTop: 20, gap: 10 }}>
           <Text style={styles.audioPlayer}>Selected File: {fileName}</Text>
-          <Button onPress={saveToFiles}>Save to Files</Button>
+          <Button onPress={saveToFiles} mode="contained">
+            Save to Files
+          </Button>
         </View>
       )}
     </ScreenWrapper>
