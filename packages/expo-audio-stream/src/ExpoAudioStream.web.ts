@@ -11,7 +11,7 @@ import {
   RecordingConfig,
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
-import { WebRecorder } from "./WebRecorder";
+import { WebRecorder } from "./WebRecorder.web";
 import { getLogger } from "./logger";
 import { encodingToBitDepth } from "./utils/encodingToBitDepth";
 

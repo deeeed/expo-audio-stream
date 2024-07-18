@@ -44,8 +44,6 @@ export interface RecordingConfig {
   interval?: number; // Interval in milliseconds at which to emit recording data
 
   // Optional parameters for audio processing
-  //TODO remove maxRecentDataDuration - should be replaced by maxDataPoints to 100.
-  maxRecentDataDuration?: number; // Maximum duration of recent data to keep for processing (default is 10.0 seconds)
   enableProcessing?: boolean; // Boolean to enable/disable audio processing (default is false)
   pointsPerSecond?: number; // Number of data points to extract per second of audio (default is 1000)
   algorithm?: string; // Algorithm to use for extraction (default is "rms")

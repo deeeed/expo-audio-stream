@@ -1,18 +1,45 @@
 import React, { createContext, useContext } from "react";
 
+import { AudioAnalysisData } from "./AudioAnalysis/AudioAnalysis.types";
 import {
-  UseAudioRecorderProps,
-  UseAudioRecorderState,
-  useAudioRecorder,
-} from "./useAudioRecorder";
+  AudioStreamResult,
+  RecordingConfig,
+  StartAudioStreamResult,
+} from "./ExpoAudioStream.types";
+import { UseAudioRecorderProps, useAudioRecorder } from "./useAudioRecorder";
 
-const AudioRecorderContext = createContext<UseAudioRecorderState>({
+export interface UseAudioRecorderState {
+  startRecording: (_: RecordingConfig) => Promise<StartAudioStreamResult>;
+  stopRecording: () => Promise<AudioStreamResult | null>;
+  pauseRecording: () => void;
+  resumeRecording: () => void;
+  isRecording: boolean;
+  isPaused: boolean;
+  durationMs: number; // Duration of the recording
+  size: number; // Size in bytes of the recorded audio
+  analysisData?: AudioAnalysisData;
+}
+
+const initContext: UseAudioRecorderState = {
   isRecording: false,
   isPaused: false,
   durationMs: 0,
   size: 0,
-  // other properties filled on useAudioRecorder
-} as UseAudioRecorderState);
+  startRecording: async () => {
+    throw new Error("AudioRecorderProvider not found");
+  },
+  stopRecording: async () => {
+    throw new Error("AudioRecorderProvider not found");
+  },
+  pauseRecording: () => {
+    throw new Error("AudioRecorderProvider not found");
+  },
+  resumeRecording: () => {
+    throw new Error("AudioRecorderProvider not found");
+  },
+};
+
+const AudioRecorderContext = createContext<UseAudioRecorderState>(initContext);
 
 interface AudioRecorderProviderProps {
   children: React.ReactNode;

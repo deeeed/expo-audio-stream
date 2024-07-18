@@ -2,7 +2,6 @@
 import { Platform, Subscription } from "expo-modules-core";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 
-import { addAudioAnalysisListener, addAudioEventListener } from ".";
 import {
   AudioAnalysisData,
   AudioDataEvent,
@@ -16,7 +15,8 @@ import {
   StartAudioStreamResult,
 } from "./ExpoAudioStream.types";
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
-import { getLogger } from "./logger";
+import { addAudioAnalysisListener, addAudioEventListener } from "./events";
+import { disableAllLoggers, enableAllLoggers, getLogger } from "./logger";
 import { WavFileInfo } from "./utils/getWavFileInfo";
 
 const TAG = "useAudioRecorder";
@@ -71,7 +71,7 @@ type RecorderAction =
   | { type: "UPDATE_ANALYSIS"; payload: AudioAnalysisData };
 
 const defaultAnalysis: AudioAnalysisData = {
-  pointsPerSecond: 20,
+  pointsPerSecond: 10,
   bitDepth: 32,
   numberOfChannels: 1,
   durationMs: 0,
@@ -120,6 +120,11 @@ function recorderReducer(
   }
 }
 
+export interface AudioAnalysisEventPayload {
+  analysis: AudioAnalysisData;
+  visualizationDuration: number;
+}
+
 export function useAudioRecorder({
   debug = false,
   audioWorkletUrl,
@@ -147,7 +152,7 @@ export function useAudioRecorder({
   >(null);
 
   const handleAudioAnalysis = useCallback(
-    async (analysis: AudioAnalysisData, visualizationDuration: number) => {
+    async ({ analysis, visualizationDuration }: AudioAnalysisEventPayload) => {
       const savedAnalysisData = analysisRef.current || { ...defaultAnalysis };
 
       const maxDuration = visualizationDuration;
@@ -295,32 +300,6 @@ export function useAudioRecorder({
     }
   }, [state.isRecording]);
 
-  useEffect(() => {
-    let interval: ReturnType<typeof setTimeout>;
-    if (state.isRecording) {
-      interval = setInterval(checkStatus, 1000);
-    }
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [checkStatus, state.isRecording]);
-
-  useEffect(() => {
-    logger.debug(`Registering audio event listener`);
-    const subscribeAudio = addAudioEventListener(handleAudioEvent);
-
-    logger.debug(`Subscribed to audio event listener and analysis listener`, {
-      subscribeAudio,
-    });
-
-    return () => {
-      logger.debug(`Removing audio event listener`);
-      subscribeAudio.remove();
-    };
-  }, [handleAudioEvent, handleAudioAnalysis]);
-
   const startRecording = useCallback(
     async (recordingOptions: RecordingConfig) => {
       logger.debug(`start recoding`, recordingOptions);
@@ -328,7 +307,9 @@ export function useAudioRecorder({
       analysisRef.current = { ...defaultAnalysis }; // Reset analysis data
 
       const { onAudioStream, ...options } = recordingOptions;
-      const { maxRecentDataDuration = 10000, enableProcessing } = options;
+      const { enableProcessing } = options;
+
+      const maxRecentDataDuration = 10000; // TODO compute maxRecentDataDuration based on screen dimensions
       if (typeof onAudioStream === "function") {
         onAudioStreamRef.current = onAudioStream;
       } else {
@@ -343,7 +324,10 @@ export function useAudioRecorder({
         logger.debug(`Enabling audio analysis listener`);
         const listener = addAudioAnalysisListener(async (analysisData) => {
           try {
-            await handleAudioAnalysis(analysisData, maxRecentDataDuration);
+            await handleAudioAnalysis({
+              analysis: analysisData,
+              visualizationDuration: maxRecentDataDuration,
+            });
           } catch (error) {
             console.warn(`${TAG} Error processing audio analysis:`, error);
           }
@@ -385,6 +369,40 @@ export function useAudioRecorder({
     dispatch({ type: "RESUME" });
     return resumeResult;
   }, [dispatch]);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setTimeout>;
+    if (state.isRecording) {
+      interval = setInterval(checkStatus, 1000);
+    }
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [checkStatus, state.isRecording]);
+
+  useEffect(() => {
+    logger.debug(`Registering audio event listener`);
+    const subscribeAudio = addAudioEventListener(handleAudioEvent);
+
+    logger.debug(`Subscribed to audio event listener and analysis listener`, {
+      subscribeAudio,
+    });
+
+    return () => {
+      logger.debug(`Removing audio event listener`);
+      subscribeAudio.remove();
+    };
+  }, [handleAudioEvent, handleAudioAnalysis]);
+
+  useEffect(() => {
+    if (debug) {
+      enableAllLoggers();
+    } else {
+      disableAllLoggers();
+    }
+  }, [debug]);
 
   return {
     startRecording,

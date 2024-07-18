@@ -5,18 +5,17 @@ export default function App() {
   const { startRecording, stopRecording, durationMs, size, isRecording } =
     useAudioRecorder({
       debug: false,
-      // audioWorkletUrl: "/audioworklet.js",
-      // featuresExtratorUrl: "/audio-features-extractor.js",
     });
 
   const handleStart = async () => {
-    const fileUri = await startRecording({
+    const startResult = await startRecording({
       interval: 500,
       enableProcessing: false,
       onAudioStream: async (_) => {
         console.log(`onAudioStream`, _);
       },
     });
+    return startResult;
   };
 
   const handleStop = async () => {
