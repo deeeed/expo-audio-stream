@@ -20,6 +20,7 @@ const modules = [
   "react-native-safe-area-context",
   "react-native-reanimated",
   "@siteed/expo-audio-ui",
+  "react-native-gesture-handler",
   "@siteed/expo-audio-stream",
   "react-dom",
   "react",

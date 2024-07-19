@@ -6,7 +6,6 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Tabs>
         <Tabs.Screen name="index" />
-        <Tabs.Screen name="withui" />
       </Tabs>
     </GestureHandlerRootView>
   );
