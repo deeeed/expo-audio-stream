@@ -1,5 +1,4 @@
 import { DataPoint } from "@siteed/expo-audio-stream";
-import { getLogger } from "@siteed/react-native-logger";
 import React, { useRef } from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SharedValue, runOnJS } from "react-native-reanimated";
@@ -19,8 +18,6 @@ interface GestureHandlerProps {
   onDragEnd: (params: { newTranslateX: number }) => void;
   children: React.ReactNode;
 }
-
-const logger = getLogger("GestureHandler");
 
 export const GestureHandler: React.FC<GestureHandlerProps> = ({
   playing,
@@ -67,20 +64,19 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
 
     const tapGesture = Gesture.Tap()
     .onEnd((event) => {
-      const { x, y } = event;
+      if(!onSelection) {
+        return;
+      }
+
+      const { x } = event;
       if (x < 0 || x > canvasWidth) {
-        logger.debug(`Touch started outside the canvas: (${x}, ${y})`);
         return;
       }
 
       const plotStart = canvasWidth / 2 + translateX.value;
       const plotEnd = plotStart + totalCandleWidth;
 
-      logger.debug(
-        `TouchEnd: ${x} canvasWidth=${canvasWidth} [${plotStart}, ${plotEnd}]`,
-      );
       if (x < plotStart || x > plotEnd) {
-        logger.debug(`NOT WITHIN RANGE ${x} [${plotStart}, ${plotEnd}]`);
         return;
       }
 
@@ -88,13 +84,11 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
       const index = Math.floor(adjustedX / (candleWidth + candleSpace));
       const candle = activePoints[index];
       if (!candle) {
-        logger.log(`No candle found at index: ${index}`);
         return;
       }
-      logger.debug(`Index: ${index} AdjustedX: ${adjustedX}`);
 
       // Dispatch action to update the selected candle
-      onSelection?.(candle);
+        runOnJS(onSelection)(candle);
     });
 
   const composedGesture = Gesture.Race(panGesture, tapGesture);

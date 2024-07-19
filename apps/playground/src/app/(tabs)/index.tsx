@@ -7,7 +7,6 @@ import {
   SampleRate,
   StartRecordingResult,
   useSharedAudioRecorder,
-  writeWavHeader,
 } from "@siteed/expo-audio-stream";
 import { AudioVisualizer } from "@siteed/expo-audio-ui";
 import { useLogger } from "@siteed/react-native-logger";
@@ -30,22 +29,6 @@ if (isWeb) {
 }
 
 const LIVE_WAVE_FORM_CHUNKS_LENGTH = 5000;
-
-const concatenateBuffers = (buffers: ArrayBuffer[]): ArrayBuffer => {
-  // Filter out any undefined or null buffers
-  const validBuffers = buffers.filter((buffer) => buffer);
-  const totalLength = validBuffers.reduce(
-    (sum, buffer) => sum + buffer.byteLength,
-    0,
-  );
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const buffer of validBuffers) {
-    result.set(new Uint8Array(buffer), offset);
-    offset += buffer.byteLength;
-  }
-  return result.buffer;
-};
 
 const baseRecordingConfig: RecordingConfig = {
   interval: 500,
@@ -79,9 +62,6 @@ export default function Record() {
   const { refreshFiles, removeFile } = useAudioFiles();
   const { show } = useToast();
   const router = useRouter();
-
-  // Ref for full WAV audio buffer
-  const fullWavAudioBuffer = useRef<ArrayBuffer | null>(null);
 
   // Prevent displaying the entiere audio in the live visualization
   const liveWavFormBufferIndex = useRef(0);
@@ -125,12 +105,6 @@ export default function Record() {
       } else if (data instanceof ArrayBuffer) {
         audioChunksBlobs.current.push(data);
 
-        // Store the arrayBuffer
-        fullWavAudioBuffer.current = concatenateBuffers([
-          ...(fullWavAudioBuffer.current ? [fullWavAudioBuffer.current] : []),
-          data,
-        ]);
-
         // Update the circular buffer for visualization
         liveWavFormBuffer.current[liveWavFormBufferIndex.current] = data;
         liveWavFormBufferIndex.current =
@@ -165,7 +139,6 @@ export default function Record() {
       audioChunksBlobs.current = [];
       liveWavFormBuffer.current = new Array(LIVE_WAVE_FORM_CHUNKS_LENGTH);
       liveWavFormBufferIndex.current = 0;
-      fullWavAudioBuffer.current = null;
       currentSize.current = 0;
       logger.log(`Starting recording...`, startRecordingConfig);
       const streamConfig: StartRecordingResult =
@@ -187,105 +160,40 @@ export default function Record() {
     try {
       setProcessing(true);
       const result = await stopRecording();
-      // TODO: compare accumulated audio chunks with the result
       logger.debug(`Recording stopped. `, result);
 
       if (!result) {
-        logger.warn(`No result found`);
+        show({ type: "error", message: "No audio data found" });
         return;
       }
 
-      if (!isWeb && result) {
-        try {
-          setResult(result);
-          const jsonPath = result.fileUri.replace(/\.wav$/, ".json"); // Assuming fileUri has a .wav extension
-          await FileSystem.writeAsStringAsync(
-            jsonPath,
-            JSON.stringify(result, null, 2),
-            {
-              encoding: FileSystem.EncodingType.UTF8,
-            },
-          );
-          logger.log(`Metadata saved to ${jsonPath}`);
-          refreshFiles();
-        } catch (error) {
-          logger.error(`Error saving metadata`, error);
-        }
-      }
-
-      if (isWeb && fullWavAudioBuffer.current) {
-        const wavConfig = {
-          buffer: fullWavAudioBuffer.current.slice(0),
-          sampleRate: result?.sampleRate || 44100,
-          numChannels: result?.channels || 1,
-          bitDepth: result?.bitDepth || 32,
-        };
-        logger.debug(`Writing wav header`, wavConfig);
-        const wavBuffer = writeWavHeader(wavConfig).slice(0);
-
-        const blob = new Blob([wavBuffer], { type: result.mimeType });
-        const url = URL.createObjectURL(blob);
-        console.log(`Generated URL: ${url}`);
-
+      if (isWeb) {
         // Store the audio file and metadata in IndexedDB
         await storeAudioFile({
           fileName: result.filename,
-          arrayBuffer: wavBuffer,
+          arrayBuffer: result.wavPCMData as ArrayBuffer,
           metadata: result,
         });
 
         setResult(result);
 
         await refreshFiles();
-
-        // Go to the newly saved page.
-        router.push(`(recordings)/${result.fileUri.split("/").pop()}`);
-
-        return;
+      } else {
+        setResult(result);
+        const jsonPath = result.fileUri.replace(/\.wav$/, ".json"); // Assuming fileUri has a .wav extension
+        await FileSystem.writeAsStringAsync(
+          jsonPath,
+          JSON.stringify(result, null, 2),
+          {
+            encoding: FileSystem.EncodingType.UTF8,
+          },
+        );
+        logger.log(`Metadata saved to ${jsonPath}`);
+        refreshFiles();
       }
 
-      // Verify data integrity to make sure we streamed the correct data
-      if (audioChunks.current.length > 0) {
-        try {
-          // Remove padding, concatenate, then re-add padding if necessary
-          const concatenatedBase64Chunks = audioChunks.current
-            .map((chunk) => chunk.replace(/=*$/, ""))
-            .join("");
-          const padding = (4 - (concatenatedBase64Chunks.length % 4)) % 4;
-          const paddedBase64Chunks =
-            concatenatedBase64Chunks + "=".repeat(padding);
-
-          if (!isBase64(paddedBase64Chunks)) {
-            // FIXME: ios concatenation seems to sometime fail -- investigate
-            logger.warn(`Invalid base64 data`);
-            return;
-          }
-          const binaryChunkData = atob(paddedBase64Chunks);
-
-          // Read the equivalent length of data from the file, skipping the header
-          const fileDataInBase64 = await FileSystem.readAsStringAsync(
-            result.fileUri,
-            {
-              encoding: FileSystem.EncodingType.Base64,
-              position: 0,
-              length: 5000,
-            },
-          );
-          const binaryFileData = atob(fileDataInBase64);
-
-          // Ignore first 44bytes (header) and compare the next 500 bytes
-          const binaryChunkDataBase64 = btoa(binaryChunkData.slice(44, 500));
-          const binaryFileDataBase64 = btoa(binaryFileData.slice(44, 500));
-          // Perform binary comparison
-          logger.log(`Binary data from chunks:`, binaryChunkDataBase64);
-          logger.log(`Binary data from file:`, binaryFileDataBase64);
-
-          const isEqual = binaryChunkDataBase64 === binaryFileDataBase64;
-          logger.log(`Comparison result:`, isEqual);
-        } catch (error) {
-          logger.error(`Error while comparing audio data`, error);
-        }
-      }
+      // Go to the newly saved page.
+      router.push(`(recordings)/${result.filename}`);
     } catch (error) {
       logger.error(`Error while stopping recording`, error);
     } finally {

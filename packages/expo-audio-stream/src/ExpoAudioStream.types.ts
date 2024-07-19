@@ -46,7 +46,7 @@ export interface AudioRecordingResult {
   channels: number;
   bitDepth: BitDepth;
   sampleRate: SampleRate;
-  wavPCMData: ArrayBuffer | string; // Full PCM data for the recording in WAV format (base64 string or ArrayBuffer)
+  wavPCMData?: ArrayBuffer; // Full PCM data for the recording in WAV format (only on web, for native use the fileUri)
   analysisData?: AudioAnalysisData; // Analysis data for the recording depending on enableProcessing flag
 }
 

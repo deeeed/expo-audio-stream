@@ -1,9 +1,13 @@
-import { Stack } from "expo-router";
+import { Tabs } from "expo-router";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 export default function RootLayout() {
   return (
-    <Stack>
-      <Stack.Screen name="index" />
-    </Stack>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Tabs>
+        <Tabs.Screen name="index" />
+        <Tabs.Screen name="withui" />
+      </Tabs>
+    </GestureHandlerRootView>
   );
 }

@@ -44,7 +44,6 @@ export const PlayPage = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [processing, setProcessing] = useState<boolean>(false);
-  const [audioResult, setAudioResult] = useState<AudioRecordingResult>();
   const { show } = useToast();
 
   const { files, removeFile, refreshFiles } = useAudioFiles();
@@ -260,7 +259,7 @@ export const PlayPage = () => {
       await removeFile(audioResult.fileUri);
       throw error;
     }
-  }, [audioResult, files, fileName, audioUri, logger, refreshFiles, show]);
+  }, [files, fileName, audioUri, logger, refreshFiles, show]);
 
   useEffect(() => {
     return sound

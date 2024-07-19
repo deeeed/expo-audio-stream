@@ -2,6 +2,7 @@
 
 struct RecordingResult {
     var fileUri: String
+    var filename: String
     var mimeType: String
     var duration: Int64
     var size: Int64

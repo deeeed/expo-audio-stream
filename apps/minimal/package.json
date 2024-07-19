@@ -5,9 +5,9 @@
   "scripts": {
     "start": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --dev-client",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo run:android --dev-client",
-    "ios": "expo run:ios --dev-client",
-    "web": "expo start --web --dev-client",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint"
   },
@@ -18,7 +18,9 @@
     "@expo/vector-icons": "^14.0.2",
     "@react-navigation/native": "^6.0.2",
     "@siteed/expo-audio-stream": "workspace:^",
+    "@siteed/expo-audio-ui": "workspace:^",
     "expo": "^51.0.21",
+    "expo-av": "~14.0.6",
     "expo-constants": "~16.0.2",
     "expo-font": "~12.0.9",
     "expo-linking": "~6.3.1",
@@ -46,5 +48,10 @@
     "react-test-renderer": "18.2.0",
     "typescript": "~5.3.3"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "autolinking": {
+      "nativeModulesDir": "../../packages/expo-audio-stream/"
+    }
+  }
 }

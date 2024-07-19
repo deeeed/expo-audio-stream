@@ -35,29 +35,30 @@ export default function RootLayout() {
             <AudioFilesProvider>
               <Stack
                 screenOptions={{
-                  headerLeft: ({ label, canGoBack, tintColor }) => {
-                    if (canGoBack) {
-                      return (
-                        <MaterialIcons
-                          name="arrow-back-ios"
-                          size={24}
-                          color={tintColor}
-                          onPress={() => router.back()}
-                          style={{ paddingRight: 10, paddingLeft: 10 }}
-                        />
-                      );
-                    } else {
-                      return (
-                        <MaterialIcons
-                          name="home"
-                          size={24}
-                          color={tintColor}
-                          onPress={() => router.navigate("/")}
-                          style={{ paddingRight: 10, paddingLeft: 10 }}
-                        />
-                      );
-                    }
-                  },
+                  headerBackButtonMenuEnabled: false,
+                  // headerLeft: ({ label, canGoBack, tintColor }) => {
+                  //   if (canGoBack) {
+                  //     return (
+                  //       <MaterialIcons
+                  //         name="arrow-back-ios"
+                  //         size={24}
+                  //         color={tintColor}
+                  //         onPress={() => router.back()}
+                  //         style={{ paddingRight: 10, paddingLeft: 10 }}
+                  //       />
+                  //     );
+                  //   } else {
+                  //     return (
+                  //       <MaterialIcons
+                  //         name="home"
+                  //         size={24}
+                  //         color={tintColor}
+                  //         onPress={() => router.navigate("/")}
+                  //         style={{ paddingRight: 10, paddingLeft: 10 }}
+                  //       />
+                  //     );
+                  //   }
+                  // },
                 }}
               >
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

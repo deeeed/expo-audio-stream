@@ -6,13 +6,7 @@ import {
   SkFont,
   useFont,
 } from "@shopify/react-native-skia";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   LayoutChangeEvent,
   StyleSheet,
@@ -121,7 +115,6 @@ const Minimal = () => {
   );
   const translateX = useSharedValue(0);
   const [wavepoints, setWavepoints] = useState(generateWaveform(20000)); // Generate random waveform values
-  const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"static" | "live">("static"); // live is always making the waveform on the right
 
   const maxDisplayedItems = Math.ceil(
@@ -278,21 +271,6 @@ const Minimal = () => {
     setWavepoints([...wavepoints, ...generateWaveform(1)]);
   };
 
-  const { min, max } = useMemo(() => {
-    // extract min and max from wavepoint in a single pass
-    let min = Infinity;
-    let max = -Infinity;
-    wavepoints.forEach((amplitude) => {
-      if (amplitude < min) {
-        min = amplitude;
-      }
-      if (amplitude > max) {
-        max = amplitude;
-      }
-    });
-    return { min, max };
-  }, [wavepoints]);
-
   if (!font) {
     return null;
   }
@@ -332,6 +310,7 @@ const Minimal = () => {
           <Text>canvasWidth: {canvasWidth}</Text>
           <Text>MaxDisplayedItems: {maxDisplayedItems}</Text>
           <Text>StartIndex: {startIndex}</Text>
+          <Text>counter: {counter}</Text>
         </View>
         <GestureDetector gesture={panGesture}>
           <View style={styles.canvasContainer}>

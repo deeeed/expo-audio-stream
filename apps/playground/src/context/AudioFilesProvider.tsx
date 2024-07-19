@@ -126,36 +126,51 @@ export const AudioFilesProvider = ({
     }
   }, []);
 
-  const deleteAudioAndMetadata = async (audioUri: string) => {
-    if (isWeb) {
-      await deleteAudioFile({ fileName: audioUri });
-    } else {
-      const jsonPath = audioUri.replace(/\.wav$/, ".json");
-      // logger.debug(`Deleting audio and metadata for ${audioUri}`);
-      // check if exists before deletion
-      if (!(await FileSystem.getInfoAsync(audioUri))) {
-        logger.error(`Audio file does not exist at ${audioUri}`);
-      } else {
-        await FileSystem.deleteAsync(audioUri);
-      }
+  const deleteAudioAndMetadata = useCallback(
+    async (audioUriORfilename: string) => {
+      try {
+        if (isWeb) {
+          await deleteAudioFile({ fileName: audioUriORfilename });
+        } else {
+          const jsonPath = audioUriORfilename.replace(/\.wav$/, ".json");
 
-      logger.debug(`Deleted audio for ${jsonPath}`);
-      if (!(await FileSystem.getInfoAsync(jsonPath))) {
-        logger.error(`Metadata file does not exist at ${jsonPath}`);
-      } else {
-        await FileSystem.deleteAsync(jsonPath);
+          const audioExists = await FileSystem.getInfoAsync(audioUriORfilename);
+          if (audioExists.exists) {
+            await FileSystem.deleteAsync(audioUriORfilename);
+          } else {
+            logger.error(`Audio file does not exist at ${audioUriORfilename}`);
+          }
+
+          const jsonExists = await FileSystem.getInfoAsync(jsonPath);
+          if (jsonExists.exists) {
+            await FileSystem.deleteAsync(jsonPath);
+          } else {
+            logger.error(`Metadata file does not exist at ${jsonPath}`);
+          }
+
+          logger.debug(`Deleted audio and metadata for ${audioUriORfilename}`);
+        }
+      } catch (error) {
+        logger.error(
+          `Failed to delete audio and metadata for ${audioUriORfilename}`,
+          error,
+        );
       }
-      logger.debug(`Deleted audio and metadata for ${audioUri}`);
-    }
-  };
+    },
+    [logger, deleteAudioFile],
+  );
 
   const refreshFiles = useCallback(async () => {
-    const loadedFiles = (await listAudioFiles()) || [];
-    setFiles(loadedFiles);
-  }, []);
+    try {
+      const loadedFiles = (await listAudioFiles()) || [];
+      setFiles(loadedFiles);
+    } catch (error) {
+      logger.error(`Failed to refresh files`, error);
+    }
+  }, [listAudioFiles]);
 
-  const removeFile = useCallback(async (fileUri: string) => {
-    await deleteAudioAndMetadata(fileUri);
+  const removeFile = useCallback(async (fileUriORfilename: string) => {
+    await deleteAudioAndMetadata(fileUriORfilename);
     await refreshFiles();
   }, []);
 
@@ -164,9 +179,16 @@ export const AudioFilesProvider = ({
       if (isWeb) {
         await listIndexedDBAudioFiles().then((records) => {
           return Promise.all(
-            records.map((record) =>
-              deleteAudioFile({ fileName: record.metadata.fileUri }),
-            ),
+            records.map(async (record) => {
+              try {
+                await deleteAudioFile({ fileName: record.metadata.filename });
+              } catch (error) {
+                logger.error(
+                  `Failed to delete file: ${record.metadata.fileUri}`,
+                  error,
+                );
+              }
+            }),
           );
         });
         setFiles([]);
@@ -202,7 +224,7 @@ export const AudioFilesProvider = ({
 
   useEffect(() => {
     setTotalAudioStorageSize(calculateTotalAudioStorageSize(files));
-  }, [files]);
+  }, [files, calculateTotalAudioStorageSize]);
 
   return (
     <AudioFilesContext.Provider

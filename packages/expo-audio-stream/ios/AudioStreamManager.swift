@@ -379,6 +379,7 @@ class AudioStreamManager: NSObject {
             
             let result = RecordingResult(
                 fileUri: fileURL.absoluteString,
+                filename: fileURL.lastPathComponent,
                 mimeType: mimeType,
                 duration: duration,
                 size: fileSize,

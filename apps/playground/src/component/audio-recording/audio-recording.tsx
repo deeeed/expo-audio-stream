@@ -248,15 +248,10 @@ export const AudioRecording = ({
       <Text style={[styles.detailText, { fontWeight: "bold" }]}>
         {recording.filename}
       </Text>
-      <Text style={[styles.detailText, { fontWeight: "bold" }]}>
-        {recording.fileUri}
-      </Text>
       <Text style={styles.detailText}>
         Duration: {formatDuration(recording.durationMs)}
       </Text>
-      <Text style={styles.detailText}>
-        Size: {formatBytes(recording.size)} ({recording.size})
-      </Text>
+      <Text style={styles.detailText}>Size: {formatBytes(recording.size)}</Text>
       <Text style={styles.detailText}>Format: {recording.mimeType}</Text>
 
       {recording.sampleRate ? (
@@ -273,7 +268,9 @@ export const AudioRecording = ({
         <Text style={styles.detailText}>Bit Depth: {recording.bitDepth}</Text>
       ) : null}
 
-      <Text style={[styles.positionText]}>Position: {position / 1000}</Text>
+      <Text style={[styles.positionText]}>
+        Position: {(position / 1000).toFixed(2)}
+      </Text>
 
       {processing && <ActivityIndicator />}
 

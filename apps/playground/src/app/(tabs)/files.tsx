@@ -103,8 +103,7 @@ const FilesScreen = () => {
           onDelete={() => handleDelete(item)}
           onActionPress={() => {
             // extract filename from uri
-            const filename = item.fileUri.split("/").pop();
-            router.push(`(recordings)/${filename}`);
+            router.push(`(recordings)/${item.filename}`);
           }}
           actionText="Visualize"
         />

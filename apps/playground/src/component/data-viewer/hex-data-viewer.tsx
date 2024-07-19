@@ -1,13 +1,6 @@
 import { useTheme } from "@siteed/design-system";
 import React, { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Switch,
-  TouchableOpacity,
-  Pressable,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SegmentedButtons } from "react-native-paper";
 
 interface HexDataViewerProps {

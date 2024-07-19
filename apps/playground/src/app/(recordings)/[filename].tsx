@@ -44,9 +44,7 @@ export const FullAudioViewerPage = () => {
   const { files, removeFile } = useAudioFiles();
 
   const { filename } = local;
-  const selectedFile = files.find(
-    (file) => file.fileUri.split("/").pop() === filename,
-  );
+  const selectedFile = files.find((file) => file.filename === filename);
   const navigator = useNavigation();
 
   const { openDrawer } = useBottomModal();
