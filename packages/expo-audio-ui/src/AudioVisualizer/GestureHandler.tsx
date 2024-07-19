@@ -3,6 +3,8 @@ import React, { useRef } from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SharedValue, runOnJS } from "react-native-reanimated";
 import { CandleData } from "./AudioVisualiser.types";
+import { isWeb } from "../constants";
+import { Platform } from "react-native";
 
 interface GestureHandlerProps {
   playing: boolean;
@@ -91,7 +93,11 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
         runOnJS(onSelection)(candle);
     });
 
-  const composedGesture = Gesture.Race(panGesture, tapGesture);
 
+    const composedGesture = Platform.select({
+      web: Gesture.Race(panGesture, tapGesture),
+      default: Gesture.Race(panGesture),
+    });
+  
   return <GestureDetector gesture={composedGesture}>{children}</GestureDetector>;
 };
