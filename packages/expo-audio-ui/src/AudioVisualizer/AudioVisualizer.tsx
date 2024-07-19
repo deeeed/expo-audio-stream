@@ -1,6 +1,6 @@
 // playground/src/component/audio-visualizer/audio-visualizer.tsx
 import { AudioAnalysisData, DataPoint } from "@siteed/expo-audio-stream";
-import { useLogger } from "@siteed/react-native-logger";
+import { getLogger, useLogger } from "@siteed/react-native-logger";
 import React, { useCallback, useEffect, useReducer, useRef } from "react";
 import { Button, LayoutChangeEvent, Text, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
@@ -67,6 +67,7 @@ export interface AudioVisualizerProps {
   onSeekEnd?: (newTime: number) => void;
 }
 
+const logger = getLogger("AudioVisualizer");
 
 export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   audioData,
@@ -84,8 +85,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 }) => {
   const translateX = useSharedValue(0);
   const [state, dispatch] = useReducer(reducer, initialState);
-
-  const { logger } = useLogger("AudioVisualizer");
 
   const {
     ready,

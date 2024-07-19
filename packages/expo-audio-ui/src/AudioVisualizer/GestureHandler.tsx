@@ -1,5 +1,5 @@
 import { DataPoint } from "@siteed/expo-audio-stream";
-import { useLogger } from "@siteed/react-native-logger";
+import { getLogger } from "@siteed/react-native-logger";
 import React, { useRef } from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SharedValue, runOnJS } from "react-native-reanimated";
@@ -20,6 +20,8 @@ interface GestureHandlerProps {
   children: React.ReactNode;
 }
 
+const logger = getLogger("GestureHandler");
+
 export const GestureHandler: React.FC<GestureHandlerProps> = ({
   playing,
   mode,
@@ -34,7 +36,6 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
   onSelection,
   children,
 }) => {
-  const { logger } = useLogger("GestureHandler");
 
   const initialTranslateX = useRef(0);
 
