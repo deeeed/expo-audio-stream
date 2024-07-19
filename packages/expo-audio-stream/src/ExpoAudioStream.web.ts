@@ -12,7 +12,9 @@ import {
 } from "./ExpoAudioStream.types";
 import { WebRecorder } from "./WebRecorder.web";
 import { getLogger } from "./logger";
+import { concatenateBuffers } from "./utils/concatenateBuffers";
 import { encodingToBitDepth } from "./utils/encodingToBitDepth";
+import { writeWavHeader } from "./utils/writeWavHeader";
 
 export interface EmitAudioEventProps {
   data: ArrayBuffer;
@@ -169,14 +171,37 @@ export class ExpoAudioStreamWeb extends EventEmitter {
 
   // Stop recording
   async stopRecording(): Promise<AudioRecordingResult | null> {
-    if (this.customRecorder) {
-      const fullPcmBuffer = await this.customRecorder.stop();
-      logger.debug(`Stopped recording`, fullPcmBuffer);
+    if (!this.customRecorder) {
+      throw new Error("Recorder is not initialized");
     }
+
+    const fullPcmBufferArray = await this.customRecorder.stop();
+    const fullPcmBuffer = concatenateBuffers(fullPcmBufferArray);
+
+    // concat all audio chunks
+    logger.debug(`Stopped recording`, fullPcmBuffer);
     this.isRecording = false;
     this.currentDurationMs = Date.now() - this.recordingStartTime;
+
+    const wavConfig = {
+      buffer: fullPcmBuffer,
+      sampleRate: this.recordingConfig?.sampleRate ?? 44100,
+      numChannels: this.recordingConfig?.channels ?? 1,
+      bitDepth: this.bitDepth,
+    };
+    logger.debug(`Writing wav header`, wavConfig);
+    const wavBuffer = writeWavHeader(wavConfig).slice(0);
+
+    // Create blob fileUri from audio chunks
+    const blob = new Blob([wavBuffer], {
+      type: `audio/${this.extension}`,
+    });
+    const fileUri = URL.createObjectURL(blob);
+
     const result: AudioRecordingResult = {
-      fileUri: `${this.streamUuid}.${this.extension}`,
+      fileUri,
+      filename: `${this.streamUuid}.${this.extension}`,
+      wavPCMData: wavBuffer,
       bitDepth: this.bitDepth,
       channels: this.recordingConfig?.channels ?? 1,
       sampleRate: this.recordingConfig?.sampleRate ?? 44100,

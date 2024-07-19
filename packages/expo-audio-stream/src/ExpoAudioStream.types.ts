@@ -39,13 +39,15 @@ export type BitDepth = 8 | 16 | 32;
 
 export interface AudioRecordingResult {
   fileUri: string;
-  webAudioUri?: string;
+  filename: string;
   durationMs: number;
   size: number;
   mimeType: string;
   channels: number;
   bitDepth: BitDepth;
   sampleRate: SampleRate;
+  wavPCMData: ArrayBuffer | string; // Full PCM data for the recording in WAV format (base64 string or ArrayBuffer)
+  analysisData?: AudioAnalysisData; // Analysis data for the recording depending on enableProcessing flag
 }
 
 export interface StartRecordingResult {

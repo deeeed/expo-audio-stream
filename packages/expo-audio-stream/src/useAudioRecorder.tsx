@@ -5,7 +5,6 @@ import { useCallback, useEffect, useReducer, useRef } from "react";
 import {
   AudioAnalysisData,
   AudioAnalysisEventPayload,
-  AudioFeaturesOptions,
 } from "./AudioAnalysis/AudioAnalysis.types";
 import {
   AudioDataEvent,
@@ -18,28 +17,9 @@ import {
 import ExpoAudioStreamModule from "./ExpoAudioStreamModule";
 import { addAudioAnalysisListener, addAudioEventListener } from "./events";
 import { disableAllLoggers, enableAllLoggers, getLogger } from "./logger";
-import { WavFileInfo } from "./utils/getWavFileInfo";
 
 const TAG = "useAudioRecorder";
 const logger = getLogger(TAG);
-
-export interface ExtractMetadataProps {
-  fileUri?: string; // should provide either fileUri or arrayBuffer
-  wavMetadata?: WavFileInfo;
-  arrayBuffer?: ArrayBuffer;
-  bitDepth?: number;
-  skipWavHeader?: boolean;
-  durationMs?: number;
-  sampleRate?: number;
-  numberOfChannels?: number;
-  algorithm?: "peak" | "rms";
-  position?: number; // Optional number of bytes to skip. Default is 0
-  length?: number; // Optional number of bytes to read.
-  pointsPerSecond?: number; // Optional number of points per second. Use to reduce the number of points and compute the number of datapoints to return.
-  features?: AudioFeaturesOptions;
-  featuresExtratorUrl?: string;
-}
-
 export interface UseAudioRecorderProps {
   debug?: boolean;
   audioWorkletUrl?: string;
@@ -340,13 +320,14 @@ export function useAudioRecorder({
   const stopRecording = useCallback(async () => {
     logger.debug(`stoping recording`);
 
+    const stopResult: AudioRecordingResult =
+      await ExpoAudioStream.stopRecording();
+    stopResult.analysisData = analysisRef.current;
+
     if (analysisListenerRef.current) {
       analysisListenerRef.current.remove();
       analysisListenerRef.current = null;
     }
-
-    const stopResult: AudioRecordingResult =
-      await ExpoAudioStream.stopRecording();
     onAudioStreamRef.current = null;
     logger.debug(`recording stopped`, stopResult);
     dispatch({ type: "STOP" });

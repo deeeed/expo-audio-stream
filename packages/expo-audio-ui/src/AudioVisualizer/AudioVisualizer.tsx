@@ -1,6 +1,6 @@
 // playground/src/component/audio-visualizer/audio-visualizer.tsx
 import { AudioAnalysisData, DataPoint } from "@siteed/expo-audio-stream";
-import { getLogger, useLogger } from "@siteed/react-native-logger";
+import { getLogger } from "@siteed/react-native-logger";
 import React, { useCallback, useEffect, useReducer, useRef } from "react";
 import { Button, LayoutChangeEvent, Text, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";

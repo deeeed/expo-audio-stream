@@ -218,7 +218,9 @@ export const PlayPage = () => {
     // Auto copy to local files
     const audioResult: AudioRecordingResult = {
       fileUri: destination,
+      filename: fileName,
       mimeType: "audio/wav",
+      wavPCMData: arrayBuffer,
       size: arrayBuffer.byteLength,
       durationMs: wavMetadata.durationMs,
       sampleRate: wavMetadata.sampleRate,

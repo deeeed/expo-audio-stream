@@ -1,6 +1,13 @@
 import { useTheme } from "@siteed/design-system";
 import React, { useState } from "react";
-import { StyleSheet, Text, View, Switch, TouchableOpacity } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  Switch,
+  TouchableOpacity,
+  Pressable,
+} from "react-native";
 import { SegmentedButtons } from "react-native-paper";
 
 interface HexDataViewerProps {
@@ -72,21 +79,21 @@ export const HexDataViewer = ({ byteArray }: HexDataViewerProps) => {
       <Text style={[styles.data, { color: theme.colors.text }]}>
         {expanded ? displayedData : previewData}
         {isExpandable && !expanded && (
-          <TouchableOpacity onPress={() => setExpanded(true)}>
+          <Pressable onPress={() => setExpanded(true)}>
             <Text style={[styles.expandText, { color: theme.colors.primary }]}>
               {" "}
               Expand
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </Text>
       {expanded && (
-        <TouchableOpacity onPress={() => setExpanded(false)}>
+        <Pressable onPress={() => setExpanded(false)}>
           <Text style={[styles.expandText, { color: theme.colors.primary }]}>
             {" "}
             Show Less
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       )}
     </View>
   );

@@ -61,7 +61,7 @@ export const AudioFilesProvider = ({
             type: record.metadata.mimeType,
           });
           const webAudioUri = URL.createObjectURL(blob);
-          return { ...record.metadata, webAudioUri };
+          return { ...record.metadata, fileUri: webAudioUri };
         });
       } else {
         const directoryUri = FileSystem.documentDirectory;

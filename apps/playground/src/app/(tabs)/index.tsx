@@ -229,12 +229,11 @@ export default function Record() {
 
         // Store the audio file and metadata in IndexedDB
         await storeAudioFile({
-          fileName: result.fileUri,
+          fileName: result.filename,
           arrayBuffer: wavBuffer,
           metadata: result,
         });
 
-        result.webAudioUri = url;
         setResult(result);
 
         await refreshFiles();

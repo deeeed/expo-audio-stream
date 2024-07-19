@@ -7,6 +7,12 @@ import {
   useTheme,
   useToast,
 } from "@siteed/design-system";
+import {
+  AudioAnalysisData,
+  AudioRecordingResult,
+  DataPoint,
+} from "@siteed/expo-audio-stream";
+import { AudioVisualizer } from "@siteed/expo-audio-ui";
 import { useLogger } from "@siteed/react-native-logger";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -15,11 +21,6 @@ import { StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 import { atob } from "react-native-quick-base64";
 
-import {
-  AudioAnalysisData,
-  AudioRecordingResult,
-  DataPoint,
-} from "@siteed/expo-audio-stream";
 import { useAudio } from "../../hooks/useAudio";
 import { formatBytes, formatDuration, isWeb } from "../../utils/utils";
 import {
@@ -27,7 +28,6 @@ import {
   SelectedAnalysisConfig,
 } from "../audio-recording-analysis-config/audio-recording-analysis-config";
 import { SelectedAudioVisualizerProps } from "../audio-recording-config/audio-recording-config-form";
-import { AudioVisualizer } from "@siteed/expo-audio-ui";
 import { DataPointViewer } from "../data-viewer/data-viewer";
 import { HexDataViewer } from "../data-viewer/hex-data-viewer";
 
@@ -88,7 +88,7 @@ export const AudioRecording = ({
 }: AudioRecordingProps) => {
   const { logger } = useLogger("AudioRecording");
   const { show } = useToast();
-  const audioUri = recording.webAudioUri ?? recording.fileUri;
+  const audioUri = recording.fileUri;
   const theme = useTheme();
   const [selectedDataPoint, setSelectedDataPoint] = useState<DataPoint>();
   const [selectedAnalysisConfig, setSelectedAnalysisConfig] =
@@ -157,16 +157,13 @@ export const AudioRecording = ({
   };
 
   const handleSaveToDisk = async () => {
-    if (!isWeb || !recording.webAudioUri) {
-      logger.warn(
-        "Save to disk is only supported on web",
-        recording.webAudioUri,
-      );
+    if (!isWeb) {
+      logger.warn("Save to disk is only supported on web");
       return;
     }
 
     const a = document.createElement("a");
-    a.href = recording.webAudioUri;
+    a.href = recording.fileUri;
     a.download = `rec_${recording.fileUri}_${recording?.sampleRate ?? "NOSAMPLE"}_${recording?.bitDepth ?? "NOBITDEPTH"}.wav`;
     a.click();
   };
@@ -248,6 +245,9 @@ export const AudioRecording = ({
 
   return (
     <View style={styles.container}>
+      <Text style={[styles.detailText, { fontWeight: "bold" }]}>
+        {recording.filename}
+      </Text>
       <Text style={[styles.detailText, { fontWeight: "bold" }]}>
         {recording.fileUri}
       </Text>

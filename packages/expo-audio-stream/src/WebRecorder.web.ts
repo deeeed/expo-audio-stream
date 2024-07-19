@@ -290,7 +290,7 @@ export class WebRecorder {
     this.audioWorkletNode.connect(this.audioContext.destination);
   }
 
-  stop() {
+  stop(): Promise<ArrayBuffer[]> {
     return new Promise((resolve, reject) => {
       try {
         if (this.audioWorkletNode) {
