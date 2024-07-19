@@ -23,12 +23,12 @@ export default {
     ],
   plugins: [
     typescript({tsconfig: './tsconfig.build.json'}),
+    terser(), // Minify the bundle
     url({
       include: ['**/*.ttf','**/*.woff', '**/*.woff2'], // only work with font files
       emit: 0, // always emit files
       emitFiles: true, // emit files to the output directory
       fileName: '[dirname][name][extname]', // use hash to avoid name conflicts
     }),
-    terser(),
   ],
 };

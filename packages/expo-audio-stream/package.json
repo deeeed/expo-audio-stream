@@ -31,7 +31,8 @@
     "expo-module": "expo-module",
     "open:ios": "open -a \"Xcode\" ../../apps/playground/ios",
     "open:android": "open -a \"Android Studio\" ../../apps/playground/android",
-    "size": "bundle-size && size-limit"
+    "size": "bundle-size && size-limit",
+    "release": "./publish.sh"
   },
   "devDependencies": {
     "@expo/config-plugins": "^7.9.1",
