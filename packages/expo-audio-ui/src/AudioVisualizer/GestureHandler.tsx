@@ -1,10 +1,9 @@
 import { DataPoint } from "@siteed/expo-audio-stream";
 import React, { useRef } from "react";
+import { Platform } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SharedValue, runOnJS } from "react-native-reanimated";
 import { CandleData } from "./AudioVisualiser.types";
-import { isWeb } from "../constants";
-import { Platform } from "react-native";
 
 interface GestureHandlerProps {
   playing: boolean;
@@ -16,7 +15,7 @@ interface GestureHandlerProps {
   translateX: SharedValue<number>;
   maxTranslateX: number;
   activePoints: CandleData[];
-  onSelection?: (dataPoint: DataPoint) => void;
+  onSelection: (dataPoint: DataPoint) => void;
   onDragEnd: (params: { newTranslateX: number }) => void;
   children: React.ReactNode;
 }
@@ -90,10 +89,10 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
       }
 
       // Dispatch action to update the selected candle
-        runOnJS(onSelection)(candle);
+      runOnJS(onSelection)(candle);
     });
 
-
+    // FIXME: figure out why we cannot activate tapGesture on native
     const composedGesture = Platform.select({
       web: Gesture.Race(panGesture, tapGesture),
       default: Gesture.Race(panGesture),

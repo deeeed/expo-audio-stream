@@ -458,6 +458,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 totalCandleWidth={totalCandleWidth}
                 canvasWidth={canvasWidth}
                 selectedCandle={selectedCandle}
+                onSelection={handleSelectionChange}
                 durationMs={audioData.durationMs}
                 minAmplitude={audioData.amplitudeRange.min}
                 maxAmplitude={audioData.amplitudeRange.max}

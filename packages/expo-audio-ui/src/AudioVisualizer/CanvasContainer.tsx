@@ -1,10 +1,12 @@
 import {
   Canvas,
+  ExtendedTouchInfo,
   Group,
-  Path
+  Path,
+  useTouchHandler
 } from "@shopify/react-native-skia";
-import React, { useMemo } from "react";
-import { View } from "react-native";
+import React, { useCallback, useMemo, useRef } from "react";
+import { Platform, View } from "react-native";
 import { SharedValue, useDerivedValue } from "react-native-reanimated";
 
 import { DataPoint } from "@siteed/expo-audio-stream";
@@ -34,6 +36,7 @@ export interface CanvasContainerProps {
   durationMs?: number;
   minAmplitude: number;
   maxAmplitude: number;
+  onSelection: (dataPoint: DataPoint) => void;
   containerStyle?: StyleProp<ViewStyle>;
 }
 
@@ -54,6 +57,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
   selectedCandle,
   showSilence,
   durationMs,
+  onSelection,
   minAmplitude,
   maxAmplitude,
   containerStyle,
@@ -130,10 +134,64 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     selectedCandle,
   ]);
 
+  const hasProcessedEvent = useRef(false);
+
+  const processEvent = useCallback(
+    (event: ExtendedTouchInfo) => {
+      if (mode === "live" || hasProcessedEvent.current) return;
+
+      const { x, y } = event;
+      if (x < 0 || x > canvasWidth || y < 0 || y > canvasHeight) {
+        return;
+      }
+
+      hasProcessedEvent.current = true;
+
+      setTimeout(() => {
+        hasProcessedEvent.current = false;
+      }, 300);
+
+      const plotStart = canvasWidth / 2 + translateX.value;
+      const plotEnd = plotStart + totalCandleWidth;
+
+      if (x < plotStart || x > plotEnd) {
+        return;
+      }
+
+      const adjustedX = x - plotStart;
+      const index = Math.floor(adjustedX / (candleWidth + candleSpace));
+      const candle = activePoints[index];
+      if (!candle) {
+        return;
+      }
+
+      // Dispatch action to update the selected candle
+      onSelection?.(candle);
+    },
+    [
+      mode,
+      canvasWidth,
+      canvasHeight,
+      translateX,
+      totalCandleWidth,
+      candleWidth,
+      candleSpace,
+      activePoints,
+      onSelection,
+    ],
+  );
+
+
+  const touchHandler = useTouchHandler({
+    onStart: () => {},
+    onEnd: processEvent,
+  });
+
   return (
     <View style={containerStyle}>
       <Canvas
         style={{ height: canvasHeight, width: canvasWidth }}
+        onTouch={Platform.OS !== "web" ? touchHandler : undefined}
       >
         <Group transform={groupTransform}>
           {memoizedCandles}
