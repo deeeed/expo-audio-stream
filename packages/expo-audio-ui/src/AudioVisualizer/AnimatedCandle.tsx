@@ -2,6 +2,7 @@
 import { Rect } from "@shopify/react-native-skia";
 import React, { useEffect } from "react";
 import { useSharedValue, withTiming } from "react-native-reanimated";
+import { CANDLE_OFFCANVAS_COLOR } from "../constants";
 
 interface AnimatedCandleProps {
   height: number;
@@ -12,12 +13,6 @@ interface AnimatedCandleProps {
   color: string;
   animated?: boolean;
 }
-
-export const CANDLE_ACTIVE_AUDIO_COLOR = "rgba(74, 144, 226, 1)";
-export const CANDLE_ACTIVE_SPEECH_COLOR = "rgba(114, 191, 106, 1)";
-export const CANDLE_SELECTED_COLOR = "rgba(255, 99, 71, 1)";
-export const CANDLE_OFFCANVAS_COLOR = "rgba(211, 211, 211, 1)";
-
 const AnimatedCandle: React.FC<AnimatedCandleProps> = ({
   color: targetColor,
   x: targetX,

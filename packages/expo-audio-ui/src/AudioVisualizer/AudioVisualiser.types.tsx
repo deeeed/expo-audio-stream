@@ -1,6 +1,5 @@
 // playground/src/component/audio-visualizer/autio-visualizer.types.ts
-import { AudioAnalysisData, DataPoint } from "@siteed/expo-audio-stream";
-import { StyleProp, ViewStyle } from "react-native";
+import { DataPoint } from "@siteed/expo-audio-stream";
 import { SharedValue } from "react-native-reanimated";
 
 export interface CalculateReferenceLinePositionParams {
@@ -9,7 +8,6 @@ export interface CalculateReferenceLinePositionParams {
 }
 
 export interface GetStylesParams {
-  screenWidth: number;
   canvasWidth: number;
   referenceLineX: number;
 }
@@ -69,53 +67,4 @@ export interface UpdateActivePointsResult {
     endVisibleIndex: number;
   };
   lastUpdatedTranslateX: number;
-}
-
-export interface DebouncedUpdateActivePointsParams
-  extends UpdateActivePointsParams {
-  debounceTimer: NodeJS.Timeout | null;
-}
-
-export interface AudioVisualizerProps {
-  audioData: AudioAnalysisData;
-  currentTime?: number;
-  canvasHeight?: number;
-  candleWidth?: number;
-  candleSpace?: number;
-  showDottedLine?: boolean;
-  showRuler?: boolean;
-  showSilence?: boolean;
-  onSelection?: ({
-    dataPoint,
-    index,
-  }: {
-    dataPoint: DataPoint;
-    index: number;
-  }) => void;
-  mode?: "static" | "live";
-  playing?: boolean;
-  onSeekEnd?: (newTime: number) => void;
-}
-
-export interface CanvasContainerProps {
-  canvasHeight: number;
-  candleWidth: number;
-  candleSpace: number;
-  showDottedLine: boolean;
-  showRuler: boolean;
-  showSilence: boolean;
-  mode: "static" | "live" | "scaled";
-  onSelection?: (dataPoint: DataPoint) => void;
-  translateX: SharedValue<number>;
-  activePoints: CandleData[];
-  maxDisplayedItems: number;
-  paddingLeft: number;
-  totalCandleWidth: number;
-  startIndex: number;
-  canvasWidth: number;
-  selectedCandle: DataPoint | null;
-  durationMs?: number;
-  minAmplitude: number;
-  maxAmplitude: number;
-  containerStyle?: StyleProp<ViewStyle>;
 }

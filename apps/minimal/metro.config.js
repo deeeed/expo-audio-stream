@@ -55,6 +55,11 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       ),
       type: "sourceFile",
     };
+  } else if (moduleName === "@siteed/expo-audio-ui") {
+    return {
+      filePath: monorepoRoot + "/packages/expo-audio-ui/src/index.ts",
+      type: "sourceFile",
+    };
   }
   return context.resolveRequest(context, moduleName, platform);
 };

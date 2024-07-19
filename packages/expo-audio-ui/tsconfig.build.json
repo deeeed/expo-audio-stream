@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "paths": {}
+  },
+  "include": [
+    "src",
+    "declarations.d.ts"
+  ],
+}

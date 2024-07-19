@@ -1,0 +1,6 @@
+[
+  {
+    "path": "./dist/index.cjs.js",
+    "limit": "100000 ms"
+  }
+]

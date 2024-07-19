@@ -1,26 +1,23 @@
 // playground/src/component/audio-visualizer/audio-visualizer.tsx
-import { Button } from "@siteed/design-system";
-import { DataPoint } from "@siteed/expo-audio-stream";
+import { AudioAnalysisData, DataPoint } from "@siteed/expo-audio-stream";
 import { useLogger } from "@siteed/react-native-logger";
 import React, { useCallback, useEffect, useReducer, useRef } from "react";
-import { LayoutChangeEvent, View } from "react-native";
-import { Text } from "react-native-paper";
+import { Button, LayoutChangeEvent, Text, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 
+import {
+  AudioVisualizerState,
+  CandleData,
+  UpdateActivePointsResult,
+} from "./AudioVisualiser.types";
 import {
   calculateReferenceLinePosition,
   getStyles,
   syncTranslateX,
   updateActivePoints,
-} from "./audio-visualiser.helpers";
-import {
-  AudioVisualizerProps,
-  AudioVisualizerState,
-  CandleData,
-  UpdateActivePointsResult,
-} from "./autio-visualizer.types";
-import CanvasContainer from "./canvas-container";
-import { GestureHandler } from "./gesture-handler";
+} from "./AudioVisualizers.helpers";
+import CanvasContainer from "./CanvasContainer";
+import { GestureHandler } from "./GestureHandler";
 
 export type AudioVisualiserAction = {
   type: "UPDATE_STATE";
@@ -48,6 +45,28 @@ const reducer = (
       return state;
   }
 };
+
+export interface AudioVisualizerProps {
+  audioData: AudioAnalysisData;
+  currentTime?: number;
+  canvasHeight?: number;
+  candleWidth?: number;
+  candleSpace?: number;
+  showDottedLine?: boolean;
+  showRuler?: boolean;
+  showSilence?: boolean;
+  onSelection?: ({
+    dataPoint,
+    index,
+  }: {
+    dataPoint: DataPoint;
+    index: number;
+  }) => void;
+  mode?: "static" | "live";
+  playing?: boolean;
+  onSeekEnd?: (newTime: number) => void;
+}
+
 
 export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   audioData,
@@ -90,7 +109,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   });
 
   const styles = getStyles({
-    screenWidth: canvasWidth,
     canvasWidth,
     referenceLineX,
   });
@@ -314,6 +332,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       if (newIndex < 0 || newIndex >= audioData.dataPoints.length) return;
 
       const newSelectedCandle = audioData.dataPoints[newIndex];
+      if(!newSelectedCandle) return;
       dispatch({
         type: "UPDATE_STATE",
         state: {
@@ -359,10 +378,12 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       range: updatedRange,
       lastUpdatedTranslateX: updatedLastUpdatedTranslateX,
     };
+    const newSelectedDataPoint = audioData.dataPoints[0];
+    if(!newSelectedDataPoint) return;
     dispatch({
       type: "UPDATE_STATE",
       state: {
-        selectedCandle: { ...audioData.dataPoints[0], visible: true },
+        selectedCandle: { ...newSelectedDataPoint, visible: true },
         selectedIndex: 0,
         triggerUpdate: Date.now(),
       },
@@ -390,22 +411,20 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             <Button
               onPress={() => handlePrevNextSelection("prev")}
               disabled={selectedCandle === null}
-            >
-              Prev
-            </Button>
+              title="Prev"
+            />
             <Button
+            title="Next"
               onPress={() => handlePrevNextSelection("next")}
               disabled={selectedCandle === null}
-            >
-              Next
-            </Button>
+            />
             {selectedCandle ? (
               <Text>{`${selectedIndex + 1} / ${audioData.dataPoints.length}`}</Text>
             ) : (
               <Text>{audioData.dataPoints.length} items</Text>
             )}
           </View>
-          <Button onPress={handleReset}>Reset</Button>
+          <Button onPress={handleReset} title="Reset" />
         </View>
       )}
       <GestureHandler
@@ -413,7 +432,13 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         mode={mode}
         translateX={translateX}
         maxTranslateX={maxTranslateX}
+        canvasWidth={canvasWidth}
+        candleWidth={candleWidth}
+        candleSpace={candleSpace}
+        totalCandleWidth={totalCandleWidth}
+        activePoints={updateActivePointsResult.current.activePoints}
         onDragEnd={handleDragEnd}
+        onSelection={handleSelectionChange}
       >
         <View>
           {ready && (
@@ -426,7 +451,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 showRuler={showRuler}
                 showSilence={showSilence}
                 mode={mode}
-                onSelection={handleSelectionChange}
                 startIndex={updateActivePointsResult.current.range.start}
                 translateX={translateX}
                 activePoints={updateActivePointsResult.current.activePoints}

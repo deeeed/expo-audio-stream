@@ -1,7 +1,6 @@
 import { Line as SkiaLine, Text, useFont } from "@shopify/react-native-skia";
 import React from "react";
-
-import { isWeb } from "../../utils/utils";
+import { DEFAULT_LABEL_COLOR, DEFAULT_TICK_COLOR, isWeb } from "../constants";
 
 export interface TimeRulerProps {
   duration: number;
@@ -27,6 +26,8 @@ const formatTime = (seconds: number): string => {
   }
 };
 
+import defaultFont from "./Roboto-Regular.ttf";
+
 export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
   duration,
   width,
@@ -40,17 +41,13 @@ export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
   startMargin = 0,
 }) => {
   const font = useFont(
-    require("../../../assets/Roboto/Roboto-Regular.ttf"),
+    defaultFont,
     labelFontSize,
   );
-  const finalTickColor = tickColor || "white";
-  const finalLabelColor = labelColor || "white";
+  const finalTickColor = tickColor ?? DEFAULT_TICK_COLOR;
+  const finalLabelColor = labelColor ?? DEFAULT_LABEL_COLOR;
   const numTicks = Math.floor(duration / 1000 / interval);
   const minLabelSpacing = 50; // Minimum spacing in pixels between labels
-
-  console.log(
-    `duration: ${duration} numTicks: ${numTicks} width: ${width} interval: ${interval}`,
-  );
 
   if (width <= 0 || numTicks <= 0) return null; // Early return if width or numTicks is invalid
 

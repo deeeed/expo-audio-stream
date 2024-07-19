@@ -7,7 +7,7 @@
     "android": "NODE_ENV=development expo run:android --port 7365",
     "ios": "NODE_ENV=development expo run:ios --device --port 7365",
     "web": "NODE_ENV=development expo start --web --port 7365",
-    "ts:check": "tsc",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rimraf dist",
     "deploy": "NODE_ENV=production yarn clean && yarn predeploy && gh-pages -t -d dist",
     "predeploy": "expo export -p web",

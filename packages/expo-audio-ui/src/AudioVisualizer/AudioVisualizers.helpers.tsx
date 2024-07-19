@@ -11,7 +11,7 @@ import {
   SyncTranslateXParams,
   UpdateActivePointsParams,
   UpdateActivePointsResult,
-} from "./autio-visualizer.types";
+} from "./AudioVisualiser.types";
 
 const logger = getLogger("audio-visualiser.helpers");
 
@@ -25,11 +25,7 @@ export const calculateReferenceLinePosition = ({
   return canvasWidth / 2; // Default to MIDDLE
 };
 
-export const getStyles = ({
-  screenWidth,
-  canvasWidth,
-  referenceLineX,
-}: GetStylesParams) => {
+export const getStyles = ({ canvasWidth, referenceLineX }: GetStylesParams) => {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -62,7 +58,6 @@ export const syncTranslateX = ({
   currentTime,
   durationMs,
   maxTranslateX,
-  minTranslateX,
   translateX,
 }: SyncTranslateXParams) => {
   if (durationMs) {
@@ -117,7 +112,7 @@ export const updateActivePoints = ({
   }
 
   logger.debug(
-    `Updating active points x=${x}, mode=${mode}, dataPoints.length=${dataPoints.length}, activePoints.length=${activePoints.length}, referenceLineX=${referenceLineX}, maxDisplayedItems=${maxDisplayedItems}`,
+    `Updating active points x=${x}, mode=${mode}, dataPoints.length=${dataPoints.length}, activePoints.length=${activePoints.length}, referenceLineX=${referenceLineX}, maxDisplayedItems=${maxDisplayedItems}`
   );
 
   const result: UpdateActivePointsResult = {
@@ -135,7 +130,7 @@ export const updateActivePoints = ({
   if (mode === "live") {
     const totalItems = dataPoints.length;
     const liveMaxDisplayedItems = Math.floor(
-      referenceLineX / (candleWidth + candleSpace),
+      referenceLineX / (candleWidth + candleSpace)
     );
     const startIndex = Math.max(0, totalItems - liveMaxDisplayedItems);
 
@@ -144,12 +139,12 @@ export const updateActivePoints = ({
 
     const lastUpdatedPointId = activePoints[activePoints.length - 1]?.id ?? -1;
     logger.log(
-      `Last updated point ID: ${lastUpdatedPointId} activePoints.length=${activePoints.length}`,
+      `Last updated point ID: ${lastUpdatedPointId} activePoints.length=${activePoints.length}`
     );
     // TODO: can we have a single pass on the data instead of first searching for the last updated point? Worst case is O(n) currently.
     // find lastPointIndex by searching for lastUpdatedPointId from the end
     for (let i = dataPoints.length - 1; i >= 0; i--) {
-      if (dataPoints[i].id === lastUpdatedPointId) {
+      if (dataPoints[i]!.id === lastUpdatedPointId) {
         lastPointIndex = i;
         break;
       }
@@ -157,19 +152,21 @@ export const updateActivePoints = ({
     logger.log(`Last point index: ${lastPointIndex}`);
     for (let i = 0; i < liveMaxDisplayedItems; i++) {
       const itemIndex = startIndex + i;
-      if (itemIndex < totalItems) {
-        if (itemIndex > lastPointIndex) {
-          updatedPoints.push({
-            ...dataPoints[itemIndex],
-            visible: true,
-          });
-          addedPointsCount++;
-        }
+      const dataPoint = dataPoints[itemIndex];
+      if(!dataPoint) {
+        break;
+      }
+      if (itemIndex > lastPointIndex) {
+        updatedPoints.push({
+          ...dataPoint,
+          visible: true,
+        });
+        addedPointsCount++;
       }
     }
     logger.log(
       `Live mode: Updated ${updatedPoints.length} active points`,
-      updatedPoints,
+      updatedPoints
     );
 
     // Ensure activePoints does not exceed liveMaxDisplayedItems
@@ -178,13 +175,13 @@ export const updateActivePoints = ({
 
     logger.log(
       `Live mode: Updated ${finalUpdatedPoints.length} active points`,
-      finalUpdatedPoints,
+      finalUpdatedPoints
     );
     logger.log(`Number of new points added: ${addedPointsCount}`);
   } else {
     const translateX = Math.abs(x);
     const rawHiddenItemsLeft = Math.floor(
-      translateX / (candleWidth + candleSpace),
+      translateX / (candleWidth + candleSpace)
     );
     // We always display from middle of screen
     const itemsOffset = Math.floor(maxDisplayedItems / 2);
@@ -203,12 +200,13 @@ export const updateActivePoints = ({
 
     for (let i = 0; i < loopTo; i++) {
       const itemIndex = startIndex + i;
+      const dataPoint = dataPoints[itemIndex];
 
-      if (itemIndex < dataPoints.length) {
+      if (dataPoint) {
         const visible =
           itemIndex >= startVisibleIndex && itemIndex <= endVisibleIndex;
         activePoints[i] = {
-          ...dataPoints[itemIndex],
+          ...dataPoint,
           visible,
         };
       } else {
@@ -227,12 +225,12 @@ export const updateActivePoints = ({
       endVisibleIndex,
     };
     logger.debug(
-      `Range updated: start=${startIndex}, end=${endIndex}, startVisibleIndex=${startVisibleIndex}, endVisibleIndex=${endVisibleIndex}`,
+      `Range updated: start=${startIndex}, end=${endIndex}, startVisibleIndex=${startVisibleIndex}, endVisibleIndex=${endVisibleIndex}`
     );
   }
 
   logger.debug(
-    `Active points updated. First point ID: ${activePoints[0]?.id}, Last point ID: ${activePoints[activePoints.length - 1]?.id}`,
+    `Active points updated. First point ID: ${activePoints[0]?.id}, Last point ID: ${activePoints[activePoints.length - 1]?.id}`
   );
 
   return result;

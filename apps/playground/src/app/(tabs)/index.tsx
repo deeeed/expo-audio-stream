@@ -9,6 +9,7 @@ import {
   useSharedAudioRecorder,
   writeWavHeader,
 } from "@siteed/expo-audio-stream";
+import { AudioVisualizer } from "@siteed/expo-audio-ui";
 import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
@@ -20,7 +21,6 @@ import { ActivityIndicator } from "react-native-paper";
 import { atob, btoa } from "react-native-quick-base64";
 
 import { AudioRecording } from "../../component/audio-recording/audio-recording";
-import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { storeAudioFile } from "../../utils/indexedDB";
 import { formatBytes, formatDuration, isWeb } from "../../utils/utils";

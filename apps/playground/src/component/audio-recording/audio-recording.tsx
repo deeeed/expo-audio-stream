@@ -27,7 +27,7 @@ import {
   SelectedAnalysisConfig,
 } from "../audio-recording-analysis-config/audio-recording-analysis-config";
 import { SelectedAudioVisualizerProps } from "../audio-recording-config/audio-recording-config-form";
-import { AudioVisualizer } from "../audio-visualizer/audio-visualizer";
+import { AudioVisualizer } from "@siteed/expo-audio-ui";
 import { DataPointViewer } from "../data-viewer/data-viewer";
 import { HexDataViewer } from "../data-viewer/hex-data-viewer";
 

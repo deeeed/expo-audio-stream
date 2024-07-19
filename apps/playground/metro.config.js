@@ -35,14 +35,15 @@ config.resolver.assetExts.push(
 );
 
 config.resolver.extraNodeModules = {
-  "expo-audio-stream": "../../packages/expo-audio-stream/",
+  "@siteed/expo-audio-stream": "../../packages/expo-audio-stream/",
+  "@siteed/expo-audio-ui": "../../packages/expo-audio-ui/",
 };
 
 config.resolver = {
   ...config.resolver,
   extraNodeModules: {
     ...config.resolver.extraNodeModules,
-    "expo-audio-stream": path.resolve(
+    "@siteed/expo-audio-stream": path.resolve(
       __dirname,
       "../../packages/expo-audio-stream",
     ),
@@ -57,5 +58,15 @@ config.transformer.getTransformOptions = async () => ({
     inlineRequires: true,
   },
 });
+
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === "@siteed/expo-audio-ui") {
+    return {
+      filePath: monorepoRoot + "/packages/expo-audio-ui/src/index.ts",
+      type: "sourceFile",
+    };
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
 
 module.exports = config;

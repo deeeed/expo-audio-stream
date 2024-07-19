@@ -6,6 +6,7 @@ import {
   extractAudioAnalysis,
   getWavFileInfo,
 } from "@siteed/expo-audio-stream";
+import { AudioVisualizer } from "@siteed/expo-audio-ui";
 import { useLogger } from "@siteed/react-native-logger";
 import { Audio } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
@@ -14,7 +15,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 
-import { AudioVisualizer } from "../../component/audio-visualizer/audio-visualizer";
 import { useAudioFiles } from "../../context/AudioFilesProvider";
 import { storeAudioFile } from "../../utils/indexedDB";
 import { isWeb } from "../../utils/utils";

@@ -1,25 +1,41 @@
-// playground/src/component/audio-visualizer/canvas-container.tsx
 import {
   Canvas,
-  ExtendedTouchInfo,
   Group,
-  Path,
-  useTouchHandler,
+  Path
 } from "@shopify/react-native-skia";
-import { useLogger } from "@siteed/react-native-logger";
-import React, { useCallback, useMemo, useRef } from "react";
+import React, { useMemo } from "react";
 import { View } from "react-native";
-import { useDerivedValue } from "react-native-reanimated";
+import { SharedValue, useDerivedValue } from "react-native-reanimated";
 
-import AnimatedCandle, {
-  CANDLE_ACTIVE_AUDIO_COLOR,
-  CANDLE_ACTIVE_SPEECH_COLOR,
-  CANDLE_OFFCANVAS_COLOR,
-  CANDLE_SELECTED_COLOR,
-} from "./animated-candle";
-import { drawDottedLine } from "./audio-visualiser.helpers";
-import { CanvasContainerProps } from "./autio-visualizer.types";
-import { SkiaTimeRuler } from "./skia-time-ruler";
+import { DataPoint } from "@siteed/expo-audio-stream";
+import { StyleProp, ViewStyle } from "react-native";
+import { CANDLE_ACTIVE_AUDIO_COLOR, CANDLE_ACTIVE_SPEECH_COLOR, CANDLE_OFFCANVAS_COLOR, CANDLE_SELECTED_COLOR } from "../constants";
+import AnimatedCandle from "./AnimatedCandle";
+import { CandleData } from "./AudioVisualiser.types";
+import { drawDottedLine } from "./AudioVisualizers.helpers";
+import { SkiaTimeRuler } from "./SkiaTimeRuler";
+
+export interface CanvasContainerProps {
+  canvasHeight: number;
+  candleWidth: number;
+  candleSpace: number;
+  showDottedLine: boolean;
+  showRuler: boolean;
+  showSilence: boolean;
+  mode: "static" | "live" | "scaled";
+  translateX: SharedValue<number>;
+  activePoints: CandleData[];
+  maxDisplayedItems: number;
+  paddingLeft: number;
+  totalCandleWidth: number;
+  startIndex: number;
+  canvasWidth: number;
+  selectedCandle: DataPoint | null;
+  durationMs?: number;
+  minAmplitude: number;
+  maxAmplitude: number;
+  containerStyle?: StyleProp<ViewStyle>;
+}
 
 const CanvasContainer: React.FC<CanvasContainerProps> = ({
   canvasHeight,
@@ -37,7 +53,6 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
   canvasWidth,
   selectedCandle,
   showSilence,
-  onSelection,
   durationMs,
   minAmplitude,
   maxAmplitude,
@@ -46,68 +61,6 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
   const groupTransform = useDerivedValue(() => {
     return [{ translateX: translateX.value }];
   });
-  const { logger } = useLogger("CanvasContainer");
-
-  const hasProcessedEvent = useRef(false);
-
-  const processEvent = useCallback(
-    (event: ExtendedTouchInfo) => {
-      if (mode === "live" || hasProcessedEvent.current) return;
-
-      const { x, y } = event;
-      if (x < 0 || x > canvasWidth || y < 0 || y > canvasHeight) {
-        logger.debug(`Touch started outside the canvas: (${x}, ${y})`);
-        return;
-      }
-
-      hasProcessedEvent.current = true;
-
-      setTimeout(() => {
-        hasProcessedEvent.current = false;
-      }, 300);
-
-      const plotStart = canvasWidth / 2 + translateX.value;
-      const plotEnd = plotStart + totalCandleWidth;
-
-      logger.debug(
-        `TouchEnd: ${x} canvasWidth=${canvasWidth} [${plotStart}, ${plotEnd}]`,
-      );
-      if (x < plotStart || x > plotEnd) {
-        logger.debug(`NOT WITHIN RANGE ${x} [${plotStart}, ${plotEnd}]`);
-        return;
-      }
-
-      const adjustedX = x - plotStart;
-      const index = Math.floor(adjustedX / (candleWidth + candleSpace));
-      const candle = activePoints[index];
-      if (!candle) {
-        logger.log(`No candle found at index: ${index}`);
-        return;
-      }
-      logger.debug(`Index: ${index} AdjustedX: ${adjustedX}`, candle);
-
-      // Dispatch action to update the selected candle
-      onSelection?.(candle);
-    },
-    [
-      mode,
-      canvasWidth,
-      canvasHeight,
-      translateX,
-      totalCandleWidth,
-      candleWidth,
-      candleSpace,
-      activePoints,
-      onSelection,
-      logger,
-    ],
-  );
-
-  const touchHandler = useTouchHandler({
-    onStart: () => {},
-    onEnd: processEvent,
-  });
-
   const memoizedCandles = useMemo(() => {
     return activePoints.map(
       ({ id, amplitude, visible, activeSpeech, silent }, index) => {
@@ -181,7 +134,6 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     <View style={containerStyle}>
       <Canvas
         style={{ height: canvasHeight, width: canvasWidth }}
-        onTouch={touchHandler}
       >
         <Group transform={groupTransform}>
           {memoizedCandles}
