@@ -19,7 +19,6 @@ The API is divided into the following main categories:
 ### Events
 
 - **[AudioDataEvent](audio-data-event.md)**: Event data for audio streams.
-- **[AudioEventPayload](audio-event-payload.md)**: Payload for audio events.
 
 ### Recording Results
 
@@ -29,10 +28,6 @@ The API is divided into the following main categories:
 
 - **[AudioAnalysis](audio-features/audio-analysis.md)**: Detailed analysis of recorded audio.
 - **[extractAudioAnalysis](audio-features/extract-audio-analysis.md)**: Function for extracting audio analysis data from a recording.
-
-### Utilities
-
-- **[getWavFileInfo](../utilities/get-wav-file-info.md)**: Utility function for retrieving information about WAV audio buffers.
 
 ---
 

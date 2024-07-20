@@ -24,7 +24,6 @@ const sidebars: SidebarsConfig = {
     'Usage': [
       'usage/standalone-recording',
       'usage/shared-recording',
-      'usage/adding-event-listener',
     ],
     'Hooks': ['hooks/use-audio-recorder'],
     'API Reference': [

@@ -8,10 +8,10 @@ const config: Config = {
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://your-docusaurus-site.example.com',
+  url: 'https://deeeed.github.io/',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/',
+  baseUrl: '/expo-audio-stream/docs',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -20,6 +20,8 @@ const config: Config = {
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
+
+  trailingSlash: true,
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -73,19 +75,19 @@ const config: Config = {
     },
   } satisfies Preset.ThemeConfig,
 
-  plugins: [
-    [
-      '@docusaurus/plugin-client-redirects',
-      {
-        redirects: [
-          {
-            to: '/docs/introduction', // Adjust this to your specific docs landing page
-            from: '/',
-          },
-        ],
-      },
-    ],
-  ],
+  // plugins: [
+  //   [
+  //     '@docusaurus/plugin-client-redirects',
+  //     {
+  //       redirects: [
+  //         {
+  //           to: '/docs/introduction', // Adjust this to your specific docs landing page
+  //           from: '/',
+  //         },
+  //       ],
+  //     },
+  //   ],
+  // ],
 };
 
 export default config;

@@ -109,4 +109,3 @@ The `useAudioRecorder` hook returns an object with the following properties:
 - **size**: `number` - Size of the recorded audio in bytes.
 - **analysisData**: `AudioAnalysis` - Analysis data for the recording. Only available if `enableProcessing` is set to `true` in the `startRecording` configuration.
 
-For detailed information about the types used in the result, see the [API Reference](../api-reference).

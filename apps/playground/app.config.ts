@@ -33,7 +33,7 @@ const config: ExpoConfig = {
         bundler: 'metro',
     },
     experiments: {
-        baseUrl: isDev ? '' : '/expo-audio-stream/',
+        baseUrl: isDev ? '' : '/expo-audio-stream/playground/',
     },
     plugins: [
         [

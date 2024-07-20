@@ -9,7 +9,7 @@
         "web": "NODE_ENV=development expo start --web --port 7365",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "clean": "rimraf dist",
-        "deploy": "NODE_ENV=production yarn clean && yarn predeploy && gh-pages -t -d dist",
+        "deploy": "NODE_ENV=production yarn clean && yarn predeploy && gh-pages -t -d dist --dest playground",
         "predeploy": "expo export -p web",
         "serve:single": "serve dist --single",
         "serve:static": "serve dist"
