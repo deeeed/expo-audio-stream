@@ -32,6 +32,8 @@ class AudioStreamManager: NSObject {
     internal var recordingFileURL: URL?
     private var audioProcessor: AudioProcessor?
     private var startTime: Date?
+    private var pauseStartTime: Date?
+
     internal var lastEmissionTime: Date?
     internal var lastEmittedSize: Int64 = 0
     private var emissionInterval: TimeInterval = 1.0 // Default to 1 second
@@ -144,8 +146,8 @@ class AudioStreamManager: NSObject {
         
         // Calculate the duration in seconds
         let durationInSeconds = Double(totalDataSize) / (sampleRate * channels * (bitDepth / 8))
-        let durationInMilliseconds = Int(durationInSeconds * 1000)
-        
+        let durationInMilliseconds = Int(durationInSeconds * 1000) - Int(pausedDuration * 1000)
+
         return [
             "durationMs": durationInMilliseconds,
             "isRecording": isRecording,
@@ -192,6 +194,8 @@ class AudioStreamManager: NSObject {
         lastEmissionTime = Date()
         accumulatedData.removeAll()
         totalDataSize = 0
+        pausedDuration = 0
+        isPaused = false
         
         let session = AVAudioSession.sharedInstance()
         do {
@@ -283,6 +287,39 @@ class AudioStreamManager: NSObject {
         }
     }
     
+    /// Pauses the current audio recording.
+    func pauseRecording() {
+        guard isRecording && !isPaused else {
+            Logger.debug("Recording is not in progress or already paused.")
+            return
+        }
+        
+        audioEngine.pause()
+        isPaused = true
+        pauseStartTime = Date()
+        
+        Logger.debug("Recording paused.")
+    }
+    
+    /// Resumes the current audio recording.
+    func resumeRecording() {
+        guard isRecording && isPaused else {
+            Logger.debug("Recording is not in progress or not paused.")
+            return
+        }
+        
+        audioEngine.prepare()
+        do {
+            try audioEngine.start()
+            isPaused = false
+            if let pauseStartTime = pauseStartTime {
+                pausedDuration += Int(Date().timeIntervalSince(pauseStartTime))
+            }
+            Logger.debug("Recording resumed.")
+        } catch {
+            Logger.debug("Error: Failed to resume recording: \(error.localizedDescription)")
+        }
+    }
     
     /// Describes the format of the given audio format.
     /// - Parameter format: The AVAudioFormat object to describe.
@@ -342,6 +379,7 @@ class AudioStreamManager: NSObject {
             
             let result = RecordingResult(
                 fileUri: fileURL.absoluteString,
+                filename: fileURL.lastPathComponent,
                 mimeType: mimeType,
                 duration: duration,
                 size: fileSize,

@@ -1,4 +1,4 @@
-import "intl-pluralrules";
+import 'intl-pluralrules'
 // Keep polyfills at the top
 
-import "expo-router/entry";
+import 'expo-router/entry'
