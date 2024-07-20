@@ -330,6 +330,7 @@ class AudioRecorderManager(
                 // Create result bundle
                 val result = bundleOf(
                     "fileUri" to audioFile?.toURI().toString(),
+                    "filename" to audioFile?.name,
                     "durationMs" to duration,
                     "channels" to recordingConfig.channels,
                     "bitDepth" to when (recordingConfig.encoding) {
