@@ -1,7 +1,7 @@
 // packages/expo-audio-stream/src/AudioRecorder.provider.tsx
 import React, { createContext, useContext } from 'react'
 
-import { AudioAnalysisData } from './AudioAnalysis/AudioAnalysis.types'
+import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import {
     AudioRecordingResult,
     RecordingConfig,
@@ -18,7 +18,7 @@ export interface UseAudioRecorderState {
     isPaused: boolean
     durationMs: number // Duration of the recording
     size: number // Size in bytes of the recorded audio
-    analysisData?: AudioAnalysisData
+    analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
 }
 
 const initContext: UseAudioRecorderState = {

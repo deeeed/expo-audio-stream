@@ -2,10 +2,7 @@
 import { Platform, Subscription } from 'expo-modules-core'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 
-import {
-    AudioAnalysisData,
-    AudioAnalysisEventPayload,
-} from './AudioAnalysis/AudioAnalysis.types'
+import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import {
     AudioDataEvent,
     AudioEventPayload,
@@ -35,7 +32,7 @@ export interface UseAudioRecorderState {
     isPaused: boolean
     durationMs: number // Duration of the recording
     size: number // Size in bytes of the recorded audio
-    analysisData?: AudioAnalysisData
+    analysisData?: AudioAnalysis
 }
 
 interface RecorderReducerState {
@@ -43,15 +40,15 @@ interface RecorderReducerState {
     isPaused: boolean
     durationMs: number
     size: number
-    analysisData?: AudioAnalysisData
+    analysisData?: AudioAnalysis
 }
 
 type RecorderAction =
     | { type: 'START' | 'STOP' | 'PAUSE' | 'RESUME' }
     | { type: 'UPDATE_STATUS'; payload: { durationMs: number; size: number } }
-    | { type: 'UPDATE_ANALYSIS'; payload: AudioAnalysisData }
+    | { type: 'UPDATE_ANALYSIS'; payload: AudioAnalysis }
 
-const defaultAnalysis: AudioAnalysisData = {
+const defaultAnalysis: AudioAnalysis = {
     pointsPerSecond: 10,
     bitDepth: 32,
     numberOfChannels: 1,
@@ -101,6 +98,11 @@ function audioRecorderReducer(
     }
 }
 
+interface HandleAudioAnalysisProps {
+    analysis: AudioAnalysis
+    visualizationDuration: number
+}
+
 export function useAudioRecorder({
     debug = false,
     audioWorkletUrl,
@@ -115,7 +117,7 @@ export function useAudioRecorder({
     })
 
     const analysisListenerRef = useRef<Subscription | null>(null)
-    const analysisRef = useRef<AudioAnalysisData>({ ...defaultAnalysis })
+    const analysisRef = useRef<AudioAnalysis>({ ...defaultAnalysis })
 
     // Instantiate the module for web with URLs
     const ExpoAudioStream =
@@ -131,7 +133,7 @@ export function useAudioRecorder({
         async ({
             analysis,
             visualizationDuration,
-        }: AudioAnalysisEventPayload) => {
+        }: HandleAudioAnalysisProps) => {
             const savedAnalysisData = analysisRef.current || {
                 ...defaultAnalysis,
             }
@@ -320,7 +322,7 @@ export function useAudioRecorder({
                     async (analysisData) => {
                         try {
                             await handleAudioAnalysis({
-                                analysis: analysisData,
+                                analysis: analysisData.analysis,
                                 visualizationDuration: maxRecentDataDuration,
                             })
                         } catch (error) {

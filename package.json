@@ -3,7 +3,8 @@
     "name": "@siteed/expo-audio-stream-monorepo",
     "workspaces": [
         "packages/*",
-        "apps/*"
+        "apps/*",
+        "documentation_site"
     ],
     "scripts": {
         "format": "prettier --write ."
@@ -13,9 +14,13 @@
         "**/react-native/**"
     ],
     "devDependencies": {
+        "@eslint/js": "^9.7.0",
+        "eslint": "9.x",
+        "globals": "^15.8.0",
         "lefthook": "^1.7.2",
         "prettier": "^3.3.3",
-        "typescript": "^5.4.3"
+        "typescript": "^5.4.3",
+        "typescript-eslint": "^7.16.1"
     },
     "packageManager": "yarn@4.3.1"
 }

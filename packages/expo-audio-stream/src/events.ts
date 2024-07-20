@@ -2,7 +2,7 @@
 
 import { EventEmitter, type Subscription } from 'expo-modules-core'
 
-import { AudioAnalysisData } from './AudioAnalysis/AudioAnalysis.types'
+import { AudioAnalysisEventPayload } from './AudioAnalysis/AudioAnalysis.types'
 import { AudioEventPayload } from './ExpoAudioStream.types'
 import ExpoAudioStreamModule from './ExpoAudioStreamModule'
 import { getLogger } from './logger'
@@ -18,8 +18,11 @@ export function addAudioEventListener(
 }
 
 export function addAudioAnalysisListener(
-    listener: (event: AudioAnalysisData) => Promise<void>
+    listener: (event: AudioAnalysisEventPayload) => Promise<void>
 ): Subscription {
     logger.log('Adding listener for AudioAnalysis event')
-    return emitter.addListener<AudioAnalysisData>('AudioAnalysis', listener)
+    return emitter.addListener<AudioAnalysisEventPayload>(
+        'AudioAnalysis',
+        listener
+    )
 }

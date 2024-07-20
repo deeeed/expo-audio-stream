@@ -60,7 +60,7 @@ export interface DataPoint {
 /**
  * Represents the complete data from the audio analysis.
  */
-export interface AudioAnalysisData {
+export interface AudioAnalysis {
     pointsPerSecond: number // How many consolidated value per second
     durationMs: number // Duration of the audio in milliseconds
     bitDepth: number // Bit depth of the audio
@@ -80,6 +80,5 @@ export interface AudioAnalysisData {
 }
 
 export interface AudioAnalysisEventPayload {
-    analysis: AudioAnalysisData
-    visualizationDuration: number
+    analysis: AudioAnalysis
 }

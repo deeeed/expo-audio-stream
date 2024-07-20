@@ -1,14 +1,30 @@
 // packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts
-import { AudioAnalysisData } from './AudioAnalysis.types'
 import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
 import { isWeb } from '../constants'
 import { getLogger } from '../logger'
-import { ExtractMetadataProps } from '../useAudioRecorder'
 import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
-import { getWavFileInfo } from '../utils/getWavFileInfo'
+import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
 import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
+import { AudioAnalysis, AudioFeaturesOptions } from './AudioAnalysis.types'
 
 const logger = getLogger('extractAudioAnalysis')
+
+export interface ExtractAudioAnalysisProps {
+    fileUri?: string // should provide either fileUri or arrayBuffer
+    wavMetadata?: WavFileInfo
+    arrayBuffer?: ArrayBuffer
+    bitDepth?: number
+    skipWavHeader?: boolean
+    durationMs?: number
+    sampleRate?: number
+    numberOfChannels?: number
+    algorithm?: 'peak' | 'rms'
+    position?: number // Optional number of bytes to skip. Default is 0
+    length?: number // Optional number of bytes to read.
+    pointsPerSecond?: number // Optional number of points per second. Use to reduce the number of points and compute the number of datapoints to return.
+    features?: AudioFeaturesOptions
+    featuresExtratorUrl?: string
+}
 
 export const extractAudioAnalysis = async ({
     fileUri,
@@ -22,7 +38,7 @@ export const extractAudioAnalysis = async ({
     algorithm = 'rms',
     features,
     featuresExtratorUrl,
-}: ExtractMetadataProps): Promise<AudioAnalysisData> => {
+}: ExtractAudioAnalysisProps): Promise<AudioAnalysis> => {
     if (isWeb) {
         if (!arrayBuffer && !fileUri) {
             throw new Error('Either arrayBuffer or fileUri must be provided')
@@ -58,19 +74,6 @@ export const extractAudioAnalysis = async ({
             actualBitDepth = fileInfo.bitDepth
         }
         logger.log(`extractAudioAnalysis actualBitDepth=${actualBitDepth}`)
-        // let copyChannelData: Float32Array;
-        // try {
-        //   const audioContext = new (window.AudioContext ||
-        //     // @ts-ignore
-        //     window.webkitAudioContext)();
-        //   const audioBuffer = await audioContext.decodeAudioData(bufferCopy);
-        //   const channelData = audioBuffer.getChannelData(0); // Use only the first channel
-        //   copyChannelData = new Float32Array(channelData); // Create a new Float32Array
-        // } catch (error) {
-        //   console.warn("Failed to decode audio data:", error);
-        //   // Fall back to creating a new Float32Array from the ArrayBuffer if decoding fails
-        //   copyChannelData = new Float32Array(arrayBuffer);
-        // }
 
         const {
             pcmValues: channelData,

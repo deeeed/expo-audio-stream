@@ -38,9 +38,9 @@ export interface WavFileInfo {
 }
 
 /**
- * Extracts metadata from a WAV file.
+ * Extracts metadata from a WAV buffer.
  *
- * @param arrayBuffer - The array buffer containing the WAV file data.
+ * @param arrayBuffer - The array buffer containing the WAV data.
  * @returns A promise that resolves to the extracted metadata.
  */
 export const getWavFileInfo = async (

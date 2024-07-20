@@ -1,5 +1,5 @@
 // playground/src/component/audio-visualizer/audio-visualizer.tsx
-import { AudioAnalysisData, DataPoint } from '@siteed/expo-audio-stream'
+import { AudioAnalysis, DataPoint } from '@siteed/expo-audio-stream'
 import { getLogger } from '@siteed/react-native-logger'
 import React, { useCallback, useEffect, useReducer, useRef } from 'react'
 import { Button, LayoutChangeEvent, Text, View } from 'react-native'
@@ -47,7 +47,7 @@ const reducer = (
 }
 
 export interface AudioVisualizerProps {
-    audioData: AudioAnalysisData
+    audioData: AudioAnalysis
     currentTime?: number
     canvasHeight?: number
     candleWidth?: number

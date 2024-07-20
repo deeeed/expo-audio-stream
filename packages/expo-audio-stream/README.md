@@ -4,29 +4,12 @@
 
 ## Features
 
--   Real-time audio streaming across iOS, Android, and web.
--   Configurable intervals for audio buffer receipt.
--   Automated microphone permissions setup in managed Expo projects.
--   IOS is automatically setup to handle background audio recording.
--   Listeners for audio data events with detailed event payloads.
--   Utility functions for recording control and file management.
-
-## Playground Example Application
-
-The project comes with a fully functional example application that demonstrates how to use the library in a real-world scenario.
-
-![Example App](./docs/demo.gif)
-
-To try it:
-
-```bash
-git clone https://github.com/deeeed/expo-audio-stream.git
-cd expo-audio-stream
-yarn
-yarn playground ios
-yarn playground android
-yarn playground web
-```
+- Real-time audio streaming across iOS, Android, and web.
+- Configurable intervals for audio buffer receipt.
+- Automated microphone permissions setup in managed Expo projects.
+- Background audio recording on iOS.
+- Audio features extraction during recording.
+- Consistent WAV PCM recording format across all platforms.
 
 ## Installation
 
@@ -58,55 +41,124 @@ This library provides two hooks: `useAudioRecorder` for standalone use and `useS
 
 ### Standalone Recording
 
-The `playground/` folder contains a fully functional React Native application demonstrating how to integrate and use `useAudioRecorder` from `@siteed/expo-audio-stream`. This includes starting and stopping recordings, handling permissions, and processing live audio data.
+Th `apps/` folder contains a fully functional React Native application demonstrating how to integrate and use `useAudioRecorder` from `@siteed/expo-audio-stream`. This includes starting and stopping recordings, handling permissions, and processing live audio data.
 
 #### Standalone Usage
 
+The following is a minimal application that demonstrates how to use `useAudioRecorder`.
+
 ```tsx
-import { useAudioRecorder, AudioStreamResult } from '@siteed/expo-audio-stream'
+import {
+    AudioRecordingResult,
+    useAudioRecorder,
+} from '@siteed/expo-audio-stream'
+import { Audio } from 'expo-av' // Import for playing audio on native
+import { useState } from 'react'
+import { Button, StyleSheet, Text, View } from 'react-native'
+
+const STOP_BUTTON_COLOR = 'red'
+
+const styles = StyleSheet.create({
+    container: {
+        gap: 10,
+        margin: 40,
+        padding: 20,
+    },
+    stopButton: {
+        backgroundColor: 'red',
+    },
+})
 
 export default function App() {
-    const { startRecording, stopRecording, duration, size, isRecording } =
-        useAudioRecorder({
-            debug: true,
-            onAudioStream: (audioData: Blob) => {
-                console.log(`audio event`, audioData)
-            },
-        })
+    const {
+        startRecording,
+        stopRecording,
+        pauseRecording,
+        resumeRecording,
+        durationMs,
+        size,
+        isRecording,
+        isPaused,
+    } = useAudioRecorder({
+        debug: true,
+    })
+    const [audioResult, setAudioResult] = useState<AudioRecordingResult | null>(
+        null
+    )
+    const [, setSound] = useState<Audio.Sound | null>(null) // State for audio playback on native
 
     const handleStart = async () => {
-        const { granted } = await Audio.requestPermissionsAsync()
-        if (granted) {
-            const fileUri = await startRecording({ interval: 500 })
-        }
+        const startResult = await startRecording({
+            interval: 500,
+            enableProcessing: true,
+            onAudioStream: async (_) => {
+                console.log(`onAudioStream`, _)
+            },
+        })
+        return startResult
     }
 
     const handleStop = async () => {
-        const result: AudioStreamResult = await stopRecording()
+        const result = await stopRecording()
+        console.log(`handleStop`, result)
+        setAudioResult(result)
     }
 
     const renderRecording = () => (
-        <View>
-            <Text>Duration: {duration} ms</Text>
+        <View style={styles.container}>
+            <Text>Duration: {durationMs / 1000} seconds</Text>
             <Text>Size: {size} bytes</Text>
-            <Button title="Stop Recording" onPress={handleStop} />
+            <Button title="Pause Recording" onPress={pauseRecording} />
+            <Button
+                title="Stop Recording"
+                onPress={handleStop}
+                color={STOP_BUTTON_COLOR}
+            />
+        </View>
+    )
+
+    const renderPaused = () => (
+        <View style={styles.container}>
+            <Text>Duration: {durationMs / 1000} seconds</Text>
+            <Text>Size: {size} bytes</Text>
+            <Button title="Resume Recording" onPress={resumeRecording} />
+            <Button
+                title="Stop Recording"
+                color={STOP_BUTTON_COLOR}
+                onPress={handleStop}
+            />
         </View>
     )
 
     const renderStopped = () => (
-        <View>
+        <View style={styles.container}>
             <Button title="Start Recording" onPress={handleStart} />
+            {audioResult && (
+                <View>
+                    <Button title="Play Recording" onPress={handlePlay} />
+                </View>
+            )}
         </View>
     )
 
+    const handlePlay = async () => {
+        if (audioResult) {
+            const { sound } = await Audio.Sound.createAsync({
+                uri: audioResult.fileUri,
+            })
+            setSound(sound)
+            await sound.playAsync()
+        }
+    }
+
     return (
-        <View>
-            <Button
-                title="Request Permission"
-                onPress={() => Audio.requestPermissionsAsync()}
-            />
-            {isRecording ? renderRecording() : renderStopped()}
-        </View>
+        <>
+            {isRecording
+                ? renderRecording()
+                : isPaused
+                  ? renderPaused()
+                  : renderStopped()}
+        </>
     )
 }
 ```
@@ -195,6 +247,23 @@ function App() {
 
     // UI code here
 }
+```
+
+## Minimal Example Application
+
+The project comes with a fully functional example application that demonstrates how to use the library in a real-world scenario.
+
+![Example App](./docs/demo.gif)
+
+To try it:
+
+```bash
+git clone https://github.com/deeeed/expo-audio-stream.git
+cd expo-audio-stream
+yarn
+yarn playground ios
+yarn playground android
+yarn playground web
 ```
 
 ## Recording configuration

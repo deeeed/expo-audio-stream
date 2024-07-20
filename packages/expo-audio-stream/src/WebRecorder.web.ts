@@ -1,5 +1,5 @@
 // src/WebRecorder.ts
-import { AudioAnalysisData } from './AudioAnalysis/AudioAnalysis.types'
+import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import { RecordingConfig } from './ExpoAudioStream.types'
 import {
     EmitAudioAnalysisFunction,
@@ -21,7 +21,7 @@ interface AudioWorkletEvent {
 interface AudioFeaturesEvent {
     data: {
         command: string
-        result: AudioAnalysisData
+        result: AudioAnalysis
     }
 }
 
@@ -47,7 +47,7 @@ export class WebRecorder {
     private bitDepth: number // Bit depth of the audio
     private exportBitDepth: number // Bit depth of the audio
     private buffers: ArrayBuffer[] // Array to store the buffers
-    private audioAnalysisData: AudioAnalysisData // Keep updating the full audio analysis data with latest events
+    private audioAnalysisData: AudioAnalysis // Keep updating the full audio analysis data with latest events
 
     constructor({
         audioContext,

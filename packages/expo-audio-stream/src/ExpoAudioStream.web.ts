@@ -1,7 +1,7 @@
 // src/ExpoAudioStreamModule.web.ts
 import { EventEmitter } from 'expo-modules-core'
 
-import { AudioAnalysisData } from './AudioAnalysis/AudioAnalysis.types'
+import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import {
     AudioEventPayload,
     AudioRecordingResult,
@@ -21,7 +21,7 @@ export interface EmitAudioEventProps {
     position: number
 }
 export type EmitAudioEventFunction = (_: EmitAudioEventProps) => void
-export type EmitAudioAnalysisFunction = (_: AudioAnalysisData) => void
+export type EmitAudioAnalysisFunction = (_: AudioAnalysis) => void
 
 export interface ExpoAudioStreamWebProps {
     audioWorkletUrl: string
@@ -124,7 +124,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
                 this.lastEmittedSize = this.currentSize
             },
             emitAudioAnalysisCallback: (
-                audioAnalysisData: AudioAnalysisData
+                audioAnalysisData: AudioAnalysis
             ) => {
                 logger.log(`Emitted AudioAnalysis:`, audioAnalysisData)
                 this.emit('AudioAnalysis', audioAnalysisData)

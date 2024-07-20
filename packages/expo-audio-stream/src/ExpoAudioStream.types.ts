@@ -1,6 +1,6 @@
 // packages/expo-audio-stream/src/ExpoAudioStream.types.ts
 import {
-    AudioAnalysisData,
+    AudioAnalysis,
     AudioFeaturesOptions,
 } from './AudioAnalysis/AudioAnalysis.types'
 
@@ -47,7 +47,7 @@ export interface AudioRecordingResult {
     bitDepth: BitDepth
     sampleRate: SampleRate
     wavPCMData?: ArrayBuffer // Full PCM data for the recording in WAV format (only on web, for native use the fileUri)
-    analysisData?: AudioAnalysisData // Analysis data for the recording depending on enableProcessing flag
+    analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
 }
 
 export interface StartRecordingResult {
@@ -72,5 +72,5 @@ export interface RecordingConfig {
 
     // Optional paramters from web
     onAudioStream?: (_: AudioDataEvent) => Promise<void> // Callback function to handle audio stream
-    onProcessingResult?: (_: AudioAnalysisData) => Promise<void> // Callback function to handle processing results
+    onProcessingResult?: (_: AudioAnalysis) => Promise<void> // Callback function to handle processing results
 }

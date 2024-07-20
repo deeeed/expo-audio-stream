@@ -10,6 +10,7 @@ import { useAudioRecorder } from './useAudioRecorder'
 export * from './utils/getWavFileInfo'
 export * from './utils/convertPCMToFloat32'
 export * from './utils/writeWavHeader'
+export * from './events';
 
 export {
     AudioRecorderProvider,
