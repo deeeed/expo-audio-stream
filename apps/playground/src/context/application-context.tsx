@@ -1,27 +1,27 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext } from 'react'
 
 export interface ApplicationContextValue {
-  debugMode: boolean;
+    debugMode: boolean
 }
 
 const ApplicationContext = createContext<ApplicationContextValue>({
-  debugMode: false,
-});
+    debugMode: false,
+})
 
 export const ApplicationContextProvider = ({
-  children,
-  debugMode = false,
+    children,
+    debugMode = false,
 }: {
-  children: React.ReactNode;
-  debugMode?: boolean;
+    children: React.ReactNode
+    debugMode?: boolean
 }) => {
-  return (
-    <ApplicationContext.Provider value={{ debugMode }}>
-      {children}
-    </ApplicationContext.Provider>
-  );
-};
+    return (
+        <ApplicationContext.Provider value={{ debugMode }}>
+            {children}
+        </ApplicationContext.Provider>
+    )
+}
 
 export const useAppContext = () => {
-  return useContext(ApplicationContext);
-};
+    return useContext(ApplicationContext)
+}
