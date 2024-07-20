@@ -1,14 +1,17 @@
 {
-  "extends": "expo/tsconfig.base",
-  "compilerOptions": {
-    "strict": true,
-    "paths": {
-      "@siteed/expo-audio-stream": ["../../packages/expo-audio-stream/src/index"],
-      "@siteed/expo-audio-stream/*": ["../../packages/expo-audio-stream/src/*"]
-    }
-  },
-  "include": [
-    "src",
-    "app.config.ts"
-  ]
+    "extends": "expo/tsconfig.base",
+    "compilerOptions": {
+        "strict": true,
+        "paths": {
+            "@siteed/expo-audio-stream": [
+                "../../packages/expo-audio-stream/src/index"
+            ],
+            "@siteed/expo-audio-stream/*": [
+                "../../packages/expo-audio-stream/src/*"
+            ],
+            "@siteed/expo-audio-ui": ["../../packages/expo-audio-ui/src/index"],
+            "@siteed/expo-audio-ui/*": ["../../packages/expo-audio-ui/src/*"]
+        }
+    },
+    "include": ["src"]
 }

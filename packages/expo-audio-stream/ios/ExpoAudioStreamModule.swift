@@ -178,6 +178,16 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             return self.streamManager.getStatus()
         }
         
+        /// Pauses audio recording.
+        Function("pauseRecording") {
+            self.streamManager.pauseRecording()
+        }
+        
+        /// Resumes audio recording.
+        Function("resumeRecording") {
+            self.streamManager.resumeRecording()
+        }
+        
         /// Asynchronously stops audio recording and retrieves the recording result.
         ///
         /// - Parameters:
@@ -187,6 +197,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 // Convert RecordingResult to a dictionary
                 let resultDict: [String: Any] = [
                     "fileUri": recordingResult.fileUri,
+                    "filename": recordingResult.filename,
                     "durationMs": recordingResult.duration,
                     "size": recordingResult.size,
                     "channels": recordingResult.channels,
