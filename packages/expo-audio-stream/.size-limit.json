@@ -1,6 +1,6 @@
 [
-  {
-    "path": "./build/index.js",
-    "limit": "100000 ms"
-  }
+    {
+        "path": "./build/index.js",
+        "limit": "100000 ms"
+    }
 ]

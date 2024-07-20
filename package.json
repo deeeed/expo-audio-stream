@@ -1,18 +1,21 @@
 {
-  "private": true,
-  "name": "@siteed/expo-audio-stream-monorepo",
-  "workspaces": [
-    "packages/*",
-    "apps/*"
-  ],
-  "nohoist": [
-    "**/react-native",
-    "**/react-native/**"
-  ],
-  "devDependencies": {
-    "lefthook": "^1.7.2",
-    "prettier": "^3.2.5",
-    "typescript": "^5.4.3"
-  },
-  "packageManager": "yarn@4.3.1"
+    "private": true,
+    "name": "@siteed/expo-audio-stream-monorepo",
+    "workspaces": [
+        "packages/*",
+        "apps/*"
+    ],
+    "scripts": {
+        "format": "prettier --write ."
+    },
+    "nohoist": [
+        "**/react-native",
+        "**/react-native/**"
+    ],
+    "devDependencies": {
+        "lefthook": "^1.7.2",
+        "prettier": "^3.3.3",
+        "typescript": "^5.4.3"
+    },
+    "packageManager": "yarn@4.3.1"
 }

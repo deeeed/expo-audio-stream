@@ -1,219 +1,224 @@
 import {
-  Canvas,
-  ExtendedTouchInfo,
-  Group,
-  Path,
-  useTouchHandler
-} from "@shopify/react-native-skia";
-import React, { useCallback, useMemo, useRef } from "react";
-import { Platform, View } from "react-native";
-import { SharedValue, useDerivedValue } from "react-native-reanimated";
+    Canvas,
+    ExtendedTouchInfo,
+    Group,
+    Path,
+    useTouchHandler,
+} from '@shopify/react-native-skia'
+import React, { useCallback, useMemo, useRef } from 'react'
+import { Platform, View } from 'react-native'
+import { SharedValue, useDerivedValue } from 'react-native-reanimated'
 
-import { DataPoint } from "@siteed/expo-audio-stream";
-import { StyleProp, ViewStyle } from "react-native";
-import { CANDLE_ACTIVE_AUDIO_COLOR, CANDLE_ACTIVE_SPEECH_COLOR, CANDLE_OFFCANVAS_COLOR, CANDLE_SELECTED_COLOR } from "../constants";
-import AnimatedCandle from "./AnimatedCandle";
-import { CandleData } from "./AudioVisualiser.types";
-import { drawDottedLine } from "./AudioVisualizers.helpers";
-import { SkiaTimeRuler } from "./SkiaTimeRuler";
+import { DataPoint } from '@siteed/expo-audio-stream'
+import { StyleProp, ViewStyle } from 'react-native'
+import {
+    CANDLE_ACTIVE_AUDIO_COLOR,
+    CANDLE_ACTIVE_SPEECH_COLOR,
+    CANDLE_OFFCANVAS_COLOR,
+    CANDLE_SELECTED_COLOR,
+} from '../constants'
+import AnimatedCandle from './AnimatedCandle'
+import { CandleData } from './AudioVisualiser.types'
+import { drawDottedLine } from './AudioVisualizers.helpers'
+import { SkiaTimeRuler } from './SkiaTimeRuler'
 
 export interface CanvasContainerProps {
-  canvasHeight: number;
-  candleWidth: number;
-  candleSpace: number;
-  showDottedLine: boolean;
-  showRuler: boolean;
-  showSilence: boolean;
-  mode: "static" | "live" | "scaled";
-  translateX: SharedValue<number>;
-  activePoints: CandleData[];
-  maxDisplayedItems: number;
-  paddingLeft: number;
-  totalCandleWidth: number;
-  startIndex: number;
-  canvasWidth: number;
-  selectedCandle: DataPoint | null;
-  durationMs?: number;
-  minAmplitude: number;
-  maxAmplitude: number;
-  onSelection: (dataPoint: DataPoint) => void;
-  containerStyle?: StyleProp<ViewStyle>;
+    canvasHeight: number
+    candleWidth: number
+    candleSpace: number
+    showDottedLine: boolean
+    showRuler: boolean
+    showSilence: boolean
+    mode: 'static' | 'live' | 'scaled'
+    translateX: SharedValue<number>
+    activePoints: CandleData[]
+    maxDisplayedItems: number
+    paddingLeft: number
+    totalCandleWidth: number
+    startIndex: number
+    canvasWidth: number
+    selectedCandle: DataPoint | null
+    durationMs?: number
+    minAmplitude: number
+    maxAmplitude: number
+    onSelection: (dataPoint: DataPoint) => void
+    containerStyle?: StyleProp<ViewStyle>
 }
 
 const CanvasContainer: React.FC<CanvasContainerProps> = ({
-  canvasHeight,
-  candleWidth,
-  candleSpace,
-  showDottedLine,
-  showRuler,
-  mode,
-  translateX,
-  activePoints,
-  maxDisplayedItems,
-  paddingLeft,
-  totalCandleWidth,
-  startIndex,
-  canvasWidth,
-  selectedCandle,
-  showSilence,
-  durationMs,
-  onSelection,
-  minAmplitude,
-  maxAmplitude,
-  containerStyle,
-}) => {
-  const groupTransform = useDerivedValue(() => {
-    return [{ translateX: translateX.value }];
-  });
-  const memoizedCandles = useMemo(() => {
-    return activePoints.map(
-      ({ id, amplitude, visible, activeSpeech, silent }, index) => {
-        if (id === -1) return null;
-
-        const scaledAmplitude =
-          ((amplitude - minAmplitude) * (canvasHeight - 10)) /
-          (maxAmplitude - minAmplitude);
-        let delta =
-          Math.ceil(maxDisplayedItems / 2) * (candleWidth + candleSpace);
-        if (mode === "live") {
-          delta = 0;
-        }
-        const x =
-          (candleWidth + candleSpace) * index +
-          startIndex * (candleWidth + candleSpace) +
-          delta;
-
-        let color = CANDLE_ACTIVE_AUDIO_COLOR;
-        if (!visible) {
-          color = CANDLE_OFFCANVAS_COLOR;
-        } else if (selectedCandle && selectedCandle.id === id) {
-          color = CANDLE_SELECTED_COLOR;
-        } else if (activeSpeech) {
-          color = CANDLE_ACTIVE_SPEECH_COLOR;
-        }
-
-        const key = `${id}`;
-
-        return (
-          <React.Fragment key={key}>
-            {selectedCandle && selectedCandle.id === id && (
-              <Path
-                path={`M${x},0 L${x + candleWidth},0 L${x + candleWidth},${canvasHeight} L${x},${canvasHeight} Z`}
-                color="red"
-                style="stroke"
-                strokeWidth={2}
-                // strokeDash={[4, 4]}
-              />
-            )}
-            {(!silent || showSilence) && (
-              <AnimatedCandle
-                animated
-                x={x}
-                y={canvasHeight / 2 - scaledAmplitude / 2}
-                startY={canvasHeight / 2}
-                width={candleWidth}
-                height={scaledAmplitude}
-                color={color}
-              />
-            )}
-          </React.Fragment>
-        );
-      },
-    );
-  }, [
-    activePoints,
     canvasHeight,
-    minAmplitude,
-    maxAmplitude,
-    maxDisplayedItems,
-    showSilence,
     candleWidth,
     candleSpace,
+    showDottedLine,
+    showRuler,
     mode,
+    translateX,
+    activePoints,
+    maxDisplayedItems,
+    paddingLeft,
+    totalCandleWidth,
     startIndex,
+    canvasWidth,
     selectedCandle,
-  ]);
+    showSilence,
+    durationMs,
+    onSelection,
+    minAmplitude,
+    maxAmplitude,
+    containerStyle,
+}) => {
+    const groupTransform = useDerivedValue(() => {
+        return [{ translateX: translateX.value }]
+    })
+    const memoizedCandles = useMemo(() => {
+        return activePoints.map(
+            ({ id, amplitude, visible, activeSpeech, silent }, index) => {
+                if (id === -1) return null
 
-  const hasProcessedEvent = useRef(false);
+                const scaledAmplitude =
+                    ((amplitude - minAmplitude) * (canvasHeight - 10)) /
+                    (maxAmplitude - minAmplitude)
+                let delta =
+                    Math.ceil(maxDisplayedItems / 2) *
+                    (candleWidth + candleSpace)
+                if (mode === 'live') {
+                    delta = 0
+                }
+                const x =
+                    (candleWidth + candleSpace) * index +
+                    startIndex * (candleWidth + candleSpace) +
+                    delta
 
-  const processEvent = useCallback(
-    (event: ExtendedTouchInfo) => {
-      if (mode === "live" || hasProcessedEvent.current) return;
+                let color = CANDLE_ACTIVE_AUDIO_COLOR
+                if (!visible) {
+                    color = CANDLE_OFFCANVAS_COLOR
+                } else if (selectedCandle && selectedCandle.id === id) {
+                    color = CANDLE_SELECTED_COLOR
+                } else if (activeSpeech) {
+                    color = CANDLE_ACTIVE_SPEECH_COLOR
+                }
 
-      const { x, y } = event;
-      if (x < 0 || x > canvasWidth || y < 0 || y > canvasHeight) {
-        return;
-      }
+                const key = `${id}`
 
-      hasProcessedEvent.current = true;
+                return (
+                    <React.Fragment key={key}>
+                        {selectedCandle && selectedCandle.id === id && (
+                            <Path
+                                path={`M${x},0 L${x + candleWidth},0 L${x + candleWidth},${canvasHeight} L${x},${canvasHeight} Z`}
+                                color="red"
+                                style="stroke"
+                                strokeWidth={2}
+                                // strokeDash={[4, 4]}
+                            />
+                        )}
+                        {(!silent || showSilence) && (
+                            <AnimatedCandle
+                                animated
+                                x={x}
+                                y={canvasHeight / 2 - scaledAmplitude / 2}
+                                startY={canvasHeight / 2}
+                                width={candleWidth}
+                                height={scaledAmplitude}
+                                color={color}
+                            />
+                        )}
+                    </React.Fragment>
+                )
+            }
+        )
+    }, [
+        activePoints,
+        canvasHeight,
+        minAmplitude,
+        maxAmplitude,
+        maxDisplayedItems,
+        showSilence,
+        candleWidth,
+        candleSpace,
+        mode,
+        startIndex,
+        selectedCandle,
+    ])
 
-      setTimeout(() => {
-        hasProcessedEvent.current = false;
-      }, 300);
+    const hasProcessedEvent = useRef(false)
 
-      const plotStart = canvasWidth / 2 + translateX.value;
-      const plotEnd = plotStart + totalCandleWidth;
+    const processEvent = useCallback(
+        (event: ExtendedTouchInfo) => {
+            if (mode === 'live' || hasProcessedEvent.current) return
 
-      if (x < plotStart || x > plotEnd) {
-        return;
-      }
+            const { x, y } = event
+            if (x < 0 || x > canvasWidth || y < 0 || y > canvasHeight) {
+                return
+            }
 
-      const adjustedX = x - plotStart;
-      const index = Math.floor(adjustedX / (candleWidth + candleSpace));
-      const candle = activePoints[index];
-      if (!candle) {
-        return;
-      }
+            hasProcessedEvent.current = true
 
-      // Dispatch action to update the selected candle
-      onSelection?.(candle);
-    },
-    [
-      mode,
-      canvasWidth,
-      canvasHeight,
-      translateX,
-      totalCandleWidth,
-      candleWidth,
-      candleSpace,
-      activePoints,
-      onSelection,
-    ],
-  );
+            setTimeout(() => {
+                hasProcessedEvent.current = false
+            }, 300)
 
+            const plotStart = canvasWidth / 2 + translateX.value
+            const plotEnd = plotStart + totalCandleWidth
 
-  const touchHandler = useTouchHandler({
-    onStart: () => {},
-    onEnd: processEvent,
-  });
+            if (x < plotStart || x > plotEnd) {
+                return
+            }
 
-  return (
-    <View style={containerStyle}>
-      <Canvas
-        style={{ height: canvasHeight, width: canvasWidth }}
-        onTouch={Platform.OS !== "web" ? touchHandler : undefined}
-      >
-        <Group transform={groupTransform}>
-          {memoizedCandles}
-          {showRuler && (
-            <SkiaTimeRuler
-              duration={durationMs ?? 0 / 1000}
-              paddingLeft={paddingLeft}
-              width={totalCandleWidth}
-            />
-          )}
-        </Group>
-        {showDottedLine && (
-          <Path
-            path={drawDottedLine({ canvasWidth, canvasHeight })}
-            color="grey"
-            style="stroke"
-            strokeWidth={1}
-          />
-        )}
-      </Canvas>
-    </View>
-  );
-};
+            const adjustedX = x - plotStart
+            const index = Math.floor(adjustedX / (candleWidth + candleSpace))
+            const candle = activePoints[index]
+            if (!candle) {
+                return
+            }
 
-export default React.memo(CanvasContainer);
+            // Dispatch action to update the selected candle
+            onSelection?.(candle)
+        },
+        [
+            mode,
+            canvasWidth,
+            canvasHeight,
+            translateX,
+            totalCandleWidth,
+            candleWidth,
+            candleSpace,
+            activePoints,
+            onSelection,
+        ]
+    )
+
+    const touchHandler = useTouchHandler({
+        onStart: () => {},
+        onEnd: processEvent,
+    })
+
+    return (
+        <View style={containerStyle}>
+            <Canvas
+                style={{ height: canvasHeight, width: canvasWidth }}
+                onTouch={Platform.OS !== 'web' ? touchHandler : undefined}
+            >
+                <Group transform={groupTransform}>
+                    {memoizedCandles}
+                    {showRuler && (
+                        <SkiaTimeRuler
+                            duration={durationMs ?? 0 / 1000}
+                            paddingLeft={paddingLeft}
+                            width={totalCandleWidth}
+                        />
+                    )}
+                </Group>
+                {showDottedLine && (
+                    <Path
+                        path={drawDottedLine({ canvasWidth, canvasHeight })}
+                        color="grey"
+                        style="stroke"
+                        strokeWidth={1}
+                    />
+                )}
+            </Canvas>
+        </View>
+    )
+}
+
+export default React.memo(CanvasContainer)

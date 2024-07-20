@@ -1,53 +1,53 @@
 import {
-  AndroidConfig,
-  ConfigPlugin,
-  withAndroidManifest,
-  withInfoPlist,
-} from "@expo/config-plugins";
+    AndroidConfig,
+    ConfigPlugin,
+    withAndroidManifest,
+    withInfoPlist,
+} from '@expo/config-plugins'
 
-const MICROPHONE_USAGE = "Allow $(PRODUCT_NAME) to access your microphone";
+const MICROPHONE_USAGE = 'Allow $(PRODUCT_NAME) to access your microphone'
 
 const withRecordingPermission: ConfigPlugin<{
-  microphonePermission: string;
+    microphonePermission: string
 }> = (config, existingPerms) => {
-  if (!existingPerms) {
-    console.warn("No previous permissions provided");
-  }
-  config = withInfoPlist(config, (config) => {
-    config.modResults["NSMicrophoneUsageDescription"] = MICROPHONE_USAGE;
-
-    // Add audio to UIBackgroundModes to allow background audio recording
-    const existingBackgroundModes = config.modResults.UIBackgroundModes || [];
-    if (!existingBackgroundModes.includes("audio")) {
-      existingBackgroundModes.push("audio");
+    if (!existingPerms) {
+        console.warn('No previous permissions provided')
     }
-    config.modResults.UIBackgroundModes = existingBackgroundModes;
+    config = withInfoPlist(config, (config) => {
+        config.modResults['NSMicrophoneUsageDescription'] = MICROPHONE_USAGE
 
-    return config;
-  });
+        // Add audio to UIBackgroundModes to allow background audio recording
+        const existingBackgroundModes =
+            config.modResults.UIBackgroundModes || []
+        if (!existingBackgroundModes.includes('audio')) {
+            existingBackgroundModes.push('audio')
+        }
+        config.modResults.UIBackgroundModes = existingBackgroundModes
 
-  config = withAndroidManifest(config, (config) => {
-    const mainApplication = AndroidConfig.Manifest.getMainApplicationOrThrow(
-      config.modResults,
-    );
+        return config
+    })
 
-    AndroidConfig.Manifest.addMetaDataItemToMainApplication(
-      mainApplication,
-      "android.permission.RECORD_AUDIO",
-      MICROPHONE_USAGE,
-    );
+    config = withAndroidManifest(config, (config) => {
+        const mainApplication =
+            AndroidConfig.Manifest.getMainApplicationOrThrow(config.modResults)
 
-    // Add FOREGROUND_SERVICE permission for handling background recording
-    AndroidConfig.Manifest.addMetaDataItemToMainApplication(
-      mainApplication,
-      "android.permission.FOREGROUND_SERVICE",
-      "This apps needs access to the foreground service to record audio in the background",
-    );
+        AndroidConfig.Manifest.addMetaDataItemToMainApplication(
+            mainApplication,
+            'android.permission.RECORD_AUDIO',
+            MICROPHONE_USAGE
+        )
 
-    return config;
-  });
+        // Add FOREGROUND_SERVICE permission for handling background recording
+        AndroidConfig.Manifest.addMetaDataItemToMainApplication(
+            mainApplication,
+            'android.permission.FOREGROUND_SERVICE',
+            'This apps needs access to the foreground service to record audio in the background'
+        )
 
-  return config;
-};
+        return config
+    })
 
-export default withRecordingPermission;
+    return config
+}
+
+export default withRecordingPermission

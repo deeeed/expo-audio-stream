@@ -3889,7 +3889,7 @@ __metadata:
   resolution: "@siteed/expo-audio-stream-monorepo@workspace:."
   dependencies:
     lefthook: "npm:^1.7.2"
-    prettier: "npm:^3.2.5"
+    prettier: "npm:^3.3.3"
     typescript: "npm:^5.4.3"
   languageName: unknown
   linkType: soft

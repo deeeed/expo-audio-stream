@@ -239,4 +239,4 @@ class RecorderProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor("recorder-processor", RecorderProcessor);
-`;
+`

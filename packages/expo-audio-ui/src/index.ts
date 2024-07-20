@@ -1,1 +1,1 @@
-export * from './AudioVisualizer/AudioVisualizer';
+export * from './AudioVisualizer/AudioVisualizer'

@@ -1,70 +1,70 @@
 // packages/expo-audio-stream/src/AudioRecorder.provider.tsx
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext } from 'react'
 
-import { AudioAnalysisData } from "./AudioAnalysis/AudioAnalysis.types";
+import { AudioAnalysisData } from './AudioAnalysis/AudioAnalysis.types'
 import {
-  AudioRecordingResult,
-  RecordingConfig,
-  StartRecordingResult,
-} from "./ExpoAudioStream.types";
-import { UseAudioRecorderProps, useAudioRecorder } from "./useAudioRecorder";
+    AudioRecordingResult,
+    RecordingConfig,
+    StartRecordingResult,
+} from './ExpoAudioStream.types'
+import { UseAudioRecorderProps, useAudioRecorder } from './useAudioRecorder'
 
 export interface UseAudioRecorderState {
-  startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>;
-  stopRecording: () => Promise<AudioRecordingResult | null>;
-  pauseRecording: () => void;
-  resumeRecording: () => void;
-  isRecording: boolean;
-  isPaused: boolean;
-  durationMs: number; // Duration of the recording
-  size: number; // Size in bytes of the recorded audio
-  analysisData?: AudioAnalysisData;
+    startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
+    stopRecording: () => Promise<AudioRecordingResult | null>
+    pauseRecording: () => void
+    resumeRecording: () => void
+    isRecording: boolean
+    isPaused: boolean
+    durationMs: number // Duration of the recording
+    size: number // Size in bytes of the recorded audio
+    analysisData?: AudioAnalysisData
 }
 
 const initContext: UseAudioRecorderState = {
-  isRecording: false,
-  isPaused: false,
-  durationMs: 0,
-  size: 0,
-  startRecording: async () => {
-    throw new Error("AudioRecorderProvider not found");
-  },
-  stopRecording: async () => {
-    throw new Error("AudioRecorderProvider not found");
-  },
-  pauseRecording: () => {
-    throw new Error("AudioRecorderProvider not found");
-  },
-  resumeRecording: () => {
-    throw new Error("AudioRecorderProvider not found");
-  },
-};
+    isRecording: false,
+    isPaused: false,
+    durationMs: 0,
+    size: 0,
+    startRecording: async () => {
+        throw new Error('AudioRecorderProvider not found')
+    },
+    stopRecording: async () => {
+        throw new Error('AudioRecorderProvider not found')
+    },
+    pauseRecording: () => {
+        throw new Error('AudioRecorderProvider not found')
+    },
+    resumeRecording: () => {
+        throw new Error('AudioRecorderProvider not found')
+    },
+}
 
-const AudioRecorderContext = createContext<UseAudioRecorderState>(initContext);
+const AudioRecorderContext = createContext<UseAudioRecorderState>(initContext)
 
 interface AudioRecorderProviderProps {
-  children: React.ReactNode;
-  config?: UseAudioRecorderProps;
+    children: React.ReactNode
+    config?: UseAudioRecorderProps
 }
 
 export const AudioRecorderProvider: React.FC<AudioRecorderProviderProps> = ({
-  children,
-  config = {},
+    children,
+    config = {},
 }) => {
-  const audioRecorder = useAudioRecorder(config);
-  return (
-    <AudioRecorderContext.Provider value={audioRecorder}>
-      {children}
-    </AudioRecorderContext.Provider>
-  );
-};
+    const audioRecorder = useAudioRecorder(config)
+    return (
+        <AudioRecorderContext.Provider value={audioRecorder}>
+            {children}
+        </AudioRecorderContext.Provider>
+    )
+}
 
 export const useSharedAudioRecorder = () => {
-  const context = useContext(AudioRecorderContext);
-  if (!context) {
-    throw new Error(
-      "useSharedAudioRecorder must be used within an AudioRecorderProvider",
-    );
-  }
-  return context;
-};
+    const context = useContext(AudioRecorderContext)
+    if (!context) {
+        throw new Error(
+            'useSharedAudioRecorder must be used within an AudioRecorderProvider'
+        )
+    }
+    return context
+}
