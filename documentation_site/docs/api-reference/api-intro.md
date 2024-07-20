@@ -23,18 +23,12 @@ The API is divided into the following main categories:
 
 ### Recording Results
 
-- **[AudioRecordingResult](audio-recording-result.md)**: Result data from a completed audio recording.
-- **[StartRecordingResult](start-recording-result.md)**: Result data when starting a recording.
+- **[AudioRecording](audio-recording.md)**: Result data from a completed audio recording.
 
 ### Audio Features
 
-- **[AudioFeaturesOptions](audio-features/audio-features-options.md)**: Options for extracting audio features.
 - **[AudioAnalysis](audio-features/audio-analysis.md)**: Detailed analysis of recorded audio.
-- **[DataPoint](audio-features/datapoint.md)**: Individual data points in audio analysis.
-
-### Functions
-
-- **[extractAudioAnalysis](extract-audio-analysis.md)**: Function for extracting audio analysis data from a recording.
+- **[extractAudioAnalysis](audio-features/extract-audio-analysis.md)**: Function for extracting audio analysis data from a recording.
 
 ### Utilities
 

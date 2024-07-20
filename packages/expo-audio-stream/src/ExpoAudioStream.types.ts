@@ -3,6 +3,7 @@ import {
     AudioAnalysis,
     AudioFeaturesOptions,
 } from './AudioAnalysis/AudioAnalysis.types'
+import { AudioAnalysisEvent } from './events'
 
 export interface AudioStreamStatus {
     isRecording: boolean
@@ -21,23 +22,11 @@ export interface AudioDataEvent {
     totalSize: number
 }
 
-export interface AudioEventPayload {
-    encoded?: string
-    buffer?: ArrayBuffer
-    fileUri: string
-    lastEmittedSize: number
-    position: number
-    deltaSize: number
-    totalSize: number
-    mimeType: string
-    streamUuid: string
-}
-
 export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'
 export type SampleRate = 16000 | 44100 | 48000
 export type BitDepth = 8 | 16 | 32
 
-export interface AudioRecordingResult {
+export interface AudioRecording {
     fileUri: string
     filename: string
     durationMs: number
@@ -67,10 +56,9 @@ export interface RecordingConfig {
     // Optional parameters for audio processing
     enableProcessing?: boolean // Boolean to enable/disable audio processing (default is false)
     pointsPerSecond?: number // Number of data points to extract per second of audio (default is 1000)
-    algorithm?: string // Algorithm to use for extraction (default is "rms")
+    algorithm?: string // Algorithm to use for amplitude computation (default is "rms")
     features?: AudioFeaturesOptions // Feature options to extract (default is empty)
 
-    // Optional paramters from web
     onAudioStream?: (_: AudioDataEvent) => Promise<void> // Callback function to handle audio stream
-    onProcessingResult?: (_: AudioAnalysis) => Promise<void> // Callback function to handle processing results
+    onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void> // Callback function to handle audio features extraction results
 }

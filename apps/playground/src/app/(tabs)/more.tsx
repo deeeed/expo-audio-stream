@@ -31,6 +31,7 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
     })
 }
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const logoSource = require('@assets/icon.png')
 export interface MoreScreenProps {}
 export const MoreScreen = (_: MoreScreenProps) => {

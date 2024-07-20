@@ -17,7 +17,7 @@ const sidebars: SidebarsConfig = {
   // But you can create a sidebar manually
   tutorialSidebar: {
     'Getting Started': [
-      'introduction',
+      'index',
       'features',
       'installation',
     ],
@@ -30,20 +30,16 @@ const sidebars: SidebarsConfig = {
     'API Reference': [
       'api-reference/api-intro',
       'api-reference/recording-config',
+      'api-reference/audio-recording',
       'api-reference/audio-data-event',
-      'api-reference/audio-event-payload',
-      'api-reference/audio-recording-result',
-      'api-reference/start-recording-result',
       {
         type: 'category',
         label: 'Audio Features',
         items: [
-          'api-reference/audio-features/audio-features-options',
           'api-reference/audio-features/audio-analysis',
-          'api-reference/audio-features/datapoint'
+          'api-reference/audio-features/extract-audio-analysis'
         ]
       },
-      'api-reference/extract-audio-analysis'
     ],
     'Playground Application': ['playground']
   },

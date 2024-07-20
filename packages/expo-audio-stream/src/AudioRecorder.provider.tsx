@@ -3,7 +3,7 @@ import React, { createContext, useContext } from 'react'
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import {
-    AudioRecordingResult,
+    AudioRecording,
     RecordingConfig,
     StartRecordingResult,
 } from './ExpoAudioStream.types'
@@ -11,7 +11,7 @@ import { UseAudioRecorderProps, useAudioRecorder } from './useAudioRecorder'
 
 export interface UseAudioRecorderState {
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
-    stopRecording: () => Promise<AudioRecordingResult | null>
+    stopRecording: () => Promise<AudioRecording | null>
     pauseRecording: () => void
     resumeRecording: () => void
     isRecording: boolean

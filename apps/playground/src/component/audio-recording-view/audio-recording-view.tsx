@@ -8,8 +8,8 @@ import {
     useToast,
 } from '@siteed/design-system'
 import {
-    AudioAnalysisData,
-    AudioRecordingResult,
+    AudioAnalysis,
+    AudioRecording,
     DataPoint,
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
@@ -68,16 +68,16 @@ const getStyles = ({
     })
 }
 
-export interface AudioRecordingProps {
-    recording: AudioRecordingResult
-    audioAnalysis?: AudioAnalysisData
+export interface AudioRecordingViewProps {
+    recording: AudioRecording
+    audioAnalysis?: AudioAnalysis
     actionText?: string
     visualConfig?: SelectedAudioVisualizerProps
     extractAnalysis?: boolean
     onActionPress?: () => void
     onDelete?: () => Promise<void>
 }
-export const AudioRecording = ({
+export const AudioRecordingView = ({
     recording,
     actionText,
     audioAnalysis: _audioAnalysis,
@@ -85,7 +85,7 @@ export const AudioRecording = ({
     visualConfig,
     onActionPress,
     onDelete,
-}: AudioRecordingProps) => {
+}: AudioRecordingViewProps) => {
     const { logger } = useLogger('AudioRecording')
     const { show } = useToast()
     const audioUri = recording.fileUri

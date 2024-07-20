@@ -2,7 +2,7 @@
 import { Button, ScreenWrapper, useToast } from '@siteed/design-system'
 import {
     AudioAnalysisData,
-    AudioRecordingResult,
+    AudioRecording,
     extractAudioAnalysis,
     getWavFileInfo,
 } from '@siteed/expo-audio-stream'
@@ -221,7 +221,7 @@ export const PlayPage = () => {
 
         logger.info(`saveTofiles wavMetadata:`, wavMetadata)
         // Auto copy to local files
-        const audioResult: AudioRecordingResult = {
+        const audioResult: AudioRecording = {
             fileUri: destination,
             filename: fileName,
             mimeType: 'audio/wav',

@@ -2,7 +2,7 @@
 import { Button, Picker, ScreenWrapper, useToast } from '@siteed/design-system'
 import {
     AudioDataEvent,
-    AudioRecordingResult,
+    AudioRecording,
     RecordingConfig,
     SampleRate,
     StartRecordingResult,
@@ -17,12 +17,12 @@ import isBase64 from 'is-base64'
 import { useCallback, useRef, useState } from 'react'
 import { Platform, StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
-import { atob, btoa } from 'react-native-quick-base64'
+import { atob } from 'react-native-quick-base64'
 
-import { AudioRecording } from '../../component/audio-recording/audio-recording'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
+import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
 
 if (isWeb) {
     localStorage.debug = 'expo-audio-stream:*'
@@ -55,7 +55,7 @@ export default function Record() {
             ...baseRecordingConfig,
             onAudioStream: (a) => onAudioData(a),
         })
-    const [result, setResult] = useState<AudioRecordingResult | null>(null)
+    const [result, setResult] = useState<AudioRecording | null>(null)
     const [processing, setProcessing] = useState(false)
     const currentSize = useRef(0)
     const { refreshFiles, removeFile } = useAudioFiles()
@@ -235,7 +235,7 @@ export default function Record() {
     )
 
     const handleDelete = useCallback(
-        async (recording: AudioRecordingResult) => {
+        async (recording: AudioRecording) => {
             logger.debug(`Deleting recording: ${recording.fileUri}`)
             try {
                 await removeFile(recording.fileUri)
@@ -401,7 +401,7 @@ export default function Record() {
       )} */}
             {result && (
                 <View style={{ gap: 10, paddingBottom: 100 }}>
-                    <AudioRecording
+                    <AudioRecordingView
                         recording={result}
                         onDelete={() => handleDelete(result)}
                         onActionPress={() => {

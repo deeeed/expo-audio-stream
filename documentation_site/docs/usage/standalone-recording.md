@@ -13,7 +13,7 @@ This library provides hooks for recording audio. Here, we demonstrate how to use
 
 ```tsx
 import {
-    AudioRecordingResult,
+    AudioRecording,
     useAudioRecorder,
 } from '@siteed/expo-audio-stream'
 import { Audio } from 'expo-av' // Import for playing audio on native
@@ -46,7 +46,7 @@ export default function App() {
     } = useAudioRecorder({
         debug: true,
     })
-    const [audioResult, setAudioResult] = useState<AudioRecordingResult | null>(
+    const [audioResult, setAudioResult] = useState<AudioRecording>(
         null
     )
     const [, setSound] = useState<Audio.Sound | null>(null) // State for audio playback on native

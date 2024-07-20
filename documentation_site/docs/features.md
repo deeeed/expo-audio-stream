@@ -15,6 +15,3 @@ sidebar_label: Features
 - Supports WAV PCM recording on all platforms.
 - Audio features extraction during recording.
 
----
-
-Next, learn how to [install and configure](installation.md) the library.

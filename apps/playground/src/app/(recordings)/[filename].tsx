@@ -13,12 +13,12 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
-import { AudioRecording } from '../../component/audio-recording/audio-recording'
 import {
     AudioRecordingConfigForm,
     SelectedAudioVisualizerProps,
 } from '../../component/audio-recording-config/audio-recording-config-form'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
+import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
 
 const getStyles = (_: { theme: AppTheme }) => {
     return StyleSheet.create({
@@ -112,7 +112,7 @@ export const FullAudioViewerPage = () => {
     return (
         <ScreenWrapper contentContainerStyle={styles.container}>
             {selectedFile && (
-                <AudioRecording
+                <AudioRecordingView
                     recording={selectedFile}
                     extractAnalysis
                     visualConfig={config}

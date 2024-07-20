@@ -1,8 +1,8 @@
 // playground/src/hooks/useAudio.tsx
 import { useToast } from '@siteed/design-system'
 import {
-    AudioAnalysisData,
-    AudioRecordingResult,
+    AudioAnalysis,
+    AudioRecording,
     extractAudioAnalysis,
 } from '@siteed/expo-audio-stream'
 import { useLogger } from '@siteed/react-native-logger'
@@ -30,7 +30,7 @@ interface UseAudioOptions {
 
 export interface UseAudioProps {
     audioUri?: string | undefined
-    recording?: AudioRecordingResult
+    recording?: AudioRecording
     options: UseAudioOptions
 }
 
@@ -42,7 +42,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     const [speed, setSpeed] = useState(1) // Add state for speed
     const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer>()
     const [audioAnalysis, setAudioAnalysis] =
-        useState<AudioAnalysisData | null>(null)
+        useState<AudioAnalysis | null>(null)
     const { logger } = useLogger('useAudio')
     const { show } = useToast()
 

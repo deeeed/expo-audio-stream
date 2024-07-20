@@ -3,8 +3,7 @@ import { EventEmitter } from 'expo-modules-core'
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import {
-    AudioEventPayload,
-    AudioRecordingResult,
+    AudioRecording,
     AudioStreamStatus,
     BitDepth,
     RecordingConfig,
@@ -15,6 +14,7 @@ import { getLogger } from './logger'
 import { concatenateBuffers } from './utils/concatenateBuffers'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
 import { writeWavHeader } from './utils/writeWavHeader'
+import { AudioEventPayload } from './events'
 
 export interface EmitAudioEventProps {
     data: ArrayBuffer
@@ -54,10 +54,10 @@ export class ExpoAudioStreamWeb extends EventEmitter {
         featuresExtratorUrl,
     }: ExpoAudioStreamWebProps) {
         const mockNativeModule = {
-            addListener: (eventName: string) => {
+            addListener: () => {
                 // Not used on web
             },
-            removeListeners: (count: number) => {
+            removeListeners: () => {
                 // Not used on web
             },
         }
@@ -101,6 +101,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
         })
 
         const audioContext = new (window.AudioContext ||
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore - Allow webkitAudioContext for Safari
             window.webkitAudioContext)()
         const stream = await this.getMediaStream()
@@ -175,7 +176,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
     }
 
     // Stop recording
-    async stopRecording(): Promise<AudioRecordingResult | null> {
+    async stopRecording(): Promise<AudioRecording> {
         if (!this.customRecorder) {
             throw new Error('Recorder is not initialized')
         }
@@ -203,7 +204,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
         })
         const fileUri = URL.createObjectURL(blob)
 
-        const result: AudioRecordingResult = {
+        const result: AudioRecording = {
             fileUri,
             filename: `${this.streamUuid}.${this.extension}`,
             wavPCMData: wavBuffer,

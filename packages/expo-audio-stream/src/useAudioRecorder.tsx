@@ -5,14 +5,17 @@ import { useCallback, useEffect, useReducer, useRef } from 'react'
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import {
     AudioDataEvent,
-    AudioEventPayload,
-    AudioRecordingResult,
+    AudioRecording,
     AudioStreamStatus,
     RecordingConfig,
     StartRecordingResult,
 } from './ExpoAudioStream.types'
 import ExpoAudioStreamModule from './ExpoAudioStreamModule'
-import { addAudioAnalysisListener, addAudioEventListener } from './events'
+import {
+    addAudioAnalysisListener,
+    addAudioEventListener,
+    AudioEventPayload,
+} from './events'
 import { disableAllLoggers, enableAllLoggers, getLogger } from './logger'
 
 const TAG = 'useAudioRecorder'
@@ -25,7 +28,7 @@ export interface UseAudioRecorderProps {
 
 export interface UseAudioRecorderState {
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
-    stopRecording: () => Promise<AudioRecordingResult | null>
+    stopRecording: () => Promise<AudioRecording>
     pauseRecording: () => void
     resumeRecording: () => void
     isRecording: boolean
@@ -322,7 +325,7 @@ export function useAudioRecorder({
                     async (analysisData) => {
                         try {
                             await handleAudioAnalysis({
-                                analysis: analysisData.analysis,
+                                analysis: analysisData,
                                 visualizationDuration: maxRecentDataDuration,
                             })
                         } catch (error) {
@@ -345,8 +348,7 @@ export function useAudioRecorder({
     const stopRecording = useCallback(async () => {
         logger.debug(`stoping recording`)
 
-        const stopResult: AudioRecordingResult =
-            await ExpoAudioStream.stopRecording()
+        const stopResult: AudioRecording = await ExpoAudioStream.stopRecording()
         stopResult.analysisData = analysisRef.current
 
         if (analysisListenerRef.current) {

@@ -79,6 +79,3 @@ export interface AudioAnalysis {
     }[]
 }
 
-export interface AudioAnalysisEventPayload {
-    analysis: AudioAnalysis
-}

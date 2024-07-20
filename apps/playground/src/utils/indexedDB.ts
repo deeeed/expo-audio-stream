@@ -1,6 +1,6 @@
 // playground/src/utils/indexedDB.ts
 
-import { AudioRecordingResult } from '@siteed/expo-audio-stream'
+import { AudioRecording } from '@siteed/expo-audio-stream'
 import { getLogger } from '@siteed/react-native-logger'
 
 interface OpenDatabaseParams {
@@ -11,7 +11,7 @@ interface OpenDatabaseParams {
 interface StoreAudioFileParams {
     fileName: string
     arrayBuffer: ArrayBuffer
-    metadata: AudioRecordingResult
+    metadata: AudioRecording
 }
 
 interface GetAudioFileParams {
@@ -25,7 +25,7 @@ interface DeleteAudioFileParams {
 interface AudioFileRecord {
     fileName: string
     arrayBuffer: ArrayBuffer
-    metadata: AudioRecordingResult
+    metadata: AudioRecording
 }
 
 const logger = getLogger('indexedDB')

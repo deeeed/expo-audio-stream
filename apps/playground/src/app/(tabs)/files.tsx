@@ -6,15 +6,15 @@ import {
     Skeleton,
     useToast,
 } from '@siteed/design-system'
-import { AudioRecordingResult } from '@siteed/expo-audio-stream'
+import { AudioRecording } from '@siteed/expo-audio-stream'
 import { useLogger } from '@siteed/react-native-logger'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback } from 'react'
 import { FlatList, StyleSheet } from 'react-native'
 
-import { AudioRecording } from '../../component/audio-recording/audio-recording'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { formatBytes } from '../../utils/utils'
+import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
 
 const FilesScreen = () => {
     const { logger } = useLogger('Files')
@@ -37,7 +37,7 @@ const FilesScreen = () => {
     )
 
     const handleDelete = useCallback(
-        async (recording: AudioRecordingResult) => {
+        async (recording: AudioRecording) => {
             logger.debug(`Deleting recording: ${recording.fileUri}`)
             try {
                 await removeFile(recording.fileUri)
@@ -108,7 +108,7 @@ const FilesScreen = () => {
                 </Button>
             }
             renderItem={({ item }) => (
-                <AudioRecording
+                <AudioRecordingView
                     recording={item}
                     onDelete={() => handleDelete(item)}
                     onActionPress={() => {
