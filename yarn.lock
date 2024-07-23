@@ -4816,8 +4816,8 @@ __metadata:
   resolution: "@siteed/expo-audio-stream@workspace:packages/expo-audio-stream"
   dependencies:
     "@expo/config-plugins": "npm:^7.9.1"
+    "@siteed/react-native-logger": "npm:^0.8.2"
     "@size-limit/preset-big-lib": "npm:^11.1.4"
-    "@types/debug": "npm:^4.1.12"
     "@types/node": "npm:^20.12.7"
     "@types/react": "npm:^18.0.25"
     "@typescript-eslint/eslint-plugin": "npm:^7.7.0"
@@ -4835,6 +4835,7 @@ __metadata:
     prettier: "npm:^3.2.5"
     react-native: "npm:^0.74.3"
     size-limit: "npm:^11.1.4"
+    typescript: "npm:^5.5.4"
   peerDependencies:
     expo: "*"
     react: "*"
@@ -4894,6 +4895,13 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/a852264d6e5d7108850481611a9bb66921c562b4f5c943d1d42e2a7fb01d8b54d8853d1002a8cf79942e6c6b128060ae8a49b1baea4ae8ea5d1259154a85136d
+  languageName: node
+  linkType: hard
+
+"@siteed/react-native-logger@npm:^0.8.2":
+  version: 0.8.2
+  resolution: "@siteed/react-native-logger@npm:0.8.2"
+  checksum: 10c0/0f4b0adc68e22983b06a6d8e720b7e83febd0f37cce6c4b0c050b993986934577f6b0398aadb9e846019d19134b72e92e3be6b93faf1fd61a7fde72abc5093d1
   languageName: node
   linkType: hard
 
@@ -5308,7 +5316,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/debug@npm:^4.0.0, @types/debug@npm:^4.1.12":
+"@types/debug@npm:^4.0.0":
   version: 4.1.12
   resolution: "@types/debug@npm:4.1.12"
   dependencies:
@@ -22905,6 +22913,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"typescript@npm:^5.5.4":
+  version: 5.5.4
+  resolution: "typescript@npm:5.5.4"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/422be60f89e661eab29ac488c974b6cc0a660fb2228003b297c3d10c32c90f3bcffc1009b43876a082515a3c376b1eefcce823d6e78982e6878408b9a923199c
+  languageName: node
+  linkType: hard
+
 "typescript@npm:~5.2.2":
   version: 5.2.2
   resolution: "typescript@npm:5.2.2"
@@ -22932,6 +22950,16 @@ __metadata:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 10c0/911c7811d61f57f07df79c4a35f56a0f426a65426a020e5fcd792f66559f399017205f5f10255329ab5a3d8c2d1f1d19530aeceffda70758a521fae1d469432e
+  languageName: node
+  linkType: hard
+
+"typescript@patch:typescript@npm%3A^5.5.4#optional!builtin<compat/typescript>":
+  version: 5.5.4
+  resolution: "typescript@patch:typescript@npm%3A5.5.4#optional!builtin<compat/typescript>::version=5.5.4&hash=379a07"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/73409d7b9196a5a1217b3aaad929bf76294d3ce7d6e9766dd880ece296ee91cf7d7db6b16c6c6c630ee5096eccde726c0ef17c7dfa52b01a243e57ae1f09ef07
   languageName: node
   linkType: hard
 

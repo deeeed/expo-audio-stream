@@ -26,6 +26,7 @@
         "clean": "expo-module clean",
         "lint": "expo-module lint",
         "test": "expo-module test",
+        "typecheck": "tsc --noEmit",
         "prepare": "expo-module prepare",
         "prepublishOnly": "expo-module prepublishOnly",
         "expo-module": "expo-module",
@@ -37,7 +38,6 @@
     "devDependencies": {
         "@expo/config-plugins": "^7.9.1",
         "@size-limit/preset-big-lib": "^11.1.4",
-        "@types/debug": "^4.1.12",
         "@types/node": "^20.12.7",
         "@types/react": "^18.0.25",
         "@typescript-eslint/eslint-plugin": "^7.7.0",
@@ -54,7 +54,8 @@
         "expo-modules-core": "^1.12.19",
         "prettier": "^3.2.5",
         "react-native": "^0.74.3",
-        "size-limit": "^11.1.4"
+        "size-limit": "^11.1.4",
+        "typescript": "^5.5.4"
     },
     "peerDependencies": {
         "expo": "*",
@@ -64,5 +65,8 @@
     "publishConfig": {
         "access": "public",
         "registry": "https://registry.npmjs.org"
+    },
+    "dependencies": {
+        "@siteed/react-native-logger": "^0.8.2"
     }
 }

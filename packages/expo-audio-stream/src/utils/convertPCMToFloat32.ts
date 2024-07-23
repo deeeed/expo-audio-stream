@@ -21,21 +21,21 @@ export const convertPCMToFloat32 = ({
         const offset = headerOffset + i * (bitDepth / 8)
         switch (bitDepth) {
             case 8:
-                value = dataView.getUint8(offset) / 128
-                break
+                value = (dataView.getUint8(offset) - 128) / 128;
+                break;
             case 16:
-                value = dataView.getInt16(offset, true) / 32768
-                break
+                value = dataView.getInt16(offset, true) / 32768;
+                break;
             case 24:
-                value =
-                    (dataView.getUint8(offset) +
-                        (dataView.getUint8(offset + 1) << 8) +
-                        (dataView.getUint8(offset + 2) << 16)) /
-                    8388608
-                break
+                value = (
+                    (dataView.getUint8(offset) |
+                    (dataView.getUint8(offset + 1) << 8) |
+                    (dataView.getUint8(offset + 2) << 16)) / 8388608
+                ) * 2 - 1;
+                break;
             case 32:
-                value = dataView.getFloat32(offset, true)
-                break
+                value = dataView.getFloat32(offset, true);
+                break;
             default:
                 throw new Error(`Unsupported bit depth: ${bitDepth}`)
         }
