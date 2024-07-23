@@ -22,6 +22,7 @@ import { AudioRecordingView } from '../../component/audio-recording-view/audio-r
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
+import { getLogger } from '@siteed/react-native-logger'
 
 if (isWeb) {
     localStorage.debug = 'expo-audio-stream:*'
@@ -36,6 +37,8 @@ const baseRecordingConfig: RecordingConfig = {
     pointsPerSecond: 10,
     enableProcessing: true,
 }
+
+const logger = getLogger('RecordScreen');
 
 if (Platform.OS === 'ios') {
     baseRecordingConfig.sampleRate = 48000
