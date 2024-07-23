@@ -2995,6 +2995,32 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo/metro-config@npm:0.18.9":
+  version: 0.18.9
+  resolution: "@expo/metro-config@npm:0.18.9"
+  dependencies:
+    "@babel/core": "npm:^7.20.0"
+    "@babel/generator": "npm:^7.20.5"
+    "@babel/parser": "npm:^7.20.0"
+    "@babel/types": "npm:^7.20.0"
+    "@expo/config": "npm:~9.0.0-beta.0"
+    "@expo/env": "npm:~0.3.0"
+    "@expo/json-file": "npm:~8.3.0"
+    "@expo/spawn-async": "npm:^1.7.2"
+    chalk: "npm:^4.1.0"
+    debug: "npm:^4.3.2"
+    find-yarn-workspace-root: "npm:~2.0.0"
+    fs-extra: "npm:^9.1.0"
+    getenv: "npm:^1.0.0"
+    glob: "npm:^7.2.3"
+    jsc-safe-url: "npm:^0.2.4"
+    lightningcss: "npm:~1.19.0"
+    postcss: "npm:~8.4.32"
+    resolve-from: "npm:^5.0.0"
+  checksum: 10c0/bf28f300ab846ea231b7dce36686bb34278ce22f58db01999bd6e1944257968a6f6f946b36d0492f94455c34d4ad0038cd2d0a4fca084831aea6c9649a618b20
+  languageName: node
+  linkType: hard
+
 "@expo/metro-runtime@npm:3.2.1, @expo/metro-runtime@npm:~3.2.1":
   version: 3.2.1
   resolution: "@expo/metro-runtime@npm:3.2.1"
@@ -7081,7 +7107,7 @@ __metadata:
     eslint-plugin-prettier: "npm:^5.1.3"
     eslint-plugin-promise: "npm:^6.1.1"
     eslint-plugin-react: "npm:^7.34.1"
-    expo: "npm:^51.0.21"
+    expo: "npm:^51.0.22"
     expo-av: "npm:~14.0.5"
     expo-clipboard: "npm:~6.0.3"
     expo-constants: "npm:~16.0.2"
@@ -7103,7 +7129,7 @@ __metadata:
     react-native-paper: "npm:^5.12.3"
     react-native-quick-base64: "npm:^2.1.2"
     react-native-reanimated: "npm:~3.10.1"
-    react-native-safe-area-context: "npm:4.10.1"
+    react-native-safe-area-context: "npm:4.10.5"
     react-native-screens: "npm:3.31.1"
     react-native-svg: "npm:15.2.0"
     react-native-vector-icons: "npm:^10.0.3"
@@ -11459,6 +11485,31 @@ __metadata:
   bin:
     expo: bin/cli
   checksum: 10c0/0b34a85bb35e97b4a927c4077c83364b9b6f3ab5de735b5298e30fb76ed1fc71979ae12a80640a34a27d0b457717110f34a2436d346f070738a478a58c030aa6
+  languageName: node
+  linkType: hard
+
+"expo@npm:^51.0.22":
+  version: 51.0.22
+  resolution: "expo@npm:51.0.22"
+  dependencies:
+    "@babel/runtime": "npm:^7.20.0"
+    "@expo/cli": "npm:0.18.25"
+    "@expo/config": "npm:9.0.3"
+    "@expo/config-plugins": "npm:8.0.8"
+    "@expo/metro-config": "npm:0.18.9"
+    "@expo/vector-icons": "npm:^14.0.0"
+    babel-preset-expo: "npm:~11.0.12"
+    expo-asset: "npm:~10.0.10"
+    expo-file-system: "npm:~17.0.1"
+    expo-font: "npm:~12.0.9"
+    expo-keep-awake: "npm:~13.0.2"
+    expo-modules-autolinking: "npm:1.11.1"
+    expo-modules-core: "npm:1.12.19"
+    fbemitter: "npm:^3.0.0"
+    whatwg-url-without-unicode: "npm:8.0.0-3"
+  bin:
+    expo: bin/cli
+  checksum: 10c0/a5e6b768b80b1f6bbe33c693e664f2ac806daddb4615b9358aa2b451a899a9c115ffa9969e90c92fc5677300895a9065b9ff89cb986e8a004bf1d7ab0b76c220
   languageName: node
   linkType: hard
 
@@ -19772,6 +19823,16 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/4d9210f68535d90200a03e18015053f1bd72d6cb562866716d7a206e64956bd0d5fb022788f1882144193c554866e04a0a68c90600ca8c982ab3ab546a68c198
+  languageName: node
+  linkType: hard
+
+"react-native-safe-area-context@npm:4.10.5":
+  version: 4.10.5
+  resolution: "react-native-safe-area-context@npm:4.10.5"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/b385d07ad0bd8400f957e458cf9f715312ccfe00db0c0806831a419f44fbe1eef5004c7d007156db8bc235f738880d2467d89e334ab585c682d38c0c8635c7f1
   languageName: node
   linkType: hard
 
