@@ -64,7 +64,10 @@ config.transformer.getTransformOptions = async () => ({
         inlineRequires: true,
     },
 })
-config.resolver.nodeModulesPaths = [path.resolve(projectRoot, 'node_modules')]
+config.resolver.nodeModulesPaths = [
+    path.resolve(projectRoot, 'node_modules'),
+    path.resolve(monorepoRoot, 'node_modules'),
+]
 
 config.resolver = {
     ...config.resolver,
