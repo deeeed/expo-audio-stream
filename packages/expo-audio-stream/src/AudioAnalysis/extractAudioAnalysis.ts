@@ -79,7 +79,7 @@ export const extractAudioAnalysis = async ({
             pcmValues: channelData,
             min,
             max,
-        } = convertPCMToFloat32({
+        } = await convertPCMToFloat32({
             buffer: arrayBuffer,
             bitDepth: actualBitDepth,
             skipWavHeader,
