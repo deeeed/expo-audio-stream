@@ -5,13 +5,13 @@ import {
     AudioRecording,
     extractAudioAnalysis,
 } from '@siteed/expo-audio-stream'
-import { useLogger } from '@siteed/react-native-logger'
 import { Audio } from 'expo-av'
 import { useCallback, useEffect, useState } from 'react'
 
 import { SelectedAnalysisConfig } from '../component/audio-recording-analysis-config/audio-recording-analysis-config'
 import { config } from '../config'
 import { fetchArrayBuffer } from '../utils/utils'
+import { getLogger } from '@siteed/react-native-logger'
 
 interface PlayOptions {
     position?: number
@@ -34,6 +34,8 @@ export interface UseAudioProps {
     options: UseAudioOptions
 }
 
+const logger = getLogger('useAudio');
+
 export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     const [sound, setSound] = useState<Audio.Sound | null>(null)
     const [isPlaying, setIsPlaying] = useState(false)
@@ -43,7 +45,6 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer>()
     const [audioAnalysis, setAudioAnalysis] =
         useState<AudioAnalysis | null>(null)
-    const { logger } = useLogger('useAudio')
     const { show } = useToast()
 
     useEffect(() => {

@@ -7,7 +7,6 @@ import {
     useToast,
 } from '@siteed/design-system'
 import { AudioRecording } from '@siteed/expo-audio-stream'
-import { useLogger } from '@siteed/react-native-logger'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback } from 'react'
 import { FlatList, StyleSheet } from 'react-native'
@@ -15,9 +14,10 @@ import { FlatList, StyleSheet } from 'react-native'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { formatBytes } from '../../utils/utils'
 import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
+import { getLogger } from '@siteed/react-native-logger'
+const logger = getLogger('FilesScreen')
 
 const FilesScreen = () => {
-    const { logger } = useLogger('Files')
     const { show } = useToast()
     const router = useRouter()
 

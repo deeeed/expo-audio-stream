@@ -2,7 +2,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { UIProvider } from '@siteed/design-system'
 import { AudioRecorderProvider } from '@siteed/expo-audio-stream'
-import { LoggerProvider } from '@siteed/react-native-logger'
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import { Stack } from 'expo-router/stack'
@@ -14,7 +13,6 @@ export default function RootLayout() {
     const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? ''
 
     return (
-        <LoggerProvider>
             <ApplicationContextProvider debugMode>
                 <AudioRecorderProvider
                     config={{
@@ -70,6 +68,5 @@ export default function RootLayout() {
                     </UIProvider>
                 </AudioRecorderProvider>
             </ApplicationContextProvider>
-        </LoggerProvider>
     )
 }

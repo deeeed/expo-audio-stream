@@ -4798,9 +4798,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@siteed/design-system@npm:^0.8.14":
-  version: 0.8.14
-  resolution: "@siteed/design-system@npm:0.8.14"
+"@siteed/design-system@npm:^0.8.15":
+  version: 0.8.15
+  resolution: "@siteed/design-system@npm:0.8.15"
   dependencies:
     "@pchmn/expo-material3-theme": "npm:^1.3.2"
     i18n-js: "npm:^4.4.3"
@@ -4819,7 +4819,7 @@ __metadata:
     react-native-gesture-handler: "*"
     react-native-paper: "*"
     react-native-vector-icons: "*"
-  checksum: 10c0/fbb4c31c54b285e75f34c487e82dedfeb16b8bb95fe5dd6d0955ce3b2cdd9151663c98d715c8c106c73eafa864b05f698c0a7e39c8ca3bb8272a144a821525e9
+  checksum: 10c0/81cd8c4754c0e59ec67b288411dc4b487d99cdeaed1135821c4fd2a1ed22f763f5974001f3d8495812d0d20ae448c4d32ffb45dd8f7098308933b03006d93051
   languageName: node
   linkType: hard
 
@@ -4912,16 +4912,6 @@ __metadata:
     react-native-reanimated: ">=3.0.0 <4.0.0"
   languageName: unknown
   linkType: soft
-
-"@siteed/react-native-logger@npm:^0.7.1":
-  version: 0.7.1
-  resolution: "@siteed/react-native-logger@npm:0.7.1"
-  peerDependencies:
-    react: "*"
-    react-native: "*"
-  checksum: 10c0/a852264d6e5d7108850481611a9bb66921c562b4f5c943d1d42e2a7fb01d8b54d8853d1002a8cf79942e6c6b128060ae8a49b1baea4ae8ea5d1259154a85136d
-  languageName: node
-  linkType: hard
 
 "@siteed/react-native-logger@npm:^0.8.2":
   version: 0.8.2
@@ -7086,10 +7076,10 @@ __metadata:
     "@react-navigation/native": "npm:^6.1.17"
     "@shopify/react-native-skia": "npm:1.2.3"
     "@simform_solutions/react-native-audio-waveform": "npm:^1.0.1"
-    "@siteed/design-system": "npm:^0.8.14"
+    "@siteed/design-system": "npm:^0.8.15"
     "@siteed/expo-audio-stream": "workspace:^"
     "@siteed/expo-audio-ui": "workspace:^"
-    "@siteed/react-native-logger": "npm:^0.7.1"
+    "@siteed/react-native-logger": "npm:^0.8.2"
     "@types/gh-pages": "npm:^6"
     "@types/is-base64": "npm:^1.1.3"
     "@types/lodash": "npm:^4"

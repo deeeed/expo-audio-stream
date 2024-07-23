@@ -1,59 +1,62 @@
 import { AppTheme, Button, useTheme, useToast } from '@siteed/design-system'
-import { useLogger, useLoggerState } from '@siteed/react-native-logger'
+import { clearLogs, getLogger, getLogs } from '@siteed/react-native-logger'
 import * as Clipboard from 'expo-clipboard'
 import { useFocusEffect } from 'expo-router'
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 
 export interface LogViewerProps {}
+const logger = getLogger("LogViewer");
 
 export const LogViewer = (_: LogViewerProps) => {
-    const { clearLogs } = useLogger('log-viewer')
-    const { logs, refreshLogs } = useLoggerState()
     const { show } = useToast()
     const theme = useTheme()
     const styles = useMemo(() => getStyles({ theme }), [theme])
+    const [logs, setLogs] = useState(getLogs());
+
+
+  const handleRefresh = () => {
+    setLogs(getLogs());
+    show({ iconVisible: true, message: 'Logs have been updated' })
+  };
+
+  const handleClear = () => {
+    clearLogs();
+    handleRefresh();
+  };
+
+
+  const handleCopy = useCallback(async () => {
+    try {
+        const text = logs
+            .map((log) => `${log.timestamp} ${log.namespace} ${log.message}`)
+            .join('\n')
+        await Clipboard.setStringAsync(text)
+        show({ iconVisible: true, message: 'Logs copied to clipboard' })
+    } catch (_err) {
+        // Ignore
+    }
+}, [])
 
     useFocusEffect(
         useCallback(() => {
-            refreshLogs()
-        }, [refreshLogs])
+            handleRefresh()
+        }, [handleRefresh])
     )
-
-    const handleClear = useCallback(async () => {
-        clearLogs()
-    }, [clearLogs])
-
-    const handleCopy = useCallback(async () => {
-        try {
-            const text = logs
-                .map((log) => `${log.timestamp} ${log.context} ${log.message}`)
-                .join('\n')
-            await Clipboard.setStringAsync(text)
-            show({ iconVisible: true, message: 'Logs copied to clipboard' })
-        } catch (_err) {
-            // Ignore
-        }
-    }, [])
-
-    const handleRefresh = useCallback(() => {
-        refreshLogs()
-        show({ iconVisible: true, message: 'Logs have been updated' })
-    }, [refreshLogs, show])
 
     return (
         <View style={styles.container}>
             <ScrollView style={styles.viewer}>
                 {logs.map((log, index) => (
                     <View key={index} style={styles.logEntry}>
-                        <View>
-                            <Text
-                                style={styles.timestamp}
-                            >{`${log.timestamp ?? ''}`}</Text>
-                            <Text style={styles.context}>{log.context}</Text>
-                        </View>
-                        <Text style={styles.message}>{log.message}</Text>
+                    <View>
+                      <Text
+                        style={styles.timestamp}
+                      >{`${new Date(log.timestamp).toLocaleTimeString()}`}</Text>
+                      <Text style={styles.context}>{log.namespace}</Text>
                     </View>
+                    <Text style={styles.message}>{log.message}</Text>
+                  </View>
                 ))}
             </ScrollView>
             <Button mode="outlined" onPress={handleCopy}>
