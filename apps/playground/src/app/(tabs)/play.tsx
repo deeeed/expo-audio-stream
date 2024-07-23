@@ -288,7 +288,7 @@ export const PlayPage = () => {
                             try {
                                 await loadWebAudioFile({
                                     audioUri:
-                                        'audio_samples/recorder_jre_lex_watch.wav',
+                                        'audio_samples/recorder_hello_world.wav',
                                 })
                             } catch (error) {
                                 logger.error('Error loading audio file:', error)
