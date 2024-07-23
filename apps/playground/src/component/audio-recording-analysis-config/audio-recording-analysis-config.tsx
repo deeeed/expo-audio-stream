@@ -97,7 +97,7 @@ export const AudioRecordingAnalysisConfig = ({
                 value={tempConfig.pointsPerSecond ?? 20}
                 onChange={(value) => handleChange('pointsPerSecond', value)}
                 min={0.1}
-                max={100}
+                max={1000}
                 step={1}
             />
             <LabelSwitch
