@@ -4859,7 +4859,6 @@ __metadata:
     "@rollup/plugin-typescript": "npm:^11.1.6"
     "@rollup/plugin-url": "npm:^8.0.2"
     "@shopify/react-native-skia": "npm:1.2.3"
-    "@siteed/react-native-logger": "npm:^0.7.1"
     "@size-limit/preset-big-lib": "npm:^11.1.4"
     "@types/babel__core": "npm:^7"
     "@types/babel__preset-env": "npm:^7"

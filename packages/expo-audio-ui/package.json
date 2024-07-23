@@ -78,9 +78,6 @@
         "typescript": "^5.5.3",
         "typescript-eslint": "^7.16.1"
     },
-    "dependencies": {
-        "@siteed/react-native-logger": "^0.7.1"
-    },
     "publishConfig": {
         "access": "public",
         "registry": "https://registry.npmjs.org/"
