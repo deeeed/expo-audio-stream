@@ -7,7 +7,6 @@ import { renderRootComponent } from 'expo-router/build/renderRootComponent'
 import { isWeb } from './utils/utils'
 
 if (isWeb) {
-    // Keep polyfills at the top
     localStorage.debug = 'expo-audio-stream::*'
 }
 
