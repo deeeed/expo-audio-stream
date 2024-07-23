@@ -1,13 +1,12 @@
 // playground/src/app/(tabs)/play.tsx
 import { Button, ScreenWrapper, useToast } from '@siteed/design-system'
 import {
-    AudioAnalysisData,
+    AudioAnalysis,
     AudioRecording,
     extractAudioAnalysis,
     getWavFileInfo,
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
-import { useLogger } from '@siteed/react-native-logger'
 import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
@@ -19,6 +18,7 @@ import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
 
+const logger = console
 const getStyles = () => {
     return StyleSheet.create({
         container: {
@@ -40,14 +40,13 @@ export const PlayPage = () => {
     const [audioUri, setAudioUri] = useState<string | null>(null)
     const [sound, setSound] = useState<Audio.Sound | null>(null)
     const [fileName, setFileName] = useState<string | null>(null)
-    const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData>()
+    const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysis>()
     const [isPlaying, setIsPlaying] = useState<boolean>(false)
     const [currentTime, setCurrentTime] = useState<number>(0)
     const [processing, setProcessing] = useState<boolean>(false)
     const { show } = useToast()
 
     const { files, removeFile, refreshFiles } = useAudioFiles()
-    const { logger } = useLogger('PlayPage')
 
     const pickAudioFile = async () => {
         try {
