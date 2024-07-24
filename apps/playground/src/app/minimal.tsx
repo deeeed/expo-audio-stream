@@ -62,9 +62,7 @@ const WaveFormRect = React.memo(
     ({
         x: targetX,
         y: targetY,
-        id,
         width,
-        font,
         height: targetHeight,
         color,
         animated,
@@ -73,7 +71,6 @@ const WaveFormRect = React.memo(
         y: number
         width: number
         height: number
-        id: number
         color: string
         animated?: boolean
         font: SkFont
@@ -121,6 +118,7 @@ const Minimal = () => {
         screenWidth / (RECT_WIDTH + SPACE_BETWEEN_RECTS)
     )
     const font = useFont(
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         require('@assets/Roboto/Roboto-Regular.ttf'),
         FONT_SIZE
     )
@@ -369,7 +367,6 @@ const Minimal = () => {
                                                 }
                                                 width={RECT_WIDTH}
                                                 font={font}
-                                                id={id}
                                                 height={scaledAmplitude}
                                                 color={
                                                     visible

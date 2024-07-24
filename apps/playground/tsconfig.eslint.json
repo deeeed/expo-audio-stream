@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig",
+  "compilerOptions": {
+    // ensure that nobody can accidentally use this config for a build
+    "noEmit": true,
+  },
+  "include": [
+    "./src",
+    "./*.js",
+    ".eslintrc.cjs",
+  ],
+  "exclude": ["dist/**", "node_modules"]
+}

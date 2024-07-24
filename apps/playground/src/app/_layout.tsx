@@ -1,16 +1,25 @@
 // playground/src/app/_layout.tsx
-import { MaterialIcons } from '@expo/vector-icons'
 import { UIProvider } from '@siteed/design-system'
 import { AudioRecorderProvider } from '@siteed/expo-audio-stream'
 import Constants from 'expo-constants'
-import { useRouter } from 'expo-router'
 import { Stack } from 'expo-router/stack'
 
 import { AudioFilesProvider } from '../context/AudioFilesProvider'
 import { ApplicationContextProvider } from '../context/application-context'
+import { getLogger, enabled } from '@siteed/react-native-logger'
+import { useEffect } from 'react'
+
+const logger = getLogger("RootLayout");
+
 export default function RootLayout() {
-    const router = useRouter()
     const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? ''
+
+    useEffect(() => {
+        logger.debug(`Base URL: ${baseUrl}`)
+        console.log(`Base URL: ${baseUrl}`)
+        console.debug(`logger`, logger)
+        console.debug(`enabled()`, enabled('RootLayout'))
+    }, [baseUrl])
 
     return (
             <ApplicationContextProvider debugMode>

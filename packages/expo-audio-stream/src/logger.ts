@@ -1,5 +1,5 @@
 // packages/expo-audio-stream/src/logger.ts
-import { getLogger as siteedGetLogger, enable, disable } from '@siteed/react-native-logger'
+import { getLogger as siteedGetLogger } from '@siteed/react-native-logger'
 
 import { DEBUG_NAMESPACE } from './constants'
 
@@ -21,10 +21,3 @@ export const getLogger = (tag: string): ConsoleLike => {
     }
 }
 
-export const enableAllLoggers = () => {
-    enable(`${DEBUG_NAMESPACE}:*`)
-}
-
-export const disableAllLoggers = () => {
-    disable(`${DEBUG_NAMESPACE}:*`)
-}

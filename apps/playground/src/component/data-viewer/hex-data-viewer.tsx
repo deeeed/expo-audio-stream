@@ -1,10 +1,9 @@
 import { useTheme } from '@siteed/design-system'
+import { getLogger } from '@siteed/react-native-logger'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { SegmentedButtons } from 'react-native-paper'
 import { convertPCMToFloat32 } from '../../../../../packages/expo-audio-stream/src'
-import { log } from 'console'
-import { getLogger } from '@siteed/react-native-logger'
 
 interface HexDataViewerProps {
     byteArray: Uint8Array
@@ -25,12 +24,12 @@ const bytesToHex = (bytes: Uint8Array) => {
 }
 
 const bytesToBase64 = (bytes: Uint8Array) => {
-    const binary = String.fromCharCode.apply(null, bytes as any)
+    const binary = String.fromCharCode(...bytes)
     return btoa(binary)
 }
 
 const bytesToString = (bytes: Uint8Array) => {
-    return String.fromCharCode.apply(null, bytes as any)
+    return String.fromCharCode(...bytes)
 }
 
 export const HexDataViewer = ({ byteArray, bitDepth }: HexDataViewerProps) => {

@@ -1,12 +1,11 @@
 import { AppTheme, Button, useTheme, useToast } from '@siteed/design-system'
-import { clearLogs, getLogger, getLogs } from '@siteed/react-native-logger'
+import { clearLogs, getLogs } from '@siteed/react-native-logger'
 import * as Clipboard from 'expo-clipboard'
 import { useFocusEffect } from 'expo-router'
 import React, { useCallback, useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 
 export interface LogViewerProps {}
-const logger = getLogger("LogViewer");
 
 export const LogViewer = (_: LogViewerProps) => {
     const { show } = useToast()

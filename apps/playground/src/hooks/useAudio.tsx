@@ -5,13 +5,12 @@ import {
     AudioRecording,
     extractAudioAnalysis,
 } from '@siteed/expo-audio-stream'
-import { Audio } from 'expo-av'
+import { Audio, AVPlaybackStatus } from 'expo-av'
 import { useCallback, useEffect, useState } from 'react'
 
 import { SelectedAnalysisConfig } from '../component/audio-recording-analysis-config/audio-recording-analysis-config'
-import { config } from '../config'
+import { baseLogger, config } from '../config'
 import { fetchArrayBuffer } from '../utils/utils'
-import { getLogger } from '@siteed/react-native-logger'
 
 interface PlayOptions {
     position?: number
@@ -34,7 +33,7 @@ export interface UseAudioProps {
     options: UseAudioOptions
 }
 
-const logger = getLogger('useAudio');
+const logger = baseLogger.extend('useAudio')
 
 export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     const [sound, setSound] = useState<Audio.Sound | null>(null)
@@ -112,21 +111,22 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     ])
 
     const updatePlaybackStatus = useCallback(
-        ({ isLoaded, didJustFinish, positionMillis, error }: any) => {
-            if (error) {
-                logger.error(`Playback Error: ${error}`)
-                return
+        (status: AVPlaybackStatus) => {
+            if (!status.isLoaded) {
+                if ('error' in status) {
+                    logger.error(`Playback Error: ${status.error}`);
+                }
+                return;
             }
-            if (!isLoaded) {
-                return
-            }
-            setPosition(positionMillis)
-            if (didJustFinish) {
-                setIsPlaying(false)
-                setPosition(0) // Reset position when playback finishes
+
+            setPosition(status.positionMillis);
+
+            if (status.didJustFinish) {
+                setIsPlaying(false);
+                setPosition(0); // Reset position when playback finishes
             }
         },
-        [logger]
+        []
     )
 
     const play = async (options?: PlayOptions) => {

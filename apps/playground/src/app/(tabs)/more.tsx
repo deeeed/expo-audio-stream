@@ -7,7 +7,7 @@ import {
 } from '@siteed/design-system'
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
-import React, { useEffect, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { Image, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 const getStyles = ({ theme }: { theme: AppTheme }) => {

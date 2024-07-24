@@ -10,8 +10,7 @@ import {
 import {
     AudioAnalysis,
     AudioRecording,
-    convertPCMToFloat32,
-    DataPoint,
+    DataPoint
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import * as FileSystem from 'expo-file-system'

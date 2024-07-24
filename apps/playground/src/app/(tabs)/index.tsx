@@ -24,10 +24,6 @@ import { storeAudioFile } from '../../utils/indexedDB'
 import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
 import { getLogger } from '@siteed/react-native-logger'
 
-if (isWeb) {
-    localStorage.debug = 'expo-audio-stream:*'
-}
-
 const LIVE_WAVE_FORM_CHUNKS_LENGTH = 5000
 
 const baseRecordingConfig: RecordingConfig = {
@@ -45,6 +41,8 @@ if (Platform.OS === 'ios') {
 } else if (Platform.OS === 'android') {
     baseRecordingConfig.sampleRate = 16000
 }
+
+logger.debug(`Base Recording Config`, baseRecordingConfig)
 
 export default function RecordScreen() {
     const [error, setError] = useState<string | null>(null)
@@ -72,7 +70,7 @@ export default function RecordScreen() {
 
     const onAudioData = useCallback(async (event: AudioDataEvent) => {
         try {
-            console.log(`Received audio data event`, event)
+            logger.log(`Received audio data event`, event)
             const { data, position, eventDataSize } = event
             if (eventDataSize === 0) {
                 console.log(`Invalid data`)
