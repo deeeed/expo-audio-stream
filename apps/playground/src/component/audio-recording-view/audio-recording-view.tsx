@@ -246,11 +246,6 @@ export const AudioRecordingView = ({
                 }
 
                 setHexByteArray(byteArray);
-                const float32Samples = await convertPCMToFloat32({
-                    buffer: byteArray.buffer,
-                    bitDepth: recording.bitDepth,
-                    skipWavHeader: false,
-                })
             } catch (error) {
                 logger.error('Failed to load hex data', error)
             }
