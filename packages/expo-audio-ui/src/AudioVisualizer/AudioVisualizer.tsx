@@ -54,6 +54,7 @@ export interface AudioVisualizerProps {
     candleSpace?: number
     showDottedLine?: boolean
     showRuler?: boolean
+    showYAxis?: boolean
     showSilence?: boolean
     onSelection?: ({
         dataPoint,
@@ -80,6 +81,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     showRuler = false,
     showDottedLine = true,
     showSilence = false,
+    showYAxis = false,
     onSeekEnd,
     onSelection,
 }) => {
@@ -455,6 +457,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                 candleWidth={candleWidth}
                                 candleSpace={candleSpace}
                                 showDottedLine={showDottedLine}
+                                showYAxis={showYAxis}
                                 showRuler={showRuler}
                                 showSilence={showSilence}
                                 mode={mode}
@@ -466,6 +469,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                     updateActivePointsResult.current
                                         .activePoints
                                 }
+                                algorithm={audioData.amplitudeAlgorithm}
                                 maxDisplayedItems={maxDisplayedItems}
                                 paddingLeft={paddingLeft}
                                 totalCandleWidth={totalCandleWidth}

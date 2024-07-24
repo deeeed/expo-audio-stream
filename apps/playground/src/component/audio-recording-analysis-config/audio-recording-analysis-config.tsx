@@ -5,6 +5,7 @@ import {
 } from '@siteed/expo-audio-stream'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
+import { SegmentedButtons } from 'react-native-paper'
 
 const getStyles = () => {
     return StyleSheet.create({
@@ -22,11 +23,20 @@ const getStyles = () => {
         labelContainerStyle: {
             margin: 0,
         },
+        segmentedButton: {
+            padding: 0,
+            margin: 0,
+        },
+        topActionsContainer: {
+            gap: 10,
+            marginBottom: 20,
+        }
     })
 }
 
 export interface SelectedAnalysisConfig {
     pointsPerSecond: RecordingConfig['pointsPerSecond']
+    algorithm: RecordingConfig['algorithm']
     skipWavHeader: boolean
     features: AudioFeaturesOptions
 }
@@ -51,7 +61,7 @@ export const AudioRecordingAnalysisConfig = ({
     }, [config])
 
     const handleChange = useCallback(
-        (key: keyof SelectedAnalysisConfig, value: number | boolean) => {
+        (key: keyof SelectedAnalysisConfig, value: number | boolean | string) => {
             setTempConfig((prevConfig) => {
                 const newConfig = { ...prevConfig, [key]: value }
                 return newConfig
@@ -84,22 +94,39 @@ export const AudioRecordingAnalysisConfig = ({
 
     return (
         <View style={styles.container}>
-            <LabelSwitch
-                label="Skip Wav Header"
-                onValueChange={(value) => {
-                    handleChange('skipWavHeader', value)
-                }}
-                value={tempConfig.skipWavHeader ?? false}
-                containerStyle={styles.labelContainerStyle}
-            />
-            <NumberAdjuster
-                label="Points Per Second"
-                value={tempConfig.pointsPerSecond ?? 20}
-                onChange={(value) => handleChange('pointsPerSecond', value)}
-                min={0.1}
-                max={1000}
-                step={1}
-            />
+            <View style={styles.topActionsContainer}>
+                <LabelSwitch
+                    label="Skip Wav Header"
+                    onValueChange={(value) => {
+                        handleChange('skipWavHeader', value)
+                    }}
+                    value={tempConfig.skipWavHeader ?? false}
+                    containerStyle={styles.labelContainerStyle}
+                />
+                <NumberAdjuster
+                    label="Points Per Second"
+                    value={tempConfig.pointsPerSecond ?? 20}
+                    onChange={(value) => handleChange('pointsPerSecond', value)}
+                    min={0.1}
+                    max={1000}
+                    step={1}
+                />
+                <SegmentedButtons
+                    value={tempConfig.algorithm ?? 'rms'}
+                    onValueChange={(value) => handleChange('algorithm', value)}
+                    buttons={[
+                        {
+                            value: 'peak',
+                            label: 'Peak',
+                        },
+                        {
+                            value: 'rms',
+                            label: 'RMS',
+                        },
+                    ]}
+                    style={styles.segmentedButton}
+                />
+            </View>
             <LabelSwitch
                 label="mfcc"
                 onValueChange={(value) => {

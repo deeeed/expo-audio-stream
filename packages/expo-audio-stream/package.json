@@ -38,6 +38,7 @@
     "devDependencies": {
         "@expo/config-plugins": "^7.9.1",
         "@size-limit/preset-big-lib": "^11.1.4",
+        "@types/jest": "^29.5.12",
         "@types/node": "^20.12.7",
         "@types/react": "^18.0.25",
         "@typescript-eslint/eslint-plugin": "^7.7.0",
@@ -52,6 +53,7 @@
         "eslint-plugin-react": "^7.34.1",
         "expo-module-scripts": "^3.5.2",
         "expo-modules-core": "^1.12.19",
+        "jest": "^29.7.0",
         "prettier": "^3.2.5",
         "react-native": "^0.74.3",
         "size-limit": "^11.1.4",

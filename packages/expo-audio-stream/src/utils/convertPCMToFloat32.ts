@@ -1,4 +1,4 @@
-import { getLogger } from "@siteed/react-native-logger";
+import { getLogger } from "../logger";
 import { getWavFileInfo, WavFileInfo } from "./getWavFileInfo";
 
 export const WAV_HEADER_SIZE = 44
@@ -34,12 +34,16 @@ export const convertPCMToFloat32 = async ({
     skipWavHeader?: boolean
 }): Promise<{ pcmValues: Float32Array; min: number; max: number }> => {
     try {
-        const wavFileInfo: WavFileInfo = await getWavFileInfo(buffer);
+        logger.debug(`Converting PCM to Float32: bitDepth: ${bitDepth}, buffer.byteLength: ${buffer.byteLength}`);
         const dataView = new DataView(buffer);
-        const headerOffset = skipWavHeader ? wavFileInfo.dataChunkOffset : 0;
+        let headerOffset = 0;
+        if(skipWavHeader) {
+            const wavFileInfo: WavFileInfo = await getWavFileInfo(buffer);
+            headerOffset = wavFileInfo.dataChunkOffset;
+        }
 
         const dataLength = buffer.byteLength - headerOffset;
-        const sampleLength = dataLength / (bitDepth / 8);
+        const sampleLength = Math.floor(dataLength / (bitDepth / 8));
         const float32Array = new Float32Array(sampleLength);
         let min = Infinity;
         let max = -Infinity;

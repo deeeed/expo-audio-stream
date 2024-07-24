@@ -10,6 +10,7 @@ import {
 import {
     AudioAnalysis,
     AudioRecording,
+    convertPCMToFloat32,
     DataPoint,
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
@@ -96,6 +97,7 @@ export const AudioRecordingView = ({
         useState<SelectedAnalysisConfig>({
             pointsPerSecond: 10,
             skipWavHeader: true,
+            algorithm: 'peak',
             features: {
                 energy: true,
                 spectralCentroid: true,
@@ -215,6 +217,7 @@ export const AudioRecordingView = ({
                 const length =
                     (selectedDataPoint.endPosition ?? 0) -
                     (selectedDataPoint.startPosition ?? 0)
+                let byteArray: Uint8Array = new Uint8Array();
                 // Load hex data from uri
                 if (isWeb) {
                     const response = await fetch(audioUri, {
@@ -223,10 +226,9 @@ export const AudioRecordingView = ({
                         },
                     })
                     const step = await response.text()
-                    const byteArray = Uint8Array.from(step, (c) =>
+                    byteArray = Uint8Array.from(step, (c) =>
                         c.charCodeAt(0)
                     )
-                    setHexByteArray(byteArray)
                 } else {
                     const fileData = await FileSystem.readAsStringAsync(
                         audioUri,
@@ -238,11 +240,17 @@ export const AudioRecordingView = ({
                     )
                     console.debug(`Loaded file data:`, fileData)
                     const step = atob(fileData)
-                    const byteArray = Uint8Array.from(step, (c) =>
+                    byteArray = Uint8Array.from(step, (c) =>
                         c.charCodeAt(0)
                     )
-                    setHexByteArray(byteArray)
                 }
+
+                setHexByteArray(byteArray);
+                const float32Samples = await convertPCMToFloat32({
+                    buffer: byteArray.buffer,
+                    bitDepth: recording.bitDepth,
+                    skipWavHeader: false,
+                })
             } catch (error) {
                 logger.error('Failed to load hex data', error)
             }
@@ -335,7 +343,7 @@ export const AudioRecordingView = ({
                             {selectedDataPoint.endPosition}
                         </Text>
                     </View>
-                    {hexByteArray && <HexDataViewer byteArray={hexByteArray} />}
+                    {hexByteArray && <HexDataViewer byteArray={hexByteArray} bitDepth={recording.bitDepth} />}
                 </View>
             )}
 

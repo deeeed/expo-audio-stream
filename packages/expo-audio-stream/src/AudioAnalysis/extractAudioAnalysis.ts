@@ -5,7 +5,7 @@ import { getLogger } from '../logger'
 import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
 import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
 import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
-import { AudioAnalysis, AudioFeaturesOptions } from './AudioAnalysis.types'
+import { AmplitudeAlgorithm, AudioAnalysis, AudioFeaturesOptions } from './AudioAnalysis.types'
 
 const logger = getLogger('extractAudioAnalysis')
 
@@ -18,7 +18,7 @@ export interface ExtractAudioAnalysisProps {
     durationMs?: number
     sampleRate?: number
     numberOfChannels?: number
-    algorithm?: 'peak' | 'rms'
+    algorithm?: AmplitudeAlgorithm
     position?: number // Optional number of bytes to skip. Default is 0
     length?: number // Optional number of bytes to read.
     pointsPerSecond?: number // Optional number of points per second. Use to reduce the number of points and compute the number of datapoints to return.

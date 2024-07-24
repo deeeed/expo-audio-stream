@@ -82,6 +82,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
                         bitDepth: recording?.bitDepth,
                         durationMs: recording?.durationMs,
                         numberOfChannels: recording?.channels,
+                        algorithm: options.analysisOptions?.algorithm,
                         pointsPerSecond:
                             options.analysisOptions?.pointsPerSecond,
                         features: options.analysisOptions?.features,
@@ -105,6 +106,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         options.extractAnalysis,
         options.analysisOptions?.skipWavHeader,
         options.analysisOptions?.pointsPerSecond,
+        options.analysisOptions?.algorithm,
         logger,
         show,
     ])
