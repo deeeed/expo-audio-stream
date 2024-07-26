@@ -113,7 +113,6 @@ export class ExpoAudioStreamWeb extends EventEmitter {
             source,
             recordingConfig,
             audioWorkletUrl: this.audioWorkletUrl,
-            featuresExtratorUrl: this.featuresExtratorUrl,
             emitAudioEventCallback: ({
                 data,
                 position,

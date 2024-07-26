@@ -5,12 +5,11 @@ import {
     AudioRecording,
     extractAudioAnalysis,
 } from '@siteed/expo-audio-stream'
-import { useLogger } from '@siteed/react-native-logger'
-import { Audio } from 'expo-av'
+import { Audio, AVPlaybackStatus } from 'expo-av'
 import { useCallback, useEffect, useState } from 'react'
 
 import { SelectedAnalysisConfig } from '../component/audio-recording-analysis-config/audio-recording-analysis-config'
-import { config } from '../config'
+import { baseLogger, config } from '../config'
 import { fetchArrayBuffer } from '../utils/utils'
 
 interface PlayOptions {
@@ -34,6 +33,8 @@ export interface UseAudioProps {
     options: UseAudioOptions
 }
 
+const logger = baseLogger.extend('useAudio')
+
 export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     const [sound, setSound] = useState<Audio.Sound | null>(null)
     const [isPlaying, setIsPlaying] = useState(false)
@@ -43,7 +44,6 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer>()
     const [audioAnalysis, setAudioAnalysis] =
         useState<AudioAnalysis | null>(null)
-    const { logger } = useLogger('useAudio')
     const { show } = useToast()
 
     useEffect(() => {
@@ -81,6 +81,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
                         bitDepth: recording?.bitDepth,
                         durationMs: recording?.durationMs,
                         numberOfChannels: recording?.channels,
+                        algorithm: options.analysisOptions?.algorithm,
                         pointsPerSecond:
                             options.analysisOptions?.pointsPerSecond,
                         features: options.analysisOptions?.features,
@@ -104,26 +105,28 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         options.extractAnalysis,
         options.analysisOptions?.skipWavHeader,
         options.analysisOptions?.pointsPerSecond,
+        options.analysisOptions?.algorithm,
         logger,
         show,
     ])
 
     const updatePlaybackStatus = useCallback(
-        ({ isLoaded, didJustFinish, positionMillis, error }: any) => {
-            if (error) {
-                logger.error(`Playback Error: ${error}`)
-                return
+        (status: AVPlaybackStatus) => {
+            if (!status.isLoaded) {
+                if ('error' in status) {
+                    logger.error(`Playback Error: ${status.error}`);
+                }
+                return;
             }
-            if (!isLoaded) {
-                return
-            }
-            setPosition(positionMillis)
-            if (didJustFinish) {
-                setIsPlaying(false)
-                setPosition(0) // Reset position when playback finishes
+
+            setPosition(status.positionMillis);
+
+            if (status.didJustFinish) {
+                setIsPlaying(false);
+                setPosition(0); // Reset position when playback finishes
             }
         },
-        [logger]
+        []
     )
 
     const play = async (options?: PlayOptions) => {

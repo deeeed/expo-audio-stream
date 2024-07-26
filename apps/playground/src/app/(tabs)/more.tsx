@@ -5,10 +5,9 @@ import {
     ScreenWrapper,
     useThemePreferences,
 } from '@siteed/design-system'
-import { useLogger } from '@siteed/react-native-logger'
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
-import React, { useEffect, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { Image, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 const getStyles = ({ theme }: { theme: AppTheme }) => {
@@ -38,12 +37,8 @@ export const MoreScreen = (_: MoreScreenProps) => {
     const router = useRouter()
     const { toggleDarkMode, darkMode, theme } = useThemePreferences()
     const styles = useMemo(() => getStyles({ theme }), [theme])
-    const { logger } = useLogger('more-screen')
     const appVersion = Constants.expoConfig?.version
 
-    useEffect(() => {
-        logger.info('More screen loaded')
-    }, [logger])
 
     return (
         <ScreenWrapper withScrollView useInsets>

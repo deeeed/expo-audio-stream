@@ -1,7 +1,6 @@
 import globals from 'globals'
 import pluginJs from '@eslint/js'
 import tseslint from 'typescript-eslint'
-import { rules } from './apps/playground/.eslintrc'
 
 export default [
     { files: ['**/*.{js,mjs,cjs,ts}'] },

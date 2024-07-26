@@ -64,7 +64,10 @@ config.transformer.getTransformOptions = async () => ({
         inlineRequires: true,
     },
 })
-config.resolver.nodeModulesPaths = [path.resolve(projectRoot, 'node_modules')]
+config.resolver.nodeModulesPaths = [
+    path.resolve(projectRoot, 'node_modules'),
+    path.resolve(monorepoRoot, 'node_modules'),
+]
 
 config.resolver = {
     ...config.resolver,
@@ -82,7 +85,19 @@ config.resolver = {
                     monorepoRoot + '/packages/expo-audio-stream/src/index.ts',
                 type: 'sourceFile',
             }
-        }
+        // } else if (moduleName === "react" || moduleName === "react-dom") {
+        //     // console.log(
+        //     //   `Resolving ${moduleName} to ${path.resolve(projectRoot, `node_modules/${moduleName}`)}`,
+        //     // );
+        //     // Force resolution to the local versions specified in extraNodeModules
+        //     return {
+        //       filePath: path.resolve(
+        //         projectRoot,
+        //         `node_modules/${moduleName}/index.js`,
+        //       ),
+        //       type: "sourceFile",
+        //     };
+          } 
         // Ensure you call the default resolver.
         return context.resolveRequest(context, moduleName, platform)
     },

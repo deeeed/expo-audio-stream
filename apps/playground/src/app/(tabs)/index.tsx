@@ -9,7 +9,6 @@ import {
     useSharedAudioRecorder,
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
-import { useLogger } from '@siteed/react-native-logger'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
 import { useRouter } from 'expo-router'
@@ -19,14 +18,11 @@ import { Platform, StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
 
+import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
-import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
-
-if (isWeb) {
-    localStorage.debug = 'expo-audio-stream:*'
-}
+import { getLogger } from '@siteed/react-native-logger'
 
 const LIVE_WAVE_FORM_CHUNKS_LENGTH = 5000
 
@@ -38,13 +34,17 @@ const baseRecordingConfig: RecordingConfig = {
     enableProcessing: true,
 }
 
+const logger = getLogger('RecordScreen');
+
 if (Platform.OS === 'ios') {
     baseRecordingConfig.sampleRate = 48000
 } else if (Platform.OS === 'android') {
     baseRecordingConfig.sampleRate = 16000
 }
 
-export default function Record() {
+logger.debug(`Base Recording Config`, baseRecordingConfig)
+
+export default function RecordScreen() {
     const [error, setError] = useState<string | null>(null)
     const audioChunks = useRef<string[]>([])
     const audioChunksBlobs = useRef<ArrayBuffer[]>([])
@@ -68,11 +68,9 @@ export default function Record() {
         new Array(LIVE_WAVE_FORM_CHUNKS_LENGTH)
     ) // Circular buffer for live waveform visualization
 
-    const { logger } = useLogger('Record')
-
     const onAudioData = useCallback(async (event: AudioDataEvent) => {
         try {
-            console.log(`Received audio data event`, event)
+            logger.log(`Received audio data event`, event)
             const { data, position, eventDataSize } = event
             if (eventDataSize === 0) {
                 console.log(`Invalid data`)
