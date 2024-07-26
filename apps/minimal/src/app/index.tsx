@@ -1,12 +1,15 @@
 import {
-    AudioRecordingResult,
+    AudioRecording,
     useAudioRecorder,
-} from '@siteed/expo-audio-stream'
-import { Audio } from 'expo-av' // Import for playing audio on native
-import { useState } from 'react'
-import { Button, StyleSheet, Text, View } from 'react-native'
+} from '@siteed/expo-audio-stream';
+import { getLogger } from '@siteed/react-native-logger';
+import { Audio } from 'expo-av'; // Import for playing audio on native
+import { useState } from 'react';
+import { Button, StyleSheet, Text, View } from 'react-native';
 
 const STOP_BUTTON_COLOR = 'red'
+
+const logger = getLogger("MinimalApp")
 
 const styles = StyleSheet.create({
     container: {
@@ -32,10 +35,12 @@ export default function App() {
     } = useAudioRecorder({
         debug: true,
     })
-    const [audioResult, setAudioResult] = useState<AudioRecordingResult | null>(
+    const [audioResult, setAudioResult] = useState<AudioRecording | null>(
         null
     )
     const [, setSound] = useState<Audio.Sound | null>(null) // State for audio playback on native
+
+    logger.info("App started")
 
     const handleStart = async () => {
         const startResult = await startRecording({

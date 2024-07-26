@@ -29,6 +29,7 @@ const DEFAULT_WEB_BITDEPTH = 32
 const DEFAULT_WEB_POINTS_PER_SECOND = 10
 const DEFAULT_WEB_INTERVAL = 500
 const DEFAULT_WEB_NUMBER_OF_CHANNELS = 1
+const DEFAULT_ALGORITHM = 'rms'
 
 const TAG = 'WebRecorder'
 const logger = getLogger(TAG)
@@ -53,7 +54,6 @@ export class WebRecorder {
         audioContext,
         source,
         recordingConfig,
-        featuresExtratorUrl,
         audioWorkletUrl,
         emitAudioEventCallback,
         emitAudioAnalysisCallback,
@@ -61,7 +61,6 @@ export class WebRecorder {
         audioContext: AudioContext
         source: MediaStreamAudioSourceNode
         recordingConfig: RecordingConfig
-        featuresExtratorUrl: string
         audioWorkletUrl: string
         emitAudioEventCallback: EmitAudioEventFunction
         emitAudioAnalysisCallback: EmitAudioAnalysisFunction
@@ -100,6 +99,7 @@ export class WebRecorder {
             dataPoints: [],
             durationMs: 0,
             samples: 0,
+            amplitudeAlgorithm: recordingConfig.algorithm || DEFAULT_ALGORITHM,
             bitDepth: this.bitDepth,
             numberOfChannels: this.numberOfChannels,
             sampleRate: this.config.sampleRate || this.audioContext.sampleRate,

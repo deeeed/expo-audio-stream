@@ -1,3 +1,4 @@
+import { getLogger } from '@siteed/react-native-logger'
 import Constants from 'expo-constants'
 
 const baseUrl =
@@ -8,3 +9,5 @@ export const config = {
     audioWorkletUrl: `${baseUrl}/audioworklet.js`,
     featuresExtratorUrl: `${baseUrl}/audio-features-extractor.js`,
 }
+
+export const baseLogger = getLogger('audio-playground');

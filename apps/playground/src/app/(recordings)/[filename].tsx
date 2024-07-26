@@ -7,7 +7,6 @@ import {
     useTheme,
     useToast,
 } from '@siteed/design-system'
-import { useLogger } from '@siteed/react-native-logger'
 import { router, useLocalSearchParams, useNavigation } from 'expo-router'
 import React, { useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
@@ -33,7 +32,6 @@ export const FullAudioViewerPage = () => {
     const { colors } = theme
 
     const styles = useMemo(() => getStyles({ theme }), [theme])
-    const { logger } = useLogger('AudioRecording')
     const { show } = useToast()
 
     const local = useLocalSearchParams<{
@@ -107,7 +105,7 @@ export const FullAudioViewerPage = () => {
                 </View>
             ),
         })
-    }, [navigator, selectedFile, logger, setConfig, openDrawer, show])
+    }, [navigator, selectedFile, setConfig, openDrawer, show])
 
     return (
         <ScreenWrapper contentContainerStyle={styles.container}>

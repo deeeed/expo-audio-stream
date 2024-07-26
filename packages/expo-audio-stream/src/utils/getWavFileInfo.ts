@@ -35,6 +35,7 @@ export interface WavFileInfo {
     creationDateTime?: string // Optional creation date and time
     comments?: string // Optional comments or tags
     compressionType?: string // Optional compression type
+    dataChunkOffset: number // Position of the first data chunk
 }
 
 /**
@@ -66,6 +67,7 @@ export const getWavFileInfo = async (
     let blockAlign = 0
     let creationDateTime = ''
     let comments = ''
+    let dataChunkOffset = 0
 
     // Parse chunks to find the "fmt " and "data" chunks
     while (fmtChunkOffset < view.byteLength) {
@@ -85,6 +87,7 @@ export const getWavFileInfo = async (
         } else if (chunkId === DATA_CHUNK_ID) {
             // "data"
             dataChunkSize = chunkSize
+            dataChunkOffset = fmtChunkOffset + 8 // Position after chunk header
             break
         } else if (chunkId === INFO_CHUNK_ID) {
             // "INFO"
@@ -124,5 +127,6 @@ export const getWavFileInfo = async (
         comments: comments || undefined,
         compressionType:
             audioFormat === 1 ? 'None' : AUDIO_FORMATS[audioFormat],
+        dataChunkOffset,
     }
 }
