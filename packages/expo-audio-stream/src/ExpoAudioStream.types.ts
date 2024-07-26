@@ -1,5 +1,6 @@
 // packages/expo-audio-stream/src/ExpoAudioStream.types.ts
 import {
+    AmplitudeAlgorithm,
     AudioAnalysis,
     AudioFeaturesOptions,
 } from './AudioAnalysis/AudioAnalysis.types'
@@ -56,7 +57,7 @@ export interface RecordingConfig {
     // Optional parameters for audio processing
     enableProcessing?: boolean // Boolean to enable/disable audio processing (default is false)
     pointsPerSecond?: number // Number of data points to extract per second of audio (default is 1000)
-    algorithm?: string // Algorithm to use for amplitude computation (default is "rms")
+    algorithm?: AmplitudeAlgorithm // Algorithm to use for amplitude computation (default is "rms")
     features?: AudioFeaturesOptions // Feature options to extract (default is empty)
 
     onAudioStream?: (_: AudioDataEvent) => Promise<void> // Callback function to handle audio stream
