@@ -9,7 +9,7 @@ import React, { useCallback, useMemo, useRef } from 'react'
 import { Platform, View } from 'react-native'
 import { SharedValue, useDerivedValue } from 'react-native-reanimated'
 
-import { DataPoint } from '@siteed/expo-audio-stream'
+import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
 import { StyleProp, ViewStyle } from 'react-native'
 import {
     CANDLE_ACTIVE_AUDIO_COLOR,
@@ -21,6 +21,7 @@ import AnimatedCandle from './AnimatedCandle'
 import { CandleData } from './AudioVisualiser.types'
 import { drawDottedLine } from './AudioVisualizers.helpers'
 import { SkiaTimeRuler } from './SkiaTimeRuler'
+import { YAxis } from './YAxis'
 
 export interface CanvasContainerProps {
     canvasHeight: number
@@ -29,7 +30,9 @@ export interface CanvasContainerProps {
     showDottedLine: boolean
     showRuler: boolean
     showSilence: boolean
+    showYAxis: boolean
     mode: 'static' | 'live' | 'scaled'
+    algorithm: AmplitudeAlgorithm
     translateX: SharedValue<number>
     activePoints: CandleData[]
     maxDisplayedItems: number
@@ -50,12 +53,14 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     candleWidth,
     candleSpace,
     showDottedLine,
+    showYAxis,
     showRuler,
     mode,
     translateX,
     activePoints,
     maxDisplayedItems,
     paddingLeft,
+    algorithm,
     totalCandleWidth,
     startIndex,
     canvasWidth,
@@ -75,9 +80,12 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
             ({ id, amplitude, visible, activeSpeech, silent }, index) => {
                 if (id === -1) return null
 
+                const centerY = canvasHeight / 2;
                 const scaledAmplitude =
                     ((amplitude - minAmplitude) * (canvasHeight - 10)) /
                     (maxAmplitude - minAmplitude)
+
+                // const scaledAmplitude = amplitude;
                 let delta =
                     Math.ceil(maxDisplayedItems / 2) *
                     (candleWidth + candleSpace)
@@ -115,8 +123,8 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                             <AnimatedCandle
                                 animated
                                 x={x}
-                                y={canvasHeight / 2 - scaledAmplitude / 2}
-                                startY={canvasHeight / 2}
+                                y={centerY - scaledAmplitude / 2}
+                                startY={centerY}
                                 width={candleWidth}
                                 height={scaledAmplitude}
                                 color={color}
@@ -215,6 +223,16 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         style="stroke"
                         strokeWidth={1}
                     />
+                )}
+                {showYAxis && (
+                  <YAxis
+                    canvasHeight={canvasHeight}
+                    canvasWidth={canvasWidth}
+                    minAmplitude={minAmplitude}
+                    maxAmplitude={maxAmplitude}
+                    algorithm={algorithm}
+                    padding={10} // Adjust the padding as needed
+                  />
                 )}
             </Canvas>
         </View>

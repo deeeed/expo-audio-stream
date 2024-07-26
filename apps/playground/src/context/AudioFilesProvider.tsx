@@ -1,6 +1,5 @@
 // playground/src/context/AudioFilesProvider.tsx
 import { AudioRecording } from '@siteed/expo-audio-stream'
-import { useLogger } from '@siteed/react-native-logger'
 import * as FileSystem from 'expo-file-system'
 import React, {
     createContext,
@@ -15,6 +14,7 @@ import {
     listAudioFiles as listIndexedDBAudioFiles,
 } from '../utils/indexedDB'
 import { isWeb } from '../utils/utils'
+import { getLogger } from '@siteed/react-native-logger'
 
 interface AudioFilesContextValue {
     ready: boolean
@@ -34,6 +34,8 @@ const AudioFilesContext = createContext<AudioFilesContextValue>({
     clearFiles: async () => {},
 })
 
+const logger = getLogger('AudioFilesProvider');
+
 export const AudioFilesProvider = ({
     children,
 }: {
@@ -43,7 +45,6 @@ export const AudioFilesProvider = ({
     const [ready, setReady] = useState<boolean>(false)
     const [totalAudioStorageSize, setTotalAudioStorageSize] =
         useState<number>(0)
-    const { logger } = useLogger('AudioFilesProvider')
 
     const calculateTotalAudioStorageSize = useCallback(
         (files: AudioRecording[]) => {

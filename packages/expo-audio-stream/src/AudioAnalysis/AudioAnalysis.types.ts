@@ -57,6 +57,8 @@ export interface DataPoint {
     speaker?: number
 }
 
+export type AmplitudeAlgorithm = 'peak' | 'rms'
+
 /**
  * Represents the complete data from the audio analysis.
  */
@@ -68,6 +70,7 @@ export interface AudioAnalysis {
     numberOfChannels: number // Number of audio channels
     sampleRate: number // Sample rate of the audio
     dataPoints: DataPoint[] // Array of data points from the analysis.
+    amplitudeAlgorithm: AmplitudeAlgorithm // Algorithm used to calculate amplitude values.
     amplitudeRange: {
         min: number
         max: number

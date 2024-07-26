@@ -13,8 +13,6 @@ import {
     UpdateActivePointsResult,
 } from './AudioVisualiser.types'
 
-const logger = getLogger('audio-visualiser.helpers')
-
 export const calculateReferenceLinePosition = ({
     canvasWidth,
     referenceLinePosition,
@@ -25,6 +23,7 @@ export const calculateReferenceLinePosition = ({
     return canvasWidth / 2 // Default to MIDDLE
 }
 
+const logger = getLogger('AudioVisualiser.helpers');
 export const getStyles = ({ canvasWidth, referenceLineX }: GetStylesParams) => {
     return StyleSheet.create({
         container: {

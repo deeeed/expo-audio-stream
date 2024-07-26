@@ -170,11 +170,12 @@ self.onmessage = function (event) {
                 }
                 prevValue = value
 
+                // We need to keep absolute value otherwise we cannot visualize properly
                 const absValue = Math.abs(value)
                 localMinAmplitude = Math.min(localMinAmplitude, absValue)
                 localMaxAmplitude = Math.max(localMaxAmplitude, absValue)
 
-                if (absValue !== 0) {
+                if (value !== 0) {
                     hasNonZeroValue = true
                 }
             }
@@ -187,8 +188,8 @@ self.onmessage = function (event) {
             }
 
             const rms = Math.sqrt(sumSquares / (end - start))
-            minAmplitude = Math.min(minAmplitude, rms)
-            maxAmplitude = Math.max(maxAmplitude, rms)
+            minAmplitude = Math.min(minAmplitude, localMinAmplitude)
+            maxAmplitude = Math.max(maxAmplitude, localMaxAmplitude)
 
             const energy = sumSquares
             const zcr = zeroCrossings / (end - start)
@@ -253,9 +254,10 @@ self.onmessage = function (event) {
                 : []
             const hnr = features.hnr ? extractHNR(segmentData) : 0
 
+            const peakAmp = Math.max(Math.abs(localMaxAmplitude), Math.abs(localMinAmplitude))
             const newData = {
                 id: uniqueIdCounter++, // Assign unique ID and increment the counter
-                amplitude: algorithm === 'peak' ? localMaxAmplitude : rms,
+                amplitude: algorithm === 'peak' ? peakAmp : rms,
                 activeSpeech,
                 dB,
                 silent,
@@ -280,15 +282,13 @@ self.onmessage = function (event) {
                 samples: end - start,
                 speaker: 0, // Assuming speaker detection is to be handled later
             }
-            if (newData.id < 2) {
-                console.log(`[AudioFeaturesExtractor] i=${i}`, newData)
-            }
 
             dataPoints.push(newData)
         }
 
         return {
             pointsPerSecond,
+            amplitudeAlgorithm: algorithm,
             durationMs: fullAudioDurationMs,
             bitDepth,
             samples: totalSamples,

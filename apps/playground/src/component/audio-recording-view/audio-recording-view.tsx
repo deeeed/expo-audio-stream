@@ -10,10 +10,9 @@ import {
 import {
     AudioAnalysis,
     AudioRecording,
-    DataPoint,
+    DataPoint
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
-import { useLogger } from '@siteed/react-native-logger'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import React, { useEffect, useMemo, useState } from 'react'
@@ -21,6 +20,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
 
+import { getLogger } from '@siteed/react-native-logger'
 import { useAudio } from '../../hooks/useAudio'
 import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
 import {
@@ -30,6 +30,8 @@ import {
 import { SelectedAudioVisualizerProps } from '../audio-recording-config/audio-recording-config-form'
 import { DataPointViewer } from '../data-viewer/data-viewer'
 import { HexDataViewer } from '../data-viewer/hex-data-viewer'
+
+const logger = getLogger('AudioRecording');
 
 const getStyles = ({
     isPlaying,
@@ -86,7 +88,6 @@ export const AudioRecordingView = ({
     onActionPress,
     onDelete,
 }: AudioRecordingViewProps) => {
-    const { logger } = useLogger('AudioRecording')
     const { show } = useToast()
     const audioUri = recording.fileUri
     const theme = useTheme()
@@ -95,6 +96,7 @@ export const AudioRecordingView = ({
         useState<SelectedAnalysisConfig>({
             pointsPerSecond: 10,
             skipWavHeader: true,
+            algorithm: 'peak',
             features: {
                 energy: true,
                 spectralCentroid: true,
@@ -214,6 +216,7 @@ export const AudioRecordingView = ({
                 const length =
                     (selectedDataPoint.endPosition ?? 0) -
                     (selectedDataPoint.startPosition ?? 0)
+                let byteArray: Uint8Array = new Uint8Array();
                 // Load hex data from uri
                 if (isWeb) {
                     const response = await fetch(audioUri, {
@@ -222,10 +225,9 @@ export const AudioRecordingView = ({
                         },
                     })
                     const step = await response.text()
-                    const byteArray = Uint8Array.from(step, (c) =>
+                    byteArray = Uint8Array.from(step, (c) =>
                         c.charCodeAt(0)
                     )
-                    setHexByteArray(byteArray)
                 } else {
                     const fileData = await FileSystem.readAsStringAsync(
                         audioUri,
@@ -237,11 +239,12 @@ export const AudioRecordingView = ({
                     )
                     console.debug(`Loaded file data:`, fileData)
                     const step = atob(fileData)
-                    const byteArray = Uint8Array.from(step, (c) =>
+                    byteArray = Uint8Array.from(step, (c) =>
                         c.charCodeAt(0)
                     )
-                    setHexByteArray(byteArray)
                 }
+
+                setHexByteArray(byteArray);
             } catch (error) {
                 logger.error('Failed to load hex data', error)
             }
@@ -334,7 +337,7 @@ export const AudioRecordingView = ({
                             {selectedDataPoint.endPosition}
                         </Text>
                     </View>
-                    {hexByteArray && <HexDataViewer byteArray={hexByteArray} />}
+                    {hexByteArray && <HexDataViewer byteArray={hexByteArray} bitDepth={recording.bitDepth} />}
                 </View>
             )}
 

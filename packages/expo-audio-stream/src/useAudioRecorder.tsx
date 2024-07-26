@@ -16,7 +16,7 @@ import {
     addAudioEventListener,
     AudioEventPayload,
 } from './events'
-import { disableAllLoggers, enableAllLoggers, getLogger } from './logger'
+import { getLogger } from './logger'
 
 const TAG = 'useAudioRecorder'
 const logger = getLogger(TAG)
@@ -59,6 +59,8 @@ const defaultAnalysis: AudioAnalysis = {
     sampleRate: 44100,
     samples: 0,
     dataPoints: [],
+    amplitudeAlgorithm: 'rms',
+    speakerChanges: [],
     amplitudeRange: {
         min: Number.POSITIVE_INFINITY,
         max: Number.NEGATIVE_INFINITY,
@@ -403,14 +405,6 @@ export function useAudioRecorder({
             subscribeAudio.remove()
         }
     }, [handleAudioEvent, handleAudioAnalysis])
-
-    useEffect(() => {
-        if (debug) {
-            enableAllLoggers()
-        } else {
-            disableAllLoggers()
-        }
-    }, [debug])
 
     return {
         startRecording,
