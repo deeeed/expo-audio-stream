@@ -16,7 +16,7 @@ export interface AudioStreamStatus {
 }
 
 export interface AudioDataEvent {
-    data: string | ArrayBuffer
+    data: string | Float32Array
     position: number
     fileUri: string
     eventDataSize: number
@@ -36,7 +36,7 @@ export interface AudioRecording {
     channels: number
     bitDepth: BitDepth
     sampleRate: SampleRate
-    wavPCMData?: ArrayBuffer // Full PCM data for the recording in WAV format (only on web, for native use the fileUri)
+    wavPCMData?: Float32Array // Full PCM data for the recording in WAV format (only on web, for native use the fileUri)
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
 }
 

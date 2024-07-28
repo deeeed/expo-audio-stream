@@ -225,12 +225,15 @@ class RecorderProcessor extends AudioWorkletProcessor {
         // The second argument is the transfer list, which transfers ownership of the ArrayBuffer
         // to the main thread, avoiding the need to copy the buffer and improving performance
         // this.port.postMessage({ recordedData: encodedWav.buffer, sampleRate: this.recordSampleRate }, [encodedWav.buffer]);
-        this.port.postMessage({
-            command: 'newData',
-            recordedData: finalBuffer.buffer,
-            sampleRate: this.exportSampleRate,
-            bitDepth: this.exportBitDepth,
-        })
+        this.port.postMessage(
+            {
+                command: 'newData',
+                recordedData: finalBuffer,
+                sampleRate: this.exportSampleRate,
+                bitDepth: this.exportBitDepth,
+            },
+            []
+        )
     }
 
     async getAllRecordedData() {
@@ -280,7 +283,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
 
         this.recordedBuffers.length = 0 // Clear the buffers after extraction
 
-        return finalBuffer.buffer
+        return finalBuffer
     }
 }
 

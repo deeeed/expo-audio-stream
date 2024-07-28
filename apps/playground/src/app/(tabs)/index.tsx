@@ -18,6 +18,7 @@ import { Platform, StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
 
+import Transcriber from '../../component/Transcriber'
 import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
 import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
@@ -27,11 +28,10 @@ import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
 const LIVE_WAVE_FORM_CHUNKS_LENGTH = 5000
 
 const CHUNK_DURATION_MS = 500 // 500 ms chunks
-const BUFFER_DURATION_MS = 30000 // 30 seconds
 
 const baseRecordingConfig: RecordingConfig = {
     interval: CHUNK_DURATION_MS,
-    sampleRate: 44100,
+    sampleRate: 16000,
     encoding: 'pcm_32bit',
     pointsPerSecond: 10,
     enableProcessing: true,
@@ -71,6 +71,7 @@ export default function RecordScreen() {
         new Array(LIVE_WAVE_FORM_CHUNKS_LENGTH)
     ) // Circular buffer for live waveform visualization
     const concatenatedBuffer = useRef<ArrayBuffer>(new ArrayBuffer(0))
+    const [temp, setTemp] = useState<Float32Array | null>(null)
 
     const onAudioData = useCallback(async (event: AudioDataEvent) => {
         try {
@@ -104,38 +105,39 @@ export default function RecordScreen() {
                         (liveWavFormBufferIndex.current + 1) %
                         LIVE_WAVE_FORM_CHUNKS_LENGTH
                 }
-            } else if (data instanceof ArrayBuffer) {
-                audioChunksBlobs.current.push(data)
+            } else if (data instanceof Float32Array) {
+                // const newBuffer = data.slice(0) // Create a copy to avoid detachment issues
+                // audioChunksBlobs.current.push(newBuffer)
 
-                // Update the circular buffer for visualization
-                liveWavFormBuffer.current[liveWavFormBufferIndex.current] = data
-                liveWavFormBufferIndex.current =
-                    (liveWavFormBufferIndex.current + 1) %
-                    LIVE_WAVE_FORM_CHUNKS_LENGTH
+                // liveWavFormBuffer.current[liveWavFormBufferIndex.current] =
+                //     newBuffer
+                // liveWavFormBufferIndex.current =
+                //     (liveWavFormBufferIndex.current + 1) %
+                //     LIVE_WAVE_FORM_CHUNKS_LENGTH
 
-                // Concatenate the new chunk to the existing buffer
-                const newBuffer = new ArrayBuffer(
-                    concatenatedBuffer.current.byteLength + data.byteLength
-                )
-                new Uint8Array(newBuffer).set(
-                    new Uint8Array(concatenatedBuffer.current),
-                    0
-                )
-                new Uint8Array(newBuffer).set(
-                    new Uint8Array(data),
-                    concatenatedBuffer.current.byteLength
-                )
-                concatenatedBuffer.current = newBuffer
+                // const combinedBuffer = new ArrayBuffer(
+                //     concatenatedBuffer.current.byteLength + newBuffer.byteLength
+                // )
+                // new Uint8Array(combinedBuffer).set(
+                //     new Uint8Array(concatenatedBuffer.current),
+                //     0
+                // )
+                // new Uint8Array(combinedBuffer).set(
+                //     new Uint8Array(newBuffer),
+                //     concatenatedBuffer.current.byteLength
+                // )
+                // concatenatedBuffer.current = combinedBuffer
 
-                // Trim the buffer if it exceeds the maximum duration
-                const maxBufferSize =
-                    (BUFFER_DURATION_MS / 1000) *
-                    (startRecordingConfig.sampleRate ?? 44100) *
-                    (startRecordingConfig.encoding === 'pcm_16bit' ? 2 : 4)
-                if (concatenatedBuffer.current.byteLength > maxBufferSize) {
-                    concatenatedBuffer.current =
-                        concatenatedBuffer.current.slice(-maxBufferSize)
-                }
+                // const maxBufferSize =
+                //     (BUFFER_DURATION_MS / 1000) *
+                //     (startRecordingConfig.sampleRate ?? 44100) *
+                //     (startRecordingConfig.encoding === 'pcm_16bit' ? 2 : 4)
+                // if (concatenatedBuffer.current.byteLength > maxBufferSize) {
+                //     concatenatedBuffer.current =
+                //         concatenatedBuffer.current.slice(-maxBufferSize)
+                // }
+                setTemp(data.slice(0))
+                logger.debug(`TEMP Received audio data ${typeof data}`, data)
             }
         } catch (error) {
             logger.error(`Error while processing audio data`, error)
@@ -195,15 +197,17 @@ export default function RecordScreen() {
                 return
             }
 
-            if (isWeb) {
+            if (isWeb && result.wavPCMData) {
+                const audioBuffer = result.wavPCMData.buffer
                 // Store the audio file and metadata in IndexedDB
                 await storeAudioFile({
                     fileName: result.filename,
-                    arrayBuffer: result.wavPCMData as ArrayBuffer,
+                    arrayBuffer: audioBuffer,
                     metadata: result,
                 })
 
                 setResult(result)
+                setTemp(result.wavPCMData.slice(100))
 
                 await refreshFiles()
             } else {
@@ -252,12 +256,12 @@ export default function RecordScreen() {
             {streamConfig?.channels ? (
                 <Text>channels: {streamConfig?.channels}</Text>
             ) : null}
-            {/* {isWeb && (
-                <View>
-                    {memoizedTranscriber}
-                    <Text>Transcription: {transcription}</Text>
-                </View>
-            )} */}
+            {isWeb && temp && (
+                <Transcriber
+                    fullAudio={temp}
+                    sampleRate={streamConfig?.sampleRate ?? 16000}
+                />
+            )}
             <Button mode="contained" onPress={pauseRecording}>
                 Pause Recording
             </Button>
@@ -433,12 +437,16 @@ export default function RecordScreen() {
                         recording={result}
                         onDelete={() => handleDelete(result)}
                         onActionPress={() => {
-                            router.push(
-                                `(recordings)/${result.fileUri.split('/').pop()}`
-                            )
+                            router.push(`(recordings)/${result.filename}`)
                         }}
                         actionText="Visualize"
                     />
+                    {isWeb && temp && (
+                        <Transcriber
+                            fullAudio={temp}
+                            sampleRate={result.sampleRate}
+                        />
+                    )}
                     <Button mode="contained" onPress={() => setResult(null)}>
                         Record Again
                     </Button>

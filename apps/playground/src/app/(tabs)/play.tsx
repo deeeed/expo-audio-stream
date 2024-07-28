@@ -3,6 +3,7 @@ import { Button, ScreenWrapper, useToast } from '@siteed/design-system'
 import {
     AudioAnalysis,
     AudioRecording,
+    convertPCMToFloat32,
     extractAudioAnalysis,
     getWavFileInfo,
 } from '@siteed/expo-audio-stream'
@@ -77,12 +78,12 @@ export const PlayPage = () => {
                     setSound(null)
                 }
 
+                setFileName(name)
                 if (isWeb) {
-                    await loadWebAudioFile({ audioUri: uri })
+                    await loadWebAudioFile({ audioUri: uri, filename: name })
                 } else {
                     // Reset playback position and stop playback
                     setAudioUri(uri)
-                    setFileName(name)
                     setIsPlaying(false)
                     setCurrentTime(0)
 
@@ -102,7 +103,13 @@ export const PlayPage = () => {
         }
     }
 
-    const loadWebAudioFile = async ({ audioUri }: { audioUri: string }) => {
+    const loadWebAudioFile = async ({
+        audioUri,
+        filename,
+    }: {
+        audioUri: string
+        filename?: string
+    }) => {
         try {
             logger.log('Loading audio file:', audioUri)
             const timings: { [key: string]: number } = {}
@@ -141,25 +148,21 @@ export const PlayPage = () => {
 
             const startExtractFileName = performance.now()
             // extract filename from audioUri and remove any query params
-            const fileName =
-                audioUri.split('/').pop()?.split('?')[0] ?? 'Unknown'
-            setFileName(fileName)
+            const actualFileName =
+                filename ??
+                audioUri.split('/').pop()?.split('?')[0] ??
+                'Unknown'
+            setFileName(actualFileName)
             setAudioUri(audioUri)
             timings['Extract Filename'] =
                 performance.now() - startExtractFileName
 
             console.log(`AudioBuffer:`, audioBufferRef.current)
-            const audioCTX = new AudioContext({
-                sampleRate: 16000,
-            })
-            console.log(`AudioContext:`, audioCTX)
-            const boom = new Float32Array(arrayBuffer)
-            const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
-            const decodedFloat = decoded.getChannelData(0)
-            console.log(`decodedFloat:`, decodedFloat)
-            console.log(`Decoded:`, decoded)
-            console.log(`booom:`, boom)
 
+            const audioCTX = new AudioContext({
+                sampleRate: 16000, // Always resample to 16000
+            })
+            const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
             let pcmAudio: Float32Array
             if (decoded.numberOfChannels === 2) {
                 const SCALING_FACTOR = Math.sqrt(2)
@@ -174,6 +177,15 @@ export const PlayPage = () => {
             } else {
                 pcmAudio = decoded.getChannelData(0)
             }
+            const { pcmValues: pcmAudio2 } = await convertPCMToFloat32({
+                buffer: arrayBuffer,
+                bitDepth: wavMetadata.bitDepth,
+                skipWavHeader: true,
+            })
+
+            // compare the two pcmAudio
+            console.log('pcmAudio:', pcmAudio)
+            console.log('pcmAudio2:', pcmAudio2)
             setAudioBuffer(pcmAudio)
 
             const startAudioAnalysis = performance.now()
@@ -259,13 +271,20 @@ export const PlayPage = () => {
         // Decode the audio file to get metadata
         const wavMetadata = await getWavFileInfo(arrayBuffer)
 
+        // Convert PCM to Float32Array
+        const { pcmValues: audioBuffer } = await convertPCMToFloat32({
+            buffer: arrayBuffer,
+            bitDepth: wavMetadata.bitDepth,
+            skipWavHeader: false,
+        })
+
         logger.info(`saveTofiles wavMetadata:`, wavMetadata)
         // Auto copy to local files
         const audioResult: AudioRecording = {
             fileUri: destination,
             filename: fileName,
             mimeType: 'audio/wav',
-            wavPCMData: arrayBuffer,
+            wavPCMData: audioBuffer,
             size: arrayBuffer.byteLength,
             durationMs: wavMetadata.durationMs,
             sampleRate: wavMetadata.sampleRate,
@@ -347,6 +366,7 @@ export const PlayPage = () => {
                         <View>
                             <Transcriber
                                 fullAudio={audioBuffer}
+                                sampleRate={16000} // this was resampled by AudioContext
                                 onTranscriptionUpdate={(transcription) => {
                                     console.log('Transcription:', transcription)
                                 }}
