@@ -1,20 +1,26 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import {
-    View,
     ScrollView,
+    StyleSheet,
     Text,
     TouchableOpacity,
-    StyleSheet,
+    View,
 } from 'react-native'
 
-import { TranscriberData } from '../hooks/useTranscriber'
+import { Chunk, TranscriberData } from '../context/TranscriberContext'
 import { formatDuration } from '../utils/utils'
 
-interface Props {
-    transcribedData: TranscriberData | undefined
+interface TranscriptProps {
+    transcribedData: TranscriberData | TranscriberData[] | undefined
+    showActions?: boolean
+    onSelectChunk?: (timestamp: Chunk['timestamp']) => void
 }
 
-export default function Transcript({ transcribedData }: Props) {
+export default function Transcript({
+    transcribedData,
+    onSelectChunk,
+    showActions = true,
+}: TranscriptProps) {
     const scrollViewRef = useRef<ScrollView>(null)
 
     const saveBlob = (blob: Blob, filename: string) => {
@@ -26,19 +32,31 @@ export default function Transcript({ transcribedData }: Props) {
         URL.revokeObjectURL(url)
     }
 
-    const exportTXT = () => {
-        const chunks = transcribedData?.chunks ?? []
-        const text = chunks
+    const getCombinedChunks = (): string => {
+        if (!transcribedData) return ''
+
+        const chunks = Array.isArray(transcribedData)
+            ? transcribedData.flatMap((data) => data.chunks)
+            : transcribedData.chunks
+
+        return chunks
             .map((chunk) => chunk.text)
             .join('')
             .trim()
+    }
 
+    const exportTXT = () => {
+        const text = getCombinedChunks()
         const blob = new Blob([text], { type: 'text/plain' })
         saveBlob(blob, 'transcript.txt')
     }
 
     const exportJSON = () => {
-        let jsonData = JSON.stringify(transcribedData?.chunks ?? [], null, 2)
+        const chunks = Array.isArray(transcribedData)
+            ? transcribedData.flatMap((data) => data.chunks)
+            : (transcribedData?.chunks ?? [])
+
+        let jsonData = JSON.stringify(chunks, null, 2)
 
         // post-process the JSON to make it more readable
         const regex = /(    "timestamp": )\[\s+(\S+)\s+(\S+)\s+\]/gm
@@ -55,35 +73,55 @@ export default function Transcript({ transcribedData }: Props) {
         }
     }, [transcribedData])
 
+    const renderChunks = (chunks: Chunk[]) => {
+        return chunks.map((chunk, i) => (
+            <TouchableOpacity
+                key={`${i}-${chunk.text}`}
+                onPress={() => handleChunkPress(chunk.timestamp)}
+                style={styles.chunkContainer}
+            >
+                <Text style={styles.timestamp}>
+                    {formatDuration(chunk.timestamp[0])}
+                </Text>
+                <Text style={styles.chunkText}>{chunk.text}</Text>
+            </TouchableOpacity>
+        ))
+    }
+
+    const handleChunkPress = (timestamp: Chunk['timestamp']) => {
+        if (onSelectChunk) {
+            onSelectChunk(timestamp)
+        }
+    }
+
+    const chunks = Array.isArray(transcribedData)
+        ? transcribedData.flatMap((data) => data.chunks)
+        : (transcribedData?.chunks ?? [])
+
     return (
         <View style={styles.container}>
             <ScrollView ref={scrollViewRef} style={styles.scrollView}>
-                {transcribedData?.chunks &&
-                    transcribedData.chunks.map((chunk, i) => (
-                        <View
-                            key={`${i}-${chunk.text}`}
-                            style={styles.chunkContainer}
-                        >
-                            <Text style={styles.timestamp}>
-                                {formatDuration(chunk.timestamp[0])}
-                            </Text>
-                            <Text style={styles.chunkText}>{chunk.text}</Text>
-                        </View>
-                    ))}
+                {renderChunks(chunks)}
             </ScrollView>
-            {transcribedData && !transcribedData.isBusy && (
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity onPress={exportTXT} style={styles.button}>
-                        <Text style={styles.buttonText}>Export TXT</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        onPress={exportJSON}
-                        style={styles.button}
-                    >
-                        <Text style={styles.buttonText}>Export JSON</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
+            {showActions &&
+                transcribedData &&
+                !Array.isArray(transcribedData) &&
+                !transcribedData.isBusy && (
+                    <View style={styles.buttonContainer}>
+                        <TouchableOpacity
+                            onPress={exportTXT}
+                            style={styles.button}
+                        >
+                            <Text style={styles.buttonText}>Export TXT</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={exportJSON}
+                            style={styles.button}
+                        >
+                            <Text style={styles.buttonText}>Export JSON</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
         </View>
     )
 }

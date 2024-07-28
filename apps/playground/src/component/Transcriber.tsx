@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 
+import Transcript from './Transcript'
 import { baseLogger } from '../config'
+import { TranscriberData } from '../context/TranscriberContext'
 import { useTranscriber } from '../hooks/useTranscriber'
 
 const logger = baseLogger.extend('Transcriber')
@@ -10,7 +12,8 @@ const logger = baseLogger.extend('Transcriber')
 interface TranscriberProps {
     fullAudio: Float32Array
     sampleRate: number
-    onTranscriptionUpdate?: (params: { transcription: string }) => void
+    onTranscriptionUpdate?: (params: TranscriberData) => void
+    onTranscriptionComplete?: (params: TranscriberData) => void
 }
 
 const WhisperSampleRate = 16000
@@ -19,6 +22,7 @@ const Transcriber: React.FC<TranscriberProps> = ({
     fullAudio,
     sampleRate,
     onTranscriptionUpdate,
+    onTranscriptionComplete,
 }) => {
     const {
         isBusy,
@@ -34,7 +38,7 @@ const Transcriber: React.FC<TranscriberProps> = ({
         if (fullAudio && fullAudio.byteLength > 0) {
             logger.debug('Decoding audio...', fullAudio)
             if (sampleRate !== WhisperSampleRate) {
-                console.warn(
+                logger.warn(
                     `TODO: Resampling audio from ${sampleRate} to ${WhisperSampleRate}`
                 )
             }
@@ -44,14 +48,22 @@ const Transcriber: React.FC<TranscriberProps> = ({
 
     useEffect(() => {
         if (!isBusy && currentAudio) {
-            logger.debug('Transcribing...', currentAudio)
+            logger.debug('Start new transcription...', currentAudio)
             start(currentAudio)
         }
     }, [isBusy, start, currentAudio])
 
     useEffect(() => {
         if (output && output.text) {
-            onTranscriptionUpdate?.({ transcription: output.text })
+            logger.log(
+                `Transcription ${output.isBusy ? 'in progress' : 'completed'}: ${output.text}`,
+                output
+            )
+            if (output.isBusy) {
+                onTranscriptionUpdate?.(output)
+            } else {
+                onTranscriptionComplete?.(output)
+            }
         }
     }, [output, onTranscriptionUpdate])
 
@@ -65,11 +77,7 @@ const Transcriber: React.FC<TranscriberProps> = ({
                     <ActivityIndicator size="small" />
                 </View>
             ) : (
-                <View>
-                    <Text>Transcription:</Text>
-                    <Text>{output?.text || 'Waiting for audio...'}</Text>
-                    <Text>Chunks processed: {output?.chunks.length || 0}</Text>
-                </View>
+                <Transcript transcribedData={output} />
             )}
         </View>
     )

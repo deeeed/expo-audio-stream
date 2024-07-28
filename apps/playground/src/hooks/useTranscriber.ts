@@ -1,7 +1,12 @@
-import { useCallback, useMemo, useState, useRef } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { useWorker } from './useWorker'
 import { config } from '../config'
+import {
+    TranscriberCompleteData,
+    TranscriberData,
+    TranscriberUpdateData,
+} from '../context/TranscriberContext'
 
 interface ProgressItem {
     file: string
@@ -10,27 +15,6 @@ interface ProgressItem {
     total: number
     name: string
     status: string
-}
-
-interface TranscriberUpdateData {
-    data: [
-        string,
-        { chunks: { text: string; timestamp: [number, number | null] }[] },
-    ]
-    text: string
-}
-
-interface TranscriberCompleteData {
-    data: {
-        text: string
-        chunks: { text: string; timestamp: [number, number | null] }[]
-    }
-}
-
-export interface TranscriberData {
-    isBusy: boolean
-    text: string
-    chunks: { text: string; timestamp: [number, number | null] }[]
 }
 
 export interface Transcriber {

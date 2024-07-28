@@ -16,16 +16,14 @@ import isBase64 from 'is-base64'
 import { useCallback, useRef, useState } from 'react'
 import { Platform, StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
-import { atob } from 'react-native-quick-base64'
 
+import LiveTranscriber from '../../component/LiveTranscriber'
 import Transcriber from '../../component/Transcriber'
 import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
 import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
-
-const LIVE_WAVE_FORM_CHUNKS_LENGTH = 5000
 
 const CHUNK_DURATION_MS = 500 // 500 ms chunks
 
@@ -50,7 +48,7 @@ logger.debug(`Base Recording Config`, baseRecordingConfig)
 export default function RecordScreen() {
     const [error, setError] = useState<string | null>(null)
     const audioChunks = useRef<string[]>([])
-    const audioChunksBlobs = useRef<ArrayBuffer[]>([])
+    const webAudioChunks = useRef<Float32Array>(new Float32Array(0))
     const [streamConfig, setStreamConfig] =
         useState<StartRecordingResult | null>(null)
     const [startRecordingConfig, setStartRecordingConfig] =
@@ -64,13 +62,6 @@ export default function RecordScreen() {
     const { refreshFiles, removeFile } = useAudioFiles()
     const { show } = useToast()
     const router = useRouter()
-
-    // Prevent displaying the entiere audio in the live visualization
-    const liveWavFormBufferIndex = useRef(0)
-    const liveWavFormBuffer = useRef<ArrayBuffer[]>(
-        new Array(LIVE_WAVE_FORM_CHUNKS_LENGTH)
-    ) // Circular buffer for live waveform visualization
-    const concatenatedBuffer = useRef<ArrayBuffer>(new ArrayBuffer(0))
     const [temp, setTemp] = useState<Float32Array | null>(null)
 
     const onAudioData = useCallback(async (event: AudioDataEvent) => {
@@ -92,51 +83,28 @@ export default function RecordScreen() {
                         `Invalid base64 data for chunks#${audioChunks.current.length} position=${position}`
                     )
                 } else {
-                    const binaryString = atob(data)
-                    const len = binaryString.length
-                    const bytes = new Uint8Array(len)
-                    for (let i = 0; i < len; i++) {
-                        bytes[i] = binaryString.charCodeAt(i)
-                    }
-                    const wavAudioBuffer = bytes.buffer
-                    liveWavFormBuffer.current[liveWavFormBufferIndex.current] =
-                        wavAudioBuffer
-                    liveWavFormBufferIndex.current =
-                        (liveWavFormBufferIndex.current + 1) %
-                        LIVE_WAVE_FORM_CHUNKS_LENGTH
+                    // const binaryString = atob(data)
+                    // const len = binaryString.length
+                    // const bytes = new Uint8Array(len)
+                    // for (let i = 0; i < len; i++) {
+                    //     bytes[i] = binaryString.charCodeAt(i)
+                    // }
+                    // const wavAudioBuffer = bytes.buffer
+                    // liveWavFormBuffer.current[liveWavFormBufferIndex.current] =
+                    //     wavAudioBuffer
+                    // liveWavFormBufferIndex.current =
+                    //     (liveWavFormBufferIndex.current + 1) %
+                    //     LIVE_WAVE_FORM_CHUNKS_LENGTH
                 }
             } else if (data instanceof Float32Array) {
-                // const newBuffer = data.slice(0) // Create a copy to avoid detachment issues
-                // audioChunksBlobs.current.push(newBuffer)
-
-                // liveWavFormBuffer.current[liveWavFormBufferIndex.current] =
-                //     newBuffer
-                // liveWavFormBufferIndex.current =
-                //     (liveWavFormBufferIndex.current + 1) %
-                //     LIVE_WAVE_FORM_CHUNKS_LENGTH
-
-                // const combinedBuffer = new ArrayBuffer(
-                //     concatenatedBuffer.current.byteLength + newBuffer.byteLength
-                // )
-                // new Uint8Array(combinedBuffer).set(
-                //     new Uint8Array(concatenatedBuffer.current),
-                //     0
-                // )
-                // new Uint8Array(combinedBuffer).set(
-                //     new Uint8Array(newBuffer),
-                //     concatenatedBuffer.current.byteLength
-                // )
-                // concatenatedBuffer.current = combinedBuffer
-
-                // const maxBufferSize =
-                //     (BUFFER_DURATION_MS / 1000) *
-                //     (startRecordingConfig.sampleRate ?? 44100) *
-                //     (startRecordingConfig.encoding === 'pcm_16bit' ? 2 : 4)
-                // if (concatenatedBuffer.current.byteLength > maxBufferSize) {
-                //     concatenatedBuffer.current =
-                //         concatenatedBuffer.current.slice(-maxBufferSize)
-                // }
-                setTemp(data.slice(0))
+                // append to webAudioChunks
+                const concatenatedBuffer = new Float32Array(
+                    webAudioChunks.current.length + data.length
+                )
+                concatenatedBuffer.set(webAudioChunks.current)
+                concatenatedBuffer.set(data, webAudioChunks.current.length)
+                webAudioChunks.current = concatenatedBuffer
+                setTemp(webAudioChunks.current)
                 logger.debug(`TEMP Received audio data ${typeof data}`, data)
             }
         } catch (error) {
@@ -165,11 +133,8 @@ export default function RecordScreen() {
 
             // Clear previous audio chunks
             audioChunks.current = []
-            audioChunksBlobs.current = []
-            liveWavFormBuffer.current = new Array(LIVE_WAVE_FORM_CHUNKS_LENGTH)
-            liveWavFormBufferIndex.current = 0
+            webAudioChunks.current = new Float32Array(0)
             currentSize.current = 0
-            concatenatedBuffer.current = new ArrayBuffer(0)
             logger.log(`Starting recording...`, startRecordingConfig)
             const streamConfig: StartRecordingResult =
                 await startRecording(startRecordingConfig)
@@ -257,7 +222,7 @@ export default function RecordScreen() {
                 <Text>channels: {streamConfig?.channels}</Text>
             ) : null}
             {isWeb && temp && (
-                <Transcriber
+                <LiveTranscriber
                     fullAudio={temp}
                     sampleRate={streamConfig?.sampleRate ?? 16000}
                 />
