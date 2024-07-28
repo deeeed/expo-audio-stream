@@ -1,15 +1,16 @@
 // playground/src/app/_layout.tsx
 import { UIProvider } from '@siteed/design-system'
 import { AudioRecorderProvider } from '@siteed/expo-audio-stream'
+import { enabled, getLogger } from '@siteed/react-native-logger'
 import Constants from 'expo-constants'
 import { Stack } from 'expo-router/stack'
-
-import { AudioFilesProvider } from '../context/AudioFilesProvider'
-import { ApplicationContextProvider } from '../context/application-context'
-import { getLogger, enabled } from '@siteed/react-native-logger'
 import { useEffect } from 'react'
 
-const logger = getLogger("RootLayout");
+import { AudioFilesProvider } from '../context/AudioFilesProvider'
+import { TranscriberProvider } from '../context/TranscriberContext'
+import { ApplicationContextProvider } from '../context/application-context'
+
+const logger = getLogger('RootLayout')
 
 export default function RootLayout() {
     const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? ''
@@ -22,7 +23,12 @@ export default function RootLayout() {
     }, [baseUrl])
 
     return (
-            <ApplicationContextProvider debugMode>
+        <ApplicationContextProvider debugMode>
+            <TranscriberProvider
+                model="Xenova/whisper-tiny"
+                multilingual={false}
+                quantized={false}
+            >
                 <AudioRecorderProvider
                     config={{
                         debug: true,
@@ -76,6 +82,7 @@ export default function RootLayout() {
                         </AudioFilesProvider>
                     </UIProvider>
                 </AudioRecorderProvider>
-            </ApplicationContextProvider>
+            </TranscriberProvider>
+        </ApplicationContextProvider>
     )
 }

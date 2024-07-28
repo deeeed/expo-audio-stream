@@ -63,7 +63,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
         }
     }
 
-    process(inputs, outputs, parameters) {
+    process(inputs, _outputs, _parameters) {
         if (!this.isRecording) return true
         const input = inputs[0]
         if (input.length > 0) {

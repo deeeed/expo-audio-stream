@@ -16,8 +16,8 @@ import {
     AudioRecordingConfigForm,
     SelectedAudioVisualizerProps,
 } from '../../component/audio-recording-config/audio-recording-config-form'
-import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
+import { useAudioFiles } from '../../context/AudioFilesProvider'
 
 const getStyles = (_: { theme: AppTheme }) => {
     return StyleSheet.create({

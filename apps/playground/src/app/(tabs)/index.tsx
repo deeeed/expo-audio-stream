@@ -19,22 +19,25 @@ import { ActivityIndicator } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
 
 import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
+import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
-import { getLogger } from '@siteed/react-native-logger'
 
 const LIVE_WAVE_FORM_CHUNKS_LENGTH = 5000
 
+const CHUNK_DURATION_MS = 500 // 500 ms chunks
+const BUFFER_DURATION_MS = 30000 // 30 seconds
+
 const baseRecordingConfig: RecordingConfig = {
-    interval: 500,
+    interval: CHUNK_DURATION_MS,
     sampleRate: 44100,
     encoding: 'pcm_32bit',
     pointsPerSecond: 10,
     enableProcessing: true,
 }
 
-const logger = getLogger('RecordScreen');
+const logger = baseLogger.extend('RecordScreen')
 
 if (Platform.OS === 'ios') {
     baseRecordingConfig.sampleRate = 48000
@@ -67,6 +70,7 @@ export default function RecordScreen() {
     const liveWavFormBuffer = useRef<ArrayBuffer[]>(
         new Array(LIVE_WAVE_FORM_CHUNKS_LENGTH)
     ) // Circular buffer for live waveform visualization
+    const concatenatedBuffer = useRef<ArrayBuffer>(new ArrayBuffer(0))
 
     const onAudioData = useCallback(async (event: AudioDataEvent) => {
         try {
@@ -108,6 +112,30 @@ export default function RecordScreen() {
                 liveWavFormBufferIndex.current =
                     (liveWavFormBufferIndex.current + 1) %
                     LIVE_WAVE_FORM_CHUNKS_LENGTH
+
+                // Concatenate the new chunk to the existing buffer
+                const newBuffer = new ArrayBuffer(
+                    concatenatedBuffer.current.byteLength + data.byteLength
+                )
+                new Uint8Array(newBuffer).set(
+                    new Uint8Array(concatenatedBuffer.current),
+                    0
+                )
+                new Uint8Array(newBuffer).set(
+                    new Uint8Array(data),
+                    concatenatedBuffer.current.byteLength
+                )
+                concatenatedBuffer.current = newBuffer
+
+                // Trim the buffer if it exceeds the maximum duration
+                const maxBufferSize =
+                    (BUFFER_DURATION_MS / 1000) *
+                    (startRecordingConfig.sampleRate ?? 44100) *
+                    (startRecordingConfig.encoding === 'pcm_16bit' ? 2 : 4)
+                if (concatenatedBuffer.current.byteLength > maxBufferSize) {
+                    concatenatedBuffer.current =
+                        concatenatedBuffer.current.slice(-maxBufferSize)
+                }
             }
         } catch (error) {
             logger.error(`Error while processing audio data`, error)
@@ -139,6 +167,7 @@ export default function RecordScreen() {
             liveWavFormBuffer.current = new Array(LIVE_WAVE_FORM_CHUNKS_LENGTH)
             liveWavFormBufferIndex.current = 0
             currentSize.current = 0
+            concatenatedBuffer.current = new ArrayBuffer(0)
             logger.log(`Starting recording...`, startRecordingConfig)
             const streamConfig: StartRecordingResult =
                 await startRecording(startRecordingConfig)
@@ -192,7 +221,7 @@ export default function RecordScreen() {
             }
 
             // Go to the newly saved page.
-            router.push(`(recordings)/${result.filename}`)
+            // router.push(`(recordings)/${result.filename}`)
         } catch (error) {
             logger.error(`Error while stopping recording`, error)
         } finally {
@@ -223,6 +252,12 @@ export default function RecordScreen() {
             {streamConfig?.channels ? (
                 <Text>channels: {streamConfig?.channels}</Text>
             ) : null}
+            {/* {isWeb && (
+                <View>
+                    {memoizedTranscriber}
+                    <Text>Transcription: {transcription}</Text>
+                </View>
+            )} */}
             <Button mode="contained" onPress={pauseRecording}>
                 Pause Recording
             </Button>
@@ -392,11 +427,6 @@ export default function RecordScreen() {
 
     return (
         <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
-            {/* {audioUri && (
-        <View>
-          <Text>Audio URI: {audioUri}</Text>
-        </View>
-      )} */}
             {result && (
                 <View style={{ gap: 10, paddingBottom: 100 }}>
                     <AudioRecordingView

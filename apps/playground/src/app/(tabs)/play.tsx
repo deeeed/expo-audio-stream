@@ -10,10 +10,11 @@ import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 
+import Transcriber from '../../component/Transcriber'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
@@ -44,6 +45,8 @@ export const PlayPage = () => {
     const [isPlaying, setIsPlaying] = useState<boolean>(false)
     const [currentTime, setCurrentTime] = useState<number>(0)
     const [processing, setProcessing] = useState<boolean>(false)
+    const [audioBuffer, setAudioBuffer] = useState<Float32Array>()
+    const audioBufferRef = useRef<ArrayBuffer | null>(null)
     const { show } = useToast()
 
     const { files, removeFile, refreshFiles } = useAudioFiles()
@@ -69,23 +72,28 @@ export const PlayPage = () => {
                     return
                 }
 
-                // Reset playback position and stop playback
-                setAudioUri(uri)
-                setFileName(name)
-                setIsPlaying(false)
-                setCurrentTime(0)
                 // Unload any existing sound
                 if (sound) {
                     setSound(null)
                 }
 
-                const audioAnalysis = await extractAudioAnalysis({
-                    fileUri: uri,
-                    pointsPerSecond: 10,
-                    algorithm: 'rms',
-                })
-                logger.log(`AudioAnalysis:`, audioAnalysis)
-                setAudioAnalysis(audioAnalysis)
+                if (isWeb) {
+                    await loadWebAudioFile({ audioUri: uri })
+                } else {
+                    // Reset playback position and stop playback
+                    setAudioUri(uri)
+                    setFileName(name)
+                    setIsPlaying(false)
+                    setCurrentTime(0)
+
+                    const audioAnalysis = await extractAudioAnalysis({
+                        fileUri: uri,
+                        pointsPerSecond: 10,
+                        algorithm: 'rms',
+                    })
+                    logger.log(`AudioAnalysis:`, audioAnalysis)
+                    setAudioAnalysis(audioAnalysis)
+                }
             }
         } catch (error) {
             logger.error('Error picking audio file:', error)
@@ -125,6 +133,11 @@ export const PlayPage = () => {
             const wavMetadata = await getWavFileInfo(arrayBuffer)
             logger.info(`WavMetadata:`, wavMetadata)
             timings['Decode Audio'] = performance.now() - startDecodeAudio
+            audioBufferRef.current = arrayBuffer
+            logger.debug(
+                `AudioBuffer: ${audioBufferRef.current.byteLength}`,
+                arrayBuffer
+            )
 
             const startExtractFileName = performance.now()
             // extract filename from audioUri and remove any query params
@@ -134,6 +147,34 @@ export const PlayPage = () => {
             setAudioUri(audioUri)
             timings['Extract Filename'] =
                 performance.now() - startExtractFileName
+
+            console.log(`AudioBuffer:`, audioBufferRef.current)
+            const audioCTX = new AudioContext({
+                sampleRate: 16000,
+            })
+            console.log(`AudioContext:`, audioCTX)
+            const boom = new Float32Array(arrayBuffer)
+            const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
+            const decodedFloat = decoded.getChannelData(0)
+            console.log(`decodedFloat:`, decodedFloat)
+            console.log(`Decoded:`, decoded)
+            console.log(`booom:`, boom)
+
+            let pcmAudio: Float32Array
+            if (decoded.numberOfChannels === 2) {
+                const SCALING_FACTOR = Math.sqrt(2)
+
+                const left = decoded.getChannelData(0)
+                const right = decoded.getChannelData(1)
+
+                pcmAudio = new Float32Array(left.length)
+                for (let i = 0; i < decoded.length; ++i) {
+                    pcmAudio[i] = (SCALING_FACTOR * (left[i] + right[i])) / 2
+                }
+            } else {
+                pcmAudio = decoded.getChannelData(0)
+            }
+            setAudioBuffer(pcmAudio)
 
             const startAudioAnalysis = performance.now()
             const audioAnalysis = await extractAudioAnalysis({
@@ -288,7 +329,7 @@ export const PlayPage = () => {
                             try {
                                 await loadWebAudioFile({
                                     audioUri:
-                                        'audio_samples/recorder_hello_world.wav',
+                                        'audio_samples/recorder_jre_lex_watch.wav',
                                 })
                             } catch (error) {
                                 logger.error('Error loading audio file:', error)
@@ -302,8 +343,18 @@ export const PlayPage = () => {
             {processing && <ActivityIndicator size="large" />}
             {audioUri && (
                 <View style={{ gap: 10 }}>
+                    {isWeb && audioBuffer && (
+                        <View>
+                            <Transcriber
+                                fullAudio={audioBuffer}
+                                onTranscriptionUpdate={(transcription) => {
+                                    console.log('Transcription:', transcription)
+                                }}
+                            />
+                        </View>
+                    )}
                     {audioAnalysis && (
-                        <>
+                        <View>
                             <AudioVisualizer
                                 candleSpace={2}
                                 mode="static"
@@ -316,23 +367,25 @@ export const PlayPage = () => {
                                 audioData={audioAnalysis}
                                 onSeekEnd={handleSeekEnd}
                             />
-                        </>
+                        </View>
                     )}
                     <Button onPress={playPauseAudio} mode="outlined">
                         {isPlaying ? 'Pause Audio' : 'Play Audio'}
                     </Button>
                 </View>
             )}
-            {fileName && (
-                <View style={{ marginTop: 20, gap: 10 }}>
-                    <Text style={styles.audioPlayer}>
-                        Selected File: {fileName}
-                    </Text>
-                    <Button onPress={saveToFiles} mode="contained">
-                        Save to Files
-                    </Button>
-                </View>
-            )}
+            <View>
+                {fileName && (
+                    <View style={{ marginTop: 20, gap: 10 }}>
+                        <Text style={styles.audioPlayer}>
+                            Selected File: {fileName}
+                        </Text>
+                        <Button onPress={saveToFiles} mode="contained">
+                            Save to Files
+                        </Button>
+                    </View>
+                )}
+            </View>
         </ScreenWrapper>
     )
 }
