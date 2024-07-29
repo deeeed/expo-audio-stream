@@ -27,6 +27,17 @@ export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'
 export type SampleRate = 16000 | 44100 | 48000
 export type BitDepth = 8 | 16 | 32
 
+export interface Chunk {
+    text: string
+    timestamp: [number, number | null]
+}
+
+export interface TranscriberData {
+    isBusy: boolean
+    text: string
+    chunks: Chunk[]
+}
+
 export interface AudioRecording {
     fileUri: string
     filename: string
@@ -36,6 +47,7 @@ export interface AudioRecording {
     channels: number
     bitDepth: BitDepth
     sampleRate: SampleRate
+    transcripts?: TranscriberData[]
     wavPCMData?: Float32Array // Full PCM data for the recording in WAV format (only on web, for native use the fileUri)
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
 }

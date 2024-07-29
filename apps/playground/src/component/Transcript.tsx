@@ -13,12 +13,15 @@ import { formatDuration } from '../utils/utils'
 interface TranscriptProps {
     transcribedData: TranscriberData | TranscriberData[] | undefined
     showActions?: boolean
-    onSelectChunk?: (timestamp: Chunk['timestamp']) => void
+    currentTimeMs?: number
+    isPlaying?: boolean
+    onSelectChunk?: (_: { chunk: Chunk }) => void
 }
 
 export default function Transcript({
     transcribedData,
     onSelectChunk,
+    currentTimeMs,
     showActions = true,
 }: TranscriptProps) {
     const scrollViewRef = useRef<ScrollView>(null)
@@ -74,23 +77,36 @@ export default function Transcript({
     }, [transcribedData])
 
     const renderChunks = (chunks: Chunk[]) => {
-        return chunks.map((chunk, i) => (
-            <TouchableOpacity
-                key={`${i}-${chunk.text}`}
-                onPress={() => handleChunkPress(chunk.timestamp)}
-                style={styles.chunkContainer}
-            >
-                <Text style={styles.timestamp}>
-                    {formatDuration(chunk.timestamp[0]*1000)}
-                </Text>
-                <Text style={styles.chunkText}>{chunk.text}</Text>
-            </TouchableOpacity>
-        ))
+        return chunks.map((chunk, i) => {
+            const currentTime = currentTimeMs ? currentTimeMs / 1000 : 0
+            const isActive =
+                chunk.timestamp[0] <= currentTime &&
+                currentTime < (chunk.timestamp[1] ?? chunk.timestamp[0])
+            // console.debug(
+            //     `isActive=${isActive} currentTime=${currentTime}`,
+            //     chunk.timestamp
+            // )
+            return (
+                <TouchableOpacity
+                    key={`${i}-${chunk.text}`}
+                    onPress={() => handleChunkPress(chunk)}
+                    style={[
+                        styles.chunkContainer,
+                        isActive ? styles.activeChunkContainer : undefined,
+                    ]}
+                >
+                    <Text style={styles.timestamp}>
+                        {formatDuration(chunk.timestamp[0] * 1000)}
+                    </Text>
+                    <Text style={styles.chunkText}>{chunk.text}</Text>
+                </TouchableOpacity>
+            )
+        })
     }
 
-    const handleChunkPress = (timestamp: Chunk['timestamp']) => {
+    const handleChunkPress = (chunk: Chunk) => {
         if (onSelectChunk) {
-            onSelectChunk(timestamp)
+            onSelectChunk({ chunk })
         }
     }
 
@@ -103,25 +119,19 @@ export default function Transcript({
             <ScrollView ref={scrollViewRef} style={styles.scrollView}>
                 {renderChunks(chunks)}
             </ScrollView>
-            {showActions &&
-                transcribedData &&
-                !Array.isArray(transcribedData) &&
-                !transcribedData.isBusy && (
-                    <View style={styles.buttonContainer}>
-                        <TouchableOpacity
-                            onPress={exportTXT}
-                            style={styles.button}
-                        >
-                            <Text style={styles.buttonText}>Export TXT</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={exportJSON}
-                            style={styles.button}
-                        >
-                            <Text style={styles.buttonText}>Export JSON</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
+            {showActions && (
+                <View style={styles.buttonContainer}>
+                    <TouchableOpacity onPress={exportTXT} style={styles.button}>
+                        <Text style={styles.buttonText}>Export TXT</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={exportJSON}
+                        style={styles.button}
+                    >
+                        <Text style={styles.buttonText}>Export JSON</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
     )
 }
@@ -146,6 +156,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 5,
         elevation: 1,
+    },
+    activeChunkContainer: {
+        backgroundColor: '#d1e7dd', // Highlight color
     },
     timestamp: {
         marginRight: 16,

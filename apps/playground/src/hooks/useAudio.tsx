@@ -42,8 +42,9 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     const [position, setPosition] = useState(0)
     const [speed, setSpeed] = useState(1) // Add state for speed
     const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer>()
-    const [audioAnalysis, setAudioAnalysis] =
-        useState<AudioAnalysis | null>(null)
+    const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysis | null>(
+        null
+    )
     const { show } = useToast()
 
     useEffect(() => {
@@ -110,24 +111,21 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         show,
     ])
 
-    const updatePlaybackStatus = useCallback(
-        (status: AVPlaybackStatus) => {
-            if (!status.isLoaded) {
-                if ('error' in status) {
-                    logger.error(`Playback Error: ${status.error}`);
-                }
-                return;
+    const updatePlaybackStatus = useCallback((status: AVPlaybackStatus) => {
+        if (!status.isLoaded) {
+            if ('error' in status) {
+                logger.error(`Playback Error: ${status.error}`)
             }
+            return
+        }
 
-            setPosition(status.positionMillis);
+        setPosition(status.positionMillis)
 
-            if (status.didJustFinish) {
-                setIsPlaying(false);
-                setPosition(0); // Reset position when playback finishes
-            }
-        },
-        []
-    )
+        if (status.didJustFinish) {
+            setIsPlaying(false)
+            setPosition(0) // Reset position when playback finishes
+        }
+    }, [])
 
     const play = async (options?: PlayOptions) => {
         if (!audioUri) return
@@ -178,9 +176,9 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         if (options.position !== undefined) {
             logger.debug(`Set playback position to ${options.position}`)
             setPosition(options.position)
-            if (sound) {
-                await sound.setPositionAsync(options.position)
-            }
+            // if (sound) {
+            //     await sound.setPositionAsync(options.position)
+            // }
         }
         if (options.speed !== undefined) {
             logger.debug(`Set playback speed to ${options.speed}`)

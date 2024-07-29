@@ -59,7 +59,10 @@ const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
                 </View>
             ) : (
                 <View>
-                    <Transcript transcribedData={transcripts} />
+                    <Transcript
+                        transcribedData={transcripts}
+                        showActions={false}
+                    />
                     <Text>{activeTranscript || 'Waiting for audio...'}</Text>
                 </View>
             )}

@@ -18,7 +18,6 @@ import { Platform, StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 
 import LiveTranscriber from '../../component/LiveTranscriber'
-import Transcript from '../../component/Transcript'
 import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
 import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
@@ -166,6 +165,11 @@ export default function RecordScreen() {
                 return
             }
 
+            // Attach transcripts to the result if available
+            if (transcripts) {
+                result.transcripts = transcripts
+            }
+
             if (isWeb && result.wavPCMData) {
                 const audioBuffer = result.wavPCMData.buffer
                 // Store the audio file and metadata in IndexedDB
@@ -200,7 +204,7 @@ export default function RecordScreen() {
         } finally {
             setProcessing(false)
         }
-    }, [isRecording, refreshFiles])
+    }, [isRecording, refreshFiles, transcripts])
 
     const renderRecording = () => (
         <View style={{ gap: 10, display: 'flex' }}>
@@ -411,9 +415,6 @@ export default function RecordScreen() {
                         }}
                         actionText="Visualize"
                     />
-                    {isWeb && liveWebAudio && (
-                        <Transcript transcribedData={transcripts} />
-                    )}
                     <Button mode="contained" onPress={() => setResult(null)}>
                         Record Again
                     </Button>
