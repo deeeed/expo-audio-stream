@@ -25,7 +25,7 @@ import { Platform, StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 
 import LiveTranscriber from '../../component/LiveTranscriber'
-import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
+import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'

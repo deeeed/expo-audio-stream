@@ -22,16 +22,16 @@ import { StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
 
-import { useAudio } from '../../hooks/useAudio'
-import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
-import Transcript from '../Transcript'
 import {
     AudioRecordingAnalysisConfig,
     SelectedAnalysisConfig,
-} from '../audio-recording-analysis-config/audio-recording-analysis-config'
-import { SelectedAudioVisualizerProps } from '../audio-recording-config/audio-recording-config-form'
-import { DataPointViewer } from '../data-viewer/data-viewer'
-import { HexDataViewer } from '../data-viewer/hex-data-viewer'
+} from './AudioRecordingAnalysisConfig'
+import { SelectedAudioVisualizerProps } from './AudioRecordingConfigForm'
+import { DataPointViewer } from './DataViewer'
+import { HexDataViewer } from './HexDataViewer'
+import Transcript from './Transcript'
+import { useAudio } from '../hooks/useAudio'
+import { formatBytes, formatDuration, isWeb } from '../utils/utils'
 
 const logger = getLogger('AudioRecording')
 

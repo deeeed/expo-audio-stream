@@ -15,8 +15,8 @@ import { Text } from 'react-native-paper'
 import {
     AudioRecordingConfigForm,
     SelectedAudioVisualizerProps,
-} from '../../component/audio-recording-config/audio-recording-config-form'
-import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
+} from '../../component/AudioRecordingConfigForm'
+import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 
 const getStyles = (_: { theme: AppTheme }) => {

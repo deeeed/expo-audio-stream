@@ -8,7 +8,7 @@ import {
 import { Audio, AVPlaybackStatus } from 'expo-av'
 import { useCallback, useEffect, useState } from 'react'
 
-import { SelectedAnalysisConfig } from '../component/audio-recording-analysis-config/audio-recording-analysis-config'
+import { SelectedAnalysisConfig } from '../component/AudioRecordingAnalysisConfig'
 import { baseLogger, config } from '../config'
 import { fetchArrayBuffer } from '../utils/utils'
 

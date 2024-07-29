@@ -4,7 +4,6 @@ import React, {
     ReactNode,
     useCallback,
     useContext,
-    useEffect,
     useMemo,
     useReducer,
     useRef,
@@ -21,8 +20,7 @@ import {
 import { config } from '../config'
 import { useWorker } from '../hooks/useWorker'
 
-interface TranscriptionContextProps {
-    state: TranscriptionState
+interface TranscriptionContextProps extends TranscriptionState {
     dispatch: React.Dispatch<TranscriptionAction>
     initialize: () => void
     start: (audioData: Float32Array | undefined) => void
@@ -119,6 +117,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         type: 'UPDATE_STATE',
                         payload: {
                             isModelLoading: false,
+                            ready: true,
                         },
                     })
                     break
@@ -151,7 +150,10 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
     })
 
     const initialize = useCallback(() => {
-        dispatch({ type: 'UPDATE_STATE', payload: { isModelLoading: true } })
+        dispatch({
+            type: 'UPDATE_STATE',
+            payload: { isModelLoading: true, ready: false },
+        })
         webWorker.postMessage({
             type: 'initialize',
             model: state.model,
@@ -192,19 +194,9 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         ]
     )
 
-    useEffect(() => {
-        initialize()
-    }, [
-        state.model,
-        state.quantized,
-        state.multilingual,
-        state.language,
-        initialize,
-    ])
-
     const contextValue = useMemo(
         () => ({
-            state,
+            ...state,
             dispatch,
             initialize,
             start,

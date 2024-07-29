@@ -19,6 +19,7 @@ export interface TranscriptionState {
     quantized: boolean
     multilingual: boolean
     language?: string
+    ready: boolean
 }
 
 export type TranscriptionAction =

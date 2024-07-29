@@ -8,6 +8,7 @@ export const initialState: TranscriptionState = {
     transcript: undefined,
     isBusy: false,
     isModelLoading: false,
+    ready: false,
     progressItems: [],
     model: '',
     subtask: '',
