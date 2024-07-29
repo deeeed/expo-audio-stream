@@ -68,8 +68,8 @@ export const convertPCMToFloat32 = async ({
         }
 
         return { pcmValues: float32Array, min, max }
-    } catch (error) {
-        logger.error(`Error converting PCM to Float32: ${error.message}`, error)
+    } catch (error: unknown) {
+        logger.error(`Error converting PCM to Float32`, error)
         return { pcmValues: new Float32Array(), min: 0, max: 0 }
     }
 }

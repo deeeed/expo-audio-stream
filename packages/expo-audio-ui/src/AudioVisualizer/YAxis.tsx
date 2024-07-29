@@ -22,7 +22,8 @@ const formatLabel = (value: number): string => {
     return value.toFixed(2)
 }
 
-import defaultFont from './Roboto-Regular.ttf'
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const defaultFont = require('./Roboto-Regular.ttf')
 
 export const YAxis: React.FC<YAxisProps> = ({
     canvasHeight,
