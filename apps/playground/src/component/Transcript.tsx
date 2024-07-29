@@ -81,7 +81,7 @@ export default function Transcript({
                 style={styles.chunkContainer}
             >
                 <Text style={styles.timestamp}>
-                    {formatDuration(chunk.timestamp[0])}
+                    {formatDuration(chunk.timestamp[0]*1000)}
                 </Text>
                 <Text style={styles.chunkText}>{chunk.text}</Text>
             </TouchableOpacity>

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Transcriber, useTranscriber } from './useTranscriber'
+import { baseLogger } from '../config'
 import { TranscriberData } from '../context/TranscriberContext'
 
+const logger = baseLogger.extend('useLiveTranscriber')
 interface LiveTranscriber extends Transcriber {
     transcripts: TranscriberData[]
     activeTranscript: string
@@ -29,7 +31,7 @@ export function useLiveTranscriber({
     useEffect(() => {
         if (audioBuffer && audioBuffer.byteLength > 0) {
             if (sampleRate !== 16000) {
-                console.warn(
+                logger.warn(
                     `TODO: Resampling audio from ${sampleRate} to 16000`
                 )
             } else {
@@ -54,8 +56,10 @@ export function useLiveTranscriber({
                 const adjustedChunks = output.chunks.map((chunk) => {
                     const [start, end] = chunk.timestamp
                     const adjustedStart = start + cumulativeDuration.current
+
                     const adjustedEnd =
                         (end ?? start) + cumulativeDuration.current // Handle potential null value in end
+
                     return {
                         ...chunk,
                         timestamp: [adjustedStart, adjustedEnd],

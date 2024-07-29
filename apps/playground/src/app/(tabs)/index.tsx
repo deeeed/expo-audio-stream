@@ -18,10 +18,11 @@ import { Platform, StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 
 import LiveTranscriber from '../../component/LiveTranscriber'
-import Transcriber from '../../component/Transcriber'
+import Transcript from '../../component/Transcript'
 import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
 import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
+import { TranscriberData } from '../../context/TranscriberContext'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
 
@@ -62,7 +63,8 @@ export default function RecordScreen() {
     const { refreshFiles, removeFile } = useAudioFiles()
     const { show } = useToast()
     const router = useRouter()
-    const [temp, setTemp] = useState<Float32Array | null>(null)
+    const [liveWebAudio, setLiveWebAudio] = useState<Float32Array | null>(null)
+    const [transcripts, setTranscripts] = useState<TranscriberData[]>()
 
     const onAudioData = useCallback(async (event: AudioDataEvent) => {
         try {
@@ -104,7 +106,8 @@ export default function RecordScreen() {
                 concatenatedBuffer.set(webAudioChunks.current)
                 concatenatedBuffer.set(data, webAudioChunks.current.length)
                 webAudioChunks.current = concatenatedBuffer
-                setTemp(webAudioChunks.current)
+                // TODO: we should use either the webAudioChunks or the liveWebAudio
+                setLiveWebAudio(webAudioChunks.current)
                 logger.debug(`TEMP Received audio data ${typeof data}`, data)
             }
         } catch (error) {
@@ -135,6 +138,7 @@ export default function RecordScreen() {
             audioChunks.current = []
             webAudioChunks.current = new Float32Array(0)
             currentSize.current = 0
+            setLiveWebAudio(null)
             logger.log(`Starting recording...`, startRecordingConfig)
             const streamConfig: StartRecordingResult =
                 await startRecording(startRecordingConfig)
@@ -172,7 +176,7 @@ export default function RecordScreen() {
                 })
 
                 setResult(result)
-                setTemp(result.wavPCMData.slice(100))
+                setLiveWebAudio(result.wavPCMData.slice(100))
 
                 await refreshFiles()
             } else {
@@ -221,10 +225,11 @@ export default function RecordScreen() {
             {streamConfig?.channels ? (
                 <Text>channels: {streamConfig?.channels}</Text>
             ) : null}
-            {isWeb && temp && (
+            {isWeb && liveWebAudio && (
                 <LiveTranscriber
-                    fullAudio={temp}
+                    fullAudio={liveWebAudio}
                     sampleRate={streamConfig?.sampleRate ?? 16000}
+                    onTranscriptions={setTranscripts}
                 />
             )}
             <Button mode="contained" onPress={pauseRecording}>
@@ -406,11 +411,8 @@ export default function RecordScreen() {
                         }}
                         actionText="Visualize"
                     />
-                    {isWeb && temp && (
-                        <Transcriber
-                            fullAudio={temp}
-                            sampleRate={result.sampleRate}
-                        />
+                    {isWeb && liveWebAudio && (
+                        <Transcript transcribedData={transcripts} />
                     )}
                     <Button mode="contained" onPress={() => setResult(null)}>
                         Record Again

@@ -4,6 +4,7 @@ import { ActivityIndicator } from 'react-native-paper'
 
 import Transcript from './Transcript'
 import { baseLogger } from '../config'
+import { TranscriberData } from '../context/TranscriberContext'
 import { useLiveTranscriber } from '../hooks/useLiveTranscriber'
 
 const logger = baseLogger.extend('LiveTranscriber')
@@ -11,6 +12,7 @@ const logger = baseLogger.extend('LiveTranscriber')
 interface LiveTranscriberProps {
     fullAudio: Float32Array
     sampleRate: number
+    onTranscriptions?: (params: TranscriberData[]) => void
 }
 
 const WhisperSampleRate = 16000
@@ -18,6 +20,7 @@ const WhisperSampleRate = 16000
 const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
     fullAudio,
     sampleRate,
+    onTranscriptions,
 }) => {
     const { isModelLoading, progressItems, transcripts, activeTranscript } =
         useLiveTranscriber({ audioBuffer: fullAudio, sampleRate })
@@ -32,6 +35,18 @@ const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
             }
         }
     }, [fullAudio, sampleRate])
+
+    useEffect(() => {
+        if (!onTranscriptions) {
+            return
+        }
+
+        if (transcripts.length === 0) {
+            return
+        }
+
+        onTranscriptions(transcripts)
+    }, [transcripts, onTranscriptions])
 
     return (
         <View>
