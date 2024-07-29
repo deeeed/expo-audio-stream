@@ -1,5 +1,11 @@
 // playground/src/app/(tabs)/index.tsx
-import { Button, Picker, ScreenWrapper, useToast } from '@siteed/design-system'
+import {
+    Button,
+    LabelSwitch,
+    Picker,
+    ScreenWrapper,
+    useToast,
+} from '@siteed/design-system'
 import {
     AudioDataEvent,
     AudioRecording,
@@ -64,6 +70,8 @@ export default function RecordScreen() {
     const router = useRouter()
     const [liveWebAudio, setLiveWebAudio] = useState<Float32Array | null>(null)
     const [transcripts, setTranscripts] = useState<TranscriberData[]>()
+    const [enableLiveTranscription, setEnableLiveTranscription] =
+        useState(isWeb)
 
     const onAudioData = useCallback(async (event: AudioDataEvent) => {
         try {
@@ -198,7 +206,7 @@ export default function RecordScreen() {
             }
 
             // Go to the newly saved page.
-            // router.push(`(recordings)/${result.filename}`)
+            router.push(`(recordings)/${result.filename}`)
         } catch (error) {
             logger.error(`Error while stopping recording`, error)
         } finally {
@@ -229,7 +237,7 @@ export default function RecordScreen() {
             {streamConfig?.channels ? (
                 <Text>channels: {streamConfig?.channels}</Text>
             ) : null}
-            {isWeb && liveWebAudio && (
+            {isWeb && enableLiveTranscription && liveWebAudio && (
                 <LiveTranscriber
                     fullAudio={liveWebAudio}
                     sampleRate={streamConfig?.sampleRate ?? 16000}
@@ -384,6 +392,18 @@ export default function RecordScreen() {
                     }))
                 }}
             />
+            {isWeb && (
+                <LabelSwitch
+                    label="Live Transcription"
+                    value={enableLiveTranscription}
+                    containerStyle={{
+                        backgroundColor: 'white',
+                        margin: 0,
+                        padding: 10,
+                    }}
+                    onValueChange={setEnableLiveTranscription}
+                />
+            )}
             <Button mode="contained" onPress={() => handleStart()}>
                 Start Recording
             </Button>
