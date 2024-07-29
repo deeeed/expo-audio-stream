@@ -1,10 +1,10 @@
+import { TranscriberData } from '@siteed/expo-audio-stream'
 import React, { useEffect, useState } from 'react'
 import { View } from 'react-native'
 
 import { ProgressItems } from './ProgressItems'
 import Transcript from './Transcript'
 import { baseLogger } from '../config'
-import { TranscriberData } from '../context/TranscriberContext'
 import { useTranscriber } from '../hooks/useTranscriber'
 
 const logger = baseLogger.extend('Transcriber')

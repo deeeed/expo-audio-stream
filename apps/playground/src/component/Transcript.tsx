@@ -1,3 +1,5 @@
+// Code adapted from https://github.com/xenova/whisper-web/blob/main/src/components/Transcript.tsx
+import { Chunk, TranscriberData } from '@siteed/expo-audio-stream'
 import React, { useEffect, useRef } from 'react'
 import {
     ScrollView,
@@ -7,7 +9,6 @@ import {
     View,
 } from 'react-native'
 
-import { Chunk, TranscriberData } from '../context/TranscriberContext'
 import { formatDuration } from '../utils/utils'
 
 interface TranscriptProps {

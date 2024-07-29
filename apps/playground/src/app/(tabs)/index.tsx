@@ -12,6 +12,7 @@ import {
     RecordingConfig,
     SampleRate,
     StartRecordingResult,
+    TranscriberData,
     useSharedAudioRecorder,
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
@@ -27,7 +28,6 @@ import LiveTranscriber from '../../component/LiveTranscriber'
 import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
 import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
-import { TranscriberData } from '../../context/TranscriberContext'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
 

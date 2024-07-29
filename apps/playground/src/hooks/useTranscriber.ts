@@ -1,12 +1,8 @@
+import { Chunk, TranscriberData } from '@siteed/expo-audio-stream'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { useWorker } from './useWorker'
 import { config } from '../config'
-import {
-    TranscriberCompleteData,
-    TranscriberData,
-    TranscriberUpdateData,
-} from '../context/TranscriberContext'
 
 export interface ProgressItem {
     file: string
@@ -15,6 +11,20 @@ export interface ProgressItem {
     total: number
     name: string
     status: string
+}
+
+export interface TranscriberUpdateData {
+    type: 'update'
+    data: [string, { chunks: Chunk[] }]
+    text: string
+}
+
+export interface TranscriberCompleteData {
+    type: 'complete'
+    data: {
+        text: string
+        chunks: Chunk[]
+    }
 }
 
 export interface Transcriber {

@@ -1,8 +1,8 @@
+import { TranscriberData } from '@siteed/expo-audio-stream'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Transcriber, useTranscriber } from './useTranscriber'
 import { baseLogger } from '../config'
-import { TranscriberData } from '../context/TranscriberContext'
 
 const logger = baseLogger.extend('useLiveTranscriber')
 interface LiveTranscriber extends Transcriber {

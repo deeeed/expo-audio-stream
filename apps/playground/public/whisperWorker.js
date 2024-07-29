@@ -1,3 +1,4 @@
+// Code adapted from https://github.com/xenova/whisper-web/blob/main/src/worker.js
 let pipeline, env
 const TAG = '[WHISPER_WORKER]'
 
