@@ -10,10 +10,9 @@
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "lint": "eslint src",
         "clean": "rimraf dist",
-        "deploy": "NODE_ENV=production yarn clean && yarn predeploy && gh-pages -t -d dist --dest playground",
+        "deploy": "yarn clean && NODE_ENV=production expo export -p web && gh-pages -t -d dist --dest playground",
         "predeploy": "expo export -p web",
-        "serve:single": "serve dist --single",
-        "serve:static": "serve dist"
+        "serve:dev": "yarn clean && NODE_ENV=development expo export -p web && yarn serve dist/"
     },
     "dependencies": {
         "@expo/config": "~9.0.0",
