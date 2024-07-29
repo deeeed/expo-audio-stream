@@ -8,7 +8,7 @@ import {
     TranscriberUpdateData,
 } from '../context/TranscriberContext'
 
-interface ProgressItem {
+export interface ProgressItem {
     file: string
     loaded: number
     progress: number

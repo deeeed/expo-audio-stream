@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { Text, View } from 'react-native'
-import { ActivityIndicator } from 'react-native-paper'
 
+import { ProgressItems } from './ProgressItems'
 import Transcript from './Transcript'
 import { baseLogger } from '../config'
 import { TranscriberData } from '../context/TranscriberContext'
@@ -51,12 +51,7 @@ const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
     return (
         <View>
             {isModelLoading ? (
-                <View>
-                    {progressItems.map((item, index) => (
-                        <Text key={index}>{JSON.stringify(item)}</Text>
-                    ))}
-                    <ActivityIndicator size="small" />
-                </View>
+                <ProgressItems items={progressItems} />
             ) : (
                 <View>
                     <Transcript
