@@ -21,6 +21,7 @@ interface TranscriptProps {
 
 export default function Transcript({
     transcribedData,
+    isPlaying,
     onSelectChunk,
     currentTimeMs,
     showActions = true,
@@ -72,10 +73,10 @@ export default function Transcript({
 
     // Scroll to the bottom when the component updates
     useEffect(() => {
-        if (scrollViewRef.current) {
+        if (!isPlaying && scrollViewRef.current) {
             scrollViewRef.current.scrollToEnd({ animated: true })
         }
-    }, [transcribedData, currentTimeMs])
+    }, [transcribedData, currentTimeMs, isPlaying])
 
     const renderChunks = (chunks: Chunk[]) => {
         return chunks.map((chunk, i) => {
