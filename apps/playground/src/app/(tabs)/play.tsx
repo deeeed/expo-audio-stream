@@ -1,11 +1,17 @@
 // playground/src/app/(tabs)/play.tsx
-import { Button, ScreenWrapper, useToast } from '@siteed/design-system'
+import {
+    Button,
+    LabelSwitch,
+    ScreenWrapper,
+    useToast,
+} from '@siteed/design-system'
 import {
     AudioAnalysis,
     AudioRecording,
     convertPCMToFloat32,
     extractAudioAnalysis,
     getWavFileInfo,
+    TranscriberData,
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
@@ -47,6 +53,9 @@ export const PlayPage = () => {
     const [currentTime, setCurrentTime] = useState<number>(0)
     const [processing, setProcessing] = useState<boolean>(false)
     const [audioBuffer, setAudioBuffer] = useState<Float32Array>()
+    const [enableTranscription, setEnableTranscription] =
+        useState<boolean>(false)
+    const [transcript, setTranscript] = useState<TranscriberData>()
     const audioBufferRef = useRef<ArrayBuffer | null>(null)
     const { show } = useToast()
 
@@ -127,6 +136,7 @@ export const PlayPage = () => {
             // Reset playback position and stop playback
             setCurrentTime(0)
             setIsPlaying(false)
+            setTranscript(undefined)
             timings['Reset Playback'] = performance.now() - startResetPlayback
 
             const startFetchAudio = performance.now()
@@ -292,6 +302,10 @@ export const PlayPage = () => {
             bitDepth: wavMetadata.bitDepth,
         }
 
+        if (transcript) {
+            audioResult.transcripts = [transcript]
+        }
+
         logger.log('Saving file to files:', audioResult)
         try {
             if (isWeb) {
@@ -324,7 +338,7 @@ export const PlayPage = () => {
             await removeFile(audioResult.fileUri)
             throw error
         }
-    }, [files, fileName, audioUri, logger, refreshFiles, show])
+    }, [files, fileName, audioUri, logger, refreshFiles, show, transcript])
 
     useEffect(() => {
         return sound
@@ -342,37 +356,41 @@ export const PlayPage = () => {
                     Select Audio File
                 </Button>
                 {isWeb && (
-                    <Button
-                        mode="contained"
-                        onPress={async () => {
-                            try {
-                                await loadWebAudioFile({
-                                    audioUri:
-                                        'audio_samples/recorder_jre_lex_watch.wav',
-                                })
-                            } catch (error) {
-                                logger.error('Error loading audio file:', error)
-                            }
-                        }}
-                    >
-                        Auto Load
-                    </Button>
+                    <>
+                        <Button
+                            mode="contained"
+                            onPress={async () => {
+                                try {
+                                    await loadWebAudioFile({
+                                        audioUri:
+                                            'audio_samples/recorder_jre_lex_watch.wav',
+                                    })
+                                } catch (error) {
+                                    logger.error(
+                                        'Error loading audio file:',
+                                        error
+                                    )
+                                }
+                            }}
+                        >
+                            Auto Load
+                        </Button>
+                        <LabelSwitch
+                            label="Transcription"
+                            value={enableTranscription}
+                            containerStyle={{
+                                backgroundColor: 'white',
+                                margin: 0,
+                                padding: 10,
+                            }}
+                            onValueChange={setEnableTranscription}
+                        />
+                    </>
                 )}
             </View>
             {processing && <ActivityIndicator size="large" />}
             {audioUri && (
                 <View style={{ gap: 10 }}>
-                    {isWeb && audioBuffer && (
-                        <View>
-                            <Transcriber
-                                fullAudio={audioBuffer}
-                                sampleRate={16000} // this was resampled by AudioContext
-                                onTranscriptionUpdate={(transcription) => {
-                                    console.log('Transcription:', transcription)
-                                }}
-                            />
-                        </View>
-                    )}
                     {audioAnalysis && (
                         <View>
                             <AudioVisualizer
@@ -386,6 +404,16 @@ export const PlayPage = () => {
                                 canvasHeight={300}
                                 audioData={audioAnalysis}
                                 onSeekEnd={handleSeekEnd}
+                            />
+                        </View>
+                    )}
+                    {isWeb && enableTranscription && audioBuffer && (
+                        <View>
+                            <Transcriber
+                                fullAudio={audioBuffer}
+                                currentTimeMs={currentTime * 1000}
+                                sampleRate={16000} // this was resampled by AudioContext
+                                onTranscriptionComplete={setTranscript}
                             />
                         </View>
                     )}

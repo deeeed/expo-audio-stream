@@ -12,6 +12,8 @@ const logger = baseLogger.extend('Transcriber')
 interface TranscriberProps {
     fullAudio: Float32Array
     sampleRate: number
+    currentTimeMs?: number
+    isPlaying?: boolean
     onTranscriptionUpdate?: (params: TranscriberData) => void
     onTranscriptionComplete?: (params: TranscriberData) => void
 }
@@ -21,6 +23,8 @@ const WhisperSampleRate = 16000
 const Transcriber: React.FC<TranscriberProps> = ({
     fullAudio,
     sampleRate,
+    currentTimeMs,
+    isPlaying,
     onTranscriptionUpdate,
     onTranscriptionComplete,
 }) => {
@@ -77,7 +81,11 @@ const Transcriber: React.FC<TranscriberProps> = ({
                     <ActivityIndicator size="small" />
                 </View>
             ) : (
-                <Transcript transcribedData={output} />
+                <Transcript
+                    transcribedData={output}
+                    isPlaying={isPlaying}
+                    currentTimeMs={currentTimeMs}
+                />
             )}
         </View>
     )

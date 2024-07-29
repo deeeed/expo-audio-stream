@@ -74,7 +74,7 @@ export default function Transcript({
         if (scrollViewRef.current) {
             scrollViewRef.current.scrollToEnd({ animated: true })
         }
-    }, [transcribedData])
+    }, [transcribedData, currentTimeMs])
 
     const renderChunks = (chunks: Chunk[]) => {
         return chunks.map((chunk, i) => {
