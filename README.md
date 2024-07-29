@@ -4,6 +4,9 @@ This monorepo contains two packages:
 - `@siteed/expo-audio-stream`
 - `@siteed/expo-audio-ui`
 
+**Give it a GitHub star 🌟, if you found this repo useful.**
+[![GitHub stars](https://img.shields.io/github/stars/deeeed/expo-audio-stream.svg?style=social&label=Star&maxAge=2592000)](https://github.com/deeeed/expo-audio-stream)
+
 ## Packages
 
 ### 1. `@siteed/expo-audio-stream`
