@@ -32,6 +32,7 @@ export const config = {
     baseUrl,
     audioWorkletUrl: `${baseUrl}/audioworklet.js`,
     featuresExtratorUrl: `${baseUrl}/audio-features-extractor.js`,
+    whisperWorkerUrl: `${baseUrl}/whisperWorker.js`,
     DEFAULT_MODEL: 'Xenova/whisper-tiny',
     DEFAULT_SUBTASK: 'transcribe',
     DEFAULT_LANGUAGE: 'english',

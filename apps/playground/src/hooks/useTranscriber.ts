@@ -57,7 +57,7 @@ export function useTranscriber(): Transcriber {
     const audioDataRef = useRef<Float32Array | null>(null)
 
     const webWorker = useWorker({
-        url: '/whisperWorker.js',
+        url: config.whisperWorkerUrl,
         messageEventHandler: (event) => {
             const message = event.data
             switch (message.status) {
