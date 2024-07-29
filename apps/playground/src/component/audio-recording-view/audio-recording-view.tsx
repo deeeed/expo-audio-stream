@@ -77,6 +77,7 @@ export interface AudioRecordingViewProps {
     audioAnalysis?: AudioAnalysis
     actionText?: string
     visualConfig?: SelectedAudioVisualizerProps
+    showTranscript?: boolean
     extractAnalysis?: boolean
     onActionPress?: () => void
     onDelete?: () => Promise<void>
@@ -87,6 +88,7 @@ export const AudioRecordingView = ({
     audioAnalysis: _audioAnalysis,
     extractAnalysis,
     visualConfig,
+    showTranscript,
     onActionPress,
     onDelete,
 }: AudioRecordingViewProps) => {
@@ -355,7 +357,7 @@ export const AudioRecordingView = ({
                 </View>
             )}
 
-            {recording.transcripts && (
+            {showTranscript && recording.transcripts && (
                 <Transcript
                     transcribedData={recording.transcripts}
                     currentTimeMs={position}
