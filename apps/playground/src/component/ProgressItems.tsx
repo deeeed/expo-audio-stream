@@ -9,6 +9,7 @@ const getStyles = (_: { theme: AppTheme }) => {
     return StyleSheet.create({
         container: {
             padding: 16,
+            gap: 5,
         },
         itemContainer: {
             marginBottom: 16,
@@ -17,6 +18,12 @@ const getStyles = (_: { theme: AppTheme }) => {
             fontSize: 14,
             fontWeight: 'bold',
             marginBottom: 4,
+        },
+        labelContainer: {
+            gap: 5,
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
         },
         progressBar: {
             height: 8,
@@ -41,7 +48,10 @@ export const ProgressItems = ({ items }: ProgressItemsProps) => {
         <View style={styles.container}>
             {items.map((item, index) => (
                 <View key={index} style={styles.itemContainer}>
-                    <Text style={styles.itemName}>{item.name}</Text>
+                    <View style={styles.labelContainer}>
+                        <Text style={styles.itemName}>{item.name}</Text>
+                        <Text>{item.file}</Text>
+                    </View>
                     <ProgressBar
                         progress={item.progress}
                         color={theme.colors.primary}
