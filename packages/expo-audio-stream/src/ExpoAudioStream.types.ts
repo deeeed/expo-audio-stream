@@ -33,8 +33,11 @@ export interface Chunk {
 }
 
 export interface TranscriberData {
+    id: string
     isBusy: boolean
     text: string
+    startTime: number
+    endTime: number
     chunks: Chunk[]
 }
 

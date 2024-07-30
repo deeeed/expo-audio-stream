@@ -3,7 +3,7 @@ import React, { useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { ProgressBar } from 'react-native-paper'
 
-import { ProgressItem } from '../hooks/useTranscriber'
+import { ProgressItem } from '../context/TranscriptionProvider.types'
 
 const getStyles = (_: { theme: AppTheme }) => {
     return StyleSheet.create({
@@ -50,10 +50,10 @@ export const ProgressItems = ({ items }: ProgressItemsProps) => {
                 <View key={index} style={styles.itemContainer}>
                     <View style={styles.labelContainer}>
                         <Text style={styles.itemName}>{item.name}</Text>
-                        <Text>{item.file}</Text>
+                        <Text>( {item.file} )</Text>
                     </View>
                     <ProgressBar
-                        progress={item.progress}
+                        progress={item.progress / 100}
                         color={theme.colors.primary}
                         style={styles.progressBar}
                     />

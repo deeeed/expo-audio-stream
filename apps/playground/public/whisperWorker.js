@@ -1,6 +1,7 @@
 // Code adapted from https://github.com/xenova/whisper-web/blob/main/src/worker.js
 let pipeline, env
 const TAG = '[WHISPER_WORKER]'
+const SAMPLE_RATE = 16000
 
 // Define model factories
 // Ensures only one model is created of each type
@@ -17,7 +18,19 @@ class PipelineFactory {
         this.quantized = quantized
     }
 
-    static async initialize(modelName, quantized, progress_callback = null) {
+    static async initialize({
+        model,
+        multilingual,
+        quantized,
+        progress_callback = null,
+    }) {
+        const isDistilWhisper = model.startsWith('distil-whisper/')
+
+        let modelName = model
+        if (!isDistilWhisper && !multilingual && !model.includes('large')) {
+            modelName += '.en'
+        }
+
         if (
             this.model !== modelName ||
             this.quantized !== quantized ||
@@ -35,21 +48,29 @@ class PipelineFactory {
             this.model = modelName
             this.quantized = quantized
 
+            console.log(
+                `${TAG} Initializing pipeline for ${this.model} quantized: ${this.quantized} multilingual: ${multilingual}`
+            )
+
             if (this.instance !== null) {
                 // this.instance.dispose()
                 this.instance = null
             }
 
-            this.instance = pipeline(this.task, this.model, {
+            const revision = model.includes('/whisper-medium')
+                ? 'no_attentions'
+                : 'main'
+            this.instance = await pipeline(this.task, this.model, {
                 quantized: this.quantized,
                 progress_callback,
-                revision: this.model.includes('/whisper-medium')
-                    ? 'no_attentions'
-                    : 'main',
+                revision,
             })
 
             this.initialized = true
         }
+
+        console.log(`${TAG} Pipeline initialized`, this.instance)
+        return this.instance
     }
 
     static async getInstance() {
@@ -57,81 +78,30 @@ class PipelineFactory {
     }
 }
 
-self.addEventListener('message', async (event) => {
-    const message = event.data
-
-    if (message.type === 'initialize') {
-        await PipelineFactory.initialize(
-            message.model,
-            message.quantized,
-            (data) => {
-                self.postMessage(data)
-            }
-        )
-        self.postMessage({ status: 'ready' })
-        return
-    }
-
-    if (message.type === 'transcribe') {
-        if (!PipelineFactory.initialized) {
-            await PipelineFactory.initialize(
-                message.model,
-                message.quantized,
-                (data) => {
-                    self.postMessage(data)
-                }
-            )
-        }
-
-        const transcript = await transcribe(
-            message.audio,
-            message.model,
-            message.multilingual,
-            message.quantized,
-            message.subtask,
-            message.language
-        )
-        if (transcript === null) return
-
-        self.postMessage({
-            status: 'complete',
-            task: 'automatic-speech-recognition',
-            data: transcript,
-        })
-    }
-})
-
 class AutomaticSpeechRecognitionPipelineFactory extends PipelineFactory {
     static task = 'automatic-speech-recognition'
     static model = null
     static quantized = null
 }
 
-const transcribe = async (
+const transcribe = async ({
     audio,
     model,
-    multilingual,
+    jobId, // string | undefined
+    position = 0,
     quantized,
     subtask,
-    language
-) => {
+    language,
+}) => {
     const isDistilWhisper = model.startsWith('distil-whisper/')
 
-    let modelName = model
-    if (!isDistilWhisper && !multilingual) {
-        modelName += '.en'
-    }
-
     console.log(
-        `Transcribing with model: ${modelName} (quantized: ${quantized}) for ${language} (${subtask})`
+        `${TAG} jobId=${jobId} Transcribing with model: ${model} (quantized: ${quantized}) for ${language} (${subtask})`
     )
     const p = AutomaticSpeechRecognitionPipelineFactory
-
-    if (p.model !== modelName || p.quantized !== quantized) {
-        await p.initialize(modelName, quantized)
-    }
-
     const transcriber = await p.getInstance()
+
+    console.log(`${TAG} jobId=${jobId} Transcriber:`, transcriber)
 
     const time_precision =
         transcriber.processor.feature_extractor.config.chunk_length /
@@ -145,7 +115,7 @@ const transcribe = async (
     ]
 
     function chunk_callback(chunk) {
-        console.log(`Chunk ${chunk.index + 1}/${chunk.total_chunks}`, chunk)
+        // console.log(`Chunk ${chunk.index + 1}/${chunk.total_chunks}`, chunk)
         const last = chunks_to_process[chunks_to_process.length - 1]
 
         Object.assign(last, chunk)
@@ -160,22 +130,42 @@ const transcribe = async (
     }
 
     function callback_function(item) {
-        console.log('Callback function', item)
+        // console.log('Callback function', item)
         const last = chunks_to_process[chunks_to_process.length - 1]
 
         last.tokens = [...item[0].output_token_ids]
 
         const data = transcriber.tokenizer._decode_asr(chunks_to_process, {
             time_precision,
+            id: jobId,
             return_timestamps: true,
             force_full_sequences: false,
         })
+        const chunksAdjusted = data[1].chunks?.map((chunk) => {
+            return {
+                ...chunk,
+                timestamp: [
+                    chunk.timestamp[0] + position,
+                    chunk.timestamp[1] ? chunk.timestamp[1] + position : null,
+                ],
+            }
+        })
+        data[1].chunks = chunksAdjusted
 
-        self.postMessage({
+        // console.log(
+        //     `${TAG} jobId=${jobId} Transcription callback update:`,
+        //     data
+        // )
+
+        const updateData = {
             status: 'update',
             task: 'automatic-speech-recognition',
+            jobId,
+            startTime: position,
+            endTime: position + audio.length / SAMPLE_RATE,
             data,
-        })
+        }
+        self.postMessage(updateData)
     }
 
     const options = {
@@ -184,23 +174,106 @@ const transcribe = async (
         chunk_length_s: isDistilWhisper ? 20 : 30,
         stride_length_s: isDistilWhisper ? 3 : 5,
         language,
-        task: subtask,
+        // task: subtask, // can be used for translation to english
         return_timestamps: true,
         force_full_sequences: false,
+        word_timestamps: true,
         callback_function,
         chunk_callback,
     }
-    console.log(`Transcribing with options:`, options)
-    console.log(`audio:`, audio)
+    console.log(`${TAG} jobId=${jobId} Transcribing with options:`, options)
 
     const output = await transcriber(audio, options).catch((error) => {
         self.postMessage({
             status: 'error',
             task: 'automatic-speech-recognition',
+            jobId,
             data: error,
         })
         return null
     })
 
+    // adjust chunks timestamps based on position
+    if (position && position > 0 && output) {
+        output.startTime = position
+        output.endTime = position + audio.length / SAMPLE_RATE
+        const adjustedChunks = output.chunks.map((chunk) => {
+            return {
+                ...chunk,
+                timestamp: [
+                    chunk.timestamp[0] + position,
+                    chunk.timestamp[1] ? chunk.timestamp[1] + position : null,
+                ],
+            }
+        })
+        output.chunks = adjustedChunks
+    }
+    console.log(`${TAG} adjusted transcription:`, output)
+
     return output
 }
+
+self.addEventListener('message', async (event) => {
+    const message = event.data
+    console.log(`${TAG} Received message`, message)
+
+    if (message.type === 'initialize') {
+        await PipelineFactory.initialize({
+            model: message.model,
+            quantized: message.quantized,
+            multilingual: message.multilingual,
+            language: message.languauge,
+            subtask: message.subtask,
+            progress_callback: (data) => {
+                // console.debug(`${TAG} progress`, data)
+                self.postMessage(data)
+            },
+        })
+        self.postMessage({ status: 'ready' })
+        return
+    }
+
+    if (message.type === 'transcribe') {
+        if (!PipelineFactory.initialized) {
+            console.warn(`${TAG} Pipeline not initialized, initializing now`)
+            await PipelineFactory.initialize({
+                model: message.model,
+                quantized: message.quantized,
+                multilingual: message.multilingual,
+                language: message.languauge,
+                subtask: message.subtask,
+                progress_callback: (data) => {
+                    // console.debug(`${TAG} progress`, data)
+                    self.postMessage(data)
+                },
+            })
+        }
+
+        const startTime = performance.now()
+
+        const segmentDuration = message.audio.length / SAMPLE_RATE
+        const transcript = await transcribe({
+            audio: message.audio,
+            model: message.model,
+            position: message.position,
+            jobId: message.jobId,
+            multilingual: message.multilingual,
+            quantized: message.quantized,
+            subtask: message.subtask,
+            language: message.language,
+        })
+        if (transcript === null) return
+
+        const elapsedTime = performance.now() - startTime
+        console.log(
+            `${TAG} jobId=${message.jobId} Transcribed ${segmentDuration}s completed in ${elapsedTime}ms:`,
+            transcript
+        )
+        self.postMessage({
+            status: 'complete',
+            task: 'automatic-speech-recognition',
+            jobId: message.jobId,
+            data: transcript,
+        })
+    }
+})

@@ -1,67 +1,62 @@
+import { useToast } from '@siteed/design-system'
 import { TranscriberData } from '@siteed/expo-audio-stream'
 import React, { useEffect } from 'react'
-import { Text, View } from 'react-native'
+import { View } from 'react-native'
 
+import { LoadingIndicator } from './LoadingIndicator'
 import { ProgressItems } from './ProgressItems'
 import Transcript from './Transcript'
-import { baseLogger } from '../config'
-import { useLiveTranscriber } from '../hooks/useLiveTranscriber'
+import { WhisperSampleRate } from '../config'
+import { useTranscription } from '../context/TranscriptionProvider'
 
-const logger = baseLogger.extend('LiveTranscriber')
+const BUFFERING_LIMIT = 10000
 
 interface LiveTranscriberProps {
-    fullAudio: Float32Array
+    transcripts: TranscriberData[]
+    activeTranscript: string
+    duration: number
     sampleRate: number
-    onTranscriptions?: (params: TranscriberData[]) => void
 }
 
-const WhisperSampleRate = 16000
-
 const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
-    fullAudio,
+    transcripts,
     sampleRate,
-    onTranscriptions,
+    activeTranscript,
+    duration,
 }) => {
-    const { isModelLoading, progressItems, transcripts, activeTranscript } =
-        useLiveTranscriber({ audioBuffer: fullAudio, sampleRate })
+    const { show } = useToast()
+    const { isModelLoading, isBusy, progressItems } = useTranscription()
 
     useEffect(() => {
-        if (fullAudio && fullAudio.length > 0) {
-            logger.debug('Decoding audio...', fullAudio)
-            if (sampleRate !== WhisperSampleRate) {
-                logger.warn(
-                    `TODO: Resampling audio from ${sampleRate} to ${WhisperSampleRate}`
-                )
-            }
+        if (sampleRate !== WhisperSampleRate) {
+            show({
+                type: 'warning',
+                message: `Sample rate is not ${WhisperSampleRate}Hz`,
+            })
         }
-    }, [fullAudio, sampleRate])
+    }, [sampleRate, show])
 
-    useEffect(() => {
-        if (!onTranscriptions) {
-            return
-        }
+    const renderLoadingState = () => <ProgressItems items={progressItems} />
 
-        if (transcripts.length === 0) {
-            return
-        }
-
-        onTranscriptions(transcripts)
-    }, [transcripts, onTranscriptions])
-
-    return (
+    const renderContent = () => (
         <View>
-            {isModelLoading ? (
-                <ProgressItems items={progressItems} />
+            <Transcript
+                transcribedData={transcripts}
+                isBusy={isBusy}
+                showActions={false}
+            />
+            {duration < BUFFERING_LIMIT ? (
+                <LoadingIndicator label="Buffering..." />
+            ) : activeTranscript ? (
+                <LoadingIndicator label={activeTranscript} />
             ) : (
-                <View>
-                    <Transcript
-                        transcribedData={transcripts}
-                        showActions={false}
-                    />
-                    <Text>{activeTranscript || 'Waiting for audio...'}</Text>
-                </View>
+                <LoadingIndicator label="Transcribing..." />
             )}
         </View>
+    )
+
+    return (
+        <View>{isModelLoading ? renderLoadingState() : renderContent()}</View>
     )
 }
 

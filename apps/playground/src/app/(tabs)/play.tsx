@@ -54,7 +54,7 @@ export const PlayPage = () => {
     const [processing, setProcessing] = useState<boolean>(false)
     const [audioBuffer, setAudioBuffer] = useState<Float32Array>()
     const [enableTranscription, setEnableTranscription] =
-        useState<boolean>(false)
+        useState<boolean>(isWeb)
     const [transcript, setTranscript] = useState<TranscriberData>()
     const audioBufferRef = useRef<ArrayBuffer | null>(null)
     const { show } = useToast()

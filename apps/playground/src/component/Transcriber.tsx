@@ -5,7 +5,7 @@ import { View } from 'react-native'
 import { ProgressItems } from './ProgressItems'
 import Transcript from './Transcript'
 import { baseLogger } from '../config'
-import { useTranscriber } from '../hooks/useTranscriber'
+import { useTranscription } from '../context/TranscriptionProvider'
 
 const logger = baseLogger.extend('Transcriber')
 
@@ -28,14 +28,8 @@ const Transcriber: React.FC<TranscriberProps> = ({
     onTranscriptionUpdate,
     onTranscriptionComplete,
 }) => {
-    const {
-        isBusy,
-        isModelLoading,
-        progressItems,
-        start,
-        output,
-        onInputChange,
-    } = useTranscriber()
+    const { isBusy, isModelLoading, progressItems, transcribe, transcript } =
+        useTranscription()
     const [currentAudio, setCurrentAudio] = useState<Float32Array | null>(null)
 
     useEffect(() => {
@@ -48,28 +42,32 @@ const Transcriber: React.FC<TranscriberProps> = ({
             }
             setCurrentAudio(fullAudio)
         }
-    }, [fullAudio, sampleRate, onInputChange])
+    }, [fullAudio, sampleRate])
 
     useEffect(() => {
         if (!isBusy && currentAudio) {
             logger.debug('Start new transcription...', currentAudio)
-            start(currentAudio)
+            transcribe({
+                audioData: currentAudio,
+                position: 0,
+                jobId: Date.now().toString(),
+            })
         }
-    }, [isBusy, start, currentAudio])
+    }, [isBusy, transcribe, currentAudio])
 
     useEffect(() => {
-        if (output && output.text) {
+        if (transcript && transcript.text) {
             logger.log(
-                `Transcription ${output.isBusy ? 'in progress' : 'completed'}: ${output.text}`,
-                output
+                `Transcription ${transcript.isBusy ? 'in progress' : 'completed'}: ${transcript.text}`,
+                transcript
             )
-            if (output.isBusy) {
-                onTranscriptionUpdate?.(output)
+            if (transcript.isBusy) {
+                onTranscriptionUpdate?.(transcript)
             } else {
-                onTranscriptionComplete?.(output)
+                onTranscriptionComplete?.(transcript)
             }
         }
-    }, [output, onTranscriptionUpdate])
+    }, [transcript, onTranscriptionUpdate])
 
     return (
         <View>
@@ -77,7 +75,7 @@ const Transcriber: React.FC<TranscriberProps> = ({
                 <ProgressItems items={progressItems} />
             ) : (
                 <Transcript
-                    transcribedData={output}
+                    transcribedData={transcript}
                     isPlaying={isPlaying}
                     currentTimeMs={currentTimeMs}
                 />

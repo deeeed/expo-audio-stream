@@ -1,7 +1,7 @@
 // TranscriptionProvider.reducer.ts
 import {
-    TranscriptionState,
     TranscriptionAction,
+    TranscriptionState,
 } from './TranscriptionProvider.types'
 
 export const initialState: TranscriptionState = {
@@ -22,17 +22,36 @@ export function transcriptionReducer(
     action: TranscriptionAction
 ): TranscriptionState {
     switch (action.type) {
-        case 'UPDATE_STATE':
+        case 'UPDATE_STATE': {
             return { ...state, ...action.payload }
-        case 'UPDATE_PROGRESS_ITEM':
+        }
+        case 'UPDATE_PROGRESS_ITEM': {
+            const updatedProgressItems = [...state.progressItems]
+            const existingItemIndex = updatedProgressItems.findIndex(
+                (item) => item.file === action.progressItem.file
+            )
+
+            if (existingItemIndex !== -1) {
+                updatedProgressItems[existingItemIndex] = {
+                    ...updatedProgressItems[existingItemIndex],
+                    ...action.progressItem,
+                }
+            } else {
+                updatedProgressItems.push(action.progressItem)
+            }
+
             return {
                 ...state,
-                progressItems: state.progressItems.map((item) =>
-                    item.file === action.progressItem.file
-                        ? action.progressItem
-                        : item
-                ),
+                progressItems: updatedProgressItems,
             }
+        }
+        case 'TRANSCRIPTION_START': {
+            return {
+                ...state,
+                transcript: undefined,
+                isBusy: true,
+            }
+        }
         default:
             return state
     }

@@ -10,7 +10,7 @@ export interface ProgressItem {
 }
 
 export interface TranscriptionState {
-    transcript?: TranscriberData
+    transcript?: TranscriberData // last received transcript
     isBusy: boolean
     isModelLoading: boolean
     progressItems: ProgressItem[]
@@ -24,18 +24,24 @@ export interface TranscriptionState {
 
 export type TranscriptionAction =
     | { type: 'UPDATE_STATE'; payload: Partial<TranscriptionState> }
-    | { type: 'UPDATE_PROGRESS_ITEM'; progressItem: ProgressItem };
+    | { type: 'UPDATE_PROGRESS_ITEM'; progressItem: ProgressItem }
+    | { type: 'TRANSCRIPTION_START' }
 
 export interface TranscriberUpdateData {
     type: 'update'
+    jobId: string
     data: [string, { chunks: Chunk[] }]
-    text: string
+    startTime: number
+    endTime: number
 }
 
 export interface TranscriberCompleteData {
     type: 'complete'
+    jobId: string
     data: {
         text: string
         chunks: Chunk[]
+        startTime: number
+        endTime: number
     }
 }

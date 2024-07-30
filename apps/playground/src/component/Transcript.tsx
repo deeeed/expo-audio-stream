@@ -16,12 +16,14 @@ interface TranscriptProps {
     showActions?: boolean
     currentTimeMs?: number
     isPlaying?: boolean
+    isBusy?: boolean
     onSelectChunk?: (_: { chunk: Chunk }) => void
 }
 
 export default function Transcript({
     transcribedData,
     isPlaying,
+    isBusy,
     onSelectChunk,
     currentTimeMs,
     showActions = true,
@@ -73,10 +75,11 @@ export default function Transcript({
 
     // Scroll to the bottom when the component updates
     useEffect(() => {
-        if (!isPlaying && scrollViewRef.current) {
+        if (!isPlaying && isBusy && scrollViewRef.current) {
+            // use isBusy so it scrolls to bottom when transcribing
             scrollViewRef.current.scrollToEnd({ animated: true })
         }
-    }, [transcribedData, currentTimeMs, isPlaying])
+    }, [transcribedData, currentTimeMs, isPlaying, isBusy])
 
     const renderChunks = (chunks: Chunk[]) => {
         return chunks.map((chunk, i) => {
@@ -99,6 +102,9 @@ export default function Transcript({
                 >
                     <Text style={styles.timestamp}>
                         {formatDuration(chunk.timestamp[0] * 1000)}
+                        {chunk.timestamp[1]
+                            ? ` - ${formatDuration(chunk.timestamp[1] * 1000)}`
+                            : ``}
                     </Text>
                     <Text style={styles.chunkText}>{chunk.text}</Text>
                 </TouchableOpacity>
