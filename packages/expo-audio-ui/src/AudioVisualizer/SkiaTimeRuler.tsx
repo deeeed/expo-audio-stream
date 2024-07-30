@@ -26,7 +26,8 @@ const formatTime = (seconds: number): string => {
     }
 }
 
-import defaultFont from './Roboto-Regular.ttf'
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const defaultFont = require('./Roboto-Regular.ttf')
 
 export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
     duration,

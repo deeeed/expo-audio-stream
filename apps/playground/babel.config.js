@@ -14,6 +14,8 @@ module.exports = (api) => {
                     },
                 },
             ],
+            // plugin for transformerjs and worker support
+            'babel-plugin-transform-import-meta',
         ],
         env: {
             production: {
