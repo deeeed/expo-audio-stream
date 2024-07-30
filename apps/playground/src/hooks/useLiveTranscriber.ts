@@ -23,7 +23,7 @@ interface LiveTranscriberProps {
 }
 
 const QUICK_UPDATE_INTERVAL = 1
-const CHECKPOINT_INTERVAL = 30
+const CHECKPOINT_INTERVAL = 15
 
 export function useLiveTranscriber({
     audioBuffer,

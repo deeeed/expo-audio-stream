@@ -2,25 +2,26 @@ import {
     Button,
     EditableInfoCard,
     Notice,
+    ScreenWrapper,
     useBottomModal,
     useToast,
 } from '@siteed/design-system'
 import React, { useCallback, useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
-import { ProgressItems } from '../../component/ProgressItems'
+import { ProgressItems } from '../component/ProgressItems'
 import {
     SelectedTranscriptionProps,
     TranscriptionConfigForm,
-} from '../../component/TranscriptionConfigForm'
-import { baseLogger } from '../../config'
-import { useTranscription } from '../../context/TranscriptionProvider'
+} from '../component/TranscriptionConfigForm'
+import { baseLogger } from '../config'
+import { useTranscription } from '../context/TranscriptionProvider'
 
 const logger = baseLogger.extend('TranscriptionScreen')
 
 const getStyles = () => {
     return StyleSheet.create({
-        container: { gap: 10 },
+        container: { gap: 10, padding: 10 },
     })
 }
 
@@ -67,7 +68,7 @@ const TranscriptionScreen = () => {
     }, [initialize, selectedAnalysisConfig, updateConfig])
 
     return (
-        <View style={styles.container}>
+        <ScreenWrapper contentContainerStyle={styles.container}>
             {isModelLoading && <ProgressItems items={progressItems} />}
 
             {!ready && !hasEditedConfig && !isModelLoading && (
@@ -115,7 +116,7 @@ const TranscriptionScreen = () => {
                     </Button>
                 </View>
             )}
-        </View>
+        </ScreenWrapper>
     )
 }
 

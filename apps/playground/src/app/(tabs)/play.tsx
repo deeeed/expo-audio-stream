@@ -167,8 +167,6 @@ export const PlayPage = () => {
             timings['Extract Filename'] =
                 performance.now() - startExtractFileName
 
-            console.log(`AudioBuffer:`, audioBufferRef.current)
-
             const audioCTX = new AudioContext({
                 sampleRate: 16000, // Always resample to 16000
             })
@@ -194,8 +192,11 @@ export const PlayPage = () => {
             })
 
             // compare the two pcmAudio
-            console.log('pcmAudio:', pcmAudio)
-            console.log('pcmAudio2:', pcmAudio2)
+            if (pcmAudio.length !== pcmAudio2.length) {
+                logger.error('Length mismatch')
+                logger.log('pcmAudio:', pcmAudio)
+                logger.log('pcmAudio2:', pcmAudio2)
+            }
             setAudioBuffer(pcmAudio)
 
             const startAudioAnalysis = performance.now()

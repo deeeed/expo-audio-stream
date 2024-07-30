@@ -11,31 +11,31 @@ export const LogViewer = (_: LogViewerProps) => {
     const { show } = useToast()
     const theme = useTheme()
     const styles = useMemo(() => getStyles({ theme }), [theme])
-    const [logs, setLogs] = useState(getLogs());
+    const [logs, setLogs] = useState(getLogs())
 
-
-  const handleRefresh = () => {
-    setLogs(getLogs());
-    show({ iconVisible: true, message: 'Logs have been updated' })
-  };
-
-  const handleClear = () => {
-    clearLogs();
-    handleRefresh();
-  };
-
-
-  const handleCopy = useCallback(async () => {
-    try {
-        const text = logs
-            .map((log) => `${log.timestamp} ${log.namespace} ${log.message}`)
-            .join('\n')
-        await Clipboard.setStringAsync(text)
-        show({ iconVisible: true, message: 'Logs copied to clipboard' })
-    } catch (_err) {
-        // Ignore
+    const handleRefresh = () => {
+        setLogs(getLogs())
+        show({ iconVisible: true, message: 'Logs have been updated' })
     }
-}, [])
+
+    const handleClear = () => {
+        clearLogs()
+        handleRefresh()
+    }
+
+    const handleCopy = useCallback(async () => {
+        try {
+            const text = logs
+                .map(
+                    (log) => `${log.timestamp} ${log.namespace} ${log.message}`
+                )
+                .join('\n')
+            await Clipboard.setStringAsync(text)
+            show({ iconVisible: true, message: 'Logs copied to clipboard' })
+        } catch (_err) {
+            // Ignore
+        }
+    }, [])
 
     useFocusEffect(
         useCallback(() => {
@@ -48,14 +48,14 @@ export const LogViewer = (_: LogViewerProps) => {
             <ScrollView style={styles.viewer}>
                 {logs.map((log, index) => (
                     <View key={index} style={styles.logEntry}>
-                    <View>
-                      <Text
-                        style={styles.timestamp}
-                      >{`${new Date(log.timestamp).toLocaleTimeString()}`}</Text>
-                      <Text style={styles.context}>{log.namespace}</Text>
+                        <View>
+                            <Text
+                                style={styles.timestamp}
+                            >{`${new Date(log.timestamp).toLocaleTimeString()}`}</Text>
+                            <Text style={styles.context}>{log.namespace}</Text>
+                        </View>
+                        <Text style={styles.message}>{log.message}</Text>
                     </View>
-                    <Text style={styles.message}>{log.message}</Text>
-                  </View>
                 ))}
             </ScrollView>
             <Button mode="outlined" onPress={handleCopy}>

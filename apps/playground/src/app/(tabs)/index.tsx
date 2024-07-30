@@ -41,7 +41,7 @@ const baseRecordingConfig: RecordingConfig = {
     sampleRate: WhisperSampleRate,
     encoding: 'pcm_32bit',
     pointsPerSecond: 10,
-    enableProcessing: false,
+    enableProcessing: true,
 }
 
 const logger = baseLogger.extend('RecordScreen')
@@ -78,7 +78,7 @@ export default function RecordScreen() {
         startRecordingConfig.sampleRate === WhisperSampleRate
     const [stopping, setStopping] = useState(false)
 
-    const { transcripts, activeTranscript, transcript } = useLiveTranscriber({
+    const { transcripts, activeTranscript } = useLiveTranscriber({
         stopping,
         audioBuffer: webAudioChunks.current,
         sampleRate: startRecordingConfig.sampleRate ?? WhisperSampleRate,
