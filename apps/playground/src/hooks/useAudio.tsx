@@ -40,6 +40,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     const [isPlaying, setIsPlaying] = useState(false)
     const [processing, setProcessing] = useState(false)
     const [position, setPosition] = useState(0)
+    const [soundLoaded, setSoundLoaded] = useState(false)
     const [speed, setSpeed] = useState(1) // Add state for speed
     const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer>()
     const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysis | null>(
@@ -120,6 +121,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         }
 
         setPosition(status.positionMillis)
+        setSoundLoaded(true)
 
         if (status.didJustFinish) {
             setIsPlaying(false)
@@ -176,9 +178,10 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         if (options.position !== undefined) {
             logger.debug(`Set playback position to ${options.position}`)
             setPosition(options.position)
-            // if (sound) {
-            //     await sound.setPositionAsync(options.position)
-            // }
+            if (sound && soundLoaded) {
+                // Check if sound is loaded before updating position
+                await sound.setPositionAsync(options.position)
+            }
         }
         if (options.speed !== undefined) {
             logger.debug(`Set playback speed to ${options.speed}`)
@@ -195,6 +198,8 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         isPlaying,
         position,
         processing,
+        soundLoaded,
+        sound,
         play,
         pause,
         updatePlaybackOptions,
