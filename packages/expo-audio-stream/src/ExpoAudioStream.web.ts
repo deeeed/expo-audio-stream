@@ -10,14 +10,14 @@ import {
     StartRecordingResult,
 } from './ExpoAudioStream.types'
 import { WebRecorder } from './WebRecorder.web'
+import { AudioEventPayload } from './events'
 import { getLogger } from './logger'
 import { concatenateBuffers } from './utils/concatenateBuffers'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
 import { writeWavHeader } from './utils/writeWavHeader'
-import { AudioEventPayload } from './events'
 
 export interface EmitAudioEventProps {
-    data: ArrayBuffer
+    data: Float32Array
     position: number
 }
 export type EmitAudioEventFunction = (_: EmitAudioEventProps) => void
@@ -123,9 +123,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
                 this.lastEmittedTime = Date.now()
                 this.lastEmittedSize = this.currentSize
             },
-            emitAudioAnalysisCallback: (
-                audioAnalysisData: AudioAnalysis
-            ) => {
+            emitAudioAnalysisCallback: (audioAnalysisData: AudioAnalysis) => {
                 logger.log(`Emitted AudioAnalysis:`, audioAnalysisData)
                 this.emit('AudioAnalysis', audioAnalysisData)
             },
@@ -181,15 +179,14 @@ export class ExpoAudioStreamWeb extends EventEmitter {
         }
 
         const fullPcmBufferArray = await this.customRecorder.stop()
-        const fullPcmBuffer = concatenateBuffers(fullPcmBufferArray)
 
         // concat all audio chunks
-        logger.debug(`Stopped recording`, fullPcmBuffer)
+        logger.debug(`Stopped recording`, fullPcmBufferArray)
         this.isRecording = false
         this.currentDurationMs = Date.now() - this.recordingStartTime
 
         const wavConfig = {
-            buffer: fullPcmBuffer,
+            buffer: fullPcmBufferArray.buffer,
             sampleRate: this.recordingConfig?.sampleRate ?? 44100,
             numChannels: this.recordingConfig?.channels ?? 1,
             bitDepth: this.bitDepth,
@@ -206,7 +203,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
         const result: AudioRecording = {
             fileUri,
             filename: `${this.streamUuid}.${this.extension}`,
-            wavPCMData: wavBuffer,
+            wavPCMData: fullPcmBufferArray,
             bitDepth: this.bitDepth,
             channels: this.recordingConfig?.channels ?? 1,
             sampleRate: this.recordingConfig?.sampleRate ?? 44100,

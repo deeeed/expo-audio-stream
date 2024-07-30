@@ -1,19 +1,27 @@
 // playground/src/app/(tabs)/play.tsx
-import { Button, ScreenWrapper, useToast } from '@siteed/design-system'
+import {
+    Button,
+    LabelSwitch,
+    ScreenWrapper,
+    useToast,
+} from '@siteed/design-system'
 import {
     AudioAnalysis,
     AudioRecording,
+    convertPCMToFloat32,
     extractAudioAnalysis,
     getWavFileInfo,
+    TranscriberData,
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 
+import Transcriber from '../../component/Transcriber'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
@@ -44,6 +52,11 @@ export const PlayPage = () => {
     const [isPlaying, setIsPlaying] = useState<boolean>(false)
     const [currentTime, setCurrentTime] = useState<number>(0)
     const [processing, setProcessing] = useState<boolean>(false)
+    const [audioBuffer, setAudioBuffer] = useState<Float32Array>()
+    const [enableTranscription, setEnableTranscription] =
+        useState<boolean>(isWeb)
+    const [transcript, setTranscript] = useState<TranscriberData>()
+    const audioBufferRef = useRef<ArrayBuffer | null>(null)
     const { show } = useToast()
 
     const { files, removeFile, refreshFiles } = useAudioFiles()
@@ -69,23 +82,28 @@ export const PlayPage = () => {
                     return
                 }
 
-                // Reset playback position and stop playback
-                setAudioUri(uri)
-                setFileName(name)
-                setIsPlaying(false)
-                setCurrentTime(0)
                 // Unload any existing sound
                 if (sound) {
                     setSound(null)
                 }
 
-                const audioAnalysis = await extractAudioAnalysis({
-                    fileUri: uri,
-                    pointsPerSecond: 10,
-                    algorithm: 'rms',
-                })
-                logger.log(`AudioAnalysis:`, audioAnalysis)
-                setAudioAnalysis(audioAnalysis)
+                setFileName(name)
+                if (isWeb) {
+                    await loadWebAudioFile({ audioUri: uri, filename: name })
+                } else {
+                    // Reset playback position and stop playback
+                    setAudioUri(uri)
+                    setIsPlaying(false)
+                    setCurrentTime(0)
+
+                    const audioAnalysis = await extractAudioAnalysis({
+                        fileUri: uri,
+                        pointsPerSecond: 10,
+                        algorithm: 'rms',
+                    })
+                    logger.log(`AudioAnalysis:`, audioAnalysis)
+                    setAudioAnalysis(audioAnalysis)
+                }
             }
         } catch (error) {
             logger.error('Error picking audio file:', error)
@@ -94,7 +112,13 @@ export const PlayPage = () => {
         }
     }
 
-    const loadWebAudioFile = async ({ audioUri }: { audioUri: string }) => {
+    const loadWebAudioFile = async ({
+        audioUri,
+        filename,
+    }: {
+        audioUri: string
+        filename?: string
+    }) => {
         try {
             logger.log('Loading audio file:', audioUri)
             const timings: { [key: string]: number } = {}
@@ -112,6 +136,7 @@ export const PlayPage = () => {
             // Reset playback position and stop playback
             setCurrentTime(0)
             setIsPlaying(false)
+            setTranscript(undefined)
             timings['Reset Playback'] = performance.now() - startResetPlayback
 
             const startFetchAudio = performance.now()
@@ -125,15 +150,54 @@ export const PlayPage = () => {
             const wavMetadata = await getWavFileInfo(arrayBuffer)
             logger.info(`WavMetadata:`, wavMetadata)
             timings['Decode Audio'] = performance.now() - startDecodeAudio
+            audioBufferRef.current = arrayBuffer
+            logger.debug(
+                `AudioBuffer: ${audioBufferRef.current.byteLength}`,
+                arrayBuffer
+            )
 
             const startExtractFileName = performance.now()
             // extract filename from audioUri and remove any query params
-            const fileName =
-                audioUri.split('/').pop()?.split('?')[0] ?? 'Unknown'
-            setFileName(fileName)
+            const actualFileName =
+                filename ??
+                audioUri.split('/').pop()?.split('?')[0] ??
+                'Unknown'
+            setFileName(actualFileName)
             setAudioUri(audioUri)
             timings['Extract Filename'] =
                 performance.now() - startExtractFileName
+
+            const audioCTX = new AudioContext({
+                sampleRate: 16000, // Always resample to 16000
+            })
+            const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
+            let pcmAudio: Float32Array
+            if (decoded.numberOfChannels === 2) {
+                const SCALING_FACTOR = Math.sqrt(2)
+
+                const left = decoded.getChannelData(0)
+                const right = decoded.getChannelData(1)
+
+                pcmAudio = new Float32Array(left.length)
+                for (let i = 0; i < decoded.length; ++i) {
+                    pcmAudio[i] = (SCALING_FACTOR * (left[i] + right[i])) / 2
+                }
+            } else {
+                pcmAudio = decoded.getChannelData(0)
+            }
+            const { pcmValues: pcmAudio2 } = await convertPCMToFloat32({
+                buffer: arrayBuffer,
+                bitDepth: wavMetadata.bitDepth,
+                skipWavHeader: true,
+            })
+
+            // compare the two pcmAudio
+            if (pcmAudio.length !== pcmAudio2.length) {
+                logger.error('Length mismatch')
+                logger.log('pcmAudio:', pcmAudio)
+                logger.log('pcmAudio2:', pcmAudio2)
+            }
+            setAudioBuffer(pcmAudio)
 
             const startAudioAnalysis = performance.now()
             const audioAnalysis = await extractAudioAnalysis({
@@ -218,18 +282,29 @@ export const PlayPage = () => {
         // Decode the audio file to get metadata
         const wavMetadata = await getWavFileInfo(arrayBuffer)
 
+        // Convert PCM to Float32Array
+        const { pcmValues: audioBuffer } = await convertPCMToFloat32({
+            buffer: arrayBuffer,
+            bitDepth: wavMetadata.bitDepth,
+            skipWavHeader: false,
+        })
+
         logger.info(`saveTofiles wavMetadata:`, wavMetadata)
         // Auto copy to local files
         const audioResult: AudioRecording = {
             fileUri: destination,
             filename: fileName,
             mimeType: 'audio/wav',
-            wavPCMData: arrayBuffer,
+            wavPCMData: audioBuffer,
             size: arrayBuffer.byteLength,
             durationMs: wavMetadata.durationMs,
             sampleRate: wavMetadata.sampleRate,
             channels: wavMetadata.numChannels,
             bitDepth: wavMetadata.bitDepth,
+        }
+
+        if (transcript) {
+            audioResult.transcripts = [transcript]
         }
 
         logger.log('Saving file to files:', audioResult)
@@ -264,7 +339,7 @@ export const PlayPage = () => {
             await removeFile(audioResult.fileUri)
             throw error
         }
-    }, [files, fileName, audioUri, logger, refreshFiles, show])
+    }, [files, fileName, audioUri, logger, refreshFiles, show, transcript])
 
     useEffect(() => {
         return sound
@@ -282,28 +357,43 @@ export const PlayPage = () => {
                     Select Audio File
                 </Button>
                 {isWeb && (
-                    <Button
-                        mode="contained"
-                        onPress={async () => {
-                            try {
-                                await loadWebAudioFile({
-                                    audioUri:
-                                        'audio_samples/recorder_hello_world.wav',
-                                })
-                            } catch (error) {
-                                logger.error('Error loading audio file:', error)
-                            }
-                        }}
-                    >
-                        Auto Load
-                    </Button>
+                    <>
+                        <Button
+                            mode="contained"
+                            onPress={async () => {
+                                try {
+                                    await loadWebAudioFile({
+                                        audioUri:
+                                            'audio_samples/recorder_jre_lex_watch.wav',
+                                    })
+                                } catch (error) {
+                                    logger.error(
+                                        'Error loading audio file:',
+                                        error
+                                    )
+                                }
+                            }}
+                        >
+                            Auto Load
+                        </Button>
+                        <LabelSwitch
+                            label="Transcription"
+                            value={enableTranscription}
+                            containerStyle={{
+                                backgroundColor: 'white',
+                                margin: 0,
+                                padding: 10,
+                            }}
+                            onValueChange={setEnableTranscription}
+                        />
+                    </>
                 )}
             </View>
             {processing && <ActivityIndicator size="large" />}
             {audioUri && (
                 <View style={{ gap: 10 }}>
                     {audioAnalysis && (
-                        <>
+                        <View>
                             <AudioVisualizer
                                 candleSpace={2}
                                 mode="static"
@@ -316,23 +406,35 @@ export const PlayPage = () => {
                                 audioData={audioAnalysis}
                                 onSeekEnd={handleSeekEnd}
                             />
-                        </>
+                        </View>
+                    )}
+                    {isWeb && enableTranscription && audioBuffer && (
+                        <View>
+                            <Transcriber
+                                fullAudio={audioBuffer}
+                                currentTimeMs={currentTime * 1000}
+                                sampleRate={16000} // this was resampled by AudioContext
+                                onTranscriptionComplete={setTranscript}
+                            />
+                        </View>
                     )}
                     <Button onPress={playPauseAudio} mode="outlined">
                         {isPlaying ? 'Pause Audio' : 'Play Audio'}
                     </Button>
                 </View>
             )}
-            {fileName && (
-                <View style={{ marginTop: 20, gap: 10 }}>
-                    <Text style={styles.audioPlayer}>
-                        Selected File: {fileName}
-                    </Text>
-                    <Button onPress={saveToFiles} mode="contained">
-                        Save to Files
-                    </Button>
-                </View>
-            )}
+            <View>
+                {fileName && (
+                    <View style={{ marginTop: 20, gap: 10 }}>
+                        <Text style={styles.audioPlayer}>
+                            Selected File: {fileName}
+                        </Text>
+                        <Button onPress={saveToFiles} mode="contained">
+                            Save to Files
+                        </Button>
+                    </View>
+                )}
+            </View>
         </ScreenWrapper>
     )
 }

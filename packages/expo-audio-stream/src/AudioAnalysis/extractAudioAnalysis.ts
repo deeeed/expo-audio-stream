@@ -1,11 +1,15 @@
 // packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts
+import {
+    AmplitudeAlgorithm,
+    AudioAnalysis,
+    AudioFeaturesOptions,
+} from './AudioAnalysis.types'
 import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
 import { isWeb } from '../constants'
 import { getLogger } from '../logger'
 import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
 import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
 import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
-import { AmplitudeAlgorithm, AudioAnalysis, AudioFeaturesOptions } from './AudioAnalysis.types'
 
 const logger = getLogger('extractAudioAnalysis')
 
@@ -31,7 +35,7 @@ export const extractAudioAnalysis = async ({
     pointsPerSecond = 20,
     arrayBuffer,
     bitDepth,
-    skipWavHeader,
+    skipWavHeader = true,
     durationMs,
     sampleRate,
     numberOfChannels,
@@ -54,7 +58,7 @@ export const extractAudioAnalysis = async ({
                 )
             }
 
-            arrayBuffer = (await response.arrayBuffer()).slice(0)
+            arrayBuffer = await response.arrayBuffer()
             logger.log(`fetched fileUri`, arrayBuffer.byteLength, arrayBuffer)
         }
 

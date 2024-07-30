@@ -15,9 +15,9 @@ import { Text } from 'react-native-paper'
 import {
     AudioRecordingConfigForm,
     SelectedAudioVisualizerProps,
-} from '../../component/audio-recording-config/audio-recording-config-form'
+} from '../../component/AudioRecordingConfigForm'
+import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
-import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
 
 const getStyles = (_: { theme: AppTheme }) => {
     return StyleSheet.create({
@@ -114,6 +114,7 @@ export const FullAudioViewerPage = () => {
                     recording={selectedFile}
                     extractAnalysis
                     visualConfig={config}
+                    showTranscript
                     onDelete={async () => {
                         if (!selectedFile) return
                         await removeFile(selectedFile.fileUri)

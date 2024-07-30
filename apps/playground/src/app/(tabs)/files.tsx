@@ -13,7 +13,7 @@ import { FlatList, StyleSheet } from 'react-native'
 
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { formatBytes } from '../../utils/utils'
-import { AudioRecordingView } from '../../component/audio-recording-view/audio-recording-view'
+import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { getLogger } from '@siteed/react-native-logger'
 const logger = getLogger('FilesScreen')
 

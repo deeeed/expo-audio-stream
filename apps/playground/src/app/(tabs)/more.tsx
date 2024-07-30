@@ -39,7 +39,6 @@ export const MoreScreen = (_: MoreScreenProps) => {
     const styles = useMemo(() => getStyles({ theme }), [theme])
     const appVersion = Constants.expoConfig?.version
 
-
     return (
         <ScreenWrapper withScrollView useInsets>
             <View style={styles.iconContainer}>
@@ -52,10 +51,16 @@ export const MoreScreen = (_: MoreScreenProps) => {
             </View>
             <LabelSwitch
                 label="Dark Mode"
+                containerStyle={{
+                    backgroundColor: theme.colors.surface,
+                }}
                 onValueChange={toggleDarkMode}
                 value={darkMode}
             />
             <ListItem
+                contentContainerStyle={{
+                    backgroundColor: theme.colors.surface,
+                }}
                 label="Logs"
                 subLabel="Debug console logs"
                 onPress={() => {
@@ -63,6 +68,19 @@ export const MoreScreen = (_: MoreScreenProps) => {
                 }}
             />
             <ListItem
+                contentContainerStyle={{
+                    backgroundColor: theme.colors.surface,
+                }}
+                label="Transcriber Config"
+                subLabel="Configure model and AI parameters for transcription"
+                onPress={() => {
+                    router.navigate('/transcription-config')
+                }}
+            />
+            <ListItem
+                contentContainerStyle={{
+                    backgroundColor: theme.colors.surface,
+                }}
                 label="Infinite Canvas"
                 subLabel="Minimal implementation for infinite canvas"
                 onPress={() => {

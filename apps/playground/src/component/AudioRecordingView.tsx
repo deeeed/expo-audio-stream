@@ -10,9 +10,11 @@ import {
 import {
     AudioAnalysis,
     AudioRecording,
-    DataPoint
+    Chunk,
+    DataPoint,
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
+import { getLogger } from '@siteed/react-native-logger'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import React, { useEffect, useMemo, useState } from 'react'
@@ -20,18 +22,18 @@ import { StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
 
-import { getLogger } from '@siteed/react-native-logger'
-import { useAudio } from '../../hooks/useAudio'
-import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
 import {
     AudioRecordingAnalysisConfig,
     SelectedAnalysisConfig,
-} from '../audio-recording-analysis-config/audio-recording-analysis-config'
-import { SelectedAudioVisualizerProps } from '../audio-recording-config/audio-recording-config-form'
-import { DataPointViewer } from '../data-viewer/data-viewer'
-import { HexDataViewer } from '../data-viewer/hex-data-viewer'
+} from './AudioRecordingAnalysisConfig'
+import { SelectedAudioVisualizerProps } from './AudioRecordingConfigForm'
+import { DataPointViewer } from './DataViewer'
+import { HexDataViewer } from './HexDataViewer'
+import Transcript from './Transcript'
+import { useAudio } from '../hooks/useAudio'
+import { formatBytes, formatDuration, isWeb } from '../utils/utils'
 
-const logger = getLogger('AudioRecording');
+const logger = getLogger('AudioRecording')
 
 const getStyles = ({
     isPlaying,
@@ -75,6 +77,7 @@ export interface AudioRecordingViewProps {
     audioAnalysis?: AudioAnalysis
     actionText?: string
     visualConfig?: SelectedAudioVisualizerProps
+    showTranscript?: boolean
     extractAnalysis?: boolean
     onActionPress?: () => void
     onDelete?: () => Promise<void>
@@ -85,6 +88,7 @@ export const AudioRecordingView = ({
     audioAnalysis: _audioAnalysis,
     extractAnalysis,
     visualConfig,
+    showTranscript,
     onActionPress,
     onDelete,
 }: AudioRecordingViewProps) => {
@@ -192,6 +196,7 @@ export const AudioRecordingView = ({
             await updatePlaybackOptions({ position: newtime * 1000 })
         } catch (error) {
             logger.error('Error seeking audio:', error)
+            show({ type: 'error', message: 'Failed to seek audio' })
         }
     }
 
@@ -206,6 +211,16 @@ export const AudioRecordingView = ({
         setSelectedDataPoint(dataPoint)
     }
 
+    const handleTranscriptSelection = async ({ chunk }: { chunk: Chunk }) => {
+        try {
+            logger.log(`Selected transcript chunk`, chunk)
+            await updatePlaybackOptions({ position: chunk.timestamp[0] * 1000 })
+        } catch (error) {
+            logger.error('Error seeking audio:', error)
+            show({ type: 'error', message: 'Failed to seek audio' })
+        }
+    }
+
     useEffect(() => {
         if (!selectedDataPoint) return
 
@@ -216,7 +231,7 @@ export const AudioRecordingView = ({
                 const length =
                     (selectedDataPoint.endPosition ?? 0) -
                     (selectedDataPoint.startPosition ?? 0)
-                let byteArray: Uint8Array = new Uint8Array();
+                let byteArray: Uint8Array = new Uint8Array()
                 // Load hex data from uri
                 if (isWeb) {
                     const response = await fetch(audioUri, {
@@ -225,9 +240,7 @@ export const AudioRecordingView = ({
                         },
                     })
                     const step = await response.text()
-                    byteArray = Uint8Array.from(step, (c) =>
-                        c.charCodeAt(0)
-                    )
+                    byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
                 } else {
                     const fileData = await FileSystem.readAsStringAsync(
                         audioUri,
@@ -239,12 +252,10 @@ export const AudioRecordingView = ({
                     )
                     console.debug(`Loaded file data:`, fileData)
                     const step = atob(fileData)
-                    byteArray = Uint8Array.from(step, (c) =>
-                        c.charCodeAt(0)
-                    )
+                    byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
                 }
 
-                setHexByteArray(byteArray);
+                setHexByteArray(byteArray)
             } catch (error) {
                 logger.error('Failed to load hex data', error)
             }
@@ -337,8 +348,21 @@ export const AudioRecordingView = ({
                             {selectedDataPoint.endPosition}
                         </Text>
                     </View>
-                    {hexByteArray && <HexDataViewer byteArray={hexByteArray} bitDepth={recording.bitDepth} />}
+                    {hexByteArray && (
+                        <HexDataViewer
+                            byteArray={hexByteArray}
+                            bitDepth={recording.bitDepth}
+                        />
+                    )}
                 </View>
+            )}
+
+            {showTranscript && recording.transcripts && (
+                <Transcript
+                    transcribedData={recording.transcripts}
+                    currentTimeMs={position}
+                    onSelectChunk={handleTranscriptSelection}
+                />
             )}
 
             <View style={styles.buttons}>

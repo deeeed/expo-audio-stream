@@ -204,7 +204,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     }, [fullCurrentTime])
 
     useEffect(() => {
-        if (playing && currentTime && audioData.durationMs) {
+        if (currentTime && audioData.durationMs) {
             logger.log(`Syncing translateX... currentTime=${currentTime}`)
             const newTranslateX = syncTranslateX({
                 currentTime,
@@ -264,7 +264,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             if (audioData.durationMs && onSeekEnd) {
                 const allowedTranslateX = maxTranslateX
                 const progressRatio = -newTranslateX / allowedTranslateX
-                const newTime = progressRatio * audioData.durationMs
+                const newTime = progressRatio * audioData.durationMs / 1000
                 onSeekEnd(newTime)
             }
 

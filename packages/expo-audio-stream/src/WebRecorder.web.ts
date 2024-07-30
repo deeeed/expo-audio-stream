@@ -13,7 +13,7 @@ import { InlineAudioWebWorker } from './workers/inlineAudioWebWorker.web'
 interface AudioWorkletEvent {
     data: {
         command: string
-        recordedData?: ArrayBuffer
+        recordedData?: Float32Array
         sampleRate?: number
     }
 }
@@ -47,7 +47,8 @@ export class WebRecorder {
     private numberOfChannels: number // Number of audio channels
     private bitDepth: number // Bit depth of the audio
     private exportBitDepth: number // Bit depth of the audio
-    private buffers: ArrayBuffer[] // Array to store the buffers
+    private buffer: Float32Array // Single buffer to store the audio data
+    private bufferSize: number // Keep track of the buffer size
     private audioAnalysisData: AudioAnalysis // Keep updating the full audio analysis data with latest events
 
     constructor({
@@ -72,7 +73,8 @@ export class WebRecorder {
         this.emitAudioAnalysisCallback = emitAudioAnalysisCallback
         this.config = recordingConfig
         this.position = 0
-        this.buffers = [] // Initialize the buffers array
+        this.bufferSize = 0
+        this.buffer = new Float32Array(0) // Initialize the buffer
 
         const audioContextFormat = this.checkAudioContextFormat({
             sampleRate: this.audioContext.sampleRate,
@@ -140,32 +142,27 @@ export class WebRecorder {
                 }
                 // Handle the audio blob (e.g., send it to the server or process it further)
                 logger.debug('Received audio blob from processor', event)
-                const pcmBuffer = event.data.recordedData
+                const pcmBufferFloat = event.data.recordedData
 
-                if (!pcmBuffer) {
+                if (!pcmBufferFloat) {
                     return
                 }
 
-                this.buffers.push(pcmBuffer) // Store the buffer
+                // Concatenate the incoming Float32Array to the existing buffer
+                const newBuffer = new Float32Array(
+                    this.bufferSize + pcmBufferFloat.length
+                )
+                newBuffer.set(this.buffer, 0)
+                newBuffer.set(pcmBufferFloat, this.bufferSize)
+                this.buffer = newBuffer
+                this.bufferSize += pcmBufferFloat.length
+
                 const sampleRate =
                     event.data.sampleRate ?? this.audioContext.sampleRate
-                const otherSampleRate = this.audioContext.sampleRate
-
-                // Pass the intermediary buffer to the feature extractor worker
-                const pcmBufferCopy = pcmBuffer.slice(0)
-                const channelData = new Float32Array(pcmBufferCopy)
-
-                const duration = channelData.length / sampleRate // Calculate duration of the current buffer
-                const otherDuration =
-                    pcmBuffer.byteLength /
-                    (otherSampleRate *
-                        (this.exportBitDepth / this.numberOfChannels)) // Calculate duration of the current buffer
-                logger.debug(
-                    `sampleRate=${sampleRate} Duration: ${duration} -- otherSampleRate=${otherSampleRate} Other duration: ${otherDuration}`
-                )
+                const duration = pcmBufferFloat.length / sampleRate // Calculate duration of the current buffer
 
                 this.emitAudioEventCallback({
-                    data: pcmBuffer,
+                    data: pcmBufferFloat,
                     position: this.position,
                 })
                 this.position += duration // Update position
@@ -173,8 +170,8 @@ export class WebRecorder {
                 this.featureExtractorWorker?.postMessage(
                     {
                         command: 'process',
-                        channelData,
-                        sampleRate: this.audioContext.sampleRate,
+                        channelData: pcmBufferFloat,
+                        sampleRate,
                         pointsPerSecond:
                             this.config.pointsPerSecond ||
                             DEFAULT_WEB_POINTS_PER_SECOND,
@@ -299,7 +296,7 @@ export class WebRecorder {
         this.audioWorkletNode.connect(this.audioContext.destination)
     }
 
-    stop(): Promise<ArrayBuffer[]> {
+    stop(): Promise<Float32Array> {
         return new Promise((resolve, reject) => {
             try {
                 if (this.audioWorkletNode) {
@@ -327,7 +324,12 @@ export class WebRecorder {
                             clearTimeout(timeout) // Clear the timeout
 
                             const rawPCMDataFull =
-                                event.data.recordedData?.slice(0) as ArrayBuffer
+                                event.data.recordedData?.slice(0)
+
+                            if (!rawPCMDataFull) {
+                                reject(new Error('Failed to get recorded data'))
+                                return
+                            }
 
                             // Compute duration of the recorded data
                             const duration =
@@ -339,7 +341,7 @@ export class WebRecorder {
                                 `Received recorded data -- Duration: ${duration} vs ${rawPCMDataFull.byteLength / this.audioContext.sampleRate} seconds`
                             )
                             logger.debug(
-                                `recordedData.length=${rawPCMDataFull.byteLength} vs transmittedData.length=${this.buffers[0].byteLength}`
+                                `recordedData.length=${rawPCMDataFull.byteLength} vs transmittedData.length=${this.bufferSize}`
                             )
 
                             // Remove the event listener after receiving the final data
@@ -347,7 +349,7 @@ export class WebRecorder {
                                 'message',
                                 onMessage
                             )
-                            resolve(this.buffers) // Resolve the promise with the collected buffers
+                            resolve(this.buffer) // Resolve the promise with the collected buffers
                         }
                     }
                     this.audioWorkletNode.port.addEventListener(
