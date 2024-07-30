@@ -2,6 +2,7 @@
 import {
     Button,
     LabelSwitch,
+    Notice,
     Picker,
     ScreenWrapper,
     useToast,
@@ -20,14 +21,16 @@ import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
 import { useRouter } from 'expo-router'
 import isBase64 from 'is-base64'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Platform, StyleSheet, Text, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 
-import LiveTranscriber from '../../component/LiveTranscriber'
 import { AudioRecordingView } from '../../component/AudioRecordingView'
-import { baseLogger } from '../../config'
+import LiveTranscriber from '../../component/LiveTranscriber'
+import { baseLogger, WhisperSampleRate } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
+import { useTranscription } from '../../context/TranscriptionProvider'
+import { useLiveTranscriber } from '../../hooks/useLiveTranscriber'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
 
@@ -35,10 +38,10 @@ const CHUNK_DURATION_MS = 500 // 500 ms chunks
 
 const baseRecordingConfig: RecordingConfig = {
     interval: CHUNK_DURATION_MS,
-    sampleRate: 16000,
+    sampleRate: WhisperSampleRate,
     encoding: 'pcm_32bit',
     pointsPerSecond: 10,
-    enableProcessing: true,
+    enableProcessing: false,
 }
 
 const logger = baseLogger.extend('RecordScreen')
@@ -46,7 +49,7 @@ const logger = baseLogger.extend('RecordScreen')
 if (Platform.OS === 'ios') {
     baseRecordingConfig.sampleRate = 48000
 } else if (Platform.OS === 'android') {
-    baseRecordingConfig.sampleRate = 16000
+    baseRecordingConfig.sampleRate = WhisperSampleRate
 }
 
 logger.debug(`Base Recording Config`, baseRecordingConfig)
@@ -62,16 +65,27 @@ export default function RecordScreen() {
             ...baseRecordingConfig,
             onAudioStream: (a) => onAudioData(a),
         })
+    const { initialize, ready } = useTranscription()
     const [result, setResult] = useState<AudioRecording | null>(null)
     const [processing, setProcessing] = useState(false)
     const currentSize = useRef(0)
     const { refreshFiles, removeFile } = useAudioFiles()
-    const { show } = useToast()
     const router = useRouter()
     const [liveWebAudio, setLiveWebAudio] = useState<Float32Array | null>(null)
-    const [transcripts, setTranscripts] = useState<TranscriberData[]>()
     const [enableLiveTranscription, setEnableLiveTranscription] =
         useState(isWeb)
+    const validSRTranscription =
+        startRecordingConfig.sampleRate === WhisperSampleRate
+    const [stopping, setStopping] = useState(false)
+
+    const { transcripts, activeTranscript, transcript } = useLiveTranscriber({
+        stopping,
+        audioBuffer: webAudioChunks.current,
+        sampleRate: startRecordingConfig.sampleRate ?? WhisperSampleRate,
+    })
+    const transcriptionResolveRef =
+        useRef<(transcriptions: TranscriberData[]) => void>()
+    const { show, hide } = useToast()
 
     const onAudioData = useCallback(async (event: AudioDataEvent) => {
         try {
@@ -115,7 +129,7 @@ export default function RecordScreen() {
                 webAudioChunks.current = concatenatedBuffer
                 // TODO: we should use either the webAudioChunks or the liveWebAudio
                 setLiveWebAudio(webAudioChunks.current)
-                logger.debug(`TEMP Received audio data ${typeof data}`, data)
+                // logger.debug(`TEMP Received audio data ${typeof data}`, data)
             }
         } catch (error) {
             logger.error(`Error while processing audio data`, error)
@@ -136,11 +150,16 @@ export default function RecordScreen() {
 
     const handleStart = async () => {
         try {
+            setProcessing(true)
             const { granted } = await Audio.requestPermissionsAsync()
             if (!granted) {
                 setError('Permission not granted!')
             }
 
+            if (!ready) {
+                logger.info(`Initializing transcription...`)
+                initialize()
+            }
             // Clear previous audio chunks
             audioChunks.current = []
             webAudioChunks.current = new Float32Array(0)
@@ -159,11 +178,14 @@ export default function RecordScreen() {
             // }, 3000);
         } catch (error) {
             logger.error(`Error while starting recording`, error)
+        } finally {
+            setProcessing(false)
         }
     }
 
     const handleStopRecording = useCallback(async () => {
         try {
+            setStopping(true)
             setProcessing(true)
             const result = await stopRecording()
             logger.debug(`Recording stopped. `, result)
@@ -174,8 +196,29 @@ export default function RecordScreen() {
             }
 
             // Attach transcripts to the result if available
-            if (transcripts) {
-                result.transcripts = transcripts
+            if (enableLiveTranscription) {
+                show({
+                    loading: true,
+                    message: 'Waiting for transcription to complete',
+                })
+                // wait for end of transcription or timeout within 15 seconds
+                let timeout
+                const transcriptions = await Promise.race([
+                    new Promise<TranscriberData[]>((resolve) => {
+                        timeout = setTimeout(() => {
+                            logger.warn(`Timeout waiting for transcriptions`)
+                            // return last received ones in case of timeout
+                            resolve(transcripts)
+                        }, 15000)
+                    }),
+                    new Promise<TranscriberData[]>((resolve) => {
+                        transcriptionResolveRef.current = resolve
+                    }),
+                ])
+                clearTimeout(timeout)
+                hide()
+                console.log(`After wait transcripts`, transcriptions)
+                result.transcripts = transcriptions
             }
 
             if (isWeb && result.wavPCMData) {
@@ -210,9 +253,10 @@ export default function RecordScreen() {
         } catch (error) {
             logger.error(`Error while stopping recording`, error)
         } finally {
+            setStopping(false)
             setProcessing(false)
         }
-    }, [isRecording, refreshFiles, transcripts])
+    }, [isRecording, refreshFiles, transcripts, enableLiveTranscription])
 
     const renderRecording = () => (
         <View style={{ gap: 10, display: 'flex' }}>
@@ -239,9 +283,12 @@ export default function RecordScreen() {
             ) : null}
             {isWeb && enableLiveTranscription && liveWebAudio && (
                 <LiveTranscriber
-                    fullAudio={liveWebAudio}
-                    sampleRate={streamConfig?.sampleRate ?? 16000}
-                    onTranscriptions={setTranscripts}
+                    transcripts={transcripts}
+                    duration={duration}
+                    activeTranscript={activeTranscript}
+                    sampleRate={
+                        startRecordingConfig.sampleRate ?? WhisperSampleRate
+                    }
                 />
             )}
             <Button mode="contained" onPress={pauseRecording}>
@@ -392,7 +439,7 @@ export default function RecordScreen() {
                     }))
                 }}
             />
-            {isWeb && (
+            {isWeb && validSRTranscription && (
                 <LabelSwitch
                     label="Live Transcription"
                     value={enableLiveTranscription}
@@ -404,11 +451,26 @@ export default function RecordScreen() {
                     onValueChange={setEnableLiveTranscription}
                 />
             )}
+            {isWeb && !validSRTranscription && (
+                <Notice
+                    type="warning"
+                    title="Transcription Not Available"
+                    message="Live Transcription is only available at 16000hz sample rate"
+                />
+            )}
             <Button mode="contained" onPress={() => handleStart()}>
                 Start Recording
             </Button>
         </View>
     )
+
+    useEffect(() => {
+        // Watch for new transcripts and resolve the promise
+        if (transcriptionResolveRef.current) {
+            transcriptionResolveRef.current(transcripts)
+            transcriptionResolveRef.current = undefined
+        }
+    }, [transcripts])
 
     if (error) {
         return (

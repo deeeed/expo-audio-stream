@@ -17,15 +17,17 @@ interface LiveTranscriber extends TranscriptionContextProps {
 interface LiveTranscriberProps {
     audioBuffer: Float32Array
     sampleRate: number
+    stopping: boolean
     quickUpdateInterval?: number
     checkpointInterval?: number
 }
 
-const QUICK_UPDATE_INTERVAL = 3
-const CHECKPOINT_INTERVAL = 20
+const QUICK_UPDATE_INTERVAL = 1
+const CHECKPOINT_INTERVAL = 30
 
 export function useLiveTranscriber({
     audioBuffer,
+    stopping,
     quickUpdateInterval = QUICK_UPDATE_INTERVAL,
     checkpointInterval = CHECKPOINT_INTERVAL,
 }: LiveTranscriberProps): LiveTranscriber {
@@ -72,7 +74,7 @@ export function useLiveTranscriber({
         // logger.log(
         //     `[${jobId}] Remaining=${remaining} Accumulated=${accumulated}`
         // )
-        if (remaining <= 0) {
+        if (stopping || remaining <= 0) {
             activeJobId.current = jobId
             processingRef.current = true
             try {
@@ -195,7 +197,7 @@ export function useLiveTranscriber({
                     logger.error(`Failed to trancribe`, e)
                 })
         }
-    }, [audioBuffer])
+    }, [audioBuffer, stopping])
 
     const liveTranscriber = useMemo(
         () => ({
