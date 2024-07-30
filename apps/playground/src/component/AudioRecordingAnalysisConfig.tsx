@@ -30,7 +30,7 @@ const getStyles = () => {
         topActionsContainer: {
             gap: 10,
             marginBottom: 20,
-        }
+        },
     })
 }
 
@@ -61,7 +61,10 @@ export const AudioRecordingAnalysisConfig = ({
     }, [config])
 
     const handleChange = useCallback(
-        (key: keyof SelectedAnalysisConfig, value: number | boolean | string) => {
+        (
+            key: keyof SelectedAnalysisConfig,
+            value: number | boolean | string
+        ) => {
             setTempConfig((prevConfig) => {
                 const newConfig = { ...prevConfig, [key]: value }
                 return newConfig

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable no-undef */
 // Learn more https://docs.expo.io/guides/customizing-metro
 const escape = require('escape-string-regexp')
@@ -24,6 +25,7 @@ const modules = [
     'react-dom',
     'react',
     'react-native',
+    '@xenova/transformers',
     ...Object.keys({ ...pakUI.peerDependencies }),
     ...Object.keys({ ...pakLib.peerDependencies }),
 ]
@@ -58,12 +60,17 @@ const config = getDefaultConfig(__dirname)
 // 1. Watch all files within the monorepo
 config.watchFolders = [monorepoRoot]
 
-config.transformer.getTransformOptions = async () => ({
-    transform: {
-        experimentalImportSupport: false,
-        inlineRequires: true,
-    },
-})
+config.transformer = {
+    ...config.transformer,
+    getTransformOptions: async () => ({
+        transform: {
+            experimentalImportSupport: false,
+            inlineRequires: true,
+        },
+    }),
+    assetPlugins: config.transformer.assetPlugins || [],
+}
+
 config.resolver.nodeModulesPaths = [
     path.resolve(projectRoot, 'node_modules'),
     path.resolve(monorepoRoot, 'node_modules'),
@@ -73,6 +80,8 @@ config.resolver = {
     ...config.resolver,
     extraNodeModules,
     blacklistRE,
+    sourceExts: [...config.resolver.sourceExts, 'cjs', 'mjs'],
+    assetExts: [...config.resolver.assetExts, 'wasm'],
     resolveRequest: (context, moduleName, platform) => {
         if (moduleName === '@siteed/expo-audio-ui') {
             return {
@@ -85,19 +94,19 @@ config.resolver = {
                     monorepoRoot + '/packages/expo-audio-stream/src/index.ts',
                 type: 'sourceFile',
             }
-        // } else if (moduleName === "react" || moduleName === "react-dom") {
-        //     // console.log(
-        //     //   `Resolving ${moduleName} to ${path.resolve(projectRoot, `node_modules/${moduleName}`)}`,
-        //     // );
-        //     // Force resolution to the local versions specified in extraNodeModules
-        //     return {
-        //       filePath: path.resolve(
-        //         projectRoot,
-        //         `node_modules/${moduleName}/index.js`,
-        //       ),
-        //       type: "sourceFile",
-        //     };
-          } 
+            // } else if (moduleName === "react" || moduleName === "react-dom") {
+            //     // console.log(
+            //     //   `Resolving ${moduleName} to ${path.resolve(projectRoot, `node_modules/${moduleName}`)}`,
+            //     // );
+            //     // Force resolution to the local versions specified in extraNodeModules
+            //     return {
+            //       filePath: path.resolve(
+            //         projectRoot,
+            //         `node_modules/${moduleName}/index.js`,
+            //       ),
+            //       type: "sourceFile",
+            //     };
+        }
         // Ensure you call the default resolver.
         return context.resolveRequest(context, moduleName, platform)
     },

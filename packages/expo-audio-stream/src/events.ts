@@ -2,9 +2,7 @@
 
 import { EventEmitter, type Subscription } from 'expo-modules-core'
 
-import {
-    AudioAnalysis,
-} from './AudioAnalysis/AudioAnalysis.types'
+import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import ExpoAudioStreamModule from './ExpoAudioStreamModule'
 import { getLogger } from './logger'
 
@@ -13,7 +11,7 @@ const logger = getLogger('events')
 
 export interface AudioEventPayload {
     encoded?: string
-    buffer?: ArrayBuffer
+    buffer?: Float32Array
     fileUri: string
     lastEmittedSize: number
     position: number
