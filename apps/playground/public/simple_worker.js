@@ -22,11 +22,12 @@ class RecorderProcessor extends AudioWorkletProcessor {
                 this.exportIntervalSamples =
                     this.recordSampleRate * (event.data.interval / 1000)
                 break
-            case 'stop':
+            case 'stop': {
                 this.isRecording = false
                 const recordedData = this.getRecordedData()
                 this.port.postMessage({ command: 'recordedData', recordedData })
                 break
+            }
             // case 'getRecordedData':
             //   const recordedData = this.getRecordedData();
             //   this.port.postMessage({ command: 'recordedData', recordedData });

@@ -1,0 +1,51 @@
+{
+    "compilerOptions": {
+        "outDir": "./dist/",
+        "baseUrl": "./",
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "jsx": "react",
+        "allowJs": true,
+        "lib": ["esnext"],
+        "module": "esnext",
+        "moduleResolution": "node",
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitReturns": true,
+        "noImplicitUseStrict": false,
+        "noStrictGenericChecks": false,
+        "noUncheckedIndexedAccess": true,
+        "noUnusedParameters": true,
+        "noEmit": false,
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "noUnusedLocals": false,
+        "strict": true,
+        "target": "esnext",
+        "verbatimModuleSyntax": false,
+    },
+    "include": ["**/*.{ts,tsx,js,jsx}"],
+    "exclude": [
+        "**/dist",
+        "**/build",
+        "**/node_modules",
+    ],
+    "references": [
+        {
+            "path": "./packages/expo-audio-stream"
+        },
+        {
+            "path": "./packages/expo-audio-ui"
+        },
+        {
+            "path": "./apps/playground"
+        },
+        {
+            "path": "./apps/minimal"
+        },
+    ]
+}

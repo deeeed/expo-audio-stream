@@ -1,15 +1,17 @@
 // playground/src/app/_layout.tsx
 import { UIProvider } from '@siteed/design-system'
 import { AudioRecorderProvider } from '@siteed/expo-audio-stream'
+import { enabled, getLogger } from '@siteed/react-native-logger'
 import Constants from 'expo-constants'
 import { Stack } from 'expo-router/stack'
-
-import { AudioFilesProvider } from '../context/AudioFilesProvider'
-import { ApplicationContextProvider } from '../context/application-context'
-import { getLogger, enabled } from '@siteed/react-native-logger'
 import { useEffect } from 'react'
 
-const logger = getLogger("RootLayout");
+import { config } from '../config'
+import { ApplicationContextProvider } from '../context/ApplicationProvider'
+import { AudioFilesProvider } from '../context/AudioFilesProvider'
+import { TranscriptionProvider } from '../context/TranscriptionProvider'
+
+const logger = getLogger('RootLayout')
 
 export default function RootLayout() {
     const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? ''
@@ -22,12 +24,13 @@ export default function RootLayout() {
     }, [baseUrl])
 
     return (
-            <ApplicationContextProvider debugMode>
+        <ApplicationContextProvider debugMode>
+            <TranscriptionProvider>
                 <AudioRecorderProvider
                     config={{
                         debug: true,
-                        audioWorkletUrl: `${baseUrl}/audioworklet.js`,
-                        featuresExtratorUrl: `${baseUrl}/audio-features-extractor.js`,
+                        audioWorkletUrl: config.audioWorkletUrl,
+                        featuresExtratorUrl: config.featuresExtratorUrl,
                     }}
                 >
                     <UIProvider
@@ -76,6 +79,7 @@ export default function RootLayout() {
                         </AudioFilesProvider>
                     </UIProvider>
                 </AudioRecorderProvider>
-            </ApplicationContextProvider>
+            </TranscriptionProvider>
+        </ApplicationContextProvider>
     )
 }

@@ -8,7 +8,7 @@ import {
 import { Audio, AVPlaybackStatus } from 'expo-av'
 import { useCallback, useEffect, useState } from 'react'
 
-import { SelectedAnalysisConfig } from '../component/audio-recording-analysis-config/audio-recording-analysis-config'
+import { SelectedAnalysisConfig } from '../component/AudioRecordingAnalysisConfig'
 import { baseLogger, config } from '../config'
 import { fetchArrayBuffer } from '../utils/utils'
 
@@ -40,10 +40,12 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     const [isPlaying, setIsPlaying] = useState(false)
     const [processing, setProcessing] = useState(false)
     const [position, setPosition] = useState(0)
+    const [soundLoaded, setSoundLoaded] = useState(false)
     const [speed, setSpeed] = useState(1) // Add state for speed
     const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer>()
-    const [audioAnalysis, setAudioAnalysis] =
-        useState<AudioAnalysis | null>(null)
+    const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysis | null>(
+        null
+    )
     const { show } = useToast()
 
     useEffect(() => {
@@ -110,24 +112,22 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         show,
     ])
 
-    const updatePlaybackStatus = useCallback(
-        (status: AVPlaybackStatus) => {
-            if (!status.isLoaded) {
-                if ('error' in status) {
-                    logger.error(`Playback Error: ${status.error}`);
-                }
-                return;
+    const updatePlaybackStatus = useCallback((status: AVPlaybackStatus) => {
+        if (!status.isLoaded) {
+            if ('error' in status) {
+                logger.error(`Playback Error: ${status.error}`)
             }
+            return
+        }
 
-            setPosition(status.positionMillis);
+        setPosition(status.positionMillis)
+        setSoundLoaded(true)
 
-            if (status.didJustFinish) {
-                setIsPlaying(false);
-                setPosition(0); // Reset position when playback finishes
-            }
-        },
-        []
-    )
+        if (status.didJustFinish) {
+            setIsPlaying(false)
+            setPosition(0) // Reset position when playback finishes
+        }
+    }, [])
 
     const play = async (options?: PlayOptions) => {
         if (!audioUri) return
@@ -178,7 +178,8 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         if (options.position !== undefined) {
             logger.debug(`Set playback position to ${options.position}`)
             setPosition(options.position)
-            if (sound) {
+            if (sound && soundLoaded) {
+                // Check if sound is loaded before updating position
                 await sound.setPositionAsync(options.position)
             }
         }
@@ -197,6 +198,8 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         isPlaying,
         position,
         processing,
+        soundLoaded,
+        sound,
         play,
         pause,
         updatePlaybackOptions,
