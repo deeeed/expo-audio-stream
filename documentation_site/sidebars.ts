@@ -47,6 +47,13 @@ const sidebars: SidebarsConfig = {
                         'api-reference/audio-features/extract-audio-analysis',
                     ],
                 },
+                {
+                    type: 'category',
+                    label: 'Full Documentation',
+                    items: [
+                        'api-reference/API/README',
+                    ],
+                },
             ],
         },
         {

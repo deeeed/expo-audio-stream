@@ -27,6 +27,7 @@
         "lint": "expo-module lint",
         "test": "expo-module test",
         "typecheck": "tsc --noEmit",
+        "docgen": "typedoc src/index.ts --plugin typedoc-plugin-markdown --readme none --out ../../documentation_site/docs/api-reference/API",
         "prepare": "expo-module prepare",
         "prepublishOnly": "expo-module prepublishOnly",
         "expo-module": "expo-module",
@@ -57,6 +58,8 @@
         "prettier": "^3.2.5",
         "react-native": "^0.74.3",
         "size-limit": "^11.1.4",
+        "typedoc": "^0.26.5",
+        "typedoc-plugin-markdown": "^4.2.3",
         "typescript": "^5.5.4"
     },
     "peerDependencies": {
