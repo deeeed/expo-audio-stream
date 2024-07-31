@@ -6,11 +6,11 @@ PODS:
     - ReactCommon/turbomodule/core
   - EXConstants (16.0.2):
     - ExpoModulesCore
-  - Expo (51.0.21):
+  - Expo (51.0.24):
     - ExpoModulesCore
   - ExpoAsset (10.0.10):
     - ExpoModulesCore
-  - ExpoAudioStream (1.0.4):
+  - ExpoAudioStream (1.0.5):
     - ExpoModulesCore
   - ExpoClipboard (6.0.3):
     - ExpoModulesCore
@@ -20,7 +20,7 @@ PODS:
     - ExpoModulesCore
   - ExpoFont (12.0.9):
     - ExpoModulesCore
-  - ExpoHead (3.5.18):
+  - ExpoHead (3.5.20):
     - ExpoModulesCore
   - ExpoKeepAwake (13.0.2):
     - ExpoModulesCore
@@ -1049,7 +1049,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - react-native-safe-area-context (4.10.1):
+  - react-native-safe-area-context (4.10.5):
     - React-Core
   - react-native-skia (1.2.3):
     - DoubleConversion
@@ -1643,14 +1643,14 @@ SPEC CHECKSUMS:
   DoubleConversion: 76ab83afb40bddeeee456813d9c04f67f78771b5
   EXAV: a1e8d579f0cb4a60792d1686732117420c901b8b
   EXConstants: 409690fbfd5afea964e5e9d6c4eb2c2b59222c59
-  Expo: 6ff8c293719c5e5d23204e3f5fc9f472b5d0fd32
+  Expo: 798848eae1daf13363d69790986146b08d0cf92f
   ExpoAsset: 323700f291684f110fb55f0d4022a3362ea9f875
-  ExpoAudioStream: 6ddd8a0af7d22a77997c737cc53e0ee09514dc0e
+  ExpoAudioStream: 9eceb12b95b581b533bca9d7df7f32c6e21169b1
   ExpoClipboard: 23d203f5d4843699fbc45be1cc4fe1fbd811a6fa
   ExpoDocumentPicker: a82eaccc62ecb62662d5a6ca7a8ef40b71daa521
   ExpoFileSystem: 80bfe850b1f9922c16905822ecbf97acd711dc51
   ExpoFont: e7f2275c10ca8573c991e007329ad6bf98086485
-  ExpoHead: 7880300d9c1519420530cf591d333d3f96ff9f6e
+  ExpoHead: 3e8eacccdad1256f0643b657d89bf972c27afb1d
   ExpoKeepAwake: 3b8815d9dd1d419ee474df004021c69fdd316d08
   ExpoLocalization: f04eeec2e35bed01ab61c72ee1768ec04d093d01
   ExpoModulesCore: 734c1802786b23c9598f4d15273753a779969368
@@ -1686,7 +1686,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: 9f68550e7c6839d01411ac8896aea5c868eff63a
   react-native-audio-waveform: 83b3ecabc70d13347d58704bdb48199ae0648263
   react-native-quick-base64: a74c4b2607b9de016877a8edb776b6ac59785809
-  react-native-safe-area-context: dcab599c527c2d7de2d76507a523d20a0b83823d
+  react-native-safe-area-context: a240ad4b683349e48b1d51fed1611138d1bdad97
   react-native-skia: 80282ed176572d97f6abe128ddcb567e0c33fe93
   React-nativeconfig: fa5de9d8f4dbd5917358f8ad3ad1e08762f01dcb
   React-NativeModulesApple: 585d1b78e0597de364d259cb56007052d0bda5e5

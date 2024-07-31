@@ -46,10 +46,10 @@ const config: ExpoConfig = {
             'expo-build-properties',
             {
                 ios: {
-                    newArchEnabled: true,
+                    newArchEnabled: false,
                 },
                 android: {
-                    newArchEnabled: true,
+                    newArchEnabled: false,
                 },
             },
         ],
