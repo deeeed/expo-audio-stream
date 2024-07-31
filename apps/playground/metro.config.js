@@ -60,6 +60,8 @@ const config = getDefaultConfig(__dirname)
 // 1. Watch all files within the monorepo
 config.watchFolders = [monorepoRoot]
 
+config.server.port = 7365
+
 config.transformer = {
     ...config.transformer,
     getTransformOptions: async () => ({
