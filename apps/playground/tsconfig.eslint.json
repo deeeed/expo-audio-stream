@@ -7,6 +7,7 @@
   "include": [
     "./src",
     "./*.js",
+    "app.config.ts",
     ".eslintrc.cjs",
     "./public/*.js"
   ],

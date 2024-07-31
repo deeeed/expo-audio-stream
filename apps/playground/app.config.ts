@@ -42,6 +42,17 @@ const config: ExpoConfig = {
                 apiKey: 'custom_secret_api',
             },
         ],
+        [
+            'expo-build-properties',
+            {
+                ios: {
+                    newArchEnabled: true,
+                },
+                android: {
+                    newArchEnabled: true,
+                },
+            },
+        ],
         'expo-localization',
         [
             'expo-asset',
