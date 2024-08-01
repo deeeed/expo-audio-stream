@@ -1,20 +1,15 @@
 import { AudioRecording, useAudioRecorder } from '@siteed/expo-audio-stream'
 import { getLogger } from '@siteed/react-native-logger'
 import { Audio } from 'expo-av' // Import for playing audio on native
-import { useEffect, useState } from 'react'
-import { Button, Platform, StyleSheet, Text, View } from 'react-native'
+import { useState } from 'react'
+import { Button, StyleSheet, Text, View } from 'react-native'
 
 const STOP_BUTTON_COLOR = 'red'
 
 const logger = getLogger('MinimalApp')
 
-const isNewArchitecture = (): boolean => {
-    if (Platform.OS !== 'web') {
-        //@ts-ignore
-        return !!global.__turboModuleProxy
-    }
-    return false
-}
+// @ts-expect-error
+const isTurboModuleEnabled = global.__turboModuleProxy != null
 
 const styles = StyleSheet.create({
     container: {
@@ -44,12 +39,6 @@ export default function App() {
     const [, setSound] = useState<Audio.Sound | null>(null) // State for audio playback on native
 
     logger.info('App started')
-    const [usingNewArchitecture, setUsingNewArchitecture] =
-        useState<boolean>(false)
-
-    useEffect(() => {
-        setUsingNewArchitecture(isNewArchitecture())
-    }, [])
     const handleStart = async () => {
         const startResult = await startRecording({
             interval: 500,
@@ -117,7 +106,7 @@ export default function App() {
     return (
         <>
             <Text>
-                {usingNewArchitecture
+                {isTurboModuleEnabled
                     ? 'Using New Architecture'
                     : 'Using Old Architecture'}
             </Text>
