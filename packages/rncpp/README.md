@@ -2,32 +2,6 @@
 
 poc rn cpp
 
-## Installation
-
-```sh
-npm install rncpp
-```
-
-## Usage
-
-
-```js
-import { multiply } from 'rncpp';
-
-// ...
-
-const result = await multiply(3, 7);
-```
-
-
-## Contributing
-
-See the [contributing guide](CONTRIBUTING.md) to learn how to contribute to the repository and the development workflow.
-
-## License
-
-MIT
-
----
-
-Made with [create-react-native-library](https://github.com/callstack/react-native-builder-bob)
+The goal is to see how to include cpp code in either expo library or project.
+The issue is that it is difficult (haven't figured it out yet) to add cpp code with expo libraries which differ from actual rn libraries.
+Easier solution is to decouple and have a specific library only for cpp.

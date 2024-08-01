@@ -1,8 +1,9 @@
 import { AudioRecording, useAudioRecorder } from '@siteed/expo-audio-stream'
 import { getLogger } from '@siteed/react-native-logger'
 import { Audio } from 'expo-av' // Import for playing audio on native
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, StyleSheet, Text, View } from 'react-native'
+import { multiply } from 'rncpp'
 
 const STOP_BUTTON_COLOR = 'red'
 
@@ -37,6 +38,16 @@ export default function App() {
     })
     const [audioResult, setAudioResult] = useState<AudioRecording | null>(null)
     const [, setSound] = useState<Audio.Sound | null>(null) // State for audio playback on native
+
+    const [result, setResult] = useState<number | undefined>()
+
+    useEffect(() => {
+        multiply(3, 7)
+            .then(setResult)
+            .catch((error: unknown) => {
+                logger.error('Error multiplying', error)
+            })
+    }, [])
 
     logger.info('App started')
     const handleStart = async () => {
@@ -110,6 +121,7 @@ export default function App() {
                     ? 'Using New Architecture'
                     : 'Using Old Architecture'}
             </Text>
+            <Text>Result: {result}</Text>
             {isRecording
                 ? renderRecording()
                 : isPaused
