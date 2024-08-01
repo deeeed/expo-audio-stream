@@ -9,7 +9,8 @@
             ],
             "@siteed/expo-audio-stream/*": [
                 "../../packages/expo-audio-stream/src/*"
-            ]
+            ],
+            "rncpp": ["../../packages/rncpp/src/index"]
         }
     },
     "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
