@@ -1,15 +1,20 @@
-import {
-    AudioRecording,
-    useAudioRecorder,
-} from '@siteed/expo-audio-stream';
-import { getLogger } from '@siteed/react-native-logger';
-import { Audio } from 'expo-av'; // Import for playing audio on native
-import { useState } from 'react';
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { AudioRecording, useAudioRecorder } from '@siteed/expo-audio-stream'
+import { getLogger } from '@siteed/react-native-logger'
+import { Audio } from 'expo-av' // Import for playing audio on native
+import { useEffect, useState } from 'react'
+import { Button, Platform, StyleSheet, Text, View } from 'react-native'
 
 const STOP_BUTTON_COLOR = 'red'
 
-const logger = getLogger("MinimalApp")
+const logger = getLogger('MinimalApp')
+
+const isNewArchitecture = (): boolean => {
+    if (Platform.OS !== 'web') {
+        //@ts-ignore
+        return !!global.__turboModuleProxy
+    }
+    return false
+}
 
 const styles = StyleSheet.create({
     container: {
@@ -35,13 +40,16 @@ export default function App() {
     } = useAudioRecorder({
         debug: true,
     })
-    const [audioResult, setAudioResult] = useState<AudioRecording | null>(
-        null
-    )
+    const [audioResult, setAudioResult] = useState<AudioRecording | null>(null)
     const [, setSound] = useState<Audio.Sound | null>(null) // State for audio playback on native
 
-    logger.info("App started")
+    logger.info('App started')
+    const [usingNewArchitecture, setUsingNewArchitecture] =
+        useState<boolean>(false)
 
+    useEffect(() => {
+        setUsingNewArchitecture(isNewArchitecture())
+    }, [])
     const handleStart = async () => {
         const startResult = await startRecording({
             interval: 500,
@@ -108,6 +116,11 @@ export default function App() {
 
     return (
         <>
+            <Text>
+                {usingNewArchitecture
+                    ? 'Using New Architecture'
+                    : 'Using Old Architecture'}
+            </Text>
             {isRecording
                 ? renderRecording()
                 : isPaused
