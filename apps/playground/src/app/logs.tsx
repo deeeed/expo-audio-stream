@@ -3,7 +3,13 @@ import { clearLogs, getLogs } from '@siteed/react-native-logger'
 import * as Clipboard from 'expo-clipboard'
 import { useFocusEffect } from 'expo-router'
 import React, { useCallback, useMemo, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import {
+    FlatList,
+    ListRenderItemInfo,
+    StyleSheet,
+    Text,
+    View,
+} from 'react-native'
 
 export interface LogViewerProps {}
 
@@ -43,21 +49,27 @@ export const LogViewer = (_: LogViewerProps) => {
         }, [handleRefresh])
     )
 
+    const renderItem = ({ item }: ListRenderItemInfo<(typeof logs)[0]>) => (
+        <View style={styles.logEntry}>
+            <View>
+                <Text style={styles.timestamp}>
+                    {new Date(item.timestamp).toLocaleTimeString()}
+                </Text>
+                <Text style={styles.context}>{item.namespace}</Text>
+            </View>
+            <Text style={styles.message}>{item.message}</Text>
+        </View>
+    )
+
     return (
         <View style={styles.container}>
-            <ScrollView style={styles.viewer}>
-                {logs.map((log, index) => (
-                    <View key={index} style={styles.logEntry}>
-                        <View>
-                            <Text
-                                style={styles.timestamp}
-                            >{`${new Date(log.timestamp).toLocaleTimeString()}`}</Text>
-                            <Text style={styles.context}>{log.namespace}</Text>
-                        </View>
-                        <Text style={styles.message}>{log.message}</Text>
-                    </View>
-                ))}
-            </ScrollView>
+            <FlatList
+                data={logs}
+                renderItem={renderItem}
+                keyExtractor={(item, index) => `${index}-${item.timestamp}`}
+                style={styles.viewer}
+                initialNumToRender={20} // Adjust based on performance requirements
+            />
             <Button mode="outlined" onPress={handleCopy}>
                 Copy
             </Button>
