@@ -20,4 +20,3 @@ export const getLogger = (tag: string): ConsoleLike => {
         warn: (...args: unknown[]) => baseLogger.warn(...(args as [unknown])),
     }
 }
-
