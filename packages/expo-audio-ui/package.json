@@ -83,6 +83,6 @@
         "registry": "https://registry.npmjs.org/"
     },
     "dependencies": {
-        "@siteed/react-native-logger": "^0.8.2"
+        "@siteed/react-native-logger": "^0.9.3"
     }
 }
