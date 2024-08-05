@@ -83,9 +83,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.deeeed.minimal'
+    namespace 'net.siteed.audiominimal'
     defaultConfig {
-        applicationId 'com.deeeed.minimal'
+        applicationId 'net.siteed.audiominimal'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

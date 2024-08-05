@@ -1,4 +1,4 @@
-package com.deeeed.minimal
+package net.siteed.audiominimal
 
 import android.app.Application
 import android.content.res.Configuration
