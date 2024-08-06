@@ -12,6 +12,7 @@ import {
     extractAudioAnalysis,
     getWavFileInfo,
     TranscriberData,
+    WavFileInfo,
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
@@ -260,6 +261,10 @@ export const PlayPage = () => {
     }, [audioUri, sound])
 
     const saveToFiles = useCallback(async () => {
+        let wavMetadata: WavFileInfo | undefined
+        let audioBuffer: Float32Array | undefined
+        let arrayBuffer: ArrayBuffer | undefined
+
         if (!fileName || !audioUri) {
             show({ type: 'error', message: 'No file to save' })
             return
@@ -275,19 +280,26 @@ export const PlayPage = () => {
             return
         }
 
-        // Fetch the audio file as an ArrayBuffer
-        const response = await fetch(audioUri)
-        const arrayBuffer = await response.arrayBuffer()
+        try {
+            // Fetch the audio file as an ArrayBuffer
+            const response = await fetch(audioUri)
+            arrayBuffer = await response.arrayBuffer()
 
-        // Decode the audio file to get metadata
-        const wavMetadata = await getWavFileInfo(arrayBuffer)
+            // Decode the audio file to get metadata
+            wavMetadata = await getWavFileInfo(arrayBuffer)
 
-        // Convert PCM to Float32Array
-        const { pcmValues: audioBuffer } = await convertPCMToFloat32({
-            buffer: arrayBuffer,
-            bitDepth: wavMetadata.bitDepth,
-            skipWavHeader: false,
-        })
+            // Convert PCM to Float32Array
+            const { pcmValues } = await convertPCMToFloat32({
+                buffer: arrayBuffer,
+                bitDepth: wavMetadata.bitDepth,
+                skipWavHeader: false,
+            })
+            audioBuffer = pcmValues
+        } catch (error) {
+            logger.error('Error saving file to files:', error)
+            show({ type: 'error', message: 'Error saving file' })
+            return
+        }
 
         logger.info(`saveTofiles wavMetadata:`, wavMetadata)
         // Auto copy to local files
@@ -295,7 +307,6 @@ export const PlayPage = () => {
             fileUri: destination,
             filename: fileName,
             mimeType: 'audio/wav',
-            wavPCMData: audioBuffer,
             size: arrayBuffer.byteLength,
             durationMs: wavMetadata.durationMs,
             sampleRate: wavMetadata.sampleRate,
@@ -303,13 +314,15 @@ export const PlayPage = () => {
             bitDepth: wavMetadata.bitDepth,
         }
 
-        if (transcript) {
-            audioResult.transcripts = [transcript]
-        }
-
-        logger.log('Saving file to files:', audioResult)
         try {
+            if (transcript) {
+                audioResult.transcripts = [transcript]
+            }
+
+            logger.log('Saving file to files:', audioResult)
+
             if (isWeb) {
+                audioResult.wavPCMData = audioBuffer
                 // Store the audio file and metadata in IndexedDB
                 await storeAudioFile({
                     fileName: audioResult.fileUri,
