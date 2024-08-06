@@ -1,11 +1,11 @@
 import '@expo/metro-runtime'
 import { LoadSkiaWeb } from '@shopify/react-native-skia/lib/module/web'
-import { enable } from '@siteed/react-native-logger'
+import { setLoggerConfig } from '@siteed/react-native-logger'
 import { version as SkiaVersion } from 'canvaskit-wasm/package.json'
 import { App } from 'expo-router/build/qualified-entry'
 import { renderRootComponent } from 'expo-router/build/renderRootComponent'
 
-enable('*')
+setLoggerConfig({ namespaces: '*' })
 
 LoadSkiaWeb({
     locateFile: (path) => {

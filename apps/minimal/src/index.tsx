@@ -1,4 +1,4 @@
 import 'expo-router/entry'
-import { enable } from '@siteed/react-native-logger'
+import { setLoggerConfig } from '@siteed/react-native-logger'
 
-enable('*')
+setLoggerConfig({ namespaces: '*' })
