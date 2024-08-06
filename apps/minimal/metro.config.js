@@ -83,7 +83,7 @@ config.resolver = {
                     monorepoRoot + '/packages/expo-audio-stream/src/index.ts',
                 type: 'sourceFile',
             }
-        } 
+        }
         // Ensure you call the default resolver.
         return context.resolveRequest(context, moduleName, platform)
     },

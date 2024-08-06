@@ -51,10 +51,17 @@ playground/vendor/
 
 # node.js
 #
-node_modules/
-npm-debug.log
-yarn-debug.log
-yarn-error.log
+**/node_modules/
+**/npm-debug.log
+**/yarn-debug.log
+**/yarn-error.log
 
 # Expo
 .expo/*
+
+# Yarn cache
+**/.yarn/cache/
+**/.yarn/unplugged/
+**/.yarn/build-state.yml
+**/.yarn/install-state.gz
+**/.pnp.*

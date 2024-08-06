@@ -14,14 +14,14 @@
         },
         "ios": {
             "supportsTablet": true,
-            "bundleIdentifier": "com.deeeed.minimal"
+            "bundleIdentifier": "net.siteed.audiominimal"
         },
         "android": {
             "adaptiveIcon": {
                 "foregroundImage": "./assets/images/adaptive-icon.png",
                 "backgroundColor": "#ffffff"
             },
-            "package": "com.deeeed.minimal"
+            "package": "net.siteed.audiominimal"
         },
         "web": {
             "bundler": "metro",
@@ -30,6 +30,17 @@
         },
         "plugins": [
             "expo-router",
+            [
+                "expo-build-properties",
+                {
+                    "ios": {
+                        "newArchEnabled": true,
+                    },
+                    "android": {
+                        "newArchEnabled": true,
+                    }
+                }
+            ],
             "../../packages/expo-audio-stream/app.plugin.js"
         ],
         "experiments": {

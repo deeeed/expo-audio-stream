@@ -56,13 +56,53 @@ class AudioProcessor(private val filesDir: File) {
                 return null
             }
 
-            val header = fileData.sliceArray(0 until Constants.WAV_HEADER_SIZE)
-            val sampleRate = byteArrayToInt(header.sliceArray(24..27))
-            val channels = byteArrayToShort(header.sliceArray(22..23))
-            val bitDepth = byteArrayToShort(header.sliceArray(34..35))
+            // Read the WAV header
+            val riffHeader = String(fileData.sliceArray(0..3))
+            if (riffHeader != "RIFF") {
+                Log.e("AudioProcessor", "Invalid RIFF header")
+                return null
+            }
+
+            val format = String(fileData.sliceArray(8..11))
+            if (format != "WAVE") {
+                Log.e("AudioProcessor", "Invalid WAVE format")
+                return null
+            }
+
+            var offset = 12
+            var dataSize = 0
+            var sampleRate = 0
+            var channels = 0
+            var bitDepth = 0
+
+            // Parse chunks until we find the 'data' chunk
+            while (offset < fileData.size - 8) {
+                val chunkId = String(fileData.sliceArray(offset until offset + 4))
+                val chunkSize = ByteBuffer.wrap(fileData.sliceArray(offset + 4 until offset + 8)).order(ByteOrder.LITTLE_ENDIAN).int
+
+                when (chunkId) {
+                    "fmt " -> {
+                        channels = ByteBuffer.wrap(fileData.sliceArray(offset + 10 until offset + 12)).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+                        sampleRate = ByteBuffer.wrap(fileData.sliceArray(offset + 12 until offset + 16)).order(ByteOrder.LITTLE_ENDIAN).int
+                        bitDepth = ByteBuffer.wrap(fileData.sliceArray(offset + 22 until offset + 24)).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+                    }
+                    "data" -> {
+                        dataSize = chunkSize
+                        offset += 8 // Skip chunk ID and size
+                        break
+                    }
+                }
+
+                offset += chunkSize + 8 // Move to the next chunk
+            }
+
+            if (dataSize == 0) {
+                Log.e("AudioProcessor", "No data chunk found in WAV file")
+                return null
+            }
 
             val audioData = if (skipWavHeader) {
-                fileData.sliceArray(Constants.WAV_HEADER_SIZE until fileData.size)
+                fileData.sliceArray(offset until offset + dataSize)
             } else {
                 fileData
             }
@@ -158,8 +198,8 @@ class AudioProcessor(private val filesDir: File) {
                 val rms = features.rms
                 val silent = rms < 0.01
                 val dB = if (featureOptions["dB"] == true) 20 * log10(rms.toDouble()).toFloat() else 0f
-                minAmplitude = min(minAmplitude, rms)
-                maxAmplitude = max(maxAmplitude, rms)
+                minAmplitude = min(minAmplitude, localMinAmplitude)
+                maxAmplitude = max(maxAmplitude, localMaxAmplitude)
 
                 val bytesPerSample = bitDepth / 8
                 val startPosition = start * bytesPerSample * config.channels

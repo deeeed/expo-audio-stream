@@ -28,7 +28,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>myapp</string>
-          <string>com.deeeed.minimal</string>
+          <string>net.siteed.audiominimal</string>
         </array>
       </dict>
     </array>

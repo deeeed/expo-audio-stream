@@ -225,6 +225,41 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         Function("clearAudioFiles") {
             clearAudioFiles()
         }
+        
+        
+        /// Requests audio recording permissions.
+        ///
+        /// - Parameters:
+        ///   - promise: A promise to resolve with the permission status or reject with an error.
+        /// - Returns: Promise to be resolved with the permission status.
+        AsyncFunction("requestPermissionsAsync") { (promise: Promise) in
+            AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                if granted {
+                    promise.resolve(["status": "granted"])
+                } else {
+                    promise.resolve(["status": "denied"])
+                }
+            }
+        }
+        
+        /// Gets the current audio recording permissions.
+        ///
+        /// - Parameters:
+        ///   - promise: A promise to resolve with the permission status or reject with an error.
+        /// - Returns: Promise to be resolved with the permission status.
+        AsyncFunction("getPermissionsAsync") { (promise: Promise) in
+            let permissionStatus = AVAudioSession.sharedInstance().recordPermission
+            switch permissionStatus {
+            case .granted:
+                promise.resolve(["status": "granted"])
+            case .denied:
+                promise.resolve(["status": "denied"])
+            case .undetermined:
+                promise.resolve(["status": "undetermined"])
+            @unknown default:
+                promise.reject("UNKNOWN_ERROR", "Unknown permission status")
+            }
+        }
     }
     
     /// Handles the reception of audio data from the AudioStreamManager.
