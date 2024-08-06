@@ -1,6 +1,6 @@
 {
     "name": "@siteed/expo-audio-stream",
-    "version": "1.1.5",
+    "version": "1.1.6",
     "description": "stream audio crossplatform",
     "license": "MIT",
     "main": "build/index.js",
@@ -20,26 +20,6 @@
         "expo",
         "expo-audio-stream",
         "ExpoAudioStream"
-    ],
-    "files": [
-        "android",
-        "ios",
-        "cpp",
-        "build",
-        "generated",
-        "README.md",
-        "package.json",
-        "*.podspec",
-        "!ios/build",
-        "!android/build",
-        "!android/gradle",
-        "!android/gradlew",
-        "!android/gradlew.bat",
-        "!android/local.properties",
-        "!**/__tests__",
-        "!**/__fixtures__",
-        "!**/__mocks__",
-        "!**/.*"
     ],
     "scripts": {
         "build": "expo-module build",
