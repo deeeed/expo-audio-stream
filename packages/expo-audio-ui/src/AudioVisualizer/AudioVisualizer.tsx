@@ -436,10 +436,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                     <Button onPress={handleReset} title="Reset" />
                 </View>
             )}
-            <View>
-                <Text>minAmplitude: {audioData.amplitudeRange.min}</Text>
-                <Text>maxAmplitude: {audioData.amplitudeRange.max}</Text>
-            </View>
             <GestureHandler
                 playing={playing}
                 mode={mode}
