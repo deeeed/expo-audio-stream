@@ -35,16 +35,19 @@ Make sure to run `npx expo prebuild` after adding the plugin to your app.json fi
 To request microphone permissions in your Expo project, you can use the following method:
 
 ```tsx
-import { Audio } from 'expo-av';
+import {
+    ExpoAudioStreamModule,
+} from '@siteed/expo-audio-stream'
 
 const requestPermissions = async () => {
-    const { granted } = await Audio.requestPermissionsAsync();
+    const { granted } =
+        await ExpoAudioStreamModule.requestPermissionsAsync()
     if (granted) {
-        console.log('Microphone permissions granted');
+        console.log('Microphone permissions granted')
     } else {
-        console.log('Microphone permissions denied');
+        console.log('Microphone permissions denied')
     }
-};
+}
 
 requestPermissions();
 ```

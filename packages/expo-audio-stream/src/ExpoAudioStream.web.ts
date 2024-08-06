@@ -12,7 +12,6 @@ import {
 import { WebRecorder } from './WebRecorder.web'
 import { AudioEventPayload } from './events'
 import { getLogger } from './logger'
-import { concatenateBuffers } from './utils/concatenateBuffers'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
 import { writeWavHeader } from './utils/writeWavHeader'
 

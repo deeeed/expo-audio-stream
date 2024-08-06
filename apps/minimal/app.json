@@ -14,7 +14,7 @@
         },
         "ios": {
             "supportsTablet": true,
-            "bundleIdentifier": "net.sieted.audiominimal"
+            "bundleIdentifier": "net.siteed.audiominimal"
         },
         "android": {
             "adaptiveIcon": {
