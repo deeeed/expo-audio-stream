@@ -202,12 +202,14 @@ public class AudioProcessor {
             updateSegmentData(channelData: channelData, index: i, sumSquares: &sumSquares, zeroCrossings: &zeroCrossings, prevValue: &prevValue, localMinAmplitude: &localMinAmplitude, localMaxAmplitude: &localMaxAmplitude, segmentData: &segmentData)
             
             if (i + 1) % pointInterval == 0 || i == length - 1 {
-                let features = computeFeatures(segmentData: segmentData, sampleRate: sampleRate, sumSquares: sumSquares, zeroCrossings: zeroCrossings, segmentLength: (i % pointInterval) + 1, featureOptions: featureOptions)
+                var features = computeFeatures(segmentData: segmentData, sampleRate: sampleRate, sumSquares: sumSquares, zeroCrossings: zeroCrossings, segmentLength: (i % pointInterval) + 1, featureOptions: featureOptions)
+                features.minAmplitude = localMinAmplitude
+                features.maxAmplitude = localMaxAmplitude
                 let rms = features.rms
                 let silent = rms < 0.01
                 let dB = featureOptions["dB"] == true ? 20 * log10(rms) : 0
-                minAmplitude = min(minAmplitude, rms)
-                maxAmplitude = max(maxAmplitude, rms)
+                minAmplitude = min(minAmplitude, localMinAmplitude)
+                maxAmplitude = max(maxAmplitude, localMaxAmplitude)
                 
                 let segmentSize = segmentData.count
                 let segmentDuration = Float(segmentSize) / sampleRate
@@ -294,8 +296,8 @@ public class AudioProcessor {
             energy: energy,
             mfcc: mfcc,
             rms: rms,
-            minAmplitude: 0,
-            maxAmplitude: 0,
+            minAmplitude: 0, // computed before and will be overwritten
+            maxAmplitude: 0, // computed before and will be overwritten
             zcr: zcr,
             spectralCentroid: spectralCentroid,
             spectralFlatness: spectralFlatness,

@@ -49,14 +49,14 @@ class ExpoAudioStreamModule() : Module(), EventSender {
         AsyncFunction("extractAudioAnalysis") { options: Map<String, Any>, promise: Promise ->
             val fileUri = options["fileUri"] as? String
             val pointsPerSecond =  (options["pointsPerSecond"] as? Double) ?: 20.0
-            val algorithm = options["algorithm"] as? String ?: "rms"
+            val algorithm = options["algorithm"] as? String ?: "peak"
             val featuresMap = options["features"] as? Map<*, *>
             val features = featuresMap?.filterKeys { it is String }
                 ?.filterValues { it is Boolean }
                 ?.mapKeys { it.key as String }
                 ?.mapValues { it.value as Boolean }
                 ?: emptyMap()
-            val skipWavHeader = (options["skipWavHeader"] as? Boolean) ?: false
+            val skipWavHeader = (options["skipWavHeader"] as? Boolean) ?: true
 
             if (fileUri == null) {
                 promise.reject("INVALID_ARGUMENTS", "fileUri is required", null)
