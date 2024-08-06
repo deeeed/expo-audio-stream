@@ -78,3 +78,16 @@ export interface RecordingConfig {
     onAudioStream?: (_: AudioDataEvent) => Promise<void> // Callback function to handle audio stream
     onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void> // Callback function to handle audio features extraction results
 }
+
+
+export interface UseAudioRecorderState {
+    startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
+    stopRecording: () => Promise<AudioRecording | null>
+    pauseRecording: () => void
+    resumeRecording: () => void
+    isRecording: boolean
+    isPaused: boolean
+    durationMs: number // Duration of the recording
+    size: number // Size in bytes of the recorded audio
+    analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
+}
