@@ -5,7 +5,7 @@
     "scripts": {
         "start": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --dev-client --port 7365",
         "android": "NODE_ENV=development expo run:android --port 7365",
-        "ios": "NODE_ENV=development expo run:ios --device --port 7365",
+        "ios": "RCT_METRO_PORT=7365 NODE_ENV=development expo run:ios --device --port 7365",
         "web": "NODE_ENV=development expo start --web --port 7365 --dev-client",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "lint": "eslint src",

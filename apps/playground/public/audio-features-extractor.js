@@ -25,7 +25,7 @@ self.onmessage = function (event) {
     const ZCR_THRESHOLD = 0.1
 
     // Placeholder functions for feature extraction
-    const extractMFCC = (segmentData, sampleRate) => {
+    const extractMFCC = (_segmentData, _sampleRate) => {
         // Implement MFCC extraction logic here
         return []
     }
@@ -85,7 +85,7 @@ self.onmessage = function (event) {
         return Math.sqrt(weightedSum / sum)
     }
 
-    const extractChromagram = (segmentData, sampleRate) => {
+    const extractChromagram = (_segmentData, _sampleRate) => {
         return [] // TODO implement
     }
 
@@ -254,7 +254,10 @@ self.onmessage = function (event) {
                 : []
             const hnr = features.hnr ? extractHNR(segmentData) : 0
 
-            const peakAmp = Math.max(Math.abs(localMaxAmplitude), Math.abs(localMinAmplitude))
+            const peakAmp = Math.max(
+                Math.abs(localMaxAmplitude),
+                Math.abs(localMinAmplitude)
+            )
             const newData = {
                 id: uniqueIdCounter++, // Assign unique ID and increment the counter
                 amplitude: algorithm === 'peak' ? peakAmp : rms,
@@ -267,7 +270,7 @@ self.onmessage = function (event) {
                     minAmplitude: localMinAmplitude,
                     maxAmplitude: localMaxAmplitude,
                     zcr,
-                    mfcc: [], // Placeholder for MFCC features
+                    mfcc, // Placeholder for MFCC features
                     spectralCentroid, // Computed spectral centroid
                     spectralFlatness, // Computed spectral flatness
                     spectralRollOff, // Computed spectral roll-off
