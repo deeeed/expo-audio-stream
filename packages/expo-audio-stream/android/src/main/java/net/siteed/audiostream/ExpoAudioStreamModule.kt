@@ -1,5 +1,6 @@
 package net.siteed.audiostream
 
+import android.Manifest
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -7,6 +8,7 @@ import androidx.annotation.RequiresApi
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.interfaces.permissions.Permissions
 
 class ExpoAudioStreamModule() : Module(), EventSender {
     private lateinit var audioRecorderManager: AudioRecorderManager
@@ -43,7 +45,6 @@ class ExpoAudioStreamModule() : Module(), EventSender {
         AsyncFunction("pauseRecording") { promise: Promise ->
             audioRecorderManager.pauseRecording(promise)
         }
-
 
         AsyncFunction("extractAudioAnalysis") { options: Map<String, Any>, promise: Promise ->
             val fileUri = options["fileUri"] as? String
@@ -93,6 +94,14 @@ class ExpoAudioStreamModule() : Module(), EventSender {
 
         AsyncFunction("stopRecording") { promise: Promise ->
             audioRecorderManager.stopRecording(promise)
+        }
+
+        AsyncFunction("requestPermissionsAsync") { promise: Promise ->
+            Permissions.askForPermissionsWithPermissionsManager(appContext.permissions, promise, Manifest.permission.RECORD_AUDIO)
+        }
+
+        AsyncFunction("getPermissionsAsync") { promise: Promise ->
+            Permissions.getPermissionsWithPermissionsManager(appContext.permissions, promise, Manifest.permission.RECORD_AUDIO)
         }
     }
 
