@@ -15,6 +15,13 @@
     <a href="https://deeeed.github.io/expo-audio-stream/playground/">
       <img src="../../docs/demo.gif" alt="Screenshot Playground">
     </a>
+    <br/><br/>
+    <a href="https://deeeed.github.io/expo-audio-stream/playground" style="text-decoration:none;">
+      <div style="display:inline-block; padding:10px 20px; background-color:#007bff; color:white; border-radius:5px; font-size:16px;">
+        Try it out
+      </div>
+    </a>
+    <br/>
   </h2>
 </div>
 
