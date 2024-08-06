@@ -14,7 +14,7 @@ module.exports = {
         'plugin:react/recommended',
         'prettier',
     ],
-    ignorePatterns: ['build'],
+    ignorePatterns: ['build', 'node_modules', 'dist', 'coverage'],
     parser: '@typescript-eslint/parser',
     parserOptions: {
         ecmaVersion: 'latest',
@@ -23,7 +23,7 @@ module.exports = {
         tsconfigRootDir: __dirname,
         project: './tsconfig.eslint.json',
     },
-    plugins: ['@typescript-eslint', 'prettier'],
+    plugins: ['@typescript-eslint', 'prettier', 'promise'],
     rules: {
         // suppress errors for missing 'import React' in files
         'react/react-in-jsx-scope': 'off',
@@ -39,5 +39,7 @@ module.exports = {
                 ignoreRestSiblings: true,
             },
         ],
+        'promise/catch-or-return': 'error',
+        'promise/always-return': 'error',
     },
 }
