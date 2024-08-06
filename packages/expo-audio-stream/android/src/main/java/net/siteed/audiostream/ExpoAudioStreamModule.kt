@@ -1,5 +1,6 @@
 package net.siteed.audiostream
 
+import android.Manifest
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -7,6 +8,7 @@ import androidx.annotation.RequiresApi
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.interfaces.permissions.Permissions
 
 class ExpoAudioStreamModule() : Module(), EventSender {
     private lateinit var audioRecorderManager: AudioRecorderManager
@@ -44,18 +46,17 @@ class ExpoAudioStreamModule() : Module(), EventSender {
             audioRecorderManager.pauseRecording(promise)
         }
 
-
         AsyncFunction("extractAudioAnalysis") { options: Map<String, Any>, promise: Promise ->
             val fileUri = options["fileUri"] as? String
             val pointsPerSecond =  (options["pointsPerSecond"] as? Double) ?: 20.0
-            val algorithm = options["algorithm"] as? String ?: "rms"
+            val algorithm = options["algorithm"] as? String ?: "peak"
             val featuresMap = options["features"] as? Map<*, *>
             val features = featuresMap?.filterKeys { it is String }
                 ?.filterValues { it is Boolean }
                 ?.mapKeys { it.key as String }
                 ?.mapValues { it.value as Boolean }
                 ?: emptyMap()
-            val skipWavHeader = (options["skipWavHeader"] as? Boolean) ?: false
+            val skipWavHeader = (options["skipWavHeader"] as? Boolean) ?: true
 
             if (fileUri == null) {
                 promise.reject("INVALID_ARGUMENTS", "fileUri is required", null)
@@ -93,6 +94,14 @@ class ExpoAudioStreamModule() : Module(), EventSender {
 
         AsyncFunction("stopRecording") { promise: Promise ->
             audioRecorderManager.stopRecording(promise)
+        }
+
+        AsyncFunction("requestPermissionsAsync") { promise: Promise ->
+            Permissions.askForPermissionsWithPermissionsManager(appContext.permissions, promise, Manifest.permission.RECORD_AUDIO)
+        }
+
+        AsyncFunction("getPermissionsAsync") { promise: Promise ->
+            Permissions.getPermissionsWithPermissionsManager(appContext.permissions, promise, Manifest.permission.RECORD_AUDIO)
         }
     }
 

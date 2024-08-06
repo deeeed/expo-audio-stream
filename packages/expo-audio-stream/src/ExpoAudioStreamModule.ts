@@ -12,12 +12,18 @@ let ExpoAudioStreamModule: any
 if (Platform.OS === 'web') {
     let instance: ExpoAudioStreamWeb | null = null
 
-    ExpoAudioStreamModule = ((webProps: ExpoAudioStreamWebProps) => {
+    ExpoAudioStreamModule = (webProps: ExpoAudioStreamWebProps) => {
         if (!instance) {
             instance = new ExpoAudioStreamWeb(webProps)
         }
         return instance
-    })
+    }
+    ExpoAudioStreamModule.requestPermissionsAsync = async () => {
+        return { status: 'granted' }
+    }
+    ExpoAudioStreamModule.getPermissionsAsync = async () => {
+        return { status: 'granted' }
+    }
 } else {
     ExpoAudioStreamModule = requireNativeModule('ExpoAudioStream')
 }
