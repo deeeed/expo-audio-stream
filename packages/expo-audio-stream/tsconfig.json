@@ -3,8 +3,8 @@
     "compilerOptions": {
         "outDir": "./build",
         "types": ["jest", "node"],
+        "sourceMap": true,
         "typeRoots": [
-            "./ts-declarations",
             "./node_modules/@types",
             "../../node_modules/@types",
         ],
