@@ -6,7 +6,7 @@
     "main": "build/index.js",
     "types": "build/index.d.ts",
     "author": "Arthur Breton <abreton@siteed.net> (https://github.com/deeeed)",
-    "homepage": "https://github.com/deeeed/expo-audio-stream#readme",
+    "homepage": "https://github.com/deeeed/expo-audio-stream/blob/main/packages/expo-audio-stream/README.md",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/deeeed/expo-audio-stream.git",
