@@ -92,7 +92,6 @@
         "registry": "https://registry.npmjs.org"
     },
     "dependencies": {
-        "@siteed/react-native-logger": "^0.9.3",
-        "rncpp": "workspace:^"
+        "@siteed/react-native-logger": "^0.9.3"
     }
 }

@@ -29,6 +29,11 @@ export const writeWavHeader = ({
     const existingHeader = view.getUint32(0, false) === 0x52494646 // "RIFF" in ASCII
 
     if (!existingHeader) {
+        // Ensure the buffer is large enough for the WAV header
+        if (buffer.byteLength < 44) {
+            throw new Error('Buffer is too small to contain a valid WAV header')
+        }
+
         // Write the WAV header
         writeString(view, 0, 'RIFF') // ChunkID
         view.setUint32(4, 36 + numSamples * blockAlign, true) // ChunkSize
