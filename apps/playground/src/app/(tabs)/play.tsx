@@ -38,9 +38,16 @@ const getStyles = () => {
         actionsContainer: {
             gap: 10,
             flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'center', // Ensures proper alignment
         },
         audioPlayer: {},
         button: {},
+        labelSwitchContainer: {
+            margin: 0,
+            padding: 10,
+            flexShrink: 1, // Ensures label switch can shrink to fit space
+        },
     })
 }
 
@@ -370,7 +377,7 @@ export const PlayPage = () => {
                     Select Audio File
                 </Button>
                 {isWeb && (
-                    <>
+                    <View style={styles.actionsContainer}>
                         <Button
                             mode="contained"
                             onPress={async () => {
@@ -392,14 +399,10 @@ export const PlayPage = () => {
                         <LabelSwitch
                             label="Transcription"
                             value={enableTranscription}
-                            containerStyle={{
-                                backgroundColor: 'white',
-                                margin: 0,
-                                padding: 10,
-                            }}
+                            containerStyle={styles.labelSwitchContainer}
                             onValueChange={setEnableTranscription}
                         />
-                    </>
+                    </View>
                 )}
             </View>
             {processing && <ActivityIndicator size="large" />}
