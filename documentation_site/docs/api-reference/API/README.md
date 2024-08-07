@@ -17,7 +17,9 @@
 - [RecordingConfig](interfaces/RecordingConfig.md)
 - [StartRecordingResult](interfaces/StartRecordingResult.md)
 - [TranscriberData](interfaces/TranscriberData.md)
+- [UseAudioRecorderState](interfaces/UseAudioRecorderState.md)
 - [WavFileInfo](interfaces/WavFileInfo.md)
+- [WavHeaderOptions](interfaces/WavHeaderOptions.md)
 
 ## Type Aliases
 
@@ -28,6 +30,7 @@
 
 ## Variables
 
+- [ExpoAudioStreamModule](variables/ExpoAudioStreamModule.md)
 - [WAV\_HEADER\_SIZE](variables/WAV_HEADER_SIZE.md)
 
 ## Functions
