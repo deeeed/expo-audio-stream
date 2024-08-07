@@ -5234,7 +5234,7 @@ __metadata:
   resolution: "@siteed/expo-audio-stream@workspace:packages/expo-audio-stream"
   dependencies:
     "@expo/config-plugins": "npm:^7.9.1"
-    "@siteed/react-native-logger": "npm:^0.9.3"
+    "@siteed/react-native-logger": "npm:^0.10.0"
     "@size-limit/preset-big-lib": "npm:^11.1.4"
     "@types/jest": "npm:^29.5.12"
     "@types/node": "npm:^20.12.7"
@@ -5259,6 +5259,7 @@ __metadata:
     typedoc-plugin-markdown: "npm:^4.2.3"
     typescript: "npm:^5.5.4"
   peerDependencies:
+    "@siteed/react-native-logger": "*"
     expo: "*"
     react: "*"
     react-native: "*"
@@ -5281,7 +5282,7 @@ __metadata:
     "@rollup/plugin-typescript": "npm:^11.1.6"
     "@rollup/plugin-url": "npm:^8.0.2"
     "@shopify/react-native-skia": "npm:1.2.3"
-    "@siteed/react-native-logger": "npm:^0.9.3"
+    "@siteed/react-native-logger": "npm:^0.10.0"
     "@size-limit/preset-big-lib": "npm:^11.1.4"
     "@types/babel__core": "npm:^7"
     "@types/babel__preset-env": "npm:^7"
@@ -5310,10 +5311,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@siteed/react-native-logger@npm:^0.9.3":
-  version: 0.9.3
-  resolution: "@siteed/react-native-logger@npm:0.9.3"
-  checksum: 10/51a1588b7a094422102210c251d3158b30a52939b53c95f78f509a791efdc8f5648c7ace1661e913ae4bfcfc45d5c87a9cd94644b1008bbbcbc6cc329f04205b
+"@siteed/react-native-logger@npm:^0.10.0":
+  version: 0.10.0
+  resolution: "@siteed/react-native-logger@npm:0.10.0"
+  checksum: 10/a21022f359fce2a1209d0fabb4b66d296b4db00ac0313ec163a2ec06532fd880a4b6e3b3197bffa1419f888a61618c851f27b022362767b1c9f202d3089f96aa
   languageName: node
   linkType: hard
 
@@ -7508,7 +7509,7 @@ __metadata:
     "@siteed/design-system": "npm:^0.9.0"
     "@siteed/expo-audio-stream": "workspace:^"
     "@siteed/expo-audio-ui": "workspace:^"
-    "@siteed/react-native-logger": "npm:^0.9.3"
+    "@siteed/react-native-logger": "npm:^0.10.0"
     "@types/gh-pages": "npm:^6"
     "@types/is-base64": "npm:^1.1.3"
     "@types/lodash": "npm:^4"
@@ -17892,7 +17893,7 @@ __metadata:
     "@react-navigation/native": "npm:^6.0.2"
     "@siteed/expo-audio-stream": "workspace:^"
     "@siteed/expo-audio-ui": "workspace:^"
-    "@siteed/react-native-logger": "npm:^0.9.3"
+    "@siteed/react-native-logger": "npm:^0.10.0"
     "@types/jest": "npm:^29.5.12"
     "@types/react": "npm:~18.2.45"
     "@types/react-test-renderer": "npm:^18.0.7"
