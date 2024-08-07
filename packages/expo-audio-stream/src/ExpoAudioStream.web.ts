@@ -13,7 +13,7 @@ import { WebRecorder } from './WebRecorder.web'
 import { AudioEventPayload } from './events'
 import { getLogger } from './logger'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
-import { writeWavHeader } from './utils/writeWavHeader'
+import { WavHeaderOptions, writeWavHeader } from './utils/writeWavHeader'
 
 export interface EmitAudioEventProps {
     data: Float32Array
@@ -184,7 +184,8 @@ export class ExpoAudioStreamWeb extends EventEmitter {
         this.isRecording = false
         this.currentDurationMs = Date.now() - this.recordingStartTime
 
-        const wavConfig = {
+        // Rewrite wav header with correct data size
+        const wavConfig: WavHeaderOptions = {
             buffer: fullPcmBufferArray.buffer,
             sampleRate: this.recordingConfig?.sampleRate ?? 44100,
             numChannels: this.recordingConfig?.channels ?? 1,
