@@ -7,7 +7,7 @@ import {
 } from './ExpoAudioStream.web'
 import { getLogger } from './logger'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
-import { WavHeaderOptions, writeWavHeader } from './utils/writeWavHeader'
+import { writeWavHeader } from './utils/writeWavHeader'
 import { InlineFeaturesExtractor } from './workers/InlineFeaturesExtractor.web'
 import { InlineAudioWebWorker } from './workers/inlineAudioWebWorker.web'
 
@@ -102,6 +102,7 @@ export class WebRecorder {
             bitDepth: this.exportBitDepth,
         })
 
+        logger.debug(`WAV header length: ${wavHeader.byteLength}`, wavHeader)
         // Initialize the buffer with WAV header
         this.buffer = new Float32Array(
             wavHeader.byteLength / Float32Array.BYTES_PER_ELEMENT
