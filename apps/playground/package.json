@@ -25,7 +25,7 @@
         "@siteed/design-system": "^0.9.0",
         "@siteed/expo-audio-stream": "workspace:^",
         "@siteed/expo-audio-ui": "workspace:^",
-        "@siteed/react-native-logger": "^0.9.3",
+        "@siteed/react-native-logger": "^0.10.0",
         "@xenova/transformers": "^2.17.2",
         "buffer": "^6.0.3",
         "debug": "^4.3.4",

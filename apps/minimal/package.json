@@ -19,7 +19,7 @@
         "@react-navigation/native": "^6.0.2",
         "@siteed/expo-audio-stream": "workspace:^",
         "@siteed/expo-audio-ui": "workspace:^",
-        "@siteed/react-native-logger": "^0.9.3",
+        "@siteed/react-native-logger": "^0.10.0",
         "expo": "^51.0.24",
         "expo-av": "~14.0.6",
         "expo-build-properties": "^0.12.4",
