@@ -7,6 +7,7 @@ import {
 } from './ExpoAudioStream.web'
 import { getLogger } from './logger'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
+import { WavHeaderOptions, writeWavHeader } from './utils/writeWavHeader'
 import { InlineFeaturesExtractor } from './workers/InlineFeaturesExtractor.web'
 import { InlineAudioWebWorker } from './workers/inlineAudioWebWorker.web'
 
@@ -73,8 +74,6 @@ export class WebRecorder {
         this.emitAudioAnalysisCallback = emitAudioAnalysisCallback
         this.config = recordingConfig
         this.position = 0
-        this.bufferSize = 0
-        this.buffer = new Float32Array(0) // Initialize the buffer
 
         const audioContextFormat = this.checkAudioContextFormat({
             sampleRate: this.audioContext.sampleRate,
@@ -95,6 +94,22 @@ export class WebRecorder {
             }) ||
             audioContextFormat.bitDepth ||
             DEFAULT_WEB_BITDEPTH
+
+        // Initialize WAV header
+        const wavHeader = writeWavHeader({
+            sampleRate: this.audioContext.sampleRate,
+            numChannels: this.numberOfChannels,
+            bitDepth: this.exportBitDepth,
+        })
+
+        // Initialize the buffer with WAV header
+        this.buffer = new Float32Array(
+            wavHeader.byteLength / Float32Array.BYTES_PER_ELEMENT
+        )
+        this.bufferSize = this.buffer.byteLength
+
+        // Copy WAV header to Float32Array buffer
+        new Uint8Array(this.buffer.buffer).set(new Uint8Array(wavHeader))
 
         this.audioAnalysisData = {
             amplitudeRange: { min: 0, max: 0 },
