@@ -1,6 +1,6 @@
 {
     "name": "@siteed/expo-audio-stream",
-    "version": "1.1.7",
+    "version": "1.1.8",
     "description": "stream audio crossplatform",
     "license": "MIT",
     "main": "build/index.js",
@@ -38,6 +38,7 @@
     },
     "devDependencies": {
         "@expo/config-plugins": "^7.9.1",
+        "@siteed/react-native-logger": "^0.10.0",
         "@size-limit/preset-big-lib": "^11.1.4",
         "@types/jest": "^29.5.12",
         "@types/node": "^20.12.7",
@@ -63,6 +64,7 @@
         "typescript": "^5.5.4"
     },
     "peerDependencies": {
+        "@siteed/react-native-logger": "*",
         "expo": "*",
         "react": "*",
         "react-native": "*"
@@ -70,8 +72,5 @@
     "publishConfig": {
         "access": "public",
         "registry": "https://registry.npmjs.org"
-    },
-    "dependencies": {
-        "@siteed/react-native-logger": "^0.9.3"
     }
 }
