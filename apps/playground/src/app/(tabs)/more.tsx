@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router'
 import React, { useMemo } from 'react'
 import { Image, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
+
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
         container: {},
