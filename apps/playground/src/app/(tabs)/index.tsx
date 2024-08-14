@@ -443,11 +443,6 @@ export default function RecordScreen() {
                 <LabelSwitch
                     label="Live Transcription"
                     value={enableLiveTranscription}
-                    containerStyle={{
-                        backgroundColor: 'white',
-                        margin: 0,
-                        padding: 10,
-                    }}
                     onValueChange={setEnableLiveTranscription}
                 />
             )}

@@ -1,25 +1,47 @@
 // playground/src/app/(tabs)/files.tsx
 import {
+    AppTheme,
     Button,
     RefreshControl,
     Result,
+    ScreenWrapper,
     Skeleton,
+    useTheme,
     useToast,
 } from '@siteed/design-system'
 import { AudioRecording } from '@siteed/expo-audio-stream'
+import { getLogger } from '@siteed/react-native-logger'
 import { useFocusEffect, useRouter } from 'expo-router'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { FlatList, StyleSheet } from 'react-native'
 
+import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { formatBytes } from '../../utils/utils'
-import { AudioRecordingView } from '../../component/AudioRecordingView'
-import { getLogger } from '@siteed/react-native-logger'
 const logger = getLogger('FilesScreen')
+
+const getStyles = ({ theme }: { theme: AppTheme }) => {
+    return StyleSheet.create({
+        container: {
+            gap: 10,
+            backgroundColor: theme.colors.background,
+            justifyContent: 'center',
+            paddingTop: 10,
+            paddingBottom: 80,
+            paddingHorizontal: 20,
+        },
+        recordingContainer: {
+            gap: 10,
+            borderWidth: 1,
+        },
+    })
+}
 
 const FilesScreen = () => {
     const { show } = useToast()
     const router = useRouter()
+    const theme = useTheme()
+    const styles = useMemo(() => getStyles({ theme }), [theme])
 
     const {
         ready,
@@ -66,27 +88,16 @@ const FilesScreen = () => {
 
     if (!files || files.length === 0) {
         return (
-            <FlatList
-                data={[]}
-                contentContainerStyle={styles.container}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={false}
-                        onRefresh={refreshFiles}
-                    />
-                }
-                ListEmptyComponent={
-                    <Result
-                        title="No recordings found"
-                        status="info"
-                        buttonText="Record"
-                        onButtonPress={() => {
-                            router.push('/')
-                        }}
-                    />
-                }
-                renderItem={() => null}
-            />
+            <ScreenWrapper useInsets style={styles.container}>
+                <Result
+                    title="No recordings found"
+                    status="info"
+                    buttonText="Record"
+                    onButtonPress={() => {
+                        router.push('/')
+                    }}
+                />
+            </ScreenWrapper>
         )
     }
 
@@ -95,6 +106,7 @@ const FilesScreen = () => {
             data={files}
             keyExtractor={(item) => item.fileUri}
             contentContainerStyle={styles.container}
+            style={{ flex: 1 }}
             refreshControl={
                 <RefreshControl refreshing={false} onRefresh={refreshFiles} />
             }
@@ -121,20 +133,5 @@ const FilesScreen = () => {
         />
     )
 }
-
-const styles = StyleSheet.create({
-    container: {
-        gap: 10,
-        backgroundColor: '#fff',
-        paddingTop: 10,
-        paddingBottom: 80,
-        paddingHorizontal: 20,
-        justifyContent: 'center',
-    },
-    recordingContainer: {
-        gap: 10,
-        borderWidth: 1,
-    },
-})
 
 export default FilesScreen

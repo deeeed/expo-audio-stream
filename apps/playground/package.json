@@ -22,7 +22,7 @@
         "@react-navigation/native": "^6.1.17",
         "@shopify/react-native-skia": "1.2.3",
         "@simform_solutions/react-native-audio-waveform": "^1.0.1",
-        "@siteed/design-system": "^0.9.0",
+        "@siteed/design-system": "^0.10.2",
         "@siteed/expo-audio-stream": "workspace:^",
         "@siteed/expo-audio-ui": "workspace:^",
         "@siteed/react-native-logger": "^0.10.0",

@@ -1,5 +1,6 @@
 // playground/src/app/_layout.tsx
-import { UIProvider } from '@siteed/design-system'
+import { ThemeProvider } from '@react-navigation/native'
+import { UIProvider, useTheme } from '@siteed/design-system'
 import { AudioRecorderProvider } from '@siteed/expo-audio-stream'
 import { enabled, getLogger } from '@siteed/react-native-logger'
 import Constants from 'expo-constants'
@@ -10,12 +11,30 @@ import { config } from '../config'
 import { ApplicationContextProvider } from '../context/ApplicationProvider'
 import { AudioFilesProvider } from '../context/AudioFilesProvider'
 import { TranscriptionProvider } from '../context/TranscriptionProvider'
-
 const logger = getLogger('RootLayout')
+
+const WithUI = (_: { children?: React.ReactNode }) => {
+    const theme = useTheme()
+    return (
+        <AudioFilesProvider>
+            <ThemeProvider value={theme}>
+                <Stack
+                    screenOptions={{
+                        headerBackButtonMenuEnabled: false,
+                    }}
+                >
+                    <Stack.Screen
+                        name="(tabs)"
+                        options={{ headerShown: false }}
+                    />
+                </Stack>
+            </ThemeProvider>
+        </AudioFilesProvider>
+    )
+}
 
 export default function RootLayout() {
     const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? ''
-
     useEffect(() => {
         logger.debug(`Base URL: ${baseUrl}`)
         console.log(`Base URL: ${baseUrl}`)
@@ -42,41 +61,7 @@ export default function RootLayout() {
                             },
                         }}
                     >
-                        <AudioFilesProvider>
-                            <Stack
-                                screenOptions={{
-                                    headerBackButtonMenuEnabled: false,
-                                    // headerLeft: ({ label, canGoBack, tintColor }) => {
-                                    //   if (canGoBack) {
-                                    //     return (
-                                    //       <MaterialIcons
-                                    //         name="arrow-back-ios"
-                                    //         size={24}
-                                    //         color={tintColor}
-                                    //         onPress={() => router.back()}
-                                    //         style={{ paddingRight: 10, paddingLeft: 10 }}
-                                    //       />
-                                    //     );
-                                    //   } else {
-                                    //     return (
-                                    //       <MaterialIcons
-                                    //         name="home"
-                                    //         size={24}
-                                    //         color={tintColor}
-                                    //         onPress={() => router.navigate("/")}
-                                    //         style={{ paddingRight: 10, paddingLeft: 10 }}
-                                    //       />
-                                    //     );
-                                    //   }
-                                    // },
-                                }}
-                            >
-                                <Stack.Screen
-                                    name="(tabs)"
-                                    options={{ headerShown: false }}
-                                />
-                            </Stack>
-                        </AudioFilesProvider>
+                        <WithUI />
                     </UIProvider>
                 </AudioRecorderProvider>
             </TranscriptionProvider>
