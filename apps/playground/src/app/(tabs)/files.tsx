@@ -23,8 +23,11 @@ const logger = getLogger('FilesScreen')
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
         container: {
-            gap: 10,
+            flex: 1,
             backgroundColor: theme.colors.background,
+        },
+        contentContainer: {
+            gap: 10,
             justifyContent: 'center',
             paddingTop: 10,
             paddingBottom: 80,
@@ -105,8 +108,8 @@ const FilesScreen = () => {
         <FlatList
             data={files}
             keyExtractor={(item) => item.fileUri}
-            contentContainerStyle={styles.container}
-            style={{ flex: 1 }}
+            contentContainerStyle={styles.contentContainer}
+            style={styles.container}
             refreshControl={
                 <RefreshControl refreshing={false} onRefresh={refreshFiles} />
             }
