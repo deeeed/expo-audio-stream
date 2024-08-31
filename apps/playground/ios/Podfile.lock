@@ -10,7 +10,7 @@ PODS:
     - ExpoModulesCore
   - ExpoAsset (10.0.10):
     - ExpoModulesCore
-  - ExpoAudioStream (1.1.0):
+  - ExpoAudioStream (1.1.9):
     - ExpoModulesCore
   - ExpoClipboard (6.0.3):
     - ExpoModulesCore
@@ -1645,7 +1645,7 @@ SPEC CHECKSUMS:
   EXConstants: 409690fbfd5afea964e5e9d6c4eb2c2b59222c59
   Expo: 798848eae1daf13363d69790986146b08d0cf92f
   ExpoAsset: 323700f291684f110fb55f0d4022a3362ea9f875
-  ExpoAudioStream: bae666185559e0d97a4d5b8e2b62e31c1501236b
+  ExpoAudioStream: 1ad8a6cf0db38d0cbee9ac11d266f4d24192b135
   ExpoClipboard: 23d203f5d4843699fbc45be1cc4fe1fbd811a6fa
   ExpoDocumentPicker: a82eaccc62ecb62662d5a6ca7a8ef40b71daa521
   ExpoFileSystem: 80bfe850b1f9922c16905822ecbf97acd711dc51
@@ -1719,6 +1719,6 @@ SPEC CHECKSUMS:
   SocketRocket: abac6f5de4d4d62d24e11868d7a2f427e0ef940d
   Yoga: 04f1db30bb810187397fa4c37dd1868a27af229c
 
-PODFILE CHECKSUM: 67c9c2add316b1f9c82d9dc57f3f50abc685a0c2
+PODFILE CHECKSUM: 2227a584aa8b527b1bb4d4cc5a487feb904c2e18
 
 COCOAPODS: 1.15.2
