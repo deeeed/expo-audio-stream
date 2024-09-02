@@ -15,7 +15,7 @@ const preview: Preview = {
 LoadSkiaWeb({
     locateFile: (path) => {
         const SkiaVersion = '0.39.1'
-        const url = `./canvaskit-${SkiaVersion}.wasm`;
+        const url = `https://cdn.jsdelivr.net/npm/canvaskit-wasm@${SkiaVersion}/bin/full/${path}`;
         console.log(`Loading Skia: ${url}`);
         return url;
     },

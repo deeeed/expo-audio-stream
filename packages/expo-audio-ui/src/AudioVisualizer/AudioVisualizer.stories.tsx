@@ -72,7 +72,7 @@ const CustomNavigationControls: React.FC<NavigationControlsProps> = ({
 )
 
 export default {
-    title: 'Components/AudioVisualizer',
+    title: 'AudioVisualizer',
     component: AudioVisualizer,
     argTypes: {
         canvasHeight: { control: 'number' },
@@ -143,6 +143,12 @@ Default.args = {
     audioData: mockAudioData,
     fontVariant: 'None',
     fontSize: 12,
+    canvasHeight: 100,
+    candleWidth: 2,
+    candleSpace: 1,
+    showDottedLine: false,
+    showRuler: true,
+    showYAxis: false,
 }
 
 export const LiveMode = Template.bind({})
@@ -212,20 +218,14 @@ BoldFont.args = {
     ...Default.args,
     fontVariant: 'Roboto-Bold',
     fontSize: 14,
-}
-
-export const ItalicFont = Template.bind({})
-ItalicFont.args = {
-    ...Default.args,
-    fontVariant: 'Roboto-Italic',
-    fontSize: 12,
+    showRuler: true,
 }
 
 export const NoFont = Template.bind({})
 NoFont.args = {
     ...Default.args,
     fontVariant: 'None',
-    showRuler: false,
+    showRuler: true,
     showYAxis: false,
 }
 
