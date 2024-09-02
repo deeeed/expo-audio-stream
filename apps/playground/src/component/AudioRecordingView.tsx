@@ -1,4 +1,5 @@
 // playground/src/component/AudioRecording.tsx
+import { useFont } from '@shopify/react-native-skia'
 import {
     AppTheme,
     Button,
@@ -94,6 +95,7 @@ export const AudioRecordingView = ({
 }: AudioRecordingViewProps) => {
     const { show } = useToast()
     const audioUri = recording.fileUri
+    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
     const theme = useTheme()
     const [selectedDataPoint, setSelectedDataPoint] = useState<DataPoint>()
     const [selectedAnalysisConfig, setSelectedAnalysisConfig] =
@@ -330,6 +332,7 @@ export const AudioRecordingView = ({
                     <AudioVisualizer
                         {...visualConfig}
                         playing={isPlaying}
+                        font={font ?? undefined}
                         onSelection={handleSelection}
                         currentTime={position / 1000}
                         audioData={audioAnalysis}
