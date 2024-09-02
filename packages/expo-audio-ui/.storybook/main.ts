@@ -2,6 +2,8 @@ import path, { join, dirname } from 'path';
 import type { StorybookConfig } from '@storybook/react-webpack5';
 import type { Configuration as WebpackConfig } from 'webpack';
 
+const production = process.env.NODE_ENV === 'production';
+
 /**
  * This function is used to resolve the absolute path of a package.
  * It is needed in projects that use Yarn PnP or are set up within a monorepo.
@@ -13,6 +15,11 @@ function getAbsolutePath(value: string) {
 /** @type { import('@storybook/react-webpack5').StorybookConfig } */
 const config: StorybookConfig = {
     stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
+    staticDirs: ['../assets/'],
+    managerHead: (head) => `
+        ${head}
+        ${production ? '<base href="/expo-audio-stream/expo-audio-ui-storybook/" />' : ''}
+    `,
     addons: [
         getAbsolutePath('@storybook/addon-webpack5-compiler-swc'),
         getAbsolutePath('@storybook/addon-controls'),
