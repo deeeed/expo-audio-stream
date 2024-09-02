@@ -307,7 +307,10 @@ export const AudioRecordingView = ({
                     <EditableInfoCard
                         label="Analysis Config"
                         value={JSON.stringify(selectedAnalysisConfig)}
-                        containerStyle={{ margin: 0 }}
+                        containerStyle={{
+                            margin: 0,
+                            backgroundColor: theme.colors.surface,
+                        }}
                         editable
                         onEdit={async () => {
                             logger.log('Edit analysis config')
@@ -336,6 +339,19 @@ export const AudioRecordingView = ({
                         currentTime={position / 1000}
                         audioData={audioAnalysis}
                         onSeekEnd={handleOnSeekEnd}
+                        theme={{
+                            buttonText: {
+                                color: theme.colors.primary,
+                            },
+                            timeRuler: {
+                                labelColor: theme.colors.text,
+                                tickColor: theme.colors.text,
+                            },
+                            text: { color: theme.colors.text },
+                            canvasContainer: {
+                                backgroundColor: theme.colors.surface,
+                            },
+                        }}
                     />
                 </View>
             )}
