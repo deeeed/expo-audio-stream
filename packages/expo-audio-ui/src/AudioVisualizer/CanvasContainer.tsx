@@ -6,23 +6,22 @@ import {
     SkFont,
     useTouchHandler,
 } from '@shopify/react-native-skia'
+import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
 import React, { useCallback, useMemo, useRef } from 'react'
-import { Platform, View } from 'react-native'
+import { Platform, View, StyleProp, ViewStyle } from 'react-native'
 import { SharedValue, useDerivedValue } from 'react-native-reanimated'
 
-import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
-import { StyleProp, ViewStyle } from 'react-native'
+import AnimatedCandle from './AnimatedCandle'
+import { CandleData } from './AudioVisualiser.types'
+import { drawDottedLine } from './AudioVisualizers.helpers'
+import { SkiaTimeRuler } from './SkiaTimeRuler'
+import { YAxis } from './YAxis'
 import {
     CANDLE_ACTIVE_AUDIO_COLOR,
     CANDLE_ACTIVE_SPEECH_COLOR,
     CANDLE_OFFCANVAS_COLOR,
     CANDLE_SELECTED_COLOR,
 } from '../constants'
-import AnimatedCandle from './AnimatedCandle'
-import { CandleData } from './AudioVisualiser.types'
-import { drawDottedLine } from './AudioVisualizers.helpers'
-import { SkiaTimeRuler } from './SkiaTimeRuler'
-import { YAxis } from './YAxis'
 
 export interface CanvasContainerProps {
     canvasHeight: number
@@ -83,7 +82,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
             ({ id, amplitude, visible, activeSpeech, silent }, index) => {
                 if (id === -1) return null
 
-                const centerY = canvasHeight / 2;
+                const centerY = canvasHeight / 2
                 const scaledAmplitude =
                     ((amplitude - minAmplitude) * (canvasHeight - 10)) /
                     (maxAmplitude - minAmplitude)
@@ -229,15 +228,15 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     />
                 )}
                 {showYAxis && (
-                  <YAxis
-                    canvasHeight={canvasHeight}
-                    canvasWidth={canvasWidth}
-                    minAmplitude={minAmplitude}
-                    maxAmplitude={maxAmplitude}
-                    algorithm={algorithm}
-                    font={font}
-                    padding={10} // Adjust the padding as needed
-                  />
+                    <YAxis
+                        canvasHeight={canvasHeight}
+                        canvasWidth={canvasWidth}
+                        minAmplitude={minAmplitude}
+                        maxAmplitude={maxAmplitude}
+                        algorithm={algorithm}
+                        font={font}
+                        padding={10} // Adjust the padding as needed
+                    />
                 )}
             </Canvas>
         </View>

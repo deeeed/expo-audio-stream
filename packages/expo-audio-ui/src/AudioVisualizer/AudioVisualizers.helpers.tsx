@@ -23,7 +23,7 @@ export const calculateReferenceLinePosition = ({
     return canvasWidth / 2 // Default to MIDDLE
 }
 
-const logger = getLogger('AudioVisualiser.helpers');
+const logger = getLogger('AudioVisualiser.helpers')
 export const getStyles = ({ canvasWidth, referenceLineX }: GetStylesParams) => {
     return StyleSheet.create({
         container: {

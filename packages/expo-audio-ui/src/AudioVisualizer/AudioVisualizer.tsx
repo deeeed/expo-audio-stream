@@ -1,4 +1,5 @@
 // playground/src/component/audio-visualizer/audio-visualizer.tsx
+import { SkFont } from '@shopify/react-native-skia'
 import { AudioAnalysis, DataPoint } from '@siteed/expo-audio-stream'
 import { getLogger } from '@siteed/react-native-logger'
 import React, { useCallback, useEffect, useReducer, useRef } from 'react'
@@ -18,7 +19,6 @@ import {
 } from './AudioVisualizers.helpers'
 import CanvasContainer from './CanvasContainer'
 import { GestureHandler } from './GestureHandler'
-import { SkFont } from '@shopify/react-native-skia'
 
 export type AudioVisualiserAction = {
     type: 'UPDATE_STATE'
@@ -267,7 +267,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             if (audioData.durationMs && onSeekEnd) {
                 const allowedTranslateX = maxTranslateX
                 const progressRatio = -newTranslateX / allowedTranslateX
-                const newTime = progressRatio * audioData.durationMs / 1000
+                const newTime = (progressRatio * audioData.durationMs) / 1000
                 onSeekEnd(newTime)
             }
 

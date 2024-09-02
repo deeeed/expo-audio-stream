@@ -15,11 +15,17 @@ const config: StorybookConfig = {
     stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
     addons: [
         getAbsolutePath('@storybook/addon-webpack5-compiler-swc'),
-        getAbsolutePath('@storybook/addon-onboarding'),
-        getAbsolutePath('@storybook/addon-links'),
-        getAbsolutePath('@storybook/addon-essentials'),
-        getAbsolutePath('@chromatic-com/storybook'),
         getAbsolutePath('@storybook/addon-interactions'),
+        {
+            name: '@storybook/addon-react-native-web',
+            options: {
+                modulesToTranspile: ['react-native-reanimated', '@gorhom/bottom-sheet'],
+                babelPlugins: [
+                '@babel/plugin-proposal-export-namespace-from',
+                'react-native-reanimated/plugin',
+                ],
+            },
+        }
     ],
     framework: {
         name: getAbsolutePath('@storybook/react-webpack5'),

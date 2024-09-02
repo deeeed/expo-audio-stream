@@ -3,6 +3,7 @@ import React, { useRef } from 'react'
 import { Platform } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { SharedValue, runOnJS } from 'react-native-reanimated'
+
 import { CandleData } from './AudioVisualiser.types'
 
 interface GestureHandlerProps {
