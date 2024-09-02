@@ -1,3 +1,4 @@
+// packages/expo-audio-ui/src/AudioVisualizer/CanvasContainer.tsx
 import {
     Canvas,
     ExtendedTouchInfo,
@@ -8,14 +9,14 @@ import {
 } from '@shopify/react-native-skia'
 import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
 import React, { useCallback, useMemo, useRef } from 'react'
-import { Platform, View, StyleProp, ViewStyle } from 'react-native'
+import { Platform, StyleProp, View, ViewStyle } from 'react-native'
 import { SharedValue, useDerivedValue } from 'react-native-reanimated'
 
-import AnimatedCandle from './AnimatedCandle'
 import { CandleData } from './AudioVisualiser.types'
 import { drawDottedLine } from './AudioVisualizers.helpers'
-import { SkiaTimeRuler } from './SkiaTimeRuler'
-import { YAxis } from './YAxis'
+import AnimatedCandle from '../AnimatedCandle/AnimatedCandle'
+import { SkiaTimeRuler } from '../SkiaTimeRuler/SkiaTimeRuler'
+import { YAxis } from '../YAxis/YAxis'
 import {
     CANDLE_ACTIVE_AUDIO_COLOR,
     CANDLE_ACTIVE_SPEECH_COLOR,

@@ -15,7 +15,14 @@ const config: StorybookConfig = {
     stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
     addons: [
         getAbsolutePath('@storybook/addon-webpack5-compiler-swc'),
-        getAbsolutePath('@storybook/addon-interactions'),
+        getAbsolutePath('@storybook/addon-controls'),
+        getAbsolutePath('@storybook/addon-links'),
+        getAbsolutePath('@storybook/addon-measure'),
+        getAbsolutePath('@storybook/addon-outline'),
+        getAbsolutePath('@storybook/addon-backgrounds'),
+        getAbsolutePath('@storybook/addon-toolbars'),
+        // getAbsolutePath('@storybook/addon-interactions'),
+        // getAbsolutePath('@storybook/addon-actions'),
         {
             name: '@storybook/addon-react-native-web',
             options: {

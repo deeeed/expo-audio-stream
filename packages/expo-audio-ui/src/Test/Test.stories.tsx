@@ -5,10 +5,10 @@ import { Test, TestProps } from './Test'
 
 const TestMeta: Meta<TestProps> = {
     component: Test,
-    tags: ['autodocs'],
+    // tags: ['autodocs'],
     argTypes: {},
     args: {
-        // data: 'test',
+        label: 'Test',
     },
 }
 
