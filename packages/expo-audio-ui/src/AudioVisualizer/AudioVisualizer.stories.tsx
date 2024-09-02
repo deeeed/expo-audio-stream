@@ -1,15 +1,75 @@
 /* eslint-disable react/prop-types */
+import { FontAwesome } from '@expo/vector-icons'
 import { useFont } from '@shopify/react-native-skia'
 import { AudioAnalysis } from '@siteed/expo-audio-stream'
 import { Meta, StoryFn } from '@storybook/react'
 import React from 'react'
+import { Text, View } from 'react-native'
 
 import { AudioVisualizer, AudioVisualizerProps } from './AudioVisualizer'
+import { NavigationControlsProps } from '../NavigationControls/NavigationControls'
 
 // Import the font files
 const RobotoBold = require('../../assets/Roboto/Roboto-Bold.ttf')
 const RobotoItalic = require('../../assets/Roboto/Roboto-Italic.ttf')
 const RobotoRegular = require('../../assets/Roboto/Roboto-Regular.ttf')
+
+const CustomNavigationControls: React.FC<NavigationControlsProps> = ({
+    selectedCandle,
+    selectedIndex,
+    audioData,
+    onPrev,
+    onNext,
+    onReset,
+    theme,
+}) => (
+    <View
+        style={[
+            theme.navigationContainer,
+            { backgroundColor: '#e0e0e0', padding: 10 },
+        ]}
+    >
+        <Text style={theme.text}>{audioData.samples} samples (Custom)</Text>
+        <View
+            style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                width: '100%',
+            }}
+        >
+            <View
+                style={{
+                    flexDirection: 'row',
+                    gap: 10,
+                    alignItems: 'center',
+                }}
+            >
+                <FontAwesome
+                    name="arrow-left"
+                    size={24}
+                    color={selectedCandle ? 'black' : 'gray'}
+                    onPress={onPrev}
+                />
+                {selectedCandle ? (
+                    <Text
+                        style={theme.text}
+                    >{`${selectedIndex + 1} / ${audioData.dataPoints.length}`}</Text>
+                ) : (
+                    <Text style={theme.text}>
+                        {audioData.dataPoints.length} items
+                    </Text>
+                )}
+                <FontAwesome
+                    name="arrow-right"
+                    size={24}
+                    color={selectedCandle ? 'black' : 'gray'}
+                    onPress={onNext}
+                />
+            </View>
+            <FontAwesome name="times" size={24} color="red" onPress={onReset} />
+        </View>
+    </View>
+)
 
 export default {
     title: 'Components/AudioVisualizer',
@@ -101,6 +161,13 @@ CompactView.args = {
     showDottedLine: false,
     showRuler: false,
     showYAxis: false,
+}
+
+export const CustomNavigationControlsStory = Template.bind({})
+CustomNavigationControlsStory.args = {
+    ...Default.args,
+    NavigationControls: CustomNavigationControls,
+    mode: 'static',
 }
 
 export const HighlightSpeech = Template.bind({})

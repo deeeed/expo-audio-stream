@@ -1,16 +1,31 @@
 // playground/src/component/audio-visualizer/autio-visualizer.types.ts
 import { DataPoint } from '@siteed/expo-audio-stream'
-import { StyleProp, TextStyle, ViewStyle } from 'react-native'
+import { TextStyle, ViewStyle } from 'react-native'
 import { SharedValue } from 'react-native-reanimated'
 
 export interface AudioVisualizerTheme {
-    container: StyleProp<ViewStyle>
-    navigationContainer: StyleProp<ViewStyle>
-    canvasContainer: StyleProp<ViewStyle>
-    referenceLine: StyleProp<ViewStyle>
-    text: StyleProp<TextStyle>
-    button: StyleProp<ViewStyle>
-    buttonText: StyleProp<TextStyle>
+    container: ViewStyle
+    navigationContainer: ViewStyle
+    canvasContainer: ViewStyle
+    referenceLine: ViewStyle
+    text: TextStyle
+    button: ViewStyle
+    buttonText: TextStyle
+    dottedLineColor: string
+    yAxis: {
+        tickColor: string
+        labelColor: string
+    }
+    timeRuler: {
+        tickColor: string
+        labelColor: string
+    }
+    candle: {
+        activeAudioColor?: string
+        activeSpeechColor?: string
+        offcanvasColor?: string
+        selectedColor?: string
+    }
 }
 
 export interface CalculateReferenceLinePositionParams {

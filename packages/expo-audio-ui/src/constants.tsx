@@ -9,3 +9,10 @@ export const CANDLE_OFFCANVAS_COLOR = 'rgba(211, 211, 211, 1)'
 
 export const DEFAULT_TICK_COLOR = 'white'
 export const DEFAULT_LABEL_COLOR = 'white'
+
+export const defaultCandleColors = {
+    activeAudioColor: CANDLE_ACTIVE_AUDIO_COLOR,
+    activeSpeechColor: CANDLE_ACTIVE_SPEECH_COLOR,
+    offcanvasColor: CANDLE_OFFCANVAS_COLOR,
+    selectedColor: CANDLE_SELECTED_COLOR,
+}
