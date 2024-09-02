@@ -1,24 +1,34 @@
 // playground/src/component/audio-visualizer/audio-visualizer.tsx
+import { SkFont } from '@shopify/react-native-skia'
 import { AudioAnalysis, DataPoint } from '@siteed/expo-audio-stream'
 import { getLogger } from '@siteed/react-native-logger'
-import React, { useCallback, useEffect, useReducer, useRef } from 'react'
-import { Button, LayoutChangeEvent, Text, View } from 'react-native'
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+} from 'react'
+import { LayoutChangeEvent, View } from 'react-native'
 import { useSharedValue } from 'react-native-reanimated'
 
 import {
     AudioVisualizerState,
+    AudioVisualizerTheme,
     CandleData,
     UpdateActivePointsResult,
 } from './AudioVisualiser.types'
 import {
     calculateReferenceLinePosition,
-    getStyles,
+    createDefaultTheme,
     syncTranslateX,
     updateActivePoints,
 } from './AudioVisualizers.helpers'
 import CanvasContainer from './CanvasContainer'
 import { GestureHandler } from './GestureHandler'
-import { SkFont } from '@shopify/react-native-skia'
+import NavigationControls, {
+    NavigationControlsProps,
+} from '../NavigationControls/NavigationControls'
 
 export type AudioVisualiserAction = {
     type: 'UPDATE_STATE'
@@ -57,6 +67,7 @@ export interface AudioVisualizerProps {
     showRuler?: boolean
     showYAxis?: boolean
     showSilence?: boolean
+    showNavigation?: boolean
     font?: SkFont
     onSelection?: ({
         dataPoint,
@@ -68,6 +79,8 @@ export interface AudioVisualizerProps {
     mode?: 'static' | 'live'
     playing?: boolean
     onSeekEnd?: (newTime: number) => void
+    theme?: Partial<AudioVisualizerTheme>
+    NavigationControls?: React.ComponentType<NavigationControlsProps>
 }
 
 const logger = getLogger('AudioVisualizer')
@@ -81,12 +94,15 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     playing = false,
     mode = 'static',
     showRuler = false,
+    showNavigation = true,
     showDottedLine = true,
     showSilence = false,
     showYAxis = false,
     onSeekEnd,
     onSelection,
     font,
+    theme: customTheme,
+    NavigationControls: CustomNavigationControls, // User-provided or default NavigationControls
 }) => {
     const translateX = useSharedValue(0)
     const [state, dispatch] = useReducer(reducer, initialState)
@@ -112,11 +128,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         referenceLinePosition: mode === 'live' ? 'RIGHT' : 'MIDDLE',
     })
 
-    const styles = getStyles({
-        canvasWidth,
-        referenceLineX,
-    })
-
     const maxDisplayedItems = Math.ceil(
         canvasWidth / (candleWidth + candleSpace)
     )
@@ -131,6 +142,15 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         range: { start: 0, end: 0, startVisibleIndex: 0, endVisibleIndex: 0 },
         lastUpdatedTranslateX: 0,
     })
+
+    const theme = useMemo(() => {
+        const defaultTheme = createDefaultTheme(canvasWidth, referenceLineX)
+        return { ...defaultTheme, ...customTheme }
+    }, [canvasWidth, referenceLineX, customTheme])
+
+    // Choose between user-provided or default NavigationControls
+    const NavigationControlsComponent =
+        CustomNavigationControls || NavigationControls
 
     // Initialize activePoints
     useEffect(() => {
@@ -267,7 +287,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             if (audioData.durationMs && onSeekEnd) {
                 const allowedTranslateX = maxTranslateX
                 const progressRatio = -newTranslateX / allowedTranslateX
-                const newTime = progressRatio * audioData.durationMs / 1000
+                const newTime = (progressRatio * audioData.durationMs) / 1000
                 onSeekEnd(newTime)
             }
 
@@ -401,43 +421,19 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     return (
         <View
-            style={[styles.container, { marginTop: 20 }]}
+            style={[theme.container, { marginTop: 20 }]}
             onLayout={handleLayout}
         >
-            <Text>{audioData.samples} samples</Text>
-            {mode !== 'live' && (
-                <View
-                    style={{
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        width: '100%',
-                    }}
-                >
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            gap: 10,
-                            alignItems: 'center',
-                        }}
-                    >
-                        <Button
-                            onPress={() => handlePrevNextSelection('prev')}
-                            disabled={selectedCandle === null}
-                            title="Prev"
-                        />
-                        <Button
-                            title="Next"
-                            onPress={() => handlePrevNextSelection('next')}
-                            disabled={selectedCandle === null}
-                        />
-                        {selectedCandle ? (
-                            <Text>{`${selectedIndex + 1} / ${audioData.dataPoints.length}`}</Text>
-                        ) : (
-                            <Text>{audioData.dataPoints.length} items</Text>
-                        )}
-                    </View>
-                    <Button onPress={handleReset} title="Reset" />
-                </View>
+            {mode !== 'live' && showNavigation && (
+                <NavigationControlsComponent
+                    selectedCandle={selectedCandle}
+                    selectedIndex={selectedIndex}
+                    audioData={audioData}
+                    theme={theme}
+                    onPrev={() => handlePrevNextSelection('prev')}
+                    onNext={() => handlePrevNextSelection('next')}
+                    onReset={handleReset}
+                />
             )}
             <GestureHandler
                 playing={playing}
@@ -483,9 +479,9 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                 durationMs={audioData.durationMs}
                                 minAmplitude={audioData.amplitudeRange.min}
                                 maxAmplitude={audioData.amplitudeRange.max}
-                                containerStyle={styles.canvasContainer}
+                                theme={theme}
                             />
-                            <View style={styles.referenceLine} />
+                            <View style={theme.referenceLine} />
                         </>
                     )}
                 </View>

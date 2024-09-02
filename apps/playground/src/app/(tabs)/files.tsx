@@ -25,6 +25,7 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
         container: {
             flex: 1,
             backgroundColor: theme.colors.background,
+            gap: 10,
             paddingTop: 10,
             paddingBottom: 80,
             paddingHorizontal: 20,
@@ -104,8 +105,7 @@ const FilesScreen = () => {
         <FlatList
             data={files}
             keyExtractor={(item) => item.fileUri}
-            contentContainerStyle={styles.contentContainer}
-            style={styles.container}
+            contentContainerStyle={styles.container}
             refreshControl={
                 <RefreshControl refreshing={false} onRefresh={refreshFiles} />
             }

@@ -1,3 +1,4 @@
+// packages/expo-audio-ui/src/AudioVisualizer/CanvasContainer.tsx
 import {
     Canvas,
     ExtendedTouchInfo,
@@ -6,23 +7,17 @@ import {
     SkFont,
     useTouchHandler,
 } from '@shopify/react-native-skia'
+import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
 import React, { useCallback, useMemo, useRef } from 'react'
 import { Platform, View } from 'react-native'
 import { SharedValue, useDerivedValue } from 'react-native-reanimated'
 
-import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
-import { StyleProp, ViewStyle } from 'react-native'
-import {
-    CANDLE_ACTIVE_AUDIO_COLOR,
-    CANDLE_ACTIVE_SPEECH_COLOR,
-    CANDLE_OFFCANVAS_COLOR,
-    CANDLE_SELECTED_COLOR,
-} from '../constants'
-import AnimatedCandle from './AnimatedCandle'
-import { CandleData } from './AudioVisualiser.types'
+import { AudioVisualizerTheme, CandleData } from './AudioVisualiser.types'
 import { drawDottedLine } from './AudioVisualizers.helpers'
-import { SkiaTimeRuler } from './SkiaTimeRuler'
-import { YAxis } from './YAxis'
+import AnimatedCandle from '../AnimatedCandle/AnimatedCandle'
+import { SkiaTimeRuler } from '../SkiaTimeRuler/SkiaTimeRuler'
+import { YAxis } from '../YAxis/YAxis'
+import { defaultCandleColors } from '../constants'
 
 export interface CanvasContainerProps {
     canvasHeight: number
@@ -46,7 +41,7 @@ export interface CanvasContainerProps {
     minAmplitude: number
     maxAmplitude: number
     onSelection: (dataPoint: DataPoint) => void
-    containerStyle?: StyleProp<ViewStyle>
+    theme: AudioVisualizerTheme
     font?: SkFont
 }
 
@@ -70,11 +65,16 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     showSilence,
     durationMs,
     font,
+    theme,
     onSelection,
     minAmplitude,
     maxAmplitude,
-    containerStyle,
 }) => {
+    const candleColors = {
+        ...defaultCandleColors,
+        ...theme.candle,
+    }
+
     const groupTransform = useDerivedValue(() => {
         return [{ translateX: translateX.value }]
     })
@@ -83,7 +83,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
             ({ id, amplitude, visible, activeSpeech, silent }, index) => {
                 if (id === -1) return null
 
-                const centerY = canvasHeight / 2;
+                const centerY = canvasHeight / 2
                 const scaledAmplitude =
                     ((amplitude - minAmplitude) * (canvasHeight - 10)) /
                     (maxAmplitude - minAmplitude)
@@ -100,13 +100,13 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     startIndex * (candleWidth + candleSpace) +
                     delta
 
-                let color = CANDLE_ACTIVE_AUDIO_COLOR
+                let color = candleColors.activeAudioColor
                 if (!visible) {
-                    color = CANDLE_OFFCANVAS_COLOR
+                    color = candleColors.offcanvasColor
                 } else if (selectedCandle && selectedCandle.id === id) {
-                    color = CANDLE_SELECTED_COLOR
+                    color = candleColors.selectedColor
                 } else if (activeSpeech) {
-                    color = CANDLE_ACTIVE_SPEECH_COLOR
+                    color = candleColors.activeSpeechColor
                 }
 
                 const key = `${id}`
@@ -146,6 +146,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
         showSilence,
         candleWidth,
         candleSpace,
+        candleColors,
         mode,
         startIndex,
         selectedCandle,
@@ -204,7 +205,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     })
 
     return (
-        <View style={containerStyle}>
+        <View style={theme.canvasContainer}>
             <Canvas
                 style={{ height: canvasHeight, width: canvasWidth }}
                 onTouch={Platform.OS !== 'web' ? touchHandler : undefined}
@@ -217,27 +218,31 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                             paddingLeft={paddingLeft}
                             width={totalCandleWidth}
                             font={font}
+                            tickColor={theme.timeRuler.tickColor}
+                            labelColor={theme.timeRuler.labelColor}
                         />
                     )}
                 </Group>
                 {showDottedLine && (
                     <Path
                         path={drawDottedLine({ canvasWidth, canvasHeight })}
-                        color="grey"
+                        color={theme.dottedLineColor || 'grey'}
                         style="stroke"
                         strokeWidth={1}
                     />
                 )}
                 {showYAxis && (
-                  <YAxis
-                    canvasHeight={canvasHeight}
-                    canvasWidth={canvasWidth}
-                    minAmplitude={minAmplitude}
-                    maxAmplitude={maxAmplitude}
-                    algorithm={algorithm}
-                    font={font}
-                    padding={10} // Adjust the padding as needed
-                  />
+                    <YAxis
+                        canvasHeight={canvasHeight}
+                        canvasWidth={canvasWidth}
+                        minAmplitude={minAmplitude}
+                        maxAmplitude={maxAmplitude}
+                        algorithm={algorithm}
+                        font={font}
+                        padding={10}
+                        tickColor={theme.yAxis.tickColor}
+                        labelColor={theme.yAxis.labelColor}
+                    />
                 )}
             </Canvas>
         </View>

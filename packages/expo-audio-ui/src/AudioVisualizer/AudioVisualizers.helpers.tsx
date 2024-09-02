@@ -1,17 +1,24 @@
 // playground/src/component/audio-visualizer/audio-visualiser.helpers.tsx
 import { Skia, SkPath } from '@shopify/react-native-skia'
 import { getLogger } from '@siteed/react-native-logger'
-import { StyleSheet } from 'react-native'
+import { DimensionValue } from 'react-native'
 import { withSpring } from 'react-native-reanimated'
 
 import {
     CalculateReferenceLinePositionParams,
     DrawDottedLineParams,
-    GetStylesParams,
     SyncTranslateXParams,
     UpdateActivePointsParams,
     UpdateActivePointsResult,
 } from './AudioVisualiser.types'
+import {
+    CANDLE_ACTIVE_AUDIO_COLOR,
+    CANDLE_ACTIVE_SPEECH_COLOR,
+    CANDLE_OFFCANVAS_COLOR,
+    CANDLE_SELECTED_COLOR,
+    DEFAULT_LABEL_COLOR,
+    DEFAULT_TICK_COLOR,
+} from '../constants'
 
 export const calculateReferenceLinePosition = ({
     canvasWidth,
@@ -23,35 +30,57 @@ export const calculateReferenceLinePosition = ({
     return canvasWidth / 2 // Default to MIDDLE
 }
 
-const logger = getLogger('AudioVisualiser.helpers');
-export const getStyles = ({ canvasWidth, referenceLineX }: GetStylesParams) => {
-    return StyleSheet.create({
-        container: {
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-        },
-        canvasContainer: {
-            width: canvasWidth,
-            backgroundColor: '#292a2d',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 5,
-        },
-        referenceLine: {
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            left: referenceLineX,
-            width: 2,
-            backgroundColor: 'red',
-        },
-        canvas: {},
-        text: {
-            // color: "white"
-        },
-    })
-}
+const logger = getLogger('AudioVisualiser.helpers')
+
+export const createDefaultTheme = (
+    canvasWidth: number,
+    referenceLineX: number
+) => ({
+    container: {
+        flex: 1,
+        justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+    },
+    navigationContainer: {
+        width: '100%' as DimensionValue,
+        alignItems: 'center' as const,
+    },
+    canvasContainer: {
+        width: canvasWidth,
+        backgroundColor: '#292a2d',
+        justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+        gap: 5,
+    },
+    referenceLine: {
+        position: 'absolute' as const,
+        top: 0,
+        bottom: 0,
+        left: referenceLineX,
+        width: 2,
+        backgroundColor: 'red',
+    },
+    text: {
+        color: 'black',
+    },
+    button: {},
+    buttonText: {},
+    dottedLineColor: 'grey',
+    yAxis: {
+        tickColor: DEFAULT_TICK_COLOR,
+        labelColor: DEFAULT_LABEL_COLOR,
+    },
+    timeRuler: {
+        tickColor: DEFAULT_TICK_COLOR,
+        labelColor: DEFAULT_LABEL_COLOR,
+    },
+    candle: {
+        activeAudioColor: CANDLE_ACTIVE_AUDIO_COLOR,
+        activeSpeechColor: CANDLE_ACTIVE_SPEECH_COLOR,
+        offcanvasColor: CANDLE_OFFCANVAS_COLOR,
+        selectedColor: CANDLE_SELECTED_COLOR,
+    },
+})
 
 export const syncTranslateX = ({
     currentTime,

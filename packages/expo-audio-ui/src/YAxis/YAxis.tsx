@@ -1,6 +1,7 @@
 import { SkFont, Line as SkiaLine, Text } from '@shopify/react-native-skia'
 import type { AmplitudeAlgorithm } from '@siteed/expo-audio-stream'
 import React from 'react'
+
 import { DEFAULT_LABEL_COLOR, DEFAULT_TICK_COLOR } from '../constants'
 
 export interface YAxisProps {
@@ -36,7 +37,6 @@ export const YAxis: React.FC<YAxisProps> = ({
     labelFontSize = 10,
     labelFormatter = formatLabel,
 }) => {
-
     const finalTickColor = tickColor ?? DEFAULT_TICK_COLOR
     const finalLabelColor = labelColor ?? DEFAULT_LABEL_COLOR
     const numTicks = Math.floor((maxAmplitude - minAmplitude) / tickInterval)
