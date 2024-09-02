@@ -57,6 +57,7 @@ export interface AudioVisualizerProps {
     showRuler?: boolean
     showYAxis?: boolean
     showSilence?: boolean
+    showNavigation?: boolean
     font?: SkFont
     onSelection?: ({
         dataPoint,
@@ -81,6 +82,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     playing = false,
     mode = 'static',
     showRuler = false,
+    showNavigation = true,
     showDottedLine = true,
     showSilence = false,
     showYAxis = false,
@@ -404,39 +406,41 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             style={[styles.container, { marginTop: 20 }]}
             onLayout={handleLayout}
         >
-            <Text>{audioData.samples} samples</Text>
-            {mode !== 'live' && (
-                <View
-                    style={{
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        width: '100%',
-                    }}
-                >
+            {mode !== 'live' && showNavigation && (
+                <View style={styles.navigationContainer}>
+                    <Text>{audioData.samples} samples</Text>
                     <View
                         style={{
                             flexDirection: 'row',
-                            gap: 10,
-                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            width: '100%',
                         }}
                     >
-                        <Button
-                            onPress={() => handlePrevNextSelection('prev')}
-                            disabled={selectedCandle === null}
-                            title="Prev"
-                        />
-                        <Button
-                            title="Next"
-                            onPress={() => handlePrevNextSelection('next')}
-                            disabled={selectedCandle === null}
-                        />
-                        {selectedCandle ? (
-                            <Text>{`${selectedIndex + 1} / ${audioData.dataPoints.length}`}</Text>
-                        ) : (
-                            <Text>{audioData.dataPoints.length} items</Text>
-                        )}
+                        <View
+                            style={{
+                                flexDirection: 'row',
+                                gap: 10,
+                                alignItems: 'center',
+                            }}
+                        >
+                            <Button
+                                onPress={() => handlePrevNextSelection('prev')}
+                                disabled={selectedCandle === null}
+                                title="Prev"
+                            />
+                            {selectedCandle ? (
+                                <Text>{`${selectedIndex + 1} / ${audioData.dataPoints.length}`}</Text>
+                            ) : (
+                                <Text>{audioData.dataPoints.length} items</Text>
+                            )}
+                            <Button
+                                title="Next"
+                                onPress={() => handlePrevNextSelection('next')}
+                                disabled={selectedCandle === null}
+                            />
+                        </View>
+                        <Button onPress={handleReset} title="Reset" />
                     </View>
-                    <Button onPress={handleReset} title="Reset" />
                 </View>
             )}
             <GestureHandler

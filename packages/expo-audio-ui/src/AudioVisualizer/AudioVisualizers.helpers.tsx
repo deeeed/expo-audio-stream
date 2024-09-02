@@ -31,6 +31,9 @@ export const getStyles = ({ canvasWidth, referenceLineX }: GetStylesParams) => {
             justifyContent: 'center',
             alignItems: 'center',
         },
+        navigationContainer: {
+            width: '100%',
+        },
         canvasContainer: {
             width: canvasWidth,
             backgroundColor: '#292a2d',
