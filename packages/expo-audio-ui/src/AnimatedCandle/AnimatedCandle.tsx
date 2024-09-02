@@ -1,10 +1,11 @@
-// playground/src/component/audio-visualizer/animated-candle.tsx
+// packages/expo-audio-ui/src/AnimatedCandle/AnimatedCandle.tsx
 import { Rect } from '@shopify/react-native-skia'
 import React, { useEffect } from 'react'
 import { useSharedValue, withTiming } from 'react-native-reanimated'
+
 import { CANDLE_OFFCANVAS_COLOR } from '../constants'
 
-interface AnimatedCandleProps {
+export interface AnimatedCandleProps {
     height: number
     x: number
     y: number

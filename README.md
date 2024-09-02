@@ -7,6 +7,11 @@ This monorepo contains two packages:
 **Give it a GitHub star 🌟, if you found this repo useful.**
 [![GitHub stars](https://img.shields.io/github/stars/deeeed/expo-audio-stream.svg?style=social&label=Star&maxAge=2592000)](https://github.com/deeeed/expo-audio-stream)
 
+<div align="center">
+  <h2>Try them out</h2>
+  <p><a href="https://deeeed.github.io/expo-audio-stream">https://deeeed.github.io/expo-audio-stream</a></p>
+</div>
+
 ## Packages
 
 ### 1. `@siteed/expo-audio-stream`

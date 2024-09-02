@@ -65,3 +65,4 @@ playground/vendor/
 **/.yarn/build-state.yml
 **/install-state.gz
 **/.pnp.*
+*storybook.log

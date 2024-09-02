@@ -1,8 +1,9 @@
 import { SkFont, Line as SkiaLine, Text } from '@shopify/react-native-skia'
 import React from 'react'
+
 import { DEFAULT_LABEL_COLOR, DEFAULT_TICK_COLOR, isWeb } from '../constants'
 
-export interface TimeRulerProps {
+export interface SkiaTimeRulerProps {
     duration: number
     width: number
     font?: SkFont
@@ -27,7 +28,7 @@ const formatTime = (seconds: number): string => {
     }
 }
 
-export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
+export const SkiaTimeRuler: React.FC<SkiaTimeRulerProps> = ({
     duration,
     width,
     font,

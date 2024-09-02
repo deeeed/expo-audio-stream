@@ -1,4 +1,5 @@
 // playground/src/component/AudioRecording.tsx
+import { useFont } from '@shopify/react-native-skia'
 import {
     AppTheme,
     Button,
@@ -18,8 +19,8 @@ import { getLogger } from '@siteed/react-native-logger'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import React, { useEffect, useMemo, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
-import { ActivityIndicator } from 'react-native-paper'
+import { StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Text } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
 
 import {
@@ -47,7 +48,6 @@ const getStyles = ({
             padding: 20,
             borderBottomWidth: 3,
             borderColor: isPlaying ? theme.colors.primary : theme.colors.border,
-            backgroundColor: '#fff',
         },
         detailText: {
             fontSize: 16,
@@ -94,6 +94,7 @@ export const AudioRecordingView = ({
 }: AudioRecordingViewProps) => {
     const { show } = useToast()
     const audioUri = recording.fileUri
+    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
     const theme = useTheme()
     const [selectedDataPoint, setSelectedDataPoint] = useState<DataPoint>()
     const [selectedAnalysisConfig, setSelectedAnalysisConfig] =
@@ -330,6 +331,7 @@ export const AudioRecordingView = ({
                     <AudioVisualizer
                         {...visualConfig}
                         playing={isPlaying}
+                        font={font ?? undefined}
                         onSelection={handleSelection}
                         currentTime={position / 1000}
                         audioData={audioAnalysis}
