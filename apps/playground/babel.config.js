@@ -10,6 +10,7 @@ module.exports = (api) => {
                     root: ['./'],
                     alias: {
                         '@assets': './assets',
+                        'react-native-vector-icons': '@expo/vector-icons',
                         // Add other aliases as needed
                     },
                 },

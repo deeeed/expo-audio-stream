@@ -25,7 +25,6 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
         container: {
             gap: 10,
             backgroundColor: theme.colors.background,
-            justifyContent: 'center',
             paddingTop: 10,
             paddingBottom: 80,
             paddingHorizontal: 20,

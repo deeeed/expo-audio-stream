@@ -18,6 +18,7 @@ import {
 } from './AudioVisualizers.helpers'
 import CanvasContainer from './CanvasContainer'
 import { GestureHandler } from './GestureHandler'
+import { SkFont } from '@shopify/react-native-skia'
 
 export type AudioVisualiserAction = {
     type: 'UPDATE_STATE'
@@ -56,6 +57,7 @@ export interface AudioVisualizerProps {
     showRuler?: boolean
     showYAxis?: boolean
     showSilence?: boolean
+    font?: SkFont
     onSelection?: ({
         dataPoint,
         index,
@@ -84,6 +86,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     showYAxis = false,
     onSeekEnd,
     onSelection,
+    font,
 }) => {
     const translateX = useSharedValue(0)
     const [state, dispatch] = useReducer(reducer, initialState)
@@ -461,6 +464,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                 showRuler={showRuler}
                                 showSilence={showSilence}
                                 mode={mode}
+                                font={font}
                                 startIndex={
                                     updateActivePointsResult.current.range.start
                                 }

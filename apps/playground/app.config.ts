@@ -43,6 +43,12 @@ const config: ExpoConfig = {
             },
         ],
         [
+            'expo-font',
+            {
+                fonts: ['./assets/Roboto/Roboto-Regular.ttf'],
+            },
+        ],
+        [
             'expo-build-properties',
             {
                 ios: {

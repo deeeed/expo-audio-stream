@@ -1,4 +1,4 @@
-import { Line as SkiaLine, Text, useFont } from '@shopify/react-native-skia'
+import { SkFont, Line as SkiaLine, Text } from '@shopify/react-native-skia'
 import type { AmplitudeAlgorithm } from '@siteed/expo-audio-stream'
 import React from 'react'
 import { DEFAULT_LABEL_COLOR, DEFAULT_TICK_COLOR } from '../constants'
@@ -10,6 +10,7 @@ export interface YAxisProps {
     maxAmplitude: number
     padding: number
     algorithm?: AmplitudeAlgorithm
+    font?: SkFont
     tickInterval?: number // Interval for tick marks and labels
     tickLength?: number // Length of the tick marks
     tickColor?: string // Color of the tick marks
@@ -22,9 +23,6 @@ const formatLabel = (value: number): string => {
     return value.toFixed(2)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const defaultFont = require('./Roboto-Regular.ttf')
-
 export const YAxis: React.FC<YAxisProps> = ({
     canvasHeight,
     minAmplitude,
@@ -32,12 +30,13 @@ export const YAxis: React.FC<YAxisProps> = ({
     padding,
     tickInterval = 0.1, // Default tick interval
     tickLength = 10,
+    font,
     tickColor,
     labelColor,
     labelFontSize = 10,
     labelFormatter = formatLabel,
 }) => {
-    const font = useFont(defaultFont, labelFontSize)
+
     const finalTickColor = tickColor ?? DEFAULT_TICK_COLOR
     const finalLabelColor = labelColor ?? DEFAULT_LABEL_COLOR
     const numTicks = Math.floor((maxAmplitude - minAmplitude) / tickInterval)
@@ -59,13 +58,15 @@ export const YAxis: React.FC<YAxisProps> = ({
                             color={finalTickColor}
                             strokeWidth={1}
                         />
-                        <Text
-                            text={label}
-                            x={padding + tickLength + 5}
-                            color={finalLabelColor}
-                            y={yPosition + labelFontSize / 2}
-                            font={font}
-                        />
+                        {font && ( // Only render Text if font is available
+                            <Text
+                                text={label}
+                                x={padding + tickLength + 5}
+                                color={finalLabelColor}
+                                y={yPosition + labelFontSize / 2}
+                                font={font}
+                            />
+                        )}
                     </React.Fragment>
                 )
             })}

@@ -1,10 +1,11 @@
-import { Line as SkiaLine, Text, useFont } from '@shopify/react-native-skia'
+import { SkFont, Line as SkiaLine, Text } from '@shopify/react-native-skia'
 import React from 'react'
 import { DEFAULT_LABEL_COLOR, DEFAULT_TICK_COLOR, isWeb } from '../constants'
 
 export interface TimeRulerProps {
     duration: number
     width: number
+    font?: SkFont
     paddingLeft?: number
     interval?: number // Interval for tick marks and labels in seconds
     tickHeight?: number // Height of the tick marks
@@ -26,12 +27,10 @@ const formatTime = (seconds: number): string => {
     }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const defaultFont = require('./Roboto-Regular.ttf')
-
 export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
     duration,
     width,
+    font,
     interval = 1,
     tickHeight = 10,
     paddingLeft = 0,
@@ -41,7 +40,6 @@ export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
     labelFormatter = formatTime, // Use the new formatter function
     startMargin = 0,
 }) => {
-    const font = useFont(defaultFont, labelFontSize)
     const finalTickColor = tickColor ?? DEFAULT_TICK_COLOR
     const finalLabelColor = labelColor ?? DEFAULT_LABEL_COLOR
     const numTicks = Math.floor(duration / 1000 / interval)
@@ -61,7 +59,7 @@ export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
                     paddingLeft
                 const label = labelFormatter(i * interval)
                 let labelWidth = 0
-                if (!isWeb) {
+                if (!isWeb && font) {
                     labelWidth = font?.measureText(label)?.width || 0
                 }
                 const shouldDrawLabel = i % labelInterval === 0
@@ -78,7 +76,7 @@ export const SkiaTimeRuler: React.FC<TimeRulerProps> = ({
                                 strokeWidth={1}
                             />
                         )}
-                        {shouldDrawLabel && (
+                        {shouldDrawLabel && font && (
                             <Text
                                 text={label}
                                 x={xPosition - labelWidth / 2}

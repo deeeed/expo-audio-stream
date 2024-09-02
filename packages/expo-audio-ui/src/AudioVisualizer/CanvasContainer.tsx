@@ -3,6 +3,7 @@ import {
     ExtendedTouchInfo,
     Group,
     Path,
+    SkFont,
     useTouchHandler,
 } from '@shopify/react-native-skia'
 import React, { useCallback, useMemo, useRef } from 'react'
@@ -46,6 +47,7 @@ export interface CanvasContainerProps {
     maxAmplitude: number
     onSelection: (dataPoint: DataPoint) => void
     containerStyle?: StyleProp<ViewStyle>
+    font?: SkFont
 }
 
 const CanvasContainer: React.FC<CanvasContainerProps> = ({
@@ -67,6 +69,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     selectedCandle,
     showSilence,
     durationMs,
+    font,
     onSelection,
     minAmplitude,
     maxAmplitude,
@@ -213,6 +216,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                             duration={durationMs ?? 0 / 1000}
                             paddingLeft={paddingLeft}
                             width={totalCandleWidth}
+                            font={font}
                         />
                     )}
                 </Group>
@@ -231,6 +235,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     minAmplitude={minAmplitude}
                     maxAmplitude={maxAmplitude}
                     algorithm={algorithm}
+                    font={font}
                     padding={10} // Adjust the padding as needed
                   />
                 )}

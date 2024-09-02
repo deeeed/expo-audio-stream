@@ -48,9 +48,9 @@ export default function TabLayout() {
                 options={{
                     title: 'Files',
                     href: 'files',
-                    tabBarIcon: ({ color }) => (
-                        <FontAwesome size={28} name="cog" color={color} />
-                    ),
+                    // tabBarIcon: ({ color }) => (
+                    //     <FontAwesome size={28} name="cog" color={color} />
+                    // ),
                 }}
             />
             <Tabs.Screen
@@ -58,22 +58,22 @@ export default function TabLayout() {
                 options={{
                     title: 'Play',
                     href: 'play',
-                    tabBarIcon: ({ color }) => (
-                        <FontAwesome size={28} name="play" color={color} />
-                    ),
+                    // tabBarIcon: ({ color }) => (
+                    //     <FontAwesome size={28} name="play" color={color} />
+                    // ),
                 }}
             />
             <Tabs.Screen
                 name="more"
                 options={{
                     title: 'More',
-                    tabBarIcon: ({ color }) => (
-                        <MaterialIcons
-                            name="more-horiz"
-                            size={28}
-                            color={color}
-                        />
-                    ),
+                    // tabBarIcon: ({ color }) => (
+                    //     <MaterialIcons
+                    //         name="more-horiz"
+                    //         size={28}
+                    //         color={color}
+                    //     />
+                    // ),
                 }}
             />
         </Tabs>
