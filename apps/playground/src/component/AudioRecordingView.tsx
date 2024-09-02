@@ -19,8 +19,8 @@ import { getLogger } from '@siteed/react-native-logger'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import React, { useEffect, useMemo, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
-import { ActivityIndicator } from 'react-native-paper'
+import { StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Text } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
 
 import {
@@ -48,7 +48,6 @@ const getStyles = ({
             padding: 20,
             borderBottomWidth: 3,
             borderColor: isPlaying ? theme.colors.primary : theme.colors.border,
-            backgroundColor: '#fff',
         },
         detailText: {
             fontSize: 16,
