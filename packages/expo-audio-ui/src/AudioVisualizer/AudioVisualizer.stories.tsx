@@ -81,6 +81,8 @@ const Template: StoryFn<ExtendedAudioVisualizerProps> = ({
 export const Default = Template.bind({})
 Default.args = {
     audioData: mockAudioData,
+    fontVariant: 'None',
+    fontSize: 12,
 }
 
 export const LiveMode = Template.bind({})
