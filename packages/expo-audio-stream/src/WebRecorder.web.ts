@@ -1,4 +1,6 @@
 // src/WebRecorder.ts
+import { buffer } from 'stream/consumers'
+
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import { RecordingConfig } from './ExpoAudioStream.types'
 import {
@@ -6,6 +8,7 @@ import {
     EmitAudioEventFunction,
 } from './ExpoAudioStream.web'
 import { getLogger } from './logger'
+import { convertPCMToFloat32 } from './utils/convertPCMToFloat32'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
 import { writeWavHeader } from './utils/writeWavHeader'
 import { InlineFeaturesExtractor } from './workers/InlineFeaturesExtractor.web'
@@ -382,7 +385,20 @@ export class WebRecorder {
                                 'message',
                                 onMessage
                             )
-                            resolve(this.audioBuffer) // Resolve the promise with the collected buffers
+
+                            // Add wav header to the raw PCM data
+                            const wavHeaderBuffer = writeWavHeader({
+                                buffer: rawPCMDataFull.buffer,
+                                sampleRate: this.audioContext.sampleRate,
+                                numChannels: this.numberOfChannels,
+                                bitDepth: this.exportBitDepth,
+                            })
+                            const convertedPCM = await convertPCMToFloat32({
+                                buffer: wavHeaderBuffer,
+                                bitDepth: this.exportBitDepth,
+                            })
+
+                            resolve(convertedPCM.pcmValues) // Resolve the promise with the collected buffers
                         }
                     }
                     this.audioWorkletNode.port.addEventListener(

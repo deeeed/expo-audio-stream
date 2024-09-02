@@ -25,10 +25,6 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
         container: {
             flex: 1,
             backgroundColor: theme.colors.background,
-        },
-        contentContainer: {
-            gap: 10,
-            justifyContent: 'center',
             paddingTop: 10,
             paddingBottom: 80,
             paddingHorizontal: 20,

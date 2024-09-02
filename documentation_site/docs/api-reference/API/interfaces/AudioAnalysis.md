@@ -16,7 +16,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:73](https://github.com/deeeed/expo-audio-stream/blob/67b338010820aac53cfbdaf9e186b3d1ff71befb/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L73)
+[packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts:73](https://github.com/deeeed/expo-audio-stream/blob/d0bf2c28a2371c63f5f2e7cfd6f21402648ae412/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L73)
 
 ***
 
@@ -34,7 +34,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:74](https://github.com/deeeed/expo-audio-stream/blob/67b338010820aac53cfbdaf9e186b3d1ff71befb/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L74)
+[packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts:74](https://github.com/deeeed/expo-audio-stream/blob/d0bf2c28a2371c63f5f2e7cfd6f21402648ae412/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L74)
 
 ***
 
@@ -44,7 +44,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:68](https://github.com/deeeed/expo-audio-stream/blob/67b338010820aac53cfbdaf9e186b3d1ff71befb/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L68)
+[packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts:68](https://github.com/deeeed/expo-audio-stream/blob/d0bf2c28a2371c63f5f2e7cfd6f21402648ae412/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L68)
 
 ***
 
@@ -54,7 +54,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:72](https://github.com/deeeed/expo-audio-stream/blob/67b338010820aac53cfbdaf9e186b3d1ff71befb/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L72)
+[packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts:72](https://github.com/deeeed/expo-audio-stream/blob/d0bf2c28a2371c63f5f2e7cfd6f21402648ae412/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L72)
 
 ***
 
@@ -64,7 +64,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:67](https://github.com/deeeed/expo-audio-stream/blob/67b338010820aac53cfbdaf9e186b3d1ff71befb/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L67)
+[packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts:67](https://github.com/deeeed/expo-audio-stream/blob/d0bf2c28a2371c63f5f2e7cfd6f21402648ae412/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L67)
 
 ***
 
@@ -74,7 +74,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:70](https://github.com/deeeed/expo-audio-stream/blob/67b338010820aac53cfbdaf9e186b3d1ff71befb/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L70)
+[packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts:70](https://github.com/deeeed/expo-audio-stream/blob/d0bf2c28a2371c63f5f2e7cfd6f21402648ae412/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L70)
 
 ***
 
@@ -84,7 +84,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:66](https://github.com/deeeed/expo-audio-stream/blob/67b338010820aac53cfbdaf9e186b3d1ff71befb/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L66)
+[packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts:66](https://github.com/deeeed/expo-audio-stream/blob/d0bf2c28a2371c63f5f2e7cfd6f21402648ae412/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L66)
 
 ***
 
@@ -94,7 +94,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:71](https://github.com/deeeed/expo-audio-stream/blob/67b338010820aac53cfbdaf9e186b3d1ff71befb/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L71)
+[packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts:71](https://github.com/deeeed/expo-audio-stream/blob/d0bf2c28a2371c63f5f2e7cfd6f21402648ae412/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L71)
 
 ***
 
@@ -104,7 +104,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:69](https://github.com/deeeed/expo-audio-stream/blob/67b338010820aac53cfbdaf9e186b3d1ff71befb/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L69)
+[packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts:69](https://github.com/deeeed/expo-audio-stream/blob/d0bf2c28a2371c63f5f2e7cfd6f21402648ae412/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L69)
 
 ***
 
@@ -114,4 +114,4 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:79](https://github.com/deeeed/expo-audio-stream/blob/67b338010820aac53cfbdaf9e186b3d1ff71befb/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L79)
+[packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts:79](https://github.com/deeeed/expo-audio-stream/blob/d0bf2c28a2371c63f5f2e7cfd6f21402648ae412/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L79)
