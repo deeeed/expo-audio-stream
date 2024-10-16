@@ -3,7 +3,7 @@ import {
     EditableInfoCard,
     Notice,
     ScreenWrapper,
-    useBottomModal,
+    useModal,
     useToast,
 } from '@siteed/design-system'
 import React, { useCallback, useMemo, useState } from 'react'
@@ -47,7 +47,7 @@ const TranscriptionScreen = () => {
             quantized,
             language,
         })
-    const { openDrawer, dismiss } = useBottomModal()
+    const { openDrawer, dismiss } = useModal()
     const { show } = useToast()
 
     const hasEditedConfig = useMemo(() => {

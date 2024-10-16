@@ -92,7 +92,7 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
         runOnJS(onSelection)(candle)
     })
 
-    // FIXME: figure out why we cannot activate tapGesture on native
+    // There is a conflict if we do a lot of pangestures in quick succession and also have the tapGesture enabled on native.
     const composedGesture = Platform.select({
         web: Gesture.Race(panGesture, tapGesture),
         default: Gesture.Race(panGesture),

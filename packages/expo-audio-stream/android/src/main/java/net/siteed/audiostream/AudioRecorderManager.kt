@@ -50,6 +50,7 @@ class AudioRecorderManager(
     private var mimeType = "audio/wav"
     private var audioFormat: Int = AudioFormat.ENCODING_PCM_16BIT
     private var audioProcessor: AudioProcessor = AudioProcessor(filesDir)
+    private var isFirstChunk = true
 
     @RequiresApi(Build.VERSION_CODES.R)
     fun startRecording(options: Map<String, Any?>, promise: Promise) {
@@ -226,9 +227,13 @@ class AudioRecorderManager(
             return
         }
 
+        audioProcessor.resetCumulativeAmplitudeRange()
+
         audioRecord?.startRecording()
         isPaused.set(false)
         isRecording.set(true)
+        isFirstChunk = true  // Reset the flag when starting a new recording
+
 
         if (!isPaused.get()) {
             recordingStartTime =
@@ -309,6 +314,7 @@ class AudioRecorderManager(
                     Log.d(Constants.TAG, "Stopping AudioRecord");
                     audioRecord!!.stop()
                 }
+
             } catch (e: IllegalStateException) {
                 Log.e(Constants.TAG, "Error reading from AudioRecord", e);
             } finally {
@@ -316,6 +322,8 @@ class AudioRecorderManager(
             }
 
             try {
+                audioProcessor.resetCumulativeAmplitudeRange()
+
                 val fileSize = audioFile?.length() ?: 0
                 val dataFileSize = fileSize - 44  // Subtract header size
                 val byteRate = recordingConfig.sampleRate * recordingConfig.channels * when (recordingConfig.encoding) {
@@ -538,7 +546,14 @@ class AudioRecorderManager(
     }
 
     private fun processAudioData(audioData: ByteArray) {
-        val audioAnalysisData = audioProcessor.processAudioData(audioData, recordingConfig)
+        // Skip the WAV header only for the first chunk
+        val dataToProcess = if (isFirstChunk && audioData.size > Constants.WAV_HEADER_SIZE) {
+            audioData.copyOfRange(Constants.WAV_HEADER_SIZE, audioData.size)
+        } else {
+            audioData
+        }
+
+        val audioAnalysisData = audioProcessor.processAudioData(dataToProcess, recordingConfig)
         val analysisBundle = audioAnalysisData.toBundle()
 
         mainHandler.post {
@@ -550,6 +565,9 @@ class AudioRecorderManager(
                 Log.e(Constants.TAG, "Failed to send audio analysis event", e)
             }
         }
+
+        // Reset isFirstChunk after processing
+        isFirstChunk = false
     }
 
 

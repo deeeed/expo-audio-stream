@@ -9,7 +9,7 @@
     <b>Storybook</b>
     <p><a href="https://deeeed.github.io/expo-audio-stream/expo-audio-ui-storybook">https://deeeed.github.io/expo-audio-stream/expo-audio-ui-storybook</a></p>
   </div>
-  <a href="https://deeeed.github.io/expo-audio-stream-ui/playground/">
+  <a href="https://deeeed.github.io/expo-audio-stream/playground/">
     <img src="../../docs/demo.gif" alt="Screenshot Playground">
   </a>
 </div>
@@ -27,4 +27,4 @@ This package is currently under active development and is primarily used for tes
 
 ## Documentation
 
-For detailed documentation and usage instructions, please refer to the [Getting Started Guide](https://deeeed.github.io/expo-audio-stream-ui/docs/).
+For detailed documentation and usage instructions, please refer to the [Getting Started Guide](https://deeeed.github.io/expo-audio-stream/docs/).

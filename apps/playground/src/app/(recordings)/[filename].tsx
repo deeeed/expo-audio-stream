@@ -3,7 +3,7 @@ import { Entypo } from '@expo/vector-icons'
 import {
     AppTheme,
     ScreenWrapper,
-    useBottomModal,
+    useModal,
     useTheme,
     useToast,
 } from '@siteed/design-system'
@@ -45,7 +45,7 @@ export const FullAudioViewerPage = () => {
     const selectedFile = files.find((file) => file.filename === filename)
     const navigator = useNavigation()
 
-    const { openDrawer } = useBottomModal()
+    const { openDrawer } = useModal()
 
     const [config, setConfig] = useState<SelectedAudioVisualizerProps>({
         candleSpace: 2,

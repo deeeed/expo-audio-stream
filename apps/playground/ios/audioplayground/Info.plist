@@ -27,7 +27,6 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>net.siteed.audiostream.example</string>
           <string>net.siteed.audiostream.audioplayground</string>
         </array>
       </dict>

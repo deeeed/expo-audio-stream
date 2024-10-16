@@ -19,3 +19,10 @@ NSNumber *port = @7365;
 It looks for RCT_METRO_PORT
 apps/playground/ios/Pods/Headers/Private/React-Core/React/RCTDefines.h
 apps/playground/ios/Pods/Headers/Public/React-Core/React/RCTDefines.h
+
+
+
+### Gradle Issues 
+https://github.com/expo/expo/issues/31005
+
+- after expo prebuild --clean we need to change gradle version in `android/gradle/wrapper/gradle-wrapper.properties` from `8.8` to `8.5` to make it work with RN 0.74
