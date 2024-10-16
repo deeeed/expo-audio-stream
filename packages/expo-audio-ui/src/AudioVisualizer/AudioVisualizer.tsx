@@ -9,7 +9,7 @@ import React, {
     useReducer,
     useRef,
 } from 'react'
-import { LayoutChangeEvent, View } from 'react-native'
+import { LayoutChangeEvent, Text, View } from 'react-native'
 import { useSharedValue } from 'react-native-reanimated'
 
 import {
@@ -480,6 +480,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                 minAmplitude={audioData.amplitudeRange.min}
                                 maxAmplitude={audioData.amplitudeRange.max}
                                 theme={theme}
+                                scaleToHumanVoice={true}
                             />
                             <View style={theme.referenceLine} />
                         </>

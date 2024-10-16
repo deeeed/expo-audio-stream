@@ -3,8 +3,12 @@ import 'intl-pluralrules'
 
 import 'expo-router/entry'
 import { setLoggerConfig } from '@siteed/react-native-logger'
+import { Platform } from 'react-native'
 
-setLoggerConfig({ namespaces: '*' })
+setLoggerConfig({
+    namespaces: '*',
+    disableExtraParamsInConsole: Platform.OS !== 'web',
+})
 
 if (__DEV__) {
     const handlePromiseRejection = (

@@ -8,7 +8,7 @@ import {
     useTouchHandler,
 } from '@shopify/react-native-skia'
 import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
-import React, { useCallback, useMemo, useRef } from 'react'
+import React, { useCallback, useMemo, useRef, useEffect } from 'react'
 import { Platform, View } from 'react-native'
 import { SharedValue, useDerivedValue } from 'react-native-reanimated'
 
@@ -43,6 +43,7 @@ export interface CanvasContainerProps {
     onSelection: (dataPoint: DataPoint) => void
     theme: AudioVisualizerTheme
     font?: SkFont
+    scaleToHumanVoice: boolean
 }
 
 const CanvasContainer: React.FC<CanvasContainerProps> = ({
@@ -69,6 +70,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     onSelection,
     minAmplitude,
     maxAmplitude,
+    scaleToHumanVoice,
 }) => {
     const candleColors = {
         ...defaultCandleColors,
@@ -78,17 +80,52 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     const groupTransform = useDerivedValue(() => {
         return [{ translateX: translateX.value }]
     })
+
+    // Use refs to store the scaling factors
+    const scalingFactorRef = useRef<number>(1);
+    const humanVoiceScalingFactorRef = useRef<number>(1);
+
+    // Define reference values for human voice range
+    const humanVoiceMin = 0.01;  // Adjust based on your typical minimum amplitude for speech
+    const humanVoiceMax = 0.2;   // Maximum amplitude for normal speech
+    const absoluteMax = 0.8;     // Maximum possible amplitude
+
+    // Define the proportion of canvas height for normal speech
+    const normalSpeechHeightProportion = 0.95; // 95% of canvas height for normal speech
+
+    // Update scaling factors when maxAmplitude changes
+    useEffect(() => {
+        scalingFactorRef.current = canvasHeight / maxAmplitude;
+        humanVoiceScalingFactorRef.current = canvasHeight / (humanVoiceMax - humanVoiceMin);
+    }, [maxAmplitude, canvasHeight]);
+
     const memoizedCandles = useMemo(() => {
         return activePoints.map(
             ({ id, amplitude, visible, activeSpeech, silent }, index) => {
-                if (id === -1) return null
+                if (id === -1) return null;
 
-                const centerY = canvasHeight / 2
-                const scaledAmplitude =
-                    ((amplitude - minAmplitude) * (canvasHeight - 10)) /
-                    (maxAmplitude - minAmplitude)
+                const centerY = canvasHeight / 2;
+                
+                let scaledAmplitude: number;
+                if (scaleToHumanVoice) {
+                    if (amplitude <= humanVoiceMax) {
+                        // Scale normally within the human voice range
+                        scaledAmplitude = ((amplitude - humanVoiceMin) / (humanVoiceMax - humanVoiceMin)) * (canvasHeight * normalSpeechHeightProportion);
+                    } else {
+                        // For amplitudes above humanVoiceMax, use a logarithmic scale
+                        const baseHeight = canvasHeight * normalSpeechHeightProportion;
+                        const extraHeight = canvasHeight * (1 - normalSpeechHeightProportion);
+                        const logFactor = Math.log(amplitude / humanVoiceMax) / Math.log(absoluteMax / humanVoiceMax);
+                        scaledAmplitude = baseHeight + (extraHeight * logFactor);
+                    }
+                } else {
+                    // Use the full amplitude range from 0 to absoluteMax when not scaling to human voice
+                    scaledAmplitude = (amplitude / absoluteMax) * canvasHeight;
+                }
+                
+                // Clamp the scaled amplitude to ensure it stays within the canvas
+                const clampedAmplitude = Math.max(0, Math.min(scaledAmplitude, canvasHeight));
 
-                // const scaledAmplitude = amplitude;
                 let delta =
                     Math.ceil(maxDisplayedItems / 2) *
                     (candleWidth + candleSpace)
@@ -126,10 +163,10 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                             <AnimatedCandle
                                 animated
                                 x={x}
-                                y={centerY - scaledAmplitude / 2}
+                                y={centerY - clampedAmplitude / 2}
                                 startY={centerY}
                                 width={candleWidth}
-                                height={scaledAmplitude}
+                                height={clampedAmplitude}
                                 color={color}
                             />
                         )}
@@ -150,6 +187,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
         mode,
         startIndex,
         selectedCandle,
+        scaleToHumanVoice,
     ])
 
     const hasProcessedEvent = useRef(false)

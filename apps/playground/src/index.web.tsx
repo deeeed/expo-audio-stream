@@ -4,8 +4,13 @@ import { setLoggerConfig, getLogger } from '@siteed/react-native-logger'
 import { version as SkiaVersion } from 'canvaskit-wasm/package.json'
 import { App } from 'expo-router/build/qualified-entry'
 import { renderRootComponent } from 'expo-router/build/renderRootComponent'
+import { Platform } from 'react-native'
 
-setLoggerConfig({ namespaces: '*' })
+setLoggerConfig({
+    namespaces: '*',
+    disableExtraParamsInConsole: Platform.OS !== 'web',
+})
+
 const logger = getLogger('index.web.tsx')
 
 LoadSkiaWeb({

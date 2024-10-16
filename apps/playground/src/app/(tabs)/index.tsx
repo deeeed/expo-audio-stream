@@ -27,6 +27,7 @@ import { ActivityIndicator, Text } from 'react-native-paper'
 
 import { AudioRecordingView } from '../../component/AudioRecordingView'
 import LiveTranscriber from '../../component/LiveTranscriber'
+import { ProgressItems } from '../../component/ProgressItems'
 import { baseLogger, WhisperSampleRate } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { useTranscription } from '../../context/TranscriptionProvider'
@@ -65,7 +66,8 @@ export default function RecordScreen() {
             ...baseRecordingConfig,
             onAudioStream: (a) => onAudioData(a),
         })
-    const { initialize, ready } = useTranscription()
+    const { initialize, ready, isModelLoading, progressItems } =
+        useTranscription()
     const [result, setResult] = useState<AudioRecording | null>(null)
     const [processing, setProcessing] = useState(false)
     const currentSize = useRef(0)
@@ -281,16 +283,20 @@ export default function RecordScreen() {
             {streamConfig?.channels ? (
                 <Text>channels: {streamConfig?.channels}</Text>
             ) : null}
-            {isWeb && enableLiveTranscription && liveWebAudio && (
-                <LiveTranscriber
-                    transcripts={transcripts}
-                    duration={duration}
-                    activeTranscript={activeTranscript}
-                    sampleRate={
-                        startRecordingConfig.sampleRate ?? WhisperSampleRate
-                    }
-                />
-            )}
+            <ProgressItems items={progressItems} />
+            {!isModelLoading &&
+                isWeb &&
+                enableLiveTranscription &&
+                liveWebAudio && (
+                    <LiveTranscriber
+                        transcripts={transcripts}
+                        duration={duration}
+                        activeTranscript={activeTranscript}
+                        sampleRate={
+                            startRecordingConfig.sampleRate ?? WhisperSampleRate
+                        }
+                    />
+                )}
             <Button mode="contained" onPress={pauseRecording}>
                 Pause Recording
             </Button>

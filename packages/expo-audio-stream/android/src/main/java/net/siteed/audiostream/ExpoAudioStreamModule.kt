@@ -80,6 +80,7 @@ class ExpoAudioStreamModule() : Module(), EventSender {
                 )
 
                 Log.d("ExpoAudioStreamModule", "extractAudioAnalysis: $recordingConfig")
+                audioProcessor.resetCumulativeAmplitudeRange()
 
                 val analysisData = audioProcessor.processAudioData(audioData.data, recordingConfig)
                 promise.resolve(analysisData.toDictionary())

@@ -4,7 +4,7 @@ import {
     AppTheme,
     Button,
     EditableInfoCard,
-    useBottomModal,
+    useModal,
     useTheme,
     useToast,
 } from '@siteed/design-system'
@@ -141,7 +141,7 @@ export const AudioRecordingView = ({
         () => getStyles({ isPlaying, theme }),
         [isPlaying, theme]
     )
-    const { openDrawer, dismiss } = useBottomModal()
+    const { openDrawer, dismiss } = useModal()
 
     const handleShare = async () => {
         if (!audioUri) {
