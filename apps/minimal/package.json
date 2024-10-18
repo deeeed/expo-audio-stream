@@ -9,7 +9,8 @@
         "ios": "expo run:ios",
         "web": "expo start --web",
         "test": "jest --watchAll",
-        "lint": "expo lint"
+        "lint": "expo lint",
+        "deploy": "yarn clean && NODE_ENV=production expo export -p web && gh-pages -t -d dist --dest minimal"
     },
     "jest": {
         "preset": "jest-expo"
