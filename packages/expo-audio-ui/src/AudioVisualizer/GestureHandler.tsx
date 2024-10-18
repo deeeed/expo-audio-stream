@@ -132,7 +132,7 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
     // Modify the composedGesture to include the tapGesture only if tap selection is not disabled
     const composedGesture = Platform.select({
         web: Gesture.Race(panGesture, disableTapSelection ? Gesture.Tap() : tapGesture),
-        default: Gesture.Race(panGesture, disableTapSelection ? Gesture.Tap() : tapGesture),
+        default: Gesture.Race(panGesture),
     })
 
     return (

@@ -477,6 +477,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 canvasWidth={canvasWidth}
                 candleWidth={candleWidth}
                 candleSpace={candleSpace}
+                disableTapSelection={disableTapSelection}
                 totalCandleWidth={totalCandleWidth}
                 activePoints={updateActivePointsResult.current.activePoints}
                 onDragEnd={handleDragEnd}
