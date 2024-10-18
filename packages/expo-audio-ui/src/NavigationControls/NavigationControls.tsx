@@ -15,7 +15,6 @@ export interface NavigationControlsProps {
     theme: AudioVisualizerTheme
 }
 
-
 const styles = StyleSheet.create({
     controlsContainer: {
         flexDirection: 'row',
@@ -65,14 +64,13 @@ const NavigationControls: React.FC<NavigationControlsProps> = ({
 }) => (
     <View style={theme.navigationContainer}>
         <Text style={theme.text}>{audioData.samples} samples</Text>
-        <View
-            style={styles.controlsContainer}
-        >
-            <View
-                style={styles.navigationButtons}
-            >
+        <View style={styles.controlsContainer}>
+            <View style={styles.navigationButtons}>
                 <TouchableOpacity
-                    style={[styles.button, !selectedCandle && styles.disabledButton]}
+                    style={[
+                        styles.button,
+                        !selectedCandle && styles.disabledButton,
+                    ]}
                     onPress={onPrev}
                     disabled={!selectedCandle}
                 >
@@ -89,14 +87,17 @@ const NavigationControls: React.FC<NavigationControlsProps> = ({
                     </Text>
                 )}
                 <TouchableOpacity
-                    style={[styles.button, !selectedCandle && styles.disabledButton]}
+                    style={[
+                        styles.button,
+                        !selectedCandle && styles.disabledButton,
+                    ]}
                     onPress={onNext}
                     disabled={!selectedCandle}
                 >
                     <Text style={[styles.buttonText, theme.text]}>{'>'}</Text>
                 </TouchableOpacity>
             </View>
-            <Button title='Select' onPress={onCenter} />
+            <Button title="Select" onPress={onCenter} />
             <Button onPress={onReset} title="X" />
         </View>
     </View>

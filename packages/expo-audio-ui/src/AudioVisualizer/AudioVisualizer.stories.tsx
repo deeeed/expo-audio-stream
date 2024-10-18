@@ -6,8 +6,8 @@ import { Meta, StoryFn } from '@storybook/react'
 import React from 'react'
 import { Text, View } from 'react-native'
 
-import { NavigationControlsProps } from '../NavigationControls/NavigationControls'
 import { AudioVisualizer, AudioVisualizerProps } from './AudioVisualizer'
+import { NavigationControlsProps } from '../NavigationControls/NavigationControls'
 
 // Import the font files
 const RobotoBold = require('../../assets/Roboto/Roboto-Bold.ttf')

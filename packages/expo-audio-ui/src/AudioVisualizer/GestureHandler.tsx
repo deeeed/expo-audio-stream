@@ -3,14 +3,11 @@ import { DataPoint } from '@siteed/expo-audio-stream'
 import React, { useRef } from 'react'
 import { Platform } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import Animated, {
+import {
     SharedValue,
-    runOnJS,
-    useAnimatedStyle,
-    useSharedValue,
-    withDecay,
-    withTiming,
     cancelAnimation,
+    runOnJS,
+    useSharedValue,
 } from 'react-native-reanimated'
 
 import { CandleData } from './AudioVisualiser.types'
@@ -131,7 +128,10 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
 
     // Modify the composedGesture to include the tapGesture only if tap selection is not disabled
     const composedGesture = Platform.select({
-        web: Gesture.Race(panGesture, disableTapSelection ? Gesture.Tap() : tapGesture),
+        web: Gesture.Race(
+            panGesture,
+            disableTapSelection ? Gesture.Tap() : tapGesture
+        ),
         default: Gesture.Race(panGesture),
     })
 

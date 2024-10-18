@@ -81,4 +81,3 @@ export interface AudioAnalysis {
         speaker: number // Speaker identifier.
     }[]
 }
-

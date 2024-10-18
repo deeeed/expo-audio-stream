@@ -16,6 +16,7 @@ import { AudioVisualizerTheme, CandleData } from './AudioVisualiser.types'
 import { drawDottedLine } from './AudioVisualizers.helpers'
 import AnimatedCandle from '../AnimatedCandle/AnimatedCandle'
 import { SkiaTimeRuler } from '../SkiaTimeRuler/SkiaTimeRuler'
+import Waveform from '../Waveform/Waveform'
 import { YAxis } from '../YAxis/YAxis'
 import { defaultCandleColors } from '../constants'
 
@@ -45,6 +46,7 @@ export interface CanvasContainerProps {
     font?: SkFont
     scaleToHumanVoice: boolean
     disableTapSelection?: boolean
+    visualizationType?: 'candles' | 'waveform'
 }
 
 const CanvasContainer: React.FC<CanvasContainerProps> = ({
@@ -73,6 +75,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     maxAmplitude,
     scaleToHumanVoice,
     disableTapSelection = false,
+    visualizationType = 'waveform', // default to 'candles' for backward compatibility
 }) => {
     const candleColors = {
         ...defaultCandleColors,
@@ -207,7 +210,12 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
     const processEvent = useCallback(
         (event: ExtendedTouchInfo) => {
-            if (mode === 'live' || hasProcessedEvent.current || disableTapSelection) return
+            if (
+                mode === 'live' ||
+                hasProcessedEvent.current ||
+                disableTapSelection
+            )
+                return
 
             const { x, y } = event
             if (x < 0 || x > canvasWidth || y < 0 || y > canvasHeight) {
@@ -256,14 +264,47 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
         onEnd: processEvent,
     })
 
+    // Conditionally render visualization based on 'visualizationType' prop
+    const visualizationContent = useMemo(() => {
+        if (visualizationType === 'waveform') {
+            // Prepare data for Waveform component
+            return (
+                <Waveform
+                    activePoints={activePoints}
+                    canvasHeight={canvasHeight}
+                    canvasWidth={canvasWidth}
+                    minAmplitude={minAmplitude}
+                    maxAmplitude={maxAmplitude}
+                    theme={theme}
+                />
+            )
+        } else {
+            // Default to rendering Candles
+            return memoizedCandles
+        }
+    }, [
+        visualizationType,
+        activePoints,
+        canvasHeight,
+        canvasWidth,
+        minAmplitude,
+        maxAmplitude,
+        theme,
+        memoizedCandles,
+    ])
+
     return (
         <View style={theme.canvasContainer}>
             <Canvas
                 style={{ height: canvasHeight, width: canvasWidth }}
-                onTouch={Platform.OS !== 'web' && !disableTapSelection ? touchHandler : undefined}
+                onTouch={
+                    Platform.OS !== 'web' && !disableTapSelection
+                        ? touchHandler
+                        : undefined
+                }
             >
                 <Group transform={groupTransform}>
-                    {memoizedCandles}
+                    {visualizationContent}
                     {showRuler && (
                         <SkiaTimeRuler
                             duration={durationMs ?? 0 / 1000}
