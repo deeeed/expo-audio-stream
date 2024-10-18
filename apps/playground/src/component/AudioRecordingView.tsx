@@ -339,6 +339,8 @@ export const AudioRecordingView = ({
                         currentTime={position / 1000}
                         audioData={audioAnalysis}
                         onSeekEnd={handleOnSeekEnd}
+                        disableTapSelection={false}
+                        NavigationControls={() => <></>}
                         theme={{
                             buttonText: {
                                 color: theme.colors.primary,
