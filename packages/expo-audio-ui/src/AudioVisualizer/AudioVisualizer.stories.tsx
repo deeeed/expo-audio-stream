@@ -89,6 +89,8 @@ export default {
             options: ['Roboto-Regular', 'Roboto-Bold', 'Roboto-Italic', 'None'],
         },
         fontSize: { control: 'number' },
+        enableInertia: { control: 'boolean' },
+        disableTapSelection: { control: 'boolean' },
     },
 } as Meta<AudioVisualizerProps>
 
@@ -149,6 +151,8 @@ Default.args = {
     showDottedLine: false,
     showRuler: true,
     showYAxis: false,
+    enableInertia: false,
+    disableTapSelection: false,
 }
 
 export const LiveMode = Template.bind({})
@@ -227,6 +231,18 @@ NoFont.args = {
     fontVariant: 'None',
     showRuler: true,
     showYAxis: false,
+}
+
+export const WithInertia = Template.bind({})
+WithInertia.args = {
+    ...Default.args,
+    enableInertia: true,
+}
+
+export const DisabledTapSelection = Template.bind({})
+DisabledTapSelection.args = {
+    ...Default.args,
+    disableTapSelection: true,
 }
 
 // This story demonstrates the component's behavior when seeking through the audio
