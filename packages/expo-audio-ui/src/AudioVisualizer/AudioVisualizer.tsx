@@ -25,10 +25,11 @@ import {
     updateActivePoints,
 } from './AudioVisualizers.helpers'
 import CanvasContainer from './CanvasContainer'
-import { GestureHandler } from './GestureHandler'
+import { GestureHandler, GestureHandlerProps } from './GestureHandler'
 import NavigationControls, {
     NavigationControlsProps,
 } from '../NavigationControls/NavigationControls'
+import { Gesture } from 'react-native-gesture-handler/lib/typescript/handlers/gestures/gesture'
 
 export type AudioVisualiserAction = {
     type: 'UPDATE_STATE'
@@ -68,6 +69,7 @@ export interface AudioVisualizerProps {
     showYAxis?: boolean
     showSilence?: boolean
     showNavigation?: boolean
+    enableInertia?: GestureHandlerProps['enableInertia']
     font?: SkFont
     onSelection?: ({
         dataPoint,
@@ -105,6 +107,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     theme: customTheme,
     NavigationControls: CustomNavigationControls, // User-provided or default NavigationControls
     disableTapSelection = false,
+    enableInertia = false,
 }) => {
     const translateX = useSharedValue(0)
     const [state, dispatch] = useReducer(reducer, initialState)
@@ -452,6 +455,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 activePoints={updateActivePointsResult.current.activePoints}
                 onDragEnd={handleDragEnd}
                 onSelection={handleSelectionChange}
+                enableInertia={enableInertia}
             >
                 <View>
                     {ready && (
