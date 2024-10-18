@@ -29,6 +29,7 @@ export interface GestureHandlerProps {
     onDragEnd: (params: { newTranslateX: number }) => void
     children: React.ReactNode
     enableInertia?: boolean
+    disableTapSelection?: boolean
 }
 
 export const GestureHandler: React.FC<GestureHandlerProps> = ({
@@ -45,6 +46,7 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
     onSelection,
     children,
     enableInertia = false,
+    disableTapSelection = false,
 }) => {
     const initialTranslateX = useRef(0)
     const velocity = useSharedValue(0)
@@ -100,7 +102,7 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
         })
 
     const tapGesture = Gesture.Tap().onEnd((event) => {
-        if (!onSelection) {
+        if (disableTapSelection || !onSelection) {
             return
         }
 
@@ -127,10 +129,10 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
         runOnJS(onSelection)(candle)
     })
 
-    // There is a conflict if we do a lot of pangestures in quick succession and also have the tapGesture enabled on native.
+    // Modify the composedGesture to include the tapGesture only if tap selection is not disabled
     const composedGesture = Platform.select({
-        web: Gesture.Race(panGesture, tapGesture),
-        default: Gesture.Race(panGesture),
+        web: Gesture.Race(panGesture, disableTapSelection ? Gesture.Tap() : tapGesture),
+        default: Gesture.Race(panGesture, disableTapSelection ? Gesture.Tap() : tapGesture),
     })
 
     return (
