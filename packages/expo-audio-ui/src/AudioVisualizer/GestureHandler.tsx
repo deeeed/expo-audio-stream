@@ -3,11 +3,19 @@ import { DataPoint } from '@siteed/expo-audio-stream'
 import React, { useRef } from 'react'
 import { Platform } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import { SharedValue, runOnJS } from 'react-native-reanimated'
+import Animated, {
+    SharedValue,
+    runOnJS,
+    useAnimatedStyle,
+    useSharedValue,
+    withDecay,
+    withTiming,
+    cancelAnimation,
+} from 'react-native-reanimated'
 
 import { CandleData } from './AudioVisualiser.types'
 
-interface GestureHandlerProps {
+export interface GestureHandlerProps {
     playing: boolean
     mode: 'static' | 'live'
     canvasWidth: number
@@ -20,6 +28,7 @@ interface GestureHandlerProps {
     onSelection: (dataPoint: DataPoint) => void
     onDragEnd: (params: { newTranslateX: number }) => void
     children: React.ReactNode
+    enableInertia?: boolean
 }
 
 export const GestureHandler: React.FC<GestureHandlerProps> = ({
@@ -35,8 +44,11 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
     onDragEnd,
     onSelection,
     children,
+    enableInertia = false,
 }) => {
     const initialTranslateX = useRef(0)
+    const velocity = useSharedValue(0)
+    const isDecelerating = useSharedValue(false)
 
     if (playing || mode === 'live') {
         return <>{children}</>
@@ -44,24 +56,47 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
 
     const panGesture = Gesture.Pan()
         .onStart((_e) => {
+            cancelAnimation(translateX)
             initialTranslateX.current = translateX.value
+            velocity.value = 0
+            isDecelerating.value = false
         })
         .onChange((e) => {
             const newTranslateX = translateX.value + e.changeX
-            const clampedTranslateX = Math.max(
+            translateX.value = Math.max(
                 -maxTranslateX,
                 Math.min(0, newTranslateX)
-            ) // Clamping within bounds
-
-            // compute distance since last update
-            //   const distance = Math.abs(initialTranslateX.current - clampedTranslateX);
-            //   const distanceItems = Math.floor(distance / (candleWidth + candleSpace));
-            translateX.value = clampedTranslateX
+            )
+            velocity.value = e.velocityX
         })
         .onEnd((_e) => {
-            runOnJS(onDragEnd)({
-                newTranslateX: translateX.value,
-            })
+            if (enableInertia) {
+                isDecelerating.value = true
+                const decelerate = () => {
+                    if (!isDecelerating.value) return
+
+                    const newVelocity = velocity.value * 0.95
+                    const newTranslateX = translateX.value + newVelocity * 0.016 // Assuming 60fps
+
+                    if (Math.abs(newVelocity) < 1) {
+                        isDecelerating.value = false
+                        runOnJS(onDragEnd)({ newTranslateX: translateX.value })
+                        return
+                    }
+
+                    translateX.value = Math.max(
+                        -maxTranslateX,
+                        Math.min(0, newTranslateX)
+                    )
+                    velocity.value = newVelocity
+
+                    requestAnimationFrame(decelerate)
+                }
+
+                requestAnimationFrame(decelerate)
+            } else {
+                runOnJS(onDragEnd)({ newTranslateX: translateX.value })
+            }
         })
 
     const tapGesture = Gesture.Tap().onEnd((event) => {

@@ -340,6 +340,7 @@ export const AudioRecordingView = ({
                         audioData={audioAnalysis}
                         onSeekEnd={handleOnSeekEnd}
                         disableTapSelection={false}
+                        enableInertia={true}
                         NavigationControls={() => <></>}
                         theme={{
                             buttonText: {
