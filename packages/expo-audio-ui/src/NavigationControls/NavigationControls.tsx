@@ -1,6 +1,6 @@
 import { AudioAnalysis, DataPoint } from '@siteed/expo-audio-stream'
 import React from 'react'
-import { Button, Text, View } from 'react-native'
+import { Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 import { AudioVisualizerTheme } from '../AudioVisualizer/AudioVisualiser.types'
 
@@ -11,8 +11,47 @@ export interface NavigationControlsProps {
     onPrev: () => void
     onNext: () => void
     onReset: () => void
+    onCenter?: () => void
     theme: AudioVisualizerTheme
 }
+
+
+const styles = StyleSheet.create({
+    controlsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+        marginTop: 10,
+    },
+    navigationButtons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+    button: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 5,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        minWidth: 60,
+        alignItems: 'center',
+    },
+    disabledButton: {
+        opacity: 0.5,
+    },
+    buttonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    resetButton: {
+        backgroundColor: '#FF3B30',
+    },
+    text: {
+        fontSize: 16,
+    },
+})
 
 const NavigationControls: React.FC<NavigationControlsProps> = ({
     selectedCandle,
@@ -21,25 +60,24 @@ const NavigationControls: React.FC<NavigationControlsProps> = ({
     onPrev,
     onNext,
     onReset,
+    onCenter,
     theme,
 }) => (
     <View style={theme.navigationContainer}>
         <Text style={theme.text}>{audioData.samples} samples</Text>
         <View
-            style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                width: '100%',
-            }}
+            style={styles.controlsContainer}
         >
             <View
-                style={{
-                    flexDirection: 'row',
-                    gap: 10,
-                    alignItems: 'center',
-                }}
+                style={styles.navigationButtons}
             >
-                <Button title="<" onPress={onPrev} disabled={!selectedCandle} />
+                <TouchableOpacity
+                    style={[styles.button, !selectedCandle && styles.disabledButton]}
+                    onPress={onPrev}
+                    disabled={!selectedCandle}
+                >
+                    <Text style={[styles.buttonText, theme.text]}>{'<'}</Text>
+                </TouchableOpacity>
 
                 {selectedCandle ? (
                     <Text
@@ -50,9 +88,16 @@ const NavigationControls: React.FC<NavigationControlsProps> = ({
                         {audioData.dataPoints.length} items
                     </Text>
                 )}
-                <Button title=">" onPress={onNext} disabled={!selectedCandle} />
+                <TouchableOpacity
+                    style={[styles.button, !selectedCandle && styles.disabledButton]}
+                    onPress={onNext}
+                    disabled={!selectedCandle}
+                >
+                    <Text style={[styles.buttonText, theme.text]}>{'>'}</Text>
+                </TouchableOpacity>
             </View>
-            <Button onPress={onReset} title="Reset" />
+            <Button title='Select' onPress={onCenter} />
+            <Button onPress={onReset} title="X" />
         </View>
     </View>
 )

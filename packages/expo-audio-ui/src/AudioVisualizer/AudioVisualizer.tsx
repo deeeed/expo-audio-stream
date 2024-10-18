@@ -427,6 +427,31 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         })
     }, [dispatch])
 
+    const handleCenter = useCallback(() => {
+        const currentTranslateX = translateX.value;
+        // Calculate the index of the candle under the reference line, accounting for scroll position
+        const candleUnderReferenceLine = Math.floor((referenceLineX - currentTranslateX) / (candleWidth + candleSpace)) - Math.floor(maxDisplayedItems / 2) + 1;
+
+        if (candleUnderReferenceLine >= 0 && candleUnderReferenceLine < audioData.dataPoints.length) {
+            const newSelectedCandle = audioData.dataPoints[candleUnderReferenceLine];
+            if (newSelectedCandle) {
+                dispatch({
+                    type: 'UPDATE_STATE',
+                    state: {
+                        selectedCandle: { ...newSelectedCandle, visible: true } as CandleData,
+                        selectedIndex: candleUnderReferenceLine,
+                    },
+                });
+
+                onSelection?.({ dataPoint: newSelectedCandle, index: candleUnderReferenceLine });
+            } else {
+                logger.debug('No candle found at index:', candleUnderReferenceLine);
+            }
+        } else {
+            logger.log('Candle index out of range:', candleUnderReferenceLine);
+        }
+    }, [translateX, referenceLineX, audioData.dataPoints, candleWidth, candleSpace, maxDisplayedItems, canvasWidth, dispatch, onSelection]);
+
     return (
         <View
             style={[theme.container, { marginTop: 20 }]}
@@ -441,6 +466,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                     onPrev={() => handlePrevNextSelection('prev')}
                     onNext={() => handlePrevNextSelection('next')}
                     onReset={handleReset}
+                    onCenter={handleCenter}
                 />
             )}
             <GestureHandler
