@@ -44,6 +44,7 @@ export interface CanvasContainerProps {
     theme: AudioVisualizerTheme
     font?: SkFont
     scaleToHumanVoice: boolean
+    disableTapSelection?: boolean
 }
 
 const CanvasContainer: React.FC<CanvasContainerProps> = ({
@@ -71,6 +72,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     minAmplitude,
     maxAmplitude,
     scaleToHumanVoice,
+    disableTapSelection = false,
 }) => {
     const candleColors = {
         ...defaultCandleColors,
@@ -205,7 +207,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
     const processEvent = useCallback(
         (event: ExtendedTouchInfo) => {
-            if (mode === 'live' || hasProcessedEvent.current) return
+            if (mode === 'live' || hasProcessedEvent.current || disableTapSelection) return
 
             const { x, y } = event
             if (x < 0 || x > canvasWidth || y < 0 || y > canvasHeight) {
@@ -245,6 +247,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
             candleSpace,
             activePoints,
             onSelection,
+            disableTapSelection,
         ]
     )
 
@@ -257,7 +260,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
         <View style={theme.canvasContainer}>
             <Canvas
                 style={{ height: canvasHeight, width: canvasWidth }}
-                onTouch={Platform.OS !== 'web' ? touchHandler : undefined}
+                onTouch={Platform.OS !== 'web' && !disableTapSelection ? touchHandler : undefined}
             >
                 <Group transform={groupTransform}>
                     {memoizedCandles}

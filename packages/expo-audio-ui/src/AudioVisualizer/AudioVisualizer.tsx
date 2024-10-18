@@ -81,6 +81,7 @@ export interface AudioVisualizerProps {
     onSeekEnd?: (newTime: number) => void
     theme?: Partial<AudioVisualizerTheme>
     NavigationControls?: React.ComponentType<NavigationControlsProps>
+    disableTapSelection?: boolean
 }
 
 const logger = getLogger('AudioVisualizer')
@@ -103,6 +104,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     font,
     theme: customTheme,
     NavigationControls: CustomNavigationControls, // User-provided or default NavigationControls
+    disableTapSelection = false,
 }) => {
     const translateX = useSharedValue(0)
     const [state, dispatch] = useReducer(reducer, initialState)
@@ -284,6 +286,9 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     const handleDragEnd = useCallback(
         ({ newTranslateX }: { newTranslateX: number }) => {
+            console.log(
+                `handleDragEnd newTranslateX=${newTranslateX} disableTapSelection=${disableTapSelection}`
+            )
             if (audioData.durationMs && onSeekEnd) {
                 const allowedTranslateX = maxTranslateX
                 const progressRatio = -newTranslateX / allowedTranslateX
@@ -461,6 +466,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                 showSilence={showSilence}
                                 mode={mode}
                                 font={font}
+                                disableTapSelection={disableTapSelection}
                                 startIndex={
                                     updateActivePointsResult.current.range.start
                                 }
