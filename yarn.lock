@@ -5678,6 +5678,7 @@ __metadata:
     "@rollup/plugin-typescript": "npm:^11.1.6"
     "@rollup/plugin-url": "npm:^8.0.2"
     "@shopify/react-native-skia": "npm:1.2.3"
+    "@siteed/expo-audio-stream": "workspace:^"
     "@siteed/react-native-logger": "npm:^0.10.0"
     "@size-limit/preset-big-lib": "npm:^11.1.4"
     "@storybook/addon-actions": "npm:^8.2.9"
@@ -5731,6 +5732,7 @@ __metadata:
     typescript: "npm:~5.3.3"
   peerDependencies:
     "@shopify/react-native-skia": ">= 1.2.0"
+    "@siteed/expo-audio-stream": "*"
     expo: "*"
     react: "*"
     react-native: "*"
