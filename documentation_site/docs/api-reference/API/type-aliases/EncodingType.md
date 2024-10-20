@@ -10,4 +10,4 @@
 
 ## Defined in
 
-[src/ExpoAudioStream.types.ts:26](https://github.com/deeeed/expo-audio-stream/blob/ea561c3da49d0e0d23475310f6fe4f2e17ab01f7/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L26)
+[src/ExpoAudioStream.types.ts:26](https://github.com/deeeed/expo-audio-stream/blob/1beb669a538877bfc3cca496d7b9c5e25165fa80/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L26)
