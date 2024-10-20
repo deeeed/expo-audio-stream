@@ -10,7 +10,7 @@ import React, {
     useRef,
     useState,
 } from 'react'
-import { Button, LayoutChangeEvent, View } from 'react-native'
+import { LayoutChangeEvent, View } from 'react-native'
 import { useSharedValue } from 'react-native-reanimated'
 
 import {
@@ -116,7 +116,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     const translateX = useSharedValue(0)
     const [state, dispatch] = useReducer(reducer, initialState)
 
-    const [activeVisualizationType, setActiveVisualizationType] =
+    const [activeVisualizationType, _setActiveVisualizationType] =
         useState<CanvasContainerProps['visualizationType']>(_visualizationType)
 
     const {
@@ -505,16 +505,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                     onCenter={handleCenter}
                 />
             )}
-            <Button
-                onPress={() =>
-                    setActiveVisualizationType(
-                        activeVisualizationType === 'candles'
-                            ? 'waveform'
-                            : 'candles'
-                    )
-                }
-                title={activeVisualizationType ?? 'Candles'}
-            />
             <GestureHandler
                 playing={playing}
                 mode={mode}
