@@ -1,4 +1,5 @@
 // playground/src/app/(tabs)/play.tsx
+import { useFont } from '@shopify/react-native-skia'
 import {
     Button,
     LabelSwitch,
@@ -61,6 +62,7 @@ export const PlayPage = () => {
     const [currentTime, setCurrentTime] = useState<number>(0)
     const [processing, setProcessing] = useState<boolean>(false)
     const [audioBuffer, setAudioBuffer] = useState<Float32Array>()
+    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
     const [enableTranscription, setEnableTranscription] =
         useState<boolean>(isWeb)
     const [transcript, setTranscript] = useState<TranscriberData>()
@@ -415,6 +417,7 @@ export const PlayPage = () => {
                                 mode="static"
                                 showRuler
                                 showDottedLine
+                                font={font ?? undefined}
                                 playing={isPlaying}
                                 candleWidth={5}
                                 currentTime={currentTime}
