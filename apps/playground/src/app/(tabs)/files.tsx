@@ -60,13 +60,13 @@ const FilesScreen = () => {
 
     const handleDelete = useCallback(
         async (recording: AudioRecording) => {
-            logger.debug(`Deleting recording: ${recording.fileUri}`)
+            logger.debug(`Deleting recording: ${recording.filename}`)
             try {
-                await removeFile(recording.fileUri)
+                await removeFile(recording)
                 show({ type: 'success', message: 'Recording deleted' })
             } catch (error) {
                 logger.error(
-                    `Failed to delete recording: ${recording.fileUri}`,
+                    `Failed to delete recording: ${recording.filename}`,
                     error
                 )
                 show({ type: 'error', message: 'Failed to load audio data' })

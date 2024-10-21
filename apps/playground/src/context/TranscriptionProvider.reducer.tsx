@@ -1,4 +1,3 @@
-// TranscriptionProvider.reducer.ts
 import {
     TranscriptionAction,
     TranscriptionState,
@@ -43,6 +42,14 @@ export function transcriptionReducer(
             return {
                 ...state,
                 progressItems: updatedProgressItems,
+            }
+        }
+        case 'REMOVE_PROGRESS_ITEM': {
+            return {
+                ...state,
+                progressItems: state.progressItems.filter(
+                    (item) => item.file !== action.payload
+                ),
             }
         }
         case 'TRANSCRIPTION_START': {
