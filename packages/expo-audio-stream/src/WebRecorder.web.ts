@@ -319,7 +319,7 @@ export class WebRecorder {
             // Handle the extracted features (e.g., emit an event or log them)
             logger.debug('features event segmentResult', segmentResult)
             logger.debug(
-                'features event audioAnalysisData',
+                `features event audioAnalysisData duration=${this.audioAnalysisData.durationMs}`,
                 this.audioAnalysisData
             )
             this.emitAudioAnalysisCallback(segmentResult)
