@@ -1,6 +1,6 @@
 // playground/src/app/_layout.tsx
 import { ThemeProvider } from '@react-navigation/native'
-import { UIProvider, useTheme } from '@siteed/design-system'
+import { useTheme } from '@siteed/design-system'
 import { AudioRecorderProvider } from '@siteed/expo-audio-stream'
 import { enabled, getLogger } from '@siteed/react-native-logger'
 import Constants from 'expo-constants'
@@ -13,28 +13,10 @@ import { AudioFilesProvider } from '../context/AudioFilesProvider'
 import { TranscriptionProvider } from '../context/TranscriptionProvider'
 const logger = getLogger('RootLayout')
 
-const WithUI = (_: { children?: React.ReactNode }) => {
-    const theme = useTheme()
-    return (
-        <AudioFilesProvider>
-            <ThemeProvider value={theme}>
-                <Stack
-                    screenOptions={{
-                        headerBackButtonMenuEnabled: false,
-                    }}
-                >
-                    <Stack.Screen
-                        name="(tabs)"
-                        options={{ headerShown: false }}
-                    />
-                </Stack>
-            </ThemeProvider>
-        </AudioFilesProvider>
-    )
-}
-
 export default function RootLayout() {
     const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? ''
+    const theme = useTheme()
+
     useEffect(() => {
         logger.debug(`Base URL: ${baseUrl}`)
         console.log(`Base URL: ${baseUrl}`)
@@ -52,17 +34,20 @@ export default function RootLayout() {
                         featuresExtratorUrl: config.featuresExtratorUrl,
                     }}
                 >
-                    <UIProvider
-                        toastProviderProps={{
-                            overrides: {
-                                snackbarStyle: {
-                                    marginBottom: 40,
-                                },
-                            },
-                        }}
-                    >
-                        <WithUI />
-                    </UIProvider>
+                    <AudioFilesProvider>
+                        <ThemeProvider value={theme}>
+                            <Stack
+                                screenOptions={{
+                                    headerBackButtonMenuEnabled: false,
+                                }}
+                            >
+                                <Stack.Screen
+                                    name="(tabs)"
+                                    options={{ headerShown: false }}
+                                />
+                            </Stack>
+                        </ThemeProvider>
+                    </AudioFilesProvider>
                 </AudioRecorderProvider>
             </TranscriptionProvider>
         </ApplicationContextProvider>

@@ -85,9 +85,8 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         Record<string, (error: Error) => void>
     >({})
 
-    const webWorker = useWorker({
-        url: config.whisperWorkerUrl,
-        messageEventHandler: (event) => {
+    const messageEventHandler = useCallback(
+        (event: MessageEvent) => {
             const message = event.data
             const jobId = message.jobId
             switch (message.status) {
@@ -142,13 +141,13 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     break
                 }
                 case 'initiate':
-                    dispatch({
-                        type: 'UPDATE_STATE',
-                        payload: {
-                            isModelLoading: true,
-                            progressItems: [...state.progressItems, message],
-                        },
-                    })
+                    // dispatch({
+                    //     type: 'UPDATE_STATE',
+                    //     payload: {
+                    //         isModelLoading: true,
+                    //         progressItems: [...state.progressItems, message],
+                    //     },
+                    // })
                     break
                 case 'ready':
                     dispatch({
@@ -180,17 +179,8 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 }
                 case 'done': {
                     dispatch({
-                        type: 'UPDATE_STATE',
-                        payload: {
-                            progressItems: state.progressItems.filter(
-                                (item) => {
-                                    logger.debug(
-                                        `item.file=${item.file} message.file=${message.file}`
-                                    )
-                                    return item?.file !== message.file
-                                }
-                            ),
-                        },
+                        type: 'REMOVE_PROGRESS_ITEM',
+                        payload: message.file,
                     })
                     break
                 }
@@ -198,7 +188,33 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     break
             }
         },
+        [dispatch]
+    )
+
+    const webWorker = useWorker({
+        url: config.whisperWorkerUrl,
+        messageEventHandler,
     })
+
+    const modelRef = useRef(state.model)
+    const quantizedRef = useRef(state.quantized)
+    const multilingualRef = useRef(state.multilingual)
+    const subtaskRef = useRef(state.subtask)
+    const languageRef = useRef(state.language)
+
+    useEffect(() => {
+        modelRef.current = state.model
+        quantizedRef.current = state.quantized
+        multilingualRef.current = state.multilingual
+        subtaskRef.current = state.subtask
+        languageRef.current = state.language
+    }, [
+        state.model,
+        state.quantized,
+        state.multilingual,
+        state.subtask,
+        state.language,
+    ])
 
     const initialize = useCallback(() => {
         dispatch({
@@ -207,21 +223,21 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         })
         logger.debug(
             'Initializing transcription...',
-            state.model,
-            state.quantized
+            modelRef.current,
+            quantizedRef.current
         )
         webWorker.postMessage({
             type: 'initialize',
-            model: state.model,
-            quantized: state.quantized,
-            multilingual: state.multilingual,
-            subtask: state.multilingual ? state.subtask : null,
+            model: modelRef.current,
+            quantized: quantizedRef.current,
+            multilingual: multilingualRef.current,
+            subtask: multilingualRef.current ? subtaskRef.current : null,
             language:
-                state.multilingual && state.language !== 'auto'
-                    ? state.language
+                multilingualRef.current && languageRef.current !== 'auto'
+                    ? languageRef.current
                     : null,
         })
-    }, [webWorker, state.model, state.quantized])
+    }, [dispatch, webWorker])
 
     const transcribe = useCallback(
         async ({ audioData, jobId, position = 0 }: TranscribeParams) => {
@@ -243,27 +259,23 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         audio: audioData,
                         position,
                         jobId,
-                        model: state.model,
-                        multilingual: state.multilingual,
-                        quantized: state.quantized,
-                        subtask: state.multilingual ? state.subtask : null,
+                        model: modelRef.current,
+                        multilingual: multilingualRef.current,
+                        quantized: quantizedRef.current,
+                        subtask: multilingualRef.current
+                            ? subtaskRef.current
+                            : null,
                         language:
-                            state.multilingual && state.language !== 'auto'
-                                ? state.language
+                            multilingualRef.current &&
+                            languageRef.current !== 'auto'
+                                ? languageRef.current
                                 : null,
                     })
                 })
             }
             return Promise.reject(new Error('No audio data provided'))
         },
-        [
-            webWorker,
-            state.model,
-            state.multilingual,
-            state.quantized,
-            state.subtask,
-            state.language,
-        ]
+        [webWorker]
     )
 
     const updateConfig = useCallback(
@@ -294,13 +306,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 initialize()
             }
         }
-    }, [
-        state.model,
-        state.multilingual,
-        state.quantized,
-        state.language,
-        initialize,
-    ])
+    }, [initialize])
 
     const contextValue = useMemo(
         () => ({

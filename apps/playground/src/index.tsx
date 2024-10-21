@@ -1,49 +1,27 @@
-import 'intl-pluralrules'
-// Keep polyfills at the top
-
-import 'expo-router/entry'
-import { setLoggerConfig } from '@siteed/react-native-logger'
+import '@expo/metro-runtime'
+import { LoadSkiaWeb } from '@shopify/react-native-skia/lib/module/web'
+import { version as SkiaVersion } from 'canvaskit-wasm/package.json'
+import { registerRootComponent } from 'expo'
+import { renderRootComponent } from 'expo-router/build/renderRootComponent'
 import { Platform } from 'react-native'
 
-setLoggerConfig({
-    namespaces: '*',
-    disableExtraParamsInConsole: Platform.OS !== 'web',
-})
+import { AppRoot } from './AppRoot'
 
-if (__DEV__) {
-    const handlePromiseRejection = (
-        _id: string,
-        {
-            message,
-            stack,
-        }: {
-            message: string
-            stack: string
-        }
-    ) => {
-        console.warn('Unhandled promise rejection:', message)
-        console.log('Stack trace:', stack)
-    }
-
-    // @ts-ignore
-    if (global.HermesInternal) {
-        // For Hermes engine
-        // @ts-ignore
-        global.HermesInternal.enablePromiseRejectionTracker?.(
-            handlePromiseRejection
-        )
-    } else {
-        // For other JS engines (e.g., JavaScriptCore)
-        const tracking = require('promise/setimmediate/rejection-tracking')
-        tracking.enable({
-            allRejections: true,
-            onUnhandled: handlePromiseRejection,
-            onHandled: () => {
-                // You can add custom handling for handled rejections here if needed
-            },
+if (Platform.OS === 'web') {
+    LoadSkiaWeb({
+        locateFile: (path) => {
+            const url = `https://cdn.jsdelivr.net/npm/canvaskit-wasm@${SkiaVersion}/bin/full/${path}`
+            console.log(`__DEV__=${__DEV__} Loading Skia: ${url}`)
+            return url
+        },
+    })
+        .then(async () => {
+            renderRootComponent(AppRoot)
+            return true
         })
-    }
-
-    // Optional: Disable LogBox for promise rejections
-    // LogBox.ignoreLogs(['Possible Unhandled Promise Rejection'])
+        .catch((error) => {
+            console.error('Failed to load Skia', error)
+        })
+} else {
+    registerRootComponent(AppRoot)
 }

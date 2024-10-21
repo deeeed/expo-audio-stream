@@ -358,7 +358,7 @@ export const PlayPage = () => {
         } catch (error) {
             logger.error('Error saving file to files:', error)
             // cleanup files if failed
-            await removeFile(audioResult.fileUri)
+            await removeFile(audioResult)
             throw error
         }
     }, [files, fileName, audioUri, logger, refreshFiles, show, transcript])

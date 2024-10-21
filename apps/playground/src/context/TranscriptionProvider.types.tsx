@@ -25,6 +25,7 @@ export interface TranscriptionState {
 export type TranscriptionAction =
     | { type: 'UPDATE_STATE'; payload: Partial<TranscriptionState> }
     | { type: 'UPDATE_PROGRESS_ITEM'; progressItem: ProgressItem }
+    | { type: 'REMOVE_PROGRESS_ITEM'; payload: string }
     | { type: 'TRANSCRIPTION_START' }
 
 export interface TranscriberUpdateData {

@@ -168,8 +168,13 @@ export default function RecordScreen() {
             currentSize.current = 0
             setLiveWebAudio(null)
             logger.log(`Starting recording...`, startRecordingConfig)
-            const streamConfig: StartRecordingResult =
-                await startRecording(startRecordingConfig)
+            const streamConfig: StartRecordingResult = await startRecording({
+                ...startRecordingConfig,
+                onAudioAnalysis: async (analysis) => {
+                    logger.debug(`Received audio analysis`, analysis)
+                    return undefined
+                },
+            })
             logger.debug(`Recording started `, streamConfig)
             setStreamConfig(streamConfig)
 
@@ -308,9 +313,9 @@ export default function RecordScreen() {
 
     const handleDelete = useCallback(
         async (recording: AudioRecording) => {
-            logger.debug(`Deleting recording: ${recording.fileUri}`)
+            logger.debug(`Deleting recording: ${recording.filename}`)
             try {
-                await removeFile(recording.fileUri)
+                await removeFile(recording)
                 show({ type: 'success', message: 'Recording deleted' })
                 setResult(null)
             } catch (error) {
