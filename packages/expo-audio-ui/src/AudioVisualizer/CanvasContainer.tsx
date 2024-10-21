@@ -5,6 +5,7 @@ import {
     Group,
     Path,
     SkFont,
+    Text,
     useTouchHandler,
 } from '@shopify/react-native-skia'
 import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
@@ -75,7 +76,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     maxAmplitude,
     scaleToHumanVoice,
     disableTapSelection = false,
-    visualizationType = 'waveform', // default to 'candles' for backward compatibility
+    visualizationType = 'candles', // default to 'candles' for backward compatibility
 }) => {
     const candleColors = {
         ...defaultCandleColors,
@@ -337,6 +338,13 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         labelColor={theme.yAxis.labelColor}
                     />
                 )}
+                <Text
+                    x={10}
+                    y={50}
+                    text={`translateX: ${translateX.value.toFixed(2)}`}
+                    color="white"
+                    font={font ?? null}
+                />
             </Canvas>
         </View>
     )

@@ -87,6 +87,10 @@ export interface AudioVisualizerProps {
     theme?: Partial<AudioVisualizerTheme>
     NavigationControls?: React.ComponentType<NavigationControlsProps>
     disableTapSelection?: boolean
+    /** Allows parent to set the translateX position */
+    translateXPosition?: number
+    /** Callback to notify parent of translateX changes */
+    onTranslateXChange?: (translateX: number) => void
 }
 
 const logger = getLogger('AudioVisualizer')
@@ -112,6 +116,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     NavigationControls: CustomNavigationControls, // User-provided or default NavigationControls
     disableTapSelection = false,
     enableInertia = false,
+    translateXPosition,
+    onTranslateXChange,
 }) => {
     const translateX = useSharedValue(0)
     const [state, dispatch] = useReducer(reducer, initialState)
@@ -306,6 +312,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 onSeekEnd(newTime)
             }
 
+            onTranslateXChange?.(newTranslateX)
+
             const {
                 activePoints: updatedActivePoints,
                 range: updatedRange,
@@ -334,7 +342,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 state: { triggerUpdate: triggerUpdate + 1 },
             })
         },
-        [onSeekEnd, audioData.dataPoints, maxDisplayedItems]
+        [onSeekEnd, audioData.dataPoints, maxDisplayedItems, onTranslateXChange]
     )
 
     const handleSelectionChange = useCallback(
@@ -487,6 +495,16 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         dispatch,
         onSelection,
     ])
+
+    // Add effect to update translateX when translateXPosition changes
+    useEffect(() => {
+        if (
+            translateXPosition !== undefined &&
+            translateX.value !== translateXPosition
+        ) {
+            translateX.value = translateXPosition
+        }
+    }, [translateXPosition])
 
     return (
         <View
