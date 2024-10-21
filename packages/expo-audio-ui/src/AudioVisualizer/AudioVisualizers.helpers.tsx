@@ -37,7 +37,6 @@ export const createDefaultTheme = (
     referenceLineX: number
 ) => ({
     container: {
-        flex: 1,
         justifyContent: 'center' as const,
         alignItems: 'center' as const,
     },
