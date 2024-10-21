@@ -17,11 +17,6 @@ yarn docgen
 echo "Preparing and publishing package..."
 yarn clean && yarn prepare && yarn npm publish
 
-# Commit changes
-echo "Committing changes..."
-git add .
-git commit -m "feat: bump version to $version"
-
 # Publish playground app
 echo "Publishing playground app..."
 cd ../../apps/playground
@@ -31,5 +26,10 @@ yarn deploy
 # echo "Publishing minimal app..."
 # cd ../minimal
 # yarn deploy
+
+# Commit changes
+echo "Committing changes..."
+git add .
+git commit -m "feat: bump version to $version"
 
 echo "Publication process completed successfully!"
