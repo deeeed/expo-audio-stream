@@ -5,21 +5,20 @@ import {
     Group,
     Path,
     SkFont,
-    Text,
     useTouchHandler,
 } from '@shopify/react-native-skia'
 import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
-import React, { useCallback, useMemo, useRef, useEffect } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Platform, View } from 'react-native'
 import { SharedValue, useDerivedValue } from 'react-native-reanimated'
 
-import { AudioVisualizerTheme, CandleData } from './AudioVisualiser.types'
-import { drawDottedLine } from './AudioVisualizers.helpers'
 import AnimatedCandle from '../AnimatedCandle/AnimatedCandle'
 import { SkiaTimeRuler } from '../SkiaTimeRuler/SkiaTimeRuler'
 import Waveform from '../Waveform/Waveform'
 import { YAxis } from '../YAxis/YAxis'
 import { defaultCandleColors } from '../constants'
+import { AudioVisualizerTheme, CandleData } from './AudioVisualiser.types'
+import { drawDottedLine } from './AudioVisualizers.helpers'
 
 export interface CanvasContainerProps {
     canvasHeight: number
@@ -338,13 +337,6 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         labelColor={theme.yAxis.labelColor}
                     />
                 )}
-                <Text
-                    x={10}
-                    y={50}
-                    text={`translateX: ${translateX.value.toFixed(2)}`}
-                    color="white"
-                    font={font ?? null}
-                />
             </Canvas>
         </View>
     )
