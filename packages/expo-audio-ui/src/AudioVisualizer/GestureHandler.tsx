@@ -1,5 +1,6 @@
 // packages/expo-audio-ui/src/AudioVisualizer/GestureHandler.tsx
 import { DataPoint } from '@siteed/expo-audio-stream'
+import { getLogger } from '@siteed/react-native-logger'
 import React, { useRef } from 'react'
 import { Platform } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
@@ -55,6 +56,7 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
 
     const panGesture = Gesture.Pan()
         .onStart((_e) => {
+            console.log('panGesture.onStart')
             cancelAnimation(translateX)
             initialTranslateX.current = translateX.value
             velocity.value = 0
@@ -67,8 +69,12 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
                 Math.min(0, newTranslateX)
             )
             velocity.value = e.velocityX
+            console.log(
+                `panGesture.onChange velocityX=${e.velocityX} translateX=${translateX.value}`
+            )
         })
         .onEnd((_e) => {
+            console.log('panGesture.onEnd')
             if (enableInertia) {
                 isDecelerating.value = true
                 const decelerate = () => {
@@ -99,6 +105,7 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
         })
 
     const tapGesture = Gesture.Tap().onEnd((event) => {
+        console.log('tapGesture.onEnd')
         if (disableTapSelection || !onSelection) {
             return
         }
