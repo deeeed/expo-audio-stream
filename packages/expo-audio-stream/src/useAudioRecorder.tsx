@@ -122,7 +122,12 @@ export function useAudioRecorder({
     })
 
     const analysisListenerRef = useRef<Subscription | null>(null)
+    // analysisRef is the current analysis data (last 10 seconds by default)
     const analysisRef = useRef<AudioAnalysis>({ ...defaultAnalysis })
+    // fullAnalysisRef is the full analysis data (all data points)
+    const fullAnalysisRef = useRef<AudioAnalysis>({
+        ...defaultAnalysis,
+    })
 
     // Instantiate the module for web with URLs
     const ExpoAudioStream =
@@ -156,6 +161,11 @@ export function useAudioRecorder({
                 ...analysis.dataPoints,
             ]
 
+            const fullCombinedDataPoints = [
+                ...(fullAnalysisRef.current?.dataPoints ?? []),
+                ...analysis.dataPoints,
+            ]
+
             // Calculate the new duration
             const pointsPerSecond =
                 analysis.pointsPerSecond || savedAnalysisData.pointsPerSecond
@@ -174,6 +184,13 @@ export function useAudioRecorder({
                 )
             }
 
+            // Keep the full data points
+            fullAnalysisRef.current = {
+                ...fullAnalysisRef.current,
+                dataPoints: fullCombinedDataPoints,
+            }
+            fullAnalysisRef.current.durationMs =
+                fullCombinedDataPoints.length * (1000 / pointsPerSecond)
             savedAnalysisData.dataPoints = combinedDataPoints
             savedAnalysisData.bitDepth =
                 analysis.bitDepth || savedAnalysisData.bitDepth
@@ -191,6 +208,10 @@ export function useAudioRecorder({
             )
 
             savedAnalysisData.amplitudeRange = {
+                min: newMin,
+                max: newMax,
+            }
+            fullAnalysisRef.current.amplitudeRange = {
                 min: newMin,
                 max: newMax,
             }
@@ -303,7 +324,7 @@ export function useAudioRecorder({
             logger.debug(`start recoding`, recordingOptions)
 
             analysisRef.current = { ...defaultAnalysis } // Reset analysis data
-
+            fullAnalysisRef.current = { ...defaultAnalysis }
             const { onAudioStream, ...options } = recordingOptions
             const { enableProcessing } = options
 
@@ -351,7 +372,7 @@ export function useAudioRecorder({
         logger.debug(`stoping recording`)
 
         const stopResult: AudioRecording = await ExpoAudioStream.stopRecording()
-        stopResult.analysisData = analysisRef.current
+        stopResult.analysisData = fullAnalysisRef.current
 
         if (analysisListenerRef.current) {
             analysisListenerRef.current.remove()
