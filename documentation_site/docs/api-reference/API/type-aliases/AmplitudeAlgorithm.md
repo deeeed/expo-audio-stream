@@ -10,4 +10,4 @@
 
 ## Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:60](https://github.com/deeeed/expo-audio-stream/blob/1beb669a538877bfc3cca496d7b9c5e25165fa80/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L60)
+[src/AudioAnalysis/AudioAnalysis.types.ts:60](https://github.com/deeeed/expo-audio-stream/blob/60e675a021f183fb76c5638eedccffb6303b694c/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L60)
