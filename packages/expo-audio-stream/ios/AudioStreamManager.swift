@@ -212,8 +212,7 @@ class AudioStreamManager: NSObject {
                 newSettings.sampleRate = session.sampleRate
             }
             
-            try session.setCategory(.playAndRecord)
-            try session.setMode(.default)
+            try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth])
             try session.setPreferredSampleRate(settings.sampleRate)
             try session.setPreferredIOBufferDuration(1024 / settings.sampleRate)
             try session.setActive(true)
