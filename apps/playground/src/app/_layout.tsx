@@ -45,6 +45,7 @@ export default function RootLayout() {
                                     name="(tabs)"
                                     options={{ headerShown: false }}
                                 />
+                                <Stack.Screen name="playbug" />
                             </Stack>
                         </ThemeProvider>
                     </AudioFilesProvider>

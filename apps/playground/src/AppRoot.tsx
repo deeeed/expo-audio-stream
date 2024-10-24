@@ -34,7 +34,9 @@ export const AppRoot = () => {
                 },
             }}
         >
-            <ExpoRouterApp />
+            <WithUIProvider>
+                <ExpoRouterApp />
+            </WithUIProvider>
         </UIProvider>
     )
 }
