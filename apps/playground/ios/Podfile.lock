@@ -10,7 +10,7 @@ PODS:
     - ExpoModulesCore
   - ExpoAsset (10.0.10):
     - ExpoModulesCore
-  - ExpoAudioStream (1.1.11):
+  - ExpoAudioStream (1.1.16):
     - ExpoModulesCore
   - ExpoClipboard (6.0.3):
     - ExpoModulesCore
@@ -1051,7 +1051,7 @@ PODS:
     - Yoga
   - react-native-safe-area-context (4.10.5):
     - React-Core
-  - react-native-skia (1.2.3):
+  - react-native-skia (1.5.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1674,7 +1674,7 @@ SPEC CHECKSUMS:
   EXConstants: 409690fbfd5afea964e5e9d6c4eb2c2b59222c59
   Expo: 9b6666ef2fedcfc89c5b9be2aa1ce12b81f9e7f5
   ExpoAsset: 323700f291684f110fb55f0d4022a3362ea9f875
-  ExpoAudioStream: 8d8ecf6cc3ca0241235ca228a05dc24953018a97
+  ExpoAudioStream: 0c8a7de66378dad212b8efca90e3d84845413d3f
   ExpoClipboard: 23d203f5d4843699fbc45be1cc4fe1fbd811a6fa
   ExpoDocumentPicker: a82eaccc62ecb62662d5a6ca7a8ef40b71daa521
   ExpoFileSystem: 80bfe850b1f9922c16905822ecbf97acd711dc51
@@ -1716,7 +1716,7 @@ SPEC CHECKSUMS:
   react-native-audio-waveform: 83b3ecabc70d13347d58704bdb48199ae0648263
   react-native-quick-base64: a74c4b2607b9de016877a8edb776b6ac59785809
   react-native-safe-area-context: a240ad4b683349e48b1d51fed1611138d1bdad97
-  react-native-skia: 80282ed176572d97f6abe128ddcb567e0c33fe93
+  react-native-skia: dd503e4426d5dcd578a2d11c9261fb591501924b
   react-native-slider: ce295d2bf830a7990af05b0bd70ab28c133e230c
   React-nativeconfig: ba9a2e54e2f0882cf7882698825052793ed4c851
   React-NativeModulesApple: 8d11ff8955181540585c944cf48e9e7236952697
