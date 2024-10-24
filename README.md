@@ -27,4 +27,12 @@ For more details, please refer to the [README](packages/expo-audio-stream/README
 For more details, please refer to the [README](packages/expo-audio-ui/README.md) of the package.
 
 
+## Roadmap
 
+- [ ] Automate Changelog generation on monorepo.
+- [ ] Migrate audio analysis to c++ native library (share same logic on web via wasm and Kotlin / Swift for native). 
+- [ ] Integrate with react-native-whisper for real-time on device transcriptions.
+- [ ] Implement example app for custom VAD.
+- [ ] Audio preview waveform component from 'uri'. ( similar to https://github.com/SimformSolutionsPvtLtd/react-native-audio-waveform  )
+- [ ] e2e validation for cross platform features extraction (make sure we get exact same values on all platforms).
+- [ ] Speaker Diarization example app.
