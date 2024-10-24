@@ -13,6 +13,9 @@ echo "New version: $version"
 echo "Generating updated documentation..."
 yarn docgen
 
+echo "Waiting while docs are generated..."
+wait 3000
+
 # Prepare and publish package
 echo "Preparing and publishing package..."
 yarn clean && yarn prepare && yarn npm publish

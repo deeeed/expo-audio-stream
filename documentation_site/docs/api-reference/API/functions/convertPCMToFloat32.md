@@ -36,4 +36,4 @@
 
 ## Defined in
 
-[src/utils/convertPCMToFloat32.ts:34](https://github.com/deeeed/expo-audio-stream/blob/0f696d587834cc1241d34bb99aa8cdd052d87665/packages/expo-audio-stream/src/utils/convertPCMToFloat32.ts#L34)
+[src/utils/convertPCMToFloat32.ts:34](https://github.com/deeeed/expo-audio-stream/blob/6d10216c587140e4c86296be9540489393fa35a2/packages/expo-audio-stream/src/utils/convertPCMToFloat32.ts#L34)
