@@ -58,4 +58,4 @@ const completeWav = writeWavHeader({
 
 ## Defined in
 
-[src/utils/writeWavHeader.ts:51](https://github.com/deeeed/expo-audio-stream/blob/60e675a021f183fb76c5638eedccffb6303b694c/packages/expo-audio-stream/src/utils/writeWavHeader.ts#L51)
+[src/utils/writeWavHeader.ts:51](https://github.com/deeeed/expo-audio-stream/blob/0f696d587834cc1241d34bb99aa8cdd052d87665/packages/expo-audio-stream/src/utils/writeWavHeader.ts#L51)
