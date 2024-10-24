@@ -5,7 +5,9 @@ import { UIProvider, useThemePreferences } from '@siteed/design-system'
 import { setLoggerConfig } from '@siteed/react-native-logger'
 import { App as ExpoRouterApp } from 'expo-router/build/qualified-entry'
 import { StatusBar } from 'expo-status-bar'
+import { useEffect, useState } from 'react'
 import { Platform } from 'react-native'
+import { ActivityIndicator } from 'react-native-paper'
 
 setLoggerConfig({
     namespaces: '*',
@@ -14,7 +16,17 @@ setLoggerConfig({
 })
 
 export const WithUIProvider = ({ children }: { children: React.ReactNode }) => {
-    const { darkMode } = useThemePreferences()
+    const { darkMode, isReady: isThemeReady } = useThemePreferences()
+    const [ready, setReady] = useState(false)
+
+    useEffect(() => {
+        const timeout = setTimeout(() => setReady(true), 1000)
+        return () => clearTimeout(timeout)
+    }, [])
+
+    if (!isThemeReady || !ready) {
+        return <ActivityIndicator />
+    }
 
     return (
         <>
