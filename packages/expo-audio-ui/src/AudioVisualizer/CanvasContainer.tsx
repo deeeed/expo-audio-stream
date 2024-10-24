@@ -1,15 +1,8 @@
 // packages/expo-audio-ui/src/AudioVisualizer/CanvasContainer.tsx
-import {
-    Canvas,
-    ExtendedTouchInfo,
-    Group,
-    Path,
-    SkFont,
-    useTouchHandler,
-} from '@shopify/react-native-skia'
+import { Canvas, Group, Path, SkFont } from '@shopify/react-native-skia'
 import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
-import { Platform, View } from 'react-native'
+import React, { useEffect, useMemo, useRef } from 'react'
+import { View } from 'react-native'
 import { SharedValue, useDerivedValue } from 'react-native-reanimated'
 
 import AnimatedCandle from '../AnimatedCandle/AnimatedCandle'
@@ -70,11 +63,9 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     durationMs,
     font,
     theme,
-    onSelection,
     minAmplitude,
     maxAmplitude,
     scaleToHumanVoice,
-    disableTapSelection = false,
     visualizationType = 'candles', // default to 'candles' for backward compatibility
 }) => {
     const candleColors = {
@@ -206,64 +197,6 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
         scaleToHumanVoice,
     ])
 
-    const hasProcessedEvent = useRef(false)
-
-    const processEvent = useCallback(
-        (event: ExtendedTouchInfo) => {
-            if (
-                mode === 'live' ||
-                hasProcessedEvent.current ||
-                disableTapSelection
-            )
-                return
-
-            const { x, y } = event
-            if (x < 0 || x > canvasWidth || y < 0 || y > canvasHeight) {
-                return
-            }
-
-            hasProcessedEvent.current = true
-
-            setTimeout(() => {
-                hasProcessedEvent.current = false
-            }, 300)
-
-            const plotStart = canvasWidth / 2 + translateX.value
-            const plotEnd = plotStart + totalCandleWidth
-
-            if (x < plotStart || x > plotEnd) {
-                return
-            }
-
-            const adjustedX = x - plotStart
-            const index = Math.floor(adjustedX / (candleWidth + candleSpace))
-            const candle = activePoints[index]
-            if (!candle) {
-                return
-            }
-
-            // Dispatch action to update the selected candle
-            onSelection?.(candle)
-        },
-        [
-            mode,
-            canvasWidth,
-            canvasHeight,
-            translateX,
-            totalCandleWidth,
-            candleWidth,
-            candleSpace,
-            activePoints,
-            onSelection,
-            disableTapSelection,
-        ]
-    )
-
-    const touchHandler = useTouchHandler({
-        onStart: () => {},
-        onEnd: processEvent,
-    })
-
     // Conditionally render visualization based on 'visualizationType' prop
     const visualizationContent = useMemo(() => {
         if (visualizationType === 'waveform') {
@@ -295,14 +228,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
     return (
         <View style={theme.canvasContainer}>
-            <Canvas
-                style={{ height: canvasHeight, width: canvasWidth }}
-                onTouch={
-                    Platform.OS !== 'web' && !disableTapSelection
-                        ? touchHandler
-                        : undefined
-                }
-            >
+            <Canvas style={{ height: canvasHeight, width: canvasWidth }}>
                 <Group transform={groupTransform}>
                     {visualizationContent}
                     {showRuler && (
