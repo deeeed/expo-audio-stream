@@ -37,7 +37,6 @@ class AudioRecorderManager(
     private var recordingStartTime: Long = 0
     private var totalRecordedTime: Long = 0
     private var totalDataSize = 0
-    private var interval = 1000L  // Emit data every 1000 milliseconds (1 second)
     private var lastEmitTime = SystemClock.elapsedRealtime()
     private var lastPauseTime = 0L
     private var pausedDuration = 0L
@@ -145,21 +144,6 @@ class AudioRecorderManager(
                 AudioFormat.ENCODING_DEFAULT
             }
         }
-
-        // Check if selected audio format is supported
-        if (!isAudioFormatSupported(tempRecordingConfig.sampleRate, tempRecordingConfig.channels, audioFormat)) {
-            Log.e(Constants.TAG, "Selected audio format not supported, falling back to 16-bit PCM")
-            audioFormat = AudioFormat.ENCODING_PCM_16BIT
-            if (!isAudioFormatSupported(tempRecordingConfig.sampleRate, tempRecordingConfig.channels, audioFormat)) {
-                promise.reject("INITIALIZATION_FAILED", "Failed to initialize audio recorder with any supported format", null)
-                return
-            }
-            tempRecordingConfig = tempRecordingConfig.copy(encoding = "pcm_16bit")
-        }
-
-        // Update recordingConfig with potentially new encoding
-        recordingConfig = tempRecordingConfig
-
 
         // Check if selected audio format is supported
         if (!isAudioFormatSupported(tempRecordingConfig.sampleRate, tempRecordingConfig.channels, audioFormat)) {
@@ -408,7 +392,7 @@ class AudioRecorderManager(
                     "isPaused" to false,
                     "mime" to mimeType,
                     "size" to 0,
-                    "interval" to interval,
+                    "interval" to recordingConfig.interval,
                 )
             }
 
@@ -491,7 +475,7 @@ class AudioRecorderManager(
                     accumulatedAudioData.write(audioData, 0, bytesRead)
 
                     // Emit audio data at defined intervals
-                    if (SystemClock.elapsedRealtime() - lastEmitTime >= interval) {
+                    if (SystemClock.elapsedRealtime() - lastEmitTime >= recordingConfig.interval) {
                         emitAudioData(
                             accumulatedAudioData.toByteArray(),
                             accumulatedAudioData.size()
