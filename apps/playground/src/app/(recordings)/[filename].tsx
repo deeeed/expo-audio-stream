@@ -117,7 +117,13 @@ export const FullAudioViewerPage = () => {
                     showTranscript
                     onDelete={async () => {
                         if (!selectedFile) return
+
+                        if (router.canGoBack()) {
+                            router.back()
+                        }
+
                         await removeFile(selectedFile)
+
                         router.navigate('/files')
                     }}
                 />
