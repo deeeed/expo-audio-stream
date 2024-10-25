@@ -10,6 +10,7 @@ import {
 import {
     AudioDataEvent,
     AudioRecording,
+    ExpoAudioStreamModule,
     RecordingConfig,
     SampleRate,
     StartRecordingResult,
@@ -41,6 +42,12 @@ const baseRecordingConfig: RecordingConfig = {
     interval: CHUNK_DURATION_MS,
     sampleRate: WhisperSampleRate,
     keepAwake: true,
+    showNotification: true,
+    showWaveformInNotification: true,
+    notification: {
+        title: 'Recording in progress AAAA',
+        text: 'Please wait while we transcribe your audio',
+    },
     encoding: 'pcm_32bit',
     pointsPerSecond: 10,
     enableProcessing: true,
@@ -89,6 +96,53 @@ export default function RecordScreen() {
     const transcriptionResolveRef =
         useRef<(transcriptions: TranscriberData[]) => void>()
     const { show, hide } = useToast()
+
+    const showPermissionError = (permission: string) => {
+        logger.error(`${permission} permission not granted`)
+        show({
+            type: 'error',
+            message: `${permission} permission is required for recording`,
+            duration: 3000,
+        })
+    }
+
+    const requestPermissions = async () => {
+        try {
+            if (Platform.OS === 'android') {
+                const recordingPermission =
+                    await ExpoAudioStreamModule.requestPermissionsAsync()
+                if (recordingPermission.status !== 'granted') {
+                    showPermissionError('Microphone')
+                    return false
+                }
+
+                if (Platform.Version >= 33) {
+                    const notificationPermission =
+                        await ExpoAudioStreamModule.requestNotificationPermissionsAsync()
+                    if (notificationPermission.status !== 'granted') {
+                        showPermissionError('Notification')
+                        return false
+                    }
+                }
+            } else {
+                const { granted } = await Audio.requestPermissionsAsync()
+                if (!granted) {
+                    showPermissionError('Microphone')
+                    return false
+                }
+            }
+
+            return true
+        } catch (error) {
+            logger.error('Error requesting permissions:', error)
+            show({
+                type: 'error',
+                message: 'Failed to request permissions. Please try again.',
+                duration: 3000,
+            })
+            return false
+        }
+    }
 
     const onAudioData = useCallback(async (event: AudioDataEvent) => {
         try {
@@ -154,9 +208,10 @@ export default function RecordScreen() {
     const handleStart = async () => {
         try {
             setProcessing(true)
-            const { granted } = await Audio.requestPermissionsAsync()
-            if (!granted) {
-                setError('Permission not granted!')
+            // Request all necessary permissions
+            const permissionsGranted = await requestPermissions()
+            if (!permissionsGranted) {
+                return
             }
 
             if (!ready) {
@@ -256,7 +311,7 @@ export default function RecordScreen() {
                 refreshFiles()
             }
 
-            setResult(null);
+            setResult(null)
             // Go to the newly saved page.
             router.navigate(`(recordings)/${result.filename}`)
         } catch (error) {

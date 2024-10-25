@@ -71,6 +71,10 @@ export interface RecordingConfig {
 
     keepAwake?: boolean // Boolean to keep the device awake while recording (default is false)
 
+    showNotification?: boolean // Whether to show a notification during recording
+    showWaveformInNotification?: boolean // android only when showNotification is true
+    notification?: NotificationConfig
+
     // Optional parameters for audio processing
     enableProcessing?: boolean // Boolean to enable/disable audio processing (default is false)
     pointsPerSecond?: number // Number of data points to extract per second of audio (default is 1000)
@@ -81,6 +85,27 @@ export interface RecordingConfig {
     onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void> // Callback function to handle audio features extraction results
 }
 
+export interface NotificationConfig {
+    title?: string
+    text?: string
+    icon?: string
+    // For Android-specific customization
+    android?: {
+        channelId?: string
+        actions?: NotificationAction[]
+        customLayout?: any // Define type based on implementation
+    }
+    // For iOS-specific customization
+    ios?: {
+        categoryIdentifier?: string
+        actions?: NotificationAction[]
+    }
+}
+
+export interface NotificationAction {
+    title: string
+    identifier: string
+}
 export interface UseAudioRecorderState {
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
     stopRecording: () => Promise<AudioRecording | null>
