@@ -40,6 +40,7 @@ const CHUNK_DURATION_MS = 500 // 500 ms chunks
 const baseRecordingConfig: RecordingConfig = {
     interval: CHUNK_DURATION_MS,
     sampleRate: WhisperSampleRate,
+    keepAwake: true,
     encoding: 'pcm_32bit',
     pointsPerSecond: 10,
     enableProcessing: true,
@@ -255,8 +256,9 @@ export default function RecordScreen() {
                 refreshFiles()
             }
 
+            setResult(null);
             // Go to the newly saved page.
-            router.push(`(recordings)/${result.filename}`)
+            router.navigate(`(recordings)/${result.filename}`)
         } catch (error) {
             logger.error(`Error while stopping recording`, error)
         } finally {
@@ -315,6 +317,7 @@ export default function RecordScreen() {
         async (recording: AudioRecording) => {
             logger.debug(`Deleting recording: ${recording.filename}`)
             try {
+                router.navigate('/files')
                 await removeFile(recording)
                 show({ type: 'success', message: 'Recording deleted' })
                 setResult(null)
@@ -499,7 +502,7 @@ export default function RecordScreen() {
                         recording={result}
                         onDelete={() => handleDelete(result)}
                         onActionPress={() => {
-                            router.push(`(recordings)/${result.filename}`)
+                            router.navigate(`(recordings)/${result.filename}`)
                         }}
                         actionText="Visualize"
                     />
