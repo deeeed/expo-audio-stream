@@ -69,6 +69,8 @@ export interface RecordingConfig {
     encoding?: EncodingType // Encoding type for the recording
     interval?: number // Interval in milliseconds at which to emit recording data
 
+    keepAwake?: boolean // Boolean to keep the device awake while recording (default is false)
+
     // Optional parameters for audio processing
     enableProcessing?: boolean // Boolean to enable/disable audio processing (default is false)
     pointsPerSecond?: number // Number of data points to extract per second of audio (default is 1000)

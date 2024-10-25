@@ -19,9 +19,12 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.Serializable
 import java.util.concurrent.atomic.AtomicBoolean
+import android.os.PowerManager
+import android.content.Context
 
 
 class AudioRecorderManager(
+    private val context: Context,
     private val filesDir: File,
     private val permissionUtils: PermissionUtils,
     private val audioDataEncoder: AudioDataEncoder,
@@ -51,6 +54,9 @@ class AudioRecorderManager(
     private var audioProcessor: AudioProcessor = AudioProcessor(filesDir)
     private var isFirstChunk = true
 
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wasWakeLockEnabled = false
+
     @RequiresApi(Build.VERSION_CODES.R)
     fun startRecording(options: Map<String, Any?>, promise: Promise) {
         if (!permissionUtils.checkRecordingPermission()) {
@@ -73,9 +79,11 @@ class AudioRecorderManager(
 
         // Initialize the recording configuration
         var tempRecordingConfig = RecordingConfig(
-            sampleRate = (options["sampleRate"] as? Number)?.toInt() ?: Constants.DEFAULT_SAMPLE_RATE,
+            sampleRate = (options["sampleRate"] as? Number)?.toInt()
+                ?: Constants.DEFAULT_SAMPLE_RATE,
             channels = (options["channels"] as? Number)?.toInt() ?: 1,
             encoding = options["encoding"] as? String ?: "pcm_16bit",
+            keepAwake = options["keepAwake"] as? Boolean ?: false,
             interval = (options["interval"] as? Number)?.toLong() ?: Constants.DEFAULT_INTERVAL,
             enableProcessing = options["enableProcessing"] as? Boolean ?: false,
             pointsPerSecond = (options["pointsPerSecond"] as? Number)?.toDouble() ?: 20.0,
@@ -110,16 +118,19 @@ class AudioRecorderManager(
                 mimeType = "audio/wav"
                 AudioFormat.ENCODING_PCM_8BIT
             }
+
             "pcm_16bit" -> {
                 fileExtension = "wav"
                 mimeType = "audio/wav"
                 AudioFormat.ENCODING_PCM_16BIT
             }
+
             "pcm_32bit" -> {
                 fileExtension = "wav"
                 mimeType = "audio/wav"
                 AudioFormat.ENCODING_PCM_FLOAT
             }
+
             "opus" -> {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                     promise.reject(
@@ -133,11 +144,13 @@ class AudioRecorderManager(
                 mimeType = "audio/opus"
                 AudioFormat.ENCODING_OPUS
             }
+
             "aac_lc" -> {
                 fileExtension = "aac"
                 mimeType = "audio/aac"
                 AudioFormat.ENCODING_AAC_LC
             }
+
             else -> {
                 fileExtension = "wav"
                 mimeType = "audio/wav"
@@ -146,11 +159,25 @@ class AudioRecorderManager(
         }
 
         // Check if selected audio format is supported
-        if (!isAudioFormatSupported(tempRecordingConfig.sampleRate, tempRecordingConfig.channels, audioFormat)) {
+        if (!isAudioFormatSupported(
+                tempRecordingConfig.sampleRate,
+                tempRecordingConfig.channels,
+                audioFormat
+            )
+        ) {
             Log.e(Constants.TAG, "Selected audio format not supported, falling back to 16-bit PCM")
             audioFormat = AudioFormat.ENCODING_PCM_16BIT
-            if (!isAudioFormatSupported(tempRecordingConfig.sampleRate, tempRecordingConfig.channels, audioFormat)) {
-                promise.reject("INITIALIZATION_FAILED", "Failed to initialize audio recorder with any supported format", null)
+            if (!isAudioFormatSupported(
+                    tempRecordingConfig.sampleRate,
+                    tempRecordingConfig.channels,
+                    audioFormat
+                )
+            ) {
+                promise.reject(
+                    "INITIALIZATION_FAILED",
+                    "Failed to initialize audio recorder with any supported format",
+                    null
+                )
                 return
             }
             tempRecordingConfig = tempRecordingConfig.copy(encoding = "pcm_16bit")
@@ -167,7 +194,10 @@ class AudioRecorderManager(
         )
 
         if (bufferSizeInBytes == AudioRecord.ERROR || bufferSizeInBytes == AudioRecord.ERROR_BAD_VALUE || bufferSizeInBytes < 0) {
-            Log.e(Constants.TAG, "Failed to get minimum buffer size, falling back to default buffer size.")
+            Log.e(
+                Constants.TAG,
+                "Failed to get minimum buffer size, falling back to default buffer size."
+            )
             bufferSizeInBytes = 4096 // Default buffer size in bytes
         }
 
@@ -199,14 +229,23 @@ class AudioRecorderManager(
 
         try {
             FileOutputStream(audioFile, true).use { fos ->
-                audioFileHandler.writeWavHeader(fos, recordingConfig.sampleRate, recordingConfig.channels, when (recordingConfig.encoding) {
-                    "pcm_8bit" -> 8
-                    "pcm_16bit" -> 16
-                    "pcm_32bit" -> 32
-                    else -> 16 // Default to 16 if the encoding is not recognized
-                })
+                audioFileHandler.writeWavHeader(
+                    fos,
+                    recordingConfig.sampleRate,
+                    recordingConfig.channels,
+                    when (recordingConfig.encoding) {
+                        "pcm_8bit" -> 8
+                        "pcm_16bit" -> 16
+                        "pcm_32bit" -> 32
+                        else -> 16 // Default to 16 if the encoding is not recognized
+                    }
+                )
             }
+
+            // Acquire wake lock if needed
+            acquireWakeLock()
         } catch (e: IOException) {
+            releaseWakeLock()
             promise.reject("FILE_CREATION_FAILED", "Failed to create the audio file", e)
             return
         }
@@ -246,7 +285,8 @@ class AudioRecorderManager(
             throw SecurityException("Recording permission has not been granted")
         }
 
-        val channelConfig = if (channels == 1) AudioFormat.CHANNEL_IN_MONO else AudioFormat.CHANNEL_IN_STEREO
+        val channelConfig =
+            if (channels == 1) AudioFormat.CHANNEL_IN_MONO else AudioFormat.CHANNEL_IN_STEREO
         val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, format)
 
         if (bufferSize <= 0) {
@@ -302,6 +342,8 @@ class AudioRecorderManager(
             } catch (e: IllegalStateException) {
                 Log.e(Constants.TAG, "Error reading from AudioRecord", e);
             } finally {
+                // Release wake lock at the end
+                releaseWakeLock()
                 audioRecord?.release()
             }
 
@@ -310,12 +352,13 @@ class AudioRecorderManager(
 
                 val fileSize = audioFile?.length() ?: 0
                 val dataFileSize = fileSize - 44  // Subtract header size
-                val byteRate = recordingConfig.sampleRate * recordingConfig.channels * when (recordingConfig.encoding) {
-                    "pcm_8bit" -> 1
-                    "pcm_16bit" -> 2
-                    "pcm_32bit" -> 4
-                    else -> 2 // Default to 2 bytes per sample if the encoding is not recognized
-                }
+                val byteRate =
+                    recordingConfig.sampleRate * recordingConfig.channels * when (recordingConfig.encoding) {
+                        "pcm_8bit" -> 1
+                        "pcm_16bit" -> 2
+                        "pcm_32bit" -> 4
+                        else -> 2 // Default to 2 bytes per sample if the encoding is not recognized
+                    }
                 // Calculate duration based on the data size and byte rate
                 val duration = if (byteRate > 0) (dataFileSize * 1000 / byteRate) else 0
 
@@ -357,6 +400,10 @@ class AudioRecorderManager(
             lastPauseTime =
                 System.currentTimeMillis()  // Record the time when the recording was paused
             isPaused.set(true)
+
+            // Release wake lock when paused
+            releaseWakeLock()
+
             promise.resolve("Recording paused")
         } else {
             promise.reject(
@@ -375,11 +422,19 @@ class AudioRecorderManager(
             promise.reject("NOT_RECORDING", "Recording is not active", null)
         }
 
-        // Calculate the duration the recording was paused
-        pausedDuration += System.currentTimeMillis() - lastPauseTime
-        isPaused.set(false)
-        audioRecord?.startRecording()
-        promise.resolve("Recording resumed")
+        try {
+            // Reacquire wake lock when resuming
+            acquireWakeLock()
+
+            // Calculate the duration the recording was paused
+            pausedDuration += System.currentTimeMillis() - lastPauseTime
+            isPaused.set(false)
+            audioRecord?.startRecording()
+            promise.resolve("Recording resumed")
+        } catch (e: Exception) {
+            releaseWakeLock()
+            promise.reject("RESUME_FAILED", "Failed to resume recording", e)
+        }
     }
 
     fun getStatus(): Bundle {
@@ -401,10 +456,13 @@ class AudioRecorderManager(
 
             val duration = when (mimeType) {
                 "audio/wav" -> {
-                    val dataFileSize = fileSize - Constants.WAV_HEADER_SIZE // Assuming header is always 44 bytes
-                    val byteRate = recordingConfig.sampleRate * recordingConfig.channels * (if (recordingConfig.encoding == "pcm_8bit") 8 else 16) / 8
+                    val dataFileSize =
+                        fileSize - Constants.WAV_HEADER_SIZE // Assuming header is always 44 bytes
+                    val byteRate =
+                        recordingConfig.sampleRate * recordingConfig.channels * (if (recordingConfig.encoding == "pcm_8bit") 8 else 16) / 8
                     if (byteRate > 0) dataFileSize * 1000 / byteRate else 0
                 }
+
                 "audio/opus", "audio/aac" -> getCompressedAudioDuration(audioFile)
                 else -> 0
             }
@@ -416,6 +474,40 @@ class AudioRecorderManager(
                 "size" to totalDataSize,
                 "interval" to recordingConfig.interval
             )
+        }
+    }
+
+    private fun acquireWakeLock() {
+        if (recordingConfig.keepAwake && wakeLock == null) {
+            try {
+                val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                wakeLock = powerManager.newWakeLock(
+                    PowerManager.SCREEN_DIM_WAKE_LOCK or PowerManager.ON_AFTER_RELEASE,
+                    "AudioRecorderManager::RecordingWakeLock"
+                ).apply {
+                    setReferenceCounted(false)
+                    acquire()
+                }
+                wasWakeLockEnabled = true
+                Log.d(Constants.TAG, "Wake lock acquired")
+            } catch (e: Exception) {
+                Log.e(Constants.TAG, "Failed to acquire wake lock", e)
+            }
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                    Log.d(Constants.TAG, "Wake lock released")
+                }
+                wakeLock = null
+                wasWakeLockEnabled = false
+            }
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to release wake lock", e)
         }
     }
 
@@ -431,66 +523,74 @@ class AudioRecorderManager(
     }
 
     private fun recordingProcess() {
-        Log.i(Constants.TAG, "Starting recording process...")
-        FileOutputStream(audioFile, true).use { fos ->
-            // Buffer to accumulate data
-            val accumulatedAudioData = ByteArrayOutputStream()
-            audioFileHandler.writeWavHeader(
-                accumulatedAudioData,
-                recordingConfig.sampleRate,
-                recordingConfig.channels,
-                when (recordingConfig.encoding) {
-                    "pcm_8bit" -> 8
-                    "pcm_16bit" -> 16
-                    "pcm_32bit" -> 32
-                    else -> 16 // Default to 16 if the encoding is not recognized
-                }
-            )
-            // Write audio data directly to the file
-            val audioData = ByteArray(bufferSizeInBytes)
-            Log.d(Constants.TAG, "Entering recording loop")
-            while (isRecording.get() && !Thread.currentThread().isInterrupted) {
-                if (isPaused.get()) {
-                    // If recording is paused, skip reading from the microphone
-                    continue
-                }
-
-                val bytesRead = synchronized(audioRecordLock) {
-                    // Only synchronize the read operation and the check
-                    audioRecord?.let {
-                        if (it.state != AudioRecord.STATE_INITIALIZED) {
-                            Log.e(Constants.TAG, "AudioRecord not initialized")
-                            return@let -1
-                        }
-                        it.read(audioData, 0, bufferSizeInBytes).also { bytes ->
-                            if (bytes < 0) {
-                                Log.e(Constants.TAG, "AudioRecord read error: $bytes")
-                            }
-                        }
-                    } ?: -1 // Handle null case
-                }
-                if (bytesRead > 0) {
-                    fos.write(audioData, 0, bytesRead)
-                    totalDataSize += bytesRead
-                    accumulatedAudioData.write(audioData, 0, bytesRead)
-
-                    // Emit audio data at defined intervals
-                    if (SystemClock.elapsedRealtime() - lastEmitTime >= recordingConfig.interval) {
-                        emitAudioData(
-                            accumulatedAudioData.toByteArray(),
-                            accumulatedAudioData.size()
-                        )
-                        lastEmitTime = SystemClock.elapsedRealtime() // Reset the timer
-                        accumulatedAudioData.reset() // Clear the accumulator
+        try {
+            Log.i(Constants.TAG, "Starting recording process...")
+            FileOutputStream(audioFile, true).use { fos ->
+                // Buffer to accumulate data
+                val accumulatedAudioData = ByteArrayOutputStream()
+                audioFileHandler.writeWavHeader(
+                    accumulatedAudioData,
+                    recordingConfig.sampleRate,
+                    recordingConfig.channels,
+                    when (recordingConfig.encoding) {
+                        "pcm_8bit" -> 8
+                        "pcm_16bit" -> 16
+                        "pcm_32bit" -> 32
+                        else -> 16 // Default to 16 if the encoding is not recognized
+                    }
+                )
+                // Write audio data directly to the file
+                val audioData = ByteArray(bufferSizeInBytes)
+                Log.d(Constants.TAG, "Entering recording loop")
+                while (isRecording.get() && !Thread.currentThread().isInterrupted) {
+                    if (isPaused.get()) {
+                        // If recording is paused, skip reading from the microphone
+                        continue
                     }
 
-                    Log.d(Constants.TAG, "Bytes written to file: $bytesRead")
+                    val bytesRead = synchronized(audioRecordLock) {
+                        // Only synchronize the read operation and the check
+                        audioRecord?.let {
+                            if (it.state != AudioRecord.STATE_INITIALIZED) {
+                                Log.e(Constants.TAG, "AudioRecord not initialized")
+                                return@let -1
+                            }
+                            it.read(audioData, 0, bufferSizeInBytes).also { bytes ->
+                                if (bytes < 0) {
+                                    Log.e(Constants.TAG, "AudioRecord read error: $bytes")
+                                }
+                            }
+                        } ?: -1 // Handle null case
+                    }
+                    if (bytesRead > 0) {
+                        fos.write(audioData, 0, bytesRead)
+                        totalDataSize += bytesRead
+                        accumulatedAudioData.write(audioData, 0, bytesRead)
+
+                        // Emit audio data at defined intervals
+                        if (SystemClock.elapsedRealtime() - lastEmitTime >= recordingConfig.interval) {
+                            emitAudioData(
+                                accumulatedAudioData.toByteArray(),
+                                accumulatedAudioData.size()
+                            )
+                            lastEmitTime = SystemClock.elapsedRealtime() // Reset the timer
+                            accumulatedAudioData.reset() // Clear the accumulator
+                        }
+
+                        Log.d(Constants.TAG, "Bytes written to file: $bytesRead")
+                    }
                 }
             }
-        }
-        // Update the WAV header to reflect the actual data size
-        audioFile?.let { file ->
-            audioFileHandler.updateWavHeader(file)
+            // Update the WAV header to reflect the actual data size
+            audioFile?.let { file ->
+                audioFileHandler.updateWavHeader(file)
+            }
+
+        } catch (e: Exception) {
+            // Ensure wake lock is released if the thread is interrupted
+            if (!isPaused.get()) {
+                releaseWakeLock()
+            }
         }
     }
 
@@ -503,7 +603,8 @@ class AudioRecorderManager(
         lastEmittedSize = fileSize
 
         // Calculate position in milliseconds
-        val positionInMs = (from * 1000) / (recordingConfig.sampleRate * recordingConfig.channels * (if (recordingConfig.encoding == "pcm_8bit") 8 else 16) / 8)
+        val positionInMs =
+            (from * 1000) / (recordingConfig.sampleRate * recordingConfig.channels * (if (recordingConfig.encoding == "pcm_8bit") 8 else 16) / 8)
 
         mainHandler.post {
             try {
@@ -559,5 +660,10 @@ class AudioRecorderManager(
         // Placeholder function for fetching duration from a compressed audio file
         // This would depend on how you store or can retrieve duration info for compressed formats
         return 0L // Implement this based on your specific requirements
+    }
+
+    // This function should be called when the manager is being destroyed
+    fun cleanup() {
+        releaseWakeLock()
     }
 }

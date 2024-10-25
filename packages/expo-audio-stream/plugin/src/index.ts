@@ -28,21 +28,49 @@ const withRecordingPermission: ConfigPlugin<{
     })
 
     config = withAndroidManifest(config, (config) => {
+        const androidManifest = config.modResults
         const mainApplication =
-            AndroidConfig.Manifest.getMainApplicationOrThrow(config.modResults)
+            AndroidConfig.Manifest.getMainApplicationOrThrow(androidManifest)
 
+        // Add RECORD_AUDIO permission
         AndroidConfig.Manifest.addMetaDataItemToMainApplication(
             mainApplication,
             'android.permission.RECORD_AUDIO',
             MICROPHONE_USAGE
         )
 
-        // Add FOREGROUND_SERVICE permission for handling background recording
+        // Add FOREGROUND_SERVICE permission
         AndroidConfig.Manifest.addMetaDataItemToMainApplication(
             mainApplication,
             'android.permission.FOREGROUND_SERVICE',
             'This apps needs access to the foreground service to record audio in the background'
         )
+
+        // Add WAKE_LOCK permission using the uses-permission tag
+        if (
+            !androidManifest.manifest ||
+            !Array.isArray(androidManifest.manifest)
+        ) {
+            return config
+        }
+
+        const manifest = androidManifest.manifest[0]
+        if (!manifest['uses-permission']) {
+            manifest['uses-permission'] = []
+        }
+
+        const hasWakeLock = manifest['uses-permission'].some(
+            (perm: { $: { [key: string]: string } }) =>
+                perm.$['android:name'] === 'android.permission.WAKE_LOCK'
+        )
+
+        if (!hasWakeLock) {
+            manifest['uses-permission'].push({
+                $: {
+                    'android:name': 'android.permission.WAKE_LOCK',
+                },
+            })
+        }
 
         return config
     })
