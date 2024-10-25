@@ -2,18 +2,19 @@ import {
     ConfigPlugin,
     withAndroidManifest,
     withInfoPlist,
+    AndroidConfig,
 } from '@expo/config-plugins'
+import { ExpoConfig } from '@expo/config-types'
 
 const MICROPHONE_USAGE = 'Allow $(PRODUCT_NAME) to access your microphone'
 
-const withRecordingPermission: ConfigPlugin = (config) => {
+const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
     // iOS Configuration
     config = withInfoPlist(config, (config) => {
         config.modResults['NSMicrophoneUsageDescription'] =
             config.modResults['NSMicrophoneUsageDescription'] ||
             MICROPHONE_USAGE
 
-        // Add 'audio' to UIBackgroundModes to allow background audio recording
         const existingBackgroundModes =
             config.modResults.UIBackgroundModes || []
         if (!existingBackgroundModes.includes('audio')) {
@@ -34,32 +35,93 @@ const withRecordingPermission: ConfigPlugin = (config) => {
             return config
         }
 
-        // Ensure 'uses-permission' is an array
+        // Add xmlns:android attribute to manifest
+        androidManifest.manifest.$ = {
+            ...androidManifest.manifest.$,
+            'xmlns:android': 'http://schemas.android.com/apk/res/android',
+        }
+
+        // Ensure permissions array exists
         if (!androidManifest.manifest['uses-permission']) {
             androidManifest.manifest['uses-permission'] = []
         }
 
-        const usesPermissions = androidManifest.manifest[
-            'uses-permission'
-        ] as any[]
+        const { addPermission } = AndroidConfig.Permissions
 
+        // Required permissions
         const permissionsToAdd = [
             'android.permission.RECORD_AUDIO',
             'android.permission.FOREGROUND_SERVICE',
+            'android.permission.FOREGROUND_SERVICE_MICROPHONE',
             'android.permission.WAKE_LOCK',
-            'android.permission.POST_NOTIFICATIONS', // Add this permission
+            'android.permission.POST_NOTIFICATIONS',
         ]
 
+        // Add each permission
         permissionsToAdd.forEach((permission) => {
-            const permissionAlreadyAdded = usesPermissions.some(
-                (perm: any) => perm.$?.['android:name'] === permission
-            )
-            if (!permissionAlreadyAdded) {
-                usesPermissions.push({
-                    $: { 'android:name': permission },
-                })
-            }
+            addPermission(androidManifest, permission)
         })
+
+        // Get the main application node
+        const mainApplication = androidManifest.manifest.application?.[0]
+        if (mainApplication) {
+            // Add RecordingActionReceiver
+            if (!mainApplication.receiver) {
+                mainApplication.receiver = []
+            }
+
+            const receiverConfig = {
+                $: {
+                    'android:name': '.RecordingActionReceiver',
+                    'android:exported': 'false' as const,
+                },
+                'intent-filter': [
+                    {
+                        action: [
+                            { $: { 'android:name': 'PAUSE_RECORDING' } },
+                            { $: { 'android:name': 'RESUME_RECORDING' } },
+                            { $: { 'android:name': 'STOP_RECORDING' } },
+                        ],
+                    },
+                ],
+            }
+
+            const receiverIndex = mainApplication.receiver.findIndex(
+                (receiver: any) =>
+                    receiver.$?.['android:name'] === '.RecordingActionReceiver'
+            )
+
+            if (receiverIndex >= 0) {
+                mainApplication.receiver[receiverIndex] = receiverConfig
+            } else {
+                mainApplication.receiver.push(receiverConfig)
+            }
+
+            // Add AudioRecordingService
+            if (!mainApplication.service) {
+                mainApplication.service = []
+            }
+
+            const serviceConfig = {
+                $: {
+                    'android:name': '.AudioRecordingService',
+                    'android:enabled': 'true' as const,
+                    'android:exported': 'false' as const,
+                    'android:foregroundServiceType': 'microphone',
+                },
+            }
+
+            const serviceIndex = mainApplication.service.findIndex(
+                (service: any) =>
+                    service.$?.['android:name'] === '.AudioRecordingService'
+            )
+
+            if (serviceIndex >= 0) {
+                mainApplication.service[serviceIndex] = serviceConfig
+            } else {
+                mainApplication.service.push(serviceConfig)
+            }
+        }
 
         return config
     })
