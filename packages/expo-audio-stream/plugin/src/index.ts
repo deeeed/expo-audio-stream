@@ -1,5 +1,4 @@
 import {
-    AndroidConfig,
     ConfigPlugin,
     withAndroidManifest,
     withInfoPlist,
@@ -7,16 +6,14 @@ import {
 
 const MICROPHONE_USAGE = 'Allow $(PRODUCT_NAME) to access your microphone'
 
-const withRecordingPermission: ConfigPlugin<{
-    microphonePermission: string
-}> = (config, existingPerms) => {
-    if (!existingPerms) {
-        console.warn('No previous permissions provided')
-    }
+const withRecordingPermission: ConfigPlugin = (config) => {
+    // iOS Configuration
     config = withInfoPlist(config, (config) => {
-        config.modResults['NSMicrophoneUsageDescription'] = MICROPHONE_USAGE
+        config.modResults['NSMicrophoneUsageDescription'] =
+            config.modResults['NSMicrophoneUsageDescription'] ||
+            MICROPHONE_USAGE
 
-        // Add audio to UIBackgroundModes to allow background audio recording
+        // Add 'audio' to UIBackgroundModes to allow background audio recording
         const existingBackgroundModes =
             config.modResults.UIBackgroundModes || []
         if (!existingBackgroundModes.includes('audio')) {
@@ -27,50 +24,42 @@ const withRecordingPermission: ConfigPlugin<{
         return config
     })
 
+    // Android Configuration
     config = withAndroidManifest(config, (config) => {
         const androidManifest = config.modResults
-        const mainApplication =
-            AndroidConfig.Manifest.getMainApplicationOrThrow(androidManifest)
-
-        // Add RECORD_AUDIO permission
-        AndroidConfig.Manifest.addMetaDataItemToMainApplication(
-            mainApplication,
-            'android.permission.RECORD_AUDIO',
-            MICROPHONE_USAGE
-        )
-
-        // Add FOREGROUND_SERVICE permission
-        AndroidConfig.Manifest.addMetaDataItemToMainApplication(
-            mainApplication,
-            'android.permission.FOREGROUND_SERVICE',
-            'This apps needs access to the foreground service to record audio in the background'
-        )
-
-        // Add WAKE_LOCK permission using the uses-permission tag
-        if (
-            !androidManifest.manifest ||
-            !Array.isArray(androidManifest.manifest)
-        ) {
+        if (!androidManifest.manifest) {
+            console.warn(
+                'withRecordingPermission: androidManifest.manifest is null'
+            )
             return config
         }
 
-        const manifest = androidManifest.manifest[0]
-        if (!manifest['uses-permission']) {
-            manifest['uses-permission'] = []
+        // Ensure 'uses-permission' is an array
+        if (!androidManifest.manifest['uses-permission']) {
+            androidManifest.manifest['uses-permission'] = []
         }
 
-        const hasWakeLock = manifest['uses-permission'].some(
-            (perm: { $: { [key: string]: string } }) =>
-                perm.$['android:name'] === 'android.permission.WAKE_LOCK'
-        )
+        const usesPermissions = androidManifest.manifest[
+            'uses-permission'
+        ] as any[]
 
-        if (!hasWakeLock) {
-            manifest['uses-permission'].push({
-                $: {
-                    'android:name': 'android.permission.WAKE_LOCK',
-                },
-            })
-        }
+        const permissionsToAdd = [
+            'android.permission.RECORD_AUDIO',
+            'android.permission.FOREGROUND_SERVICE',
+            'android.permission.WAKE_LOCK',
+            'android.permission.POST_NOTIFICATIONS', // Add this permission
+        ]
+
+        permissionsToAdd.forEach((permission) => {
+            const permissionAlreadyAdded = usesPermissions.some(
+                (perm: any) => perm.$?.['android:name'] === permission
+            )
+            if (!permissionAlreadyAdded) {
+                usesPermissions.push({
+                    $: { 'android:name': permission },
+                })
+            }
+        })
 
         return config
     })
