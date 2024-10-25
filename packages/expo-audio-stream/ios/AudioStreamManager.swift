@@ -8,6 +8,7 @@
 import Foundation
 import AVFoundation
 import Accelerate
+import UIKit
 
 // Helper to convert to little-endian byte array
 extension UInt32 {
@@ -33,6 +34,10 @@ class AudioStreamManager: NSObject {
     private var audioProcessor: AudioProcessor?
     private var startTime: Date?
     private var pauseStartTime: Date?
+    
+    // Wake lock related properties
+    private var wasIdleTimerDisabled: Bool = false  // Track previous idle timer state
+    private var isWakeLockEnabled: Bool = false     // Track current wake lock state
 
     internal var lastEmissionTime: Date?
     internal var lastEmittedSize: Int64 = 0
@@ -56,6 +61,11 @@ class AudioStreamManager: NSObject {
         super.init()
     }
     
+    deinit {
+       // Ensure wake lock is disabled when the manager is deallocated
+       disableWakeLock()
+    }
+    
     /// Handles audio session interruptions.
     /// - Parameter notification: The notification object containing interruption information.
     @objc func handleAudioSessionInterruption(notification: Notification) {
@@ -67,7 +77,7 @@ class AudioStreamManager: NSObject {
         
         Logger.debug("audio session interruption \(type)")
         if type == .began {
-            // Pause your audio recording
+            disableWakeLock()  // Disable wake lock when audio is interrupted
         } else if type == .ended {
             if let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
@@ -75,8 +85,38 @@ class AudioStreamManager: NSObject {
                     // Resume your audio recording
                     Logger.debug("Resume audio recording \(recordingUUID!)")
                     try? AVAudioSession.sharedInstance().setActive(true)
+                    enableWakeLock()  // Re-enable wake lock when audio resumes
                 }
             }
+        }
+    }
+    
+    /// Enables the wake lock to prevent screen dimming
+    private func enableWakeLock() {
+        guard let settings = recordingSettings,
+              settings.keepAwake, // Only proceed if keepAwake is true
+              !isWakeLockEnabled // Only proceed if wake lock isn't already enabled
+        else { return }
+        
+        DispatchQueue.main.async {
+            self.wasIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled
+            UIApplication.shared.isIdleTimerDisabled = true
+            self.isWakeLockEnabled = true
+            Logger.debug("Wake lock enabled")
+        }
+    }
+    
+    /// Disables the wake lock and restores previous screen dimming state
+    private func disableWakeLock() {
+        guard let settings = recordingSettings,
+              settings.keepAwake, // Only proceed if keepAwake is true
+              isWakeLockEnabled  // Only proceed if wake lock is currently enabled
+        else { return }
+        
+        DispatchQueue.main.async {
+            UIApplication.shared.isIdleTimerDisabled = self.wasIdleTimerDisabled
+            self.isWakeLockEnabled = false
+            Logger.debug("Wake lock disabled")
         }
     }
     
@@ -225,6 +265,7 @@ class AudioStreamManager: NSObject {
             }
             
             recordingSettings = newSettings  // Update the class property with the new settings
+            enableWakeLock() // Will only enable if keepAwake is true
         } catch {
             Logger.debug("Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
             return nil
@@ -293,6 +334,7 @@ class AudioStreamManager: NSObject {
             return
         }
         
+        disableWakeLock() // Will only disable if keepAwake is true
         audioEngine.pause()
         isPaused = true
         pauseStartTime = Date()
@@ -307,6 +349,8 @@ class AudioStreamManager: NSObject {
             return
         }
         
+        enableWakeLock() // Will only enable if keepAwake is true
+
         audioEngine.prepare()
         do {
             try audioEngine.start()
@@ -347,6 +391,7 @@ class AudioStreamManager: NSObject {
     /// Stops the current audio recording.
     /// - Returns: A RecordingResult object if the recording stopped successfully, or nil otherwise.
     func stopRecording() -> RecordingResult? {
+        disableWakeLock() // Will only disable if keepAwake is true
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         isRecording = false

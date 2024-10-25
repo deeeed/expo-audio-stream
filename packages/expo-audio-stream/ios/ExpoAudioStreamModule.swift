@@ -135,6 +135,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 let numberOfChannels = options["channelConfig"] as? Int ?? 1 // Mono channel configuration
                 let bitDepth = options["audioFormat"] as? Int ?? 16 // 16bits
                 let interval = options["interval"] as? Int ?? 1000
+                let keepAwake = options["keepAwake"] as? Bool ?? false
                 
                 // Extract processing options with default values
                 let enableProcessing = options["enableProcessing"] as? Bool ?? false
