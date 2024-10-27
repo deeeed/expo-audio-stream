@@ -52,22 +52,31 @@ const baseRecordingConfig: RecordingConfig = {
     notification: {
         title: 'Recording in progress',
         text: 'Please wait while we transcribe your audio',
-        android: {
-            channelId: 'audio_recording_channel',
-            channelName: 'Audio Recording',
-            channelDescription: 'Shows audio recording status',
-            notificationId: 1,
-            waveform: {
-                color: '#FFFFFF',
-                opacity: 1.0,
-                strokeWidth: 1.5,
-                style: 'fill',
-                mirror: true,
-                height: 64,
-            },
-            lightColor: '#FF0000',
-            priority: 'high',
-        },
+        android:
+            Platform.OS === 'android'
+                ? {
+                      channelId: 'audio_recording_channel',
+                      channelName: 'Audio Recording',
+                      channelDescription: 'Shows audio recording status',
+                      notificationId: 1,
+                      waveform: {
+                          color: '#FFFFFF',
+                          opacity: 1.0,
+                          strokeWidth: 1.5,
+                          style: 'fill',
+                          mirror: true,
+                          height: 64,
+                      },
+                      lightColor: '#FF0000',
+                      priority: 'high',
+                  }
+                : undefined,
+        ios:
+            Platform.OS === 'ios'
+                ? {
+                      categoryIdentifier: '',
+                  }
+                : undefined,
     },
 }
 
@@ -111,7 +120,6 @@ export default function RecordScreen() {
             ios: {
                 categoryIdentifier:
                     baseRecordingConfig.notification?.ios?.categoryIdentifier,
-                actions: baseRecordingConfig.notification?.ios?.actions,
             },
         })
     const audioChunks = useRef<string[]>([])
