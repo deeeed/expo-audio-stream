@@ -8,18 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Feature: Keep device awake during recording with `keepAwake` option
-- Feature: Customizable recording notifications for Android and iOS
-  - Android: Rich notification support with live waveform visualization
-  - Android: Configurable notification actions, colors, and priorities
-  - iOS: Integration with media player
+- For new features.
 
-## [1.1.17] - 2024-10-24
-### Added
-- Support bluetooth headset on ios
-- Fixes: android not reading custom interval audio update
+### Changed
+- For changes in existing functionality.
 
-## [1.0.0] - 2024-04-01
+### Deprecated
+- For soon-to-be removed features.
+
+### Removed
+- For now removed features.
+
+### Fixed
+- For any bug fixes.
+
+### Security
+- In case of vulnerabilities.
+
+## [1.0.0] - YYYY-MM-DD
 
 ### Added
 - Initial release of @siteed/expo-audio-stream.
