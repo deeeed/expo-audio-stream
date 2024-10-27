@@ -92,8 +92,13 @@ export interface NotificationConfig {
     // For Android-specific customization
     android?: {
         channelId?: string
+        channelName?: string
+        channelDescription?: string
         actions?: NotificationAction[]
-        customLayout?: any // Define type based on implementation
+        waveform?: WaveformConfig
+        lightColor?: string
+        priority?: 'min' | 'low' | 'default' | 'high' | 'max'
+        accentColor?: string
     }
     // For iOS-specific customization
     ios?: {
@@ -105,7 +110,18 @@ export interface NotificationConfig {
 export interface NotificationAction {
     title: string
     identifier: string
+    icon?: string
 }
+
+export interface WaveformConfig {
+    color?: string // The color of the waveform (e.g., "#FFFFFF" for white)
+    opacity?: number // Opacity of the waveform (0.0 - 1.0)
+    strokeWidth?: number // Width of the waveform line (default: 1.5)
+    style?: 'stroke' | 'fill' // Drawing style: "stroke" for outline, "fill" for solid
+    mirror?: boolean // Whether to mirror the waveform (symmetrical display)
+    height?: number // Height of the waveform view in dp (default: 64)
+}
+
 export interface UseAudioRecorderState {
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
     stopRecording: () => Promise<AudioRecording | null>

@@ -7,6 +7,7 @@ import kotlin.math.*
 import android.util.Log
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.system.measureTimeMillis
 
 class AudioProcessor(private val filesDir: File) {
@@ -18,12 +19,15 @@ class AudioProcessor(private val filesDir: File) {
         const val MEL_MAX_FREQ_CONSTANT = 700.0
         const val DCT_SQRT_DIVISOR = 2.0
         const val LOG_BASE = 10.0
+
+        private val uniqueIdCounter = AtomicLong(0L) // Keep as companion object property to maintain during pause/resume cycles
+
+        fun resetUniqueIdCounter() {
+            uniqueIdCounter.set(0L)
+        }
     }
 
     data class AudioData(val data: ByteArray, val sampleRate: Int, val bitDepth: Int, val channels: Int)
-
-    // Add a counter for unique IDs
-    private var uniqueIdCounter = 0L
 
     private var cumulativeMinAmplitude = Float.MAX_VALUE
     private var cumulativeMaxAmplitude = Float.NEGATIVE_INFINITY
@@ -213,7 +217,7 @@ class AudioProcessor(private val filesDir: File) {
                 cumulativeMaxAmplitude = max(cumulativeMaxAmplitude, localMaxAmplitude)
 
                 val dataPoint = DataPoint(
-                    id = uniqueIdCounter++, // Assign unique ID and increment the counter
+                    id = uniqueIdCounter.getAndIncrement(), // Assign unique ID and increment the counter
                     amplitude = if (algorithm == "peak") localMaxAmplitude else rms,
                     activeSpeech = null,
                     dB = dB,

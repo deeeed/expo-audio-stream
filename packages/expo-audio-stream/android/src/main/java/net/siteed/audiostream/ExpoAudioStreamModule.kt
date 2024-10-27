@@ -11,15 +11,12 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.interfaces.permissions.Permissions
 
-class ExpoAudioStreamModule() : Module(), EventSender {
+class ExpoAudioStreamModule : Module(), EventSender {
     private lateinit var audioRecorderManager: AudioRecorderManager
     private lateinit var audioProcessor: AudioProcessor
-    // 8081
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun definition() = ModuleDefinition {
-        // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-        // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
         // The module will be accessible from `requireNativeModule('ExpoAudioStream')` in JavaScript.
         Name("ExpoAudioStream")
 
@@ -179,8 +176,16 @@ class ExpoAudioStreamModule() : Module(), EventSender {
         val audioEncoder = AudioDataEncoder()
         audioRecorderManager =
             AudioRecorderManager(androidContext, androidContext.filesDir, permissionUtils, audioEncoder, this)
-        audioProcessor = AudioProcessor(androidContext.filesDir) // Instantiate here with filesDir
+        audioRecorderManager = AudioRecorderManager.initialize(
+            androidContext,
+            androidContext.filesDir,
+            permissionUtils,
+            audioEncoder,
+            this
+        )
+        audioProcessor = AudioProcessor(androidContext.filesDir)
     }
+
 
     override fun sendExpoEvent(eventName: String, params: Bundle) {
         Log.d(Constants.TAG, "Sending event: $eventName")

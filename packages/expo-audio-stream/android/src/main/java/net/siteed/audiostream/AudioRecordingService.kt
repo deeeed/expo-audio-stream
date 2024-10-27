@@ -1,59 +1,40 @@
 package net.siteed.audiostream
 
 import android.app.Service
+import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import android.os.Handler
 import android.os.Looper
 
 class AudioRecordingService : Service() {
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    private var audioRecorderManager: AudioRecorderManager? = null
+    private val notificationManager by lazy {
+        AudioNotificationManager.getInstance(applicationContext)
+    }
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var isRunning = false
+
+    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         Log.d(Constants.TAG, "AudioRecordingService onCreate")
-        initializeManager()
-    }
-
-    private fun initializeManager() {
-        try {
-            audioRecorderManager = AudioRecorderManager.getExistingInstance()
-
-            if (audioRecorderManager == null) {
-                // Try one more time after a short delay
-                mainHandler.postDelayed({
-                    audioRecorderManager = AudioRecorderManager.getExistingInstance()
-                    if (audioRecorderManager == null) {
-                        Log.e(Constants.TAG, "Failed to get AudioRecorderManager instance")
-                        stopSelf()
-                    }
-                }, 100)
-            }
-        } catch (e: Exception) {
-            Log.e(Constants.TAG, "Error initializing AudioRecorderManager", e)
-            stopSelf()
-        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(Constants.TAG, "AudioRecordingService onStartCommand")
 
-        try {
-            val manager = audioRecorderManager ?: AudioRecorderManager.getExistingInstance()
-            if (manager != null) {
-                val notification = manager.getNotification()
+        if (!isRunning) {
+            try {
+                val notification = notificationManager.getNotification()
                 startForeground(1, notification)
-            } else {
-                Log.e(Constants.TAG, "AudioRecorderManager not available")
+                isRunning = true
+            } catch (e: Exception) {
+                Log.e(Constants.TAG, "Error starting foreground service", e)
                 stopSelf()
             }
-        } catch (e: Exception) {
-            Log.e(Constants.TAG, "Error starting foreground service", e)
-            stopSelf()
         }
 
         return START_NOT_STICKY
@@ -69,7 +50,22 @@ class AudioRecordingService : Service() {
             stopForeground(true)
         }
 
-        audioRecorderManager = null
+        isRunning = false
         super.onDestroy()
+    }
+
+    companion object {
+        fun startService(context: Context) {
+            val serviceIntent = Intent(context, AudioRecordingService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        }
+
+        fun stopService(context: Context) {
+            context.stopService(Intent(context, AudioRecordingService::class.java))
+        }
     }
 }
