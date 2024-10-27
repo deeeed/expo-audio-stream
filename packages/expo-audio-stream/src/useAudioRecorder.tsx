@@ -48,6 +48,13 @@ interface RecorderReducerState {
 
 type RecorderAction =
     | { type: 'START' | 'STOP' | 'PAUSE' | 'RESUME' }
+    | {
+          type: 'UPDATE_RECORDING_STATE'
+          payload: {
+              isRecording: boolean
+              isPaused: boolean
+          }
+      }
     | { type: 'UPDATE_STATUS'; payload: { durationMs: number; size: number } }
     | { type: 'UPDATE_ANALYSIS'; payload: AudioAnalysis }
 
@@ -87,6 +94,12 @@ function audioRecorderReducer(
             return { ...state, isPaused: true, isRecording: false }
         case 'RESUME':
             return { ...state, isPaused: false, isRecording: true }
+        case 'UPDATE_RECORDING_STATE':
+            return {
+                ...state,
+                isPaused: action.payload.isPaused,
+                isRecording: action.payload.isRecording,
+            }
         case 'UPDATE_STATUS':
             return {
                 ...state,
@@ -128,6 +141,7 @@ export function useAudioRecorder({
     const fullAnalysisRef = useRef<AudioAnalysis>({
         ...defaultAnalysis,
     })
+    const globalIdRef = useRef(0);
 
     // Instantiate the module for web with URLs
     const ExpoAudioStream =
@@ -300,20 +314,40 @@ export function useAudioRecorder({
 
     const checkStatus = useCallback(async () => {
         try {
-            if (!state.isRecording) {
-                logger.debug(`Not recording, exiting status check.`)
-                return
-            }
-
             const status: AudioStreamStatus = ExpoAudioStream.status()
             if (debug) {
-                logger.debug(`Status:`, status)
+                logger.debug(
+                    `Status: paused: ${status.isPaused} durationMs: ${status.durationMs} size: ${status.size}`
+                )
             }
 
-            dispatch({
-                type: 'UPDATE_STATUS',
-                payload: { durationMs: status.durationMs, size: status.size },
-            })
+            // Check and update recording state
+            if (
+                status.isRecording !== state.isRecording ||
+                status.isPaused !== state.isPaused
+            ) {
+                dispatch({
+                    type: 'UPDATE_RECORDING_STATE',
+                    payload: {
+                        isRecording: status.isRecording,
+                        isPaused: status.isPaused,
+                    },
+                })
+            }
+
+            // Check and update recording progress
+            if (
+                status.durationMs !== state.durationMs ||
+                status.size !== state.size
+            ) {
+                dispatch({
+                    type: 'UPDATE_STATUS',
+                    payload: {
+                        durationMs: status.durationMs,
+                        size: status.size,
+                    },
+                })
+            }
         } catch (error) {
             console.error(`${TAG} Error getting status:`, error)
         }
@@ -400,7 +434,7 @@ export function useAudioRecorder({
 
     useEffect(() => {
         let interval: ReturnType<typeof setTimeout>
-        if (state.isRecording) {
+        if (state.isRecording || state.isPaused) {
             interval = setInterval(checkStatus, 1000)
         }
         return () => {
@@ -408,7 +442,7 @@ export function useAudioRecorder({
                 clearInterval(interval)
             }
         }
-    }, [checkStatus, state.isRecording])
+    }, [checkStatus, state.isRecording, state.isPaused])
 
     useEffect(() => {
         logger.debug(`Registering audio event listener`)

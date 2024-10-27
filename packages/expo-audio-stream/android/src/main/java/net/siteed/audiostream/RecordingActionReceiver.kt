@@ -5,34 +5,55 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import expo.modules.kotlin.Promise
+import java.util.concurrent.atomic.AtomicBoolean
 
 class RecordingActionReceiver : BroadcastReceiver() {
+    companion object {
+        const val ACTION_PAUSE_RECORDING = "net.siteed.audiostream.PAUSE_RECORDING"
+        const val ACTION_RESUME_RECORDING = "net.siteed.audiostream.RESUME_RECORDING"
+        private val isProcessingAction = AtomicBoolean(false)
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
-        val action = intent.action ?: return
-        Log.d("RecordingActionReceiver", "Received action: $action")
+        when (intent.action) {
+            ACTION_PAUSE_RECORDING, ACTION_RESUME_RECORDING -> handleRecordingAction(intent.action)
+            else -> Log.w("RecordingActionReceiver", "Unknown action: ${intent.action}")
+        }
+    }
 
-        val audioRecorderManager = AudioRecorderManager.getExistingInstance()
-
-        if (audioRecorderManager == null) {
-            Log.e("RecordingActionReceiver", "AudioRecorderManager instance is null")
+    private fun handleRecordingAction(action: String?) {
+        if (!isProcessingAction.compareAndSet(false, true)) {
+            Log.d("RecordingActionReceiver", "Action already in progress, skipping")
             return
         }
 
-        val notificationPromise = object : Promise {
-            override fun resolve(value: Any?) {
-                Log.d("RecordingActionReceiver", "Action completed successfully: $action")
+        try {
+            val audioRecorderManager = AudioRecorderManager.getInstance()
+            if (audioRecorderManager == null) {
+                Log.e("RecordingActionReceiver", "AudioRecorderManager instance is null")
+                isProcessingAction.set(false)
+                return
             }
 
-            override fun reject(code: String, message: String?, cause: Throwable?) {
-                Log.e("RecordingActionReceiver", "Action failed: $action, Error: $message", cause)
-            }
-        }
+            val notificationPromise = object : Promise {
+                override fun resolve(value: Any?) {
+                    Log.d("RecordingActionReceiver", "$action completed successfully")
+                    isProcessingAction.set(false)
+                }
 
-        when (action) {
-            "PAUSE_RECORDING" -> audioRecorderManager.pauseRecording(notificationPromise)
-            "RESUME_RECORDING" -> audioRecorderManager.resumeRecording(notificationPromise)
-            "STOP_RECORDING" -> audioRecorderManager.stopRecording(notificationPromise)
-            else -> Log.w("RecordingActionReceiver", "Unknown action: $action")
+                override fun reject(code: String, message: String?, cause: Throwable?) {
+                    Log.e("RecordingActionReceiver", "$action failed: $message", cause)
+                    isProcessingAction.set(false)
+                }
+            }
+
+            when (action) {
+                ACTION_PAUSE_RECORDING -> audioRecorderManager.pauseRecording(notificationPromise)
+                ACTION_RESUME_RECORDING -> audioRecorderManager.resumeRecording(notificationPromise)
+            }
+        } catch (e: Exception) {
+            Log.e("RecordingActionReceiver", "Error processing $action", e)
+            isProcessingAction.set(false)
         }
     }
 }

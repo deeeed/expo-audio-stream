@@ -11,6 +11,7 @@ import {
     AudioDataEvent,
     AudioRecording,
     ExpoAudioStreamModule,
+    NotificationConfig,
     RecordingConfig,
     SampleRate,
     StartRecordingResult,
@@ -28,6 +29,7 @@ import { ActivityIndicator, Text } from 'react-native-paper'
 
 import { AudioRecordingView } from '../../component/AudioRecordingView'
 import LiveTranscriber from '../../component/LiveTranscriber'
+import { NativeNotificationConfig } from '../../component/NativeNotificationConfig'
 import { ProgressItems } from '../../component/ProgressItems'
 import { baseLogger, WhisperSampleRate } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
@@ -65,6 +67,38 @@ logger.debug(`Base Recording Config`, baseRecordingConfig)
 
 export default function RecordScreen() {
     const [error, setError] = useState<string | null>(null)
+    const [notificationEnabled, setNotificationEnabled] = useState(
+        baseRecordingConfig.showNotification ?? false
+    )
+    const [notificationConfig, setNotificationConfig] =
+        useState<NotificationConfig>({
+            title:
+                baseRecordingConfig.notification?.title ??
+                'Recording in progress',
+            text:
+                baseRecordingConfig.notification?.text ??
+                'Please wait while we transcribe your audio',
+            icon: baseRecordingConfig.notification?.icon,
+            android: {
+                channelId: baseRecordingConfig.notification?.android?.channelId,
+                channelName:
+                    baseRecordingConfig.notification?.android?.channelName,
+                channelDescription:
+                    baseRecordingConfig.notification?.android
+                        ?.channelDescription,
+                waveform: baseRecordingConfig.notification?.android?.waveform,
+                lightColor:
+                    baseRecordingConfig.notification?.android?.lightColor,
+                priority: baseRecordingConfig.notification?.android?.priority,
+                accentColor:
+                    baseRecordingConfig.notification?.android?.accentColor,
+            },
+            ios: {
+                categoryIdentifier:
+                    baseRecordingConfig.notification?.ios?.categoryIdentifier,
+                actions: baseRecordingConfig.notification?.ios?.actions,
+            },
+        })
     const audioChunks = useRef<string[]>([])
     const webAudioChunks = useRef<Float32Array>(new Float32Array(0))
     const [streamConfig, setStreamConfig] =
@@ -135,11 +169,7 @@ export default function RecordScreen() {
             return true
         } catch (error) {
             logger.error('Error requesting permissions:', error)
-            show({
-                type: 'error',
-                message: 'Failed to request permissions. Please try again.',
-                duration: 3000,
-            })
+            setError('Failed to request permissions. Please try again.')
             return false
         }
     }
@@ -226,6 +256,8 @@ export default function RecordScreen() {
             logger.log(`Starting recording...`, startRecordingConfig)
             const streamConfig: StartRecordingResult = await startRecording({
                 ...startRecordingConfig,
+                showNotification: notificationEnabled,
+                notification: notificationConfig,
                 onAudioAnalysis: async (analysis) => {
                     logger.debug(`Received audio analysis`, analysis)
                     return undefined
@@ -241,6 +273,7 @@ export default function RecordScreen() {
             // }, 3000);
         } catch (error) {
             logger.error(`Error while starting recording`, error)
+            setError('Failed to start recording. Please try again.')
         } finally {
             setProcessing(false)
         }
@@ -254,7 +287,7 @@ export default function RecordScreen() {
             logger.debug(`Recording stopped. `, result)
 
             if (!result) {
-                show({ type: 'error', message: 'No audio data found' })
+                setError('No audio data found.')
                 return
             }
 
@@ -316,11 +349,12 @@ export default function RecordScreen() {
             router.navigate(`(recordings)/${result.filename}`)
         } catch (error) {
             logger.error(`Error while stopping recording`, error)
+            setError('Failed to stop recording. Please try again.')
         } finally {
             setStopping(false)
             setProcessing(false)
         }
-    }, [isRecording, refreshFiles, transcripts, enableLiveTranscription])
+    }, [stopRecording, refreshFiles, transcripts, enableLiveTranscription])
 
     const renderRecording = () => (
         <View style={{ gap: 10, display: 'flex' }}>
@@ -374,14 +408,13 @@ export default function RecordScreen() {
             try {
                 router.navigate('/files')
                 await removeFile(recording)
-                show({ type: 'success', message: 'Recording deleted' })
                 setResult(null)
             } catch (error) {
                 logger.error(
                     `Failed to delete recording: ${recording.fileUri}`,
                     error
                 )
-                show({ type: 'error', message: 'Failed to load audio data' })
+                setError('Failed to delete the recording. Please try again.')
             }
         },
         [removeFile]
@@ -508,6 +541,15 @@ export default function RecordScreen() {
                     }))
                 }}
             />
+            {Platform.OS !== 'web' && (
+                <NativeNotificationConfig
+                    enabled={notificationEnabled}
+                    onEnabledChange={setNotificationEnabled}
+                    config={notificationConfig}
+                    onConfigChange={setNotificationConfig}
+                />
+            )}
+
             {isWeb && validSRTranscription && (
                 <LabelSwitch
                     label="Live Transcription"
@@ -536,11 +578,26 @@ export default function RecordScreen() {
         }
     }, [transcripts])
 
+    useEffect(() => {
+        setStartRecordingConfig((prev) => ({
+            ...prev,
+            showNotification: notificationEnabled,
+            notification: notificationConfig,
+        }))
+    }, [notificationEnabled, notificationConfig])
+
     if (error) {
         return (
             <View style={{ gap: 10 }}>
                 <Text>{error}</Text>
-                <Button onPress={() => handleStart}>Try Again</Button>
+                <Button
+                    onPress={() => {
+                        setError(null)
+                        handleStart()
+                    }}
+                >
+                    Try Again
+                </Button>
             </View>
         )
     }
