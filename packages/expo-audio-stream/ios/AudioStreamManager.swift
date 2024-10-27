@@ -9,6 +9,8 @@ import Foundation
 import AVFoundation
 import Accelerate
 import UIKit
+import MediaPlayer
+import UserNotifications
 
 // Helper to convert to little-endian byte array
 extension UInt32 {
@@ -53,17 +55,35 @@ class AudioStreamManager: NSObject {
     private var lastBufferTime: AVAudioTime?
     private var accumulatedData = Data()
     private var recentData = [Float]() // This property stores the recent audio data
+    private var notificationUpdateTimer: Timer?
     
+    private var notificationManager: AudioNotificationManager?
+    private var notificationCenter: UNUserNotificationCenter?
+    private var notificationView: MPNowPlayingInfoCenter?
+    private var audioSession: AVAudioSession?
+    private var notificationObserver: Any?
+    private var mediaInfoUpdateTimer: Timer?
+
     weak var delegate: AudioStreamManagerDelegate?  // Define the delegate here
     
     /// Initializes the AudioStreamManager
     override init() {
         super.init()
+        // Only keep audio session interruption observer here
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioSessionInterruption),
+            name: AVAudioSession.interruptionNotification,
+            object: nil
+        )
     }
     
     deinit {
        // Ensure wake lock is disabled when the manager is deallocated
        disableWakeLock()
+        if let observer = notificationObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
     
     /// Handles audio session interruptions.
@@ -89,6 +109,93 @@ class AudioStreamManager: NSObject {
                 }
             }
         }
+    }
+    
+    private func setupNowPlayingInfo() {
+        // Configure audio session for background audio
+        audioSession = AVAudioSession.sharedInstance()
+        try? audioSession?.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth])
+        try? audioSession?.setActive(true)
+        
+        // Setup Now Playing info
+        notificationView = MPNowPlayingInfoCenter.default()
+        var nowPlayingInfo = [String: Any]()
+        
+        nowPlayingInfo[MPMediaItemPropertyTitle] = recordingSettings?.notification?.title ?? "Recording in Progress"
+        nowPlayingInfo[MPMediaItemPropertyArtist] = "Audio Stream"
+        
+        // Add a placeholder image if needed
+        if let image = UIImage(named: "recording_icon") {
+            nowPlayingInfo[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { size in
+                return image
+            }
+        }
+        
+        notificationView?.nowPlayingInfo = nowPlayingInfo
+        
+        // Enable remote control events on main thread
+        DispatchQueue.main.async {
+            UIApplication.shared.beginReceivingRemoteControlEvents()
+        }
+    }
+    
+    private func cleanupNotificationObservers() {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    @objc private func handlePauseNotification(_ notification: Notification) {
+        // Only handle if recording and notifications are enabled
+        guard isRecording, recordingSettings?.showNotification == true else { return }
+        pauseRecording()
+    }
+    
+    @objc private func handleResumeNotification(_ notification: Notification) {
+        // Only handle if recording and notifications are enabled
+        guard isRecording, recordingSettings?.showNotification == true else { return }
+        resumeRecording()
+    }
+    
+    @objc private func handlePauseAction() {
+        pauseRecording()
+        updateNotificationState(isPaused: true)
+    }
+
+    @objc private func handleResumeAction() {
+        resumeRecording()
+        updateNotificationState(isPaused: false)
+    }
+    
+    private func updateNotificationState(isPaused: Bool) {
+        // Calculate current duration
+        let currentDuration: TimeInterval
+        if let startTime = startTime {
+            currentDuration = Date().timeIntervalSince(startTime) - TimeInterval(pausedDuration)
+        } else {
+            currentDuration = 0
+        }
+
+        // Update Now Playing info
+        var nowPlayingInfo = notificationView?.nowPlayingInfo ?? [:]
+        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPaused ? 0.0 : 1.0
+        nowPlayingInfo[MPMediaItemPropertyTitle] = isPaused ?
+            "Recording Paused" :
+            (recordingSettings?.notification?.title ?? "Recording in Progress")
+        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentDuration
+        notificationView?.nowPlayingInfo = nowPlayingInfo
+
+        // Delegate notification update to AudioNotificationManager
+        notificationManager?.updateState(isPaused: isPaused)
+    }
+    
+    private func updateMediaInfo() {
+        guard let startTime = startTime else { return }
+        
+        let currentDuration = Date().timeIntervalSince(startTime) - TimeInterval(pausedDuration)
+        
+        var nowPlayingInfo = notificationView?.nowPlayingInfo ?? [:]
+        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentDuration
+        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPaused ? 0.0 : 1.0
+        notificationView?.nowPlayingInfo = nowPlayingInfo
     }
     
     /// Enables the wake lock to prevent screen dimming
@@ -308,6 +415,34 @@ class AudioStreamManager: NSObject {
             return nil
         }
         
+        if settings.showNotification {
+            // Setup notification manager
+            notificationManager = AudioNotificationManager()
+            notificationManager?.initialize(with: settings.notification)
+            
+            setupNowPlayingInfo()
+            
+            // Start media info update timer
+            mediaInfoUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+               self?.updateMediaInfo()
+            }
+
+            // Setup notification observers only if notifications are enabled
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handlePauseNotification),
+                name: .pauseRecording,
+                object: nil
+            )
+            
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleResumeNotification),
+                name: .resumeRecording,
+                object: nil
+            )
+        }
+        
         do {
             startTime = Date()
             try audioEngine.start()
@@ -338,6 +473,13 @@ class AudioStreamManager: NSObject {
         audioEngine.pause()
         isPaused = true
         pauseStartTime = Date()
+        let pauseTime = Date()
+        
+        updateMediaInfo()
+        
+        notificationManager?.updateState(isPaused: true)
+        delegate?.audioStreamManager(self, didPauseRecording: pauseTime)
+        delegate?.audioStreamManager(self, didUpdateNotificationState: true)
         
         Logger.debug("Recording paused.")
     }
@@ -358,6 +500,13 @@ class AudioStreamManager: NSObject {
             if let pauseStartTime = pauseStartTime {
                 pausedDuration += Int(Date().timeIntervalSince(pauseStartTime))
             }
+            let resumeTime = Date()
+            
+            notificationManager?.updateState(isPaused: false)
+            delegate?.audioStreamManager(self, didResumeRecording: resumeTime)
+            delegate?.audioStreamManager(self, didUpdateNotificationState: false)
+            
+            updateMediaInfo()
             Logger.debug("Recording resumed.")
         } catch {
             Logger.debug("Error: Failed to resume recording: \(error.localizedDescription)")
@@ -395,6 +544,29 @@ class AudioStreamManager: NSObject {
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         isRecording = false
+        
+        // Clean up notification
+        notificationManager?.stopUpdates()
+        notificationManager = nil
+        
+        if recordingSettings?.showNotification == true {
+            // Stop and clean up timer
+            mediaInfoUpdateTimer?.invalidate()
+            mediaInfoUpdateTimer = nil
+            
+            // Clean up notification manager
+            notificationManager?.stopUpdates()
+            notificationManager = nil
+            
+            // Clean up media player on main thread
+            DispatchQueue.main.async {
+                self.notificationView?.nowPlayingInfo = nil
+                UIApplication.shared.endReceivingRemoteControlEvents()
+            }
+            
+            // Clean up audio session
+            try? audioSession?.setActive(false)
+        }
         
         guard let fileURL = recordingFileURL, let startTime = startTime, let settings = recordingSettings else {
             Logger.debug("Recording or file URL is nil.")
@@ -547,6 +719,22 @@ class AudioStreamManager: NSObject {
         }
     }
     
+    private func updateNotificationDuration() {
+        guard let startTime = startTime,
+              recordingSettings?.showNotification == true else { return }
+        
+        let currentDuration = Date().timeIntervalSince(startTime) - TimeInterval(pausedDuration)
+        
+        // Update both notification manager and media player
+        notificationManager?.updateDuration(currentDuration)
+        
+        if let notificationView = notificationView {
+            var nowPlayingInfo = notificationView.nowPlayingInfo ?? [:]
+            nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentDuration
+            notificationView.nowPlayingInfo = nowPlayingInfo
+        }
+    }
+    
     /// Processes the audio buffer and writes data to the file. Also handles audio processing if enabled.
     /// - Parameters:
     ///   - buffer: The audio buffer to process.
@@ -597,6 +785,10 @@ class AudioStreamManager: NSObject {
         
         totalDataSize += Int64(data.count)
         //        print("Total data size written: \(totalDataSize) bytes")  // Debug: Check total data written
+        
+        if recordingSettings?.showNotification == true {
+            updateNotificationDuration()
+        }
         
         let currentTime = Date()
         if let lastEmissionTime = lastEmissionTime, currentTime.timeIntervalSince(lastEmissionTime) >= emissionInterval {
