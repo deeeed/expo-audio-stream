@@ -151,9 +151,6 @@ export interface NotificationConfig {
     ios?: {
         // Identifier for the notification category (used for grouping similar notifications)
         categoryIdentifier?: string
-
-        // List of actions that can be performed from the notification
-        actions?: NotificationAction[]
     }
 }
 
