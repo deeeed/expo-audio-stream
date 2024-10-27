@@ -14,10 +14,13 @@
 - [AudioStreamStatus](interfaces/AudioStreamStatus.md)
 - [Chunk](interfaces/Chunk.md)
 - [DataPoint](interfaces/DataPoint.md)
+- [NotificationAction](interfaces/NotificationAction.md)
+- [NotificationConfig](interfaces/NotificationConfig.md)
 - [RecordingConfig](interfaces/RecordingConfig.md)
 - [StartRecordingResult](interfaces/StartRecordingResult.md)
 - [TranscriberData](interfaces/TranscriberData.md)
 - [UseAudioRecorderState](interfaces/UseAudioRecorderState.md)
+- [WaveformConfig](interfaces/WaveformConfig.md)
 - [WavFileInfo](interfaces/WavFileInfo.md)
 - [WavHeaderOptions](interfaces/WavHeaderOptions.md)
 
