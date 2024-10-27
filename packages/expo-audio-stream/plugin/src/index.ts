@@ -7,18 +7,33 @@ import {
 import { ExpoConfig } from '@expo/config-types'
 
 const MICROPHONE_USAGE = 'Allow $(PRODUCT_NAME) to access your microphone'
+const NOTIFICATION_USAGE = 'Show recording notifications and controls'
 
 const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
     // iOS Configuration
     config = withInfoPlist(config, (config) => {
+        // Existing microphone permission
         config.modResults['NSMicrophoneUsageDescription'] =
             config.modResults['NSMicrophoneUsageDescription'] ||
             MICROPHONE_USAGE
 
+        // Add notification permission for iOS 10+
+        config.modResults['NSUserNotificationUsageDescription'] =
+            config.modResults['NSUserNotificationUsageDescription'] ||
+            NOTIFICATION_USAGE
+
+        // Add notification permission for iOS 12+
+        config.modResults['UNUserNotificationCenterDelegate'] = true
+
+        // Background modes
         const existingBackgroundModes =
             config.modResults.UIBackgroundModes || []
         if (!existingBackgroundModes.includes('audio')) {
             existingBackgroundModes.push('audio')
+        }
+        // Add remote-notification for background notifications if not present
+        if (!existingBackgroundModes.includes('remote-notification')) {
+            existingBackgroundModes.push('remote-notification')
         }
         config.modResults.UIBackgroundModes = existingBackgroundModes
 
