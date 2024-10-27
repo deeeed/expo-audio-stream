@@ -17,13 +17,13 @@ const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
             config.modResults['NSMicrophoneUsageDescription'] ||
             MICROPHONE_USAGE
 
-        // Add notification permission for iOS 10+
-        config.modResults['NSUserNotificationUsageDescription'] =
-            config.modResults['NSUserNotificationUsageDescription'] ||
+        // Add notification permissions
+        // This is the correct key for iOS notifications
+        config.modResults['NSUserNotificationsUsageDescription'] =
             NOTIFICATION_USAGE
 
-        // Add notification permission for iOS 12+
-        config.modResults['UNUserNotificationCenterDelegate'] = true
+        // Add notification style
+        config.modResults['NSUserNotificationAlertStyle'] = 'alert'
 
         // Background modes
         const existingBackgroundModes =
@@ -31,11 +31,20 @@ const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
         if (!existingBackgroundModes.includes('audio')) {
             existingBackgroundModes.push('audio')
         }
-        // Add remote-notification for background notifications if not present
         if (!existingBackgroundModes.includes('remote-notification')) {
             existingBackgroundModes.push('remote-notification')
         }
         config.modResults.UIBackgroundModes = existingBackgroundModes
+
+        // Required capabilities for notifications
+        if (!config.modResults.UIRequiredDeviceCapabilities) {
+            config.modResults.UIRequiredDeviceCapabilities = []
+        }
+        const capabilities = config.modResults
+            .UIRequiredDeviceCapabilities as string[]
+        if (!capabilities.includes('notification')) {
+            capabilities.push('notification')
+        }
 
         return config
     })

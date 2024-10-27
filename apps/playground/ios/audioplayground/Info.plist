@@ -57,6 +57,8 @@
     <key>UIBackgroundModes</key>
     <array>
       <string>audio</string>
+      <string>remote-notification</string>
+      <string>processing</string>
     </array>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
@@ -66,6 +68,8 @@
     </array>
     <key>UIRequiresFullScreen</key>
     <false/>
+    <key>NSUserNotificationUsageDescription</key>
+    <string>We need to send notifications to keep you informed about the recording status</string>
     <key>UIStatusBarStyle</key>
     <string>UIStatusBarStyleDefault</string>
     <key>UISupportedInterfaceOrientations</key>
@@ -80,9 +84,15 @@
       <string>UIInterfaceOrientationLandscapeLeft</string>
       <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
+    <key>NSUserNotificationCenterDelegate</key>
+    <true/>
     <key>UIUserInterfaceStyle</key>
     <string>Light</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
+    <key>NSUserNotificationAlertStyle</key>
+    <string>alert</string>
+    <key>NSUserNotificationsUsageDescription</key>
+    <string>We need to send notifications to keep you informed about the recording status</string>
   </dict>
 </plist>
