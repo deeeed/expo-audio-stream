@@ -92,6 +92,7 @@ const FilesScreen = () => {
                 <Result
                     title="No recordings found"
                     status="info"
+                    style={{ padding: 20 }}
                     buttonText="Record"
                     onButtonPress={() => {
                         router.push('/')

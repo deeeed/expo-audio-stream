@@ -58,11 +58,11 @@ class AudioStreamManager: NSObject {
     private var notificationUpdateTimer: Timer?
     
     private var notificationManager: AudioNotificationManager?
-    private var notificationCenter: UNUserNotificationCenter?
     private var notificationView: MPNowPlayingInfoCenter?
     private var audioSession: AVAudioSession?
     private var notificationObserver: Any?
     private var mediaInfoUpdateTimer: Timer?
+    private var remoteCommandCenter: MPRemoteCommandCenter?
 
     weak var delegate: AudioStreamManagerDelegate?  // Define the delegate here
     
@@ -76,6 +76,19 @@ class AudioStreamManager: NSObject {
             name: AVAudioSession.interruptionNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+
     }
     
     deinit {
@@ -114,29 +127,90 @@ class AudioStreamManager: NSObject {
     private func setupNowPlayingInfo() {
         // Configure audio session for background audio
         audioSession = AVAudioSession.sharedInstance()
-        try? audioSession?.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth])
-        try? audioSession?.setActive(true)
+        do {
+            try audioSession?.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .mixWithOthers])
+            try audioSession?.setActive(true)
+        } catch {
+            Logger.debug("Failed to configure audio session: \(error)")
+        }
         
         // Setup Now Playing info
         notificationView = MPNowPlayingInfoCenter.default()
+        updateNowPlayingInfo(isPaused: false)
+        
+        // Configure Remote Command Center
+        setupRemoteCommandCenter()
+        
+        // Enable remote control events on main thread
+        DispatchQueue.main.async {
+            UIApplication.shared.beginReceivingRemoteControlEvents()
+        }
+    }
+    
+    private func setupRemoteCommandCenter() {
+        remoteCommandCenter = MPRemoteCommandCenter.shared()
+        
+        // Remove any existing handlers
+        remoteCommandCenter?.pauseCommand.removeTarget(nil)
+        remoteCommandCenter?.playCommand.removeTarget(nil)
+        
+        // Add pause command handler
+        remoteCommandCenter?.pauseCommand.addTarget { [weak self] _ in
+            guard let self = self, self.isRecording && !self.isPaused else {
+                return .commandFailed
+            }
+            self.pauseRecording()
+            return .success
+        }
+        
+        // Add play/resume command handler
+        remoteCommandCenter?.playCommand.addTarget { [weak self] _ in
+            guard let self = self, self.isRecording && self.isPaused else {
+                return .commandFailed
+            }
+            self.resumeRecording()
+            return .success
+        }
+        
+        // Enable the commands
+        remoteCommandCenter?.pauseCommand.isEnabled = true
+        remoteCommandCenter?.playCommand.isEnabled = true
+        
+        // Disable unused commands
+        remoteCommandCenter?.nextTrackCommand.isEnabled = false
+        remoteCommandCenter?.previousTrackCommand.isEnabled = false
+        remoteCommandCenter?.changePlaybackRateCommand.isEnabled = false
+        remoteCommandCenter?.seekBackwardCommand.isEnabled = false
+        remoteCommandCenter?.seekForwardCommand.isEnabled = false
+    }
+    
+    private func updateNowPlayingInfo(isPaused: Bool) {
         var nowPlayingInfo = [String: Any]()
         
+        // Set media title and artist
         nowPlayingInfo[MPMediaItemPropertyTitle] = recordingSettings?.notification?.title ?? "Recording in Progress"
         nowPlayingInfo[MPMediaItemPropertyArtist] = "Audio Stream"
         
-        // Add a placeholder image if needed
+        // Set playback state
+        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPaused ? 0.0 : 1.0
+        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentRecordingDuration()
+        
+        // Add placeholder image if available
         if let image = UIImage(named: "recording_icon") {
             nowPlayingInfo[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { size in
                 return image
             }
         }
         
-        notificationView?.nowPlayingInfo = nowPlayingInfo
-        
-        // Enable remote control events on main thread
+        // Update the info on main thread
         DispatchQueue.main.async {
-            UIApplication.shared.beginReceivingRemoteControlEvents()
+            self.notificationView?.nowPlayingInfo = nowPlayingInfo
         }
+    }
+    
+    private func currentRecordingDuration() -> TimeInterval {
+        guard let startTime = startTime else { return 0 }
+        return Date().timeIntervalSince(startTime) - TimeInterval(pausedDuration)
     }
     
     private func cleanupNotificationObservers() {
@@ -163,6 +237,24 @@ class AudioStreamManager: NSObject {
     @objc private func handleResumeAction() {
         resumeRecording()
         updateNotificationState(isPaused: false)
+    }
+    
+    @objc private func handleAppDidEnterBackground(_ notification: Notification) {
+        if isRecording {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.notificationManager?.showInitialNotification()
+            }
+        }
+    }
+
+    @objc private func handleAppWillEnterForeground(_ notification: Notification) {
+        if isRecording {
+            notificationManager?.stopUpdates()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self else { return }
+                self.notificationManager?.startUpdates(startTime: self.startTime ?? Date())
+            }
+        }
     }
     
     private func updateNotificationState(isPaused: Bool) {
@@ -348,9 +440,6 @@ class AudioStreamManager: NSObject {
         do {
             Logger.debug("Debug: Configuring audio session with sample rate: \(settings.sampleRate) Hz")
             
-            // Create an audio format with the desired sample rate
-            let desiredFormat = AVAudioFormat(commonFormat: commonFormat, sampleRate: newSettings.sampleRate, channels: UInt32(newSettings.numberOfChannels), interleaved: true)
-            
             // Check if the input node supports the desired format
             let inputNode = audioEngine.inputNode
             let hardwareFormat = inputNode.inputFormat(forBus: 0)
@@ -359,7 +448,11 @@ class AudioStreamManager: NSObject {
                 newSettings.sampleRate = session.sampleRate
             }
             
-            try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth])
+            try session.setCategory(.playAndRecord,
+                mode: .default,
+                options: [.allowBluetooth, .defaultToSpeaker, .mixWithOthers]
+            )
+
             try session.setPreferredSampleRate(settings.sampleRate)
             try session.setPreferredIOBufferDuration(1024 / settings.sampleRate)
             try session.setActive(true)
@@ -416,31 +509,7 @@ class AudioStreamManager: NSObject {
         }
         
         if settings.showNotification {
-            // Setup notification manager
-            notificationManager = AudioNotificationManager()
-            notificationManager?.initialize(with: settings.notification)
-            
-            setupNowPlayingInfo()
-            
-            // Start media info update timer
-            mediaInfoUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-               self?.updateMediaInfo()
-            }
-
-            // Setup notification observers only if notifications are enabled
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(handlePauseNotification),
-                name: .pauseRecording,
-                object: nil
-            )
-            
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(handleResumeNotification),
-                name: .resumeRecording,
-                object: nil
-            )
+            initializeNotifications()
         }
         
         do {
@@ -464,35 +533,74 @@ class AudioStreamManager: NSObject {
     
     /// Pauses the current audio recording.
     func pauseRecording() {
-        guard isRecording && !isPaused else {
-            Logger.debug("Recording is not in progress or already paused.")
-            return
-        }
+        guard isRecording && !isPaused else { return }
         
-        disableWakeLock() // Will only disable if keepAwake is true
+        disableWakeLock()
         audioEngine.pause()
         isPaused = true
         pauseStartTime = Date()
-        let pauseTime = Date()
         
-        updateMediaInfo()
-        
+        updateNowPlayingInfo(isPaused: true)
         notificationManager?.updateState(isPaused: true)
-        delegate?.audioStreamManager(self, didPauseRecording: pauseTime)
+        delegate?.audioStreamManager(self, didPauseRecording: Date())
         delegate?.audioStreamManager(self, didUpdateNotificationState: true)
         
         Logger.debug("Recording paused.")
     }
     
+    private func initializeNotifications() {
+        guard recordingSettings?.showNotification == true else { return }
+        
+        // Setup notification manager if not already initialized
+        if notificationManager == nil {
+            UNUserNotificationCenter.current().delegate = self
+            
+            notificationManager = AudioNotificationManager()
+            
+            // Request permissions first
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                if granted {
+                    DispatchQueue.main.async {
+                        self.notificationManager?.initialize(with: self.recordingSettings?.notification)
+                        self.setupNowPlayingInfo()
+                        
+                        // Start media info update timer
+                        self.mediaInfoUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                           self?.updateMediaInfo()
+                        }
+                        
+                        // Setup notification observers
+                        NotificationCenter.default.addObserver(
+                            self,
+                            selector: #selector(self.handlePauseNotification),
+                            name: .pauseRecording,
+                            object: nil
+                        )
+                        
+                        NotificationCenter.default.addObserver(
+                            self,
+                            selector: #selector(self.handleResumeNotification),
+                            name: .resumeRecording,
+                            object: nil
+                        )
+                        
+                        // Start updates if recording is already in progress
+                        if let startTime = self.startTime {
+                            self.notificationManager?.startUpdates(startTime: startTime)
+                        }
+                    }
+                } else if let error = error {
+                    Logger.debug("Failed to get notification permission: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
     /// Resumes the current audio recording.
     func resumeRecording() {
-        guard isRecording && isPaused else {
-            Logger.debug("Recording is not in progress or not paused.")
-            return
-        }
+        guard isRecording && isPaused else { return }
         
-        enableWakeLock() // Will only enable if keepAwake is true
-
+        enableWakeLock()
         audioEngine.prepare()
         do {
             try audioEngine.start()
@@ -500,13 +608,12 @@ class AudioStreamManager: NSObject {
             if let pauseStartTime = pauseStartTime {
                 pausedDuration += Int(Date().timeIntervalSince(pauseStartTime))
             }
-            let resumeTime = Date()
             
+            updateNowPlayingInfo(isPaused: false)
             notificationManager?.updateState(isPaused: false)
-            delegate?.audioStreamManager(self, didResumeRecording: resumeTime)
+            delegate?.audioStreamManager(self, didResumeRecording: Date())
             delegate?.audioStreamManager(self, didUpdateNotificationState: false)
             
-            updateMediaInfo()
             Logger.debug("Recording resumed.")
         } catch {
             Logger.debug("Error: Failed to resume recording: \(error.localizedDescription)")
@@ -545,10 +652,6 @@ class AudioStreamManager: NSObject {
         audioEngine.inputNode.removeTap(onBus: 0)
         isRecording = false
         
-        // Clean up notification
-        notificationManager?.stopUpdates()
-        notificationManager = nil
-        
         if recordingSettings?.showNotification == true {
             // Stop and clean up timer
             mediaInfoUpdateTimer?.invalidate()
@@ -558,10 +661,12 @@ class AudioStreamManager: NSObject {
             notificationManager?.stopUpdates()
             notificationManager = nil
             
-            // Clean up media player on main thread
+            // Clean up media controls
             DispatchQueue.main.async {
-                self.notificationView?.nowPlayingInfo = nil
                 UIApplication.shared.endReceivingRemoteControlEvents()
+                self.remoteCommandCenter?.pauseCommand.isEnabled = false
+                self.remoteCommandCenter?.playCommand.isEnabled = false
+                self.notificationView?.nowPlayingInfo = nil
             }
             
             // Clean up audio session
@@ -834,4 +939,36 @@ class AudioStreamManager: NSObject {
             }
         }
     }
+}
+
+extension AudioStreamManager: UNUserNotificationCenterDelegate {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        switch response.actionIdentifier {
+        case "PAUSE_RECORDING":
+            pauseRecording()
+        case "RESUME_RECORDING":
+            resumeRecording()
+        default:
+            break
+        }
+        completionHandler()
+    }
+
+    // This is needed to show notifications when app is in foreground
+    func userNotificationCenter(
+            _ center: UNUserNotificationCenter,
+            willPresent notification: UNNotification,
+            withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+        ) {
+            if #available(iOS 14.0, *) {
+                completionHandler([.banner, .sound])
+            } else {
+                // For iOS 13 and earlier
+                completionHandler([.alert, .sound])
+            }
+        }
 }
