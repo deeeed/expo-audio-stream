@@ -33,6 +33,11 @@ export const NativeNotificationConfig = ({
         try {
             const newConfig = await openDrawer({
                 initialData: config,
+                bottomSheetProps: {
+                    snapPoints: ['80%'],
+                    enableDynamicSizing: false,
+                },
+                containerType: 'scrollview',
                 title: 'Native Notifications',
                 footerType: 'confirm_cancel',
                 render: ({ data, onChange }) => (

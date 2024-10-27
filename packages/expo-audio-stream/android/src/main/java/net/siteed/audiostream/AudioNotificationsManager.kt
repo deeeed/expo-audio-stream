@@ -26,6 +26,12 @@ class AudioNotificationManager private constructor(context: Context) {
     private val isUpdating = AtomicBoolean(false)
     private val isPaused = AtomicBoolean(false)
 
+    private var lastRemoteViewsUpdate = 0L
+    private var consecutiveUpdateFailures = 0
+    private var lastSuccessfulUpdate: Long = 0
+    private val maxUpdateFailures = 3
+    private val remoteViewsRefreshInterval = 10000L // Refresh RemoteViews every 10 seconds
+
     private lateinit var notificationBuilder: NotificationCompat.Builder
     private lateinit var remoteViews: RemoteViews
     private lateinit var recordingConfig: RecordingConfig
@@ -215,44 +221,97 @@ class AudioNotificationManager private constructor(context: Context) {
     }
 
     fun updateNotification(audioData: FloatArray? = null) {
+        val context = contextRef.get() ?: return
+
         try {
-            val currentTime = System.currentTimeMillis()
+            val currentTime = SystemClock.elapsedRealtime()
+            val needsRemoteViewsRefresh = currentTime - lastRemoteViewsUpdate >= remoteViewsRefreshInterval ||
+                    consecutiveUpdateFailures >= maxUpdateFailures
+
+            if (needsRemoteViewsRefresh) {
+                // Only recreate RemoteViews periodically or after failures
+                remoteViews = RemoteViews(context.packageName, R.layout.notification_recording)
+                lastRemoteViewsUpdate = currentTime
+                consecutiveUpdateFailures = 0
+            }
+
             val recordingDuration = if (isPaused.get()) {
                 lastPauseTime - recordingStartTime - pausedDuration
             } else {
-                currentTime - recordingStartTime - pausedDuration
+                System.currentTimeMillis() - recordingStartTime - pausedDuration
             }
 
+            // Update RemoteViews content
             remoteViews.apply {
                 setTextViewText(R.id.notification_title, recordingConfig.notification.title)
                 setTextViewText(R.id.notification_text, recordingConfig.notification.text)
                 setTextViewText(R.id.notification_duration, formatDuration(recordingDuration))
 
+                // Update waveform if needed
                 if (recordingConfig.showWaveformInNotification &&
                     audioData != null &&
                     audioData.isNotEmpty() &&
-                    SystemClock.elapsedRealtime() - lastWaveformUpdate >= WAVEFORM_UPDATE_INTERVAL
+                    currentTime - lastWaveformUpdate >= WAVEFORM_UPDATE_INTERVAL
                 ) {
-                    setViewVisibility(R.id.notification_waveform, View.VISIBLE)
-                    setImageViewBitmap(
-                        R.id.notification_waveform,
-                        waveformRenderer.generateWaveform(audioData, recordingConfig.notification.waveform)
-                    )
-                    lastWaveformUpdate = SystemClock.elapsedRealtime()
+                    try {
+                        val waveformBitmap = waveformRenderer.generateWaveform(audioData, recordingConfig.notification.waveform)
+                        setImageViewBitmap(R.id.notification_waveform, waveformBitmap)
+                        lastWaveformUpdate = currentTime
+                    } catch (e: Exception) {
+                        Log.e(Constants.TAG, "Error generating waveform", e)
+                    }
                 }
             }
 
-            val notification = notificationBuilder
-                .setCustomContentView(remoteViews)
-                .setCustomBigContentView(remoteViews)
-                .build()
+            // Only rebuild notification if RemoteViews was refreshed
+            if (needsRemoteViewsRefresh) {
+                notificationBuilder
+                    .setCustomContentView(remoteViews)
+                    .setCustomBigContentView(remoteViews)
+                    .clearActions()
+                addNotificationActions(context)
+            }
 
-            notificationManager.notify(recordingConfig.notification.notificationId, notification)
+            // Update the notification
+            notificationManager.notify(
+                recordingConfig.notification.notificationId,
+                notificationBuilder.build()
+            )
+
+            lastSuccessfulUpdate = currentTime
+            consecutiveUpdateFailures = 0
 
         } catch (e: Exception) {
             Log.e(Constants.TAG, "Error updating notification", e)
+            consecutiveUpdateFailures++
+
+            if (consecutiveUpdateFailures >= maxUpdateFailures) {
+                reinitializeNotification()
+            }
         }
     }
+    private fun reinitializeNotification() {
+        try {
+            val context = contextRef.get() ?: return
+
+            // Force a RemoteViews refresh
+            remoteViews = RemoteViews(context.packageName, R.layout.notification_recording)
+            lastRemoteViewsUpdate = SystemClock.elapsedRealtime()
+
+            buildNotification(context)
+
+            notificationManager.notify(
+                recordingConfig.notification.notificationId,
+                notificationBuilder.build()
+            )
+
+            consecutiveUpdateFailures = 0
+            Log.d(Constants.TAG, "Successfully reinitialized notification")
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to reinitialize notification", e)
+        }
+    }
+
 
     fun getNotification(): Notification = notificationBuilder.build()
 
@@ -281,6 +340,9 @@ class AudioNotificationManager private constructor(context: Context) {
         pausedDuration = 0
         lastPauseTime = 0
         lastWaveformUpdate = 0
+        lastSuccessfulUpdate = 0
+        lastRemoteViewsUpdate = 0
+        consecutiveUpdateFailures = 0
         isPaused.set(false)
         isUpdating.set(false)
     }
