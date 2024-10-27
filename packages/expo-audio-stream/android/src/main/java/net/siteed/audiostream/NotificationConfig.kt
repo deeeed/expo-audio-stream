@@ -1,12 +1,11 @@
 package net.siteed.audiostream
 
-
 data class NotificationConfig(
     val title: String = "Recording...",
     val text: String = "",
     val icon: String? = null,
-    val notificationId: Int = 1,  // Add default notification ID
     val channelId: String = "audio_recording_channel",
+    val notificationId: Int = 1,
     val actions: List<NotificationAction> = emptyList(),
     val channelName: String = "Audio Recording",
     val channelDescription: String = "Shows audio recording status",
@@ -19,19 +18,21 @@ data class NotificationConfig(
         fun fromMap(map: Map<String, Any?>?): NotificationConfig {
             if (map == null) return NotificationConfig()
 
+            val androidMap = map["android"] as? Map<String, Any?> ?: emptyMap()
+
             return NotificationConfig(
                 title = map["title"] as? String ?: "Recording...",
                 text = map["text"] as? String ?: "",
                 icon = map["icon"] as? String,
-                channelId = map["channelId"] as? String ?: "audio_recording_channel",
-                notificationId = (map["notificationId"] as? Number)?.toInt() ?: 1,  // Parse notification ID
-                actions = parseNotificationActions(map["actions"] as? List<Map<String, Any?>>),
-                channelName = map["channelName"] as? String ?: "Audio Recording",
-                channelDescription = map["channelDescription"] as? String ?: "Shows audio recording status",
-                waveform = parseWaveformConfig(map["waveform"] as? Map<String, Any?>),
-                lightColor = map["lightColor"] as? String ?: "#FF0000",
-                priority = map["priority"] as? String ?: "high",
-                accentColor = map["accentColor"] as? String
+                channelId = androidMap["channelId"] as? String ?: "audio_recording_channel",
+                notificationId = (androidMap["notificationId"] as? Number)?.toInt() ?: 1,
+                actions = parseNotificationActions(androidMap["actions"] as? List<Map<String, Any?>>),
+                channelName = androidMap["channelName"] as? String ?: "Audio Recording",
+                channelDescription = androidMap["channelDescription"] as? String ?: "Shows audio recording status",
+                waveform = parseWaveformConfig(androidMap["waveform"] as? Map<String, Any?>),
+                lightColor = androidMap["lightColor"] as? String ?: "#FF0000",
+                priority = androidMap["priority"] as? String ?: "high",
+                accentColor = androidMap["accentColor"] as? String
             )
         }
 
@@ -61,7 +62,6 @@ data class NotificationConfig(
         }
     }
 }
-
 
 data class NotificationAction(
     val title: String,

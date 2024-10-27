@@ -64,52 +64,107 @@ export interface StartRecordingResult {
 }
 
 export interface RecordingConfig {
-    sampleRate?: SampleRate // Sample rate for recording
-    channels?: 1 | 2 // 1 or 2 (MONO or STEREO)
-    encoding?: EncodingType // Encoding type for the recording
-    interval?: number // Interval in milliseconds at which to emit recording data
+    // Sample rate for recording (16000, 44100, or 48000 Hz)
+    sampleRate?: SampleRate
 
-    keepAwake?: boolean // Boolean to keep the device awake while recording (default is false)
+    // Number of audio channels (1 for mono, 2 for stereo)
+    channels?: 1 | 2
 
-    showNotification?: boolean // Whether to show a notification during recording
-    showWaveformInNotification?: boolean // android only when showNotification is true
+    // Encoding type for the recording (pcm_32bit, pcm_16bit, pcm_8bit)
+    encoding?: EncodingType
+
+    // Interval in milliseconds at which to emit recording data
+    interval?: number
+
+    // Keep the device awake while recording (default is false)
+    keepAwake?: boolean
+
+    // Show a notification during recording (default is false)
+    showNotification?: boolean
+
+    // Show waveform in the notification (Android only, when showNotification is true)
+    showWaveformInNotification?: boolean
+
+    // Configuration for the notification
     notification?: NotificationConfig
 
-    // Optional parameters for audio processing
-    enableProcessing?: boolean // Boolean to enable/disable audio processing (default is false)
-    pointsPerSecond?: number // Number of data points to extract per second of audio (default is 1000)
-    algorithm?: AmplitudeAlgorithm // Algorithm to use for amplitude computation (default is "rms")
-    features?: AudioFeaturesOptions // Feature options to extract (default is empty)
+    // Enable audio processing (default is false)
+    enableProcessing?: boolean
 
-    onAudioStream?: (_: AudioDataEvent) => Promise<void> // Callback function to handle audio stream
-    onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void> // Callback function to handle audio features extraction results
+    // Number of data points to extract per second of audio (default is 1000)
+    pointsPerSecond?: number
+
+    // Algorithm to use for amplitude computation (default is "rms")
+    algorithm?: AmplitudeAlgorithm
+
+    // Feature options to extract (default is empty)
+    features?: AudioFeaturesOptions
+
+    // Callback function to handle audio stream
+    onAudioStream?: (_: AudioDataEvent) => Promise<void>
+
+    // Callback function to handle audio features extraction results
+    onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void>
 }
 
 export interface NotificationConfig {
+    // Title of the notification
     title?: string
+
+    // Main text content of the notification
     text?: string
+
+    // Icon to be displayed in the notification (resource name or URI)
     icon?: string
-    // For Android-specific customization
+
+    // Android-specific notification configuration
     android?: {
+        // Unique identifier for the notification channel
         channelId?: string
+
+        // User-visible name of the notification channel
         channelName?: string
+
+        // User-visible description of the notification channel
         channelDescription?: string
+
+        // Unique identifier for this notification
+        notificationId?: number
+
+        // List of actions that can be performed from the notification
         actions?: NotificationAction[]
+
+        // Configuration for the waveform visualization in the notification
         waveform?: WaveformConfig
+
+        // Color of the notification LED (if device supports it)
         lightColor?: string
+
+        // Priority of the notification (affects how it's displayed)
         priority?: 'min' | 'low' | 'default' | 'high' | 'max'
+
+        // Accent color for the notification (used for the app icon and buttons)
         accentColor?: string
     }
-    // For iOS-specific customization
+
+    // iOS-specific notification configuration
     ios?: {
+        // Identifier for the notification category (used for grouping similar notifications)
         categoryIdentifier?: string
+
+        // List of actions that can be performed from the notification
         actions?: NotificationAction[]
     }
 }
 
 export interface NotificationAction {
+    // Display title for the action
     title: string
+
+    // Unique identifier for the action
     identifier: string
+
+    // Icon to be displayed for the action (Android only)
     icon?: string
 }
 
