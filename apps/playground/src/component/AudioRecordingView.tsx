@@ -46,6 +46,7 @@ const getStyles = ({
     return StyleSheet.create({
         container: {
             padding: 20,
+            backgroundColor: theme.colors.background,
             borderBottomWidth: 3,
             borderColor: isPlaying ? theme.colors.primary : theme.colors.border,
         },

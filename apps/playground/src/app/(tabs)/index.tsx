@@ -46,13 +46,29 @@ const baseRecordingConfig: RecordingConfig = {
     keepAwake: true,
     showNotification: true,
     showWaveformInNotification: true,
-    notification: {
-        title: 'Recording in progress AAAA',
-        text: 'Please wait while we transcribe your audio',
-    },
     encoding: 'pcm_32bit',
     pointsPerSecond: 10,
     enableProcessing: true,
+    notification: {
+        title: 'Recording in progress',
+        text: 'Please wait while we transcribe your audio',
+        android: {
+            channelId: 'audio_recording_channel',
+            channelName: 'Audio Recording',
+            channelDescription: 'Shows audio recording status',
+            notificationId: 1,
+            waveform: {
+                color: '#FFFFFF',
+                opacity: 1.0,
+                strokeWidth: 1.5,
+                style: 'fill',
+                mirror: true,
+                height: 64,
+            },
+            lightColor: '#FF0000',
+            priority: 'high',
+        },
+    },
 }
 
 const logger = baseLogger.extend('RecordScreen')
@@ -75,11 +91,10 @@ export default function RecordScreen() {
             title:
                 baseRecordingConfig.notification?.title ??
                 'Recording in progress',
-            text:
-                baseRecordingConfig.notification?.text ??
-                'Please wait while we transcribe your audio',
+            text: baseRecordingConfig.notification?.text ?? '',
             icon: baseRecordingConfig.notification?.icon,
             android: {
+                notificationId: 1,
                 channelId: baseRecordingConfig.notification?.android?.channelId,
                 channelName:
                     baseRecordingConfig.notification?.android?.channelName,
