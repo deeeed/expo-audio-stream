@@ -24,4 +24,4 @@ A promise that resolves to the extracted metadata.
 
 ## Defined in
 
-[src/utils/getWavFileInfo.ts:47](https://github.com/deeeed/expo-audio-stream/blob/6d10216c587140e4c86296be9540489393fa35a2/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L47)
+[src/utils/getWavFileInfo.ts:47](https://github.com/deeeed/expo-audio-stream/blob/d421de5250f9c4132b4bf62687e76e58b9781fa9/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L47)
