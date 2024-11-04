@@ -41,6 +41,10 @@
                     }
                 }
             ],
+            [
+                "./plugins/withCustomGradleConfig",
+                {}
+            ],
             "../../packages/expo-audio-stream/app.plugin.js"
         ],
         "experiments": {
