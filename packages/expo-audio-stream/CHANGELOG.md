@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Android: Configurable notification actions, colors, and priorities
   - iOS: Integration with media player
 
-## [1.1.17] - 2024-10-24
+## [1.1.17] - 2024-10-21
 ### Added
 - Support bluetooth headset on ios
 - Fixes: android not reading custom interval audio update

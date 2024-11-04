@@ -38,6 +38,7 @@
     },
     "devDependencies": {
         "@expo/config-plugins": "~8.0.0",
+        "@siteed/publisher": "^0.4.15",
         "@siteed/react-native-logger": "^0.10.0",
         "@size-limit/preset-big-lib": "^11.1.4",
         "@types/jest": "^29.5.12",
@@ -60,6 +61,7 @@
         "prettier": "^3.2.5",
         "react-native": "0.74.5",
         "size-limit": "^11.1.4",
+        "ts-node": "^10.9.2",
         "typedoc": "^0.26.5",
         "typedoc-plugin-markdown": "^4.2.3",
         "typescript": "~5.3.3"

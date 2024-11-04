@@ -280,6 +280,7 @@ export default function RecordScreen() {
             const streamConfig: StartRecordingResult = await startRecording({
                 ...startRecordingConfig,
                 showNotification: notificationEnabled,
+                keepAwake: true,
                 notification: notificationConfig,
                 onAudioAnalysis: async (analysis) => {
                     logger.debug(`Received audio analysis`, analysis)

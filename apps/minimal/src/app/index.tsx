@@ -42,7 +42,11 @@ export default function App() {
     const [audioResult, setAudioResult] = useState<AudioRecording | null>(null)
     const [, setSound] = useState<Audio.Sound | null>(null) // State for audio playback on native
 
-    const requestPermissions = async () => {
+    const requestPermissions = async ({
+        withNotifications,
+    }: {
+        withNotifications: boolean
+    }) => {
         if (Platform.OS === 'web') {
             // defer permissions request when recording starts on web
             return
@@ -55,11 +59,21 @@ export default function App() {
         } else {
             console.log('Microphone permissions denied')
         }
+
+        if (withNotifications) {
+            const { granted } =
+                await ExpoAudioStreamModule.requestNotificationPermissionsAsync()
+            if (granted) {
+                console.log(`Notifications permission granted`)
+            } else {
+                console.log(`Refused notifications`)
+            }
+        }
     }
 
     const handleStart = async () => {
         try {
-            await requestPermissions()
+            await requestPermissions({ withNotifications: true })
             const startResult = await startRecording({
                 interval: 500,
                 enableProcessing: true,
