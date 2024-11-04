@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Change to script's directory
+cd "$(dirname "$0")"
+echo "Changed to script directory: $(pwd)"
+
 echo "Starting publication process..."
 
 # Get current version from package.json
@@ -63,7 +67,7 @@ yarn deploy
 
 # Commit changes
 echo "Committing changes..."
-git add .
+git add "$(pwd)/../../" # add all changes in the root folder
 git commit -m "feat: bump version to $version"
 
 echo "Publication process completed successfully!"
