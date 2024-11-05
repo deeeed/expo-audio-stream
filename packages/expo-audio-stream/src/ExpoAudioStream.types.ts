@@ -177,8 +177,8 @@ export interface WaveformConfig {
 export interface UseAudioRecorderState {
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
     stopRecording: () => Promise<AudioRecording | null>
-    pauseRecording: () => void
-    resumeRecording: () => void
+    pauseRecording: () => Promise<void>
+    resumeRecording: () => Promise<void>
     isRecording: boolean
     isPaused: boolean
     durationMs: number // Duration of the recording

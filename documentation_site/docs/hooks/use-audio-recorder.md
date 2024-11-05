@@ -95,12 +95,12 @@ The `useAudioRecorder` hook returns an object with the following properties:
 
 - **pauseRecording**: Function to pause the current recording.
     ```ts
-    pauseRecording: () => void
+    pauseRecording: () => Promise<void>
     ```
 
 - **resumeRecording**: Function to resume a paused recording.
     ```ts
-    resumeRecording: () => void
+    resumeRecording: () => Promise<void>
     ```
 
 - **isRecording**: `boolean` - Indicates if recording is in progress.
