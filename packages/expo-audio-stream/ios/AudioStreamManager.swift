@@ -516,6 +516,7 @@ class AudioStreamManager: NSObject {
             startTime = Date()
             try audioEngine.start()
             isRecording = true
+            isPaused = false
             Logger.debug("Debug: Recording started successfully.")
             return StartRecordingResult(
                 fileUri: recordingFileURL!.path,
@@ -651,6 +652,7 @@ class AudioStreamManager: NSObject {
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         isRecording = false
+        isPaused = false
         
         if recordingSettings?.showNotification == true {
             // Stop and clean up timer
