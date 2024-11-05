@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 
+## [1.2.4] - 2024-11-05
+### Changed
+- Android minimum audio interval set to 10ms. 
+- plugin setup do not include 'notification' config by default to prevent ios version mismatch.
+
+### Fixed
+- Remove frequently firing log statements on web.
+
 ## [1.2.0] - 2024-10-24
 ### Added
 - Feature: Keep device awake during recording with `keepAwake` option
