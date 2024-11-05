@@ -63,7 +63,7 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          href: 'https://github.com/siteed/expo-audio-stream',
+          href: 'https://github.com/deeeed/expo-audio-stream',
           label: 'GitHub',
           position: 'right',
         },
