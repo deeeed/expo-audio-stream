@@ -141,6 +141,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
         this.recordingConfig = recordingConfig
         this.recordingStartTime = Date.now()
         this.pausedTime = 0
+        this.isPaused = false
         this.lastEmittedSize = 0
         this.lastEmittedTime = 0
         this.streamUuid = Date.now().toString()
@@ -182,6 +183,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
         // concat all audio chunks
         logger.debug(`Stopped recording`, fullPcmBufferArray)
         this.isRecording = false
+        this.isPaused = false
         this.currentDurationMs = Date.now() - this.recordingStartTime
 
         // Rewrite wav header with correct data size

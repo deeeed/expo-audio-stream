@@ -15,10 +15,10 @@ const initContext: UseAudioRecorderState = {
     stopRecording: async () => {
         throw new Error('AudioRecorderProvider not found')
     },
-    pauseRecording: () => {
+    pauseRecording: async () => {
         throw new Error('AudioRecorderProvider not found')
     },
-    resumeRecording: () => {
+    resumeRecording: async () => {
         throw new Error('AudioRecorderProvider not found')
     },
 }
