@@ -47,3 +47,7 @@
 
 For detailed documentation, please refer to the [Getting Started Guide](https://deeeed.github.io/expo-audio-stream/docs/).
 
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
