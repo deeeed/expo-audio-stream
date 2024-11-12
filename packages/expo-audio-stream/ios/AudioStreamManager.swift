@@ -521,9 +521,9 @@ class AudioStreamManager: NSObject {
             return StartRecordingResult(
                 fileUri: recordingFileURL!.path,
                 mimeType: mimeType,
-                channels: settings.numberOfChannels,
-                bitDepth: settings.bitDepth,
-                sampleRate: settings.sampleRate
+                channels: newSettings.numberOfChannels,
+                bitDepth: newSettings.bitDepth,
+                sampleRate: newSettings.sampleRate
             )
         } catch {
             Logger.debug("Error: Could not start the audio engine: \(error.localizedDescription)")
