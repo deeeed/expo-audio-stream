@@ -28,3 +28,7 @@ This package is currently under active development and is primarily used for tes
 ## Documentation
 
 For detailed documentation and usage instructions, please refer to the [Getting Started Guide](https://deeeed.github.io/expo-audio-stream/docs/).
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

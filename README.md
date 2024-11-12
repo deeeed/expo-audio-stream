@@ -36,3 +36,7 @@ For more details, please refer to the [README](packages/expo-audio-ui/README.md)
 - [ ] Audio preview waveform component from 'uri'. ( similar to https://github.com/SimformSolutionsPvtLtd/react-native-audio-waveform  )
 - [ ] e2e validation for cross platform features extraction (make sure we get exact same values on all platforms).
 - [ ] Speaker Diarization example app.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
