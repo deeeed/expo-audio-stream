@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 
+## [1.2.5] - 2024-11-12
+### Added
+- docs(license): add MIT license to all packages (6 files changed)
+- fix(expo-audio-stream): return actual recording settings from startRecording on iOS #37
+
 ## [1.2.4] - 2024-11-05
 ### Changed
 - Android minimum audio interval set to 10ms. 
