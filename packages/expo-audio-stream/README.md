@@ -51,3 +51,5 @@ For detailed documentation, please refer to the [Getting Started Guide](https://
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+---
+<sub>Created by [Arthur Breton](https://siteed.net) • See more projects at [siteed.net](https://siteed.net)</sub>
