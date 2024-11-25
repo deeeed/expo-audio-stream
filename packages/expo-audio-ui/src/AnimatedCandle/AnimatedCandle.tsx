@@ -1,6 +1,7 @@
 // packages/expo-audio-ui/src/AnimatedCandle/AnimatedCandle.tsx
 import { Rect } from '@shopify/react-native-skia'
 import React, { useEffect } from 'react'
+import { Platform } from 'react-native'
 import { useSharedValue, withTiming } from 'react-native-reanimated'
 
 import { CANDLE_OFFCANVAS_COLOR } from '../constants'
@@ -29,6 +30,14 @@ const AnimatedCandle: React.FC<AnimatedCandleProps> = ({
     const color = useSharedValue(CANDLE_OFFCANVAS_COLOR)
 
     useEffect(() => {
+        if (Platform.OS === 'web') {
+            y.value = targetY
+            height.value = targetHeight
+            x.value = targetX
+            color.value = targetColor
+            return
+        }
+
         if (animated) {
             y.value = withTiming(targetY, { duration: 500 })
             height.value = withTiming(targetHeight, { duration: 500 })
@@ -42,9 +51,7 @@ const AnimatedCandle: React.FC<AnimatedCandleProps> = ({
         }
     }, [targetY, targetHeight, targetX, targetColor, animated])
 
-    return (
-        <Rect x={targetX} y={y} width={width} height={height} color={color} />
-    )
+    return <Rect x={x} y={y} width={width} height={height} color={color} />
 }
 
 export default React.memo(AnimatedCandle)
