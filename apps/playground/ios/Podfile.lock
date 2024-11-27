@@ -1651,7 +1651,7 @@ PODS:
     - Yoga
   - RNLocalize (3.2.1):
     - React-Core
-  - RNReanimated (3.17.0-nightly-20241125-ac3e1cb82):
+  - RNReanimated (3.16.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1671,10 +1671,10 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated (= 3.17.0-nightly-20241125-ac3e1cb82)
-    - RNReanimated/worklets (= 3.17.0-nightly-20241125-ac3e1cb82)
+    - RNReanimated/reanimated (= 3.16.2)
+    - RNReanimated/worklets (= 3.16.2)
     - Yoga
-  - RNReanimated/reanimated (3.17.0-nightly-20241125-ac3e1cb82):
+  - RNReanimated/reanimated (3.16.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1694,9 +1694,9 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated/apple (= 3.17.0-nightly-20241125-ac3e1cb82)
+    - RNReanimated/reanimated/apple (= 3.16.2)
     - Yoga
-  - RNReanimated/reanimated/apple (3.17.0-nightly-20241125-ac3e1cb82):
+  - RNReanimated/reanimated/apple (3.16.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1717,29 +1717,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNReanimated/worklets (3.17.0-nightly-20241125-ac3e1cb82):
-    - DoubleConversion
-    - glog
-    - hermes-engine
-    - RCT-Folly (= 2024.01.01.00)
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - RNReanimated/worklets/apple (= 3.17.0-nightly-20241125-ac3e1cb82)
-    - Yoga
-  - RNReanimated/worklets/apple (3.17.0-nightly-20241125-ac3e1cb82):
+  - RNReanimated/worklets (3.16.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2167,7 +2145,7 @@ SPEC CHECKSUMS:
   ReactCommon: b8485556b596ef2f44f59bc586113bda138fb804
   RNGestureHandler: 27a63f2218affdf1a426d56682f9b174904838b3
   RNLocalize: e7378161f0b6a6365407eb2377aab46cc38047d8
-  RNReanimated: 9865df381a4c54164e4fc8e9670a3d778b5429a8
+  RNReanimated: f7c41f0171086c1d0e8b9dc366548b92fd04d533
   RNScreens: 2de25b8970c8dd481b4b310350d996441c63f65a
   RNSVG: 8542aa11770b27563714bbd8494a8436385fc85f
   RNVectorIcons: 182892e7d1a2f27b52d3c627eca5d2665a22ee28
