@@ -4,6 +4,7 @@ import { ExpoAudioStreamModule } from '@siteed/expo-audio-stream'
 import React, { useCallback, useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
+
 import { baseLogger } from '../config'
 
 interface PermissionStatus {
