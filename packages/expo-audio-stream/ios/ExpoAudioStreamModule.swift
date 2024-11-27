@@ -222,11 +222,12 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         /// - Returns: Promise to be resolved with the permission status.
         AsyncFunction("requestPermissionsAsync") { (promise: Promise) in
             AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                if granted {
-                    promise.resolve(["status": "granted"])
-                } else {
-                    promise.resolve(["status": "denied"])
-                }
+                promise.resolve([
+                    "status": granted ? "granted" : "denied",
+                    "granted": granted,
+                    "expires": "never",
+                    "canAskAgain": true
+                ])
             }
         }
         
@@ -249,11 +250,26 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             let permissionStatus = AVAudioSession.sharedInstance().recordPermission
             switch permissionStatus {
             case .granted:
-                promise.resolve(["status": "granted"])
+                promise.resolve([
+                    "status": "granted",
+                    "granted": true,
+                    "expires": "never",
+                    "canAskAgain": true
+                ])
             case .denied:
-                promise.resolve(["status": "denied"])
+                promise.resolve([
+                    "status": "denied",
+                    "granted": false,
+                    "expires": "never",
+                    "canAskAgain": false
+                ])
             case .undetermined:
-                promise.resolve(["status": "undetermined"])
+                promise.resolve([
+                    "status": "undetermined",
+                    "granted": false,
+                    "expires": "never",
+                    "canAskAgain": true
+                ])
             @unknown default:
                 promise.reject("UNKNOWN_ERROR", "Unknown permission status")
             }
