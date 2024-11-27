@@ -1,5 +1,5 @@
 // src/ExpoAudioStreamModule.web.ts
-import { EventEmitter } from 'expo-modules-core'
+import { LegacyEventEmitter } from 'expo-modules-core'
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import {
@@ -29,7 +29,7 @@ export interface ExpoAudioStreamWebProps {
 
 const logger = getLogger('ExpoAudioStreamWeb')
 
-export class ExpoAudioStreamWeb extends EventEmitter {
+export class ExpoAudioStreamWeb extends LegacyEventEmitter {
     customRecorder: WebRecorder | null
     audioChunks: ArrayBuffer[]
     isRecording: boolean
