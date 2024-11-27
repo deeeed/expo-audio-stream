@@ -1,5 +1,5 @@
 // src/useAudioRecorder.ts
-import { Platform, Subscription } from 'expo-modules-core'
+import { Platform, EventSubscription } from 'expo-modules-core'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
@@ -134,7 +134,7 @@ export function useAudioRecorder({
         analysisData: undefined,
     })
 
-    const analysisListenerRef = useRef<Subscription | null>(null)
+    const analysisListenerRef = useRef<EventSubscription | null>(null)
     // analysisRef is the current analysis data (last 10 seconds by default)
     const analysisRef = useRef<AudioAnalysis>({ ...defaultAnalysis })
     // fullAnalysisRef is the full analysis data (all data points)
