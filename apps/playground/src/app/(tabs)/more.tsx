@@ -82,6 +82,16 @@ export const MoreScreen = (_: MoreScreenProps) => {
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,
                 }}
+                label="Permissions"
+                subLabel="Check and request permissions"
+                onPress={() => {
+                    router.navigate('/permissions')
+                }}
+            />
+            <ListItem
+                contentContainerStyle={{
+                    backgroundColor: theme.colors.surface,
+                }}
                 label="Infinite Canvas"
                 subLabel="Minimal implementation for infinite canvas"
                 onPress={() => {

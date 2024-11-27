@@ -19,10 +19,20 @@ if (Platform.OS === 'web') {
         return instance
     }
     ExpoAudioStreamModule.requestPermissionsAsync = async () => {
-        return { status: 'granted' }
+        return {
+            status: 'granted',
+            granted: true,
+            expires: 'never',
+            canAskAgain: true,
+        }
     }
     ExpoAudioStreamModule.getPermissionsAsync = async () => {
-        return { status: 'granted' }
+        return {
+            status: 'granted',
+            granted: true,
+            expires: 'never',
+            canAskAgain: true,
+        }
     }
 } else {
     ExpoAudioStreamModule = requireNativeModule('ExpoAudioStream')
