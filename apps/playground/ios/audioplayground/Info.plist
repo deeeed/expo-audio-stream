@@ -34,6 +34,8 @@
     </array>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSAppTransportSecurity</key>
@@ -48,8 +50,11 @@
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
-      <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
     </array>
+    <key>NSUserNotificationAlertStyle</key>
+    <string>alert</string>
+    <key>NSUserNotificationsUsageDescription</key>
+    <string>Show recording notifications and controls</string>
     <key>UIAppFonts</key>
     <array>
       <string>Roboto-Regular.ttf</string>
@@ -58,7 +63,6 @@
     <array>
       <string>audio</string>
       <string>remote-notification</string>
-      <string>processing</string>
     </array>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
@@ -68,8 +72,6 @@
     </array>
     <key>UIRequiresFullScreen</key>
     <false/>
-    <key>NSUserNotificationUsageDescription</key>
-    <string>We need to send notifications to keep you informed about the recording status</string>
     <key>UIStatusBarStyle</key>
     <string>UIStatusBarStyleDefault</string>
     <key>UISupportedInterfaceOrientations</key>
@@ -84,15 +86,9 @@
       <string>UIInterfaceOrientationLandscapeLeft</string>
       <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
-    <key>NSUserNotificationCenterDelegate</key>
-    <true/>
     <key>UIUserInterfaceStyle</key>
     <string>Light</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
-    <key>NSUserNotificationAlertStyle</key>
-    <string>alert</string>
-    <key>NSUserNotificationsUsageDescription</key>
-    <string>We need to send notifications to keep you informed about the recording status</string>
   </dict>
 </plist>
