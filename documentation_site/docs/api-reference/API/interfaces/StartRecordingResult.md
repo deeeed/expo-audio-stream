@@ -14,7 +14,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:62](https://github.com/deeeed/expo-audio-stream/blob/7c9c800d83b7cea3516643371484d5e1f3b99e4c/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L62)
+[src/ExpoAudioStream.types.ts:62](https://github.com/deeeed/expo-audio-stream/blob/754e9934983db0d7bc918d04aa964c790ad31b94/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L62)
 
 ***
 
@@ -24,7 +24,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:61](https://github.com/deeeed/expo-audio-stream/blob/7c9c800d83b7cea3516643371484d5e1f3b99e4c/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L61)
+[src/ExpoAudioStream.types.ts:61](https://github.com/deeeed/expo-audio-stream/blob/754e9934983db0d7bc918d04aa964c790ad31b94/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L61)
 
 ***
 
@@ -34,7 +34,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:59](https://github.com/deeeed/expo-audio-stream/blob/7c9c800d83b7cea3516643371484d5e1f3b99e4c/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L59)
+[src/ExpoAudioStream.types.ts:59](https://github.com/deeeed/expo-audio-stream/blob/754e9934983db0d7bc918d04aa964c790ad31b94/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L59)
 
 ***
 
@@ -44,7 +44,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:60](https://github.com/deeeed/expo-audio-stream/blob/7c9c800d83b7cea3516643371484d5e1f3b99e4c/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L60)
+[src/ExpoAudioStream.types.ts:60](https://github.com/deeeed/expo-audio-stream/blob/754e9934983db0d7bc918d04aa964c790ad31b94/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L60)
 
 ***
 
@@ -54,4 +54,4 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:63](https://github.com/deeeed/expo-audio-stream/blob/7c9c800d83b7cea3516643371484d5e1f3b99e4c/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L63)
+[src/ExpoAudioStream.types.ts:63](https://github.com/deeeed/expo-audio-stream/blob/754e9934983db0d7bc918d04aa964c790ad31b94/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L63)
