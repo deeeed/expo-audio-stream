@@ -54,11 +54,11 @@ sleep 2
 echo "Preparing and publishing package..."
 yarn clean && yarn prepare && yarn npm publish
 
-sleep 1
-# Publish playground app
-echo "Publishing playground app..."
-cd ../../apps/playground
-yarn deploy
+# sleep 1
+# # Publish playground app
+# echo "Publishing playground app..."
+# cd ../../apps/playground
+# yarn deploy
 
 # # Publish minimal app (assuming it has a similar deploy script)
 # echo "Publishing minimal app..."
