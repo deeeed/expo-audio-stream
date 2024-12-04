@@ -15,7 +15,7 @@ export default function NotFoundScreen() {
                 </Text>
                 <Text>path: {pathname}</Text>
                 <Text>segments: {JSON.stringify(segments)}</Text>
-                <Link href="/" style={styles.link}>
+                <Link href="/(tabs)/record" style={styles.link}>
                     <Text style={styles.linkText}>Go to home screen!</Text>
                 </Link>
             </View>
