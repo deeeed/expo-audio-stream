@@ -26,7 +26,7 @@ export default function RootLayout() {
         // FIXME: should be removed once react-native-reanimated is fixed https://github.com/software-mansion/react-native-reanimated/issues/6740
         // Apply the reanimated hack based on URL parameter
         if (Platform.OS === 'web') {
-            const shouldApplyHack = hack === 'true'
+            const shouldApplyHack = hack !== 'false'
             logger.log(`hack: ${hack} --> shouldApplyHack: ${shouldApplyHack}`)
             if (shouldApplyHack) {
                 global._WORKLET = false
