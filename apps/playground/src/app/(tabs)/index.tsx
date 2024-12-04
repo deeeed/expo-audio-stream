@@ -1,5 +1,14 @@
-import { Redirect } from 'expo-router'
+import { Redirect, useLocalSearchParams } from 'expo-router'
 
 export default function Index() {
-    return <Redirect href="/record" />
+    const params = useLocalSearchParams()
+
+    return (
+        <Redirect
+            href={{
+                pathname: '/record',
+                params,
+            }}
+        />
+    )
 }
