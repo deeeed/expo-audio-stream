@@ -21,7 +21,7 @@ import {
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
-import { useRouter } from 'expo-router'
+import { useGlobalSearchParams, useRouter } from 'expo-router'
 import isBase64 from 'is-base64'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
@@ -95,6 +95,34 @@ export default function RecordScreen() {
     const [notificationEnabled, setNotificationEnabled] = useState(
         baseRecordingConfig.showNotification ?? false
     )
+
+    const { hack } = useGlobalSearchParams()
+
+    useEffect(() => {
+        // FIXME: should be removed once react-native-reanimated is fixed https://github.com/software-mansion/react-native-reanimated/issues/6740
+        // Apply the reanimated hack based on URL parameter
+        if (Platform.OS === 'web') {
+            const shouldApplyHack = hack !== 'false'
+            logger.log(`hack: ${hack} --> shouldApplyHack: ${shouldApplyHack}`)
+            if (shouldApplyHack) {
+                global._WORKLET = false
+                // @ts-expect-error
+                global._log = console.log
+                // @ts-expect-error
+                global._getAnimationTimestamp = () => performance.now()
+                logger.debug('Applied reanimated web hack')
+            } else {
+                // Remove the hack by deleting the global values
+                delete global._WORKLET
+                // @ts-expect-error
+                delete global._log
+                // @ts-expect-error
+                delete global._getAnimationTimestamp
+                logger.debug('Removed reanimated web hack')
+            }
+        }
+    }, [hack])
+
     const [notificationConfig, setNotificationConfig] =
         useState<NotificationConfig>({
             title:
