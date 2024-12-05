@@ -4,11 +4,12 @@ import {
     ListItem,
     ScreenWrapper,
     useThemePreferences,
+    useToast,
 } from '@siteed/design-system'
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
-import React, { useMemo } from 'react'
-import { Image, StyleSheet, View } from 'react-native'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { Image, Platform, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
@@ -39,6 +40,43 @@ export const MoreScreen = (_: MoreScreenProps) => {
     const { toggleDarkMode, darkMode, theme } = useThemePreferences()
     const styles = useMemo(() => getStyles({ theme }), [theme])
     const appVersion = Constants.expoConfig?.version
+    const [isHackEnabled, setIsHackEnabled] = useState(true)
+    const { show } = useToast()
+
+    useEffect(() => {
+        if (Platform.OS === 'web') {
+            handleHackToggle(true)
+        }
+    }, [])
+
+    const handleHackToggle = useCallback((value: boolean) => {
+        setIsHackEnabled(value)
+        if (Platform.OS === 'web') {
+            if (value) {
+                global._WORKLET = false
+                // @ts-expect-error
+                global._log = console.log
+                // @ts-expect-error
+                global._getAnimationTimestamp = () => performance.now()
+                show({
+                    type: 'success',
+                    iconVisible: true,
+                    message: 'Reanimated web hack enabled',
+                })
+            } else {
+                delete global._WORKLET
+                // @ts-expect-error
+                delete global._log
+                // @ts-expect-error
+                delete global._getAnimationTimestamp
+                show({
+                    type: 'warning',
+                    iconVisible: true,
+                    message: 'Reanimated web hack disabled',
+                })
+            }
+        }
+    }, [])
 
     return (
         <ScreenWrapper withScrollView useInsets>
@@ -58,6 +96,16 @@ export const MoreScreen = (_: MoreScreenProps) => {
                 onValueChange={toggleDarkMode}
                 value={darkMode}
             />
+            {Platform.OS === 'web' && (
+                <LabelSwitch
+                    label="Reanimated Web Hack"
+                    containerStyle={{
+                        backgroundColor: theme.colors.surface,
+                    }}
+                    onValueChange={handleHackToggle}
+                    value={isHackEnabled}
+                />
+            )}
             <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,
