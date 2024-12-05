@@ -1,17 +1,15 @@
 // packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts
+import { ConsoleLike } from '../ExpoAudioStream.types'
+import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
+import { isWeb } from '../constants'
 import {
     AmplitudeAlgorithm,
     AudioAnalysis,
     AudioFeaturesOptions,
 } from './AudioAnalysis.types'
-import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
-import { isWeb } from '../constants'
-import { getLogger } from '../logger'
 import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
 import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
 import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
-
-const logger = getLogger('extractAudioAnalysis')
 
 export interface ExtractAudioAnalysisProps {
     fileUri?: string // should provide either fileUri or arrayBuffer
@@ -28,6 +26,7 @@ export interface ExtractAudioAnalysisProps {
     pointsPerSecond?: number // Optional number of points per second. Use to reduce the number of points and compute the number of datapoints to return.
     features?: AudioFeaturesOptions
     featuresExtratorUrl?: string
+    logger?: ConsoleLike
 }
 
 export const extractAudioAnalysis = async ({
@@ -42,6 +41,7 @@ export const extractAudioAnalysis = async ({
     algorithm = 'rms',
     features,
     featuresExtratorUrl,
+    logger,
 }: ExtractAudioAnalysisProps): Promise<AudioAnalysis> => {
     if (isWeb) {
         if (!arrayBuffer && !fileUri) {
@@ -49,7 +49,7 @@ export const extractAudioAnalysis = async ({
         }
 
         if (!arrayBuffer) {
-            logger.log(`fetching fileUri`, fileUri)
+            logger?.log(`fetching fileUri`, fileUri)
             const response = await fetch(fileUri!)
 
             if (!response.ok) {
@@ -59,25 +59,25 @@ export const extractAudioAnalysis = async ({
             }
 
             arrayBuffer = await response.arrayBuffer()
-            logger.log(`fetched fileUri`, arrayBuffer.byteLength, arrayBuffer)
+            logger?.log(`fetched fileUri`, arrayBuffer.byteLength, arrayBuffer)
         }
 
         // Create a new copy of the ArrayBuffer to avoid detachment issues
         const bufferCopy = arrayBuffer.slice(0)
-        logger.log(
+        logger?.log(
             `extractAudioAnalysis skipWavHeader=${skipWavHeader} bitDepth=${bitDepth} len=${bufferCopy.byteLength}`,
             bufferCopy.slice(0, 100)
         )
 
         let actualBitDepth = bitDepth
         if (!actualBitDepth) {
-            logger.log(
+            logger?.log(
                 `extractAudioAnalysis bitDepth not provided -- getting wav file info`
             )
             const fileInfo = await getWavFileInfo(bufferCopy)
             actualBitDepth = fileInfo.bitDepth
         }
-        logger.log(`extractAudioAnalysis actualBitDepth=${actualBitDepth}`)
+        logger?.log(`extractAudioAnalysis actualBitDepth=${actualBitDepth}`)
 
         const {
             pcmValues: channelData,
@@ -88,7 +88,7 @@ export const extractAudioAnalysis = async ({
             bitDepth: actualBitDepth,
             skipWavHeader,
         })
-        logger.log(
+        logger?.log(
             `extractAudioAnalysis skipWaveHeader=${skipWavHeader} convertPCMToFloat32 length=${channelData.length} range: [ ${min} :: ${max} ]`
         )
 
@@ -129,7 +129,7 @@ export const extractAudioAnalysis = async ({
         if (!fileUri) {
             throw new Error('fileUri is required')
         }
-        logger.log(`extractAudioAnalysis`, {
+        logger?.log(`extractAudioAnalysis`, {
             fileUri,
             pointsPerSecond,
             algorithm,
@@ -141,7 +141,7 @@ export const extractAudioAnalysis = async ({
             algorithm,
             features,
         })
-        logger.log(`extractAudioAnalysis`, res)
+        logger?.log(`extractAudioAnalysis`, res)
         return res
     }
 }

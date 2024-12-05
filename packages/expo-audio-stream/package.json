@@ -39,7 +39,7 @@
     "devDependencies": {
         "@expo/config-plugins": "~8.0.0",
         "@siteed/publisher": "^0.4.15",
-        "@siteed/react-native-logger": "^0.10.0",
+        "@siteed/react-native-logger": "^1.0.1",
         "@size-limit/preset-big-lib": "^11.1.4",
         "@types/jest": "^29.5.12",
         "@types/node": "^20.12.7",
@@ -67,7 +67,6 @@
         "typescript": "~5.3.3"
     },
     "peerDependencies": {
-        "@siteed/react-native-logger": "*",
         "expo": "*",
         "react": "*",
         "react-native": "*"

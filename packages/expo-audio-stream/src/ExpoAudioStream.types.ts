@@ -27,6 +27,13 @@ export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'
 export type SampleRate = 16000 | 44100 | 48000
 export type BitDepth = 8 | 16 | 32
 
+export type ConsoleLike = {
+    log: (message: string, ...args: unknown[]) => void
+    debug: (message: string, ...args: unknown[]) => void
+    warn: (message: string, ...args: unknown[]) => void
+    error: (message: string, ...args: unknown[]) => void
+}
+
 export interface Chunk {
     text: string
     timestamp: [number, number | null]
