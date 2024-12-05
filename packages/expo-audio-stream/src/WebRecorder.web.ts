@@ -1,13 +1,11 @@
 // src/WebRecorder.ts
-import { buffer } from 'stream/consumers'
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
-import { RecordingConfig } from './ExpoAudioStream.types'
+import { ConsoleLike, RecordingConfig } from './ExpoAudioStream.types'
 import {
     EmitAudioAnalysisFunction,
     EmitAudioEventFunction,
 } from './ExpoAudioStream.web'
-import { getLogger } from './logger'
 import { convertPCMToFloat32 } from './utils/convertPCMToFloat32'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
 import { writeWavHeader } from './utils/writeWavHeader'
@@ -36,7 +34,6 @@ const DEFAULT_WEB_NUMBER_OF_CHANNELS = 1
 const DEFAULT_ALGORITHM = 'rms'
 
 const TAG = 'WebRecorder'
-const logger = getLogger(TAG)
 
 export class WebRecorder {
     private audioContext: AudioContext
@@ -55,6 +52,7 @@ export class WebRecorder {
     private audioBufferSize: number // Keep track of the buffer size
     private audioAnalysisData: AudioAnalysis // Keep updating the full audio analysis data with latest events
     private packetCount: number = 0
+    private logger?: ConsoleLike
 
     constructor({
         audioContext,
@@ -63,6 +61,7 @@ export class WebRecorder {
         audioWorkletUrl,
         emitAudioEventCallback,
         emitAudioAnalysisCallback,
+        logger,
     }: {
         audioContext: AudioContext
         source: MediaStreamAudioSourceNode
@@ -70,6 +69,7 @@ export class WebRecorder {
         audioWorkletUrl: string
         emitAudioEventCallback: EmitAudioEventFunction
         emitAudioAnalysisCallback: EmitAudioAnalysisFunction
+        logger?: ConsoleLike
     }) {
         this.audioContext = audioContext
         this.source = source
@@ -78,11 +78,12 @@ export class WebRecorder {
         this.emitAudioAnalysisCallback = emitAudioAnalysisCallback
         this.config = recordingConfig
         this.position = 0
+        this.logger = logger
 
         const audioContextFormat = this.checkAudioContextFormat({
             sampleRate: this.audioContext.sampleRate,
         })
-        logger.debug('Initialized WebRecorder with config:', {
+        this.logger?.debug('Initialized WebRecorder with config:', {
             sampleRate: audioContextFormat.sampleRate,
             bitDepth: audioContextFormat.bitDepth,
             numberOfChannels: audioContextFormat.numberOfChannels,
@@ -150,12 +151,12 @@ export class WebRecorder {
                 const pcmBufferFloat = event.data.recordedData
 
                 if (!pcmBufferFloat) {
-                    logger.warn('Received empty audio buffer', event)
+                    this.logger?.warn('Received empty audio buffer', event)
                     return
                 }
 
                 // Handle the audio blob (e.g., send it to the server or process it further)
-                logger.debug(
+                this.logger?.debug(
                     `Received audio blob from processor len:${pcmBufferFloat?.length}`,
                     event
                 )
@@ -220,7 +221,7 @@ export class WebRecorder {
                 )
             }
 
-            logger.debug(
+            this.logger?.debug(
                 `WebRecorder initialized -- recordSampleRate=${this.audioContext.sampleRate}`,
                 this.config
             )
@@ -281,7 +282,7 @@ export class WebRecorder {
             this.featureExtractorWorker.onerror = (error) => {
                 console.error(`[${TAG}] Default Inline worker failed`, error)
             }
-            logger.log('Inline worker initialized successfully')
+            this.logger?.log('Inline worker initialized successfully')
         } catch (error) {
             console.error(
                 `[${TAG}] Failed to initialize Inline Feature Extractor worker`,
@@ -317,8 +318,8 @@ export class WebRecorder {
                 }
             }
             // Handle the extracted features (e.g., emit an event or log them)
-            logger.debug('features event segmentResult', segmentResult)
-            logger.debug(
+            this.logger?.debug('features event segmentResult', segmentResult)
+            this.logger?.debug(
                 `features event audioAnalysisData duration=${this.audioAnalysisData.durationMs}`,
                 this.audioAnalysisData
             )
@@ -373,10 +374,10 @@ export class WebRecorder {
                                 (this.audioContext.sampleRate *
                                     (this.exportBitDepth /
                                         this.numberOfChannels))
-                            logger.debug(
+                            this.logger?.debug(
                                 `Received recorded data -- Duration: ${duration} vs ${rawPCMDataFull.byteLength / this.audioContext.sampleRate} seconds`
                             )
-                            logger.debug(
+                            this.logger?.debug(
                                 `recordedData.length=${rawPCMDataFull.byteLength} vs transmittedData.length=${this.audioBufferSize}`
                             )
 
@@ -448,7 +449,7 @@ export class WebRecorder {
             bufferSource.buffer = audioBuffer
             bufferSource.connect(this.audioContext.destination)
             bufferSource.start()
-            logger.debug('Playing recorded data', recordedData)
+            this.logger?.debug('Playing recorded data', recordedData)
         } catch (error) {
             console.error(`[${TAG}] Failed to play recorded data:`, error)
         }

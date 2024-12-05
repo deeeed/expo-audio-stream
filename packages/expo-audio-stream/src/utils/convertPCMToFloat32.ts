@@ -1,9 +1,7 @@
+import { ConsoleLike } from '../ExpoAudioStream.types'
 import { getWavFileInfo, WavFileInfo } from './getWavFileInfo'
-import { getLogger } from '../logger'
 
 export const WAV_HEADER_SIZE = 44
-
-const logger = getLogger('convertPCMToFloat32')
 
 const convertSample = (
     dataView: DataView,
@@ -35,13 +33,15 @@ export const convertPCMToFloat32 = async ({
     bitDepth,
     buffer,
     skipWavHeader = false,
+    logger,
 }: {
     buffer: ArrayBuffer
     bitDepth: number
     skipWavHeader?: boolean
+    logger?: ConsoleLike
 }): Promise<{ pcmValues: Float32Array; min: number; max: number }> => {
     try {
-        logger.debug(
+        logger?.debug(
             `Converting PCM to Float32: bitDepth: ${bitDepth}, buffer.byteLength: ${buffer.byteLength}`
         )
         const dataView = new DataView(buffer)
@@ -69,7 +69,7 @@ export const convertPCMToFloat32 = async ({
 
         return { pcmValues: float32Array, min, max }
     } catch (error: unknown) {
-        logger.error(`Error converting PCM to Float32`, error)
+        logger?.error(`Error converting PCM to Float32`, error)
         return { pcmValues: new Float32Array(), min: 0, max: 0 }
     }
 }

@@ -7,15 +7,6 @@ import { Platform } from 'react-native'
 
 import { AppRoot } from './AppRoot'
 
-// FIXME: should be removed once react-native-reanimated is fixed https://github.com/software-mansion/react-native-reanimated/issues/6740
-if (Platform.OS === 'web') {
-    global._WORKLET = false
-    // @ts-expect-error
-    global._log = console.log
-    // @ts-expect-error
-    global._getAnimationTimestamp = () => performance.now()
-}
-
 if (Platform.OS === 'web') {
     LoadSkiaWeb({
         locateFile: (path) => {

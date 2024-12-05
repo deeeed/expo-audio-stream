@@ -11,11 +11,11 @@ The `useAudioRecorder` hook provides methods and state for managing audio record
 
 ## Parameters
 
-### `debug` (optional)
+### `logger` (optional)
 
-- **Type**: `boolean`
-- **Description**: Enables or disables debug logging.
-- **Default**: `false`
+- **Type**: `ConsoleLike`
+- **Description**: A console-like object for logging debug information. Must implement `log`, `debug`, `warn`, and `error` methods.
+- **Default**: `undefined`
 
 ### `audioWorkletUrl` (optional)
 
@@ -27,7 +27,7 @@ The `useAudioRecorder` hook provides methods and state for managing audio record
 
 - **Type**: `string`
 - **Description**: URL for the features extractor (only for web). Similar to `audioWorkletUrl`, this parameter is used during development or when you need to overwrite the default features extractor. It allows you to specify a custom URL for the features extractor script.
-- **Default**
+- **Default**: `undefined`
 
 ## Usage
 
@@ -46,7 +46,7 @@ export default function App() {
         size,
         analysisData,
     } = useAudioRecorder({
-        debug: true,
+        logger: console,
     })
 
     const handleStart = async () => {

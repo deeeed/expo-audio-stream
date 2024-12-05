@@ -1,8 +1,8 @@
 // playground/src/app/_layout.tsx
-import { ThemeProvider } from '@react-navigation/native'
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { useTheme } from '@siteed/design-system'
 import { AudioRecorderProvider } from '@siteed/expo-audio-stream'
-import { enabled, getLogger } from '@siteed/react-native-logger'
+import { getLogger } from '@siteed/react-native-logger'
 import Constants from 'expo-constants'
 import { Stack } from 'expo-router/stack'
 import { useEffect } from 'react'
@@ -18,10 +18,7 @@ export default function RootLayout() {
     const theme = useTheme()
 
     useEffect(() => {
-        logger.debug(`Base URL: ${baseUrl}`)
-        console.log(`Base URL: ${baseUrl}`)
-        console.debug(`logger`, logger)
-        console.debug(`enabled()`, enabled('RootLayout'))
+        logger.log(`Base URL: ${baseUrl}`)
     }, [baseUrl])
 
     return (
@@ -35,7 +32,12 @@ export default function RootLayout() {
                     }}
                 >
                     <AudioFilesProvider>
-                        <ThemeProvider value={theme}>
+                        <ThemeProvider
+                            value={{
+                                ...theme,
+                                fonts: DefaultTheme.fonts,
+                            }}
+                        >
                             <Stack
                                 screenOptions={{
                                     headerBackButtonMenuEnabled: false,
@@ -45,7 +47,7 @@ export default function RootLayout() {
                                     name="(tabs)"
                                     options={{ headerShown: false }}
                                 />
-                                <Stack.Screen name="playbug" />
+                                {/* <Stack.Screen name="playbug" /> */}
                             </Stack>
                         </ThemeProvider>
                     </AudioFilesProvider>

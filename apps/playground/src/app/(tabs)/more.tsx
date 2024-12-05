@@ -8,8 +8,10 @@ import {
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import React, { useMemo } from 'react'
-import { Image, StyleSheet, View } from 'react-native'
+import { Image, Platform, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
+
+import { useReanimatedWebHack } from '../../hooks/useReanimatedWebHack'
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
@@ -39,6 +41,7 @@ export const MoreScreen = (_: MoreScreenProps) => {
     const { toggleDarkMode, darkMode, theme } = useThemePreferences()
     const styles = useMemo(() => getStyles({ theme }), [theme])
     const appVersion = Constants.expoConfig?.version
+    const { isHackEnabled, handleHackToggle } = useReanimatedWebHack()
 
     return (
         <ScreenWrapper withScrollView useInsets>
@@ -58,6 +61,16 @@ export const MoreScreen = (_: MoreScreenProps) => {
                 onValueChange={toggleDarkMode}
                 value={darkMode}
             />
+            {Platform.OS === 'web' && (
+                <LabelSwitch
+                    label="Reanimated Web Hack"
+                    containerStyle={{
+                        backgroundColor: theme.colors.surface,
+                    }}
+                    onValueChange={handleHackToggle}
+                    value={isHackEnabled}
+                />
+            )}
             <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,
