@@ -1,5 +1,6 @@
 // apps/playground/src/context/TranscriptionProvider.tsx
 import { TranscriberData } from '@siteed/expo-audio-stream'
+import throttle from 'lodash.throttle'
 import React, {
     createContext,
     ReactNode,
@@ -85,20 +86,30 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         Record<string, (error: Error) => void>
     >({})
 
+    const lastProgressUpdate = useRef<number>(0)
+    const lastTranscriptRef = useRef<TranscriberData | null>(null)
+
     const messageEventHandler = useCallback(
-        (event: MessageEvent) => {
+        throttle((event: MessageEvent) => {
             const message = event.data
             const jobId = message.jobId
             switch (message.status) {
-                case 'progress':
-                    dispatch({
-                        type: 'UPDATE_PROGRESS_ITEM',
-                        progressItem: message,
-                    })
+                case 'progress': {
+                    if (
+                        !lastProgressUpdate.current ||
+                        Date.now() - lastProgressUpdate.current > 100
+                    ) {
+                        lastProgressUpdate.current = Date.now()
+                        dispatch({
+                            type: 'UPDATE_PROGRESS_ITEM',
+                            progressItem: message,
+                        })
+                    }
                     break
+                }
                 case 'update': {
                     const updateMessage = message as TranscriberUpdateData
-                    const { jobId, data } = updateMessage
+                    const { data } = updateMessage
                     const text = data[0]
                     const { chunks } = data[1]
                     const transcript: TranscriberData = {
@@ -109,12 +120,22 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         startTime: updateMessage.startTime,
                         endTime: updateMessage.endTime,
                     }
-                    dispatch({
-                        type: 'UPDATE_STATE',
-                        payload: {
-                            transcript,
-                        },
-                    })
+
+                    const lastTranscript = lastTranscriptRef.current
+                    if (
+                        !lastTranscript ||
+                        lastTranscript.id !== transcript.id ||
+                        lastTranscript.text !== transcript.text
+                    ) {
+                        lastTranscriptRef.current = transcript
+                        dispatch({
+                            type: 'UPDATE_STATE',
+                            payload: {
+                                transcript,
+                                isBusy: true,
+                            },
+                        })
+                    }
                     break
                 }
                 case 'complete': {
@@ -131,6 +152,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         type: 'UPDATE_STATE',
                         payload: {
                             transcript,
+                            isBusy: false,
                         },
                     })
                     if (transcribeResolveMapRef.current[jobId]) {
@@ -187,8 +209,8 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 default:
                     break
             }
-        },
-        [dispatch]
+        }, 100), // Throttle to run at most once every 100ms
+        []
     )
 
     const webWorker = useWorker({

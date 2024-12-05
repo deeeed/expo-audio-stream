@@ -4,10 +4,8 @@ import { LegacyEventEmitter, type EventSubscription } from 'expo-modules-core'
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import ExpoAudioStreamModule from './ExpoAudioStreamModule'
-import { getLogger } from './logger'
 
 const emitter = new LegacyEventEmitter(ExpoAudioStreamModule)
-const logger = getLogger('events')
 
 export interface AudioEventPayload {
     encoded?: string
@@ -24,7 +22,6 @@ export interface AudioEventPayload {
 export function addAudioEventListener(
     listener: (event: AudioEventPayload) => Promise<void>
 ): EventSubscription {
-    logger.log('Adding listener for AudioData event')
     return emitter.addListener<AudioEventPayload>('AudioData', listener)
 }
 
@@ -34,6 +31,5 @@ export interface AudioAnalysisEvent extends AudioAnalysis {}
 export function addAudioAnalysisListener(
     listener: (event: AudioAnalysisEvent) => Promise<void>
 ): EventSubscription {
-    logger.log('Adding listener for AudioAnalysis event')
     return emitter.addListener<AudioAnalysisEvent>('AudioAnalysis', listener)
 }

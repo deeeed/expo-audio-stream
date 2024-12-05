@@ -203,7 +203,7 @@ export default function RecordScreen() {
             logger.log(`Received audio data event`, event)
             const { data, position, eventDataSize } = event
             if (eventDataSize === 0) {
-                console.log(`Invalid data`)
+                logger.warn(`Invalid data size=${eventDataSize}`)
                 return
             }
 
