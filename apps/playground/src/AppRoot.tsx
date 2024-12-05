@@ -9,6 +9,8 @@ import { useEffect, useState } from 'react'
 import { Platform } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 
+import { useReanimatedWebHack } from './hooks/useReanimatedWebHack'
+
 setLoggerConfig({
     namespaces: '*',
     maxLogs: 20,
@@ -18,6 +20,12 @@ setLoggerConfig({
 export const WithUIProvider = ({ children }: { children: React.ReactNode }) => {
     const { darkMode, isReady: isThemeReady } = useThemePreferences()
     const [ready, setReady] = useState(false)
+
+    const { handleHackToggle } = useReanimatedWebHack()
+
+    useEffect(() => {
+        handleHackToggle(true)
+    }, [])
 
     useEffect(() => {
         const timeout = setTimeout(() => setReady(true), 1000)
