@@ -51,17 +51,19 @@ afterEvaluate {
 }
 
 android {
-  compileSdkVersion safeExtGet("compileSdkVersion", 33)
+  compileSdkVersion safeExtGet("compileSdkVersion", 34)
 
   def agpVersion = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION
   if (agpVersion.tokenize('.')[0].toInteger() < 8) {
     compileOptions {
-      sourceCompatibility JavaVersion.VERSION_11
-      targetCompatibility JavaVersion.VERSION_11
+      sourceCompatibility JavaVersion.VERSION_17
+      targetCompatibility JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-      jvmTarget = JavaVersion.VERSION_11.majorVersion
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+      kotlinOptions {
+        jvmTarget = '17'
+      }
     }
   }
 
@@ -94,4 +96,10 @@ dependencies {
   testImplementation 'junit:junit:4.13.2'
   testImplementation 'org.jetbrains.kotlin:kotlin-test:1.8.10'
   testImplementation 'org.jetbrains.kotlin:kotlin-test-junit:1.8.10'
+}
+
+kotlin {
+  jvmToolchain {
+    languageVersion.set(JavaLanguageVersion.of(17))
+  }
 }

@@ -95,7 +95,7 @@ const FilesScreen = () => {
                     style={{ padding: 20 }}
                     buttonText="Record"
                     onButtonPress={() => {
-                        router.push('/')
+                        router.navigate('/record')
                     }}
                 />
             </ScreenWrapper>
