@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Added
+
+
+## [1.3.1] - 2024-12-05
 - feat(web): implement throttling and optimize event processing (#49) ([da28765](https://github.com/deeeed/expo-audio-stream/commit/da2876524c2c9d6e0a980fde40a0197b929d8a7f))
 
 ## [1.3.0] - 2024-11-28
@@ -17,10 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat: latest expo fixes ([9cc5ac3](https://github.com/deeeed/expo-audio-stream/commit/9cc5ac39751999e5b33e11c16355557143d68d10))
 - feat: latest expo sdk ([258ef6c](https://github.com/deeeed/expo-audio-stream/commit/258ef6cf68e70c7855f696a01204f79b0793fdc0))
 
+
 ## [1.2.5] - 2024-11-12
 ### Added
 - docs(license): add MIT license to all packages (6 files changed)
 - fix(expo-audio-stream): return actual recording settings from startRecording on iOS #37
+
 
 ## [1.2.4] - 2024-11-05
 ### Changed
@@ -30,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Remove frequently firing log statements on web.
 
+
 ## [1.2.0] - 2024-10-24
 ### Added
 - Feature: Keep device awake during recording with `keepAwake` option
@@ -38,10 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Android: Configurable notification actions, colors, and priorities
   - iOS: Integration with media player
 
+
 ## [1.1.17] - 2024-10-21
 ### Added
 - Support bluetooth headset on ios
 - Fixes: android not reading custom interval audio update
+
 
 ## [1.0.0] - 2024-04-01
 
@@ -54,5 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.3.1...HEAD
+[1.3.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.3.0...@siteed/expo-audio-stream@1.3.1
 [Unreleased]: https://github.com/deeeed/expo-audio-stream/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/deeeed/expo-audio-stream/releases/tag/v1.0.0
