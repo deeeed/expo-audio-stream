@@ -7524,7 +7524,6 @@ __metadata:
   dependencies:
     "@expo/config-plugins": "npm:~8.0.0"
     "@siteed/publisher": "npm:^0.4.15"
-    "@siteed/react-native-logger": "npm:^1.0.1"
     "@size-limit/preset-big-lib": "npm:^11.1.4"
     "@types/jest": "npm:^29.5.12"
     "@types/node": "npm:^20.12.7"
@@ -7668,13 +7667,6 @@ __metadata:
   version: 0.11.0
   resolution: "@siteed/react-native-logger@npm:0.11.0"
   checksum: 10/bab3a4861e41325b02ebf39b7b50fdf6417f1ad9d635194ab1f1c77fe3866a0c7d8ff86f3e5b85c9f6b4a6b3eca7949f67e97d206bf44265652028b63706054e
-  languageName: node
-  linkType: hard
-
-"@siteed/react-native-logger@npm:^1.0.1":
-  version: 1.0.1
-  resolution: "@siteed/react-native-logger@npm:1.0.1"
-  checksum: 10/035c53f545dba4ac98c9a4e40273ad23301b8196922843252e8471897fd4afffafe473e61904bcfa74b91a011747f65882858b5eb4cbf2c27860b8ad348a6fda
   languageName: node
   linkType: hard
 
