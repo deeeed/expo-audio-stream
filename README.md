@@ -29,7 +29,7 @@ For more details, please refer to the [README](packages/expo-audio-ui/README.md)
 
 ## Roadmap
 
-- [ ] Automate Changelog generation on monorepo.
+- [x] Automate Changelog generation on monorepo.
 - [ ] Migrate audio analysis to c++ native library (share same logic on web via wasm and Kotlin / Swift for native). 
 - [ ] Integrate with react-native-whisper for real-time on device transcriptions.
 - [ ] Implement example app for custom VAD.
