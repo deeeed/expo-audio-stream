@@ -21,13 +21,6 @@ import { useAudioPlayer } from 'expo-audio'
 import { useState, useEffect } from 'react'
 import { Button, StyleSheet, Text, View } from 'react-native'
 
-import { getLogger, setLoggerConfig } from '@siteed/react-native-logger';
-
-// Set logger configuration
-setLoggerConfig({ maxLogs: 500, namespaces: 'App:*' }); // Set the maximum number of logs to 500 and enable logging for App namespace
-
-const logger = getLogger('App');
-
 const STOP_BUTTON_COLOR = 'red'
 
 const styles = StyleSheet.create({
@@ -51,20 +44,15 @@ export default function App() {
       size,
       isRecording,
       isPaused,
-  } = useAudioRecorder({
-      debug: true,
-  })
+  } = useAudioRecorder()
   const [audioResult, setAudioResult] = useState<AudioRecording | null>(null)
   const player = useAudioPlayer(audioResult?.fileUri ?? "")
 
   const handleStart = async () => {
     const { status } = await ExpoAudioStreamModule.requestPermissionsAsync()
-    console.log(`status`, status)
     if (status !== 'granted') {
-      console.log(`Permission not granted`)
       return
     }
-    console.log(`handleStart`, startRecording)
       const startResult = await startRecording({
           interval: 500,
           enableProcessing: true,
@@ -72,19 +60,15 @@ export default function App() {
               console.log(`onAudioStream`, _)
           },
       })
-      console.log(`startResult`, startResult)
       return startResult
   }
 
   const handleStop = async () => {
-      logger.info(`handleStop`)
       const result = await stopRecording()
-      console.log(`handleStop`, result)
       setAudioResult(result)
   }
 
   const handlePlay = async () => {
-      logger.info(`handlePlay`)
       if (player) {
           player.play()
       }
