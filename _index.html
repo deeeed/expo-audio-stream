@@ -1,31 +1,116 @@
 <!-- Index Page for gh-pages/ branch -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>@siteed/expo-audio-stream</title>
   <style>
+    :root {
+      --primary-color: #007bff;
+      --hover-color: #0056b3;
+      --bg-color: #f8f9fa;
+      --card-bg: #ffffff;
+      --text-color: #2d3748;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 50px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
     }
-    a {
-      display: block;
-      margin: 20px;
-      font-size: 24px;
-      color: #007bff;
+
+    .container {
+      max-width: 800px;
+      width: 100%;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 2rem;
+      color: var(--text-color);
+      font-weight: 700;
+    }
+
+    .links-container {
+      display: grid;
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .card-link {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
       text-decoration: none;
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
     }
-    a:hover {
-      text-decoration: underline;
+
+    .card-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    .card-description {
+      font-size: 0.95rem;
+      color: #666;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 1rem;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
     }
   </style>
 </head>
+
 <body>
-  <a href="/expo-audio-stream/docs/">@siteed/expo-audio-stream docs</a>
-  <a href="/expo-audio-stream/expo-audio-ui-storybook/">ExpoAudioStream UI Storybook</a>
-  <a href="/expo-audio-stream/playground/">Audio Playground</a>
+  <div class="container">
+    <h1>@siteed/expo-audio-stream</h1>
+    <div class="links-container">
+      <a href="/expo-audio-stream/docs/" class="card-link">
+        <span class="card-title">Documentation</span>
+        <span class="card-description">Explore comprehensive documentation and API references</span>
+      </a>
+      <a href="/expo-audio-stream/expo-audio-ui-storybook/" class="card-link">
+        <span class="card-title">UI Storybook</span>
+        <span class="card-description">Browse component examples and UI patterns</span>
+      </a>
+      <a href="/expo-audio-stream/playground/" class="card-link">
+        <span class="card-title">Audio Playground</span>
+        <span class="card-description">Test and experiment with audio features</span>
+      </a>
+    </div>
+  </div>
 </body>
+
 </html>
