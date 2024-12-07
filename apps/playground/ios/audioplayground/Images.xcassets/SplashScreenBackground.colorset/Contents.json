@@ -10,7 +10,13 @@
         },
         "color-space": "srgb"
       },
-      "idiom": "universal"
+      "idiom": "universal",
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "light"
+        }
+      ]
     }
   ],
   "info": {
