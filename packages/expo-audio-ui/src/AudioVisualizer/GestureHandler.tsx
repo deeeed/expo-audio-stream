@@ -79,10 +79,10 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
                 const decelerate = () => {
                     if (!isDecelerating.value) return
 
-                    const newVelocity = velocity.value * 0.95
+                    const newVelocity = velocity.value * 0.85 // decreasing velocity value to make it slower
                     const newTranslateX = translateX.value + newVelocity * 0.016 // Assuming 60fps
 
-                    if (Math.abs(newVelocity) < 1) {
+                    if (Math.abs(newVelocity) < 5) {
                         isDecelerating.value = false
                         runOnJS(onDragEnd)({ newTranslateX: translateX.value })
                         return
@@ -101,6 +101,7 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
             } else {
                 runOnJS(onDragEnd)({ newTranslateX: translateX.value })
             }
+            runOnJS(onDragEnd)({ newTranslateX: translateX.value })
         })
 
     const tapGesture = Gesture.Tap().onEnd((event) => {
