@@ -51,7 +51,6 @@ export default function Transcript({
 
     return (
         <View style={styles.container}>
-            <Text>debug here</Text>
             <ContentWrapper
                 ref={useScrollView ? scrollViewRef : undefined}
                 style={styles.contentWrapper}
@@ -59,7 +58,6 @@ export default function Transcript({
                     useScrollView ? styles.contentWrapper : undefined
                 }
             >
-                <Text>chunks.length: {chunks.length}</Text>
                 {chunks.length > 0 ? (
                     <View style={styles.chunksContainer}>
                         {chunks.map((chunk, i) => {
@@ -102,7 +100,6 @@ export default function Transcript({
                 ) : (
                     <Text style={styles.emptyText}>No transcription yet</Text>
                 )}
-                <Text>isBusy: {isBusy ? 'true' : 'false'}</Text>
             </ContentWrapper>
 
             {showActions && (
@@ -166,7 +163,7 @@ const styles = StyleSheet.create({
         flexGrow: 1,
     },
     chunksContainer: {
-        padding: 16,
+        paddingVertical: 5,
     },
     chunkContainer: {
         marginBottom: 12,

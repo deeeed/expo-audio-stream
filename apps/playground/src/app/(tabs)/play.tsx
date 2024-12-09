@@ -9,6 +9,7 @@ import {
 import {
     AudioAnalysis,
     AudioRecording,
+    Chunk,
     convertPCMToFloat32,
     extractAudioAnalysis,
     getWavFileInfo,
@@ -20,8 +21,8 @@ import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
-import { ActivityIndicator } from 'react-native-paper'
+import { StyleSheet, View } from 'react-native'
+import { Text, ActivityIndicator } from 'react-native-paper'
 
 import Transcriber from '../../component/Transcriber'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
@@ -61,10 +62,10 @@ export const PlayPage = () => {
     const [isPlaying, setIsPlaying] = useState<boolean>(false)
     const [currentTime, setCurrentTime] = useState<number>(0)
     const [processing, setProcessing] = useState<boolean>(false)
-    const [audioBuffer, setAudioBuffer] = useState<Float32Array>()
+    const [audioBuffer, setAudioBuffer] = useState<Float32Array | string>()
     const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
     const [enableTranscription, setEnableTranscription] =
-        useState<boolean>(isWeb)
+        useState<boolean>(true)
     const [transcript, setTranscript] = useState<TranscriberData>()
     const audioBufferRef = useRef<ArrayBuffer | null>(null)
     const { show } = useToast()
@@ -113,35 +114,7 @@ export const PlayPage = () => {
                     })
                     logger.log(`AudioAnalysis:`, audioAnalysis)
                     setAudioAnalysis(audioAnalysis)
-                    // how to get the audioBuffer from the result since we cannot use the fetch on native like for web
-                    // Read the file content
-                    const fileContent = await FileSystem.readAsStringAsync(
-                        uri,
-                        {
-                            encoding: FileSystem.EncodingType.Base64,
-                        }
-                    )
-                    const binaryString = atob(fileContent)
-                    logger.log('binaryString:', binaryString.slice(0, 100))
-                    const bytes = new Uint8Array(binaryString.length)
-                    for (let i = 0; i < binaryString.length; i++) {
-                        bytes[i] = binaryString.charCodeAt(i)
-                    }
-                    const arrayBuffer = bytes.buffer
-                    logger.log('arrayBuffer:', arrayBuffer.byteLength)
-
-                    const wavMetadata = await getWavFileInfo(arrayBuffer)
-                    logger.log('wavMetadata:', wavMetadata)
-
-                    // convert to Float32Array
-                    const { pcmValues } = await convertPCMToFloat32({
-                        buffer: arrayBuffer,
-                        bitDepth: wavMetadata.bitDepth,
-                        skipWavHeader: false,
-                        logger,
-                    })
-                    logger.log('pcmValues:', pcmValues.slice(0, 10))
-                    setAudioBuffer(pcmValues)
+                    setAudioBuffer(uri)
                 }
             }
         } catch (error) {
@@ -263,8 +236,11 @@ export const PlayPage = () => {
     }
 
     const handleSeekEnd = (newTime: number) => {
+        logger.debug('handleSeekEnd', newTime)
         if (sound && sound._loaded) {
             sound.setPositionAsync(newTime * 1000)
+        } else {
+            setCurrentTime(newTime)
         }
     }
 
@@ -394,6 +370,12 @@ export const PlayPage = () => {
         }
     }, [files, fileName, audioUri, logger, refreshFiles, show, transcript])
 
+    const handleSelectChunk = ({ chunk }: { chunk: Chunk }) => {
+        if (chunk.timestamp && chunk.timestamp.length > 0) {
+            setCurrentTime(chunk.timestamp[0])
+        }
+    }
+
     useEffect(() => {
         return sound
             ? () => {
@@ -452,27 +434,23 @@ export const PlayPage = () => {
                                 font={font ?? undefined}
                                 playing={isPlaying}
                                 candleWidth={5}
+                                enableInertia
                                 currentTime={currentTime}
-                                canvasHeight={300}
+                                canvasHeight={150}
                                 audioData={audioAnalysis}
                                 onSeekEnd={handleSeekEnd}
                             />
                         </View>
                     )}
-                    <Text>
-                        Transcription:{' '}
-                        {JSON.stringify(enableTranscription) +
-                            ' ' +
-                            audioBuffer !==
-                            undefined}
-                    </Text>
                     {enableTranscription && audioBuffer && (
                         <View>
                             <Transcriber
                                 fullAudio={audioBuffer}
                                 currentTimeMs={currentTime * 1000}
                                 sampleRate={16000} // this was resampled by AudioContext
+                                onSelectChunk={handleSelectChunk}
                                 onTranscriptionComplete={setTranscript}
+                                onTranscriptionUpdate={setTranscript}
                             />
                         </View>
                     )}

@@ -74,7 +74,16 @@ const TranscriptionScreen = () => {
 
             {!ready && !hasEditedConfig && !isModelLoading && (
                 <View>
-                    <Button onPress={initialize} mode="contained">
+                    <Button
+                        onPress={() =>
+                            initialize({
+                                contextOptions: {
+                                    filePath: 'ggml-tiny.en.bin',
+                                },
+                            })
+                        }
+                        mode="contained"
+                    >
                         Initialize
                     </Button>
                 </View>

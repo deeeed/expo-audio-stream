@@ -257,7 +257,18 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
 
     const transcribe = useCallback(
         async ({ audioData, jobId, position = 0 }: TranscribeParams) => {
-            if (audioData && audioData !== audioDataRef.current) {
+            console.debug(
+                `transcribe, audioData: ${typeof audioData}, jobId: ${jobId}, position: ${position}`
+            )
+
+            // First check if audioData exists
+            if (!audioData) return Promise.resolve(undefined)
+
+            // Then check the type
+            if (
+                typeof audioData === 'object' &&
+                (!audioDataRef.current || audioData !== audioDataRef.current)
+            ) {
                 audioDataRef.current = audioData
                 dispatch({
                     type: 'TRANSCRIPTION_START',
@@ -270,6 +281,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     logger.debug(
                         `Transcribing position=${position} jobId=${jobId}...`
                     )
+
                     webWorker.postMessage({
                         type: 'transcribe',
                         audio: audioData,
@@ -288,8 +300,14 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                                 : null,
                     })
                 })
+            } else if (typeof audioData === 'string') {
+                // Handle string input (base64 or file path) by rejecting
+                return Promise.reject(
+                    new Error(
+                        'String audio data is not supported in web version'
+                    )
+                )
             }
-            // return Promise.reject(new Error('No audio data provided'))
             return Promise.resolve(undefined)
         },
         [webWorker]

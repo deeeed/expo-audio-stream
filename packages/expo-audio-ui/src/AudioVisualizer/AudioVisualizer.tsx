@@ -60,7 +60,7 @@ const reducer = (
 
 export interface AudioVisualizerProps {
     audioData: AudioAnalysis
-    currentTime?: number
+    currentTime?: number // in seconds
     canvasHeight?: number
     candleWidth?: number
     candleSpace?: number
@@ -516,6 +516,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                     selectedCandle={selectedCandle}
                     selectedIndex={selectedIndex}
                     audioData={audioData}
+                    currentTime={currentTime}
                     theme={theme}
                     onPrev={() => handlePrevNextSelection('prev')}
                     onNext={() => handlePrevNextSelection('next')}

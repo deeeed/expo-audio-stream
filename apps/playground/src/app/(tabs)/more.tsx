@@ -8,10 +8,11 @@ import {
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import React, { useMemo } from 'react'
-import { Image, Platform, StyleSheet, View } from 'react-native'
+import { Image, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
 import { useReanimatedWebHack } from '../../hooks/useReanimatedWebHack'
+import { isWeb } from '../../utils/utils'
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
@@ -61,7 +62,7 @@ export const MoreScreen = (_: MoreScreenProps) => {
                 onValueChange={toggleDarkMode}
                 value={darkMode}
             />
-            {Platform.OS === 'web' && (
+            {isWeb && (
                 <LabelSwitch
                     label="Reanimated Web Hack"
                     containerStyle={{
@@ -71,6 +72,7 @@ export const MoreScreen = (_: MoreScreenProps) => {
                     value={isHackEnabled}
                 />
             )}
+
             <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,
@@ -101,6 +103,18 @@ export const MoreScreen = (_: MoreScreenProps) => {
                     router.navigate('/permissions')
                 }}
             />
+            {!isWeb && (
+                <ListItem
+                    contentContainerStyle={{
+                        backgroundColor: theme.colors.surface,
+                    }}
+                    label="Native Whisper"
+                    subLabel="Native Whisper"
+                    onPress={() => {
+                        router.navigate('/nativewhisper')
+                    }}
+                />
+            )}
             <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,

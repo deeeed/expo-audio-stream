@@ -11,7 +11,8 @@ import {
     TranscribeNewSegmentsResult,
 } from 'whisper.rn'
 
-import Transcript from '../../component/Transcript'
+import Transcript from '../component/Transcript'
+import { isWeb } from '../utils/utils'
 
 interface WhisperModel {
     id: string
@@ -36,18 +37,18 @@ interface SelectedFile {
 
 const WHISPER_MODELS: WhisperModel[] = [
     {
-        id: 'base',
-        label: 'Base Model',
-        file: require('@assets/ggml-base.bin'),
-    },
-    {
         id: 'tiny',
         label: 'Tiny Model',
         file: require('@assets/ggml-tiny.en.bin'),
     },
     {
+        id: 'base',
+        label: 'Base Model',
+        file: require('@assets/ggml-base.bin'),
+    },
+    {
         id: 'small',
-        label: 'Small Model',
+        label: 'Small (tdrz)',
         file: require('@assets/ggml-small.en-tdrz.bin'),
     },
 ]
@@ -144,8 +145,8 @@ export function TestPage() {
         return result.segments.map((segment) => ({
             text: segment.text.trim(),
             timestamp: [
-                segment.t0 / 1000,
-                segment.t1 ? segment.t1 / 1000 : null,
+                segment.t0 / 100,
+                segment.t1 ? segment.t1 / 100 : null,
             ] as [number, number | null],
         }))
     }
@@ -305,6 +306,10 @@ export function TestPage() {
         }
     }, [selectedModel])
 
+    if (isWeb) {
+        return <Text>Native Whisper is not supported on web</Text>
+    }
+
     return (
         <ScreenWrapper withScrollView>
             <View style={styles.container}>
@@ -425,8 +430,6 @@ export function TestPage() {
                         ))}
                     </View>
                 )}
-
-                {/* <Text>{JSON.stringify(transcriptionData, null, 2)}</Text> */}
                 <View>
                     <Transcript
                         transcribedData={transcriptionData}

@@ -8,6 +8,7 @@ export interface NavigationControlsProps {
     selectedCandle: DataPoint | null
     selectedIndex: number
     audioData: AudioAnalysis
+    currentTime?: number
     onPrev: () => void
     onNext: () => void
     onReset: () => void
