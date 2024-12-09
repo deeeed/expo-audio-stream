@@ -66,7 +66,7 @@ class AudioNotificationManager private constructor(context: Context) {
             val channel = NotificationChannel(
                 recordingConfig.notification.channelId,
                 recordingConfig.notification.channelName,
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_LOW // Lower importance means no sound by default
             ).apply {
                 description = recordingConfig.notification.channelDescription
                 enableLights(true)
@@ -74,6 +74,13 @@ class AudioNotificationManager private constructor(context: Context) {
                 enableVibration(true)
                 setShowBadge(true)
             }
+
+            // Set description, disable lights, vibration, and sound.
+            channel.enableLights(false);
+            channel.enableVibration(false);
+            channel.setSound(null, null);
+            channel.setShowBadge(false);
+
             notificationManager.createNotificationChannel(channel)
         }
     }
