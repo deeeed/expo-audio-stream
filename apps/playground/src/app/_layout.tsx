@@ -26,7 +26,7 @@ export default function RootLayout() {
             <TranscriptionProvider>
                 <AudioRecorderProvider
                     config={{
-                        debug: true,
+                        logger: getLogger('AudioRecorderProvider'),
                         audioWorkletUrl: config.audioWorkletUrl,
                         featuresExtratorUrl: config.featuresExtratorUrl,
                     }}

@@ -113,6 +113,35 @@ export const PlayPage = () => {
                     })
                     logger.log(`AudioAnalysis:`, audioAnalysis)
                     setAudioAnalysis(audioAnalysis)
+                    // how to get the audioBuffer from the result since we cannot use the fetch on native like for web
+                    // Read the file content
+                    const fileContent = await FileSystem.readAsStringAsync(
+                        uri,
+                        {
+                            encoding: FileSystem.EncodingType.Base64,
+                        }
+                    )
+                    const binaryString = atob(fileContent)
+                    logger.log('binaryString:', binaryString.slice(0, 100))
+                    const bytes = new Uint8Array(binaryString.length)
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i)
+                    }
+                    const arrayBuffer = bytes.buffer
+                    logger.log('arrayBuffer:', arrayBuffer.byteLength)
+
+                    const wavMetadata = await getWavFileInfo(arrayBuffer)
+                    logger.log('wavMetadata:', wavMetadata)
+
+                    // convert to Float32Array
+                    const { pcmValues } = await convertPCMToFloat32({
+                        buffer: arrayBuffer,
+                        bitDepth: wavMetadata.bitDepth,
+                        skipWavHeader: false,
+                        logger,
+                    })
+                    logger.log('pcmValues:', pcmValues.slice(0, 10))
+                    setAudioBuffer(pcmValues)
                 }
             }
         } catch (error) {
@@ -303,7 +332,9 @@ export const PlayPage = () => {
                 bitDepth: wavMetadata.bitDepth,
                 skipWavHeader: false,
             })
-            audioBuffer = pcmValues
+
+            logger.log('pcmValues:', pcmValues)
+            setAudioBuffer(pcmValues)
         } catch (error) {
             logger.error('Error saving file to files:', error)
             show({ type: 'error', message: 'Error saving file' })
@@ -378,8 +409,9 @@ export const PlayPage = () => {
                 <Button onPress={pickAudioFile} mode="contained">
                     Select Audio File
                 </Button>
-                {isWeb && (
-                    <View style={styles.actionsContainer}>
+
+                <View style={styles.actionsContainer}>
+                    {isWeb && (
                         <Button
                             mode="contained"
                             onPress={async () => {
@@ -398,14 +430,14 @@ export const PlayPage = () => {
                         >
                             Auto Load
                         </Button>
-                        <LabelSwitch
-                            label="Transcription"
-                            value={enableTranscription}
-                            containerStyle={styles.labelSwitchContainer}
-                            onValueChange={setEnableTranscription}
-                        />
-                    </View>
-                )}
+                    )}
+                    <LabelSwitch
+                        label="Transcription"
+                        value={enableTranscription}
+                        containerStyle={styles.labelSwitchContainer}
+                        onValueChange={setEnableTranscription}
+                    />
+                </View>
             </View>
             {processing && <ActivityIndicator size="large" />}
             {audioUri && (
@@ -427,7 +459,14 @@ export const PlayPage = () => {
                             />
                         </View>
                     )}
-                    {isWeb && enableTranscription && audioBuffer && (
+                    <Text>
+                        Transcription:{' '}
+                        {JSON.stringify(enableTranscription) +
+                            ' ' +
+                            audioBuffer !==
+                            undefined}
+                    </Text>
+                    {enableTranscription && audioBuffer && (
                         <View>
                             <Transcriber
                                 fullAudio={audioBuffer}

@@ -6,11 +6,11 @@ PODS:
     - ReactCommon/turbomodule/core
   - EXConstants (17.0.3):
     - ExpoModulesCore
-  - Expo (52.0.11):
+  - Expo (52.0.17):
     - ExpoModulesCore
   - ExpoAsset (11.0.1):
     - ExpoModulesCore
-  - ExpoAudioStream (1.2.5):
+  - ExpoAudioStream (1.4.0):
     - ExpoModulesCore
   - ExpoClipboard (7.0.0):
     - ExpoModulesCore
@@ -20,7 +20,7 @@ PODS:
     - ExpoModulesCore
   - ExpoFont (13.0.1):
     - ExpoModulesCore
-  - ExpoHead (4.0.9):
+  - ExpoHead (4.0.11):
     - ExpoModulesCore
   - ExpoKeepAwake (14.0.1):
     - ExpoModulesCore
@@ -28,7 +28,7 @@ PODS:
     - ExpoModulesCore
   - ExpoLocalization (16.0.0):
     - ExpoModulesCore
-  - ExpoModulesCore (2.0.6):
+  - ExpoModulesCore (2.1.1):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1651,7 +1651,7 @@ PODS:
     - Yoga
   - RNLocalize (3.2.1):
     - React-Core
-  - RNReanimated (3.16.2):
+  - RNReanimated (3.16.3):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1671,10 +1671,10 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated (= 3.16.2)
-    - RNReanimated/worklets (= 3.16.2)
+    - RNReanimated/reanimated (= 3.16.3)
+    - RNReanimated/worklets (= 3.16.3)
     - Yoga
-  - RNReanimated/reanimated (3.16.2):
+  - RNReanimated/reanimated (3.16.3):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1694,9 +1694,9 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated/apple (= 3.16.2)
+    - RNReanimated/reanimated/apple (= 3.16.3)
     - Yoga
-  - RNReanimated/reanimated/apple (3.16.2):
+  - RNReanimated/reanimated/apple (3.16.3):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1717,7 +1717,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNReanimated/worklets (3.16.2):
+  - RNReanimated/worklets (3.16.3):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1784,6 +1784,11 @@ PODS:
     - ReactCommon/turbomodule/core
     - Yoga
   - SocketRocket (0.7.1)
+  - whisper-rn (0.4.0-rc.10):
+    - React-Core
+    - whisper-rn/no-require-arc (= 0.4.0-rc.10)
+  - whisper-rn/no-require-arc (0.4.0-rc.10):
+    - React-Core
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -1876,6 +1881,7 @@ DEPENDENCIES:
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
+  - whisper-rn (from `../node_modules/whisper.rn`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -2058,6 +2064,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-svg"
   RNVectorIcons:
     :path: "../node_modules/react-native-vector-icons"
+  whisper-rn:
+    :path: "../node_modules/whisper.rn"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
@@ -2066,18 +2074,18 @@ SPEC CHECKSUMS:
   DoubleConversion: f16ae600a246532c4020132d54af21d0ddb2a385
   EXAV: fc9706da25733f79db3305035ee3bc6174a6590c
   EXConstants: 277129d9a42ba2cf1fad375e7eaa9939005c60be
-  Expo: 8948e8e417f699ed125a80389e150aabbae404bf
+  Expo: 74b3356fc899e189782a177cef9133a53bed16e2
   ExpoAsset: 6f7a8887cbb9fb39fdb0808e7f6f74ba0e1ae9b6
-  ExpoAudioStream: cfe75d4ee72fb776d5d46b41bdbdbf9c25f3dc00
+  ExpoAudioStream: 940190a4845161b69ff8d9be2069b2f4136f9b17
   ExpoClipboard: 8c704e60118cbdc5588a12abf02aec73ea404346
   ExpoDocumentPicker: cb4e43f58f0b5806e15db9baac36c6d99d19ffdf
   ExpoFileSystem: 83da9dbce2371cc72c3a3ef49e0df54a117310f1
   ExpoFont: 12b0217e42ac97029d0f317f0486039a8508cf52
-  ExpoHead: 8f54ac800b3ef60095313aa49f091c9c94c7304e
+  ExpoHead: 0a8bb3bdc603d2249e7a590a969310230ed1b389
   ExpoKeepAwake: 22173f45d767c7d37403fdf48292726901d69ce7
   ExpoLinking: 40e30b571ffb77b280a38bed137d89b21f46f2a0
   ExpoLocalization: d81f70d53db94b31e4a0b1e11007424ea1011a1c
-  ExpoModulesCore: aae34f5458cf6ce1632f17f00de0f10d8552d954
+  ExpoModulesCore: 3d8f97097e701a46bbe1ec9d14e1678c2b5a3977
   ExpoSharing: cfc87a3a494eb071f8814b79649ba78d135cc424
   FBLazyVector: be7314029d6ec6b90f0f75ce1195b8130ed9ac4f
   fmt: 10c6e61f4be25dc963c36bd73fc7b1705fe975be
@@ -2145,11 +2153,12 @@ SPEC CHECKSUMS:
   ReactCommon: b8485556b596ef2f44f59bc586113bda138fb804
   RNGestureHandler: 27a63f2218affdf1a426d56682f9b174904838b3
   RNLocalize: e7378161f0b6a6365407eb2377aab46cc38047d8
-  RNReanimated: f7c41f0171086c1d0e8b9dc366548b92fd04d533
+  RNReanimated: 929c26a706dfe1af8feee9f2cf78004394e4dd04
   RNScreens: 2de25b8970c8dd481b4b310350d996441c63f65a
   RNSVG: 8542aa11770b27563714bbd8494a8436385fc85f
   RNVectorIcons: 182892e7d1a2f27b52d3c627eca5d2665a22ee28
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
+  whisper-rn: 104841989f7263a8871dd5e6e347916d7db22939
   Yoga: 3deb2471faa9916c8a82dda2a22d3fba2620ad37
 
 PODFILE CHECKSUM: 181458f6bfe3754bafaaaab6d2e13d0d749cddbd

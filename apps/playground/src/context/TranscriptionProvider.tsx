@@ -30,7 +30,7 @@ export interface TranscribeParams {
 
 export interface TranscriptionContextProps extends TranscriptionState {
     initialize: () => void
-    transcribe: (_: TranscribeParams) => Promise<TranscriberData>
+    transcribe: (_: TranscribeParams) => Promise<TranscriberData | undefined>
     updateConfig: (
         config: Partial<TranscriptionState>,
         shouldInitialize?: boolean

@@ -22,20 +22,14 @@ import {
     TranscriptionState,
 } from './TranscriptionProvider.types'
 import { baseLogger, config } from '../config'
+import { TranscribeParams } from './TranscriptionProvider'
 import { useWorker } from '../hooks/useWorker.web'
 
 const logger = baseLogger.extend('TranscriptionProvider')
 
-export interface TranscribeParams {
-    audioData: Float32Array | undefined
-    position?: number
-    jobId: string
-    onChunkUpdate?: (_: TranscriberUpdateData['data']) => void
-}
-
 export interface TranscriptionContextProps extends TranscriptionState {
     initialize: () => void
-    transcribe: (_: TranscribeParams) => Promise<TranscriberData>
+    transcribe: (_: TranscribeParams) => Promise<TranscriberData | undefined>
     updateConfig: (
         config: Partial<TranscriptionState>,
         shouldInitialize?: boolean
@@ -295,7 +289,8 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     })
                 })
             }
-            return Promise.reject(new Error('No audio data provided'))
+            // return Promise.reject(new Error('No audio data provided'))
+            return Promise.resolve(undefined)
         },
         [webWorker]
     )
