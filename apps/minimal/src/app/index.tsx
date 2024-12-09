@@ -1,12 +1,12 @@
 import {
-    ExpoAudioStreamModule,
     AudioRecording,
+    ExpoAudioStreamModule,
     useAudioRecorder,
 } from '@siteed/expo-audio-stream'
 import { getLogger } from '@siteed/react-native-logger'
-import { Audio } from 'expo-av' // Import for playing audio on native
+import { useAudioPlayer } from 'expo-audio'
 import { useEffect, useState } from 'react'
-import { Button, Platform, StyleSheet, Text, View } from 'react-native'
+import { Button, StyleSheet, Text, View } from 'react-native'
 
 const STOP_BUTTON_COLOR = 'red'
 
@@ -37,43 +37,18 @@ export default function App() {
         isRecording,
         isPaused,
     } = useAudioRecorder({
-        debug: true,
+        logger: console,
     })
     const [audioResult, setAudioResult] = useState<AudioRecording | null>(null)
-    const [, setSound] = useState<Audio.Sound | null>(null) // State for audio playback on native
-
-    const requestPermissions = async ({
-        withNotifications,
-    }: {
-        withNotifications: boolean
-    }) => {
-        if (Platform.OS === 'web') {
-            // defer permissions request when recording starts on web
-            return
-        }
-
-        const { granted } =
-            await ExpoAudioStreamModule.requestPermissionsAsync()
-        if (granted) {
-            console.log('Microphone permissions granted')
-        } else {
-            console.log('Microphone permissions denied')
-        }
-
-        if (withNotifications) {
-            const { granted } =
-                await ExpoAudioStreamModule.requestNotificationPermissionsAsync()
-            if (granted) {
-                console.log(`Notifications permission granted`)
-            } else {
-                console.log(`Refused notifications`)
-            }
-        }
-    }
+    const player = useAudioPlayer(audioResult?.fileUri ?? '')
 
     const handleStart = async () => {
         try {
-            await requestPermissions({ withNotifications: true })
+            const { status } =
+                await ExpoAudioStreamModule.requestPermissionsAsync()
+            if (status !== 'granted') {
+                return
+            }
             const startResult = await startRecording({
                 interval: 500,
                 enableProcessing: true,
@@ -142,12 +117,8 @@ export default function App() {
     )
 
     const handlePlay = async () => {
-        if (audioResult) {
-            const { sound } = await Audio.Sound.createAsync({
-                uri: audioResult.fileUri,
-            })
-            setSound(sound)
-            await sound.playAsync()
+        if (player) {
+            player.play()
         }
     }
 
