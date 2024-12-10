@@ -13,6 +13,10 @@ Before running the application, you'll need to download the required Whisper mod
 
 4. Place all downloaded `.bin` files in the `apps/playground/assets` directory.
 
+```bash
+./scripts/download-models.sh
+```
+
 ## Model Sizes
 - ggml-tiny.en.bin: ~75MB
 - ggml-base.bin: ~142MB
