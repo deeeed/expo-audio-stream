@@ -65,7 +65,7 @@ class AudioStreamManager: NSObject {
     private var remoteCommandCenter: MPRemoteCommandCenter?
 
     weak var delegate: AudioStreamManagerDelegate?  // Define the delegate here
-    
+        
     /// Initializes the AudioStreamManager
     override init() {
         super.init()
@@ -415,18 +415,19 @@ class AudioStreamManager: NSObject {
         }
         
         var newSettings = settings  // Make settings mutable
+        let session = AVAudioSession.sharedInstance()
         
         // Determine the commonFormat based on bitDepth
         let commonFormat: AVAudioCommonFormat
         switch newSettings.bitDepth {
-        case 16:
-            commonFormat = .pcmFormatInt16
-        case 32:
-            commonFormat = .pcmFormatInt32
-        default:
-            Logger.debug("Unsupported bit depth. Defaulting to 16-bit PCM")
-            commonFormat = .pcmFormatInt16
-            newSettings.bitDepth = 16
+            case 16:
+                commonFormat = .pcmFormatInt16
+            case 32:
+                commonFormat = .pcmFormatInt32
+            default:
+                Logger.debug("Unsupported bit depth. Defaulting to 16-bit PCM")
+                commonFormat = .pcmFormatInt16
+                newSettings.bitDepth = 16
         }
         
         emissionInterval = max(100.0, Double(intervalMilliseconds)) / 1000.0
@@ -436,7 +437,6 @@ class AudioStreamManager: NSObject {
         pausedDuration = 0
         isPaused = false
         
-        let session = AVAudioSession.sharedInstance()
         do {
             Logger.debug("Debug: Configuring audio session with sample rate: \(settings.sampleRate) Hz")
             
@@ -448,15 +448,41 @@ class AudioStreamManager: NSObject {
                 newSettings.sampleRate = session.sampleRate
             }
             
-            try session.setCategory(.playAndRecord,
-                mode: .default,
-                options: [.allowBluetooth, .defaultToSpeaker, .mixWithOthers]
-            )
-
+            // Configure audio session based on iOS settings if provided
+            if let audioSessionConfig = settings.ios?.audioSession {
+                try session.setCategory(audioSessionConfig.category, options: audioSessionConfig.categoryOptions)
+                try session.setMode(audioSessionConfig.mode)
+                Logger.debug("""
+                        Audio Session Configuration (Custom):
+                        - Category: \(audioSessionConfig.category)
+                        - Mode: \(audioSessionConfig.mode)
+                        - Options: \(audioSessionConfig.categoryOptions)
+                        """)
+            } else {
+                let defaultCategory = AVAudioSession.Category.playAndRecord
+                let defaultMode = AVAudioSession.Mode.default
+                let defaultOptions: AVAudioSession.CategoryOptions = [
+                    .allowBluetooth,
+                    .defaultToSpeaker,
+                    .mixWithOthers,
+                    .allowBluetoothA2DP,
+                    .allowAirPlay
+                ]
+                
+                try session.setCategory(defaultCategory, mode: defaultMode, options: defaultOptions)
+                Logger.debug("""
+                    Audio Session Configuration (Default):
+                    - Category: \(defaultCategory)
+                    - Mode: \(defaultMode)
+                    - Options: \(defaultOptions)
+                    """)
+            }
+            
             try session.setPreferredSampleRate(settings.sampleRate)
             try session.setPreferredIOBufferDuration(1024 / settings.sampleRate)
             try session.setActive(true)
             Logger.debug("Debug: Audio session activated successfully.")
+
             
             let actualSampleRate = session.sampleRate
             if actualSampleRate != newSettings.sampleRate {

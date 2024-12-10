@@ -6,7 +6,6 @@ import { setLoggerConfig } from '@siteed/react-native-logger'
 import { App as ExpoRouterApp } from 'expo-router/build/qualified-entry'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useState } from 'react'
-import { Platform } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 
 import { useReanimatedWebHack } from './hooks/useReanimatedWebHack'
@@ -14,7 +13,6 @@ import { useReanimatedWebHack } from './hooks/useReanimatedWebHack'
 setLoggerConfig({
     namespaces: '*',
     maxLogs: 20,
-    disableExtraParamsInConsole: Platform.OS !== 'web',
 })
 
 export const WithUIProvider = ({ children }: { children: React.ReactNode }) => {

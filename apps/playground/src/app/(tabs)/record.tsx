@@ -28,6 +28,7 @@ import { Platform, StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 
 import { AudioRecordingView } from '../../component/AudioRecordingView'
+import { IOSSettingsConfig } from '../../component/IOSSettingsConfig'
 import LiveTranscriber from '../../component/LiveTranscriber'
 import { NativeNotificationConfig } from '../../component/NativeNotificationConfig'
 import { ProgressItems } from '../../component/ProgressItems'
@@ -49,6 +50,19 @@ const baseRecordingConfig: RecordingConfig = {
     encoding: 'pcm_32bit',
     pointsPerSecond: 10,
     enableProcessing: true,
+    ios: {
+        audioSession: {
+            category: 'PlayAndRecord',
+            mode: 'SpokenAudio',
+            categoryOptions: [
+                'MixWithOthers',
+                'DefaultToSpeaker',
+                'AllowBluetooth',
+                'AllowBluetoothA2DP',
+                'AllowAirPlay',
+            ],
+        },
+    },
     notification: {
         title: 'Recording in progress',
         text: 'Please wait while we transcribe your audio',
@@ -123,6 +137,9 @@ export default function RecordScreen() {
                     baseRecordingConfig.notification?.ios?.categoryIdentifier,
             },
         })
+    const [iosSettingsEnabled, setIOSSettingsEnabled] = useState(false)
+    const [iosSettings, setIOSSettings] = useState<RecordingConfig['ios']>(baseRecordingConfig.ios)
+
     const audioChunks = useRef<string[]>([])
     const webAudioChunks = useRef<Float32Array>(new Float32Array(0))
     const [streamConfig, setStreamConfig] =
@@ -270,7 +287,7 @@ export default function RecordScreen() {
 
             if (!ready) {
                 logger.info(`Initializing transcription...`)
-                initialize()
+                initialize({ contextOptions: { filePath: '' } })
             }
             // Clear previous audio chunks
             audioChunks.current = []
@@ -589,6 +606,27 @@ export default function RecordScreen() {
                     message="Live Transcription is only available at 16000hz sample rate"
                 />
             )}
+
+            {Platform.OS === 'ios' && (
+                <>
+                    <LabelSwitch
+                        label="Custom iOS Audio Settings"
+                        value={iosSettingsEnabled}
+                        onValueChange={setIOSSettingsEnabled}
+                    />
+                    {iosSettingsEnabled && (
+                        <IOSSettingsConfig
+                            enabled={iosSettingsEnabled}
+                            onEnabledChange={setIOSSettingsEnabled}
+                            config={iosSettings}
+                            onConfigChange={(newConfig) => {
+                                console.debug(`New iOS config`, newConfig)
+                                setIOSSettings(newConfig)
+                            }}
+                        />
+                    )}
+                </>
+            )}
             <Button mode="contained" onPress={() => handleStart()}>
                 Start Recording
             </Button>
@@ -608,8 +646,9 @@ export default function RecordScreen() {
             ...prev,
             showNotification: notificationEnabled,
             notification: notificationConfig,
+            ios: iosSettings,
         }))
-    }, [notificationEnabled, notificationConfig])
+    }, [notificationEnabled, notificationConfig, iosSettings])
 
     if (error) {
         return (
