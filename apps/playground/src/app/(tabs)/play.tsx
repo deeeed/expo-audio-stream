@@ -69,6 +69,7 @@ export const PlayPage = () => {
     const [transcript, setTranscript] = useState<TranscriberData>()
     const audioBufferRef = useRef<ArrayBuffer | null>(null)
     const { show } = useToast()
+    const [showVisualizer, setShowVisualizer] = useState<boolean>(true)
 
     const { files, removeFile, refreshFiles } = useAudioFiles()
 
@@ -387,6 +388,18 @@ export const PlayPage = () => {
 
     return (
         <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
+            <LabelSwitch
+                label="Transcription"
+                value={enableTranscription}
+                containerStyle={styles.labelSwitchContainer}
+                onValueChange={setEnableTranscription}
+            />
+            <LabelSwitch
+                label="Show Visualizer"
+                value={showVisualizer}
+                containerStyle={styles.labelSwitchContainer}
+                onValueChange={setShowVisualizer}
+            />
             <View style={styles.actionsContainer}>
                 <Button onPress={pickAudioFile} mode="contained">
                     Select Audio File
@@ -413,18 +426,12 @@ export const PlayPage = () => {
                             Auto Load
                         </Button>
                     )}
-                    <LabelSwitch
-                        label="Transcription"
-                        value={enableTranscription}
-                        containerStyle={styles.labelSwitchContainer}
-                        onValueChange={setEnableTranscription}
-                    />
                 </View>
             </View>
             {processing && <ActivityIndicator size="large" />}
             {audioUri && (
                 <View style={{ gap: 10 }}>
-                    {audioAnalysis && (
+                    {showVisualizer && audioAnalysis && (
                         <View>
                             <AudioVisualizer
                                 candleSpace={2}
