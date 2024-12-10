@@ -1,5 +1,6 @@
 // apps/playground/src/context/TranscriptionProvider.tsx
 import { TranscriberData } from '@siteed/expo-audio-stream'
+import throttle from 'lodash.throttle'
 import React, {
     createContext,
     ReactNode,
@@ -21,20 +22,14 @@ import {
     TranscriptionState,
 } from './TranscriptionProvider.types'
 import { baseLogger, config } from '../config'
+import { TranscribeParams } from './TranscriptionProvider'
 import { useWorker } from '../hooks/useWorker.web'
 
 const logger = baseLogger.extend('TranscriptionProvider')
 
-export interface TranscribeParams {
-    audioData: Float32Array | undefined
-    position?: number
-    jobId: string
-    onChunkUpdate?: (_: TranscriberUpdateData['data']) => void
-}
-
 export interface TranscriptionContextProps extends TranscriptionState {
     initialize: () => void
-    transcribe: (_: TranscribeParams) => Promise<TranscriberData>
+    transcribe: (_: TranscribeParams) => Promise<TranscriberData | undefined>
     updateConfig: (
         config: Partial<TranscriptionState>,
         shouldInitialize?: boolean
@@ -85,21 +80,30 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         Record<string, (error: Error) => void>
     >({})
 
-    const webWorker = useWorker({
-        url: config.whisperWorkerUrl,
-        messageEventHandler: (event) => {
+    const lastProgressUpdate = useRef<number>(0)
+    const lastTranscriptRef = useRef<TranscriberData | null>(null)
+
+    const messageEventHandler = useCallback(
+        throttle((event: MessageEvent) => {
             const message = event.data
             const jobId = message.jobId
             switch (message.status) {
-                case 'progress':
-                    dispatch({
-                        type: 'UPDATE_PROGRESS_ITEM',
-                        progressItem: message,
-                    })
+                case 'progress': {
+                    if (
+                        !lastProgressUpdate.current ||
+                        Date.now() - lastProgressUpdate.current > 100
+                    ) {
+                        lastProgressUpdate.current = Date.now()
+                        dispatch({
+                            type: 'UPDATE_PROGRESS_ITEM',
+                            progressItem: message,
+                        })
+                    }
                     break
+                }
                 case 'update': {
                     const updateMessage = message as TranscriberUpdateData
-                    const { jobId, data } = updateMessage
+                    const { data } = updateMessage
                     const text = data[0]
                     const { chunks } = data[1]
                     const transcript: TranscriberData = {
@@ -110,12 +114,22 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         startTime: updateMessage.startTime,
                         endTime: updateMessage.endTime,
                     }
-                    dispatch({
-                        type: 'UPDATE_STATE',
-                        payload: {
-                            transcript,
-                        },
-                    })
+
+                    const lastTranscript = lastTranscriptRef.current
+                    if (
+                        !lastTranscript ||
+                        lastTranscript.id !== transcript.id ||
+                        lastTranscript.text !== transcript.text
+                    ) {
+                        lastTranscriptRef.current = transcript
+                        dispatch({
+                            type: 'UPDATE_STATE',
+                            payload: {
+                                transcript,
+                                isBusy: true,
+                            },
+                        })
+                    }
                     break
                 }
                 case 'complete': {
@@ -132,6 +146,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         type: 'UPDATE_STATE',
                         payload: {
                             transcript,
+                            isBusy: false,
                         },
                     })
                     if (transcribeResolveMapRef.current[jobId]) {
@@ -142,13 +157,13 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     break
                 }
                 case 'initiate':
-                    dispatch({
-                        type: 'UPDATE_STATE',
-                        payload: {
-                            isModelLoading: true,
-                            progressItems: [...state.progressItems, message],
-                        },
-                    })
+                    // dispatch({
+                    //     type: 'UPDATE_STATE',
+                    //     payload: {
+                    //         isModelLoading: true,
+                    //         progressItems: [...state.progressItems, message],
+                    //     },
+                    // })
                     break
                 case 'ready':
                     dispatch({
@@ -180,25 +195,42 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 }
                 case 'done': {
                     dispatch({
-                        type: 'UPDATE_STATE',
-                        payload: {
-                            progressItems: state.progressItems.filter(
-                                (item) => {
-                                    logger.debug(
-                                        `item.file=${item.file} message.file=${message.file}`
-                                    )
-                                    return item?.file !== message.file
-                                }
-                            ),
-                        },
+                        type: 'REMOVE_PROGRESS_ITEM',
+                        payload: message.file,
                     })
                     break
                 }
                 default:
                     break
             }
-        },
+        }, 100), // Throttle to run at most once every 100ms
+        []
+    )
+
+    const webWorker = useWorker({
+        url: config.whisperWorkerUrl,
+        messageEventHandler,
     })
+
+    const modelRef = useRef(state.model)
+    const quantizedRef = useRef(state.quantized)
+    const multilingualRef = useRef(state.multilingual)
+    const subtaskRef = useRef(state.subtask)
+    const languageRef = useRef(state.language)
+
+    useEffect(() => {
+        modelRef.current = state.model
+        quantizedRef.current = state.quantized
+        multilingualRef.current = state.multilingual
+        subtaskRef.current = state.subtask
+        languageRef.current = state.language
+    }, [
+        state.model,
+        state.quantized,
+        state.multilingual,
+        state.subtask,
+        state.language,
+    ])
 
     const initialize = useCallback(() => {
         dispatch({
@@ -207,25 +239,36 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         })
         logger.debug(
             'Initializing transcription...',
-            state.model,
-            state.quantized
+            modelRef.current,
+            quantizedRef.current
         )
         webWorker.postMessage({
             type: 'initialize',
-            model: state.model,
-            quantized: state.quantized,
-            multilingual: state.multilingual,
-            subtask: state.multilingual ? state.subtask : null,
+            model: modelRef.current,
+            quantized: quantizedRef.current,
+            multilingual: multilingualRef.current,
+            subtask: multilingualRef.current ? subtaskRef.current : null,
             language:
-                state.multilingual && state.language !== 'auto'
-                    ? state.language
+                multilingualRef.current && languageRef.current !== 'auto'
+                    ? languageRef.current
                     : null,
         })
-    }, [webWorker, state.model, state.quantized])
+    }, [dispatch, webWorker])
 
     const transcribe = useCallback(
         async ({ audioData, jobId, position = 0 }: TranscribeParams) => {
-            if (audioData && audioData !== audioDataRef.current) {
+            console.debug(
+                `transcribe, audioData: ${typeof audioData}, jobId: ${jobId}, position: ${position}`
+            )
+
+            // First check if audioData exists
+            if (!audioData) return Promise.resolve(undefined)
+
+            // Then check the type
+            if (
+                typeof audioData === 'object' &&
+                (!audioDataRef.current || audioData !== audioDataRef.current)
+            ) {
                 audioDataRef.current = audioData
                 dispatch({
                     type: 'TRANSCRIPTION_START',
@@ -243,27 +286,30 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         audio: audioData,
                         position,
                         jobId,
-                        model: state.model,
-                        multilingual: state.multilingual,
-                        quantized: state.quantized,
-                        subtask: state.multilingual ? state.subtask : null,
+                        model: modelRef.current,
+                        multilingual: multilingualRef.current,
+                        quantized: quantizedRef.current,
+                        subtask: multilingualRef.current
+                            ? subtaskRef.current
+                            : null,
                         language:
-                            state.multilingual && state.language !== 'auto'
-                                ? state.language
+                            multilingualRef.current &&
+                            languageRef.current !== 'auto'
+                                ? languageRef.current
                                 : null,
                     })
                 })
+            } else if (typeof audioData === 'string') {
+                // Handle string input (base64 or file path) by rejecting
+                return Promise.reject(
+                    new Error(
+                        'String audio data is not supported in web version'
+                    )
+                )
             }
-            return Promise.reject(new Error('No audio data provided'))
+            return Promise.resolve(undefined)
         },
-        [
-            webWorker,
-            state.model,
-            state.multilingual,
-            state.quantized,
-            state.subtask,
-            state.language,
-        ]
+        [webWorker]
     )
 
     const updateConfig = useCallback(
@@ -294,13 +340,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 initialize()
             }
         }
-    }, [
-        state.model,
-        state.multilingual,
-        state.quantized,
-        state.language,
-        initialize,
-    ])
+    }, [initialize])
 
     const contextValue = useMemo(
         () => ({

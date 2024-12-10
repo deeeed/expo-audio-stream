@@ -1,24 +1,27 @@
 import '@expo/metro-runtime'
 import { LoadSkiaWeb } from '@shopify/react-native-skia/lib/module/web'
-import { setLoggerConfig, getLogger } from '@siteed/react-native-logger'
 import { version as SkiaVersion } from 'canvaskit-wasm/package.json'
-import { App } from 'expo-router/build/qualified-entry'
+import { registerRootComponent } from 'expo'
 import { renderRootComponent } from 'expo-router/build/renderRootComponent'
+import { Platform } from 'react-native'
 
-setLoggerConfig({ namespaces: '*' })
-const logger = getLogger('index.web.tsx')
+import { AppRoot } from './AppRoot'
 
-LoadSkiaWeb({
-    locateFile: (path) => {
-        const url = `https://cdn.jsdelivr.net/npm/canvaskit-wasm@${SkiaVersion}/bin/full/${path}`
-        logger.log(`__DEV__=${__DEV__} Loading Skia: ${url}`)
-        return url
-    },
-})
-    .then(async () => {
-        renderRootComponent(App)
-        return true
+if (Platform.OS === 'web') {
+    LoadSkiaWeb({
+        locateFile: (path) => {
+            const url = `https://cdn.jsdelivr.net/npm/canvaskit-wasm@${SkiaVersion}/bin/full/${path}`
+            console.log(`__DEV__=${__DEV__} Loading Skia: ${url}`)
+            return url
+        },
     })
-    .catch((error) => {
-        console.error('Failed to load Skia', error)
-    })
+        .then(async () => {
+            renderRootComponent(AppRoot)
+            return true
+        })
+        .catch((error) => {
+            console.error('Failed to load Skia', error)
+        })
+} else {
+    registerRootComponent(AppRoot)
+}

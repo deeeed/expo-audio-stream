@@ -6,19 +6,13 @@
 
 # Function: AudioRecorderProvider()
 
-> **AudioRecorderProvider**(`props`, `deprecatedLegacyContext`?): `ReactNode`
+> **AudioRecorderProvider**(`props`, `context`?): `ReactNode`
 
 ## Parameters
 
 • **props**: `AudioRecorderProviderProps`
 
-• **deprecatedLegacyContext?**: `any`
-
-**Deprecated**
-
-**See**
-
-[React Docs](https://legacy.reactjs.org/docs/legacy-context.html#referencing-context-in-lifecycle-methods)
+• **context?**: `any`
 
 ## Returns
 
@@ -26,4 +20,4 @@
 
 ## Defined in
 
-[src/AudioRecorder.provider.tsx:50](https://github.com/deeeed/expo-audio-stream/blob/d09cba6753f6db88492aae446fb1419025e01b89/packages/expo-audio-stream/src/AudioRecorder.provider.tsx#L50)
+[src/AudioRecorder.provider.tsx:33](https://github.com/deeeed/expo-audio-stream/blob/754e9934983db0d7bc918d04aa964c790ad31b94/packages/expo-audio-stream/src/AudioRecorder.provider.tsx#L33)

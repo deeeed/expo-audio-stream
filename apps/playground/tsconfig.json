@@ -2,6 +2,7 @@
     "extends": "expo/tsconfig.base",
     "compilerOptions": {
         "strict": true,
+        "types": ["node"],
         "paths": {
             "@siteed/expo-audio-stream": [
                 "../../packages/expo-audio-stream/src/index"
@@ -13,5 +14,5 @@
             "@siteed/expo-audio-ui/*": ["../../packages/expo-audio-ui/src/*"]
         }
     },
-    "include": ["src"]
+    "include": ["src", "app.config.ts"]
 }

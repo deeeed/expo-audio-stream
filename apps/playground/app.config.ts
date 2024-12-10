@@ -1,4 +1,7 @@
+// Keeo this on top
 import 'ts-node/register' // Add this to import TypeScript files
+
+// Deps
 import { ExpoConfig } from '@expo/config'
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -10,7 +13,7 @@ const config: ExpoConfig = {
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
-    scheme: 'net.siteed.audiostream.example',
+    scheme: 'net.siteed.audiostream.audioplayground',
     splash: {
         image: './assets/splash.png',
         resizeMode: 'contain',
@@ -43,6 +46,12 @@ const config: ExpoConfig = {
             },
         ],
         [
+            'expo-font',
+            {
+                fonts: ['./assets/Roboto/Roboto-Regular.ttf'],
+            },
+        ],
+        [
             'expo-build-properties',
             {
                 ios: {
@@ -53,6 +62,7 @@ const config: ExpoConfig = {
                 },
             },
         ],
+        ['./plugins/withCustomGradleConfig', {}],
         'expo-localization',
         [
             'expo-asset',

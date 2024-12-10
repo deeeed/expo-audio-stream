@@ -27,6 +27,13 @@ export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'
 export type SampleRate = 16000 | 44100 | 48000
 export type BitDepth = 8 | 16 | 32
 
+export type ConsoleLike = {
+    log: (message: string, ...args: unknown[]) => void
+    debug: (message: string, ...args: unknown[]) => void
+    warn: (message: string, ...args: unknown[]) => void
+    error: (message: string, ...args: unknown[]) => void
+}
+
 export interface Chunk {
     text: string
     timestamp: [number, number | null]
@@ -64,17 +71,124 @@ export interface StartRecordingResult {
 }
 
 export interface RecordingConfig {
-    sampleRate?: SampleRate // Sample rate for recording
-    channels?: 1 | 2 // 1 or 2 (MONO or STEREO)
-    encoding?: EncodingType // Encoding type for the recording
-    interval?: number // Interval in milliseconds at which to emit recording data
+    // Sample rate for recording (16000, 44100, or 48000 Hz)
+    sampleRate?: SampleRate
 
-    // Optional parameters for audio processing
-    enableProcessing?: boolean // Boolean to enable/disable audio processing (default is false)
-    pointsPerSecond?: number // Number of data points to extract per second of audio (default is 1000)
-    algorithm?: AmplitudeAlgorithm // Algorithm to use for amplitude computation (default is "rms")
-    features?: AudioFeaturesOptions // Feature options to extract (default is empty)
+    // Number of audio channels (1 for mono, 2 for stereo)
+    channels?: 1 | 2
 
-    onAudioStream?: (_: AudioDataEvent) => Promise<void> // Callback function to handle audio stream
-    onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void> // Callback function to handle audio features extraction results
+    // Encoding type for the recording (pcm_32bit, pcm_16bit, pcm_8bit)
+    encoding?: EncodingType
+
+    // Interval in milliseconds at which to emit recording data
+    interval?: number
+
+    // Keep the device awake while recording (default is false)
+    keepAwake?: boolean
+
+    // Show a notification during recording (default is false)
+    showNotification?: boolean
+
+    // Show waveform in the notification (Android only, when showNotification is true)
+    showWaveformInNotification?: boolean
+
+    // Configuration for the notification
+    notification?: NotificationConfig
+
+    // Enable audio processing (default is false)
+    enableProcessing?: boolean
+
+    // Number of data points to extract per second of audio (default is 1000)
+    pointsPerSecond?: number
+
+    // Algorithm to use for amplitude computation (default is "rms")
+    algorithm?: AmplitudeAlgorithm
+
+    // Feature options to extract (default is empty)
+    features?: AudioFeaturesOptions
+
+    // Callback function to handle audio stream
+    onAudioStream?: (_: AudioDataEvent) => Promise<void>
+
+    // Callback function to handle audio features extraction results
+    onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void>
+}
+
+export interface NotificationConfig {
+    // Title of the notification
+    title?: string
+
+    // Main text content of the notification
+    text?: string
+
+    // Icon to be displayed in the notification (resource name or URI)
+    icon?: string
+
+    // Android-specific notification configuration
+    android?: {
+        // Unique identifier for the notification channel
+        channelId?: string
+
+        // User-visible name of the notification channel
+        channelName?: string
+
+        // User-visible description of the notification channel
+        channelDescription?: string
+
+        // Unique identifier for this notification
+        notificationId?: number
+
+        // List of actions that can be performed from the notification
+        actions?: NotificationAction[]
+
+        // Configuration for the waveform visualization in the notification
+        waveform?: WaveformConfig
+
+        // Color of the notification LED (if device supports it)
+        lightColor?: string
+
+        // Priority of the notification (affects how it's displayed)
+        priority?: 'min' | 'low' | 'default' | 'high' | 'max'
+
+        // Accent color for the notification (used for the app icon and buttons)
+        accentColor?: string
+    }
+
+    // iOS-specific notification configuration
+    ios?: {
+        // Identifier for the notification category (used for grouping similar notifications)
+        categoryIdentifier?: string
+    }
+}
+
+export interface NotificationAction {
+    // Display title for the action
+    title: string
+
+    // Unique identifier for the action
+    identifier: string
+
+    // Icon to be displayed for the action (Android only)
+    icon?: string
+}
+
+export interface WaveformConfig {
+    color?: string // The color of the waveform (e.g., "#FFFFFF" for white)
+    opacity?: number // Opacity of the waveform (0.0 - 1.0)
+    strokeWidth?: number // Width of the waveform line (default: 1.5)
+    style?: 'stroke' | 'fill' // Drawing style: "stroke" for outline, "fill" for solid
+    mirror?: boolean // Whether to mirror the waveform (symmetrical display)
+    height?: number // Height of the waveform view in dp (default: 64)
+}
+
+export interface UseAudioRecorderState {
+    startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
+    stopRecording: () => Promise<AudioRecording | null>
+    pauseRecording: () => Promise<void>
+    resumeRecording: () => Promise<void>
+    isRecording: boolean
+    isPaused: boolean
+    durationMs: number // Duration of the recording
+    size: number // Size in bytes of the recorded audio
+    analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
 }

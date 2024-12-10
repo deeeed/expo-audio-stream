@@ -1,25 +1,8 @@
 // packages/expo-audio-stream/src/AudioRecorder.provider.tsx
 import React, { createContext, useContext } from 'react'
 
-import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
-import {
-    AudioRecording,
-    RecordingConfig,
-    StartRecordingResult,
-} from './ExpoAudioStream.types'
+import { UseAudioRecorderState } from './ExpoAudioStream.types'
 import { UseAudioRecorderProps, useAudioRecorder } from './useAudioRecorder'
-
-export interface UseAudioRecorderState {
-    startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
-    stopRecording: () => Promise<AudioRecording | null>
-    pauseRecording: () => void
-    resumeRecording: () => void
-    isRecording: boolean
-    isPaused: boolean
-    durationMs: number // Duration of the recording
-    size: number // Size in bytes of the recorded audio
-    analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
-}
 
 const initContext: UseAudioRecorderState = {
     isRecording: false,
@@ -32,10 +15,10 @@ const initContext: UseAudioRecorderState = {
     stopRecording: async () => {
         throw new Error('AudioRecorderProvider not found')
     },
-    pauseRecording: () => {
+    pauseRecording: async () => {
         throw new Error('AudioRecorderProvider not found')
     },
-    resumeRecording: () => {
+    resumeRecording: async () => {
         throw new Error('AudioRecorderProvider not found')
     },
 }

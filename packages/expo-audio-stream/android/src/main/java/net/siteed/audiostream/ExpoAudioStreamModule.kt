@@ -5,19 +5,18 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.os.bundleOf
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.interfaces.permissions.Permissions
 
-class ExpoAudioStreamModule() : Module(), EventSender {
+class ExpoAudioStreamModule : Module(), EventSender {
     private lateinit var audioRecorderManager: AudioRecorderManager
     private lateinit var audioProcessor: AudioProcessor
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun definition() = ModuleDefinition {
-        // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-        // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
         // The module will be accessible from `requireNativeModule('ExpoAudioStream')` in JavaScript.
         Name("ExpoAudioStream")
 
@@ -80,6 +79,7 @@ class ExpoAudioStreamModule() : Module(), EventSender {
                 )
 
                 Log.d("ExpoAudioStreamModule", "extractAudioAnalysis: $recordingConfig")
+                audioProcessor.resetCumulativeAmplitudeRange()
 
                 val analysisData = audioProcessor.processAudioData(audioData.data, recordingConfig)
                 promise.resolve(analysisData.toDictionary())
@@ -97,11 +97,75 @@ class ExpoAudioStreamModule() : Module(), EventSender {
         }
 
         AsyncFunction("requestPermissionsAsync") { promise: Promise ->
-            Permissions.askForPermissionsWithPermissionsManager(appContext.permissions, promise, Manifest.permission.RECORD_AUDIO)
+            try {
+                val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
+
+                // Add foreground service permission for Android 14+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    Log.d(Constants.TAG, "Adding FOREGROUND_SERVICE_MICROPHONE permission request")
+                    permissions.add(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
+                }
+
+                Log.d(Constants.TAG, "Requesting permissions: $permissions")
+                Permissions.askForPermissionsWithPermissionsManager(
+                    appContext.permissions,
+                    promise,
+                    *permissions.toTypedArray()
+                )
+            } catch (e: Exception) {
+                Log.e(Constants.TAG, "Error requesting permissions", e)
+                promise.reject("PERMISSION_ERROR", "Failed to request permissions: ${e.message}", e)
+            }
         }
 
         AsyncFunction("getPermissionsAsync") { promise: Promise ->
-            Permissions.getPermissionsWithPermissionsManager(appContext.permissions, promise, Manifest.permission.RECORD_AUDIO)
+            val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                permissions.add(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
+            }
+
+            Permissions.getPermissionsWithPermissionsManager(
+                appContext.permissions,
+                promise,
+                *permissions.toTypedArray()
+            )
+        }
+
+        AsyncFunction("requestNotificationPermissionsAsync") { promise: Promise ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Permissions.askForPermissionsWithPermissionsManager(
+                    appContext.permissions,
+                    promise,
+                    Manifest.permission.POST_NOTIFICATIONS
+                )
+            } else {
+                promise.resolve(
+                    bundleOf(
+                        "status" to "granted",
+                        "expires" to "never",
+                        "granted" to true
+                    )
+                )
+            }
+        }
+
+        AsyncFunction("getNotificationPermissionsAsync") { promise: Promise ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Permissions.getPermissionsWithPermissionsManager(
+                    appContext.permissions,
+                    promise,
+                    Manifest.permission.POST_NOTIFICATIONS
+                )
+            } else {
+                promise.resolve(
+                    bundleOf(
+                        "status" to "granted",
+                        "expires" to "never",
+                        "granted" to true
+                    )
+                )
+            }
         }
     }
 
@@ -111,9 +175,17 @@ class ExpoAudioStreamModule() : Module(), EventSender {
         val permissionUtils = PermissionUtils(androidContext)
         val audioEncoder = AudioDataEncoder()
         audioRecorderManager =
-            AudioRecorderManager(androidContext.filesDir, permissionUtils, audioEncoder, this)
-        audioProcessor = AudioProcessor(androidContext.filesDir) // Instantiate here with filesDir
+            AudioRecorderManager(androidContext, androidContext.filesDir, permissionUtils, audioEncoder, this)
+        audioRecorderManager = AudioRecorderManager.initialize(
+            androidContext,
+            androidContext.filesDir,
+            permissionUtils,
+            audioEncoder,
+            this
+        )
+        audioProcessor = AudioProcessor(androidContext.filesDir)
     }
+
 
     override fun sendExpoEvent(eventName: String, params: Bundle) {
         Log.d(Constants.TAG, "Sending event: $eventName")

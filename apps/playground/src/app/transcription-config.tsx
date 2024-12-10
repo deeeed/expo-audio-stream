@@ -3,11 +3,12 @@ import {
     EditableInfoCard,
     Notice,
     ScreenWrapper,
-    useBottomModal,
+    useModal,
     useToast,
 } from '@siteed/design-system'
 import React, { useCallback, useMemo, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
+import { Text } from 'react-native-paper'
 
 import { ProgressItems } from '../component/ProgressItems'
 import {
@@ -46,7 +47,7 @@ const TranscriptionScreen = () => {
             quantized,
             language,
         })
-    const { openDrawer, dismiss } = useBottomModal()
+    const { openDrawer, dismiss } = useModal()
     const { show } = useToast()
 
     const hasEditedConfig = useMemo(() => {
@@ -73,7 +74,16 @@ const TranscriptionScreen = () => {
 
             {!ready && !hasEditedConfig && !isModelLoading && (
                 <View>
-                    <Button onPress={initialize} mode="contained">
+                    <Button
+                        onPress={() =>
+                            initialize({
+                                contextOptions: {
+                                    filePath: 'ggml-tiny.en.bin',
+                                },
+                            })
+                        }
+                        mode="contained"
+                    >
                         Initialize
                     </Button>
                 </View>
