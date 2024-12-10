@@ -25,6 +25,7 @@ export interface TranscriptionState {
 export type TranscriptionAction =
     | { type: 'UPDATE_STATE'; payload: Partial<TranscriptionState> }
     | { type: 'UPDATE_PROGRESS_ITEM'; progressItem: ProgressItem }
+    | { type: 'REMOVE_PROGRESS_ITEM'; payload: string }
     | { type: 'TRANSCRIPTION_START' }
 
 export interface TranscriberUpdateData {
@@ -45,3 +46,12 @@ export interface TranscriberCompleteData {
         endTime: number
     }
 }
+
+export interface TranscribeParams {
+    audioData: string | Float32Array | undefined // Allow both string (for native) and Float32Array (for web)
+    position?: number
+    jobId: string
+    onChunkUpdate?: (_: TranscriberUpdateData['data']) => void
+}
+
+export type AudioInputData = string | Float32Array

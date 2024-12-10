@@ -1,7 +1,5 @@
 import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
-import { getLogger } from '../logger'
 
-const logger = getLogger('extractWaveform')
 export interface ExtractWaveformProps {
     fileUri: string
     numberOfSamples: number
@@ -20,6 +18,5 @@ export const extractWaveform = async ({
         offset,
         length,
     })
-    logger.log(`extractWaveform`, res)
     return res
 }

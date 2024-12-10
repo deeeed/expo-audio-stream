@@ -13,8 +13,6 @@ self.onmessage = function (event) {
         numberOfChannels,
         features: _features,
     } = event.data
-
-    console.log('[AudioFeaturesExtractor] Worker received message', event.data)
     const features = _features || {}
 
     const SILENCE_THRESHOLD = 0.01

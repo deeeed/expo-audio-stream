@@ -1,19 +1,22 @@
-import { TranscriberData } from '@siteed/expo-audio-stream'
+import { Chunk, TranscriberData } from '@siteed/expo-audio-stream'
 import React, { useEffect, useState } from 'react'
 import { View } from 'react-native'
 
+import { baseLogger } from '../config'
 import { ProgressItems } from './ProgressItems'
 import Transcript from './Transcript'
-import { baseLogger } from '../config'
 import { useTranscription } from '../context/TranscriptionProvider'
+import { isWeb } from '../utils/utils'
 
 const logger = baseLogger.extend('Transcriber')
 
 interface TranscriberProps {
-    fullAudio: Float32Array
+    fullAudio: Float32Array | string
     sampleRate: number
     currentTimeMs?: number
     isPlaying?: boolean
+    showActions?: boolean
+    onSelectChunk?: (_: { chunk: Chunk }) => void
     onTranscriptionUpdate?: (params: TranscriberData) => void
     onTranscriptionComplete?: (params: TranscriberData) => void
 }
@@ -25,37 +28,69 @@ const Transcriber: React.FC<TranscriberProps> = ({
     sampleRate,
     currentTimeMs,
     isPlaying,
+    showActions = false,
     onTranscriptionUpdate,
     onTranscriptionComplete,
+    onSelectChunk,
 }) => {
-    const { isBusy, isModelLoading, progressItems, transcribe, transcript } =
-        useTranscription()
-    const [currentAudio, setCurrentAudio] = useState<Float32Array | null>(null)
+    const {
+        isBusy,
+        isModelLoading,
+        ready,
+        progressItems,
+        transcribe,
+        initialize,
+        transcript,
+    } = useTranscription()
+
+    const [currentAudio, setCurrentAudio] = useState<
+        Float32Array | string | null
+    >(fullAudio)
 
     useEffect(() => {
-        if (fullAudio && fullAudio.byteLength > 0) {
-            logger.debug('Decoding audio...', fullAudio)
-            if (sampleRate !== WhisperSampleRate) {
-                logger.warn(
-                    `TODO: Resampling audio from ${sampleRate} to ${WhisperSampleRate}`
-                )
-            }
-            setCurrentAudio(fullAudio)
+        if (sampleRate !== WhisperSampleRate) {
+            logger.warn(
+                `TODO: Resampling audio from ${sampleRate} to ${WhisperSampleRate}`
+            )
         }
+        logger.debug('Decoding audio...', fullAudio)
+        setCurrentAudio(fullAudio)
     }, [fullAudio, sampleRate])
 
     useEffect(() => {
-        if (!isBusy && currentAudio) {
+        console.debug(
+            `Transcriber useEffect, isBusy: ${isBusy}, currentAudio: ${typeof currentAudio}, ready: ${ready}`
+        )
+        if (!isBusy && currentAudio && ready) {
             logger.debug('Start new transcription...', currentAudio)
             transcribe({
                 audioData: currentAudio,
                 position: 0,
                 jobId: Date.now().toString(),
             })
+                .then((result) => {
+                    console.debug('Transcriber result', JSON.stringify(result))
+                    return result
+                })
+                .catch((error) => {
+                    console.error('Transcriber error', error)
+                    return error
+                })
+            // Clear the currentAudio after starting transcription
+            setCurrentAudio(null)
         }
-    }, [isBusy, transcribe, currentAudio])
+        if (!ready && !isModelLoading && isWeb) {
+            logger.debug('Model not ready, starting model loading...')
+            initialize({
+                contextOptions: {
+                    filePath: '',
+                },
+            })
+        }
+    }, [isBusy, transcribe, currentAudio, ready])
 
     useEffect(() => {
+        console.debug('Transcriber transcript useEffect', transcript)
         if (transcript && transcript.text) {
             logger.log(
                 `Transcription ${transcript.isBusy ? 'in progress' : 'completed'}: ${transcript.text}`,
@@ -77,6 +112,8 @@ const Transcriber: React.FC<TranscriberProps> = ({
                 <Transcript
                     transcribedData={transcript}
                     isPlaying={isPlaying}
+                    showActions={showActions}
+                    onSelectChunk={onSelectChunk}
                     currentTimeMs={currentTimeMs}
                 />
             )}

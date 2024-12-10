@@ -1,11 +1,18 @@
+// packages/expo-audio-ui/src/AudioVisualizer/GestureHandler.tsx
 import { DataPoint } from '@siteed/expo-audio-stream'
 import React, { useRef } from 'react'
 import { Platform } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import { SharedValue, runOnJS } from 'react-native-reanimated'
+import {
+    SharedValue,
+    cancelAnimation,
+    runOnJS,
+    useSharedValue,
+} from 'react-native-reanimated'
+
 import { CandleData } from './AudioVisualiser.types'
 
-interface GestureHandlerProps {
+export interface GestureHandlerProps {
     playing: boolean
     mode: 'static' | 'live'
     canvasWidth: number
@@ -18,6 +25,8 @@ interface GestureHandlerProps {
     onSelection: (dataPoint: DataPoint) => void
     onDragEnd: (params: { newTranslateX: number }) => void
     children: React.ReactNode
+    enableInertia?: boolean
+    disableTapSelection?: boolean
 }
 
 export const GestureHandler: React.FC<GestureHandlerProps> = ({
@@ -33,8 +42,12 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
     onDragEnd,
     onSelection,
     children,
+    enableInertia = false,
+    disableTapSelection = false,
 }) => {
     const initialTranslateX = useRef(0)
+    const velocity = useSharedValue(0)
+    const isDecelerating = useSharedValue(false)
 
     if (playing || mode === 'live') {
         return <>{children}</>
@@ -42,28 +55,58 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
 
     const panGesture = Gesture.Pan()
         .onStart((_e) => {
+            console.log('panGesture.onStart')
+            cancelAnimation(translateX)
             initialTranslateX.current = translateX.value
+            velocity.value = 0
+            isDecelerating.value = false
         })
         .onChange((e) => {
             const newTranslateX = translateX.value + e.changeX
-            const clampedTranslateX = Math.max(
+            translateX.value = Math.max(
                 -maxTranslateX,
                 Math.min(0, newTranslateX)
-            ) // Clamping within bounds
-
-            // compute distance since last update
-            //   const distance = Math.abs(initialTranslateX.current - clampedTranslateX);
-            //   const distanceItems = Math.floor(distance / (candleWidth + candleSpace));
-            translateX.value = clampedTranslateX
+            )
+            velocity.value = e.velocityX
+            console.log(
+                `panGesture.onChange velocityX=${e.velocityX} translateX=${translateX.value}`
+            )
         })
         .onEnd((_e) => {
-            runOnJS(onDragEnd)({
-                newTranslateX: translateX.value,
-            })
+            console.log('panGesture.onEnd')
+            if (enableInertia) {
+                isDecelerating.value = true
+                const decelerate = () => {
+                    if (!isDecelerating.value) return
+
+                    const newVelocity = velocity.value * 0.85 // decreasing velocity value to make it slower
+                    const newTranslateX = translateX.value + newVelocity * 0.016 // Assuming 60fps
+
+                    if (Math.abs(newVelocity) < 5) {
+                        isDecelerating.value = false
+                        runOnJS(onDragEnd)({ newTranslateX: translateX.value })
+                        return
+                    }
+
+                    translateX.value = Math.max(
+                        -maxTranslateX,
+                        Math.min(0, newTranslateX)
+                    )
+                    velocity.value = newVelocity
+
+                    requestAnimationFrame(decelerate)
+                }
+
+                requestAnimationFrame(decelerate)
+            } else {
+                runOnJS(onDragEnd)({ newTranslateX: translateX.value })
+            }
+            runOnJS(onDragEnd)({ newTranslateX: translateX.value })
         })
 
     const tapGesture = Gesture.Tap().onEnd((event) => {
-        if (!onSelection) {
+        console.log('tapGesture.onEnd')
+        if (disableTapSelection || !onSelection) {
             return
         }
 
@@ -90,9 +133,12 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
         runOnJS(onSelection)(candle)
     })
 
-    // FIXME: figure out why we cannot activate tapGesture on native
+    // Modify the composedGesture to include the tapGesture only if tap selection is not disabled
     const composedGesture = Platform.select({
-        web: Gesture.Race(panGesture, tapGesture),
+        web: Gesture.Race(
+            panGesture,
+            disableTapSelection ? Gesture.Tap() : tapGesture
+        ),
         default: Gesture.Race(panGesture),
     })
 

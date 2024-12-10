@@ -1,7 +1,6 @@
-import 'intl-pluralrules'
-// Keep polyfills at the top
+import '@expo/metro-runtime'
+import { registerRootComponent } from 'expo'
 
-import 'expo-router/entry'
-import { setLoggerConfig } from '@siteed/react-native-logger'
+import { AppRoot } from './AppRoot'
 
-setLoggerConfig({ namespaces: '*' })
+registerRootComponent(AppRoot)

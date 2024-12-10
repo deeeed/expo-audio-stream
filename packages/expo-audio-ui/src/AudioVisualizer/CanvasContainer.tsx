@@ -1,27 +1,17 @@
-import {
-    Canvas,
-    ExtendedTouchInfo,
-    Group,
-    Path,
-    useTouchHandler,
-} from '@shopify/react-native-skia'
-import React, { useCallback, useMemo, useRef } from 'react'
-import { Platform, View } from 'react-native'
+// packages/expo-audio-ui/src/AudioVisualizer/CanvasContainer.tsx
+import { Canvas, Group, Path, SkFont } from '@shopify/react-native-skia'
+import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
+import React, { useEffect, useMemo, useRef } from 'react'
+import { View } from 'react-native'
 import { SharedValue, useDerivedValue } from 'react-native-reanimated'
 
-import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
-import { StyleProp, ViewStyle } from 'react-native'
-import {
-    CANDLE_ACTIVE_AUDIO_COLOR,
-    CANDLE_ACTIVE_SPEECH_COLOR,
-    CANDLE_OFFCANVAS_COLOR,
-    CANDLE_SELECTED_COLOR,
-} from '../constants'
-import AnimatedCandle from './AnimatedCandle'
-import { CandleData } from './AudioVisualiser.types'
+import AnimatedCandle from '../AnimatedCandle/AnimatedCandle'
+import { SkiaTimeRuler } from '../SkiaTimeRuler/SkiaTimeRuler'
+import Waveform from '../Waveform/Waveform'
+import { YAxis } from '../YAxis/YAxis'
+import { defaultCandleColors } from '../constants'
+import { AudioVisualizerTheme, CandleData } from './AudioVisualiser.types'
 import { drawDottedLine } from './AudioVisualizers.helpers'
-import { SkiaTimeRuler } from './SkiaTimeRuler'
-import { YAxis } from './YAxis'
 
 export interface CanvasContainerProps {
     canvasHeight: number
@@ -45,7 +35,11 @@ export interface CanvasContainerProps {
     minAmplitude: number
     maxAmplitude: number
     onSelection: (dataPoint: DataPoint) => void
-    containerStyle?: StyleProp<ViewStyle>
+    theme: AudioVisualizerTheme
+    font?: SkFont
+    scaleToHumanVoice: boolean
+    disableTapSelection?: boolean
+    visualizationType?: 'candles' | 'waveform'
 }
 
 const CanvasContainer: React.FC<CanvasContainerProps> = ({
@@ -67,25 +61,78 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     selectedCandle,
     showSilence,
     durationMs,
-    onSelection,
+    font,
+    theme,
     minAmplitude,
     maxAmplitude,
-    containerStyle,
+    scaleToHumanVoice,
+    visualizationType = 'candles', // default to 'candles' for backward compatibility
 }) => {
+    const candleColors = {
+        ...defaultCandleColors,
+        ...theme.candle,
+    }
+
     const groupTransform = useDerivedValue(() => {
         return [{ translateX: translateX.value }]
     })
+
+    // Use refs to store the scaling factors
+    const scalingFactorRef = useRef<number>(1)
+    const humanVoiceScalingFactorRef = useRef<number>(1)
+
+    // Define reference values for human voice range
+    const humanVoiceMin = 0.01 // Adjust based on your typical minimum amplitude for speech
+    const humanVoiceMax = 0.2 // Maximum amplitude for normal speech
+    const absoluteMax = 0.8 // Maximum possible amplitude
+
+    // Define the proportion of canvas height for normal speech
+    const normalSpeechHeightProportion = 0.95 // 95% of canvas height for normal speech
+
+    // Update scaling factors when maxAmplitude changes
+    useEffect(() => {
+        scalingFactorRef.current = canvasHeight / maxAmplitude
+        humanVoiceScalingFactorRef.current =
+            canvasHeight / (humanVoiceMax - humanVoiceMin)
+    }, [maxAmplitude, canvasHeight])
+
     const memoizedCandles = useMemo(() => {
         return activePoints.map(
             ({ id, amplitude, visible, activeSpeech, silent }, index) => {
                 if (id === -1) return null
 
-                const centerY = canvasHeight / 2;
-                const scaledAmplitude =
-                    ((amplitude - minAmplitude) * (canvasHeight - 10)) /
-                    (maxAmplitude - minAmplitude)
+                const centerY = canvasHeight / 2
 
-                // const scaledAmplitude = amplitude;
+                let scaledAmplitude: number
+                if (scaleToHumanVoice) {
+                    if (amplitude <= humanVoiceMax) {
+                        // Scale normally within the human voice range
+                        scaledAmplitude =
+                            ((amplitude - humanVoiceMin) /
+                                (humanVoiceMax - humanVoiceMin)) *
+                            (canvasHeight * normalSpeechHeightProportion)
+                    } else {
+                        // For amplitudes above humanVoiceMax, use a logarithmic scale
+                        const baseHeight =
+                            canvasHeight * normalSpeechHeightProportion
+                        const extraHeight =
+                            canvasHeight * (1 - normalSpeechHeightProportion)
+                        const logFactor =
+                            Math.log(amplitude / humanVoiceMax) /
+                            Math.log(absoluteMax / humanVoiceMax)
+                        scaledAmplitude = baseHeight + extraHeight * logFactor
+                    }
+                } else {
+                    // Use the full amplitude range from 0 to absoluteMax when not scaling to human voice
+                    scaledAmplitude = (amplitude / absoluteMax) * canvasHeight
+                }
+
+                // Clamp the scaled amplitude to ensure it stays within the canvas
+                const clampedAmplitude = Math.max(
+                    0,
+                    Math.min(scaledAmplitude, canvasHeight)
+                )
+
                 let delta =
                     Math.ceil(maxDisplayedItems / 2) *
                     (candleWidth + candleSpace)
@@ -97,13 +144,13 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     startIndex * (candleWidth + candleSpace) +
                     delta
 
-                let color = CANDLE_ACTIVE_AUDIO_COLOR
+                let color = candleColors.activeAudioColor
                 if (!visible) {
-                    color = CANDLE_OFFCANVAS_COLOR
+                    color = candleColors.offcanvasColor
                 } else if (selectedCandle && selectedCandle.id === id) {
-                    color = CANDLE_SELECTED_COLOR
+                    color = candleColors.selectedColor
                 } else if (activeSpeech) {
-                    color = CANDLE_ACTIVE_SPEECH_COLOR
+                    color = candleColors.activeSpeechColor
                 }
 
                 const key = `${id}`
@@ -123,10 +170,10 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                             <AnimatedCandle
                                 animated
                                 x={x}
-                                y={centerY - scaledAmplitude / 2}
+                                y={centerY - clampedAmplitude / 2}
                                 startY={centerY}
                                 width={candleWidth}
-                                height={scaledAmplitude}
+                                height={clampedAmplitude}
                                 color={color}
                             />
                         )}
@@ -143,96 +190,78 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
         showSilence,
         candleWidth,
         candleSpace,
+        candleColors,
         mode,
         startIndex,
         selectedCandle,
+        scaleToHumanVoice,
     ])
 
-    const hasProcessedEvent = useRef(false)
-
-    const processEvent = useCallback(
-        (event: ExtendedTouchInfo) => {
-            if (mode === 'live' || hasProcessedEvent.current) return
-
-            const { x, y } = event
-            if (x < 0 || x > canvasWidth || y < 0 || y > canvasHeight) {
-                return
-            }
-
-            hasProcessedEvent.current = true
-
-            setTimeout(() => {
-                hasProcessedEvent.current = false
-            }, 300)
-
-            const plotStart = canvasWidth / 2 + translateX.value
-            const plotEnd = plotStart + totalCandleWidth
-
-            if (x < plotStart || x > plotEnd) {
-                return
-            }
-
-            const adjustedX = x - plotStart
-            const index = Math.floor(adjustedX / (candleWidth + candleSpace))
-            const candle = activePoints[index]
-            if (!candle) {
-                return
-            }
-
-            // Dispatch action to update the selected candle
-            onSelection?.(candle)
-        },
-        [
-            mode,
-            canvasWidth,
-            canvasHeight,
-            translateX,
-            totalCandleWidth,
-            candleWidth,
-            candleSpace,
-            activePoints,
-            onSelection,
-        ]
-    )
-
-    const touchHandler = useTouchHandler({
-        onStart: () => {},
-        onEnd: processEvent,
-    })
+    // Conditionally render visualization based on 'visualizationType' prop
+    const visualizationContent = useMemo(() => {
+        if (visualizationType === 'waveform') {
+            // Prepare data for Waveform component
+            return (
+                <Waveform
+                    activePoints={activePoints}
+                    canvasHeight={canvasHeight}
+                    canvasWidth={canvasWidth}
+                    minAmplitude={minAmplitude}
+                    maxAmplitude={maxAmplitude}
+                    theme={theme}
+                />
+            )
+        } else {
+            // Default to rendering Candles
+            return memoizedCandles
+        }
+    }, [
+        visualizationType,
+        activePoints,
+        canvasHeight,
+        canvasWidth,
+        minAmplitude,
+        maxAmplitude,
+        theme,
+        memoizedCandles,
+    ])
 
     return (
-        <View style={containerStyle}>
-            <Canvas
-                style={{ height: canvasHeight, width: canvasWidth }}
-                onTouch={Platform.OS !== 'web' ? touchHandler : undefined}
-            >
+        <View style={theme.canvasContainer}>
+            <Canvas style={{ height: canvasHeight, width: canvasWidth }}>
                 <Group transform={groupTransform}>
-                    {memoizedCandles}
+                    {visualizationContent}
                     {showRuler && (
                         <SkiaTimeRuler
                             duration={durationMs ?? 0 / 1000}
                             paddingLeft={paddingLeft}
                             width={totalCandleWidth}
+                            font={font}
+                            tickColor={theme.timeRuler.tickColor}
+                            labelColor={theme.timeRuler.labelColor}
                         />
                     )}
                 </Group>
                 {showDottedLine && (
                     <Path
                         path={drawDottedLine({ canvasWidth, canvasHeight })}
-                        color="grey"
+                        color={theme.dottedLineColor || 'grey'}
                         style="stroke"
                         strokeWidth={1}
                     />
                 )}
                 {showYAxis && (
-                  <YAxis
-                    canvasHeight={canvasHeight}
-                    canvasWidth={canvasWidth}
-                    minAmplitude={minAmplitude}
-                    maxAmplitude={maxAmplitude}
-                    algorithm={algorithm}
-                    padding={10} // Adjust the padding as needed
-                  />
+                    <YAxis
+                        canvasHeight={canvasHeight}
+                        canvasWidth={canvasWidth}
+                        minAmplitude={minAmplitude}
+                        maxAmplitude={maxAmplitude}
+                        algorithm={algorithm}
+                        font={font}
+                        padding={10}
+                        tickColor={theme.yAxis.tickColor}
+                        labelColor={theme.yAxis.labelColor}
+                    />
                 )}
             </Canvas>
         </View>

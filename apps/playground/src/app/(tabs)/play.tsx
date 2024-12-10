@@ -1,4 +1,5 @@
 // playground/src/app/(tabs)/play.tsx
+import { useFont } from '@shopify/react-native-skia'
 import {
     Button,
     LabelSwitch,
@@ -8,6 +9,7 @@ import {
 import {
     AudioAnalysis,
     AudioRecording,
+    Chunk,
     convertPCMToFloat32,
     extractAudioAnalysis,
     getWavFileInfo,
@@ -19,8 +21,8 @@ import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
-import { ActivityIndicator } from 'react-native-paper'
+import { StyleSheet, View } from 'react-native'
+import { Text, ActivityIndicator } from 'react-native-paper'
 
 import Transcriber from '../../component/Transcriber'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
@@ -60,9 +62,10 @@ export const PlayPage = () => {
     const [isPlaying, setIsPlaying] = useState<boolean>(false)
     const [currentTime, setCurrentTime] = useState<number>(0)
     const [processing, setProcessing] = useState<boolean>(false)
-    const [audioBuffer, setAudioBuffer] = useState<Float32Array>()
+    const [audioBuffer, setAudioBuffer] = useState<Float32Array | string>()
+    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
     const [enableTranscription, setEnableTranscription] =
-        useState<boolean>(isWeb)
+        useState<boolean>(true)
     const [transcript, setTranscript] = useState<TranscriberData>()
     const audioBufferRef = useRef<ArrayBuffer | null>(null)
     const { show } = useToast()
@@ -111,6 +114,7 @@ export const PlayPage = () => {
                     })
                     logger.log(`AudioAnalysis:`, audioAnalysis)
                     setAudioAnalysis(audioAnalysis)
+                    setAudioBuffer(uri)
                 }
             }
         } catch (error) {
@@ -232,8 +236,11 @@ export const PlayPage = () => {
     }
 
     const handleSeekEnd = (newTime: number) => {
+        logger.debug('handleSeekEnd', newTime)
         if (sound && sound._loaded) {
             sound.setPositionAsync(newTime * 1000)
+        } else {
+            setCurrentTime(newTime)
         }
     }
 
@@ -301,7 +308,9 @@ export const PlayPage = () => {
                 bitDepth: wavMetadata.bitDepth,
                 skipWavHeader: false,
             })
-            audioBuffer = pcmValues
+
+            logger.log('pcmValues:', pcmValues)
+            setAudioBuffer(pcmValues)
         } catch (error) {
             logger.error('Error saving file to files:', error)
             show({ type: 'error', message: 'Error saving file' })
@@ -356,10 +365,16 @@ export const PlayPage = () => {
         } catch (error) {
             logger.error('Error saving file to files:', error)
             // cleanup files if failed
-            await removeFile(audioResult.fileUri)
+            await removeFile(audioResult)
             throw error
         }
     }, [files, fileName, audioUri, logger, refreshFiles, show, transcript])
+
+    const handleSelectChunk = ({ chunk }: { chunk: Chunk }) => {
+        if (chunk.timestamp && chunk.timestamp.length > 0) {
+            setCurrentTime(chunk.timestamp[0])
+        }
+    }
 
     useEffect(() => {
         return sound
@@ -376,8 +391,9 @@ export const PlayPage = () => {
                 <Button onPress={pickAudioFile} mode="contained">
                     Select Audio File
                 </Button>
-                {isWeb && (
-                    <View style={styles.actionsContainer}>
+
+                <View style={styles.actionsContainer}>
+                    {isWeb && (
                         <Button
                             mode="contained"
                             onPress={async () => {
@@ -396,14 +412,14 @@ export const PlayPage = () => {
                         >
                             Auto Load
                         </Button>
-                        <LabelSwitch
-                            label="Transcription"
-                            value={enableTranscription}
-                            containerStyle={styles.labelSwitchContainer}
-                            onValueChange={setEnableTranscription}
-                        />
-                    </View>
-                )}
+                    )}
+                    <LabelSwitch
+                        label="Transcription"
+                        value={enableTranscription}
+                        containerStyle={styles.labelSwitchContainer}
+                        onValueChange={setEnableTranscription}
+                    />
+                </View>
             </View>
             {processing && <ActivityIndicator size="large" />}
             {audioUri && (
@@ -415,22 +431,26 @@ export const PlayPage = () => {
                                 mode="static"
                                 showRuler
                                 showDottedLine
+                                font={font ?? undefined}
                                 playing={isPlaying}
                                 candleWidth={5}
+                                enableInertia
                                 currentTime={currentTime}
-                                canvasHeight={300}
+                                canvasHeight={150}
                                 audioData={audioAnalysis}
                                 onSeekEnd={handleSeekEnd}
                             />
                         </View>
                     )}
-                    {isWeb && enableTranscription && audioBuffer && (
+                    {enableTranscription && audioBuffer && (
                         <View>
                             <Transcriber
                                 fullAudio={audioBuffer}
                                 currentTimeMs={currentTime * 1000}
                                 sampleRate={16000} // this was resampled by AudioContext
+                                onSelectChunk={handleSelectChunk}
                                 onTranscriptionComplete={setTranscript}
+                                onTranscriptionUpdate={setTranscript}
                             />
                         </View>
                     )}

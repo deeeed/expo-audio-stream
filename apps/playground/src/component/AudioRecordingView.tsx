@@ -1,9 +1,10 @@
 // playground/src/component/AudioRecording.tsx
+import { useFont } from '@shopify/react-native-skia'
 import {
     AppTheme,
     Button,
     EditableInfoCard,
-    useBottomModal,
+    useModal,
     useTheme,
     useToast,
 } from '@siteed/design-system'
@@ -18,8 +19,8 @@ import { getLogger } from '@siteed/react-native-logger'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import React, { useEffect, useMemo, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
-import { ActivityIndicator } from 'react-native-paper'
+import { StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Text } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
 
 import {
@@ -45,9 +46,9 @@ const getStyles = ({
     return StyleSheet.create({
         container: {
             padding: 20,
+            backgroundColor: theme.colors.background,
             borderBottomWidth: 3,
             borderColor: isPlaying ? theme.colors.primary : theme.colors.border,
-            backgroundColor: '#fff',
         },
         detailText: {
             fontSize: 16,
@@ -94,6 +95,7 @@ export const AudioRecordingView = ({
 }: AudioRecordingViewProps) => {
     const { show } = useToast()
     const audioUri = recording.fileUri
+    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
     const theme = useTheme()
     const [selectedDataPoint, setSelectedDataPoint] = useState<DataPoint>()
     const [selectedAnalysisConfig, setSelectedAnalysisConfig] =
@@ -140,7 +142,7 @@ export const AudioRecordingView = ({
         () => getStyles({ isPlaying, theme }),
         [isPlaying, theme]
     )
-    const { openDrawer, dismiss } = useBottomModal()
+    const { openDrawer, dismiss } = useModal()
 
     const handleShare = async () => {
         if (!audioUri) {
@@ -306,7 +308,10 @@ export const AudioRecordingView = ({
                     <EditableInfoCard
                         label="Analysis Config"
                         value={JSON.stringify(selectedAnalysisConfig)}
-                        containerStyle={{ margin: 0 }}
+                        containerStyle={{
+                            margin: 0,
+                            backgroundColor: theme.colors.surface,
+                        }}
                         editable
                         onEdit={async () => {
                             logger.log('Edit analysis config')
@@ -330,10 +335,26 @@ export const AudioRecordingView = ({
                     <AudioVisualizer
                         {...visualConfig}
                         playing={isPlaying}
+                        font={font ?? undefined}
                         onSelection={handleSelection}
                         currentTime={position / 1000}
                         audioData={audioAnalysis}
                         onSeekEnd={handleOnSeekEnd}
+                        disableTapSelection={false}
+                        enableInertia
+                        theme={{
+                            buttonText: {
+                                color: theme.colors.primary,
+                            },
+                            timeRuler: {
+                                labelColor: theme.colors.text,
+                                tickColor: theme.colors.text,
+                            },
+                            text: { color: theme.colors.text },
+                            canvasContainer: {
+                                backgroundColor: theme.colors.surface,
+                            },
+                        }}
                     />
                 </View>
             )}

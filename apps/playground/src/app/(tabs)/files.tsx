@@ -1,25 +1,47 @@
 // playground/src/app/(tabs)/files.tsx
 import {
+    AppTheme,
     Button,
     RefreshControl,
     Result,
+    ScreenWrapper,
     Skeleton,
+    useTheme,
     useToast,
 } from '@siteed/design-system'
 import { AudioRecording } from '@siteed/expo-audio-stream'
+import { getLogger } from '@siteed/react-native-logger'
 import { useFocusEffect, useRouter } from 'expo-router'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { FlatList, StyleSheet } from 'react-native'
 
+import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { formatBytes } from '../../utils/utils'
-import { AudioRecordingView } from '../../component/AudioRecordingView'
-import { getLogger } from '@siteed/react-native-logger'
 const logger = getLogger('FilesScreen')
+
+const getStyles = ({ theme }: { theme: AppTheme }) => {
+    return StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor: theme.colors.background,
+            gap: 10,
+            paddingTop: 10,
+            paddingBottom: 80,
+            paddingHorizontal: 20,
+        },
+        recordingContainer: {
+            gap: 10,
+            borderWidth: 1,
+        },
+    })
+}
 
 const FilesScreen = () => {
     const { show } = useToast()
     const router = useRouter()
+    const theme = useTheme()
+    const styles = useMemo(() => getStyles({ theme }), [theme])
 
     const {
         ready,
@@ -38,13 +60,13 @@ const FilesScreen = () => {
 
     const handleDelete = useCallback(
         async (recording: AudioRecording) => {
-            logger.debug(`Deleting recording: ${recording.fileUri}`)
+            logger.debug(`Deleting recording: ${recording.filename}`)
             try {
-                await removeFile(recording.fileUri)
+                await removeFile(recording)
                 show({ type: 'success', message: 'Recording deleted' })
             } catch (error) {
                 logger.error(
-                    `Failed to delete recording: ${recording.fileUri}`,
+                    `Failed to delete recording: ${recording.filename}`,
                     error
                 )
                 show({ type: 'error', message: 'Failed to load audio data' })
@@ -66,27 +88,17 @@ const FilesScreen = () => {
 
     if (!files || files.length === 0) {
         return (
-            <FlatList
-                data={[]}
-                contentContainerStyle={styles.container}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={false}
-                        onRefresh={refreshFiles}
-                    />
-                }
-                ListEmptyComponent={
-                    <Result
-                        title="No recordings found"
-                        status="info"
-                        buttonText="Record"
-                        onButtonPress={() => {
-                            router.push('/')
-                        }}
-                    />
-                }
-                renderItem={() => null}
-            />
+            <ScreenWrapper useInsets style={styles.container}>
+                <Result
+                    title="No recordings found"
+                    status="info"
+                    style={{ padding: 20 }}
+                    buttonText="Record"
+                    onButtonPress={() => {
+                        router.navigate('/record')
+                    }}
+                />
+            </ScreenWrapper>
         )
     }
 
@@ -121,20 +133,5 @@ const FilesScreen = () => {
         />
     )
 }
-
-const styles = StyleSheet.create({
-    container: {
-        gap: 10,
-        backgroundColor: '#fff',
-        paddingTop: 10,
-        paddingBottom: 80,
-        paddingHorizontal: 20,
-        justifyContent: 'center',
-    },
-    recordingContainer: {
-        gap: 10,
-        borderWidth: 1,
-    },
-})
 
 export default FilesScreen

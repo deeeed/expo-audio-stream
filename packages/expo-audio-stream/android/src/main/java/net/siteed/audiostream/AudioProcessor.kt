@@ -7,6 +7,7 @@ import kotlin.math.*
 import android.util.Log
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.system.measureTimeMillis
 
 class AudioProcessor(private val filesDir: File) {
@@ -18,12 +19,19 @@ class AudioProcessor(private val filesDir: File) {
         const val MEL_MAX_FREQ_CONSTANT = 700.0
         const val DCT_SQRT_DIVISOR = 2.0
         const val LOG_BASE = 10.0
+
+        private val uniqueIdCounter = AtomicLong(0L) // Keep as companion object property to maintain during pause/resume cycles
+
+        fun resetUniqueIdCounter() {
+            uniqueIdCounter.set(0L)
+        }
     }
 
     data class AudioData(val data: ByteArray, val sampleRate: Int, val bitDepth: Int, val channels: Int)
 
-    // Add a counter for unique IDs
-    private var uniqueIdCounter = 0L
+    private var cumulativeMinAmplitude = Float.MAX_VALUE
+    private var cumulativeMaxAmplitude = Float.NEGATIVE_INFINITY
+
 
     fun loadAudioFile(originalFileUri: String, skipWavHeader: Boolean = false): AudioData? {
         // Remove the file:// prefix if present
@@ -165,10 +173,9 @@ class AudioProcessor(private val filesDir: File) {
 
         val dataPoints = mutableListOf<DataPoint>()
         var minAmplitude = Float.MAX_VALUE
-        var maxAmplitude = Float.MIN_VALUE
+        var maxAmplitude = Float.NEGATIVE_INFINITY
         val durationMs = (segmentDurationSeconds * 1000).toInt()
 
-        // Measure the time taken for audio processing
         // Measure the time taken for audio processing
         val extractionTimeMs = measureTimeMillis {
             var currentPosition = 0 // Track the current byte position
@@ -205,8 +212,12 @@ class AudioProcessor(private val filesDir: File) {
                 val startPosition = start * bytesPerSample * config.channels
                 val endPosition = end * bytesPerSample * config.channels
 
+                // Update cumulative amplitude range
+                cumulativeMinAmplitude = min(cumulativeMinAmplitude, localMinAmplitude)
+                cumulativeMaxAmplitude = max(cumulativeMaxAmplitude, localMaxAmplitude)
+
                 val dataPoint = DataPoint(
-                    id = uniqueIdCounter++, // Assign unique ID and increment the counter
+                    id = uniqueIdCounter.getAndIncrement(), // Assign unique ID and increment the counter
                     amplitude = if (algorithm == "peak") localMaxAmplitude else rms,
                     activeSpeech = null,
                     dB = dB,
@@ -232,13 +243,17 @@ class AudioProcessor(private val filesDir: File) {
             sampleRate = config.sampleRate,
             samples = totalSamples,
             dataPoints = dataPoints,
-            amplitudeRange = AudioAnalysisData.AmplitudeRange(minAmplitude, maxAmplitude),
+            amplitudeRange = AudioAnalysisData.AmplitudeRange(cumulativeMinAmplitude, cumulativeMaxAmplitude),
             speakerChanges = emptyList(),
             extractionTimeMs = extractionTimeMs.toFloat() // Return the measured extraction time
         )
     }
 
 
+    fun resetCumulativeAmplitudeRange() {
+        cumulativeMinAmplitude = Float.MAX_VALUE
+        cumulativeMaxAmplitude = Float.MIN_VALUE
+    }
 
     /**
      * Converts the audio data to a float array.

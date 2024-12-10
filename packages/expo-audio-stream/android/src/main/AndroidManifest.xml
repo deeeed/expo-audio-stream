@@ -1,4 +1,26 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permissions will be merged into the app's manifest -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <application>
+        <receiver 
+            android:name=".RecordingActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="PAUSE_RECORDING" />
+                <action android:name="RESUME_RECORDING" />
+                <action android:name="STOP_RECORDING" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".AudioRecordingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+    </application>
 </manifest>

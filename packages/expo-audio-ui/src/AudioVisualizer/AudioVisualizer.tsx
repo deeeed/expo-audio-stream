@@ -1,23 +1,35 @@
 // playground/src/component/audio-visualizer/audio-visualizer.tsx
+import { SkFont } from '@shopify/react-native-skia'
 import { AudioAnalysis, DataPoint } from '@siteed/expo-audio-stream'
 import { getLogger } from '@siteed/react-native-logger'
-import React, { useCallback, useEffect, useReducer, useRef } from 'react'
-import { Button, LayoutChangeEvent, Text, View } from 'react-native'
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+    useState,
+} from 'react'
+import { LayoutChangeEvent, View } from 'react-native'
 import { useSharedValue } from 'react-native-reanimated'
 
 import {
     AudioVisualizerState,
+    AudioVisualizerTheme,
     CandleData,
     UpdateActivePointsResult,
 } from './AudioVisualiser.types'
 import {
     calculateReferenceLinePosition,
-    getStyles,
+    createDefaultTheme,
     syncTranslateX,
     updateActivePoints,
 } from './AudioVisualizers.helpers'
-import CanvasContainer from './CanvasContainer'
-import { GestureHandler } from './GestureHandler'
+import CanvasContainer, { CanvasContainerProps } from './CanvasContainer'
+import { GestureHandler, GestureHandlerProps } from './GestureHandler'
+import NavigationControls, {
+    NavigationControlsProps,
+} from '../NavigationControls/NavigationControls'
 
 export type AudioVisualiserAction = {
     type: 'UPDATE_STATE'
@@ -48,7 +60,7 @@ const reducer = (
 
 export interface AudioVisualizerProps {
     audioData: AudioAnalysis
-    currentTime?: number
+    currentTime?: number // in seconds
     canvasHeight?: number
     candleWidth?: number
     candleSpace?: number
@@ -56,6 +68,9 @@ export interface AudioVisualizerProps {
     showRuler?: boolean
     showYAxis?: boolean
     showSilence?: boolean
+    showNavigation?: boolean
+    enableInertia?: GestureHandlerProps['enableInertia']
+    font?: SkFont
     onSelection?: ({
         dataPoint,
         index,
@@ -64,8 +79,18 @@ export interface AudioVisualizerProps {
         index: number
     }) => void
     mode?: 'static' | 'live'
+    // WIP: this is a temporary prop to allow switching between visualization types
+    // TODO: remove this prop once the visualization types are implemented
+    _visualizationType?: CanvasContainerProps['visualizationType']
     playing?: boolean
     onSeekEnd?: (newTime: number) => void
+    theme?: Partial<AudioVisualizerTheme>
+    NavigationControls?: React.ComponentType<NavigationControlsProps>
+    disableTapSelection?: boolean
+    /** Allows parent to set the translateX position */
+    translateXPosition?: number
+    /** Callback to notify parent of translateX changes */
+    onTranslateXChange?: (translateX: number) => void
 }
 
 const logger = getLogger('AudioVisualizer')
@@ -79,14 +104,26 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     playing = false,
     mode = 'static',
     showRuler = false,
+    showNavigation = true,
     showDottedLine = true,
     showSilence = false,
     showYAxis = false,
     onSeekEnd,
     onSelection,
+    font,
+    _visualizationType = 'candles',
+    theme: customTheme,
+    NavigationControls: CustomNavigationControls, // User-provided or default NavigationControls
+    disableTapSelection = false,
+    enableInertia = false,
+    translateXPosition,
+    onTranslateXChange,
 }) => {
     const translateX = useSharedValue(0)
     const [state, dispatch] = useReducer(reducer, initialState)
+
+    const [activeVisualizationType, _setActiveVisualizationType] =
+        useState<CanvasContainerProps['visualizationType']>(_visualizationType)
 
     const {
         ready,
@@ -109,11 +146,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         referenceLinePosition: mode === 'live' ? 'RIGHT' : 'MIDDLE',
     })
 
-    const styles = getStyles({
-        canvasWidth,
-        referenceLineX,
-    })
-
     const maxDisplayedItems = Math.ceil(
         canvasWidth / (candleWidth + candleSpace)
     )
@@ -128,6 +160,15 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         range: { start: 0, end: 0, startVisibleIndex: 0, endVisibleIndex: 0 },
         lastUpdatedTranslateX: 0,
     })
+
+    const theme = useMemo(() => {
+        const defaultTheme = createDefaultTheme(canvasWidth, referenceLineX)
+        return { ...defaultTheme, ...customTheme }
+    }, [canvasWidth, referenceLineX, customTheme])
+
+    // Choose between user-provided or default NavigationControls
+    const NavigationControlsComponent =
+        CustomNavigationControls || NavigationControls
 
     // Initialize activePoints
     useEffect(() => {
@@ -261,12 +302,17 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     const handleDragEnd = useCallback(
         ({ newTranslateX }: { newTranslateX: number }) => {
+            console.log(
+                `handleDragEnd newTranslateX=${newTranslateX} disableTapSelection=${disableTapSelection}`
+            )
             if (audioData.durationMs && onSeekEnd) {
                 const allowedTranslateX = maxTranslateX
                 const progressRatio = -newTranslateX / allowedTranslateX
-                const newTime = progressRatio * audioData.durationMs / 1000
+                const newTime = (progressRatio * audioData.durationMs) / 1000
                 onSeekEnd(newTime)
             }
+
+            onTranslateXChange?.(newTranslateX)
 
             const {
                 activePoints: updatedActivePoints,
@@ -296,7 +342,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 state: { triggerUpdate: triggerUpdate + 1 },
             })
         },
-        [onSeekEnd, audioData.dataPoints, maxDisplayedItems]
+        [onSeekEnd, audioData.dataPoints, maxDisplayedItems, onTranslateXChange]
     )
 
     const handleSelectionChange = useCallback(
@@ -396,45 +442,87 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         })
     }, [dispatch])
 
+    const handleCenter = useCallback(() => {
+        const currentTranslateX = translateX.value
+        // Calculate the index of the candle under the reference line, accounting for scroll position
+        const candleUnderReferenceLine =
+            Math.floor(
+                (referenceLineX - currentTranslateX) /
+                    (candleWidth + candleSpace)
+            ) -
+            Math.floor(maxDisplayedItems / 2) +
+            1
+
+        if (
+            candleUnderReferenceLine >= 0 &&
+            candleUnderReferenceLine < audioData.dataPoints.length
+        ) {
+            const newSelectedCandle =
+                audioData.dataPoints[candleUnderReferenceLine]
+            if (newSelectedCandle) {
+                dispatch({
+                    type: 'UPDATE_STATE',
+                    state: {
+                        selectedCandle: {
+                            ...newSelectedCandle,
+                            visible: true,
+                        } as CandleData,
+                        selectedIndex: candleUnderReferenceLine,
+                    },
+                })
+
+                onSelection?.({
+                    dataPoint: newSelectedCandle,
+                    index: candleUnderReferenceLine,
+                })
+            } else {
+                logger.debug(
+                    'No candle found at index:',
+                    candleUnderReferenceLine
+                )
+            }
+        } else {
+            logger.log('Candle index out of range:', candleUnderReferenceLine)
+        }
+    }, [
+        translateX,
+        referenceLineX,
+        audioData.dataPoints,
+        candleWidth,
+        candleSpace,
+        maxDisplayedItems,
+        canvasWidth,
+        dispatch,
+        onSelection,
+    ])
+
+    // Add effect to update translateX when translateXPosition changes
+    useEffect(() => {
+        if (
+            translateXPosition !== undefined &&
+            translateX.value !== translateXPosition
+        ) {
+            translateX.value = translateXPosition
+        }
+    }, [translateXPosition])
+
     return (
         <View
-            style={[styles.container, { marginTop: 20 }]}
+            style={[theme.container, { marginTop: 20 }]}
             onLayout={handleLayout}
         >
-            <Text>{audioData.samples} samples</Text>
-            {mode !== 'live' && (
-                <View
-                    style={{
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        width: '100%',
-                    }}
-                >
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            gap: 10,
-                            alignItems: 'center',
-                        }}
-                    >
-                        <Button
-                            onPress={() => handlePrevNextSelection('prev')}
-                            disabled={selectedCandle === null}
-                            title="Prev"
-                        />
-                        <Button
-                            title="Next"
-                            onPress={() => handlePrevNextSelection('next')}
-                            disabled={selectedCandle === null}
-                        />
-                        {selectedCandle ? (
-                            <Text>{`${selectedIndex + 1} / ${audioData.dataPoints.length}`}</Text>
-                        ) : (
-                            <Text>{audioData.dataPoints.length} items</Text>
-                        )}
-                    </View>
-                    <Button onPress={handleReset} title="Reset" />
-                </View>
+            {mode !== 'live' && showNavigation && (
+                <NavigationControlsComponent
+                    selectedCandle={selectedCandle}
+                    selectedIndex={selectedIndex}
+                    audioData={audioData}
+                    currentTime={currentTime}
+                    theme={theme}
+                    onPrev={() => handlePrevNextSelection('prev')}
+                    onNext={() => handlePrevNextSelection('next')}
+                    onReset={handleReset}
+                    onCenter={handleCenter}
+                />
             )}
             <GestureHandler
                 playing={playing}
@@ -444,10 +532,12 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 canvasWidth={canvasWidth}
                 candleWidth={candleWidth}
                 candleSpace={candleSpace}
+                disableTapSelection={disableTapSelection}
                 totalCandleWidth={totalCandleWidth}
                 activePoints={updateActivePointsResult.current.activePoints}
                 onDragEnd={handleDragEnd}
                 onSelection={handleSelectionChange}
+                enableInertia={enableInertia}
             >
                 <View>
                     {ready && (
@@ -461,6 +551,9 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                 showRuler={showRuler}
                                 showSilence={showSilence}
                                 mode={mode}
+                                visualizationType={activeVisualizationType}
+                                font={font}
+                                disableTapSelection={disableTapSelection}
                                 startIndex={
                                     updateActivePointsResult.current.range.start
                                 }
@@ -479,9 +572,10 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                 durationMs={audioData.durationMs}
                                 minAmplitude={audioData.amplitudeRange.min}
                                 maxAmplitude={audioData.amplitudeRange.max}
-                                containerStyle={styles.canvasContainer}
+                                theme={theme}
+                                scaleToHumanVoice
                             />
-                            <View style={styles.referenceLine} />
+                            <View style={theme.referenceLine} />
                         </>
                     )}
                 </View>
