@@ -616,8 +616,6 @@ export default function RecordScreen() {
                     />
                     {iosSettingsEnabled && (
                         <IOSSettingsConfig
-                            enabled={iosSettingsEnabled}
-                            onEnabledChange={setIOSSettingsEnabled}
                             config={iosSettings}
                             onConfigChange={(newConfig) => {
                                 console.debug(`New iOS config`, newConfig)

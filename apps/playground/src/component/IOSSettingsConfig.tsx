@@ -9,8 +9,6 @@ import { IOSSettingsConfigForm } from './IOSSettingsConfigForm'
 const logger = getLogger('IOSSettingsConfig')
 
 interface IOSSettingsConfigProps {
-    enabled: boolean
-    onEnabledChange: (enabled: boolean) => void
     config?: RecordingConfig['ios']
     onConfigChange: (config: RecordingConfig['ios']) => void
 }
