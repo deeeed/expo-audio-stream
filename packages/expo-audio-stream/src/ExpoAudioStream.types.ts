@@ -70,6 +70,38 @@ export interface StartRecordingResult {
     sampleRate?: SampleRate
 }
 
+export interface AudioSessionConfig {
+    category?:
+        | 'Ambient'
+        | 'SoloAmbient'
+        | 'Playback'
+        | 'Record'
+        | 'PlayAndRecord'
+        | 'MultiRoute'
+    mode?:
+        | 'Default'
+        | 'VoiceChat'
+        | 'VideoChat'
+        | 'GameChat'
+        | 'VideoRecording'
+        | 'Measurement'
+        | 'MoviePlayback'
+        | 'SpokenAudio'
+    categoryOptions?: (
+        | 'MixWithOthers'
+        | 'DuckOthers'
+        | 'InterruptSpokenAudioAndMixWithOthers'
+        | 'AllowBluetooth'
+        | 'AllowBluetoothA2DP'
+        | 'AllowAirPlay'
+        | 'DefaultToSpeaker'
+    )[]
+}
+
+export interface IOSConfig {
+    audioSession?: AudioSessionConfig
+}
+
 export interface RecordingConfig {
     // Sample rate for recording (16000, 44100, or 48000 Hz)
     sampleRate?: SampleRate
@@ -97,6 +129,9 @@ export interface RecordingConfig {
 
     // Enable audio processing (default is false)
     enableProcessing?: boolean
+
+    // iOS-specific configuration
+    ios?: IOSConfig
 
     // Number of data points to extract per second of audio (default is 1000)
     pointsPerSecond?: number
