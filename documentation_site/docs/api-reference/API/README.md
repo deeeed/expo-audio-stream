@@ -1,4 +1,4 @@
-**@siteed/expo-audio-stream** • **Docs**
+**@siteed/expo-audio-stream**
 
 ***
 
@@ -11,9 +11,11 @@
 - [AudioFeatures](interfaces/AudioFeatures.md)
 - [AudioFeaturesOptions](interfaces/AudioFeaturesOptions.md)
 - [AudioRecording](interfaces/AudioRecording.md)
+- [AudioSessionConfig](interfaces/AudioSessionConfig.md)
 - [AudioStreamStatus](interfaces/AudioStreamStatus.md)
 - [Chunk](interfaces/Chunk.md)
 - [DataPoint](interfaces/DataPoint.md)
+- [IOSConfig](interfaces/IOSConfig.md)
 - [NotificationAction](interfaces/NotificationAction.md)
 - [NotificationConfig](interfaces/NotificationConfig.md)
 - [RecordingConfig](interfaces/RecordingConfig.md)
@@ -28,6 +30,7 @@
 
 - [AmplitudeAlgorithm](type-aliases/AmplitudeAlgorithm.md)
 - [BitDepth](type-aliases/BitDepth.md)
+- [ConsoleLike](type-aliases/ConsoleLike.md)
 - [EncodingType](type-aliases/EncodingType.md)
 - [SampleRate](type-aliases/SampleRate.md)
 
