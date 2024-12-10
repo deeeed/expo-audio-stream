@@ -697,8 +697,14 @@ class AudioStreamManager: NSObject {
             let fileAttributes = try FileManager.default.attributesOfItem(atPath: filePath)
             let fileSize = fileAttributes[FileAttributeKey.size] as? Int64 ?? 0
             
+            // Return nil if the file is too small (less than WAV header size)
+            if fileSize <= 44 {
+                Logger.debug("Recording file is too small (≤ 44 bytes), likely no audio data was recorded")
+                return nil
+            }
+            
             // Update the WAV header with the correct file size
-            updateWavHeader(fileURL: fileURL, totalDataSize: fileSize - 44) // Subtract the header size to get audio data size
+            updateWavHeader(fileURL: fileURL, totalDataSize: fileSize - 44)
             
             let result = RecordingResult(
                 fileUri: fileURL.absoluteString,
@@ -803,24 +809,30 @@ class AudioStreamManager: NSObject {
     ///   - fileURL: The URL of the WAV file.
     ///   - totalDataSize: The total size of the audio data.
     private func updateWavHeader(fileURL: URL, totalDataSize: Int64) {
+        // Prevent negative values - minimum WAV file size should be at least the header size (44 bytes)
+        guard totalDataSize >= 0 else {
+            Logger.debug("Invalid file size: total data size is negative")
+            return
+        }
+
         do {
             let fileHandle = try FileHandle(forUpdating: fileURL)
             defer { fileHandle.closeFile() }
-            
+
             // Calculate sizes
             let fileSize = totalDataSize + 44 - 8 // Total file size minus 8 bytes for 'RIFF' and size field itself
             let dataSize = totalDataSize // Size of the 'data' sub-chunk
-            
+
             // Update RIFF chunk size at offset 4
             fileHandle.seek(toFileOffset: 4)
             let fileSizeBytes = UInt32(fileSize).littleEndianBytes
             fileHandle.write(Data(fileSizeBytes))
-            
+
             // Update data chunk size at offset 40
             fileHandle.seek(toFileOffset: 40)
             let dataSizeBytes = UInt32(dataSize).littleEndianBytes
             fileHandle.write(Data(dataSizeBytes))
-            
+
         } catch let error {
             Logger.debug("Error updating WAV header: \(error)")
         }
