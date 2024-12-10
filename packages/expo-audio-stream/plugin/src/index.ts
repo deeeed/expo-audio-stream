@@ -11,7 +11,7 @@ const NOTIFICATION_USAGE = 'Show recording notifications and controls'
 
 const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
     // iOS Configuration
-    config = withInfoPlist(config, (config) => {
+    config = withInfoPlist(config as any, (config) => {
         // Existing microphone permission
         config.modResults['NSMicrophoneUsageDescription'] =
             config.modResults['NSMicrophoneUsageDescription'] ||
@@ -39,7 +39,7 @@ const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
     })
 
     // Android Configuration
-    config = withAndroidManifest(config, (config) => {
+    config = withAndroidManifest(config as any, (config) => {
         const androidManifest = config.modResults
         if (!androidManifest.manifest) {
             console.warn(
@@ -139,7 +139,7 @@ const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
         return config
     })
 
-    return config
+    return config as any // TODO: remove once types are fixed from expo
 }
 
 export default withRecordingPermission
