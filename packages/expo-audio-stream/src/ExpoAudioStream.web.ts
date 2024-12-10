@@ -30,7 +30,7 @@ export interface ExpoAudioStreamWebProps {
 
 export class ExpoAudioStreamWeb extends LegacyEventEmitter {
     customRecorder: WebRecorder | null
-    audioChunks: ArrayBuffer[]
+    audioChunks: Float32Array[]
     isRecording: boolean
     isPaused: boolean
     recordingStartTime: number
@@ -118,7 +118,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                 data,
                 position,
             }: EmitAudioEventProps) => {
-                this.audioChunks.push(data)
+                this.audioChunks.push(new Float32Array(data))
                 this.currentSize += data.byteLength
                 this.emitAudioEvent({ data, position })
                 this.lastEmittedTime = Date.now()
@@ -190,7 +190,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
 
         // Rewrite wav header with correct data size
         const wavConfig: WavHeaderOptions = {
-            buffer: fullPcmBufferArray.buffer,
+            buffer: new ArrayBuffer(fullPcmBufferArray.buffer.byteLength),
             sampleRate: this.recordingConfig?.sampleRate ?? 44100,
             numChannels: this.recordingConfig?.channels ?? 1,
             bitDepth: this.bitDepth,

@@ -50,22 +50,22 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
-                name="files"
-                options={{
-                    title: 'Files',
-                    href: 'files',
-                    tabBarIcon: ({ color }) => (
-                        <FontAwesome size={28} name="cog" color={color} />
-                    ),
-                }}
-            />
-            <Tabs.Screen
                 name="play"
                 options={{
                     title: 'Play',
                     href: 'play',
                     tabBarIcon: ({ color }) => (
                         <FontAwesome size={28} name="play" color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="files"
+                options={{
+                    title: 'Files',
+                    href: 'files',
+                    tabBarIcon: ({ color }) => (
+                        <FontAwesome size={28} name="cog" color={color} />
                     ),
                 }}
             />
