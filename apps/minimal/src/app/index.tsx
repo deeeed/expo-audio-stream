@@ -1,4 +1,5 @@
 import {
+    ExpoAudioStreamModule,
     AudioRecording,
     ExpoAudioStreamModule,
     useAudioRecorder,

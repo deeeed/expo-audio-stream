@@ -281,7 +281,6 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     logger.debug(
                         `Transcribing position=${position} jobId=${jobId}...`
                     )
-
                     webWorker.postMessage({
                         type: 'transcribe',
                         audio: audioData,

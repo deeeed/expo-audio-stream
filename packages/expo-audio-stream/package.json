@@ -21,6 +21,26 @@
         "expo-audio-stream",
         "ExpoAudioStream"
     ],
+    "files": [
+        "src",
+        "android",
+        "ios",
+        "cpp",
+        "generated",
+        "README.md",
+        "package.json",
+        "*.podspec",
+        "!ios/build",
+        "!android/build",
+        "!android/gradle",
+        "!android/gradlew",
+        "!android/gradlew.bat",
+        "!android/local.properties",
+        "!**/__tests__",
+        "!**/__fixtures__",
+        "!**/__mocks__",
+        "!**/.*"
+    ],
     "scripts": {
         "build": "expo-module build",
         "clean": "expo-module clean",
