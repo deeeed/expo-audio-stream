@@ -1,19 +1,19 @@
 // src/ExpoAudioStreamModule.web.ts
-import { EventEmitter } from 'expo-modules-core'
+import { LegacyEventEmitter } from 'expo-modules-core'
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import {
     AudioRecording,
     AudioStreamStatus,
     BitDepth,
+    ConsoleLike,
     RecordingConfig,
     StartRecordingResult,
 } from './ExpoAudioStream.types'
 import { WebRecorder } from './WebRecorder.web'
 import { AudioEventPayload } from './events'
-import { getLogger } from './logger'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
-import { writeWavHeader } from './utils/writeWavHeader'
+import { WavHeaderOptions, writeWavHeader } from './utils/writeWavHeader'
 
 export interface EmitAudioEventProps {
     data: Float32Array
@@ -23,13 +23,12 @@ export type EmitAudioEventFunction = (_: EmitAudioEventProps) => void
 export type EmitAudioAnalysisFunction = (_: AudioAnalysis) => void
 
 export interface ExpoAudioStreamWebProps {
+    logger?: ConsoleLike
     audioWorkletUrl: string
     featuresExtratorUrl: string
 }
 
-const logger = getLogger('ExpoAudioStreamWeb')
-
-export class ExpoAudioStreamWeb extends EventEmitter {
+export class ExpoAudioStreamWeb extends LegacyEventEmitter {
     customRecorder: WebRecorder | null
     audioChunks: ArrayBuffer[]
     isRecording: boolean
@@ -47,10 +46,12 @@ export class ExpoAudioStreamWeb extends EventEmitter {
     bitDepth: BitDepth // Bit depth of the audio
     audioWorkletUrl: string
     featuresExtratorUrl: string
+    logger?: ConsoleLike
 
     constructor({
         audioWorkletUrl,
         featuresExtratorUrl,
+        logger,
     }: ExpoAudioStreamWebProps) {
         const mockNativeModule = {
             addListener: () => {
@@ -62,6 +63,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
         }
         super(mockNativeModule) // Pass the mock native module to the parent class
 
+        this.logger = logger
         this.customRecorder = null
         this.audioChunks = []
         this.isRecording = false
@@ -123,7 +125,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
                 this.lastEmittedSize = this.currentSize
             },
             emitAudioAnalysisCallback: (audioAnalysisData: AudioAnalysis) => {
-                logger.log(`Emitted AudioAnalysis:`, audioAnalysisData)
+                this.logger?.log(`Emitted AudioAnalysis:`, audioAnalysisData)
                 this.emit('AudioAnalysis', audioAnalysisData)
             },
         })
@@ -141,6 +143,7 @@ export class ExpoAudioStreamWeb extends EventEmitter {
         this.recordingConfig = recordingConfig
         this.recordingStartTime = Date.now()
         this.pausedTime = 0
+        this.isPaused = false
         this.lastEmittedSize = 0
         this.lastEmittedTime = 0
         this.streamUuid = Date.now().toString()
@@ -180,17 +183,19 @@ export class ExpoAudioStreamWeb extends EventEmitter {
         const fullPcmBufferArray = await this.customRecorder.stop()
 
         // concat all audio chunks
-        logger.debug(`Stopped recording`, fullPcmBufferArray)
+        this.logger?.debug(`Stopped recording`, fullPcmBufferArray)
         this.isRecording = false
+        this.isPaused = false
         this.currentDurationMs = Date.now() - this.recordingStartTime
 
-        const wavConfig = {
+        // Rewrite wav header with correct data size
+        const wavConfig: WavHeaderOptions = {
             buffer: fullPcmBufferArray.buffer,
             sampleRate: this.recordingConfig?.sampleRate ?? 44100,
             numChannels: this.recordingConfig?.channels ?? 1,
             bitDepth: this.bitDepth,
         }
-        logger.debug(`Writing wav header`, wavConfig)
+        this.logger?.debug(`Writing wav header`, wavConfig)
         const wavBuffer = writeWavHeader(wavConfig).slice(0)
 
         // Create blob fileUri from audio chunks

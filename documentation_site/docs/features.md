@@ -14,4 +14,8 @@ sidebar_label: Features
 - Utility functions for recording control and file management.
 - Supports WAV PCM recording on all platforms.
 - Audio features extraction during recording.
-
+- Device wake lock support during recording sessions
+- Rich notification system:
+  - Android: Customizable notifications with live waveform visualization
+  - Android: Configurable notification actions, colors, and priorities
+  - iOS: Media player integration

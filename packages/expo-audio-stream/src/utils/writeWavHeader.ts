@@ -1,11 +1,53 @@
 // packages/expo-audio-stream/src/utils/writeWavHeader.ts
-interface WavHeaderOptions {
-    buffer: ArrayBuffer
+
+/**
+ * Options for creating a WAV header.
+ */
+export interface WavHeaderOptions {
+    /** Optional buffer containing audio data. If provided, it will be combined with the header. */
+    buffer?: ArrayBuffer
+    /** The sample rate of the audio in Hz (e.g., 44100). */
     sampleRate: number
+    /** The number of audio channels (e.g., 1 for mono, 2 for stereo). */
     numChannels: number
+    /** The bit depth of the audio (e.g., 16, 24, or 32). */
     bitDepth: number
 }
 
+/**
+ * Writes or updates a WAV (RIFF) header based on the provided options.
+ *
+ * This function can be used in three ways:
+ * 1. To create a standalone WAV header (when no buffer is provided).
+ * 2. To create a WAV header and combine it with existing audio data (when a buffer without a header is provided).
+ * 3. To update an existing WAV header in the provided buffer.
+ *
+ * For streaming audio where the final size is unknown, this function sets the size fields
+ * to the maximum 32-bit value (0xFFFFFFFF). These can be updated later using the
+ * `updateWavHeaderSize` function once the final size is known.
+ *
+ * @param options - The options for creating or updating the WAV header.
+ * @returns An ArrayBuffer containing the WAV header, or the header combined with the provided audio data.
+ *
+ * @throws {Error} Throws an error if the provided options are invalid or if the buffer is too small.
+ *
+ * @example
+ * // Create a standalone WAV header
+ * const header = writeWavHeader({
+ *   sampleRate: 44100,
+ *   numChannels: 2,
+ *   bitDepth: 16
+ * });
+ *
+ * @example
+ * // Create a WAV header and combine it with audio data
+ * const completeWav = writeWavHeader({
+ *   buffer: audioData,
+ *   sampleRate: 44100,
+ *   numChannels: 2,
+ *   bitDepth: 16
+ * });
+ */
 export const writeWavHeader = ({
     buffer,
     sampleRate,
@@ -13,8 +55,6 @@ export const writeWavHeader = ({
     bitDepth,
 }: WavHeaderOptions): ArrayBuffer => {
     const bytesPerSample = bitDepth / 8
-    const numSamples = buffer.byteLength / (numChannels * bytesPerSample)
-    const view = new DataView(buffer)
     const blockAlign = numChannels * bytesPerSample
     const byteRate = sampleRate * blockAlign
 
@@ -25,18 +65,10 @@ export const writeWavHeader = ({
         }
     }
 
-    // Check if the buffer already has a WAV header by looking for "RIFF" at the start
-    const existingHeader = view.getUint32(0, false) === 0x52494646 // "RIFF" in ASCII
-
-    if (!existingHeader) {
-        // Ensure the buffer is large enough for the WAV header
-        if (buffer.byteLength < 44) {
-            throw new Error('Buffer is too small to contain a valid WAV header')
-        }
-
-        // Write the WAV header
+    // Function to write or update the header
+    const writeHeader = (view: DataView, dataSize: number = 0xffffffff) => {
         writeString(view, 0, 'RIFF') // ChunkID
-        view.setUint32(4, 36 + numSamples * blockAlign, true) // ChunkSize
+        view.setUint32(4, 36 + dataSize, true) // ChunkSize
         writeString(view, 8, 'WAVE') // Format
         writeString(view, 12, 'fmt ') // Subchunk1ID
         view.setUint32(16, 16, true) // Subchunk1Size (16 for PCM)
@@ -47,15 +79,36 @@ export const writeWavHeader = ({
         view.setUint16(32, blockAlign, true) // BlockAlign
         view.setUint16(34, bitDepth, true) // BitsPerSample
         writeString(view, 36, 'data') // Subchunk2ID
-        view.setUint32(40, numSamples * blockAlign, true) // Subchunk2Size
-    } else {
-        // Update the existing WAV header if necessary
-        view.setUint32(4, 36 + numSamples * blockAlign, true) // Update ChunkSize
-        view.setUint32(24, sampleRate, true) // Update SampleRate
-        view.setUint32(28, byteRate, true) // Update ByteRate
-        view.setUint16(32, blockAlign, true) // Update BlockAlign
-        view.setUint32(40, numSamples * blockAlign, true) // Update Subchunk2Size
+        view.setUint32(40, dataSize, true) // Subchunk2Size
     }
 
-    return buffer
+    if (buffer) {
+        if (buffer.byteLength < 44) {
+            throw new Error('Buffer is too small to contain a valid WAV header')
+        }
+
+        const view = new DataView(buffer)
+
+        // Check if the buffer already has a WAV header by looking for "RIFF" at the start
+        const existingHeader = view.getUint32(0, false) === 0x52494646 // "RIFF" in ASCII
+
+        if (existingHeader) {
+            // Update the existing header
+            writeHeader(view, buffer.byteLength - 44)
+            return buffer
+        } else {
+            // Combine the new header with the existing buffer
+            const newBuffer = new ArrayBuffer(44 + buffer.byteLength)
+            const newView = new DataView(newBuffer)
+            writeHeader(newView, buffer.byteLength)
+            new Uint8Array(newBuffer).set(new Uint8Array(buffer), 44)
+            return newBuffer
+        }
+    } else {
+        // Create a standalone header
+        const headerBuffer = new ArrayBuffer(44)
+        const view = new DataView(headerBuffer)
+        writeHeader(view)
+        return headerBuffer
+    }
 }

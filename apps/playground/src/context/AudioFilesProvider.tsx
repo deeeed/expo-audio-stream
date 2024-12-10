@@ -21,7 +21,7 @@ interface AudioFilesContextValue {
     files: AudioRecording[]
     totalAudioStorageSize: number
     refreshFiles: () => Promise<void>
-    removeFile: (fileUri: string) => Promise<void>
+    removeFile: (audioRecording: AudioRecording) => Promise<void>
     clearFiles: () => Promise<void>
 }
 
@@ -144,12 +144,15 @@ export const AudioFilesProvider = ({
         async (audioUriORfilename: string) => {
             try {
                 if (isWeb) {
-                    await deleteAudioFile({ fileName: audioUriORfilename })
+                    await deleteAudioFile({ fileName: audioUriORfilename });
+                    logger.debug(
+                        `Deleted audio and metadata for ${audioUriORfilename}`
+                    );
                 } else {
                     const jsonPath = audioUriORfilename.replace(
                         /\.wav$/,
                         '.json'
-                    )
+                    );
 
                     const audioExists =
                         await FileSystem.getInfoAsync(audioUriORfilename)
@@ -193,10 +196,17 @@ export const AudioFilesProvider = ({
         }
     }, [listAudioFiles])
 
-    const removeFile = useCallback(async (fileUriORfilename: string) => {
-        await deleteAudioAndMetadata(fileUriORfilename)
-        await refreshFiles()
-    }, [])
+    const removeFile = useCallback(
+        async (audioRecording: AudioRecording) => {
+            if (isWeb) {
+                await deleteAudioAndMetadata(audioRecording.filename);
+            } else {
+                await deleteAudioAndMetadata(audioRecording.fileUri);
+            }
+            await refreshFiles();
+        },
+        [deleteAudioAndMetadata, refreshFiles]
+    )
 
     const clearFiles = useCallback(async () => {
         try {

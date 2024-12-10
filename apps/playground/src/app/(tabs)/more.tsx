@@ -10,6 +10,10 @@ import { useRouter } from 'expo-router'
 import React, { useMemo } from 'react'
 import { Image, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
+
+import { useReanimatedWebHack } from '../../hooks/useReanimatedWebHack'
+import { isWeb } from '../../utils/utils'
+
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
         container: {},
@@ -38,6 +42,7 @@ export const MoreScreen = (_: MoreScreenProps) => {
     const { toggleDarkMode, darkMode, theme } = useThemePreferences()
     const styles = useMemo(() => getStyles({ theme }), [theme])
     const appVersion = Constants.expoConfig?.version
+    const { isHackEnabled, handleHackToggle } = useReanimatedWebHack()
 
     return (
         <ScreenWrapper withScrollView useInsets>
@@ -57,6 +62,17 @@ export const MoreScreen = (_: MoreScreenProps) => {
                 onValueChange={toggleDarkMode}
                 value={darkMode}
             />
+            {isWeb && (
+                <LabelSwitch
+                    label="Reanimated Web Hack"
+                    containerStyle={{
+                        backgroundColor: theme.colors.surface,
+                    }}
+                    onValueChange={handleHackToggle}
+                    value={isHackEnabled}
+                />
+            )}
+
             <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,
@@ -77,6 +93,28 @@ export const MoreScreen = (_: MoreScreenProps) => {
                     router.navigate('/transcription-config')
                 }}
             />
+            <ListItem
+                contentContainerStyle={{
+                    backgroundColor: theme.colors.surface,
+                }}
+                label="Permissions"
+                subLabel="Check and request permissions"
+                onPress={() => {
+                    router.navigate('/permissions')
+                }}
+            />
+            {!isWeb && (
+                <ListItem
+                    contentContainerStyle={{
+                        backgroundColor: theme.colors.surface,
+                    }}
+                    label="Native Whisper"
+                    subLabel="Native Whisper"
+                    onPress={() => {
+                        router.navigate('/nativewhisper')
+                    }}
+                />
+            )}
             <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,

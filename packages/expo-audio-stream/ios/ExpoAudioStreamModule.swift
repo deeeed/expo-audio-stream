@@ -6,12 +6,14 @@ let audioAnalysisEvent: String = "AudioAnalysis"
 
 public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     private var streamManager = AudioStreamManager()
-    
+    private let notificationCenter = UNUserNotificationCenter.current()
+    private let notificationIdentifier = "audio_recording_notification"
+        
     public func definition() -> ModuleDefinition {
         Name("ExpoAudioStream")
         
         // Defines event names that the module can send to JavaScript.
-        Events([audioDataEvent, audioAnalysisEvent])
+        Events([audioDataEvent, audioAnalysisEvent, "recordingStateChanged", "notificationStateChanged"])
         
         OnCreate {
             print("Setting streamManager delegate")
@@ -130,44 +132,30 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     return
                 }
                 
-                // Extract settings from provided options, using default values if necessary
-                let sampleRate = options["sampleRate"] as? Double ?? 16000.0 // it fails if not 48000, why?
-                let numberOfChannels = options["channelConfig"] as? Int ?? 1 // Mono channel configuration
-                let bitDepth = options["audioFormat"] as? Int ?? 16 // 16bits
-                let interval = options["interval"] as? Int ?? 1000
+                let settings = RecordingSettings.fromDictionary(options)
                 
-                // Extract processing options with default values
-                let enableProcessing = options["enableProcessing"] as? Bool ?? false
-                let pointsPerSecond = options["pointsPerSecond"] as? Int ?? 20
-                let algorithm = options["algorithm"] as? String ?? "rms"
-                let featureOptions = options["featureOptions"] as? [String: Bool] ?? [:]
-                let maxRecentDataDuration = options["maxRecentDataDuration"] as? Double ?? 10.0
-                
-                // Create recording settings
-                let settings = RecordingSettings(
-                    sampleRate: sampleRate,
-                    desiredSampleRate: sampleRate,
-                    numberOfChannels: numberOfChannels,
-                    bitDepth: bitDepth,
-                    maxRecentDataDuration: enableProcessing ? maxRecentDataDuration : nil,
-                    enableProcessing: enableProcessing,
-                    pointsPerSecond: enableProcessing ? pointsPerSecond : nil,
-                    algorithm: enableProcessing ? algorithm : nil,
-                    featureOptions: enableProcessing ? featureOptions : nil
-                )
-                
-                if let result = self.streamManager.startRecording(settings: settings, intervalMilliseconds: interval) {
-                    let resultDict: [String: Any] = [
-                        "fileUri": result.fileUri,
-                        "channels": result.channels,
-                        "bitDepth": result.bitDepth,
-                        "sampleRate": result.sampleRate,
-                        "mimeType": result.mimeType,
-                    ]
-                    promise.resolve(resultDict)
-                } else {
-                    promise.reject("ERROR", "Failed to start recording.")
+                // Initialize notification if enabled
+                if settings.showNotification {
+                    Task {
+                        let notificationGranted = await self.requestNotificationPermissions()
+                        if !notificationGranted {
+                            Logger.debug("Notification permissions not granted")
+                        }
+                    }
                 }
+                
+                if let result = self.streamManager.startRecording(settings: settings, intervalMilliseconds: settings.interval ?? 1000) {
+                      let resultDict: [String: Any] = [
+                          "fileUri": result.fileUri,
+                          "channels": result.channels,
+                          "bitDepth": result.bitDepth,
+                          "sampleRate": result.sampleRate,
+                          "mimeType": result.mimeType,
+                      ]
+                      promise.resolve(resultDict)
+                  } else {
+                      promise.reject("ERROR", "Failed to start recording.")
+                  }
             }
         }
         
@@ -234,11 +222,22 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         /// - Returns: Promise to be resolved with the permission status.
         AsyncFunction("requestPermissionsAsync") { (promise: Promise) in
             AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                if granted {
-                    promise.resolve(["status": "granted"])
-                } else {
-                    promise.resolve(["status": "denied"])
-                }
+                promise.resolve([
+                    "status": granted ? "granted" : "denied",
+                    "granted": granted,
+                    "expires": "never",
+                    "canAskAgain": true
+                ])
+            }
+        }
+        
+        AsyncFunction("requestNotificationPermissionsAsync") { (promise: Promise) in
+            Task {
+                let granted = await requestNotificationPermissions()
+                promise.resolve([
+                    "granted": granted,
+                    "status": granted ? "granted" : "denied"
+                ])
             }
         }
         
@@ -251,15 +250,50 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             let permissionStatus = AVAudioSession.sharedInstance().recordPermission
             switch permissionStatus {
             case .granted:
-                promise.resolve(["status": "granted"])
+                promise.resolve([
+                    "status": "granted",
+                    "granted": true,
+                    "expires": "never",
+                    "canAskAgain": true
+                ])
             case .denied:
-                promise.resolve(["status": "denied"])
+                promise.resolve([
+                    "status": "denied",
+                    "granted": false,
+                    "expires": "never",
+                    "canAskAgain": false
+                ])
             case .undetermined:
-                promise.resolve(["status": "undetermined"])
+                promise.resolve([
+                    "status": "undetermined",
+                    "granted": false,
+                    "expires": "never",
+                    "canAskAgain": true
+                ])
             @unknown default:
                 promise.reject("UNKNOWN_ERROR", "Unknown permission status")
             }
         }
+    }
+    
+    func audioStreamManager(_ manager: AudioStreamManager, didPauseRecording pauseTime: Date) {
+        sendEvent("recordingStateChanged", [
+            "state": "paused",
+            "timestamp": pauseTime.timeIntervalSince1970 * 1000
+        ])
+    }
+    
+    func audioStreamManager(_ manager: AudioStreamManager, didResumeRecording resumeTime: Date) {
+        sendEvent("recordingStateChanged", [
+            "state": "recording",
+            "timestamp": resumeTime.timeIntervalSince1970 * 1000
+        ])
+    }
+    
+    func audioStreamManager(_ manager: AudioStreamManager, didUpdateNotificationState isPaused: Bool) {
+        sendEvent("notificationStateChanged", [
+            "isPaused": isPaused
+        ])
     }
     
     /// Handles the reception of audio data from the AudioStreamManager.
@@ -299,6 +333,16 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         
         // Emit the event to JavaScript
         sendEvent(audioDataEvent, eventBody)
+    }
+    
+    private func requestNotificationPermissions() async -> Bool {
+        do {
+            let options: UNAuthorizationOptions = [.alert, .sound]
+            return try await notificationCenter.requestAuthorization(options: options)
+        } catch {
+            Logger.debug("Failed to request notification permissions: \(error)")
+            return false
+        }
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveProcessingResult result: AudioAnalysisData?) {

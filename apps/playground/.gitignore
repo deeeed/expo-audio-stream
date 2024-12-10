@@ -8,6 +8,9 @@ node_modules/
 dist/
 web-build/
 
+# Whisper model files
+*.bin
+
 # Native
 *.orig.*
 *.jks

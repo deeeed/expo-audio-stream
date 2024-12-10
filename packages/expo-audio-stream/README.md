@@ -15,6 +15,13 @@
     <a href="https://deeeed.github.io/expo-audio-stream/playground/">
       <img src="../../docs/demo.gif" alt="Screenshot Playground">
     </a>
+    <br/><br/>
+    <a href="https://deeeed.github.io/expo-audio-stream/playground" style="text-decoration:none;">
+      <div style="display:inline-block; padding:10px 20px; background-color:#007bff; color:white; border-radius:5px; font-size:16px;">
+        Try it out
+      </div>
+    </a>
+    <br/>
   </h2>
 </div>
 
@@ -30,8 +37,19 @@
 - Background audio recording on iOS.
 - Audio features extraction during recording.
 - Consistent WAV PCM recording format across all platforms.
+- Keep device awake during recording sessions
+- Rich notification system for recording status:
+  - Android: Live waveform visualization in notifications
+  - Android: Fully customizable notification appearance and actions
+  - iOS: Media player integration
 
 ## Documentation
 
 For detailed documentation, please refer to the [Getting Started Guide](https://deeeed.github.io/expo-audio-stream/docs/).
 
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+<sub>Created by [Arthur Breton](https://siteed.net) • See more projects at [siteed.net](https://siteed.net)</sub>

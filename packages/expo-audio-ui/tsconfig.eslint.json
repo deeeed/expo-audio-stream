@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig",
+  "compilerOptions": {
+    // ensure that nobody can accidentally use this config for a build
+    "noEmit": true,
+  },
+  "include": [
+    "./src",
+    "./*.js",
+    "./*.mjs",
+    "./plugin/**/*.ts",
+    "./app.plugin.js",
+    ".eslintrc.js",
+    ".storybook/main.ts",
+    ".storybook/preview.ts",
+  ],
+  "exclude": ["dist/**", "node_modules"]
+}
