@@ -70,9 +70,14 @@ const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
             'android.permission.POST_NOTIFICATIONS',
         ]
 
-        // Add each permission
+        // Add each permission only if it doesn't exist
         permissionsToAdd.forEach((permission) => {
-            addPermission(androidManifest, permission)
+            const existingPermission = androidManifest.manifest[
+                'uses-permission'
+            ]?.find((p) => p.$?.['android:name'] === permission)
+            if (!existingPermission) {
+                addPermission(androidManifest, permission)
+            }
         })
 
         // Get the main application node

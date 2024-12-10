@@ -39,17 +39,17 @@ const WHISPER_MODELS: WhisperModel[] = [
     {
         id: 'tiny',
         label: 'Tiny Model',
-        file: require('@assets/ggml-tiny.en.bin'),
+        file: isWeb ? '' : require('@assets/ggml-tiny.en.bin'),
     },
     {
         id: 'base',
         label: 'Base Model',
-        file: require('@assets/ggml-base.bin'),
+        file: isWeb ? '' : require('@assets/ggml-base.bin'),
     },
     {
         id: 'small',
         label: 'Small (tdrz)',
-        file: require('@assets/ggml-small.en-tdrz.bin'),
+        file: isWeb ? '' : require('@assets/ggml-small.en-tdrz.bin'),
     },
 ]
 
@@ -105,6 +105,16 @@ const styles = StyleSheet.create({
     },
     processingTime: {
         marginBottom: 8,
+    },
+    warningBanner: {
+        backgroundColor: '#ffcc00',
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    warningText: {
+        fontWeight: 'bold',
+        color: '#333',
     },
 })
 
@@ -313,6 +323,12 @@ export function TestPage() {
     return (
         <ScreenWrapper withScrollView>
             <View style={styles.container}>
+                <View style={styles.warningBanner}>
+                    <Text style={styles.warningText}>
+                        ⚠️ This page is for debugging and testing purposes only.
+                    </Text>
+                </View>
+
                 <SegmentedButtons
                     value={selectedModel}
                     onValueChange={(model) => {
