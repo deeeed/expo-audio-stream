@@ -26,6 +26,8 @@
         "android",
         "ios",
         "cpp",
+        "plugin/build",
+        "app.plugin.js",
         "generated",
         "README.md",
         "package.json",
