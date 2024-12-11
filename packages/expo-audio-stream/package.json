@@ -1,6 +1,6 @@
 {
     "name": "@siteed/expo-audio-stream",
-    "version": "1.5.6",
+    "version": "1.5.7",
     "description": "stream audio crossplatform",
     "license": "MIT",
     "main": "build/index.js",
@@ -28,7 +28,10 @@
         "cpp",
         "plugin",
         "app.plugin.js",
+        "LICENSE",
+        "CHANGELOG.md",
         "generated",
+        "expo-module.config.js",
         "README.md",
         "package.json",
         "*.podspec",
