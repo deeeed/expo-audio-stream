@@ -55,8 +55,4 @@ if [[ $deploy_minimal =~ ^[Yy]$ ]]; then
     yarn deploy
 fi
 
-# Commit changes
-echo -e "${YELLOW}Committing changes...${NC}"
-git add "$(pwd)/../../" # add all changes in the root folder
-
 echo -e "${GREEN}Publication process completed successfully!${NC}"
