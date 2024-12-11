@@ -8,9 +8,8 @@ import React, {
     useMemo,
     useReducer,
     useState,
-    useEffect,
 } from 'react'
-import { initWhisper, WhisperContext, type ContextOptions } from 'whisper.rn'
+import { initWhisper, WhisperContext } from 'whisper.rn'
 
 import {
     initialState,
@@ -24,8 +23,6 @@ import { baseLogger, config } from '../config'
 
 const logger = baseLogger.extend('TranscriptionProvider')
 
-const DEFAULT_MODEL = require('@assets/ggml-tiny.en.bin')
-
 export interface TranscribeParams {
     audioData: string | Float32Array | undefined
     position?: number
@@ -34,7 +31,7 @@ export interface TranscribeParams {
 }
 
 export interface TranscriptionContextProps extends TranscriptionState {
-    initialize: (_: { contextOptions: ContextOptions }) => void
+    initialize: () => void
     transcribe: (_: TranscribeParams) => Promise<TranscriberData | undefined>
     updateConfig: (
         config: Partial<TranscriptionState>,
@@ -77,44 +74,32 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         null
     )
 
-    useEffect(() => {
-        if (!state.ready && !state.isModelLoading) {
-            logger.debug('Auto-initializing whisper with default model...')
-            initialize({
-                contextOptions: {
-                    filePath: DEFAULT_MODEL,
-                },
+    const initialize = useCallback(async () => {
+        try {
+            logger.debug(`Initializing whisper...`, state.model)
+            dispatch({
+                type: 'UPDATE_STATE',
+                payload: { isModelLoading: true, ready: false },
+            })
+
+            const context = await initWhisper({
+                filePath: state.model,
+            })
+            logger.debug('Whisper initialized', context)
+            setWhisperContext(context)
+
+            dispatch({
+                type: 'UPDATE_STATE',
+                payload: { isModelLoading: false, ready: true },
+            })
+        } catch (error) {
+            logger.error('Failed to initialize whisper:', error)
+            dispatch({
+                type: 'UPDATE_STATE',
+                payload: { isModelLoading: false, ready: false },
             })
         }
-    }, [state.ready, state.isModelLoading])
-
-    const initialize = useCallback(
-        async ({ contextOptions }: { contextOptions: ContextOptions }) => {
-            try {
-                logger.debug('Initializing whisper...', contextOptions)
-                dispatch({
-                    type: 'UPDATE_STATE',
-                    payload: { isModelLoading: true, ready: false },
-                })
-
-                const context = await initWhisper(contextOptions)
-                logger.debug('Whisper initialized', context)
-                setWhisperContext(context)
-
-                dispatch({
-                    type: 'UPDATE_STATE',
-                    payload: { isModelLoading: false, ready: true },
-                })
-            } catch (error) {
-                logger.error('Failed to initialize whisper:', error)
-                dispatch({
-                    type: 'UPDATE_STATE',
-                    payload: { isModelLoading: false, ready: false },
-                })
-            }
-        },
-        []
-    )
+    }, [])
 
     const transcribe = useCallback(
         async ({
@@ -243,11 +228,24 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
     )
 
     const updateConfig = useCallback(
-        (config: Partial<TranscriptionState>): Promise<void> => {
+        async (
+            config: Partial<TranscriptionState>,
+            shouldInitialize: boolean = false
+        ): Promise<void> => {
             logger.debug('Updating config', config)
+            dispatch({
+                type: 'UPDATE_STATE',
+                payload: config,
+            })
+
+            if (shouldInitialize) {
+                setWhisperContext(null)
+                await initialize()
+            }
+
             return Promise.resolve()
         },
-        []
+        [initialize]
     )
 
     const contextValue = useMemo(

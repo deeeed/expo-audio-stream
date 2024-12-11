@@ -1,7 +1,6 @@
 import {
     ExpoAudioStreamModule,
     AudioRecording,
-    ExpoAudioStreamModule,
     useAudioRecorder,
 } from '@siteed/expo-audio-stream'
 import { getLogger } from '@siteed/react-native-logger'

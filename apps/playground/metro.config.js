@@ -83,7 +83,14 @@ config.resolver = {
     extraNodeModules,
     blacklistRE,
     sourceExts: [...config.resolver.sourceExts, 'cjs', 'mjs'],
-    assetExts: [...config.resolver.assetExts, 'wasm', 'ttf', 'bin', 'mil'],
+    assetExts: [
+        ...config.resolver.assetExts,
+        'wasm',
+        'ttf',
+        'bin',
+        'wav',
+        'mil',
+    ],
     resolveRequest: (context, moduleName, platform) => {
         if (moduleName === '@siteed/expo-audio-ui') {
             return {
