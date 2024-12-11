@@ -15624,7 +15624,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo@npm:~52.0.0":
+"expo@npm:^52.0.18, expo@npm:~52.0.0":
   version: 52.0.18
   resolution: "expo@npm:52.0.18"
   dependencies:
