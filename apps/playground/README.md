@@ -1,40 +1,89 @@
 # Audio Playground
 
-Playground for cross platform audio streaming and feature extractions using **@siteed/expo-audio-stream**.
+A demo application showcasing real-time audio processing and visualization capabilities using **@siteed/expo-audio-stream**. 
 
-## Try it right away
+## Features
 
-https://deeeed.github.io/expo-audio-stream/
+- Live audio recording with waveform visualization
+- On-device speech transcription
+- Background recording support
+- Rich notification controls with live waveform
+
+This open-source app demonstrates implementation examples for developers building audio applications with React Native and Expo.
+
+## Try it online
+
+Visit the web demo: https://deeeed.github.io/expo-audio-stream/
 
 
-## To run on device directly from android or ios
+## Development Setup
 
-Everytime we run `expo prebuild --clean` it prevents launching the app directly from Android Studio or XCode if we use custom port. 
+### Local Development
 
-
-## First run port custom script
+1. Set custom port for development:
 ```bash
 ./setPort.sh
 ```
 
-## Android
-Even after customPort still need to reverse tcp `adb reverse tcp:7365 tcp:7365`.
-
-
-```
-apps/playground/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/AgpConfiguratorUtils.kt
-const val DEFAULT_DEV_SERVER_PORT = "8081"
+2. For Android Debugging
+```bash
+adb reverse tcp:7365 tcp:7365
 ```
 
-On IOS after cleanup it always reset port on file:
-RCTInspectorDevServerHelper.mm:26
-NSNumber *port = @7365;
+### Building with EAS
 
-It looks for RCT_METRO_PORT
-apps/playground/ios/Pods/Headers/Private/React-Core/React/RCTDefines.h
-apps/playground/ios/Pods/Headers/Public/React-Core/React/RCTDefines.h
+The project includes several build profiles:
 
+#### Development Build
 
+```bash
+eas build --profile development --platform ios # for iOS
+eas build --profile development --platform android # for Android
+```
 
-### Gradle Issues 
-https://github.com/expo/expo/issues/31005
+#### Preview Build
+
+```bash
+eas build --profile preview
+```
+
+#### Production Build
+
+```bash
+eas build --profile production
+```
+
+### Building Local Shareable Builds
+
+#### Android APK
+1. Development APK:
+```bash
+eas build --platform android --profile development --local
+```
+
+2. Preview APK (optimized, unsigned):
+```bash
+eas build --platform android --profile preview --local
+```
+
+The APK will be available in the `android/app/build/outputs/apk/` directory.
+
+#### iOS IPA
+1. Create archive (requires Apple Developer account):
+```bash
+eas build --platform ios --profile preview --local
+```
+
+2. For development testing on specific devices:
+```bash
+eas device:create # Register test devices first
+eas build --platform ios --profile development --local
+```
+
+Note: Local iOS builds require:
+- Xcode installed
+- Valid Apple Developer account
+- Provisioning profiles and certificates set up
+- Registered test devices (for development builds)
+
+The IPA will be available in `~/Library/Developer/Xcode/Archives/`
