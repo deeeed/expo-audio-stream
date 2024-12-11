@@ -81,11 +81,7 @@ const Transcriber: React.FC<TranscriberProps> = ({
         }
         if (!ready && !isModelLoading && isWeb) {
             logger.debug('Model not ready, starting model loading...')
-            initialize({
-                contextOptions: {
-                    filePath: '',
-                },
-            })
+            initialize()
         }
     }, [isBusy, transcribe, currentAudio, ready])
 

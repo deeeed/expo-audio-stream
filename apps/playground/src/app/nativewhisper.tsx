@@ -2,23 +2,14 @@ import { Button, ScreenWrapper } from '@siteed/design-system'
 import { TranscriberData } from '@siteed/expo-audio-stream'
 import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
-import React, { useCallback, useState, useRef } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { ProgressBar, SegmentedButtons } from 'react-native-paper'
-import {
-    initWhisper,
-    WhisperContext,
-    TranscribeNewSegmentsResult,
-} from 'whisper.rn'
+import { TranscribeNewSegmentsResult } from 'whisper.rn'
 
 import Transcript from '../component/Transcript'
+import { useWhisperModels, WHISPER_MODELS } from '../hooks/useWhisperModels'
 import { isWeb } from '../utils/utils'
-
-interface WhisperModel {
-    id: string
-    label: string
-    file: any
-}
 
 interface TranscriptionLog {
     modelId: string
@@ -34,24 +25,6 @@ interface SelectedFile {
     size: number
     name: string
 }
-
-const WHISPER_MODELS: WhisperModel[] = [
-    {
-        id: 'tiny',
-        label: 'Tiny Model',
-        file: isWeb ? '' : require('@assets/ggml-tiny.en.bin'),
-    },
-    {
-        id: 'base',
-        label: 'Base Model',
-        file: isWeb ? '' : require('@assets/ggml-base.bin'),
-    },
-    {
-        id: 'small',
-        label: 'Small (tdrz)',
-        file: isWeb ? '' : require('@assets/ggml-small.en-tdrz.bin'),
-    },
-]
 
 const styles = StyleSheet.create({
     container: {
@@ -118,7 +91,7 @@ const styles = StyleSheet.create({
     },
 })
 
-export function TestPage() {
+export function NativeWhisperScreen() {
     const [transcriptionData, setTranscriptionData] = useState<TranscriberData>(
         {
             id: '1',
@@ -134,32 +107,37 @@ export function TestPage() {
     const [stopTranscription, setStopTranscription] = useState<
         (() => Promise<void>) | null
     >(null)
-    const [selectedModel, setSelectedModel] = useState<string>(
-        WHISPER_MODELS[0].id
-    )
-    const [whisperContext, setWhisperContext] = useState<WhisperContext | null>(
-        null
-    )
-    const [isInitializingModel, setIsInitializingModel] = useState(false)
+    const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null)
+    const processingTimer = useRef<ReturnType<typeof setInterval>>()
+    const [currentProcessingTime, setCurrentProcessingTime] =
+        useState<number>(0)
     const [transcriptionLogs, setTranscriptionLogs] = useState<
         TranscriptionLog[]
     >([])
-    const [currentProcessingTime, setCurrentProcessingTime] =
-        useState<number>(0)
-    const processingTimer = useRef<ReturnType<typeof setInterval>>()
-    const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null)
 
-    const convertWhisperSegmentsToChunks = (
-        result: TranscribeNewSegmentsResult
-    ) => {
-        return result.segments.map((segment) => ({
-            text: segment.text.trim(),
-            timestamp: [
-                segment.t0 / 100,
-                segment.t1 ? segment.t1 / 100 : null,
-            ] as [number, number | null],
-        }))
-    }
+    const {
+        downloadProgress,
+        isDownloading,
+        isInitializingModel,
+        whisperContext,
+        initializeWhisperModel,
+        resetWhisperContext,
+    } = useWhisperModels()
+
+    const [selectedModel, setSelectedModel] = useState<string>('tiny')
+
+    const convertWhisperSegmentsToChunks = useCallback(
+        (result: TranscribeNewSegmentsResult) => {
+            return result.segments.map((segment) => ({
+                text: segment.text.trim(),
+                timestamp: [
+                    segment.t0 / 100,
+                    segment.t1 ? segment.t1 / 100 : null,
+                ] as [number, number | null],
+            }))
+        },
+        []
+    )
 
     const handleFileSelection = useCallback(async () => {
         const result = await DocumentPicker.getDocumentAsync({
@@ -171,6 +149,18 @@ export function TestPage() {
             setSelectedFile({ uri, size, name })
         }
     }, [])
+
+    const handleModelSelection = useCallback(
+        (model: string) => {
+            setSelectedModel(model)
+            resetWhisperContext()
+        },
+        [resetWhisperContext]
+    )
+
+    const handleInitialize = useCallback(async () => {
+        await initializeWhisperModel(selectedModel)
+    }, [selectedModel, initializeWhisperModel])
 
     const startTranscription = useCallback(async () => {
         if (!selectedFile || !whisperContext) return
@@ -297,25 +287,6 @@ export function TestPage() {
         }
     }, [stopTranscription])
 
-    const initializeWhisperModel = useCallback(async () => {
-        try {
-            setIsInitializingModel(true)
-            const modelToUse = WHISPER_MODELS.find(
-                (model) => model.id === selectedModel
-            )
-            if (!modelToUse) throw new Error('Invalid model selected')
-
-            const context = await initWhisper({
-                filePath: modelToUse.file,
-            })
-            setWhisperContext(context)
-        } catch (error) {
-            console.error('Model initialization error:', error)
-        } finally {
-            setIsInitializingModel(false)
-        }
-    }, [selectedModel])
-
     if (isWeb) {
         return <Text>Native Whisper is not supported on web</Text>
     }
@@ -331,10 +302,7 @@ export function TestPage() {
 
                 <SegmentedButtons
                     value={selectedModel}
-                    onValueChange={(model) => {
-                        setSelectedModel(model)
-                        setWhisperContext(null)
-                    }}
+                    onValueChange={handleModelSelection}
                     buttons={WHISPER_MODELS.map((model) => ({
                         value: model.id,
                         label: model.label,
@@ -359,12 +327,17 @@ export function TestPage() {
 
                 <Button
                     mode="contained"
-                    onPress={initializeWhisperModel}
-                    loading={isInitializingModel}
-                    disabled={isInitializingModel || whisperContext !== null}
+                    onPress={handleInitialize}
+                    loading={isInitializingModel || isDownloading}
+                    disabled={
+                        isInitializingModel ||
+                        isDownloading ||
+                        whisperContext !== null
+                    }
                 >
-                    Initialize{' '}
-                    {WHISPER_MODELS.find((m) => m.id === selectedModel)?.label}
+                    {isDownloading
+                        ? `Downloading... ${Math.round(downloadProgress[selectedModel] * 100)}%`
+                        : `Initialize ${selectedModel} Model`}
                 </Button>
 
                 <Button
@@ -459,4 +432,4 @@ export function TestPage() {
     )
 }
 
-export default TestPage
+export default NativeWhisperScreen

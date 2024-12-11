@@ -24,6 +24,7 @@
       },
       "package": "net.siteed.audiominimal"
     },
+    "newArchEnabled": true,
     "web": {
       "bundler": "metro",
       "output": "static",
