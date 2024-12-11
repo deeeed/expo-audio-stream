@@ -19,7 +19,8 @@ export const WithUIProvider = ({ children }: { children: React.ReactNode }) => {
     const { darkMode, isReady: isThemeReady } = useThemePreferences()
     const [ready, setReady] = useState(false)
 
-    const { handleHackToggle } = useReanimatedWebHack()
+    const { handleHackToggle, isReady: isReanimatedReady } =
+        useReanimatedWebHack()
 
     useEffect(() => {
         handleHackToggle(true)
@@ -30,7 +31,7 @@ export const WithUIProvider = ({ children }: { children: React.ReactNode }) => {
         return () => clearTimeout(timeout)
     }, [])
 
-    if (!isThemeReady || !ready) {
+    if (!isThemeReady || !ready || !isReanimatedReady) {
         return <ActivityIndicator />
     }
 

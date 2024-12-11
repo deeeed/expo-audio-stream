@@ -8,14 +8,17 @@ const logger = baseLogger.extend('useReanimatedWebHack')
 
 export function useReanimatedWebHack() {
     const [isHackEnabled, setIsHackEnabled] = useState(false)
+    const [isReady, setIsReady] = useState(false)
     const { show } = useToast()
 
     useEffect(() => {
         if (Platform.OS === 'web') {
-            // Initialize state based on existing global._WORKLET
             const initialValue = !!global._WORKLET
             logger.log('initialValue', initialValue)
             setIsHackEnabled(initialValue)
+            setIsReady(true)
+        } else {
+            setIsReady(true)
         }
     }, [])
 
@@ -30,6 +33,8 @@ export function useReanimatedWebHack() {
                 global._log = console.log
                 // @ts-expect-error
                 global._getAnimationTimestamp = () => performance.now()
+                // @ts-expect-error
+                global.__reanimatedLoggerConfig = { native: false }
                 show({
                     type: 'success',
                     iconVisible: true,
@@ -41,6 +46,8 @@ export function useReanimatedWebHack() {
                 delete global._log
                 // @ts-expect-error
                 delete global._getAnimationTimestamp
+                // @ts-expect-error
+                delete global.__reanimatedLoggerConfig
                 show({
                     type: 'warning',
                     iconVisible: true,
@@ -53,5 +60,6 @@ export function useReanimatedWebHack() {
     return {
         isHackEnabled,
         handleHackToggle,
+        isReady,
     }
 }
