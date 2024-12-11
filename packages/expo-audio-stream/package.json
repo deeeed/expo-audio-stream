@@ -31,7 +31,7 @@
         "LICENSE",
         "CHANGELOG.md",
         "generated",
-        "expo-module.config.js",
+        "expo-module.config.json",
         "README.md",
         "package.json",
         "*.podspec",
