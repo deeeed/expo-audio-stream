@@ -14,7 +14,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:74](https://github.com/deeeed/expo-audio-stream/blob/63fbeb82f56130dedeafa633e916f2ce0f8f1a67/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L74)
+[src/ExpoAudioStream.types.ts:74](https://github.com/deeeed/expo-audio-stream/blob/5d6ad1b96f334903d6ad72d1703a6eb08697ab05/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L74)
 
 ***
 
@@ -24,7 +24,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:90](https://github.com/deeeed/expo-audio-stream/blob/63fbeb82f56130dedeafa633e916f2ce0f8f1a67/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L90)
+[src/ExpoAudioStream.types.ts:90](https://github.com/deeeed/expo-audio-stream/blob/5d6ad1b96f334903d6ad72d1703a6eb08697ab05/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L90)
 
 ***
 
@@ -34,4 +34,4 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:81](https://github.com/deeeed/expo-audio-stream/blob/63fbeb82f56130dedeafa633e916f2ce0f8f1a67/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L81)
+[src/ExpoAudioStream.types.ts:81](https://github.com/deeeed/expo-audio-stream/blob/5d6ad1b96f334903d6ad72d1703a6eb08697ab05/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L81)
