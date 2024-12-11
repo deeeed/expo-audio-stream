@@ -1,6 +1,6 @@
 {
     "name": "@siteed/expo-audio-stream",
-    "version": "1.5.3",
+    "version": "1.5.4",
     "description": "stream audio crossplatform",
     "license": "MIT",
     "main": "build/index.js",
@@ -32,6 +32,7 @@
         "README.md",
         "package.json",
         "*.podspec",
+        "build",
         "!ios/build",
         "!android/build",
         "!android/gradle",
