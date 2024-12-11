@@ -1,6 +1,6 @@
 {
     "name": "audio-playground",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "main": "src/index",
     "scripts": {
         "start": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --dev-client --port 7365",
