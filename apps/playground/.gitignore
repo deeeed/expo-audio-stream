@@ -19,6 +19,11 @@ web-build/
 *.key
 *.mobileprovision
 
+# Builds
+*.aab
+*.ipa
+*.apk
+
 # Metro
 .metro-health-check*
 
@@ -32,6 +37,7 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
