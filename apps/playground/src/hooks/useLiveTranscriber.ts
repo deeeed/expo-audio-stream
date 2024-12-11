@@ -111,8 +111,8 @@ export function useLiveTranscriber({
                 const time = performance.now() - startTime
                 const transcriptionSpeed = time / segmentDuration
                 logger.info(
-                    `[${jobId}] [speed=${transcriptionSpeed}][chunks=${transcript.chunks.length}][${transcript.startTime}-${transcript.endTime}] Transcribed ${audioData.length / WhisperSampleRate}s in ${time / 1000}s with ${audioData.length} samples`,
-                    transcript.text
+                    `[${jobId}] [speed=${transcriptionSpeed}][chunks=${transcript?.chunks.length}][${transcript?.startTime}-${transcript?.endTime}] Transcribed ${audioData.length / WhisperSampleRate}s in ${time / 1000}s with ${audioData.length} samples`,
+                    transcript?.text
                 )
             } catch (e) {
                 logger.error(`Failed to transcribe`, e)

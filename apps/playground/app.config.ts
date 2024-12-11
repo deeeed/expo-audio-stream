@@ -19,7 +19,7 @@ const config: ExpoConfig = {
         resizeMode: 'contain',
         backgroundColor: '#ffffff',
     },
-    assetBundlePatterns: ['**/*'],
+    assetBundlePatterns: ['**/*', 'assets/audio_samples/*'],
     ios: {
         supportsTablet: true,
         bundleIdentifier: 'net.siteed.audiostream.audioplayground',
@@ -38,6 +38,7 @@ const config: ExpoConfig = {
     experiments: {
         baseUrl: isDev ? '' : '/expo-audio-stream/playground/',
     },
+    newArchEnabled: true,
     plugins: [
         [
             '../../packages/expo-audio-stream/app.plugin.js',
@@ -54,22 +55,18 @@ const config: ExpoConfig = {
         [
             'expo-build-properties',
             {
-                ios: {
-                    newArchEnabled: false,
-                },
-                android: {
-                    newArchEnabled: false,
-                },
+                ios: {},
+                android: {},
             },
         ],
         ['./plugins/withCustomGradleConfig', {}],
         'expo-localization',
-        [
-            'expo-asset',
-            {
-                assets: ['./public/audio_samples/recorder_hello_world.wav'],
-            },
-        ],
+        // [
+        //     'expo-asset',
+        //     {
+        //         assets: ['./public/audio_samples/recorder_hello_world.wav'],
+        //     },
+        // ],
         'expo-router',
     ],
 }

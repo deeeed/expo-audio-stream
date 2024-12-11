@@ -138,7 +138,9 @@ export default function RecordScreen() {
             },
         })
     const [iosSettingsEnabled, setIOSSettingsEnabled] = useState(false)
-    const [iosSettings, setIOSSettings] = useState<RecordingConfig['ios']>(baseRecordingConfig.ios)
+    const [iosSettings, setIOSSettings] = useState<RecordingConfig['ios']>(
+        baseRecordingConfig.ios
+    )
 
     const audioChunks = useRef<string[]>([])
     const webAudioChunks = useRef<Float32Array>(new Float32Array(0))
@@ -285,9 +287,9 @@ export default function RecordScreen() {
                 return
             }
 
-            if (!ready) {
+            if (!ready && isWeb) {
                 logger.info(`Initializing transcription...`)
-                initialize({ contextOptions: { filePath: '' } })
+                initialize()
             }
             // Clear previous audio chunks
             audioChunks.current = []
