@@ -1,4 +1,4 @@
-[**@siteed/expo-audio-stream**](../README.md) • **Docs**
+[**@siteed/expo-audio-stream**](../README.md)
 
 ***
 
@@ -10,7 +10,9 @@
 
 ## Parameters
 
-• **\_\_namedParameters**: `UseAudioRecorderProps` = `{}`
+### \_\_namedParameters
+
+`UseAudioRecorderProps` = `{}`
 
 ## Returns
 
@@ -18,4 +20,4 @@
 
 ## Defined in
 
-[src/useAudioRecorder.tsx:124](https://github.com/deeeed/expo-audio-stream/blob/754e9934983db0d7bc918d04aa964c790ad31b94/packages/expo-audio-stream/src/useAudioRecorder.tsx#L124)
+[src/useAudioRecorder.tsx:122](https://github.com/deeeed/expo-audio-stream/blob/24b2e6da0e39a36256d58f11079264f58ff0ee20/packages/expo-audio-stream/src/useAudioRecorder.tsx#L122)

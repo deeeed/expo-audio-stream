@@ -4,7 +4,6 @@
         "outDir": "./build",
         "types": ["jest", "node"],
         "sourceMap": true,
-        "strict": true,
         "typeRoots": [
             "./node_modules/@types",
             "../../node_modules/@types",

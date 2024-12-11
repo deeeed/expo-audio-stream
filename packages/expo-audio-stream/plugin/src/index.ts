@@ -9,9 +9,15 @@ import { ExpoConfig } from '@expo/config-types'
 const MICROPHONE_USAGE = 'Allow $(PRODUCT_NAME) to access your microphone'
 const NOTIFICATION_USAGE = 'Show recording notifications and controls'
 
+const LOG_PREFIX = '[@siteed/expo-audio-stream]'
+
 const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
+    console.log(`${LOG_PREFIX} 📱 Configuring Recording Permissions Plugin...`)
+
     // iOS Configuration
     config = withInfoPlist(config as any, (config) => {
+        console.log(`${LOG_PREFIX} 🍎 Configuring iOS permissions and capabilities...`)
+
         // Existing microphone permission
         config.modResults['NSMicrophoneUsageDescription'] =
             config.modResults['NSMicrophoneUsageDescription'] ||
@@ -35,16 +41,18 @@ const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
         }
         config.modResults.UIBackgroundModes = existingBackgroundModes
 
+        console.log(`${LOG_PREFIX} iOS Background Modes:`, config.modResults.UIBackgroundModes)
+
         return config
     })
 
     // Android Configuration
     config = withAndroidManifest(config as any, (config) => {
+        console.log(`${LOG_PREFIX} 🤖 Configuring Android Manifest...`)
+
         const androidManifest = config.modResults
         if (!androidManifest.manifest) {
-            console.warn(
-                'withRecordingPermission: androidManifest.manifest is null'
-            )
+            console.error(`${LOG_PREFIX} ❌ Android Manifest is null - plugin cannot continue`)
             return config
         }
 
@@ -61,7 +69,10 @@ const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
 
         const { addPermission } = AndroidConfig.Permissions
 
-        // Required permissions
+        // Log existing permissions before adding new ones
+        console.log(`${LOG_PREFIX} 📋 Existing Android permissions:`, 
+            androidManifest.manifest['uses-permission']?.map(p => p.$?.['android:name']) || [])
+
         const permissionsToAdd = [
             'android.permission.RECORD_AUDIO',
             'android.permission.FOREGROUND_SERVICE',
@@ -69,6 +80,8 @@ const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
             'android.permission.WAKE_LOCK',
             'android.permission.POST_NOTIFICATIONS',
         ]
+
+        console.log(`${LOG_PREFIX} ➕ Adding Android permissions:`, permissionsToAdd)
 
         // Add each permission only if it doesn't exist
         permissionsToAdd.forEach((permission) => {
@@ -83,6 +96,8 @@ const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
         // Get the main application node
         const mainApplication = androidManifest.manifest.application?.[0]
         if (mainApplication) {
+            console.log(`${LOG_PREFIX} 📱 Configuring Android application components...`)
+
             // Add RecordingActionReceiver
             if (!mainApplication.receiver) {
                 mainApplication.receiver = []
@@ -115,6 +130,8 @@ const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
                 mainApplication.receiver.push(receiverConfig)
             }
 
+            console.log(`${LOG_PREFIX} ✅ RecordingActionReceiver configured`)
+
             // Add AudioRecordingService
             if (!mainApplication.service) {
                 mainApplication.service = []
@@ -139,12 +156,17 @@ const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
             } else {
                 mainApplication.service.push(serviceConfig)
             }
+
+            console.log(`${LOG_PREFIX} ✅ AudioRecordingService configured`)
+        } else {
+            console.error(`${LOG_PREFIX} ❌ Main application node not found in Android Manifest`)
         }
 
         return config
     })
 
-    return config as any // TODO: remove once types are fixed from expo
+    console.log(`${LOG_PREFIX} ✨ Recording Permissions Plugin configuration completed`)
+    return config as any
 }
 
 export default withRecordingPermission
