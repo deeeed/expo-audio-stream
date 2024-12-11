@@ -6,21 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- fix: expo plugin files not published ([b88c446](https://github.com/deeeed/expo-audio-stream/commit/b88c44667013a901fccfe6f89dcb640ae2aae47f))
+
+
+## [1.5.3] - 2024-12-11
 - chore(expo-audio-stream): remove git commit step from publish script ([4a772ce](https://github.com/deeeed/expo-audio-stream/commit/4a772ce93bb7405d9b8e981f46bdf8941a71ecfe))
 - chore: more publishing automation ([3693021](https://github.com/deeeed/expo-audio-stream/commit/369302107f9dca9dddd8ae68e6214481a39976ac))
+- expo plugin files not published ([b88c446](https://github.com/deeeed/expo-audio-stream/commit/b88c44667013a901fccfe6f89dcb640ae2aae47f))
 
 ## [1.5.2] - 2024-12-11
 - chore(expo-audio-stream): improved build publish script ([ad65a69](https://github.com/deeeed/expo-audio-stream/commit/ad65a69011273e0eab1ac0f464fc3b009fc3433d))
 - fix(expo-audio-stream): missing plugin files ([e56254a](https://github.com/deeeed/expo-audio-stream/commit/e56254a4ffa1c015df3d300831ba0b392958b6c8))
 
+
 ## [1.5.1] - 2024-12-11
 - fix(expo-audio-stream): plugin deployment process and build system enhancements (#56) ([63fbeb8](https://github.com/deeeed/expo-audio-stream/commit/63fbeb82f56130dedeafa633e916f2ce0f8f1a67))
+
 
 
 ## [1.5.0] - 2024-12-10
 - feat(expo-audio-stream): add comprehensive ios audio session configuration support (#54) ([ba296ac](https://github.com/deeeed/expo-audio-stream/commit/ba296ac9be0d61e7a46cc64953e6f2c66881fdfd))
 - fix(expo-audio-stream): prevent invalid WAV files when stopping recording too quickly (#53) ([80f4898](https://github.com/deeeed/expo-audio-stream/commit/80f4898625cea52da8f3e34e425e61d7641353f7))
+
 
 
 
@@ -30,8 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
 ## [1.3.1] - 2024-12-05
 - feat(web): implement throttling and optimize event processing (#49) ([da28765](https://github.com/deeeed/expo-audio-stream/commit/da2876524c2c9d6e0a980fde40a0197b929d8a7f))
+
 
 
 
@@ -50,10 +58,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
 ## [1.2.5] - 2024-11-12
 ### Added
 - docs(license): add MIT license to all packages (6 files changed)
 - fix(expo-audio-stream): return actual recording settings from startRecording on iOS #37
+
 
 
 
@@ -73,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
 ## [1.2.0] - 2024-10-24
 ### Added
 - Feature: Keep device awake during recording with `keepAwake` option
@@ -86,10 +97,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
 ## [1.1.17] - 2024-10-21
 ### Added
 - Support bluetooth headset on ios
 - Fixes: android not reading custom interval audio update
+
 
 
 
@@ -107,7 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.5.2...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.5.3...HEAD
+[1.5.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.5.2...@siteed/expo-audio-stream@1.5.3
 [1.5.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.5.1...@siteed/expo-audio-stream@1.5.2
 [1.5.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.5.0...@siteed/expo-audio-stream@1.5.1
 [1.5.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.4.0...@siteed/expo-audio-stream@1.5.0
