@@ -93,7 +93,6 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "0.1.0"
-        resValue "string", "react_native_dev_server_port", "7365"
     }
     signingConfigs {
         debug {
