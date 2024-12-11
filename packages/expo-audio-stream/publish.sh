@@ -32,7 +32,7 @@ else
     echo -e "${YELLOW}Generating updated documentation...${NC}"
     yarn docgen
     
-    git add ../../
+    git add "$(pwd)/../../docs" "$(pwd)/../../documentation_site" # add all changes in the root folder
     git commit -m "docs: update api references for v$version"
     
     echo -e "${BLUE}Waiting while docs are generated...${NC}"
@@ -58,6 +58,5 @@ fi
 # Commit changes
 echo -e "${YELLOW}Committing changes...${NC}"
 git add "$(pwd)/../../" # add all changes in the root folder
-git commit -m "feat: bump version to $version"
 
 echo -e "${GREEN}Publication process completed successfully!${NC}"
