@@ -3,11 +3,31 @@ import 'ts-node/register' // Add this to import TypeScript files
 
 // Deps
 import { ExpoConfig } from '@expo/config'
+import { config as dotenvConfig } from 'dotenv-flow'
+import Joi from 'joi'
 
-const isDev = process.env.NODE_ENV === 'development'
+dotenvConfig() // Load variables from .env* file
+
+// Define a schema for the environment variables
+const envSchema = Joi.object({
+    EAS_PROJECT_ID: Joi.string().required(),
+    NPM_AUTH_TOKEN: Joi.string().optional(),
+}).unknown() // Allow other environment variables
+
+// Validate the environment variables
+const { error } = envSchema.validate(process.env)
+
+// If validation fails, throw an error
+if (error) {
+    throw new Error(`Environment validation error: ${error.message}`)
+}
+
+const IS_DEV =
+    process.env.APP_VARIANT === 'development' ||
+    process.env.NODE_ENV === 'development'
 
 const config: ExpoConfig = {
-    name: 'audio-playground',
+    name: IS_DEV ? 'AudioPlayground (Dev)' : 'AudioPlayground',
     slug: 'audio-playground',
     version: '0.1.0',
     orientation: 'portrait',
@@ -17,7 +37,7 @@ const config: ExpoConfig = {
     splash: {
         image: './assets/splash.png',
         resizeMode: 'contain',
-        backgroundColor: '#ffffff',
+        backgroundColor: IS_DEV ? '#ffffff' : '#98c1d9',
     },
     assetBundlePatterns: ['**/*', 'assets/audio_samples/*'],
     ios: {
@@ -27,7 +47,7 @@ const config: ExpoConfig = {
     android: {
         adaptiveIcon: {
             foregroundImage: './assets/adaptive-icon.png',
-            backgroundColor: '#ffffff',
+            backgroundColor: IS_DEV ? '#ffffff' : '#98c1d9',
         },
         package: 'net.siteed.audiostream.audioplayground',
     },
@@ -36,8 +56,12 @@ const config: ExpoConfig = {
         bundler: 'metro',
     },
     experiments: {
-        baseUrl: isDev ? '' : '/expo-audio-stream/playground/',
+        baseUrl: IS_DEV ? '' : '/expo-audio-stream/playground/',
     },
+    updates: {
+        url: 'https://u.expo.dev/cf0b88bd-5c8f-4c08-acaa-a433582f33c6',
+    },
+    runtimeVersion: '1.0.0',
     newArchEnabled: true,
     plugins: [
         [
@@ -69,6 +93,11 @@ const config: ExpoConfig = {
         // ],
         'expo-router',
     ],
+    extra: {
+        eas: {
+            projectId: process.env.EAS_PROJECT_ID,
+        },
+    },
 }
 
 export default config

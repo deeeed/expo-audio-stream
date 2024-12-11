@@ -1,0 +1,80 @@
+{
+  "cli": {
+    "version": ">= 14.1.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "distribution": "internal",
+      "channel": "development",
+      "developmentClient": true,
+      "env": {
+        "APP_VARIANT": "development",
+        "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
+        "YARN_ENABLE_GLOBAL_CACHE": "false",
+        "NPM_AUTH_TOKEN": "$(NPM_AUTH_TOKEN)"
+      },
+      "android": {
+        "gradleCommand": ":app:assembleDebug"
+      },
+      "ios": {
+        "buildConfiguration": "Debug"
+      },
+      "cache": {
+        "paths": [
+          "~/.yarn/cache"
+        ]
+      }
+    },
+    "test": {
+      "android": {
+        "gradleCommand": ":app:assembleRelease :app:assembleAndroidTest -DtestBuildType=release",
+        "withoutCredentials": true
+      },
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EAS_PROJECT_ID": "$(EAS_PROJECT_ID)",
+        "NPM_AUTH_TOKEN": "$(NPM_AUTH_TOKEN)",
+        "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
+        "YARN_ENABLE_GLOBAL_CACHE": "false"
+      },
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "ios": {
+        "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EAS_PROJECT_ID": "$(EAS_PROJECT_ID)",
+        "NPM_AUTH_TOKEN": "$(NPM_AUTH_TOKEN)",
+        "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
+        "YARN_ENABLE_GLOBAL_CACHE": "false"
+      }
+    },
+    "production": {
+      "channel": "production",
+      "env": {
+        "EAS_PROJECT_ID": "$(EAS_PROJECT_ID)",
+        "NPM_AUTH_TOKEN": "$(NPM_AUTH_TOKEN)",
+        "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
+        "YARN_ENABLE_GLOBAL_CACHE": "false"
+      },
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "deeeed@gmail.com",
+        "ascAppId": "6739283762",
+        "appleTeamId": "G5DZE7G2V4"
+      }
+    }
+  }
+}
