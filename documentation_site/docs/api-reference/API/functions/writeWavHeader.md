@@ -1,4 +1,4 @@
-[**@siteed/expo-audio-stream**](../README.md) • **Docs**
+[**@siteed/expo-audio-stream**](../README.md)
 
 ***
 
@@ -21,7 +21,9 @@ to the maximum 32-bit value (0xFFFFFFFF). These can be updated later using the
 
 ## Parameters
 
-• **options**: [`WavHeaderOptions`](../interfaces/WavHeaderOptions.md)
+### options
+
+[`WavHeaderOptions`](../interfaces/WavHeaderOptions.md)
 
 The options for creating or updating the WAV header.
 
@@ -58,4 +60,4 @@ const completeWav = writeWavHeader({
 
 ## Defined in
 
-[src/utils/writeWavHeader.ts:51](https://github.com/deeeed/expo-audio-stream/blob/754e9934983db0d7bc918d04aa964c790ad31b94/packages/expo-audio-stream/src/utils/writeWavHeader.ts#L51)
+[src/utils/writeWavHeader.ts:51](https://github.com/deeeed/expo-audio-stream/blob/24b2e6da0e39a36256d58f11079264f58ff0ee20/packages/expo-audio-stream/src/utils/writeWavHeader.ts#L51)

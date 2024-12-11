@@ -1,4 +1,4 @@
-[**@siteed/expo-audio-stream**](../README.md) • **Docs**
+[**@siteed/expo-audio-stream**](../README.md)
 
 ***
 
@@ -6,34 +6,32 @@
 
 # Function: convertPCMToFloat32()
 
-> **convertPCMToFloat32**(`__namedParameters`): `Promise`\<`object`\>
+> **convertPCMToFloat32**(`__namedParameters`): `Promise`\<\{ `max`: `number`; `min`: `number`; `pcmValues`: `Float32Array`; \}\>
 
 ## Parameters
 
-• **\_\_namedParameters**
+### \_\_namedParameters
 
-• **\_\_namedParameters.bitDepth**: `number`
+#### bitDepth
 
-• **\_\_namedParameters.buffer**: `ArrayBuffer`
+`number`
 
-• **\_\_namedParameters.skipWavHeader?**: `boolean` = `false`
+#### buffer
+
+`ArrayBuffer`
+
+#### logger
+
+[`ConsoleLike`](../type-aliases/ConsoleLike.md)
+
+#### skipWavHeader
+
+`boolean` = `false`
 
 ## Returns
 
-`Promise`\<`object`\>
-
-### max
-
-> **max**: `number`
-
-### min
-
-> **min**: `number`
-
-### pcmValues
-
-> **pcmValues**: `Float32Array`
+`Promise`\<\{ `max`: `number`; `min`: `number`; `pcmValues`: `Float32Array`; \}\>
 
 ## Defined in
 
-[src/utils/convertPCMToFloat32.ts:34](https://github.com/deeeed/expo-audio-stream/blob/754e9934983db0d7bc918d04aa964c790ad31b94/packages/expo-audio-stream/src/utils/convertPCMToFloat32.ts#L34)
+[src/utils/convertPCMToFloat32.ts:69](https://github.com/deeeed/expo-audio-stream/blob/24b2e6da0e39a36256d58f11079264f58ff0ee20/packages/expo-audio-stream/src/utils/convertPCMToFloat32.ts#L69)
