@@ -7,7 +7,7 @@ import { SharedValue, useDerivedValue } from 'react-native-reanimated'
 
 import AnimatedCandle from '../AnimatedCandle/AnimatedCandle'
 import { SkiaTimeRuler } from '../SkiaTimeRuler/SkiaTimeRuler'
-import Waveform from '../Waveform/Waveform'
+import { Waveform } from '../Waveform/Waveform'
 import { YAxis } from '../YAxis/YAxis'
 import { defaultCandleColors } from '../constants'
 import { AudioVisualizerTheme, CandleData } from './AudioVisualiser.types'
@@ -208,7 +208,6 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     canvasWidth={canvasWidth}
                     minAmplitude={minAmplitude}
                     maxAmplitude={maxAmplitude}
-                    theme={theme}
                 />
             )
         } else {
