@@ -2,3 +2,5 @@
 
 export * from './AudioVisualizer/AudioVisualiser.types'
 export * from './AudioVisualizer/AudioVisualizer'
+export * from './RecordButton/RecordButton'
+export * from './Waveform/Waveform'
