@@ -3,6 +3,7 @@
     "compilerOptions": {
         "strict": true,
         "types": ["node"],
+        "experimentalDecorators": true,
         "paths": {
             "@siteed/expo-audio-stream": [
                 "../../packages/expo-audio-stream/src/index"
