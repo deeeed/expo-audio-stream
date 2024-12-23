@@ -83,7 +83,7 @@ const Transcriber: React.FC<TranscriberProps> = ({
             logger.debug('Model not ready, starting model loading...')
             initialize()
         }
-    }, [isBusy, transcribe, currentAudio, ready])
+    }, [isBusy, transcribe, currentAudio, ready, isModelLoading, initialize])
 
     useEffect(() => {
         console.debug('Transcriber transcript useEffect', transcript)
@@ -98,7 +98,7 @@ const Transcriber: React.FC<TranscriberProps> = ({
                 onTranscriptionComplete?.(transcript)
             }
         }
-    }, [transcript, onTranscriptionUpdate])
+    }, [transcript, onTranscriptionUpdate, onTranscriptionComplete])
 
     return (
         <View>

@@ -1,5 +1,5 @@
 import { Canvas, Path, SkPath, Skia } from '@shopify/react-native-skia'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native'
 
 const getStyles = (canvasWidth: number) => {
@@ -50,9 +50,9 @@ const AudioWaveformPreview: React.FC<AudioWaveformPreviewProps> = ({
         })
 
         return path
-    }, [canvasWidth, waveformBuffer])
+    }, [canvasHeight, canvasWidth, waveformBuffer])
 
-    const styles = React.useMemo(() => getStyles(canvasWidth), [canvasWidth])
+    const styles = useMemo(() => getStyles(canvasWidth), [canvasWidth])
 
     return (
         <View style={styles.container} onLayout={handleLayout}>

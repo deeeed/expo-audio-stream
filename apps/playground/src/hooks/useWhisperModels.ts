@@ -88,7 +88,7 @@ export function useWhisperModels() {
         } finally {
             setIsDownloading(false)
         }
-    }, [])
+    }, [getModelDirectory])
 
     const initializeWhisperModel = useCallback(
         async (modelId: string) => {

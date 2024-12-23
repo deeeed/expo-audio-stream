@@ -99,7 +99,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 payload: { isModelLoading: false, ready: false },
             })
         }
-    }, [])
+    }, [state.model])
 
     const transcribe = useCallback(
         async ({

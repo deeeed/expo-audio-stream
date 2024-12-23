@@ -398,7 +398,7 @@ export default function RecordScreen() {
             setStopping(false)
             setProcessing(false)
         }
-    }, [stopRecording, refreshFiles, transcripts, enableLiveTranscription])
+    }, [stopRecording, enableLiveTranscription, router, show, hide, transcripts, refreshFiles])
 
     const renderRecording = () => (
         <View style={{ gap: 10, display: 'flex' }}>
@@ -461,7 +461,7 @@ export default function RecordScreen() {
                 setError('Failed to delete the recording. Please try again.')
             }
         },
-        [removeFile]
+        [removeFile, router]
     )
 
     const renderPaused = () => (

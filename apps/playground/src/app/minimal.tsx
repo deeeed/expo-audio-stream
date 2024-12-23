@@ -6,7 +6,7 @@ import {
     SkFont,
     useFont,
 } from '@shopify/react-native-skia'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     LayoutChangeEvent,
     StyleSheet,
@@ -58,7 +58,7 @@ const SPACE_BETWEEN_RECTS = 2
 const CANVAS_HEIGHT = 300
 const FONT_SIZE = 20
 
-const WaveFormRect = React.memo(
+const WaveFormRect = memo(
     ({
         x: targetX,
         y: targetY,
@@ -106,7 +106,7 @@ const Minimal = () => {
     const { width: screenWidth } = useWindowDimensions()
     const [canvasWidth, setCanvasWidth] = useState(0)
 
-    const styles = React.useMemo(
+    const styles = useMemo(
         () => getStyles(screenWidth, canvasWidth),
         [screenWidth, canvasWidth]
     )
@@ -143,7 +143,7 @@ const Minimal = () => {
         setCanvasWidth(width)
     }, [])
 
-    const updateActivePoints = (x: number) => {
+    const updateActivePoints = useCallback((x: number) => {
         const currentLength = wavepoints.length
 
         if (mode === 'live') {
@@ -235,13 +235,13 @@ const Minimal = () => {
             `updateActivePoints x: ${x} StartIndex: ${startIndex}`
             // activePoints,
         )
-    }
+    }, [activePoints, maxDisplayedItems, mode, startIndex, wavepoints])
 
     useEffect(() => {
         const initialTranslateX = Math.max(-maxTranslateX + screenWidth, 0)
         translateX.value = initialTranslateX
         updateActivePoints(initialTranslateX)
-    }, [])
+    }, [maxTranslateX, screenWidth, translateX, updateActivePoints])
 
     useEffect(() => {
         if (mode === 'live') {
@@ -249,7 +249,7 @@ const Minimal = () => {
             translateX.value = initialTranslateX
             updateActivePoints(initialTranslateX)
         }
-    }, [mode, wavepoints])
+    }, [maxTranslateX, mode, screenWidth, translateX, updateActivePoints, wavepoints])
 
     const panGesture = Gesture.Pan()
         .onChange((event) => {

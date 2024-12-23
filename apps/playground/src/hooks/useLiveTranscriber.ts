@@ -1,5 +1,5 @@
 import { TranscriberData } from '@siteed/expo-audio-stream'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { baseLogger, WhisperSampleRate } from '../config'
 import {
@@ -53,7 +53,7 @@ export function useLiveTranscriber({
         }
     }, [transcriber.transcript])
 
-    const handleTranscribe = async ({
+    const handleTranscribe = useCallback(async ({
         interval,
         lastIndexRef,
         fetchDuration,
@@ -122,7 +122,7 @@ export function useLiveTranscriber({
             }
         }
         return transcript
-    }
+    }, [audioBuffer, transcriber, stopping])
 
     // Handle the quick update
     useEffect(() => {
@@ -150,7 +150,7 @@ export function useLiveTranscriber({
                     logger.error(`Failed to trancribe`, e)
                 })
         }
-    }, [audioBuffer])
+    }, [audioBuffer, handleTranscribe, quickUpdateInterval])
 
     // Handle the checkpoint update
     useEffect(() => {
@@ -197,7 +197,7 @@ export function useLiveTranscriber({
                     logger.error(`Failed to trancribe`, e)
                 })
         }
-    }, [audioBuffer, stopping])
+    }, [audioBuffer, handleTranscribe, checkpointInterval])
 
     const liveTranscriber = useMemo(
         () => ({
