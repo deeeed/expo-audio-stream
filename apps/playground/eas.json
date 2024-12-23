@@ -10,6 +10,7 @@
       "developmentClient": true,
       "env": {
         "APP_VARIANT": "development",
+        "APPLE_TEAM_ID": "$(APPLE_TEAM_ID)",
         "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
         "YARN_ENABLE_GLOBAL_CACHE": "false",
         "NPM_AUTH_TOKEN": "$(NPM_AUTH_TOKEN)"
@@ -36,6 +37,7 @@
       },
       "env": {
         "EAS_PROJECT_ID": "$(EAS_PROJECT_ID)",
+        "APPLE_TEAM_ID": "$(APPLE_TEAM_ID)",
         "NPM_AUTH_TOKEN": "$(NPM_AUTH_TOKEN)",
         "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
         "YARN_ENABLE_GLOBAL_CACHE": "false"
@@ -52,6 +54,7 @@
       },
       "env": {
         "EAS_PROJECT_ID": "$(EAS_PROJECT_ID)",
+        "APPLE_TEAM_ID": "$(APPLE_TEAM_ID)",
         "NPM_AUTH_TOKEN": "$(NPM_AUTH_TOKEN)",
         "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
         "YARN_ENABLE_GLOBAL_CACHE": "false"
@@ -61,6 +64,7 @@
       "channel": "production",
       "env": {
         "EAS_PROJECT_ID": "$(EAS_PROJECT_ID)",
+        "APPLE_TEAM_ID": "$(APPLE_TEAM_ID)",
         "NPM_AUTH_TOKEN": "$(NPM_AUTH_TOKEN)",
         "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
         "YARN_ENABLE_GLOBAL_CACHE": "false"

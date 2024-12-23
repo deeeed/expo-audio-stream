@@ -12,6 +12,7 @@ dotenvConfig() // Load variables from .env* file
 const envSchema = Joi.object({
     EAS_PROJECT_ID: Joi.string().required(),
     NPM_AUTH_TOKEN: Joi.string().optional(),
+    APPLE_TEAM_ID: Joi.string().optional(),
     APP_VARIANT: Joi.string()
         .valid('development', 'staging', 'production')
         .default('development'),
@@ -49,6 +50,7 @@ const config: ExpoConfig = {
     ios: {
         supportsTablet: true,
         bundleIdentifier: APP_IDENTIFIER,
+        appleTeamId: env.APPLE_TEAM_ID,
     },
     android: {
         adaptiveIcon: {
@@ -105,7 +107,7 @@ const config: ExpoConfig = {
     ],
     extra: {
         eas: {
-            projectId: process.env.EAS_PROJECT_ID,
+            projectId: env.EAS_PROJECT_ID,
         },
     },
 }

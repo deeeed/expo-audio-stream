@@ -8,8 +8,8 @@ import {
 } from '@siteed/design-system'
 import { NotificationConfig, WaveformConfig } from '@siteed/expo-audio-stream'
 import React, { useMemo } from 'react'
-import { Platform, StyleSheet, Text, View } from 'react-native'
-import { SegmentedButtons } from 'react-native-paper'
+import { Platform, StyleSheet, View } from 'react-native'
+import { SegmentedButtons, Text } from 'react-native-paper'
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
@@ -77,6 +77,11 @@ export const NotificationConfigForm = ({
 
     return (
         <View style={styles.container}>
+            <View style={styles.sectionHeader}>
+                <Text style={styles.sectionHeaderText}>
+                    Notifications
+                </Text>
+            </View>
             <TextInput
                 label="Title"
                 value={config.title}

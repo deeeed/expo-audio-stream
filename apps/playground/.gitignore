@@ -11,6 +11,10 @@ web-build/
 # Whisper model files
 *.bin
 
+# use expo continuous integration
+android
+ios
+
 # Native
 *.orig.*
 *.jks
