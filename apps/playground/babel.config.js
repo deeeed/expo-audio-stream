@@ -15,6 +15,7 @@ module.exports = (api) => {
                     },
                 },
             ],
+            ['@babel/plugin-proposal-decorators', { 'legacy': true }],
             // plugin for transformerjs and worker support
             'babel-plugin-transform-import-meta',
         ],

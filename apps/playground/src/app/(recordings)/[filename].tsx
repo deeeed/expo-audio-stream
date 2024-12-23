@@ -105,7 +105,7 @@ export const FullAudioViewerPage = () => {
                 </View>
             ),
         })
-    }, [navigator, selectedFile, setConfig, openDrawer, show])
+    }, [navigator, selectedFile, setConfig, openDrawer, show, config, colors.primary, colors.text])
 
     return (
         <ScreenWrapper contentContainerStyle={styles.container}>

@@ -34,10 +34,10 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
     })
 }
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+/* eslint-disable-next-line @typescript-eslint/no-var-requires, global-require */
 const logoSource = require('@assets/icon.png')
-export interface MoreScreenProps {}
-export const MoreScreen = (_: MoreScreenProps) => {
+
+export const MoreScreen = () => {
     const router = useRouter()
     const { toggleDarkMode, darkMode, theme } = useThemePreferences()
     const styles = useMemo(() => getStyles({ theme }), [theme])

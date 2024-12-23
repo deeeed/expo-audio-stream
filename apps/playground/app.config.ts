@@ -2,67 +2,102 @@
 import 'ts-node/register' // Add this to import TypeScript files
 
 // Deps
-import { ExpoConfig } from '@expo/config'
+import { ConfigContext, ExpoConfig } from '@expo/config'
 import { config as dotenvConfig } from 'dotenv-flow'
 import Joi from 'joi'
 
-dotenvConfig() // Load variables from .env* file
+dotenvConfig({ silent: true }) // Load variables from .env* file
 
 // Define a schema for the environment variables
 const envSchema = Joi.object({
     EAS_PROJECT_ID: Joi.string().required(),
     NPM_AUTH_TOKEN: Joi.string().optional(),
+    APPLE_TEAM_ID: Joi.string().optional(),
+    APP_VARIANT: Joi.string()
+        .valid('development', 'staging', 'production')
+        .default('development'),
 }).unknown() // Allow other environment variables
 
-// Validate the environment variables
-const { error } = envSchema.validate(process.env)
+// Validate and get environment variables
+const { value: env } = envSchema.validate(process.env)
 
-// If validation fails, throw an error
-if (error) {
-    throw new Error(`Environment validation error: ${error.message}`)
+// Add a helper function for logging
+function logConfig(config: Record<string, unknown>, prefix = '') {
+    console.log('\n🔧 Environment Configuration:')
+    console.log('-----------------------------')
+    Object.entries(config).forEach(([key, value]) => {
+        if (value !== undefined) {
+            console.log(`${prefix}${key}: ${value}`)
+        }
+    })
+    console.log('-----------------------------\n')
 }
 
-const IS_DEV =
-    process.env.APP_VARIANT === 'development' ||
-    process.env.NODE_ENV === 'development'
+const getAppIdentifier = (base: string, variant: string): string => {
+    if (variant === 'production') return base
+    return `${base}.${variant}`
+}
 
-const config: ExpoConfig = {
-    name: IS_DEV ? 'AudioPlayground (Dev)' : 'AudioPlayground',
-    slug: 'audio-playground',
+const APP_IDENTIFIER = getAppIdentifier('net.siteed.audioplayground', env.APP_VARIANT)
+
+// Log the important configuration values
+logConfig({
+    'App Variant': env.APP_VARIANT,
+    'App Identifier': APP_IDENTIFIER,
+    'EAS Project ID': env.EAS_PROJECT_ID,
+    'Apple Team ID': env.APPLE_TEAM_ID || 'Not set',
+    'Environment': process.env.NODE_ENV || 'development',
+})
+
+export default ({ config }: ConfigContext): ExpoConfig => {
+    return {
+    ...config,
+    name:
+        env.APP_VARIANT === 'production'
+            ? 'AudioPlayground'
+            : `AudioPlayground (${env.APP_VARIANT})`,
+    slug: 'audioplayground',
     version: '0.1.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
-    scheme: 'net.siteed.audiostream.audioplayground',
+    scheme: 'audioplayground',
     splash: {
         image: './assets/splash.png',
         resizeMode: 'contain',
-        backgroundColor: IS_DEV ? '#ffffff' : '#98c1d9',
+        backgroundColor:
+            env.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
     },
     assetBundlePatterns: ['**/*', 'assets/audio_samples/*'],
     ios: {
         supportsTablet: true,
-        bundleIdentifier: 'net.siteed.audiostream.audioplayground',
+        bundleIdentifier: APP_IDENTIFIER,
+        appleTeamId: env.APPLE_TEAM_ID,
     },
     android: {
         adaptiveIcon: {
             foregroundImage: './assets/adaptive-icon.png',
-            backgroundColor: IS_DEV ? '#ffffff' : '#98c1d9',
+            backgroundColor:
+                env.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
         },
-        package: 'net.siteed.audiostream.audioplayground',
+        package: APP_IDENTIFIER,
     },
     web: {
         favicon: './assets/favicon.png',
         bundler: 'metro',
     },
     experiments: {
-        baseUrl: IS_DEV ? '' : '/expo-audio-stream/playground/',
+        baseUrl:
+            env.APP_VARIANT === 'production'
+                ? '/expo-audio-stream/playground/'
+                : '',
     },
     updates: {
-        url: 'https://u.expo.dev/cf0b88bd-5c8f-4c08-acaa-a433582f33c6',
+        url: 'https://u.expo.dev/' + env.EAS_PROJECT_ID,
     },
     runtimeVersion: '1.0.0',
     newArchEnabled: true,
+    owner: 'deeeed',
     plugins: [
         [
             '../../packages/expo-audio-stream/app.plugin.js',
@@ -95,9 +130,9 @@ const config: ExpoConfig = {
     ],
     extra: {
         eas: {
-            projectId: process.env.EAS_PROJECT_ID,
+            projectId: env.EAS_PROJECT_ID,
         },
     },
 }
 
-export default config
+}

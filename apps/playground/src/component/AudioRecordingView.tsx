@@ -264,7 +264,7 @@ export const AudioRecordingView = ({
         }
 
         loadHexData()
-    }, [recording, selectedDataPoint, audioAnalysis])
+    }, [recording, selectedDataPoint, audioAnalysis, audioUri])
 
     return (
         <View style={styles.container}>

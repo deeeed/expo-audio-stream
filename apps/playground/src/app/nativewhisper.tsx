@@ -273,7 +273,7 @@ export function NativeWhisperScreen() {
             setIsTranscribing(false)
             setStopTranscription(null)
         }
-    }, [selectedFile, whisperContext])
+    }, [convertWhisperSegmentsToChunks, selectedFile, selectedModel, whisperContext])
 
     const handleStop = useCallback(async () => {
         if (stopTranscription) {
