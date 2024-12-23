@@ -72,7 +72,7 @@ const FilesScreen = () => {
                 show({ type: 'error', message: 'Failed to load audio data' })
             }
         },
-        [removeFile]
+        [removeFile, show]
     )
 
     if (!ready) {

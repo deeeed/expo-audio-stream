@@ -83,6 +83,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
     const lastProgressUpdate = useRef<number>(0)
     const lastTranscriptRef = useRef<TranscriberData | null>(null)
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const messageEventHandler = useCallback(
         throttle((event: MessageEvent) => {
             const message = event.data
@@ -204,7 +205,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     break
             }
         }, 100), // Throttle to run at most once every 100ms
-        []
+        [dispatch]
     )
 
     const webWorker = useWorker({

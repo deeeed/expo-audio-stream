@@ -18,6 +18,27 @@ Visit the web demo: https://deeeed.github.io/expo-audio-stream/
 
 ## Development Setup
 
+### Environment Configuration
+
+1. Create a `.env.development` file in the project root with required variables:
+```bash
+APPLE_TEAM_ID=your_team_id
+EAS_PROJECT_ID=your_project_id
+APPLE_APP_ID=your_app_id
+```
+
+2. Configure EAS environment variables:
+```bash
+eas secret:create --scope project --name APPLE_TEAM_ID --value "your_team_id" --type string
+eas secret:create --scope project --name EAS_PROJECT_ID --value "your_project_id" --type string
+eas secret:create --scope project --name APPLE_APP_ID --value "your_app_id" --type string
+```
+
+3. Verify environment setup:
+```bash
+eas env:list
+```
+
 ### Local Development
 
 1. Set custom port for development:

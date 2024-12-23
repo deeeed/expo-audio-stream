@@ -1,16 +1,12 @@
 {
   "extends": "./tsconfig",
-  "compilerOptions": {
-    // ensure that nobody can accidentally use this config for a build
-    "noEmit": true,
-  },
   "include": [
     "./src",
     "./*.js",
     "./scripts",
     "./plugins",
     "app.config.ts",
-    ".eslintrc.cjs",
+    ".eslintrc.js",
     "./public/*.js"
   ],
   "exclude": ["dist/**", "node_modules"]

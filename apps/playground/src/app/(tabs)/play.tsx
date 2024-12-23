@@ -369,7 +369,7 @@ export const PlayPage = () => {
             await removeFile(audioResult)
             throw error
         }
-    }, [files, fileName, audioUri, logger, refreshFiles, show, transcript])
+    }, [fileName, audioUri, files, show, transcript, refreshFiles, removeFile])
 
     const handleSelectChunk = ({ chunk }: { chunk: Chunk }) => {
         if (chunk.timestamp && chunk.timestamp.length > 0) {
@@ -384,7 +384,7 @@ export const PlayPage = () => {
                   sound.unloadAsync()
               }
             : undefined
-    }, [sound, logger])
+    }, [sound])
 
     return (
         <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
