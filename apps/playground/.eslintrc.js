@@ -73,5 +73,11 @@ module.exports = {
             allow: ['@assets/*']
         }],
         '@typescript-eslint/no-var-requires': 'off',
+        'import/no-unresolved': [
+            'error',
+            {
+                ignore: ['^@siteed/expo-audio-ui']
+            }
+        ],
     },
 }
