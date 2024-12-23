@@ -10,10 +10,9 @@
       "developmentClient": true,
       "env": {
         "APP_VARIANT": "development",
-        "APPLE_TEAM_ID": "$(APPLE_TEAM_ID)",
+        "NPM_AUTH_TOKEN": "NONE",
         "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
-        "YARN_ENABLE_GLOBAL_CACHE": "false",
-        "NPM_AUTH_TOKEN": "$(NPM_AUTH_TOKEN)"
+        "YARN_ENABLE_GLOBAL_CACHE": "false"
       },
       "android": {
         "gradleCommand": ":app:assembleDebug"
@@ -36,12 +35,11 @@
         "simulator": true
       },
       "env": {
-        "EAS_PROJECT_ID": "$(EAS_PROJECT_ID)",
-        "APPLE_TEAM_ID": "$(APPLE_TEAM_ID)",
-        "NPM_AUTH_TOKEN": "$(NPM_AUTH_TOKEN)",
+        "APP_VARIANT": "test",
         "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
-        "YARN_ENABLE_GLOBAL_CACHE": "false"
-      },
+        "YARN_ENABLE_GLOBAL_CACHE": "false",
+        "NPM_AUTH_TOKEN": "NONE"
+      }
     },
     "preview": {
       "distribution": "internal",
@@ -53,9 +51,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EAS_PROJECT_ID": "$(EAS_PROJECT_ID)",
-        "APPLE_TEAM_ID": "$(APPLE_TEAM_ID)",
-        "NPM_AUTH_TOKEN": "$(NPM_AUTH_TOKEN)",
+        "APP_VARIANT": "preview",
+        "NPM_AUTH_TOKEN": "NONE",
         "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
         "YARN_ENABLE_GLOBAL_CACHE": "false"
       }
@@ -63,9 +60,9 @@
     "production": {
       "channel": "production",
       "env": {
-        "EAS_PROJECT_ID": "$(EAS_PROJECT_ID)",
-        "APPLE_TEAM_ID": "$(APPLE_TEAM_ID)",
-        "NPM_AUTH_TOKEN": "$(NPM_AUTH_TOKEN)",
+        "APP_VARIANT": "production",
+        "NPM_AUTH_TOKEN": "NONE",
+        "NODE_ENV": "production",
         "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
         "YARN_ENABLE_GLOBAL_CACHE": "false"
       },
@@ -76,8 +73,8 @@
     "production": {
       "ios": {
         "appleId": "deeeed@gmail.com",
-        "ascAppId": "6739283762",
-        "appleTeamId": "G5DZE7G2V4"
+        "ascAppId": "$APPLE_APP_ID",
+        "appleTeamId": "$APPLE_TEAM_ID"
       }
     }
   }

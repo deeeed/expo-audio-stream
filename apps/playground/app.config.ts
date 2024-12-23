@@ -2,11 +2,11 @@
 import 'ts-node/register' // Add this to import TypeScript files
 
 // Deps
-import { ExpoConfig } from '@expo/config'
+import { ConfigContext, ExpoConfig } from '@expo/config'
 import { config as dotenvConfig } from 'dotenv-flow'
 import Joi from 'joi'
 
-dotenvConfig() // Load variables from .env* file
+dotenvConfig({ silent: true }) // Load variables from .env* file
 
 // Define a schema for the environment variables
 const envSchema = Joi.object({
@@ -16,30 +16,52 @@ const envSchema = Joi.object({
     APP_VARIANT: Joi.string()
         .valid('development', 'staging', 'production')
         .default('development'),
-    APP_ID_BASE: Joi.string().default('net.siteed.audioplayground'),
 }).unknown() // Allow other environment variables
 
 // Validate and get environment variables
 const { value: env } = envSchema.validate(process.env)
+
+// Add a helper function for logging
+function logConfig(config: Record<string, unknown>, prefix = '') {
+    console.log('\n🔧 Environment Configuration:')
+    console.log('-----------------------------')
+    Object.entries(config).forEach(([key, value]) => {
+        if (value !== undefined) {
+            console.log(`${prefix}${key}: ${value}`)
+        }
+    })
+    console.log('-----------------------------\n')
+}
 
 const getAppIdentifier = (base: string, variant: string): string => {
     if (variant === 'production') return base
     return `${base}.${variant}`
 }
 
-const APP_IDENTIFIER = getAppIdentifier(env.APP_ID_BASE, env.APP_VARIANT)
+const APP_IDENTIFIER = getAppIdentifier('net.siteed.audioplayground', env.APP_VARIANT)
 
-const config: ExpoConfig = {
+// Log the important configuration values
+logConfig({
+    'App Variant': env.APP_VARIANT,
+    'App Identifier': APP_IDENTIFIER,
+    'EAS Project ID': env.EAS_PROJECT_ID,
+    'Apple Team ID': env.APPLE_TEAM_ID || 'Not set',
+    'Environment': process.env.NODE_ENV || 'development',
+})
+
+export default ({ config }: ConfigContext): ExpoConfig => {
+    return {
+    ...config,
     name:
         env.APP_VARIANT === 'production'
             ? 'AudioPlayground'
             : `AudioPlayground (${env.APP_VARIANT})`,
-    slug: 'audio-playground',
+    slug: 'audioplayground',
     version: '0.1.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
-    scheme: APP_IDENTIFIER,
+    scheme: 'audioplayground',
     splash: {
         image: './assets/splash.png',
         resizeMode: 'contain',
@@ -75,6 +97,7 @@ const config: ExpoConfig = {
     },
     runtimeVersion: '1.0.0',
     newArchEnabled: true,
+    owner: 'deeeed',
     plugins: [
         [
             '../../packages/expo-audio-stream/app.plugin.js',
@@ -112,4 +135,4 @@ const config: ExpoConfig = {
     },
 }
 
-export default config
+}
