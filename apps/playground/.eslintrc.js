@@ -8,13 +8,15 @@ module.exports = {
         es2021: true,
     },
     extends: [
-        'universe/native',
-        'universe/web',
+        'eslint:recommended',
         'plugin:promise/recommended',
         'plugin:react/recommended',
-        'prettier',
+        'plugin:@typescript-eslint/recommended',
+        'plugin:import/recommended',
+        'plugin:import/typescript',
+        'expo',
     ],
-    ignorePatterns: ['build', 'node_modules', 'dist', 'coverage'],
+    ignorePatterns: ['build', 'node_modules', '.expo', 'dist', 'coverage'],
     parser: '@typescript-eslint/parser',
     parserOptions: {
         ecmaVersion: 'latest',
@@ -23,7 +25,25 @@ module.exports = {
         tsconfigRootDir: __dirname,
         project: './tsconfig.eslint.json',
     },
-    plugins: ['@typescript-eslint', 'prettier', 'promise'],
+    plugins: [
+        '@typescript-eslint',
+        'prettier',
+        'promise',
+    ],
+    settings: {
+        react: {
+            version: 'detect',
+        },
+        'import/resolver': {
+            typescript: {
+                project: './tsconfig.eslint.json',
+            },
+            node: {
+                extensions: ['.js', '.jsx', '.ts', '.tsx'],
+                moduleDirectory: ['node_modules', '../../packages'],
+            },
+        },
+    },
     rules: {
         // suppress errors for missing 'import React' in files
         'react/react-in-jsx-scope': 'off',
@@ -48,5 +68,10 @@ module.exports = {
         'promise/no-return-wrap': 'error',
         'promise/param-names': 'error',
         'promise/no-return-in-finally': 'warn',
+        '@typescript-eslint/no-require-imports': ['error', {
+            // Allow requires only for asset imports
+            allow: ['@assets/*']
+        }],
+        '@typescript-eslint/no-var-requires': 'off',
     },
 }

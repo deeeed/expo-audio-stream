@@ -101,16 +101,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         }
 
         processAudioData().catch(logger.error)
-    }, [
-        audioUri,
-        options.loadArrayBuffer,
-        options.extractAnalysis,
-        options.analysisOptions?.skipWavHeader,
-        options.analysisOptions?.pointsPerSecond,
-        options.analysisOptions?.algorithm,
-        logger,
-        show,
-    ])
+    }, [audioUri, options.loadArrayBuffer, options.extractAnalysis, options.analysisOptions?.skipWavHeader, options.analysisOptions?.pointsPerSecond, options.analysisOptions?.algorithm, show, options.analysisOptions?.features, recording?.sampleRate, recording?.bitDepth, recording?.durationMs, recording?.channels])
 
     const updatePlaybackStatus = useCallback((status: AVPlaybackStatus) => {
         if (!status.isLoaded) {

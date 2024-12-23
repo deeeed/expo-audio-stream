@@ -11,18 +11,16 @@ import {
     View,
 } from 'react-native'
 
-export interface LogViewerProps {}
-
-export const LogViewer = (_: LogViewerProps) => {
+export const LogViewer = () => {
     const { show } = useToast()
     const theme = useTheme()
     const styles = useMemo(() => getStyles({ theme }), [theme])
     const [logs, setLogs] = useState(getLogs())
 
-    const handleRefresh = () => {
+    const handleRefresh = useCallback(() => {
         setLogs(getLogs())
         show({ iconVisible: true, message: 'Logs have been updated' })
-    }
+    }, [show])
 
     const handleClear = () => {
         clearLogs()
@@ -39,9 +37,9 @@ export const LogViewer = (_: LogViewerProps) => {
             await Clipboard.setStringAsync(text)
             show({ iconVisible: true, message: 'Logs copied to clipboard' })
         } catch (_err) {
-            // Ignore
+            // Ignore error
         }
-    }, [])
+    }, [logs, show])
 
     useFocusEffect(
         useCallback(() => {

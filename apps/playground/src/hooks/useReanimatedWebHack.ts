@@ -29,11 +29,11 @@ export function useReanimatedWebHack() {
             setIsHackEnabled(value)
             if (value) {
                 global._WORKLET = false
-                // @ts-expect-error
+                // @ts-expect-error global._log is not defined in the global scope
                 global._log = console.log
-                // @ts-expect-error
+                // @ts-expect-error global._getAnimationTimestamp is not defined in the global scope
                 global._getAnimationTimestamp = () => performance.now()
-                // @ts-expect-error
+                // @ts-expect-error global.__reanimatedLoggerConfig is not defined in the global scope
                 global.__reanimatedLoggerConfig = { native: false }
                 show({
                     type: 'success',
@@ -42,11 +42,11 @@ export function useReanimatedWebHack() {
                 })
             } else {
                 delete global._WORKLET
-                // @ts-expect-error
+                // @ts-expect-error global._log is not defined in the global scope
                 delete global._log
-                // @ts-expect-error
+                // @ts-expect-error global._getAnimationTimestamp is not defined in the global scope
                 delete global._getAnimationTimestamp
-                // @ts-expect-error
+                // @ts-expect-error global.__reanimatedLoggerConfig is not defined in the global scope
                 delete global.__reanimatedLoggerConfig
                 show({
                     type: 'warning',
@@ -55,7 +55,7 @@ export function useReanimatedWebHack() {
                 })
             }
         }
-    }, [])
+    }, [show])
 
     return {
         isHackEnabled,

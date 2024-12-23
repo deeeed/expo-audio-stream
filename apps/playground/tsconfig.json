@@ -14,5 +14,6 @@
             "@siteed/expo-audio-ui/*": ["../../packages/expo-audio-ui/src/*"]
         }
     },
-    "include": ["src", "app.config.ts"]
+    "include": ["src", "app.config.ts"],
+    "exclude": ["node_modules", "build"]
 }

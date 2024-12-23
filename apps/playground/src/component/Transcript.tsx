@@ -132,7 +132,7 @@ export default function Transcript({
                                 null,
                                 2
                             ).replace(
-                                /(    "timestamp": )\[\s+(\S+)\s+(\S+)\s+\]/gm,
+                                /(\s{4}"timestamp": )\[\s+(\S+)\s+(\S+)\s+\]/gm,
                                 '$1[$2 $3]'
                             )
                             const blob = new Blob([jsonData], {

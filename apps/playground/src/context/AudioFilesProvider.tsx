@@ -53,6 +53,54 @@ export const AudioFilesProvider = ({
         []
     )
 
+
+    const deleteAudioAndMetadata = useCallback(
+        async (audioUriORfilename: string) => {
+            try {
+                if (isWeb) {
+                    await deleteAudioFile({ fileName: audioUriORfilename });
+                    logger.debug(
+                        `Deleted audio and metadata for ${audioUriORfilename}`
+                    );
+                } else {
+                    const jsonPath = audioUriORfilename.replace(
+                        /\.wav$/,
+                        '.json'
+                    );
+
+                    const audioExists =
+                        await FileSystem.getInfoAsync(audioUriORfilename)
+                    if (audioExists.exists) {
+                        await FileSystem.deleteAsync(audioUriORfilename)
+                    } else {
+                        logger.error(
+                            `Audio file does not exist at ${audioUriORfilename}`
+                        )
+                    }
+
+                    const jsonExists = await FileSystem.getInfoAsync(jsonPath)
+                    if (jsonExists.exists) {
+                        await FileSystem.deleteAsync(jsonPath)
+                    } else {
+                        logger.error(
+                            `Metadata file does not exist at ${jsonPath}`
+                        )
+                    }
+
+                    logger.debug(
+                        `Deleted audio and metadata for ${audioUriORfilename}`
+                    )
+                }
+            } catch (error) {
+                logger.error(
+                    `Failed to delete audio and metadata for ${audioUriORfilename}`,
+                    error
+                )
+            }
+        },
+        []
+    )
+
     const listAudioFiles = useCallback(async () => {
         try {
             if (isWeb) {
@@ -138,54 +186,8 @@ export const AudioFilesProvider = ({
         } finally {
             setReady(true)
         }
-    }, [])
+    }, [deleteAudioAndMetadata])
 
-    const deleteAudioAndMetadata = useCallback(
-        async (audioUriORfilename: string) => {
-            try {
-                if (isWeb) {
-                    await deleteAudioFile({ fileName: audioUriORfilename });
-                    logger.debug(
-                        `Deleted audio and metadata for ${audioUriORfilename}`
-                    );
-                } else {
-                    const jsonPath = audioUriORfilename.replace(
-                        /\.wav$/,
-                        '.json'
-                    );
-
-                    const audioExists =
-                        await FileSystem.getInfoAsync(audioUriORfilename)
-                    if (audioExists.exists) {
-                        await FileSystem.deleteAsync(audioUriORfilename)
-                    } else {
-                        logger.error(
-                            `Audio file does not exist at ${audioUriORfilename}`
-                        )
-                    }
-
-                    const jsonExists = await FileSystem.getInfoAsync(jsonPath)
-                    if (jsonExists.exists) {
-                        await FileSystem.deleteAsync(jsonPath)
-                    } else {
-                        logger.error(
-                            `Metadata file does not exist at ${jsonPath}`
-                        )
-                    }
-
-                    logger.debug(
-                        `Deleted audio and metadata for ${audioUriORfilename}`
-                    )
-                }
-            } catch (error) {
-                logger.error(
-                    `Failed to delete audio and metadata for ${audioUriORfilename}`,
-                    error
-                )
-            }
-        },
-        [logger, deleteAudioFile]
-    )
 
     const refreshFiles = useCallback(async () => {
         try {
@@ -258,11 +260,11 @@ export const AudioFilesProvider = ({
         } catch (error) {
             logger.error(`Failed to clear files`, error)
         }
-    }, [])
+    }, [refreshFiles])
 
     useEffect(() => {
         refreshFiles()
-    }, [])
+    }, [refreshFiles])
 
     useEffect(() => {
         setTotalAudioStorageSize(calculateTotalAudioStorageSize(files))

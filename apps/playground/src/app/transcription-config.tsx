@@ -66,7 +66,7 @@ const TranscriptionScreen = () => {
             logger.error(`Failed to update config`, error)
             show({ type: 'error', message: 'Failed to update config' })
         }
-    }, [initialize, selectedAnalysisConfig, updateConfig])
+    }, [selectedAnalysisConfig, show, updateConfig])
 
     return (
         <ScreenWrapper contentContainerStyle={styles.container}>

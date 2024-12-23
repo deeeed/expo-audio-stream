@@ -70,7 +70,7 @@ export const AudioRecordingAnalysisConfig = ({
                 return newConfig
             })
         },
-        [onChange]
+        []
     )
 
     const handleFeatureChange = useCallback(
@@ -83,7 +83,7 @@ export const AudioRecordingAnalysisConfig = ({
                 return newConfig
             })
         },
-        [onChange]
+        []
     )
 
     const handleSave = useCallback(() => {
@@ -93,7 +93,7 @@ export const AudioRecordingAnalysisConfig = ({
     const handleCancel = useCallback(() => {
         setTempConfig({ ...config })
         onChange?.(config)
-    }, [config])
+    }, [config, onChange])
 
     return (
         <View style={styles.container}>

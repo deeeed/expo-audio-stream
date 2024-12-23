@@ -64,7 +64,7 @@ export const TranscriptionConfigForm = ({
                 return newConfig
             })
         },
-        [onChange]
+        []
     )
 
     const handleSave = useCallback(() => {
@@ -74,7 +74,7 @@ export const TranscriptionConfigForm = ({
     const handleCancel = useCallback(() => {
         setTempConfig({ ...config })
         onChange?.(config)
-    }, [config])
+    }, [config, onChange])
 
     return (
         <View style={styles.container}>

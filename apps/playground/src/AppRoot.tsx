@@ -24,7 +24,7 @@ export const WithUIProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         handleHackToggle(true)
-    }, [])
+    }, [handleHackToggle])
 
     useEffect(() => {
         const timeout = setTimeout(() => setReady(true), 1000)

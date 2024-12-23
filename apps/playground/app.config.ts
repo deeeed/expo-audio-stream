@@ -12,54 +12,64 @@ dotenvConfig() // Load variables from .env* file
 const envSchema = Joi.object({
     EAS_PROJECT_ID: Joi.string().required(),
     NPM_AUTH_TOKEN: Joi.string().optional(),
+    APP_VARIANT: Joi.string()
+        .valid('development', 'staging', 'production')
+        .default('development'),
+    APP_ID_BASE: Joi.string().default('net.siteed.audioplayground'),
 }).unknown() // Allow other environment variables
 
-// Validate the environment variables
-const { error } = envSchema.validate(process.env)
+// Validate and get environment variables
+const { value: env } = envSchema.validate(process.env)
 
-// If validation fails, throw an error
-if (error) {
-    throw new Error(`Environment validation error: ${error.message}`)
+const getAppIdentifier = (base: string, variant: string): string => {
+    if (variant === 'production') return base
+    return `${base}.${variant}`
 }
 
-const IS_DEV =
-    process.env.APP_VARIANT === 'development' ||
-    process.env.NODE_ENV === 'development'
+const APP_IDENTIFIER = getAppIdentifier(env.APP_ID_BASE, env.APP_VARIANT)
 
 const config: ExpoConfig = {
-    name: IS_DEV ? 'AudioPlayground (Dev)' : 'AudioPlayground',
+    name:
+        env.APP_VARIANT === 'production'
+            ? 'AudioPlayground'
+            : `AudioPlayground (${env.APP_VARIANT})`,
     slug: 'audio-playground',
     version: '0.1.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
-    scheme: 'net.siteed.audiostream.audioplayground',
+    scheme: APP_IDENTIFIER,
     splash: {
         image: './assets/splash.png',
         resizeMode: 'contain',
-        backgroundColor: IS_DEV ? '#ffffff' : '#98c1d9',
+        backgroundColor:
+            env.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
     },
     assetBundlePatterns: ['**/*', 'assets/audio_samples/*'],
     ios: {
         supportsTablet: true,
-        bundleIdentifier: 'net.siteed.audiostream.audioplayground',
+        bundleIdentifier: APP_IDENTIFIER,
     },
     android: {
         adaptiveIcon: {
             foregroundImage: './assets/adaptive-icon.png',
-            backgroundColor: IS_DEV ? '#ffffff' : '#98c1d9',
+            backgroundColor:
+                env.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
         },
-        package: 'net.siteed.audiostream.audioplayground',
+        package: APP_IDENTIFIER,
     },
     web: {
         favicon: './assets/favicon.png',
         bundler: 'metro',
     },
     experiments: {
-        baseUrl: IS_DEV ? '' : '/expo-audio-stream/playground/',
+        baseUrl:
+            env.APP_VARIANT === 'production'
+                ? '/expo-audio-stream/playground/'
+                : '',
     },
     updates: {
-        url: 'https://u.expo.dev/cf0b88bd-5c8f-4c08-acaa-a433582f33c6',
+        url: 'https://u.expo.dev/' + env.EAS_PROJECT_ID,
     },
     runtimeVersion: '1.0.0',
     newArchEnabled: true,

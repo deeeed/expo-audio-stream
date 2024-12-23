@@ -42,13 +42,13 @@ export const NotificationConfigForm = ({
     const theme = useTheme()
     const styles = useMemo(() => getStyles({ theme }), [theme])
 
-    const handleChange = (key: keyof NotificationConfig, value: any) => {
+    const handleChange = (key: keyof NotificationConfig, value: string | number | boolean | undefined) => {
         onConfigChange({ ...config, [key]: value })
     }
 
     const handleAndroidChange = (
         key: keyof NonNullable<NotificationConfig['android']>,
-        value: any
+        value: string | number | boolean | undefined | WaveformConfig
     ) => {
         onConfigChange({
             ...config,
@@ -59,7 +59,10 @@ export const NotificationConfigForm = ({
         })
     }
 
-    const handleWaveformChange = (key: keyof WaveformConfig, value: any) => {
+    const handleWaveformChange = (
+        key: keyof WaveformConfig,
+        value: string | number | boolean
+    ) => {
         onConfigChange({
             ...config,
             android: {
