@@ -339,7 +339,6 @@ class AudioRecorderManager(
         try {
             streamUuid = java.util.UUID.randomUUID().toString()
             audioFile = File(filesDir, "audio_${streamUuid}.$fileExtension")
-            totalDataSize = 0
 
             FileOutputStream(audioFile, true).use { fos ->
                 audioFileHandler.writeWavHeader(
