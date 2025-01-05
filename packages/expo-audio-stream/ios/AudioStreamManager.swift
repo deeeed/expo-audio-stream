@@ -435,6 +435,7 @@ class AudioStreamManager: NSObject {
         accumulatedData.removeAll()
         totalDataSize = 0
         pausedDuration = 0
+        lastEmittedSize = 0
         isPaused = false
         
         do {
