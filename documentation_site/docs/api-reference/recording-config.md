@@ -42,22 +42,21 @@ On Android, the recording is managed using Android's native `AudioRecord` API al
 
 ### iOS
 
-On iOS, the recording is managed using `AVAudioEngine` and related classes from the `AVFoundation` framework. `AVAudioEngine` provides a robust and flexible way to capture, process, and play audio, making it ideal for real-time audio applications on iOS devices.
+On iOS, the recording is managed using `AVAudioEngine` and related classes from the `AVFoundation` framework. The implementation uses a sophisticated resampling approach that:
+- Captures audio at the hardware's native sample rate
+- Performs high-quality resampling to match the requested configuration
+- Supports both 16-bit and 32-bit PCM formats
+- Maintains audio quality through intermediate Float32 format when necessary
 
 ## Platform Differences
 
 ### Android and iOS
 
-On Android and iOS, the library attempts to record audio in the specified format. However, due to platform limitations, it doesn't always natively allow obtaining the PCM output in the desired format. When this occurs, the recorded audio needs to be manually resampled to match the required configuration.
+On Android and iOS, the library attempts to record audio in the specified format. On iOS, the audio is automatically resampled to match the requested configuration using AVAudioConverter, ensuring high-quality output even when the hardware sample rate differs from the target rate.
 
 ### Web
 
 On the web, the default configuration is typically higher, with a 44.1kHz sample rate and 32-bit depth. This ensures better sound quality, but it can lead to issues when resampling is required to lower settings.
-
-## Current Challenges
-
-Currently, resampling audio to different sample rates and bit depths is not producing the desired quality results. This is an ongoing area of investigation to ensure that resampling defaults to lower settings without breaking the sound quality.
-
 
 ## Recording Process 
 
