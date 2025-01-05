@@ -48,7 +48,7 @@ export const AppRoot = () => {
         <UIProvider
             portalName="audio-portal"
             toastProviderProps={{
-                overrides: {
+                styleOverrides: {
                     snackbarStyle: { marginBottom: 40 },
                 },
             }}
