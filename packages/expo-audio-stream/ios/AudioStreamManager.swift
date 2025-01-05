@@ -35,7 +35,10 @@ class AudioStreamManager: NSObject {
     internal var recordingFileURL: URL?
     private var audioProcessor: AudioProcessor?
     private var startTime: Date?
-    private var pauseStartTime: Date?
+    private var totalPausedDuration: TimeInterval = 0  // Track total paused time
+    private var currentPauseStart: Date?              // Track current pause start
+    private var isRecording = false
+    private var isPaused = false
     
     // Wake lock related properties
     private var wasIdleTimerDisabled: Bool = false  // Track previous idle timer state
@@ -45,9 +48,6 @@ class AudioStreamManager: NSObject {
     internal var lastEmittedSize: Int64 = 0
     private var emissionInterval: TimeInterval = 1.0 // Default to 1 second
     private var totalDataSize: Int64 = 0
-    private var isRecording = false
-    private var isPaused = false
-    private var pausedDuration = 0
     private var fileManager = FileManager.default
     internal var recordingSettings: RecordingSettings?
     internal var recordingUUID: UUID?
@@ -66,6 +66,8 @@ class AudioStreamManager: NSObject {
 
     weak var delegate: AudioStreamManagerDelegate?  // Define the delegate here
         
+    private var lastValidDuration: TimeInterval?  // Add this property
+    
     /// Initializes the AudioStreamManager
     override init() {
         super.init()
@@ -208,9 +210,22 @@ class AudioStreamManager: NSObject {
         }
     }
     
-    private func currentRecordingDuration() -> TimeInterval {
-        guard let startTime = startTime else { return 0 }
-        return Date().timeIntervalSince(startTime) - TimeInterval(pausedDuration)
+    func currentRecordingDuration() -> TimeInterval {
+        // If we're paused, return the last valid duration
+        if isPaused, let lastDuration = lastValidDuration {
+            return lastDuration
+        }
+        
+        guard let settings = recordingSettings else { return 0 }
+        
+        // Normal duration calculation from data
+        let sampleRate = Double(settings.sampleRate)
+        let channels = Double(settings.numberOfChannels)
+        let bytesPerSample = Double(settings.bitDepth) / 8.0
+        
+        let durationFromData = Double(totalDataSize) / (sampleRate * channels * bytesPerSample)
+        
+        return durationFromData
     }
     
     private func cleanupNotificationObservers() {
@@ -261,7 +276,7 @@ class AudioStreamManager: NSObject {
         // Calculate current duration
         let currentDuration: TimeInterval
         if let startTime = startTime {
-            currentDuration = Date().timeIntervalSince(startTime) - TimeInterval(pausedDuration)
+            currentDuration = Date().timeIntervalSince(startTime) - TimeInterval(totalPausedDuration)
         } else {
             currentDuration = 0
         }
@@ -282,7 +297,7 @@ class AudioStreamManager: NSObject {
     private func updateMediaInfo() {
         guard let startTime = startTime else { return }
         
-        let currentDuration = Date().timeIntervalSince(startTime) - TimeInterval(pausedDuration)
+        let currentDuration = Date().timeIntervalSince(startTime) - TimeInterval(totalPausedDuration)
         
         var nowPlayingInfo = notificationView?.nowPlayingInfo ?? [:]
         nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentDuration
@@ -372,20 +387,13 @@ class AudioStreamManager: NSObject {
     /// Gets the current status of the recording.
     /// - Returns: A dictionary containing the recording status information.
     func getStatus() -> [String: Any] {
-        //        let currentTime = Date()
-        //        let totalRecordedTime = startTime != nil ? Int(currentTime.timeIntervalSince(startTime!)) - pausedDuration : 0
         guard let settings = recordingSettings else {
             print("Recording settings are not available.")
             return [:]
         }
         
-        let sampleRate = Double(settings.sampleRate)
-        let channels = Double(settings.numberOfChannels)
-        let bitDepth = Double(settings.bitDepth)
-        
-        // Calculate the duration in seconds
-        let durationInSeconds = Double(totalDataSize) / (sampleRate * channels * (bitDepth / 8))
-        let durationInMilliseconds = Int(durationInSeconds * 1000) - Int(pausedDuration * 1000)
+        let durationInSeconds = currentRecordingDuration()
+        let durationInMilliseconds = Int(durationInSeconds * 1000)
 
         return [
             "durationMs": durationInMilliseconds,
@@ -395,7 +403,6 @@ class AudioStreamManager: NSObject {
             "size": totalDataSize,
             "interval": emissionInterval
         ]
-        
     }
     
     /// Starts a new audio recording with the specified settings and interval.
@@ -414,39 +421,32 @@ class AudioStreamManager: NSObject {
             return nil
         }
         
-        var newSettings = settings  // Make settings mutable
         let session = AVAudioSession.sharedInstance()
+        var newSettings = settings
         
-        // Determine the commonFormat based on bitDepth
-        let commonFormat: AVAudioCommonFormat
-        switch newSettings.bitDepth {
-            case 16:
-                commonFormat = .pcmFormatInt16
-            case 32:
-                commonFormat = .pcmFormatInt32
-            default:
-                Logger.debug("Unsupported bit depth. Defaulting to 16-bit PCM")
-                commonFormat = .pcmFormatInt16
-                newSettings.bitDepth = 16
-        }
-        
+        // Add these initializations back
         emissionInterval = max(100.0, Double(intervalMilliseconds)) / 1000.0
         lastEmissionTime = Date()
         accumulatedData.removeAll()
         totalDataSize = 0
-        pausedDuration = 0
+        totalPausedDuration = 0
         lastEmittedSize = 0
         isPaused = false
         
+        // Create recording file first
+        recordingFileURL = createRecordingFile()
+        if recordingFileURL == nil {
+            Logger.debug("Error: Failed to create recording file.")
+            return nil
+        }
+        
+        // Then set up audio session and tap
         do {
-            Logger.debug("Debug: Configuring audio session with sample rate: \(settings.sampleRate) Hz")
+            Logger.debug("Configuring audio session with sample rate: \(settings.sampleRate) Hz")
             
-            // Check if the input node supports the desired format
-            let inputNode = audioEngine.inputNode
-            let hardwareFormat = inputNode.inputFormat(forBus: 0)
-            if hardwareFormat.sampleRate != newSettings.sampleRate {
-                Logger.debug("Debug: Preferred sample rate not supported. Falling back to hardware sample rate \(session.sampleRate).")
-                newSettings.sampleRate = session.sampleRate
+            if let currentRoute = session.currentRoute.outputs.first {
+                Logger.debug("Current audio output: \(currentRoute.portType)")
+                newSettings.sampleRate = settings.sampleRate  // Keep original sample rate
             }
             
             // Configure audio session based on iOS settings if provided
@@ -480,19 +480,47 @@ class AudioStreamManager: NSObject {
             }
             
             try session.setPreferredSampleRate(settings.sampleRate)
-            try session.setPreferredIOBufferDuration(1024 / settings.sampleRate)
+            try session.setPreferredIOBufferDuration(1024 / Double(settings.sampleRate))
             try session.setActive(true)
-            Logger.debug("Debug: Audio session activated successfully.")
-
+            Logger.debug("Audio session activated successfully.")
             
             let actualSampleRate = session.sampleRate
-            if actualSampleRate != newSettings.sampleRate {
-                Logger.debug("Debug: Preferred sample rate not set. Falling back to hardware sample rate: \(actualSampleRate) Hz")
-                newSettings.sampleRate = actualSampleRate
+            if actualSampleRate != settings.sampleRate {
+                Logger.debug("Hardware using sample rate \(actualSampleRate)Hz, will resample to \(settings.sampleRate)Hz")
             }
             
-            recordingSettings = newSettings  // Update the class property with the new settings
-            enableWakeLock() // Will only enable if keepAwake is true
+            recordingSettings = newSettings  // Keep original settings with desired sample rate
+            enableWakeLock()
+            
+            // Create format matching hardware capabilities
+            guard let hardwareFormat = AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: actualSampleRate,
+                channels: AVAudioChannelCount(settings.numberOfChannels),
+                interleaved: true
+            ) else {
+                Logger.debug("Failed to create hardware format")
+                return nil
+            }
+            
+            Logger.debug("""
+                Audio format configuration:
+                - Hardware format: \(describeAudioFormat(hardwareFormat))
+                - Target format: \(describeCommonFormat(hardwareFormat.commonFormat)) at \(actualSampleRate)Hz
+                - Bit depth: \(settings.bitDepth)-bit
+                - Channels: \(settings.numberOfChannels)
+                """)
+
+            audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: hardwareFormat) { [weak self] (buffer, time) in
+                guard let self = self,
+                      let fileURL = self.recordingFileURL else {
+                    Logger.debug("Error: File URL or self is nil during buffer processing.")
+                    return
+                }
+                self.processAudioBuffer(buffer, fileURL: fileURL)
+                self.lastBufferTime = time
+            }
+            
         } catch {
             Logger.debug("Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
             return nil
@@ -500,9 +528,25 @@ class AudioStreamManager: NSObject {
         
         NotificationCenter.default.addObserver(self, selector: #selector(handleAudioSessionInterruption), name: AVAudioSession.interruptionNotification, object: nil)
         
-        // Correct the format to use 16-bit integer (PCM)
-        guard let audioFormat = AVAudioFormat(commonFormat: commonFormat, sampleRate: newSettings.sampleRate, channels: UInt32(newSettings.numberOfChannels), interleaved: true) else {
-            Logger.debug("Error: Failed to create audio format with the specified bit depth.")
+        // Create audio format based on recording settings
+        let commonFormat: AVAudioCommonFormat
+        switch newSettings.bitDepth {
+        case 16:
+            commonFormat = .pcmFormatInt16
+        case 32:
+            commonFormat = .pcmFormatFloat32
+        default:
+            Logger.debug("Unsupported bit depth: \(newSettings.bitDepth), falling back to 16-bit")
+            commonFormat = .pcmFormatInt16
+        }
+        
+        guard let audioFormat = AVAudioFormat(
+            commonFormat: commonFormat,
+            sampleRate: newSettings.sampleRate,
+            channels: UInt32(newSettings.numberOfChannels),
+            interleaved: true
+        ) else {
+            Logger.debug("Error: Failed to create audio format with bit depth: \(newSettings.bitDepth)")
             return nil
         }
         
@@ -516,31 +560,16 @@ class AudioStreamManager: NSObject {
             Logger.debug("AudioProcessor activated successfully.")
         }
         
-        audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: audioFormat) { [weak self] (buffer, time) in
-            guard let self = self, let fileURL = self.recordingFileURL else {
-                Logger.debug("Error: File URL or self is nil during buffer processing.")
-                return
-            }
-            let formatDescription = describeAudioFormat(buffer.format)
-            Logger.debug("Debug: Buffer format - \(formatDescription)")
-            
-            // Processing the current buffer
-            self.processAudioBuffer(buffer, fileURL: self.recordingFileURL!)
-            self.lastBufferTime = time
-        }
-        
-        recordingFileURL = createRecordingFile()
-        if recordingFileURL == nil {
-            Logger.debug("Error: Failed to create recording file.")
-            return nil
-        }
-        
         if settings.showNotification {
             initializeNotifications()
         }
         
         do {
             startTime = Date()
+            totalPausedDuration = 0     // Reset pause tracking
+            currentPauseStart = nil
+            Logger.debug("Starting new recording - Reset pause tracking")
+            
             try audioEngine.start()
             isRecording = true
             isPaused = false
@@ -563,17 +592,18 @@ class AudioStreamManager: NSObject {
     func pauseRecording() {
         guard isRecording && !isPaused else { return }
         
+        // Store the current duration when pausing
+        lastValidDuration = currentRecordingDuration()
+        Logger.debug("Storing duration at pause: \(lastValidDuration ?? 0)")
+        
         disableWakeLock()
         audioEngine.pause()
         isPaused = true
-        pauseStartTime = Date()
         
         updateNowPlayingInfo(isPaused: true)
         notificationManager?.updateState(isPaused: true)
         delegate?.audioStreamManager(self, didPauseRecording: Date())
         delegate?.audioStreamManager(self, didUpdateNotificationState: true)
-        
-        Logger.debug("Recording paused.")
     }
     
     private func initializeNotifications() {
@@ -628,21 +658,32 @@ class AudioStreamManager: NSObject {
     func resumeRecording() {
         guard isRecording && isPaused else { return }
         
+        lastValidDuration = nil  // Clear the stored duration when resuming
+        
         enableWakeLock()
         audioEngine.prepare()
         do {
             try audioEngine.start()
-            isPaused = false
-            if let pauseStartTime = pauseStartTime {
-                pausedDuration += Int(Date().timeIntervalSince(pauseStartTime))
+            
+            // Add the completed pause duration to total
+            if let pauseStart = currentPauseStart {
+                let currentPauseDuration = Date().timeIntervalSince(pauseStart)
+                totalPausedDuration += currentPauseDuration
+                currentPauseStart = nil
+                
+                Logger.debug("""
+                    Resume completed:
+                    - Added pause duration: \(currentPauseDuration)
+                    - New total pause duration: \(totalPausedDuration)
+                    """)
             }
+            
+            isPaused = false
             
             updateNowPlayingInfo(isPaused: false)
             notificationManager?.updateState(isPaused: false)
             delegate?.audioStreamManager(self, didResumeRecording: Date())
             delegate?.audioStreamManager(self, didUpdateNotificationState: false)
-            
-            Logger.debug("Recording resumed.")
         } catch {
             Logger.debug("Error: Failed to resume recording: \(error.localizedDescription)")
         }
@@ -652,32 +693,40 @@ class AudioStreamManager: NSObject {
     /// - Parameter format: The AVAudioFormat object to describe.
     /// - Returns: A string description of the audio format.
     func describeAudioFormat(_ format: AVAudioFormat) -> String {
-        let sampleRate = format.sampleRate
-        let channelCount = format.channelCount
-        let bitDepth: String
-        
-        switch format.commonFormat {
-        case .pcmFormatInt16:
-            bitDepth = "16-bit Int"
-        case .pcmFormatInt32:
-            bitDepth = "32-bit Int"
+        let formatDescription = """
+            - Sample rate: \(format.sampleRate)Hz
+            - Channels: \(format.channelCount)
+            - Interleaved: \(format.isInterleaved)
+            - Common format: \(describeCommonFormat(format.commonFormat))
+            """
+        return formatDescription
+    }
+    
+    private func describeCommonFormat(_ format: AVAudioCommonFormat) -> String {
+        switch format {
         case .pcmFormatFloat32:
-            bitDepth = "32-bit Float"
+            return "32-bit float"
         case .pcmFormatFloat64:
-            bitDepth = "64-bit Float"
+            return "64-bit float"
+        case .pcmFormatInt16:
+            return "16-bit int"
+        case .pcmFormatInt32:
+            return "32-bit int"
         default:
-            bitDepth = "Unknown Format"
+            return "Unknown format"
         }
-        
-        return "Sample Rate: \(sampleRate), Channels: \(channelCount), Format: \(bitDepth)"
     }
     
     /// Stops the current audio recording.
     /// - Returns: A RecordingResult object if the recording stopped successfully, or nil otherwise.
     func stopRecording() -> RecordingResult? {
-        disableWakeLock() // Will only disable if keepAwake is true
+        disableWakeLock()
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
+        
+        // Get the final duration before changing state
+        let finalDuration = currentRecordingDuration()
+        
         isRecording = false
         isPaused = false
         
@@ -702,21 +751,14 @@ class AudioStreamManager: NSObject {
             try? audioSession?.setActive(false)
         }
         
-        guard let fileURL = recordingFileURL, let startTime = startTime, let settings = recordingSettings else {
+        guard let fileURL = recordingFileURL,
+              let settings = recordingSettings else {
             Logger.debug("Recording or file URL is nil.")
             return nil
         }
         
-        // Emit any remaining accumulated data
-        if !accumulatedData.isEmpty {
-            let currentTime = Date()
-            let recordingTime = currentTime.timeIntervalSince(startTime)
-            delegate?.audioStreamManager(self, didReceiveAudioData: accumulatedData, recordingTime: recordingTime, totalDataSize: totalDataSize)
-            accumulatedData.removeAll()
-        }
-        
-        let endTime = Date()
-        let duration = Int64(endTime.timeIntervalSince(startTime) * 1000) - Int64(pausedDuration * 1000)
+        // Use the final duration we captured before state changes
+        let durationMs = Int64(finalDuration * 1000)
         
         // Calculate the total size of audio data written to the file
         let filePath = fileURL.path
@@ -737,14 +779,15 @@ class AudioStreamManager: NSObject {
                 fileUri: fileURL.absoluteString,
                 filename: fileURL.lastPathComponent,
                 mimeType: mimeType,
-                duration: duration,
+                duration: durationMs,
                 size: fileSize,
                 channels: settings.numberOfChannels,
                 bitDepth: settings.bitDepth,
                 sampleRate: settings.sampleRate
             )
-            recordingFileURL = nil // Reset for next recording
-            lastBufferTime = nil // Reset last buffer time
+            recordingFileURL = nil
+            lastBufferTime = nil
+            lastValidDuration = nil
             
             return result
         } catch {
@@ -760,34 +803,131 @@ class AudioStreamManager: NSObject {
     ///   - targetSampleRate: The desired sample rate to resample to.
     /// - Returns: A new audio buffer resampled to the target sample rate, or nil if resampling fails.
     private func resampleAudioBuffer(_ buffer: AVAudioPCMBuffer, from originalSampleRate: Double, to targetSampleRate: Double) -> AVAudioPCMBuffer? {
-        guard let channelData = buffer.floatChannelData else { return nil }
+        guard let settings = recordingSettings else {
+            Logger.debug("Recording settings not available")
+            return nil
+        }
         
-        let sourceFrameCount = Int(buffer.frameLength)
-        let sourceChannels = Int(buffer.format.channelCount)
+        Logger.debug("""
+            Starting resampling:
+            - Original format: \(describeAudioFormat(buffer.format))
+            - Original frames: \(buffer.frameLength)
+            - Target settings:
+              • Sample rate: \(targetSampleRate)Hz
+              • Bit depth: \(settings.bitDepth)
+              • Channels: \(settings.numberOfChannels)
+            """)
         
-        // Calculate the number of frames in the target buffer
-        let targetFrameCount = Int(Double(sourceFrameCount) * targetSampleRate / originalSampleRate)
+        // Use settings bit depth for output format
+        let targetFormat: AVAudioCommonFormat = settings.bitDepth == 32 ? .pcmFormatFloat32 : .pcmFormatInt16
         
-        // Create a new audio buffer for the resampled data
-        guard let targetBuffer = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: AVAudioFrameCount(targetFrameCount)) else { return nil }
-        targetBuffer.frameLength = AVAudioFrameCount(targetFrameCount)
+        // Create output format matching recording settings exactly
+        guard let outputFormat = AVAudioFormat(
+            commonFormat: targetFormat,
+            sampleRate: targetSampleRate,
+            channels: AVAudioChannelCount(settings.numberOfChannels),
+            interleaved: true
+        ) else {
+            Logger.debug("Failed to create output format")
+            return nil
+        }
         
-        let resamplingFactor = Float(targetSampleRate / originalSampleRate) // Factor to resample the audio
+        // Calculate new buffer size
+        let ratio = targetSampleRate / originalSampleRate
+        let newFrameCount = AVAudioFrameCount(Double(buffer.frameLength) * ratio)
         
-        for channel in 0..<sourceChannels {
-            let input = UnsafeBufferPointer(start: channelData[channel], count: sourceFrameCount) // Original channel data
-            let output = UnsafeMutableBufferPointer(start: targetBuffer.floatChannelData![channel], count: targetFrameCount) // Buffer for resampled data
+        // Create output buffer
+        guard let outputBuffer = AVAudioPCMBuffer(
+            pcmFormat: outputFormat,
+            frameCapacity: newFrameCount
+        ) else {
+            Logger.debug("Failed to create output buffer")
+            return nil
+        }
+        outputBuffer.frameLength = newFrameCount
+        
+        // Create intermediate format for high-quality conversion if needed
+        let needsIntermediate = buffer.format.commonFormat != outputFormat.commonFormat
+        if needsIntermediate {
+            Logger.debug("Using intermediate Float32 format for high-quality conversion")
+            guard let intermediateFormat = AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: targetSampleRate,
+                channels: AVAudioChannelCount(settings.numberOfChannels),
+                interleaved: true
+            ) else {
+                Logger.debug("Failed to create intermediate format")
+                return nil
+            }
             
-            var y: [Float] = Array(repeating: 0, count: targetFrameCount) // Temporary array for resampled data
+            // First convert to intermediate float format
+            guard let converter = AVAudioConverter(from: buffer.format, to: intermediateFormat),
+                  let intermediateBuffer = AVAudioPCMBuffer(
+                    pcmFormat: intermediateFormat,
+                    frameCapacity: newFrameCount
+                  ) else {
+                Logger.debug("Failed to create converter or intermediate buffer")
+                return nil
+            }
+            intermediateBuffer.frameLength = newFrameCount
             
-            // Resample using vDSP_vgenp which performs interpolation
-            vDSP_vgenp(input.baseAddress!, vDSP_Stride(1), [Float](stride(from: 0, to: Float(sourceFrameCount), by: resamplingFactor)), vDSP_Stride(1), &y, vDSP_Stride(1), vDSP_Length(targetFrameCount), vDSP_Length(sourceFrameCount))
+            var error: NSError?
+            let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
+                outStatus.pointee = AVAudioConverterInputStatus.haveData
+                return buffer
+            }
             
-            for i in 0..<targetFrameCount {
-                output[i] = y[i]
+            converter.convert(to: intermediateBuffer, error: &error, withInputFrom: inputBlock)
+            
+            if let error = error {
+                Logger.debug("Intermediate conversion failed: \(error.localizedDescription)")
+                return nil
+            }
+            
+            // Then convert to final format
+            guard let finalConverter = AVAudioConverter(from: intermediateFormat, to: outputFormat) else {
+                Logger.debug("Failed to create final converter")
+                return nil
+            }
+            
+            finalConverter.convert(to: outputBuffer, error: &error) { inNumPackets, outStatus in
+                outStatus.pointee = AVAudioConverterInputStatus.haveData
+                return intermediateBuffer
+            }
+            
+            if let error = error {
+                Logger.debug("Final conversion failed: \(error.localizedDescription)")
+                return nil
+            }
+        } else {
+            // Direct conversion if formats are compatible
+            guard let converter = AVAudioConverter(from: buffer.format, to: outputFormat) else {
+                Logger.debug("Failed to create converter")
+                return nil
+            }
+            
+            var error: NSError?
+            let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
+                outStatus.pointee = AVAudioConverterInputStatus.haveData
+                return buffer
+            }
+            
+            converter.convert(to: outputBuffer, error: &error, withInputFrom: inputBlock)
+            
+            if let error = error {
+                Logger.debug("Conversion failed: \(error.localizedDescription)")
+                return nil
             }
         }
-        return targetBuffer
+        
+        Logger.debug("""
+            Resampling completed:
+            - Final format: \(describeAudioFormat(outputBuffer.format))
+            - Final frames: \(outputBuffer.frameLength)
+            - Conversion path: \(needsIntermediate ? "With intermediate Float32" : "Direct")
+            """)
+        
+        return outputBuffer
     }
     
     /// Manually resamples the audio buffer using linear interpolation.
@@ -869,7 +1009,7 @@ class AudioStreamManager: NSObject {
         guard let startTime = startTime,
               recordingSettings?.showNotification == true else { return }
         
-        let currentDuration = Date().timeIntervalSince(startTime) - TimeInterval(pausedDuration)
+        let currentDuration = Date().timeIntervalSince(startTime) - TimeInterval(totalPausedDuration)
         
         // Update both notification manager and media player
         notificationManager?.updateDuration(currentDuration)
@@ -886,25 +1026,50 @@ class AudioStreamManager: NSObject {
     ///   - buffer: The audio buffer to process.
     ///   - fileURL: The URL of the file to write the data to.
     private func processAudioBuffer(_ buffer: AVAudioPCMBuffer, fileURL: URL) {
+        guard let settings = recordingSettings else {
+            Logger.debug("Recording settings not available")
+            return
+        }
+        
         guard let fileHandle = try? FileHandle(forWritingTo: fileURL) else {
             Logger.debug("Failed to open file handle for URL: \(fileURL)")
             return
         }
+        defer {
+            fileHandle.closeFile()  // Ensure file is always closed
+        }
         
-        let targetSampleRate = recordingSettings?.desiredSampleRate ?? buffer.format.sampleRate
-        let finalBuffer: AVAudioPCMBuffer
+        let targetSampleRate = Double(settings.sampleRate)
+        let targetFormat: AVAudioCommonFormat = settings.bitDepth == 32 ? .pcmFormatFloat32 : .pcmFormatInt16
         
+        // First handle resampling if needed
+        let resampledBuffer: AVAudioPCMBuffer
         if buffer.format.sampleRate != targetSampleRate {
-            // Resample the audio buffer if the target sample rate is different from the input sample rate
-            if let resampledBuffer = resampleAudioBuffer(buffer, from: buffer.format.sampleRate, to: targetSampleRate) {
-                finalBuffer = resampledBuffer
+            if let resampled = resampleAudioBuffer(buffer, from: buffer.format.sampleRate, to: targetSampleRate) {
+                resampledBuffer = resampled
             } else {
-                Logger.debug("Failed to resample audio buffer. Using original buffer.")
-                finalBuffer = buffer
+                Logger.debug("Resampling failed")
+                return
             }
         } else {
-            // Use the original buffer if the sample rates are the same
-            finalBuffer = buffer
+            resampledBuffer = buffer
+        }
+        
+        // Then ensure format matches user settings
+        let finalBuffer: AVAudioPCMBuffer
+        if resampledBuffer.format.commonFormat != targetFormat {
+            guard let converted = convertBufferFormat(resampledBuffer, to: AVAudioFormat(
+                commonFormat: targetFormat,
+                sampleRate: targetSampleRate,
+                channels: AVAudioChannelCount(settings.numberOfChannels),
+                interleaved: true
+            )!) else {
+                Logger.debug("Format conversion failed")
+                return
+            }
+            finalBuffer = converted
+        } else {
+            finalBuffer = resampledBuffer
         }
         
         let audioData = finalBuffer.audioBufferList.pointee.mBuffers
@@ -912,73 +1077,117 @@ class AudioStreamManager: NSObject {
             Logger.debug("Buffer data is nil.")
             return
         }
+        
         var data = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
         
-        // Check if this is the first buffer to process and totalDataSize is 0
+        // Check if this is the first buffer to process
         if totalDataSize == 0 {
-            // Since it's the first buffer, prepend the WAV header
-            let header = createWavHeader(dataSize: 0)  // Set initial dataSize to 0, update later
+            let header = createWavHeader(dataSize: 0)
             data.insert(contentsOf: header, at: 0)
         }
         
-        // Accumulate new data
-        accumulatedData.append(data)
-        
-        //        print("Writing data size: \(data.count) bytes")  // Debug: Check the size of data being written
+        // Write to file
         fileHandle.seekToEndOfFile()
         fileHandle.write(data)
-        fileHandle.closeFile()
         
+        // Update total size and accumulated data
         totalDataSize += Int64(data.count)
-        //        print("Total data size written: \(totalDataSize) bytes")  // Debug: Check total data written
+        accumulatedData.append(data)
         
+        // Handle notifications if enabled
         if recordingSettings?.showNotification == true {
             updateNotificationDuration()
         }
         
+        // Emit data based on interval
         let currentTime = Date()
-        if let lastEmissionTime = lastEmissionTime, currentTime.timeIntervalSince(lastEmissionTime) >= emissionInterval {
-            if let startTime = startTime {
-                let recordingTime = currentTime.timeIntervalSince(startTime)
-                // Copy accumulated data for processing
-                let dataToProcess = accumulatedData
-                
-                // Emit the processed audio data
-                self.delegate?.audioStreamManager(self, didReceiveAudioData: dataToProcess, recordingTime: recordingTime, totalDataSize: totalDataSize)
-                
-                if recordingSettings?.enableProcessing == true {
-                    // Process the copied data and emit result
-                    DispatchQueue.global().async {
-                        if let processor = self.audioProcessor, let settings = self.recordingSettings {
-                            Logger.debug("processAudioBuffer with dataToProcess size --> \(dataToProcess.count)")
-                            
-                            let processingResult = processor.processAudioBuffer(
-                                data: dataToProcess,
-                                sampleRate: Float(settings.sampleRate),
-                                pointsPerSecond: settings.pointsPerSecond ?? 10,
-                                algorithm: settings.algorithm ?? "rms",
-                                featureOptions: settings.featureOptions ?? ["rms": true, "zcr": true],
-                                bitDepth: settings.bitDepth,
-                                numberOfChannels: settings.numberOfChannels
-                            )
-                            Logger.debug("processingResult \(String(describing: processingResult))")
-                            
-                            DispatchQueue.main.async {
-                                if let result = processingResult {
-                                    self.delegate?.audioStreamManager(self, didReceiveProcessingResult: result)
-                                } else {
-                                    Logger.debug("Processing failed or returned nil.")
-                                }
+        if let lastEmissionTime = lastEmissionTime,
+           let startTime = startTime,
+           currentTime.timeIntervalSince(lastEmissionTime) >= emissionInterval {
+            
+            let recordingTime = currentTime.timeIntervalSince(startTime)
+            let dataToProcess = accumulatedData
+            
+            // Emit the audio data
+            delegate?.audioStreamManager(self, didReceiveAudioData: dataToProcess, recordingTime: recordingTime, totalDataSize: totalDataSize)
+            
+            // Process audio if enabled
+            if settings.enableProcessing {
+                DispatchQueue.global().async { [weak self] in
+                    guard let self = self else { return }
+                    if let processor = self.audioProcessor {
+                        Logger.debug("Processing audio buffer of size: \(dataToProcess.count)")
+                        let processingResult = processor.processAudioBuffer(
+                            data: dataToProcess,
+                            sampleRate: Float(settings.sampleRate),
+                            pointsPerSecond: settings.pointsPerSecond ?? 10,
+                            algorithm: settings.algorithm ?? "rms",
+                            featureOptions: settings.featureOptions ?? ["rms": true, "zcr": true],
+                            bitDepth: settings.bitDepth,
+                            numberOfChannels: settings.numberOfChannels
+                        )
+                        
+                        DispatchQueue.main.async {
+                            if let result = processingResult {
+                                self.delegate?.audioStreamManager(self, didReceiveProcessingResult: result)
                             }
                         }
                     }
                 }
-                
-                self.lastEmissionTime = currentTime // Update last emission time
-                self.lastEmittedSize = totalDataSize
-                accumulatedData.removeAll() // Reset accumulated data after emission
             }
+            
+            // Update state after emission
+            self.lastEmissionTime = currentTime
+            self.lastEmittedSize = totalDataSize
+            accumulatedData.removeAll()
         }
+    }
+
+    // Add helper function to calculate average amplitude
+    private func calculateAverageAmplitude(_ data: UnsafePointer<Float>, count: Int) -> Float {
+        var sum: Float = 0
+        vDSP_meanv(data, 1, &sum, vDSP_Length(count))
+        return sum
+    }
+
+    // Add helper function to calculate RMS
+    private func calculateRMS(_ data: UnsafePointer<Float>, count: Int) -> Float {
+        var sum: Float = 0
+        var squaredSum: Float = 0
+        for i in 0..<count {
+            let value = data[i]
+            sum += value
+            squaredSum += value * value
+        }
+        let average = sum / Float(count)
+        let variance = squaredSum / Float(count) - average * average
+        return sqrt(variance)
+    }
+
+    // Helper function for format conversion
+    private func convertBufferFormat(_ buffer: AVAudioPCMBuffer, to targetFormat: AVAudioFormat) -> AVAudioPCMBuffer? {
+        guard let converter = AVAudioConverter(from: buffer.format, to: targetFormat),
+              let outputBuffer = AVAudioPCMBuffer(
+                pcmFormat: targetFormat,
+                frameCapacity: buffer.frameLength
+              ) else {
+            return nil
+        }
+        
+        outputBuffer.frameLength = buffer.frameLength
+        var error: NSError?
+        
+        converter.convert(to: outputBuffer, error: &error) { inNumPackets, outStatus in
+            outStatus.pointee = AVAudioConverterInputStatus.haveData
+            return buffer
+        }
+        
+        if let error = error {
+            Logger.debug("Format conversion failed: \(error.localizedDescription)")
+            return nil
+        }
+        
+        return outputBuffer
     }
 }
 

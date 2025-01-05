@@ -317,13 +317,13 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         let sampleRate = settings.sampleRate
         let channels = Double(settings.numberOfChannels)
         let bitDepth = Double(settings.bitDepth)
-        let position = Int((Double(manager.lastEmittedSize) / (sampleRate * channels * (bitDepth / 8))) * 1000)
+        let position = Int(manager.currentRecordingDuration() * 1000)
         
         // Construct the event payload similar to Android
         let eventBody: [String: Any] = [
             "fileUri": fileURL.absoluteString,
             "lastEmittedSize": manager.lastEmittedSize,  // Needs to be maintained within AudioStreamManager
-            "position": position, // Add position of the chunk in ms since
+            "position": position, // time in ms based on pause-aware duration
             "encoded": encodedData,
             "deltaSize": deltaSize,
             "totalSize": fileSize,
