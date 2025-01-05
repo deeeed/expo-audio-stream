@@ -397,7 +397,6 @@ class AudioRecorderManager(
 
     fun stopRecording(promise: Promise) {
         synchronized(audioRecordLock) {
-
             if (!isRecording.get()) {
                 Log.e(Constants.TAG, "Recording is not active")
                 promise.reject("NOT_RECORDING", "Recording is not active", null)
@@ -405,16 +404,27 @@ class AudioRecorderManager(
             }
 
             try {
+                if (isPaused.get()) {
+                    val remainingData = ByteArray(bufferSizeInBytes)
+                    val bytesRead = audioRecord?.read(remainingData, 0, bufferSizeInBytes) ?: -1
+                    if (bytesRead > 0) {
+                        emitAudioData(remainingData.copyOfRange(0, bytesRead), bytesRead)
+                    }
+                }
+
                 if (recordingConfig.showNotification) {
                     notificationManager.stopUpdates()
                     AudioRecordingService.stopService(context)
                 }
 
+                isRecording.set(false)
+                recordingThread?.join(1000)
+
                 val audioData = ByteArray(bufferSizeInBytes)
                 val bytesRead = audioRecord?.read(audioData, 0, bufferSizeInBytes) ?: -1
                 Log.d(Constants.TAG, "Last Read $bytesRead bytes")
                 if (bytesRead > 0) {
-                    emitAudioData(audioData, bytesRead)
+                    emitAudioData(audioData.copyOfRange(0, bytesRead), bytesRead)
                 }
 
                 Log.d(Constants.TAG, "Stopping recording state = ${audioRecord?.state}")
