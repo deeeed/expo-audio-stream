@@ -6712,9 +6712,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@siteed/design-system@npm:^0.31.0":
-  version: 0.31.0
-  resolution: "@siteed/design-system@npm:0.31.0"
+"@siteed/design-system@npm:^0.34.1":
+  version: 0.34.1
+  resolution: "@siteed/design-system@npm:0.34.1"
   dependencies:
     "@pchmn/expo-material3-theme": "npm:^1.3.2"
     color: "npm:^4.2.3"
@@ -6739,7 +6739,7 @@ __metadata:
     react-native-paper-dates: "*"
     react-native-screens: "*"
     react-native-vector-icons: "*"
-  checksum: 10/75fe06968eb9944529ca0d1e10797fc0794871fc6f466181a46ca50a03c0e3cffa70ebc6edb516b34899ffb37d22b797403e4031bedc30cfbdf3b717c691729d
+  checksum: 10/1d94068ae9eb9ca17a56500feb660362d1c646a31fc8a409f6d7d0fac75d65e7f78f923d8538dc972f9afb9b5217d858b331579d582684004ea3e60ae3a7aaae
   languageName: node
   linkType: hard
 
@@ -10224,7 +10224,7 @@ __metadata:
     "@react-native/assets-registry": "npm:^0.76.5"
     "@react-navigation/native": "npm:^7.0.0"
     "@shopify/react-native-skia": "npm:1.5.0"
-    "@siteed/design-system": "npm:^0.31.0"
+    "@siteed/design-system": "npm:^0.34.1"
     "@siteed/expo-audio-stream": "workspace:^"
     "@siteed/expo-audio-ui": "workspace:^"
     "@siteed/react-native-logger": "npm:^0.11.0"
@@ -29517,7 +29517,7 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A^5.1.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.4.3#optional!builtin<compat/typescript>":
   version: 5.7.2
-  resolution: "typescript@patch:typescript@npm%3A5.7.2#optional!builtin<compat/typescript>::version=5.7.2&hash=379a07"
+  resolution: "typescript@patch:typescript@npm%3A5.7.2#optional!builtin<compat/typescript>::version=5.7.2&hash=b45daf"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
