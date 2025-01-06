@@ -11,9 +11,9 @@
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "lint": "eslint src",
         "clean": "rimraf dist",
-        "deploy": "yarn clean && NODE_ENV=production EXPO_WEB=true expo export -p web && gh-pages -t -d dist --dest playground",
-        "predeploy": "EXPO_WEB=true expo export -p web",
-        "serve:dev": "yarn clean && NODE_ENV=development expo export -p web && yarn serve dist/"
+        "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && gh-pages -t -d dist --dest playground",
+        "predeploy": "APP_VARIANT=production EXPO_WEB=true expo export -p web",
+        "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/"
     },
     "dependencies": {
         "@expo/cli": "^0.22.3",
