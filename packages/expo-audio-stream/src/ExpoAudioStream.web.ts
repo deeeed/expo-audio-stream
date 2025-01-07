@@ -13,7 +13,7 @@ import {
 import { WebRecorder } from './WebRecorder.web'
 import { AudioEventPayload } from './events'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
-import { WavHeaderOptions, writeWavHeader } from './utils/writeWavHeader'
+import { writeWavHeader } from './utils/writeWavHeader'
 
 export interface EmitAudioEventProps {
     data: Float32Array
