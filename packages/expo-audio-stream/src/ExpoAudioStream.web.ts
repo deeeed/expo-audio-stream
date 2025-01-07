@@ -13,7 +13,7 @@ import {
 import { WebRecorder } from './WebRecorder.web'
 import { AudioEventPayload } from './events'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
-import { WavHeaderOptions, writeWavHeader } from './utils/writeWavHeader'
+import { writeWavHeader } from './utils/writeWavHeader'
 
 export interface EmitAudioEventProps {
     data: Float32Array
@@ -182,24 +182,24 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
 
         const fullPcmBufferArray = await this.customRecorder.stop()
 
-        // concat all audio chunks
         this.logger?.debug(`Stopped recording`, fullPcmBufferArray)
         this.isRecording = false
         this.isPaused = false
         this.currentDurationMs = Date.now() - this.recordingStartTime
 
-        // Rewrite wav header with correct data size
-        const wavConfig: WavHeaderOptions = {
-            buffer: new ArrayBuffer(fullPcmBufferArray.buffer.byteLength),
+        // Create WAV header and combine with PCM data in one step
+        const wavBuffer = writeWavHeader({
+            buffer: fullPcmBufferArray.buffer,
             sampleRate: this.recordingConfig?.sampleRate ?? 44100,
             numChannels: this.recordingConfig?.channels ?? 1,
             bitDepth: this.bitDepth,
-        }
-        this.logger?.debug(`Writing wav header`, wavConfig)
-        const wavBuffer = writeWavHeader(wavConfig).slice(0)
+        })
 
-        // Create blob fileUri from audio chunks
-        const blob = new Blob([wavBuffer], {
+        // Create a cloneable copy
+        const cloneableBuffer = wavBuffer.slice(0)
+
+        // Create blob with complete WAV data
+        const blob = new Blob([cloneableBuffer], {
             type: `audio/${this.extension}`,
         })
         const fileUri = URL.createObjectURL(blob)
@@ -207,7 +207,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         const result: AudioRecording = {
             fileUri,
             filename: `${this.streamUuid}.${this.extension}`,
-            wavPCMData: fullPcmBufferArray,
+            wavPCMData: new Float32Array(cloneableBuffer),
             bitDepth: this.bitDepth,
             channels: this.recordingConfig?.channels ?? 1,
             sampleRate: this.recordingConfig?.sampleRate ?? 44100,
