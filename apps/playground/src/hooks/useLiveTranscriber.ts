@@ -18,6 +18,7 @@ interface LiveTranscriberProps {
     audioBuffer: Float32Array
     sampleRate: number
     stopping: boolean
+    enabled: boolean
     quickUpdateInterval?: number
     checkpointInterval?: number
 }
@@ -28,6 +29,7 @@ const CHECKPOINT_INTERVAL = 15
 export function useLiveTranscriber({
     audioBuffer,
     stopping,
+    enabled,
     quickUpdateInterval = QUICK_UPDATE_INTERVAL,
     checkpointInterval = CHECKPOINT_INTERVAL,
 }: LiveTranscriberProps): LiveTranscriber {
@@ -127,6 +129,7 @@ export function useLiveTranscriber({
     // Handle the quick update
     useEffect(() => {
         if (
+            enabled &&
             !checkpointProcessing.current &&
             !quickUpdateProcessing.current &&
             audioBuffer.length > 0
@@ -150,11 +153,15 @@ export function useLiveTranscriber({
                     logger.error(`Failed to trancribe`, e)
                 })
         }
-    }, [audioBuffer, handleTranscribe, quickUpdateInterval])
+    }, [audioBuffer, handleTranscribe, quickUpdateInterval, enabled])
 
     // Handle the checkpoint update
     useEffect(() => {
-        if (!checkpointProcessing.current && audioBuffer.length > 0) {
+        if (
+            enabled &&
+            !checkpointProcessing.current &&
+            audioBuffer.length > 0
+        ) {
             checkpointProcessing.current = true
             handleTranscribe({
                 interval: checkpointInterval,
@@ -166,12 +173,12 @@ export function useLiveTranscriber({
                     checkpointProcessing.current = false
                     if (transcriptionResult) {
                         setActiveTranscript('')
-                        // Change the last index depending on last chunks if it doesnt contain an end time we can replay it.
-                        const lastChunk =
-                            transcriptionResult.chunks[
-                                transcriptionResult.chunks.length - 1
-                            ]
-                        if (lastChunk.timestamp[1] === null) {
+                        // Add safety check for chunks array
+                        const lastChunk = transcriptionResult.chunks.length > 0 
+                            ? transcriptionResult.chunks[transcriptionResult.chunks.length - 1]
+                            : null;
+
+                        if (lastChunk && lastChunk.timestamp[1] === null) {
                             lastCheckpointBufferIndex.current =
                                 lastChunk.timestamp[0] * WhisperSampleRate
                             // remove the last chunk since it is not complete
@@ -181,8 +188,7 @@ export function useLiveTranscriber({
                                 removed
                             )
                         } else {
-                            lastCheckpointBufferIndex.current =
-                                audioBuffer.length
+                            lastCheckpointBufferIndex.current = audioBuffer.length
                         }
                         setTranscripts((prev) => [
                             ...prev,
@@ -197,7 +203,7 @@ export function useLiveTranscriber({
                     logger.error(`Failed to trancribe`, e)
                 })
         }
-    }, [audioBuffer, handleTranscribe, checkpointInterval])
+    }, [audioBuffer, handleTranscribe, checkpointInterval, enabled])
 
     const liveTranscriber = useMemo(
         () => ({
