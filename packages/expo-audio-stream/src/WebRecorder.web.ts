@@ -387,15 +387,9 @@ export class WebRecorder {
                                 onMessage
                             )
 
-                            // Add wav header to the raw PCM data
-                            const wavHeaderBuffer = writeWavHeader({
-                                buffer: rawPCMDataFull.buffer,
-                                sampleRate: this.audioContext.sampleRate,
-                                numChannels: this.numberOfChannels,
-                                bitDepth: this.exportBitDepth,
-                            })
                             const convertedPCM = await convertPCMToFloat32({
-                                buffer: wavHeaderBuffer,
+                                buffer: rawPCMDataFull.buffer,
+                                skipWavHeader: true,
                                 bitDepth: this.exportBitDepth,
                             })
 
@@ -435,7 +429,15 @@ export class WebRecorder {
         mimeType?: string
     }) {
         try {
-            const blob = new Blob([recordedData])
+            // Create a WAV blob with proper headers
+            const wavHeaderBuffer = writeWavHeader({
+                buffer: recordedData,
+                sampleRate: this.audioContext.sampleRate,
+                numChannels: this.numberOfChannels,
+                bitDepth: this.exportBitDepth,
+            })
+
+            const blob = new Blob([wavHeaderBuffer], { type: 'audio/wav' })
             const url = URL.createObjectURL(blob)
             const response = await fetch(url)
             const arrayBuffer = await response.arrayBuffer()
@@ -450,6 +452,9 @@ export class WebRecorder {
             bufferSource.connect(this.audioContext.destination)
             bufferSource.start()
             this.logger?.debug('Playing recorded data', recordedData)
+
+            // Clean up
+            URL.revokeObjectURL(url)
         } catch (error) {
             console.error(`[${TAG}] Failed to play recorded data:`, error)
         }
