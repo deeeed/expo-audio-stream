@@ -31,9 +31,9 @@ export const IOSSettingsConfig = ({
                 containerType: 'scrollview',
                 title: 'iOS Audio Settings',
                 footerType: 'confirm_cancel',
-                render: ({ data, onChange }) => (
+                render: ({ state, onChange }) => (
                     <IOSSettingsConfigForm
-                        config={data}
+                        config={state.data}
                         onConfigChange={(newConfig) => {
                             onChange(newConfig)
                             setLocalConfig(newConfig)
