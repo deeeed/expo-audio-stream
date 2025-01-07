@@ -35,11 +35,6 @@ export function useReanimatedWebHack() {
                 global._getAnimationTimestamp = () => performance.now()
                 // @ts-expect-error global.__reanimatedLoggerConfig is not defined in the global scope
                 global.__reanimatedLoggerConfig = { native: false }
-                show({
-                    type: 'success',
-                    iconVisible: true,
-                    message: 'Reanimated Web Hack Enabled',
-                })
             } else {
                 delete global._WORKLET
                 // @ts-expect-error global._log is not defined in the global scope
