@@ -275,14 +275,17 @@ class AudioNotificationManager private constructor(context: Context) {
                 notificationBuilder
                     .setCustomContentView(remoteViews)
                     .setCustomBigContentView(remoteViews)
-                    .clearActions()
+                    .setOnlyAlertOnce(true)
+                    .setOngoing(true)
                 addNotificationActions(context)
             }
 
-            // Update the notification
+            // Update the notification without triggering a new alert
             notificationManager.notify(
                 recordingConfig.notification.notificationId,
-                notificationBuilder.build()
+                notificationBuilder
+                    .setOnlyAlertOnce(true)
+                    .build()
             )
 
             lastSuccessfulUpdate = currentTime
