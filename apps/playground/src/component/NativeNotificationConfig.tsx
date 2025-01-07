@@ -40,9 +40,9 @@ export const NativeNotificationConfig = ({
                 containerType: 'scrollview',
                 title: 'Native Notifications',
                 footerType: 'confirm_cancel',
-                render: ({ data, onChange }) => (
+                render: ({ state, onChange }) => (
                     <NotificationConfigForm
-                        config={data}
+                        config={state.data}
                         onConfigChange={(newConfig) => {
                             onChange(newConfig)
                         }}
