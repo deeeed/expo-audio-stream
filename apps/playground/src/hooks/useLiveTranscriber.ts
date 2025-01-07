@@ -173,12 +173,12 @@ export function useLiveTranscriber({
                     checkpointProcessing.current = false
                     if (transcriptionResult) {
                         setActiveTranscript('')
-                        // Change the last index depending on last chunks if it doesnt contain an end time we can replay it.
-                        const lastChunk =
-                            transcriptionResult.chunks[
-                                transcriptionResult.chunks.length - 1
-                            ]
-                        if (lastChunk.timestamp[1] === null) {
+                        // Add safety check for chunks array
+                        const lastChunk = transcriptionResult.chunks.length > 0 
+                            ? transcriptionResult.chunks[transcriptionResult.chunks.length - 1]
+                            : null;
+
+                        if (lastChunk && lastChunk.timestamp[1] === null) {
                             lastCheckpointBufferIndex.current =
                                 lastChunk.timestamp[0] * WhisperSampleRate
                             // remove the last chunk since it is not complete
@@ -188,8 +188,7 @@ export function useLiveTranscriber({
                                 removed
                             )
                         } else {
-                            lastCheckpointBufferIndex.current =
-                                audioBuffer.length
+                            lastCheckpointBufferIndex.current = audioBuffer.length
                         }
                         setTranscripts((prev) => [
                             ...prev,
