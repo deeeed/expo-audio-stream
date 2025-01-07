@@ -100,6 +100,8 @@ if (Platform.OS === 'ios') {
     baseRecordingConfig.sampleRate = 48000
 } else if (Platform.OS === 'android') {
     baseRecordingConfig.sampleRate = WhisperSampleRate
+} else if (Platform.OS === 'web') {
+    baseRecordingConfig.sampleRate = 44100
 }
 
 logger.debug(`Base Recording Config`, baseRecordingConfig)
@@ -160,7 +162,7 @@ export default function RecordScreen() {
     const router = useRouter()
     const [liveWebAudio, setLiveWebAudio] = useState<Float32Array | null>(null)
     const [enableLiveTranscription, setEnableLiveTranscription] =
-        useState(isWeb)
+        useState(false)
     const validSRTranscription =
         startRecordingConfig.sampleRate === WhisperSampleRate
     const [stopping, setStopping] = useState(false)
@@ -364,17 +366,29 @@ export default function RecordScreen() {
 
             if (isWeb && result.wavPCMData) {
                 const audioBuffer = result.wavPCMData.buffer
-                // Store the audio file and metadata in IndexedDB
-                await storeAudioFile({
-                    fileName: result.filename,
-                    arrayBuffer: audioBuffer,
-                    metadata: result,
-                })
 
-                setResult(result)
-                setLiveWebAudio(result.wavPCMData.slice(100))
+                try {
+                    // Store the audio file
+                    await storeAudioFile({
+                        fileName: result.filename,
+                        arrayBuffer: audioBuffer,
+                        metadata: result,
+                    })
 
-                await refreshFiles()
+                    logger.debug('Audio file stored successfully')
+                    setResult(result)
+                    await refreshFiles()
+                } catch (error) {
+                    logger.error('Failed to store audio:', error)
+                    if (error instanceof Error) {
+                        logger.error('Error details:', {
+                            message: error.message,
+                            name: error.name,
+                            stack: error.stack
+                        })
+                    }
+                    throw new Error('Failed to store audio file')
+                }
             } else {
                 setResult(result)
                 const jsonPath = result.fileUri.replace(/\.wav$/, '.json') // Assuming fileUri has a .wav extension
@@ -390,7 +404,6 @@ export default function RecordScreen() {
             }
 
             setResult(null)
-            // Go to the newly saved page.
             router.navigate(`(recordings)/${result.filename}`)
         } catch (error) {
             logger.error(`Error while stopping recording`, error)
