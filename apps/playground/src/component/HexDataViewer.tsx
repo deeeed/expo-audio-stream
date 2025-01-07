@@ -51,7 +51,7 @@ export const HexDataViewer = ({ byteArray, bitDepth }: HexDataViewerProps) => {
                 const pcmConversionResult = await convertPCMToFloat32({
                     buffer: byteArray.buffer,
                     bitDepth,
-                    skipWavHeader: false,
+                    skipWavHeader: true
                 })
                 const float32String = pcmConversionResult.pcmValues.join(' ')
                 setFloat32Data(float32String)
