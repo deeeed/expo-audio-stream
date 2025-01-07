@@ -169,6 +169,7 @@ export default function RecordScreen() {
         stopping,
         audioBuffer: webAudioChunks.current,
         sampleRate: startRecordingConfig.sampleRate ?? WhisperSampleRate,
+        enabled: enableLiveTranscription && validSRTranscription,
     })
     const transcriptionResolveRef =
         useRef<(transcriptions: TranscriberData[]) => void>()
@@ -412,6 +413,7 @@ export default function RecordScreen() {
                 />
             )}
 
+            <Text>enableLiveTranscription: {enableLiveTranscription.toString()}</Text>
             <Text>Duration: {formatDuration(duration)}</Text>
             <Text>Size: {formatBytes(size)}</Text>
             {streamConfig?.sampleRate ? (
@@ -423,7 +425,8 @@ export default function RecordScreen() {
             {streamConfig?.channels ? (
                 <Text>channels: {streamConfig?.channels}</Text>
             ) : null}
-            <ProgressItems items={progressItems} />
+            {isModelLoading && <ProgressItems items={progressItems} />}
+
             {!isModelLoading &&
                 isWeb &&
                 enableLiveTranscription &&

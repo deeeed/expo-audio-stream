@@ -18,6 +18,7 @@ interface LiveTranscriberProps {
     audioBuffer: Float32Array
     sampleRate: number
     stopping: boolean
+    enabled: boolean
     quickUpdateInterval?: number
     checkpointInterval?: number
 }
@@ -28,6 +29,7 @@ const CHECKPOINT_INTERVAL = 15
 export function useLiveTranscriber({
     audioBuffer,
     stopping,
+    enabled,
     quickUpdateInterval = QUICK_UPDATE_INTERVAL,
     checkpointInterval = CHECKPOINT_INTERVAL,
 }: LiveTranscriberProps): LiveTranscriber {
@@ -127,6 +129,7 @@ export function useLiveTranscriber({
     // Handle the quick update
     useEffect(() => {
         if (
+            enabled &&
             !checkpointProcessing.current &&
             !quickUpdateProcessing.current &&
             audioBuffer.length > 0
@@ -150,11 +153,15 @@ export function useLiveTranscriber({
                     logger.error(`Failed to trancribe`, e)
                 })
         }
-    }, [audioBuffer, handleTranscribe, quickUpdateInterval])
+    }, [audioBuffer, handleTranscribe, quickUpdateInterval, enabled])
 
     // Handle the checkpoint update
     useEffect(() => {
-        if (!checkpointProcessing.current && audioBuffer.length > 0) {
+        if (
+            enabled &&
+            !checkpointProcessing.current &&
+            audioBuffer.length > 0
+        ) {
             checkpointProcessing.current = true
             handleTranscribe({
                 interval: checkpointInterval,
@@ -197,7 +204,7 @@ export function useLiveTranscriber({
                     logger.error(`Failed to trancribe`, e)
                 })
         }
-    }, [audioBuffer, handleTranscribe, checkpointInterval])
+    }, [audioBuffer, handleTranscribe, checkpointInterval, enabled])
 
     const liveTranscriber = useMemo(
         () => ({
