@@ -38,6 +38,7 @@ import { useTranscription } from '../../context/TranscriptionProvider'
 import { useLiveTranscriber } from '../../hooks/useLiveTranscriber'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
+import { RecordingStats } from '../../component/RecordingStats'
 
 const CHUNK_DURATION_MS = 500 // 500 ms chunks
 
@@ -50,6 +51,11 @@ const baseRecordingConfig: RecordingConfig = {
     encoding: 'pcm_32bit',
     pointsPerSecond: 10,
     enableProcessing: true,
+    compression: {
+        enabled: true,
+        format: 'opus',
+        bitrate: 24000,
+    },
     ios: {
         audioSession: {
             category: 'PlayAndRecord',
@@ -277,6 +283,7 @@ export default function RecordScreen() {
         isPaused,
         durationMs: duration,
         size,
+        compressedSize,
         isRecording,
         analysisData,
     } = useSharedAudioRecorder()
@@ -426,18 +433,16 @@ export default function RecordScreen() {
                 />
             )}
 
-            <Text>enableLiveTranscription: {enableLiveTranscription.toString()}</Text>
-            <Text>Duration: {formatDuration(duration)}</Text>
-            <Text>Size: {formatBytes(size)}</Text>
-            {streamConfig?.sampleRate ? (
-                <Text>sampleRate: {streamConfig?.sampleRate}</Text>
-            ) : null}
-            {streamConfig?.bitDepth ? (
-                <Text>bitDepth: {streamConfig?.bitDepth}</Text>
-            ) : null}
-            {streamConfig?.channels ? (
-                <Text>channels: {streamConfig?.channels}</Text>
-            ) : null}
+            <RecordingStats
+                duration={duration}
+                size={size}
+                compressedSize={compressedSize}
+                sampleRate={streamConfig?.sampleRate}
+                bitDepth={streamConfig?.bitDepth}
+                channels={streamConfig?.channels}
+                compression={startRecordingConfig.compression}
+            />
+
             {isModelLoading && <ProgressItems items={progressItems} />}
 
             {!isModelLoading &&
@@ -601,6 +606,88 @@ export default function RecordScreen() {
                     }))
                 }}
             />
+            {!result && !isRecording && !isPaused && (
+                <>
+                    <LabelSwitch
+                        label="Enable Compression"
+                        value={startRecordingConfig.compression?.enabled ?? true}
+                        onValueChange={(enabled) => {
+                            setStartRecordingConfig((prev) => ({
+                                ...prev,
+                                compression: {
+                                    ...(prev.compression ?? { format: 'opus', bitrate: 128000 }),
+                                    enabled,
+                                },
+                            }))
+                        }}
+                    />
+                    
+                    {startRecordingConfig.compression?.enabled && (
+                        <>
+                            <Picker
+                                label="Compression Format"
+                                multi={false}
+                                options={[
+                                    {
+                                        label: 'OPUS (Recommended)',
+                                        value: 'opus',
+                                        selected: startRecordingConfig.compression?.format === 'opus',
+                                    },
+                                    {
+                                        label: 'AAC',
+                                        value: 'aac',
+                                        selected: startRecordingConfig.compression?.format === 'aac',
+                                    },
+                                ]}
+                                onFinish={(options) => {
+                                    const selected = options?.find((option) => option.selected)
+                                    if (!selected) return
+                                    setStartRecordingConfig((prev) => ({
+                                        ...prev,
+                                        compression: {
+                                            ...(prev.compression ?? { enabled: true, bitrate: 128000 }),
+                                            format: selected.value as 'aac' | 'opus',
+                                        },
+                                    }))
+                                }}
+                            />
+                            
+                            <Picker
+                                label="Bitrate (kbps)"
+                                multi={false}
+                                options={[
+                                    {
+                                        label: '24 kbps (Recommended for voice)',
+                                        value: '24000',
+                                        selected: startRecordingConfig.compression?.bitrate === 24000,
+                                    },
+                                    {
+                                        label: '32 kbps (High quality voice)',
+                                        value: '32000',
+                                        selected: startRecordingConfig.compression?.bitrate === 32000,
+                                    },
+                                    {
+                                        label: '64 kbps (Studio quality)',
+                                        value: '64000',
+                                        selected: startRecordingConfig.compression?.bitrate === 64000,
+                                    },
+                                ]}
+                                onFinish={(options) => {
+                                    const selected = options?.find((option) => option.selected)
+                                    if (!selected) return
+                                    setStartRecordingConfig((prev) => ({
+                                        ...prev,
+                                        compression: {
+                                            ...(prev.compression ?? { enabled: true, format: 'opus' }),
+                                            bitrate: parseInt(selected.value, 10),
+                                        },
+                                    }))
+                                }}
+                            />
+                        </>
+                    )}
+                </>
+            )}
             {Platform.OS !== 'web' && (
                 <NativeNotificationConfig
                     enabled={notificationEnabled}
