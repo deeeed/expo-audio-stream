@@ -13,6 +13,12 @@ export interface AudioStreamStatus {
     size: number
     interval: number
     mimeType: string
+    compression?: {
+        size: number
+        mimeType: string
+        bitrate: number
+        format: string
+    }
 }
 
 export interface AudioDataEvent {
@@ -21,6 +27,13 @@ export interface AudioDataEvent {
     fileUri: string
     eventDataSize: number
     totalSize: number
+    compression?: {
+        data?: string
+        position: number
+        fileUri: string
+        eventDataSize: number
+        totalSize: number
+    }
 }
 
 export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'
@@ -60,6 +73,9 @@ export interface AudioRecording {
     transcripts?: TranscriberData[]
     wavPCMData?: Float32Array // Full PCM data for the recording in WAV format (only on web, for native use the fileUri)
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
+    compressedUri?: string
+    compressedMimeType?: string
+    compressedSize?: number
 }
 
 export interface StartRecordingResult {
@@ -68,6 +84,9 @@ export interface StartRecordingResult {
     channels?: number
     bitDepth?: BitDepth
     sampleRate?: SampleRate
+    compressedUri?: string
+    compressedMimeType?: string
+    compressedSize?: number
 }
 
 export interface AudioSessionConfig {
@@ -147,6 +166,12 @@ export interface RecordingConfig {
 
     // Callback function to handle audio features extraction results
     onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void>
+
+    compression?: {
+        enabled: boolean
+        format: 'aac' | 'opus' | 'mp3'
+        bitrate?: number
+    }
 }
 
 export interface NotificationConfig {
@@ -225,5 +250,6 @@ export interface UseAudioRecorderState {
     isPaused: boolean
     durationMs: number // Duration of the recording
     size: number // Size in bytes of the recorded audio
+    compressedSize?: number // Size in bytes of the compressed audio
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
 }

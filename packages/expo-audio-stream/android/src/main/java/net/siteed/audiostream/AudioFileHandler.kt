@@ -1,9 +1,11 @@
 package net.siteed.audiostream
 
+import android.util.Log
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
 import java.io.RandomAccessFile
+import java.util.UUID
 
 class AudioFileHandler(private val filesDir: File) {
     // Method to write WAV file header
@@ -87,6 +89,30 @@ class AudioFileHandler(private val filesDir: File) {
     fun clearAudioStorage() {
         filesDir.listFiles()?.forEach {
             it.delete()
+        }
+    }
+
+    fun createAudioFile(extension: String): File {
+        val timestamp = System.currentTimeMillis()
+        val uuid = UUID.randomUUID().toString()
+        val filename = "recording_${timestamp}_${uuid}.${extension}"
+        
+        return try {
+            File(filesDir, filename).apply {
+                parentFile?.mkdirs() // Create directories if they don't exist
+                createNewFile()      // Create the file
+            }
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to create audio file", e)
+            throw e
+        }
+    }
+
+    fun deleteFile(file: File?) {
+        try {
+            file?.delete()
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to delete file: ${file?.absolutePath}", e)
         }
     }
 }

@@ -33,6 +33,8 @@ export interface UseAudioRecorderState {
     isPaused: boolean
     durationMs: number // Duration of the recording
     size: number // Size in bytes of the recorded audio
+    // FIXME: need to implement fetching the value from the native module
+    compressedSize?: number // Size in bytes of the compressed audio
     analysisData?: AudioAnalysis
 }
 
@@ -41,6 +43,7 @@ interface RecorderReducerState {
     isPaused: boolean
     durationMs: number
     size: number
+    compressedSize?: number
     analysisData?: AudioAnalysis
 }
 
@@ -53,7 +56,10 @@ type RecorderAction =
               isPaused: boolean
           }
       }
-    | { type: 'UPDATE_STATUS'; payload: { durationMs: number; size: number } }
+    | {
+          type: 'UPDATE_STATUS'
+          payload: { durationMs: number; size: number; compressedSize?: number }
+      }
     | { type: 'UPDATE_ANALYSIS'; payload: AudioAnalysis }
 
 const defaultAnalysis: AudioAnalysis = {
@@ -84,6 +90,7 @@ function audioRecorderReducer(
                 isPaused: false,
                 durationMs: 0,
                 size: 0,
+                compressedSize: 0,
                 analysisData: defaultAnalysis, // Reset analysis data
             }
         case 'STOP':
@@ -103,6 +110,7 @@ function audioRecorderReducer(
                 ...state,
                 durationMs: action.payload.durationMs,
                 size: action.payload.size,
+                compressedSize: action.payload.compressedSize,
             }
         case 'UPDATE_ANALYSIS':
             return {
@@ -129,6 +137,7 @@ export function useAudioRecorder({
         isPaused: false,
         durationMs: 0,
         size: 0,
+        compressedSize: 0,
         analysisData: undefined,
     })
 
