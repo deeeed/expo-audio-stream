@@ -16,7 +16,7 @@ Options to specify which audio features to extract.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:34](https://github.com/deeeed/expo-audio-stream/blob/71a0885b08cf9587c875aadb11f6a65ac1fc6af9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L34)
+[src/AudioAnalysis/AudioAnalysis.types.ts:34](https://github.com/deeeed/expo-audio-stream/blob/816fff0ed70c4d058d880e20bf324c8aa58050a3/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L34)
 
 ***
 
@@ -26,7 +26,7 @@ Options to specify which audio features to extract.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:26](https://github.com/deeeed/expo-audio-stream/blob/71a0885b08cf9587c875aadb11f6a65ac1fc6af9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L26)
+[src/AudioAnalysis/AudioAnalysis.types.ts:26](https://github.com/deeeed/expo-audio-stream/blob/816fff0ed70c4d058d880e20bf324c8aa58050a3/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L26)
 
 ***
 
@@ -36,7 +36,7 @@ Options to specify which audio features to extract.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:36](https://github.com/deeeed/expo-audio-stream/blob/71a0885b08cf9587c875aadb11f6a65ac1fc6af9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L36)
+[src/AudioAnalysis/AudioAnalysis.types.ts:36](https://github.com/deeeed/expo-audio-stream/blob/816fff0ed70c4d058d880e20bf324c8aa58050a3/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L36)
 
 ***
 
@@ -46,7 +46,7 @@ Options to specify which audio features to extract.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:27](https://github.com/deeeed/expo-audio-stream/blob/71a0885b08cf9587c875aadb11f6a65ac1fc6af9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L27)
+[src/AudioAnalysis/AudioAnalysis.types.ts:27](https://github.com/deeeed/expo-audio-stream/blob/816fff0ed70c4d058d880e20bf324c8aa58050a3/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L27)
 
 ***
 
@@ -56,7 +56,7 @@ Options to specify which audio features to extract.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:28](https://github.com/deeeed/expo-audio-stream/blob/71a0885b08cf9587c875aadb11f6a65ac1fc6af9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L28)
+[src/AudioAnalysis/AudioAnalysis.types.ts:28](https://github.com/deeeed/expo-audio-stream/blob/816fff0ed70c4d058d880e20bf324c8aa58050a3/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L28)
 
 ***
 
@@ -66,7 +66,7 @@ Options to specify which audio features to extract.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:33](https://github.com/deeeed/expo-audio-stream/blob/71a0885b08cf9587c875aadb11f6a65ac1fc6af9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L33)
+[src/AudioAnalysis/AudioAnalysis.types.ts:33](https://github.com/deeeed/expo-audio-stream/blob/816fff0ed70c4d058d880e20bf324c8aa58050a3/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L33)
 
 ***
 
@@ -76,7 +76,7 @@ Options to specify which audio features to extract.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:30](https://github.com/deeeed/expo-audio-stream/blob/71a0885b08cf9587c875aadb11f6a65ac1fc6af9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L30)
+[src/AudioAnalysis/AudioAnalysis.types.ts:30](https://github.com/deeeed/expo-audio-stream/blob/816fff0ed70c4d058d880e20bf324c8aa58050a3/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L30)
 
 ***
 
@@ -86,7 +86,7 @@ Options to specify which audio features to extract.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:31](https://github.com/deeeed/expo-audio-stream/blob/71a0885b08cf9587c875aadb11f6a65ac1fc6af9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L31)
+[src/AudioAnalysis/AudioAnalysis.types.ts:31](https://github.com/deeeed/expo-audio-stream/blob/816fff0ed70c4d058d880e20bf324c8aa58050a3/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L31)
 
 ***
 
@@ -96,7 +96,7 @@ Options to specify which audio features to extract.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:32](https://github.com/deeeed/expo-audio-stream/blob/71a0885b08cf9587c875aadb11f6a65ac1fc6af9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L32)
+[src/AudioAnalysis/AudioAnalysis.types.ts:32](https://github.com/deeeed/expo-audio-stream/blob/816fff0ed70c4d058d880e20bf324c8aa58050a3/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L32)
 
 ***
 
@@ -106,7 +106,7 @@ Options to specify which audio features to extract.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:35](https://github.com/deeeed/expo-audio-stream/blob/71a0885b08cf9587c875aadb11f6a65ac1fc6af9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L35)
+[src/AudioAnalysis/AudioAnalysis.types.ts:35](https://github.com/deeeed/expo-audio-stream/blob/816fff0ed70c4d058d880e20bf324c8aa58050a3/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L35)
 
 ***
 
@@ -116,4 +116,4 @@ Options to specify which audio features to extract.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:29](https://github.com/deeeed/expo-audio-stream/blob/71a0885b08cf9587c875aadb11f6a65ac1fc6af9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L29)
+[src/AudioAnalysis/AudioAnalysis.types.ts:29](https://github.com/deeeed/expo-audio-stream/blob/816fff0ed70c4d058d880e20bf324c8aa58050a3/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L29)

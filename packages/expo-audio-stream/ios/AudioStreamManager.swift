@@ -46,6 +46,7 @@ class AudioStreamManager: NSObject {
 
     internal var lastEmissionTime: Date?
     internal var lastEmittedSize: Int64 = 0
+    internal var lastEmittedCompressedSize: Int64 = 0
     private var emissionInterval: TimeInterval = 1.0 // Default to 1 second
     private var totalDataSize: Int64 = 0
     private var fileManager = FileManager.default
@@ -67,6 +68,11 @@ class AudioStreamManager: NSObject {
     weak var delegate: AudioStreamManagerDelegate?  // Define the delegate here
         
     private var lastValidDuration: TimeInterval?  // Add this property
+    
+    private var compressedRecorder: AVAudioRecorder?
+    private var compressedFileURL: URL?
+    private var compressedFormat: String = "aac"
+    private var compressedBitRate: Int = 128000
     
     /// Initializes the AudioStreamManager
     override init() {
@@ -394,8 +400,8 @@ class AudioStreamManager: NSObject {
         
         let durationInSeconds = currentRecordingDuration()
         let durationInMilliseconds = Int(durationInSeconds * 1000)
-
-        return [
+        
+        var status: [String: Any] = [
             "durationMs": durationInMilliseconds,
             "isRecording": isRecording,
             "isPaused": isPaused,
@@ -403,6 +409,27 @@ class AudioStreamManager: NSObject {
             "size": totalDataSize,
             "interval": emissionInterval
         ]
+        
+        // Add compression info if enabled
+        if settings.enableCompressedOutput, let compressedURL = compressedFileURL {
+            do {
+                let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedURL.path)
+                if let compressedSize = compressedAttributes[.size] as? Int64 {
+                    let compressionBundle: [String: Any] = [
+                        "fileUri": compressedURL.absoluteString,
+                        "mimeType": compressedFormat == "aac" ? "audio/aac" : "audio/opus",
+                        "size": compressedSize,
+                        "format": compressedFormat,
+                        "bitrate": compressedBitRate
+                    ]
+                    status["compression"] = compressionBundle
+                }
+            } catch {
+                Logger.debug("Error getting compressed file attributes: \(error)")
+            }
+        }
+        
+        return status
     }
     
     /// Starts a new audio recording with the specified settings and interval.
@@ -521,6 +548,28 @@ class AudioStreamManager: NSObject {
                 self.lastBufferTime = time
             }
             
+            // Setup compressed recording if enabled
+            if settings.enableCompressedOutput {
+                let compressedSettings: [String: Any] = [
+                    AVFormatIDKey: settings.compressedFormat == "aac" ? kAudioFormatMPEG4AAC : kAudioFormatOpus,
+                    AVSampleRateKey: settings.sampleRate,
+                    AVNumberOfChannelsKey: settings.numberOfChannels,
+                    AVEncoderBitRateKey: settings.compressedBitRate,
+                    AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                ]
+                
+                compressedFileURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                    .appendingPathExtension(settings.compressedFormat)
+                    
+                if let url = compressedFileURL {
+                    compressedRecorder = try AVAudioRecorder(url: url, settings: compressedSettings)
+                    compressedRecorder?.record()
+                    compressedFormat = settings.compressedFormat
+                    compressedBitRate = settings.compressedBitRate
+                }
+            }
+            
         } catch {
             Logger.debug("Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
             return nil
@@ -574,13 +623,21 @@ class AudioStreamManager: NSObject {
             isRecording = true
             isPaused = false
             Logger.debug("Debug: Recording started successfully.")
+            
             return StartRecordingResult(
                 fileUri: recordingFileURL!.path,
                 mimeType: mimeType,
-                channels: newSettings.numberOfChannels,
-                bitDepth: newSettings.bitDepth,
-                sampleRate: newSettings.sampleRate
+                channels: settings.numberOfChannels,
+                bitDepth: settings.bitDepth,
+                sampleRate: settings.sampleRate,
+                compression: settings.enableCompressedOutput && compressedFileURL != nil ? CompressedRecordingInfo(
+                    fileUri: compressedFileURL!.absoluteString,
+                    mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
+                    bitrate: compressedBitRate,
+                    format: compressedFormat
+                ) : nil
             )
+            
         } catch {
             Logger.debug("Error: Could not start the audio engine: \(error.localizedDescription)")
             isRecording = false
@@ -604,6 +661,9 @@ class AudioStreamManager: NSObject {
         notificationManager?.updateState(isPaused: true)
         delegate?.audioStreamManager(self, didPauseRecording: Date())
         delegate?.audioStreamManager(self, didUpdateNotificationState: true)
+        
+        // Pause compressed recording if active
+        compressedRecorder?.pause()
     }
     
     private func initializeNotifications() {
@@ -684,6 +744,10 @@ class AudioStreamManager: NSObject {
             notificationManager?.updateState(isPaused: false)
             delegate?.audioStreamManager(self, didResumeRecording: Date())
             delegate?.audioStreamManager(self, didUpdateNotificationState: false)
+            
+            // Resume compressed recording if active
+            compressedRecorder?.record()
+            
         } catch {
             Logger.debug("Error: Failed to resume recording: \(error.localizedDescription)")
         }
@@ -720,9 +784,14 @@ class AudioStreamManager: NSObject {
     /// Stops the current audio recording.
     /// - Returns: A RecordingResult object if the recording stopped successfully, or nil otherwise.
     func stopRecording() -> RecordingResult? {
+        guard isRecording else { return nil }
+        
         disableWakeLock()
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
+        
+        // Stop compressed recording if active
+        compressedRecorder?.stop()
         
         // Get the final duration before changing state
         let finalDuration = currentRecordingDuration()
@@ -783,13 +852,24 @@ class AudioStreamManager: NSObject {
                 size: fileSize,
                 channels: settings.numberOfChannels,
                 bitDepth: settings.bitDepth,
-                sampleRate: settings.sampleRate
+                sampleRate: settings.sampleRate,
+                compression: settings.enableCompressedOutput && compressedFileURL != nil ? CompressedRecordingInfo(
+                    fileUri: compressedFileURL!.absoluteString,
+                    mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
+                    bitrate: compressedBitRate,
+                    format: compressedFormat
+                ) : nil
             )
+            
+            // Cleanup
             recordingFileURL = nil
             lastBufferTime = nil
             lastValidDuration = nil
+            compressedRecorder = nil
+            compressedFileURL = nil
             
             return result
+            
         } catch {
             Logger.debug("Failed to fetch file attributes: \(error)")
             return nil
@@ -1108,8 +1188,47 @@ class AudioStreamManager: NSObject {
             let recordingTime = currentTime.timeIntervalSince(startTime)
             let dataToProcess = accumulatedData
             
-            // Emit the audio data
-            delegate?.audioStreamManager(self, didReceiveAudioData: dataToProcess, recordingTime: recordingTime, totalDataSize: totalDataSize)
+            // Prepare compression info if enabled
+            var compressionInfo: [String: Any]? = nil
+            if settings.enableCompressedOutput, let compressedURL = compressedFileURL {
+                do {
+                    let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedURL.path)
+                    if let compressedSize = compressedAttributes[.size] as? Int64 {
+                        let eventDataSize = compressedSize - lastEmittedCompressedSize
+                        
+                        // Read the new compressed data if there's new data
+                        var compressedData: String? = nil
+                        if eventDataSize > 0 {
+                            let fileHandle = try FileHandle(forReadingFrom: compressedURL)
+                            fileHandle.seek(toFileOffset: UInt64(lastEmittedCompressedSize))
+                            let data = fileHandle.readData(ofLength: Int(eventDataSize))
+                            compressedData = data.base64EncodedString()
+                            fileHandle.closeFile()
+                        }
+                        
+                        lastEmittedCompressedSize = compressedSize
+                        
+                        compressionInfo = [
+                            "position": recordingTime * 1000, // Convert to milliseconds
+                            "fileUri": compressedURL.absoluteString,
+                            "eventDataSize": eventDataSize,
+                            "totalSize": compressedSize,
+                            "data": compressedData ?? ""
+                        ]
+                    }
+                } catch {
+                    Logger.debug("Failed to read compressed data: \(error)")
+                }
+            }
+            
+            // Emit the audio data with compression info
+            delegate?.audioStreamManager(
+                self,
+                didReceiveAudioData: dataToProcess,
+                recordingTime: recordingTime,
+                totalDataSize: totalDataSize,
+                compressionInfo: compressionInfo
+            )
             
             // Process audio if enabled
             if settings.enableProcessing {

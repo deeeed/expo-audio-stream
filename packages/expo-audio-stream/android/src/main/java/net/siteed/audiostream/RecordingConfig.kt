@@ -15,7 +15,10 @@ data class RecordingConfig(
     val showNotification: Boolean = false,
     val showWaveformInNotification: Boolean = false,
     val notification: NotificationConfig = NotificationConfig(),
-    val features: Map<String, Boolean> = emptyMap()
+    val features: Map<String, Boolean> = emptyMap(),
+    val enableCompressedOutput: Boolean = false,
+    val compressedFormat: String = "opus",
+    val compressedBitRate: Int = 24000,
 ) {
     companion object {
         fun fromMap(options: Map<String, Any?>?): Result<Pair<RecordingConfig, AudioFormatInfo>> {
@@ -36,6 +39,24 @@ data class RecordingConfig(
             val notificationMap = options.getTypedMap<Any?>("notification") { true }
             val notificationConfig = NotificationConfig.fromMap(notificationMap)
 
+            // Parse compression config
+            val compressionMap = options.getTypedMap<Any?>("compression") { true }
+            val enableCompressedOutput = compressionMap["enabled"] as? Boolean ?: false
+            val compressedFormat = (compressionMap["format"] as? String)?.lowercase() ?: "aac"
+            val compressedBitRate = (compressionMap["bitrate"] as? Number)?.toInt() ?: 128000
+
+            // Validate bitrate if compression is enabled
+            if (enableCompressedOutput) {
+                when {
+                    compressedBitRate < 8000 -> return Result.failure(
+                        IllegalArgumentException("Bitrate must be at least 8000 bps")
+                    )
+                    compressedBitRate > 960000 -> return Result.failure(
+                        IllegalArgumentException("Bitrate cannot exceed 960000 bps")
+                    )
+                }
+            }
+
             // Initialize the recording configuration
             val tempRecordingConfig = RecordingConfig(
                 sampleRate = options.getNumberOrDefault("sampleRate", Constants.DEFAULT_SAMPLE_RATE),
@@ -49,7 +70,10 @@ data class RecordingConfig(
                 showNotification = options.getBooleanOrDefault("showNotification", false),
                 showWaveformInNotification = options.getBooleanOrDefault("showWaveformInNotification", false),
                 notification = notificationConfig,
-                features = features
+                features = features,
+                enableCompressedOutput = enableCompressedOutput,
+                compressedFormat = compressedFormat,
+                compressedBitRate = compressedBitRate
             )
 
             // Validate sample rate and channels

@@ -7,20 +7,24 @@ import { App as ExpoRouterApp } from 'expo-router/build/qualified-entry'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useState } from 'react'
 import { ActivityIndicator } from 'react-native-paper'
+import { Provider } from 'react-redux'
 
+import { PersistGate } from 'redux-persist/integration/react'
 import { useReanimatedWebHack } from './hooks/useReanimatedWebHack'
+import { persistor, setThemePreferences, store, useAppDispatch, useAppSelector } from './store'
+import { baseLogger } from './config'
 
 setLoggerConfig({
     namespaces: '*',
     maxLogs: 20,
 })
 
+const logger = baseLogger.extend('AppRoot')
+
 export const WithUIProvider = ({ children }: { children: React.ReactNode }) => {
     const { darkMode, isReady: isThemeReady } = useThemePreferences()
     const [ready, setReady] = useState(false)
-
-    const { handleHackToggle, isReady: isReanimatedReady } =
-        useReanimatedWebHack()
+    const { handleHackToggle, isReady: isReanimatedReady } = useReanimatedWebHack()
 
     useEffect(() => {
         handleHackToggle(true)
@@ -43,19 +47,40 @@ export const WithUIProvider = ({ children }: { children: React.ReactNode }) => {
     )
 }
 
-export const AppRoot = () => {
+const AppContent = () => {
+    const { themePreferences } = useAppSelector((state) => state.preferences)
+    const dispatch = useAppDispatch()
+
     return (
         <UIProvider
             portalName="audio-portal"
+            preferences={themePreferences}
+            actions={{
+                savePreferences: async (newPreferences) => {
+                    logger.info('Saving preferences', newPreferences)
+                    dispatch(setThemePreferences(newPreferences))
+                },
+            }}
             toastProviderProps={{
                 styleOverrides: {
                     snackbarStyle: { marginBottom: 40 },
                 },
             }}
         >
-            <WithUIProvider>
-                <ExpoRouterApp />
-            </WithUIProvider>
-        </UIProvider>
+        <WithUIProvider>
+            <ExpoRouterApp />
+        </WithUIProvider>
+    </UIProvider>
+    )
+}
+
+
+export const AppRoot = () => {
+    return (
+        <Provider store={store}>
+            <PersistGate loading={<ActivityIndicator />} persistor={persistor}>
+            <AppContent />
+            </PersistGate>
+        </Provider>
     )
 }
