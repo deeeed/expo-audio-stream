@@ -114,9 +114,9 @@ const getStyles = ({
 }
 
 interface InfoRowProps {
-    label: string
-    value: string | number | React.ReactNode
-    styles: ReturnType<typeof getStyles>
+    readonly label: string
+    readonly value: string | number | React.ReactNode
+    readonly styles: ReturnType<typeof getStyles>
 }
 
 function InfoRow({ label, value, styles }: InfoRowProps) {

@@ -11,12 +11,12 @@ import { useState } from "react";
 import { CompressionInfo } from "@siteed/expo-audio-stream/src";
 
 interface RecordingStatsProps {
-  duration: number;
-  size: number;
-  sampleRate?: number;
-  bitDepth?: number;
-  channels?: number;
-  compression?: CompressionInfo
+  readonly duration: number;
+  readonly size: number;
+  readonly sampleRate?: number;
+  readonly bitDepth?: number;
+  readonly channels?: number;
+  readonly compression?: CompressionInfo
 }
 
 function formatDuration(durationMs: number) {
