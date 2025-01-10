@@ -21,9 +21,11 @@
         "@expo/vector-icons": "^14.0.0",
         "@gorhom/bottom-sheet": "^5.0.5",
         "@gorhom/portal": "^1.0.14",
+        "@react-native-async-storage/async-storage": "1.23.1",
         "@react-native-community/slider": "4.5.5",
         "@react-native/assets-registry": "^0.76.5",
         "@react-navigation/native": "^7.0.0",
+        "@reduxjs/toolkit": "^2.5.0",
         "@shopify/react-native-skia": "1.5.0",
         "@siteed/design-system": "^0.35.0",
         "@siteed/expo-audio-stream": "workspace:^",
@@ -64,6 +66,8 @@
         "react-native-svg": "15.8.0",
         "react-native-vector-icons": "^10.0.3",
         "react-native-web": "~0.19.13",
+        "react-redux": "^9.2.0",
+        "redux-persist": "^6.0.0",
         "whisper.rn": "^0.4.0-rc.10"
     },
     "devDependencies": {
