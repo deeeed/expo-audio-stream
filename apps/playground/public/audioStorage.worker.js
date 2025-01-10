@@ -24,7 +24,7 @@ self.onmessage = async (e) => {
             const store = transaction.objectStore('audioFiles')
             
             await new Promise((resolve, reject) => {
-                const request = store.put(payload)
+                store.put(payload)
                 transaction.oncomplete = () => resolve()
                 transaction.onerror = () => reject(transaction.error)
             })
