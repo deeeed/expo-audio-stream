@@ -17,6 +17,27 @@ struct IOSNotificationConfig {
     var categoryIdentifier: String?
 }
 
+struct CompressedRecordingInfo {
+    var fileUri: String
+    var mimeType: String
+    var bitrate: Int
+    var format: String
+    
+    static func validate(format: String, bitrate: Int) -> Result<Void, Error> {
+        // Validate format
+        guard ["aac", "opus"].contains(format.lowercased()) else {
+            return .failure(RecordingError.unsupportedFormat(format))
+        }
+        
+        // Validate bitrate
+        guard (8000...960000).contains(bitrate) else {
+            return .failure(RecordingError.invalidBitrate(bitrate))
+        }
+        
+        return .success(())
+    }
+}
+
 struct NotificationConfig {
     var title: String?
     var text: String?
@@ -26,6 +47,20 @@ struct NotificationConfig {
 
 struct IOSConfig {
     var audioSession: IOSAudioSessionConfig?
+}
+
+enum RecordingError: Error {
+    case unsupportedFormat(String)
+    case invalidBitrate(Int)
+    
+    var localizedDescription: String {
+        switch self {
+        case .unsupportedFormat(let format):
+            return "Unsupported compression format: \(format). iOS only supports AAC."
+        case .invalidBitrate(let bitrate):
+            return "Invalid bitrate: \(bitrate). Must be between 8000 and 960000 bps."
+        }
+    }
 }
 
 struct RecordingSettings {
@@ -52,10 +87,35 @@ struct RecordingSettings {
     // Notification configuration
     var notification: NotificationConfig?
     
-    static func fromDictionary(_ dict: [String: Any]) -> RecordingSettings {
+    let enableCompressedOutput: Bool
+    let compressedFormat: String // "aac" or "opus"
+    let compressedBitRate: Int
+    
+    static func fromDictionary(_ dict: [String: Any]) -> Result<RecordingSettings, Error> {
+        // Extract compression settings
+        let compression = dict["compression"] as? [String: Any]
+        let enableCompressedOutput = compression?["enabled"] as? Bool ?? false
+        let compressedFormat = (compression?["format"] as? String)?.lowercased() ?? "opus"
+        let compressedBitRate = compression?["bitrate"] as? Int ?? 24000
+        
+        // Validate compression settings if enabled
+        if enableCompressedOutput {
+            // Validate format and bitrate
+            if case .failure(let error) = CompressedRecordingInfo.validate(
+                format: compressedFormat,
+                bitrate: compressedBitRate
+            ) {
+                return .failure(error)
+            }
+        }
+        
+        // Create settings
         var settings = RecordingSettings(
             sampleRate: dict["sampleRate"] as? Double ?? 44100.0,
-            desiredSampleRate: dict["desiredSampleRate"] as? Double ?? 44100.0
+            desiredSampleRate: dict["desiredSampleRate"] as? Double ?? 44100.0,
+            enableCompressedOutput: enableCompressedOutput,
+            compressedFormat: compressedFormat,
+            compressedBitRate: compressedBitRate
         )
         
         // Parse core settings
@@ -152,6 +212,6 @@ struct RecordingSettings {
             settings.notification = notificationConfig
         }
         
-        return settings
+        return .success(settings)
     }
 }

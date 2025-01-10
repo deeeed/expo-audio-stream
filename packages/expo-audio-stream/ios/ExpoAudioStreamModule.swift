@@ -124,6 +124,10 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///     - `algorithm`: The algorithm to use for extraction (default is "rms").
         ///     - `featureOptions`: A dictionary of feature options to extract (default is empty).
         ///     - `maxRecentDataDuration`: The maximum duration of recent data to keep for processing (default is 10.0 seconds).
+        ///     - `compression`: A dictionary containing:
+        ///       - `enabled`: Boolean to enable/disable compression (default is false).
+        ///       - `format`: The compression format (default is "aac").
+        ///       - `bitrate`: The compression bitrate in bps (default is 128000).
         ///   - promise: A promise to resolve with the recording settings or reject with an error.
         AsyncFunction("startRecording") { (options: [String: Any], promise: Promise) in
             self.checkMicrophonePermission { granted in
@@ -132,30 +136,48 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     return
                 }
                 
-                let settings = RecordingSettings.fromDictionary(options)
+                // Create settings with validation
+                let settingsResult = RecordingSettings.fromDictionary(options)
                 
-                // Initialize notification if enabled
-                if settings.showNotification {
-                    Task {
-                        let notificationGranted = await self.requestNotificationPermissions()
-                        if !notificationGranted {
-                            Logger.debug("Notification permissions not granted")
+                switch settingsResult {
+                case .success(let settings):
+                    // Initialize notification if enabled
+                    if settings.showNotification {
+                        Task {
+                            let notificationGranted = await self.requestNotificationPermissions()
+                            if !notificationGranted {
+                                Logger.debug("Notification permissions not granted")
+                            }
                         }
                     }
+                    
+                    if let result = self.streamManager.startRecording(settings: settings, intervalMilliseconds: settings.interval ?? 1000) {
+                        var resultDict: [String: Any] = [
+                            "fileUri": result.fileUri,
+                            "channels": result.channels,
+                            "bitDepth": result.bitDepth,
+                            "sampleRate": result.sampleRate,
+                            "mimeType": result.mimeType,
+                        ]
+                        
+                        // Add compression info if available
+                        if let compression = result.compression {
+                            resultDict["compression"] = [
+                                "fileUri": compression.fileUri,
+                                "mimeType": compression.mimeType,
+                                "bitrate": compression.bitrate,
+                                "format": compression.format
+                            ]
+                        }
+                        
+                        promise.resolve(resultDict)
+                    } else {
+                        promise.reject("ERROR", "Failed to start recording.")
+                    }
+                    
+                case .failure(let error):
+                    promise.reject("INVALID_SETTINGS", error.localizedDescription)
                 }
-                
-                if let result = self.streamManager.startRecording(settings: settings, intervalMilliseconds: settings.interval ?? 1000) {
-                      let resultDict: [String: Any] = [
-                          "fileUri": result.fileUri,
-                          "channels": result.channels,
-                          "bitDepth": result.bitDepth,
-                          "sampleRate": result.sampleRate,
-                          "mimeType": result.mimeType,
-                      ]
-                      promise.resolve(resultDict)
-                  } else {
-                      promise.reject("ERROR", "Failed to start recording.")
-                  }
             }
         }
         
@@ -303,36 +325,29 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     ///   - data: The received audio data.
     ///   - recordingTime: The current recording time.
     ///   - totalDataSize: The total size of the received audio data.
-    func audioStreamManager(_ manager: AudioStreamManager, didReceiveAudioData data: Data, recordingTime: TimeInterval, totalDataSize: Int64) {
-        guard let fileURL = manager.recordingFileURL,
-              let settings = manager.recordingSettings else { return }
-        
-        let encodedData = data.base64EncodedString()
-        
-        // Assuming `lastEmittedSize` and `streamUuid` are tracked within `AudioStreamManager`
-        let deltaSize = data.count  // This needs to be calculated based on what was last sent if using chunks
-        let fileSize = totalDataSize  // Total data size in bytes
-        
-        // Calculate the position in milliseconds using the lastEmittedSize
-        let sampleRate = settings.sampleRate
-        let channels = Double(settings.numberOfChannels)
-        let bitDepth = Double(settings.bitDepth)
-        let position = Int(manager.currentRecordingDuration() * 1000)
-        
-        // Construct the event payload similar to Android
-        let eventBody: [String: Any] = [
-            "fileUri": fileURL.absoluteString,
-            "lastEmittedSize": manager.lastEmittedSize,  // Needs to be maintained within AudioStreamManager
-            "position": position, // time in ms based on pause-aware duration
-            "encoded": encodedData,
-            "deltaSize": deltaSize,
-            "totalSize": fileSize,
+    func audioStreamManager(
+        _ manager: AudioStreamManager,
+        didReceiveAudioData data: Data,
+        recordingTime: TimeInterval,
+        totalDataSize: Int64,
+        compressionInfo: [String: Any]?
+    ) {
+        var resultDict: [String: Any] = [
+            "fileUri": manager.recordingFileURL?.absoluteString ?? "",
+            "lastEmittedSize": totalDataSize,
+            "encoded": data.base64EncodedString(),
+            "deltaSize": data.count,
+            "position": Int64(recordingTime * 1000),
             "mimeType": manager.mimeType,
+            "totalSize": totalDataSize,
             "streamUuid": manager.recordingUUID?.uuidString ?? UUID().uuidString
         ]
         
-        // Emit the event to JavaScript
-        sendEvent(audioDataEvent, eventBody)
+        if let compressionInfo = compressionInfo {
+            resultDict["compression"] = compressionInfo
+        }
+        
+        sendEvent(audioDataEvent, resultDict)
     }
     
     private func requestNotificationPermissions() async -> Bool {
