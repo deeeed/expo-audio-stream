@@ -756,13 +756,30 @@ class AudioRecorderManager(
         val compressionBundle = if (recordingConfig.enableCompressedOutput) {
             val compressedSize = compressedFile?.length() ?: 0
             val eventDataSize = compressedSize - lastEmittedCompressedSize
+            
+            // Read the new compressed data
+            val compressedData = if (eventDataSize > 0) {
+                try {
+                    compressedFile?.inputStream()?.use { input ->
+                        input.skip(lastEmittedCompressedSize)
+                        val buffer = ByteArray(eventDataSize.toInt())
+                        input.read(buffer)
+                        audioDataEncoder.encodeToBase64(buffer)
+                    }
+                } catch (e: Exception) {
+                    Log.e(Constants.TAG, "Failed to read compressed data", e)
+                    null
+                }
+            } else null
+
             lastEmittedCompressedSize = compressedSize
             
             bundleOf(
                 "position" to positionInMs,
                 "fileUri" to compressedFile?.toURI().toString(),
                 "eventDataSize" to eventDataSize,
-                "totalSize" to compressedSize
+                "totalSize" to compressedSize,
+                "data" to compressedData
             )
         } else null
         

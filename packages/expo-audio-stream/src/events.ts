@@ -19,6 +19,7 @@ export interface AudioEventPayload {
     mimeType: string
     streamUuid: string
     compression?: {
+        data?: string | Blob // Base64 (native) or Float32Array (web) encoded compressed data chunk
         position: number
         eventDataSize: number
         totalSize: number

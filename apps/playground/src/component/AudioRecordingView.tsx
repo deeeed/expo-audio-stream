@@ -312,7 +312,7 @@ export const AudioRecordingView = ({
                             length,
                         }
                     )
-                    console.debug(`Loaded file data:`, fileData)
+                    logger.debug(`Loaded file data:`, fileData)
                     const step = atob(fileData)
                     byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
                 }
