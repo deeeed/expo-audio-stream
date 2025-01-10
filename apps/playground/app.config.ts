@@ -96,7 +96,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         url: 'https://u.expo.dev/' + env.EAS_PROJECT_ID,
     },
     runtimeVersion: '1.0.0',
-    newArchEnabled: false,
+    newArchEnabled: true,
     owner: 'deeeed',
     plugins: [
         [

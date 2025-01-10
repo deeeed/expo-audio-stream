@@ -351,6 +351,13 @@ export const AudioRecordingView = ({
                                     value={formatBytes(Number(recording.compressedSize))}
                                     styles={styles}
                                 />
+                                {recording.compressedMimeType && (
+                                    <InfoRow 
+                                        label="Compressed Format" 
+                                        value={recording.compressedMimeType}
+                                        styles={styles}
+                                    />
+                                )}
                                 {typeof recording.size === 'number' && 
                                  Number(recording.size) > 0 && (
                                     <Text style={styles.compressionRate}>
