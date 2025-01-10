@@ -46,18 +46,16 @@ export function RecordingStats({
   const animationHeight = useSharedValue(0);
 
   const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-    animationHeight.value = withTiming(isExpanded ? 0 : 120, { duration: 300 });
+    const newIsExpanded = !isExpanded;
+    setIsExpanded(newIsExpanded);
+    const expandedHeight = compression ? 230 : 100;
+    animationHeight.value = withTiming(newIsExpanded ? expandedHeight : 0, { duration: 300 });
   };
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: animationHeight.value,
+    opacity: animationHeight.value === 0 ? 0 : 1,
   }));
-
-  function getCompressionRatio(original: number, compressed: number): string {
-    const ratio = ((compressed / original) * 100).toFixed(0);
-    return `${ratio}%`;
-  }
 
   return (
     <View style={[styles.wrapper, { backgroundColor: colors.surfaceVariant }]}>
@@ -85,29 +83,12 @@ export function RecordingStats({
             >
               Size
             </Text>
-            {compression ? (
-              <>
-                <Text
-                  variant="headlineSmall"
-                  style={[styles.value, { color: colors.primary }]}
-                >
-                  {formatBytes(compression.size)}
-                </Text>
-                <Text style={[styles.rawSizeLabel, { color: colors.onSurfaceVariant }]}>
-                  Raw: {formatBytes(size)}
-                </Text>
-                <Text style={[styles.compressionRatio, { color: colors.secondary }]}>
-                  {getCompressionRatio(size, compression.size)} of original
-                </Text>
-              </>
-            ) : (
-              <Text
-                variant="headlineSmall"
-                style={[styles.value, { color: colors.primary }]}
-              >
-                {formatBytes(size)}
-              </Text>
-            )}
+            <Text
+              variant="headlineSmall"
+              style={[styles.value, { color: colors.primary }]}
+            >
+              {compression ? formatBytes(compression.size) : formatBytes(size)}
+            </Text>
           </View>
           <Ionicons
             name={isExpanded ? "chevron-up" : "chevron-down"}
@@ -119,47 +100,82 @@ export function RecordingStats({
       </TouchableOpacity>
 
       <Animated.View style={[styles.expandedContent, animatedStyle]}>
-        <View style={styles.detailsGrid}>
-          {sampleRate && (
-            <View style={styles.detailItem}>
-              <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
-                Sample Rate
-              </Text>
-              <Text style={[styles.detailValue, { color: colors.primary }]}>
-                {sampleRate} Hz
-              </Text>
-            </View>
-          )}
-          {bitDepth && (
-            <View style={styles.detailItem}>
-              <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
-                Bit Depth
-              </Text>
-              <Text style={[styles.detailValue, { color: colors.primary }]}>
-                {bitDepth} bit
-              </Text>
-            </View>
-          )}
-          {channels && (
-            <View style={styles.detailItem}>
-              <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
-                Channels
-              </Text>
-              <Text style={[styles.detailValue, { color: colors.primary }]}>
-                {channels}
-              </Text>
-            </View>
-          )}
-          {compression && (
-            <View style={styles.detailItem}>
-              <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
-                Compression
-              </Text>
-              <Text style={[styles.detailValue, { color: colors.primary }]}>
-                {compression.format.toUpperCase()}
-                {compression.bitrate ? ` ${compression.bitrate / 1000}kbps` : ''}
-              </Text>
-            </View>
+        <View 
+          style={styles.detailsGrid}
+        >
+          {/* Audio specs section */}
+          <View style={styles.audioSpecsRow}>
+            {(sampleRate) && (
+              <View style={styles.specItem}>
+                <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
+                  Sample Rate
+                </Text>
+                <Text style={[styles.detailValue, { color: colors.primary }]}>
+                  {sampleRate} Hz
+                </Text>
+              </View>
+            )}
+            {(bitDepth) && (
+              <View style={styles.specItem}>
+                <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
+                  Bit Depth
+                </Text>
+                <Text style={[styles.detailValue, { color: colors.primary }]}>
+                  {bitDepth} bit
+                </Text>
+              </View>
+            )}
+            {(channels) && (
+              <View style={styles.specItem}>
+                <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
+                  Channels
+                </Text>
+                <Text style={[styles.detailValue, { color: colors.primary }]}>
+                  {channels}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Compression section */}
+          {(compression) && (
+            <>
+              <View style={styles.sectionDivider}>
+                <Text style={[styles.sectionTitle, { color: colors.onSurfaceVariant }]}>
+                  Storage Details
+                </Text>
+              </View>
+              
+              <View style={styles.audioSpecsRow}>
+                <View style={styles.specItem}>
+                  <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
+                    Format
+                  </Text>
+                  <Text style={[styles.detailValue, { color: colors.primary }]}>
+                    {compression.format.toUpperCase()}
+                    {(compression.bitrate) ? ` (${(compression.bitrate / 1000).toFixed(0)} kbps)` : ''}
+                  </Text>
+                </View>
+
+                <View style={styles.specItem}>
+                  <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
+                    Original Size
+                  </Text>
+                  <Text style={[styles.detailValue, { color: colors.primary }]}>
+                    {formatBytes(size)}
+                  </Text>
+                </View>
+
+                <View style={styles.specItem}>
+                  <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
+                    Size Reduction
+                  </Text>
+                  <Text style={[styles.detailValue, { color: colors.primary }]}>
+                    {((1 - compression.size / size) * 100).toFixed(0)}%
+                  </Text>
+                </View>
+              </View>
+            </>
           )}
         </View>
       </Animated.View>
@@ -203,7 +219,7 @@ const styles = StyleSheet.create({
   },
   detailsGrid: {
     padding: 16,
-    paddingTop: 0,
+    paddingTop: 8,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
@@ -228,5 +244,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginTop: 2,
+  },
+  sectionDivider: {
+    width: '100%',
+    marginTop: 8,
+    marginBottom: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  audioSpecsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 16,
+  },
+  specItem: {
+    flex: 1,
+    alignItems: 'center',
   },
 }); 
