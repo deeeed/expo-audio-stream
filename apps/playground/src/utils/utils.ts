@@ -10,15 +10,25 @@ export const isWeb = Platform.OS === 'web'
  * @returns A formatted string representing the human-readable file size.
  */
 export function formatBytes(bytes: number, decimals: number = 2): string {
+    // Handle invalid inputs
+    if (!bytes || isNaN(bytes) || bytes < 0) return '0 Bytes'
+
     if (bytes === 0) return '0 Bytes'
 
     const k = 1024
     const dm = decimals < 0 ? 0 : decimals
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
 
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
+    try {
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
+        
+        // Check if i is within valid range
+        if (i < 0 || i >= sizes.length) return '0 Bytes'
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
+    } catch (_error) {
+        return '0 Bytes'
+    }
 }
 
 /**

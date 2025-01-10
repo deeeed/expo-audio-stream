@@ -45,6 +45,7 @@ class AudioRecorderManager(
     private var lastPauseTime = 0L
     private var pausedDuration = 0L
     private var lastEmittedSize = 0L
+    private var lastEmittedCompressedSize = 0L
     private val mainHandler = Handler(Looper.getMainLooper())
     private val audioRecordLock = Any()
     private var audioFileHandler: AudioFileHandler = AudioFileHandler(filesDir)
@@ -58,6 +59,9 @@ class AudioRecorderManager(
     private var wakeLock: PowerManager.WakeLock? = null
     private var wasWakeLockEnabled = false
     private val notificationManager = AudioNotificationManager.getInstance(context)
+
+    private var compressedRecorder: MediaRecorder? = null
+    private var compressedFile: File? = null
 
     companion object {
         @SuppressLint("StaticFieldLeak")
@@ -117,17 +121,39 @@ class AudioRecorderManager(
 
             if (!initializeAudioRecord(promise)) return
 
+            if (recordingConfig.enableCompressedOutput && !initializeCompressedRecorder(
+                if (recordingConfig.compressedFormat == "aac") "aac" else "opus",
+                promise
+            )) return
+
             if (!initializeRecordingResources(audioFormatInfo.fileExtension, promise)) return
 
             if (!startRecordingProcess(promise)) return
 
-            // Return success result
+            // Start compressed recording if enabled
+            try {
+                compressedRecorder?.start()
+            } catch (e: Exception) {
+                Log.e(Constants.TAG, "Failed to start compressed recording", e)
+                cleanup()
+                promise.reject("COMPRESSED_START_FAILED", "Failed to start compressed recording", e)
+                return
+            }
+
+            // Return success result with both file URIs
             val result = bundleOf(
                 "fileUri" to audioFile?.toURI().toString(),
                 "channels" to recordingConfig.channels,
                 "bitDepth" to AudioFormatUtils.getBitDepth(recordingConfig.encoding),
                 "sampleRate" to recordingConfig.sampleRate,
-                "mimeType" to mimeType
+                "mimeType" to mimeType,
+                "compression" to if (compressedFile != null) bundleOf(
+                    "mimeType" to if (recordingConfig.compressedFormat == "aac") "audio/aac" else "audio/opus",
+                    "bitrate" to recordingConfig.compressedBitRate,
+                    "format" to recordingConfig.compressedFormat,
+                    "size" to 0,
+                    "compressedFileUri" to compressedFile?.toURI().toString()
+                ) else null
             )
             promise.resolve(result)
 
@@ -458,21 +484,30 @@ class AudioRecorderManager(
                 // Calculate duration based on the data size and byte rate
                 val duration = if (byteRate > 0) (dataFileSize * 1000 / byteRate) else 0
 
+                compressedRecorder?.apply {
+                    stop()
+                    release()
+                }
+                compressedRecorder = null
+    
+
                 // Create result bundle
                 val result = bundleOf(
                     "fileUri" to audioFile?.toURI().toString(),
                     "filename" to audioFile?.name,
                     "durationMs" to duration,
                     "channels" to recordingConfig.channels,
-                    "bitDepth" to when (recordingConfig.encoding) {
-                        "pcm_8bit" -> 8
-                        "pcm_16bit" -> 16
-                        "pcm_32bit" -> 32
-                        else -> 16 // Default to 16 if the encoding is not recognized
-                    },
+                    "bitDepth" to AudioFormatUtils.getBitDepth(recordingConfig.encoding),
                     "sampleRate" to recordingConfig.sampleRate,
                     "size" to fileSize,
-                    "mimeType" to mimeType
+                    "mimeType" to mimeType,
+                    "compression" to if (compressedFile != null) bundleOf(
+                        "size" to compressedFile?.length(),
+                        "mimeType" to if (recordingConfig.compressedFormat == "aac") "audio/aac" else "audio/opus",
+                        "bitrate" to recordingConfig.compressedBitRate,
+                        "format" to recordingConfig.compressedFormat,
+                        "compressedFileUri" to compressedFile?.toURI().toString()
+                    ) else null
                 )
                 promise.resolve(result)
 
@@ -560,15 +595,27 @@ class AudioRecorderManager(
                 }
 
 //                "audio/opus", "audio/aac" -> getCompressedAudioDuration(audioFile)
-                else -> 0
+                else -> totalRecordedTime
             }
+
+            val compressionBundle = if (recordingConfig.enableCompressedOutput) {
+                bundleOf(
+                    "size" to (compressedFile?.length() ?: 0),
+                    "mimeType" to if (recordingConfig.compressedFormat == "aac") "audio/aac" else "audio/opus",
+                    "bitrate" to recordingConfig.compressedBitRate,
+                    "format" to recordingConfig.compressedFormat
+                )
+            } else null
+
+            
             return bundleOf(
                 "durationMs" to duration,
                 "isRecording" to isRecording.get(),
                 "isPaused" to isPaused.get(),
                 "mimeType" to mimeType,
                 "size" to totalDataSize,
-                "interval" to recordingConfig.interval
+                "interval" to recordingConfig.interval,
+                "compression" to compressionBundle
             )
         }
     }
@@ -704,6 +751,36 @@ class AudioRecorderManager(
         val positionInMs =
             (from * 1000) / (recordingConfig.sampleRate * recordingConfig.channels * (if (recordingConfig.encoding == "pcm_8bit") 8 else 16) / 8)
 
+        val compressionBundle = if (recordingConfig.enableCompressedOutput) {
+            val compressedSize = compressedFile?.length() ?: 0
+            val eventDataSize = compressedSize - lastEmittedCompressedSize
+            
+            // Read the new compressed data
+            val compressedData = if (eventDataSize > 0) {
+                try {
+                    compressedFile?.inputStream()?.use { input ->
+                        input.skip(lastEmittedCompressedSize)
+                        val buffer = ByteArray(eventDataSize.toInt())
+                        input.read(buffer)
+                        audioDataEncoder.encodeToBase64(buffer)
+                    }
+                } catch (e: Exception) {
+                    Log.e(Constants.TAG, "Failed to read compressed data", e)
+                    null
+                }
+            } else null
+
+            lastEmittedCompressedSize = compressedSize
+            
+            bundleOf(
+                "position" to positionInMs,
+                "fileUri" to compressedFile?.toURI().toString(),
+                "eventDataSize" to eventDataSize,
+                "totalSize" to compressedSize,
+                "data" to compressedData
+            )
+        } else null
+        
         mainHandler.post {
             try {
                 eventSender.sendExpoEvent(
@@ -715,7 +792,8 @@ class AudioRecorderManager(
                         "position" to positionInMs,
                         "mimeType" to mimeType,
                         "totalSize" to fileSize,
-                        "streamUuid" to streamUuid
+                        "streamUuid" to streamUuid,
+                        "compression" to compressionBundle
                     )
                 )
             } catch (e: Exception) {
@@ -785,6 +863,40 @@ class AudioRecorderManager(
             Log.e(Constants.TAG, "Error in cleanup", e)
         } finally {
             releaseWakeLock()
+        }
+    }
+
+    private fun initializeCompressedRecorder(fileExtension: String, promise: Promise): Boolean {
+        try {
+            // Use the existing audioFileHandler instance
+            compressedFile = audioFileHandler.createAudioFile(fileExtension)
+            
+            compressedRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(context)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }
+
+            compressedRecorder?.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(if (recordingConfig.compressedFormat == "aac") 
+                    MediaRecorder.OutputFormat.AAC_ADTS 
+                    else MediaRecorder.OutputFormat.OGG)
+                setAudioEncoder(if (recordingConfig.compressedFormat == "aac") 
+                    MediaRecorder.AudioEncoder.AAC 
+                    else MediaRecorder.AudioEncoder.OPUS)
+                setAudioChannels(recordingConfig.channels)
+                setAudioSamplingRate(recordingConfig.sampleRate)
+                setAudioEncodingBitRate(recordingConfig.compressedBitRate)
+                setOutputFile(compressedFile?.absolutePath)
+                prepare()
+            }
+            return true
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to initialize compressed recorder", e)
+            promise.reject("COMPRESSED_INIT_FAILED", "Failed to initialize compressed recorder", e)
+            return false
         }
     }
 }

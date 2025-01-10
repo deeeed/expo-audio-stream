@@ -7,9 +7,11 @@ import {
     AudioDataEvent,
     AudioRecording,
     AudioStreamStatus,
+    CompressionInfo,
     ConsoleLike,
     RecordingConfig,
     StartRecordingResult,
+    WebRecordingOptions,
 } from './ExpoAudioStream.types'
 import ExpoAudioStreamModule from './ExpoAudioStreamModule'
 import {
@@ -26,13 +28,14 @@ export interface UseAudioRecorderProps {
 
 export interface UseAudioRecorderState {
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
-    stopRecording: () => Promise<AudioRecording>
+    stopRecording: (options?: WebRecordingOptions) => Promise<AudioRecording>
     pauseRecording: () => Promise<void>
     resumeRecording: () => Promise<void>
     isRecording: boolean
     isPaused: boolean
-    durationMs: number // Duration of the recording
-    size: number // Size in bytes of the recorded audio
+    durationMs: number
+    size: number
+    compression?: CompressionInfo
     analysisData?: AudioAnalysis
 }
 
@@ -41,6 +44,7 @@ interface RecorderReducerState {
     isPaused: boolean
     durationMs: number
     size: number
+    compression?: CompressionInfo
     analysisData?: AudioAnalysis
 }
 
@@ -53,7 +57,14 @@ type RecorderAction =
               isPaused: boolean
           }
       }
-    | { type: 'UPDATE_STATUS'; payload: { durationMs: number; size: number } }
+    | {
+          type: 'UPDATE_STATUS'
+          payload: {
+              durationMs: number
+              size: number
+              compression?: CompressionInfo
+          }
+      }
     | { type: 'UPDATE_ANALYSIS'; payload: AudioAnalysis }
 
 const defaultAnalysis: AudioAnalysis = {
@@ -84,7 +95,8 @@ function audioRecorderReducer(
                 isPaused: false,
                 durationMs: 0,
                 size: 0,
-                analysisData: defaultAnalysis, // Reset analysis data
+                compression: undefined,
+                analysisData: defaultAnalysis,
             }
         case 'STOP':
             return { ...state, isRecording: false, isPaused: false }
@@ -98,12 +110,22 @@ function audioRecorderReducer(
                 isPaused: action.payload.isPaused,
                 isRecording: action.payload.isRecording,
             }
-        case 'UPDATE_STATUS':
-            return {
+        case 'UPDATE_STATUS': {
+            const newState = {
                 ...state,
                 durationMs: action.payload.durationMs,
                 size: action.payload.size,
+                compression: action.payload.compression
+                    ? {
+                          size: action.payload.compression.size,
+                          mimeType: action.payload.compression.mimeType,
+                          bitrate: action.payload.compression.bitrate,
+                          format: action.payload.compression.format,
+                      }
+                    : undefined,
             }
+            return newState
+        }
         case 'UPDATE_ANALYSIS':
             return {
                 ...state,
@@ -129,8 +151,11 @@ export function useAudioRecorder({
         isPaused: false,
         durationMs: 0,
         size: 0,
+        compression: undefined,
         analysisData: undefined,
     })
+
+    const startResultRef = useRef<StartRecordingResult | null>(null)
 
     const analysisListenerRef = useRef<EventSubscription | null>(null)
     // analysisRef is the current analysis data (last 10 seconds by default)
@@ -261,6 +286,7 @@ export function useAudioRecorder({
                 encoded,
                 mimeType,
                 buffer,
+                compression,
             } = eventData
             logger?.debug(`[handleAudioEvent] Received audio event:`, {
                 fileUri,
@@ -271,6 +297,7 @@ export function useAudioRecorder({
                 lastEmittedSize,
                 streamUuid,
                 encodedLength: encoded?.length,
+                compression,
             })
             if (deltaSize === 0) {
                 // Ignore packet with no data
@@ -290,6 +317,21 @@ export function useAudioRecorder({
                         fileUri,
                         eventDataSize: deltaSize,
                         totalSize,
+                        compression:
+                            compression && startResultRef.current?.compression
+                                ? {
+                                      data: compression.data,
+                                      size: compression.totalSize,
+                                      mimeType:
+                                          startResultRef.current.compression
+                                              ?.mimeType,
+                                      bitrate:
+                                          startResultRef.current.compression
+                                              ?.bitrate,
+                                      format: startResultRef.current.compression
+                                          ?.format,
+                                  }
+                                : undefined,
                     })
                 } else if (buffer) {
                     // Coming from web
@@ -299,6 +341,21 @@ export function useAudioRecorder({
                         fileUri,
                         eventDataSize: deltaSize,
                         totalSize,
+                        compression:
+                            compression && startResultRef.current?.compression
+                                ? {
+                                      data: compression.data,
+                                      size: compression.totalSize,
+                                      mimeType:
+                                          startResultRef.current.compression
+                                              ?.mimeType,
+                                      bitrate:
+                                          startResultRef.current.compression
+                                              ?.bitrate,
+                                      format: startResultRef.current.compression
+                                          ?.format,
+                                  }
+                                : undefined,
                     }
                     onAudioStreamRef.current?.(webEvent)
                     logger?.debug(
@@ -317,7 +374,8 @@ export function useAudioRecorder({
         try {
             const status: AudioStreamStatus = ExpoAudioStream.status()
             logger?.debug(
-                `Status: paused: ${status.isPaused} durationMs: ${status.durationMs} size: ${status.size}`
+                `Status: paused: ${status.isPaused} durationMs: ${status.durationMs} size: ${status.size}`,
+                status.compression
             )
 
             // Check and update recording state
@@ -344,6 +402,7 @@ export function useAudioRecorder({
                     payload: {
                         durationMs: status.durationMs,
                         size: status.size,
+                        compression: status.compression,
                     },
                 })
             }
@@ -371,6 +430,8 @@ export function useAudioRecorder({
             const startResult: StartRecordingResult =
                 await ExpoAudioStream.startRecording(options)
             dispatch({ type: 'START' })
+
+            startResultRef.current = startResult
 
             if (enableProcessing) {
                 logger?.debug(`Enabling audio analysis listener`)
@@ -466,6 +527,7 @@ export function useAudioRecorder({
         isRecording: state.isRecording,
         durationMs: state.durationMs,
         size: state.size,
+        compression: state.compression,
         analysisData: state.analysisData,
     }
 }

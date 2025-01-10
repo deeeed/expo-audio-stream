@@ -25,10 +25,10 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
         container: {
             flex: 1,
             backgroundColor: theme.colors.background,
+        },
+        contentContainer: {
             gap: 10,
-            paddingTop: 10,
             paddingBottom: 80,
-            paddingHorizontal: 20,
         },
         recordingContainer: {
             gap: 10,
@@ -103,34 +103,35 @@ const FilesScreen = () => {
     }
 
     return (
-        <FlatList
-            data={files}
-            keyExtractor={(item) => item.fileUri}
-            contentContainerStyle={styles.container}
-            refreshControl={
-                <RefreshControl refreshing={false} onRefresh={refreshFiles} />
-            }
-            ListHeaderComponent={
-                <Button
-                    onPress={clearFiles}
-                    buttonColor="red"
-                    textColor="white"
-                >
-                    Clear Directory ({formatBytes(totalAudioStorageSize)})
-                </Button>
-            }
-            renderItem={({ item }) => (
-                <AudioRecordingView
-                    recording={item}
-                    onDelete={() => handleDelete(item)}
-                    onActionPress={() => {
-                        // extract filename from uri
-                        router.push(`(recordings)/${item.filename}`)
-                    }}
-                    actionText="Visualize"
-                />
-            )}
-        />
+        <ScreenWrapper withScrollView={false} useInsets style={styles.container}>
+            <FlatList
+                data={files}
+                keyExtractor={(item) => item.fileUri}
+                contentContainerStyle={styles.contentContainer}
+                refreshControl={
+                    <RefreshControl refreshing={false} onRefresh={refreshFiles} />
+                }
+                ListHeaderComponent={
+                    <Button
+                        onPress={clearFiles}
+                        buttonColor="red"
+                        textColor="white"
+                    >
+                        Clear Directory ({formatBytes(totalAudioStorageSize)})
+                    </Button>
+                }
+                renderItem={({ item }) => (
+                    <AudioRecordingView
+                        recording={item}
+                        onDelete={() => handleDelete(item)}
+                        onActionPress={() => {
+                            router.push(`(recordings)/${item.filename}`)
+                        }}
+                        actionText="Visualize"
+                    />
+                )}
+            />
+        </ScreenWrapper>
     )
 }
 
