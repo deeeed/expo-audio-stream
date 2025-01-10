@@ -9,7 +9,7 @@
 <div align="center">
   <h2 align="center">
     <br />
-    <strong>Comprehensive library designed to facilitate real-time audio processing and streaming across iOS, Android, and web platforms.
+    <strong>Comprehensive library designed to facilitate real-time audio processing and streaming across iOS, Android, and web platforms, with support for dual-stream recording and audio compression.
     <br />
     <br />
     <a href="https://deeeed.github.io/expo-audio-stream/playground/">
@@ -32,6 +32,11 @@
 ## Features
 
 - Real-time audio streaming across iOS, Android, and web.
+- Dual-stream recording capabilities:
+  - Simultaneous raw PCM and compressed audio recording
+  - Compression formats: OPUS or AAC
+  - Configurable bitrate for compressed audio
+  - Optimized storage for both high-quality and compressed formats
 - Configurable intervals for audio buffer receipt.
 - Automated microphone permissions setup in managed Expo projects.
 - Background audio recording on iOS.
