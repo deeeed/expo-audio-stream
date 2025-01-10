@@ -45,6 +45,7 @@ class AudioRecorderManager(
     private var lastPauseTime = 0L
     private var pausedDuration = 0L
     private var lastEmittedSize = 0L
+    private var lastEmittedCompressedSize = 0L
     private val mainHandler = Handler(Looper.getMainLooper())
     private val audioRecordLock = Any()
     private var audioFileHandler: AudioFileHandler = AudioFileHandler(filesDir)
@@ -144,11 +145,17 @@ class AudioRecorderManager(
             // Return success result with both file URIs
             val result = bundleOf(
                 "fileUri" to audioFile?.toURI().toString(),
-                "compressedFileUri" to compressedFile?.toURI().toString(),
                 "channels" to recordingConfig.channels,
                 "bitDepth" to AudioFormatUtils.getBitDepth(recordingConfig.encoding),
                 "sampleRate" to recordingConfig.sampleRate,
-                "mimeType" to mimeType
+                "mimeType" to mimeType,
+                "compression" to if (compressedFile != null) bundleOf(
+                    "mimeType" to if (recordingConfig.compressedFormat == "aac") "audio/aac" else "audio/opus",
+                    "bitrate" to recordingConfig.compressedBitRate,
+                    "format" to recordingConfig.compressedFormat,
+                    "size" to 0,
+                    "compressedFileUri" to compressedFile?.toURI().toString()
+                ) else null
             )
             promise.resolve(result)
 
@@ -492,18 +499,17 @@ class AudioRecorderManager(
                     "filename" to audioFile?.name,
                     "durationMs" to duration,
                     "channels" to recordingConfig.channels,
-                    "bitDepth" to when (recordingConfig.encoding) {
-                        "pcm_8bit" -> 8
-                        "pcm_16bit" -> 16
-                        "pcm_32bit" -> 32
-                        else -> 16 // Default to 16 if the encoding is not recognized
-                    },
+                    "bitDepth" to AudioFormatUtils.getBitDepth(recordingConfig.encoding),
                     "sampleRate" to recordingConfig.sampleRate,
                     "size" to fileSize,
                     "mimeType" to mimeType,
-                    "compressedUri" to compressedFile?.toURI().toString(),
-                    "compressedMimeType" to if (recordingConfig.compressedFormat == "aac") "audio/aac" else "audio/opus",
-                    "compressedSize" to (compressedFile?.length() ?: 0)
+                    "compression" to if (compressedFile != null) bundleOf(
+                        "size" to compressedFile?.length(),
+                        "mimeType" to if (recordingConfig.compressedFormat == "aac") "audio/aac" else "audio/opus",
+                        "bitrate" to recordingConfig.compressedBitRate,
+                        "format" to recordingConfig.compressedFormat,
+                        "compressedFileUri" to compressedFile?.toURI().toString()
+                    ) else null
                 )
                 promise.resolve(result)
 
@@ -749,11 +755,13 @@ class AudioRecorderManager(
 
         val compressionBundle = if (recordingConfig.enableCompressedOutput) {
             val compressedSize = compressedFile?.length() ?: 0
+            val eventDataSize = compressedSize - lastEmittedCompressedSize
+            lastEmittedCompressedSize = compressedSize
+            
             bundleOf(
-                "data" to null, // MediaRecorder doesn't provide streaming data
                 "position" to positionInMs,
                 "fileUri" to compressedFile?.toURI().toString(),
-                "eventDataSize" to 0, // MediaRecorder doesn't provide chunk sizes
+                "eventDataSize" to eventDataSize,
                 "totalSize" to compressedSize
             )
         } else null

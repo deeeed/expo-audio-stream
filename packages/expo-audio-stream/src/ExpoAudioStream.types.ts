@@ -6,6 +6,13 @@ import {
 } from './AudioAnalysis/AudioAnalysis.types'
 import { AudioAnalysisEvent } from './events'
 
+export interface CompressionInfo {
+    size: number
+    mimeType: string
+    bitrate: number
+    format: string
+}
+
 export interface AudioStreamStatus {
     isRecording: boolean
     isPaused: boolean
@@ -13,12 +20,7 @@ export interface AudioStreamStatus {
     size: number
     interval: number
     mimeType: string
-    compression?: {
-        size: number
-        mimeType: string
-        bitrate: number
-        format: string
-    }
+    compression?: CompressionInfo
 }
 
 export interface AudioDataEvent {
@@ -27,13 +29,7 @@ export interface AudioDataEvent {
     fileUri: string
     eventDataSize: number
     totalSize: number
-    compression?: {
-        data?: string
-        position: number
-        fileUri: string
-        eventDataSize: number
-        totalSize: number
-    }
+    compression?: CompressionInfo
 }
 
 export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'
@@ -73,9 +69,9 @@ export interface AudioRecording {
     transcripts?: TranscriberData[]
     wavPCMData?: Float32Array // Full PCM data for the recording in WAV format (only on web, for native use the fileUri)
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
-    compressedUri?: string
-    compressedMimeType?: string
-    compressedSize?: number
+    compression?: CompressionInfo & {
+        compressedFileUri: string
+    }
 }
 
 export interface StartRecordingResult {
@@ -84,9 +80,9 @@ export interface StartRecordingResult {
     channels?: number
     bitDepth?: BitDepth
     sampleRate?: SampleRate
-    compressedUri?: string
-    compressedMimeType?: string
-    compressedSize?: number
+    compression?: CompressionInfo & {
+        compressedFileUri: string
+    }
 }
 
 export interface AudioSessionConfig {
@@ -250,6 +246,6 @@ export interface UseAudioRecorderState {
     isPaused: boolean
     durationMs: number // Duration of the recording
     size: number // Size in bytes of the recorded audio
-    compressedSize?: number // Size in bytes of the compressed audio
+    compression?: CompressionInfo
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
 }
