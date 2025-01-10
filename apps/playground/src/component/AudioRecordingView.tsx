@@ -231,7 +231,7 @@ export const AudioRecordingView = ({
         const a = document.createElement('a')
         a.href = fileUri
         const suffix = isCompressed ? '_compressed' : ''
-        a.download = `rec_${recording.fileUri}${suffix}_${recording?.sampleRate ?? 'NOSAMPLE'}_${recording?.bitDepth ?? 'NOBITDEPTH'}.${isCompressed ? recording.compressedMimeType?.split('/')[1] : 'wav'}`
+        a.download = `rec_${recording.fileUri}${suffix}_${recording?.sampleRate ?? 'NOSAMPLE'}_${recording?.bitDepth ?? 'NOBITDEPTH'}.${isCompressed ? recording.compression?.mimeType?.split('/')[1] : 'wav'}`
         a.click()
     }
 
@@ -344,24 +344,24 @@ export const AudioRecordingView = ({
                             value={formatBytes(recording.size)}
                             styles={styles}
                         />
-                        {recording.compressedSize !== undefined && !isNaN(Number(recording.compressedSize)) && (
+                        {recording.compression?.compressedFileUri && (
                             <View>
                                 <InfoRow 
                                     label="Compressed Size" 
-                                    value={formatBytes(Number(recording.compressedSize))}
+                                    value={formatBytes(recording.compression.size)}
                                     styles={styles}
                                 />
-                                {recording.compressedMimeType && (
+                                {recording.compression?.mimeType && (
                                     <InfoRow 
                                         label="Compressed Format" 
-                                        value={recording.compressedMimeType}
+                                        value={recording.compression.mimeType}
                                         styles={styles}
                                     />
                                 )}
                                 {typeof recording.size === 'number' && 
                                  Number(recording.size) > 0 && (
                                     <Text style={styles.compressionRate}>
-                                        {((Number(recording.compressedSize) / Number(recording.size)) * 100).toFixed(1)}% of original size
+                                        {((Number(recording.compression.size) / Number(recording.size)) * 100).toFixed(1)}% of original size
                                     </Text>
                                 )}
                             </View>
@@ -550,11 +550,11 @@ export const AudioRecordingView = ({
                         </Button>
                     )}
 
-                    {recording.compressedUri && (
+                    {recording.compression?.compressedFileUri && (
                         <Button 
                             onPress={() => isWeb ? 
-                                handleSaveToDisk(recording.compressedUri!, true) : 
-                                handleShare(recording.compressedUri!)
+                                handleSaveToDisk(recording.compression?.compressedFileUri, true) : 
+                                handleShare(recording.compression?.compressedFileUri)
                             }
                             mode="outlined"
                         >
