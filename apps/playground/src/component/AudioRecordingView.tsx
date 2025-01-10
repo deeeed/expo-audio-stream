@@ -1,4 +1,5 @@
 // playground/src/component/AudioRecording.tsx
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useFont } from '@shopify/react-native-skia'
 import {
     AppTheme,
@@ -23,6 +24,8 @@ import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
 
+import { useAudio } from '../hooks/useAudio'
+import { isWeb } from '../utils/utils'
 import {
     AudioRecordingAnalysisConfig,
     SelectedAnalysisConfig,
@@ -30,9 +33,8 @@ import {
 import { SelectedAudioVisualizerProps } from './AudioRecordingConfigForm'
 import { DataPointViewer } from './DataViewer'
 import { HexDataViewer } from './HexDataViewer'
+import { RecordingStats } from './RecordingStats'
 import Transcript from './Transcript'
-import { useAudio } from '../hooks/useAudio'
-import { formatBytes, formatDuration, isWeb } from '../utils/utils'
 
 const logger = getLogger('AudioRecording')
 
@@ -45,7 +47,7 @@ const getStyles = ({
 }) => {
     return StyleSheet.create({
         container: {
-            padding: 20,
+            padding: 10,
             backgroundColor: theme.colors.background,
             borderBottomWidth: 3,
             borderColor: isPlaying ? theme.colors.primary : theme.colors.border,
@@ -66,11 +68,68 @@ const getStyles = ({
         },
         attributeContainer: {
             flexDirection: 'row',
+            alignItems: 'center',
             gap: 5,
+            paddingVertical: 4,
         },
-        label: { fontWeight: 'bold' },
-        value: {},
+        label: { 
+            fontWeight: 'bold',
+            color: theme.colors.secondary,
+        },
+        value: { 
+            color: theme.colors.text,
+        },
+        infoSection: {
+            backgroundColor: theme.colors.surface,
+            borderRadius: 8,
+            // padding: theme.padding.s,
+            marginVertical: 8,
+        },
+        compressionRate: {
+            alignSelf: 'flex-end',
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: 4,
+            fontSize: 12,
+            fontWeight: '600',
+            backgroundColor: theme.colors.successContainer,
+            color: theme.colors.success,
+            marginTop: 4,
+        },
+        buttonGroups: {
+            marginTop: 16,
+        },
+        actionButtons: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            justifyContent: 'center',
+        },
+        iconButton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+        },
     })
+}
+
+interface InfoRowProps {
+    readonly label: string
+    readonly value: string | number | React.ReactNode
+    readonly styles: ReturnType<typeof getStyles>
+}
+
+function InfoRow({ label, value, styles }: InfoRowProps) {
+    return (
+        <View style={styles.attributeContainer}>
+            <Text style={styles.label}>{label}:</Text>
+            {typeof value === 'string' || typeof value === 'number' ? (
+                <Text style={styles.value}>{value}</Text>
+            ) : (
+                value
+            )}
+        </View>
+    )
 }
 
 export interface AudioRecordingViewProps {
@@ -144,8 +203,8 @@ export const AudioRecordingView = ({
     )
     const { openDrawer, dismiss } = useModal()
 
-    const handleShare = async () => {
-        if (!audioUri) {
+    const handleShare = async (fileUri: string = audioUri) => {
+        if (!fileUri) {
             show({ type: 'error', message: 'No file to share' })
             return
         }
@@ -157,22 +216,23 @@ export const AudioRecordingView = ({
                 return
             }
 
-            await Sharing.shareAsync(audioUri)
+            await Sharing.shareAsync(fileUri)
         } catch (error) {
             logger.error('Error sharing the audio file:', error)
             show({ type: 'error', message: 'Failed to share the file' })
         }
     }
 
-    const handleSaveToDisk = async () => {
+    const handleSaveToDisk = async (fileUri: string = recording.fileUri, isCompressed = false) => {
         if (!isWeb) {
             logger.warn('Save to disk is only supported on web')
             return
         }
 
         const a = document.createElement('a')
-        a.href = recording.fileUri
-        a.download = `rec_${recording.fileUri}_${recording?.sampleRate ?? 'NOSAMPLE'}_${recording?.bitDepth ?? 'NOBITDEPTH'}.wav`
+        a.href = fileUri
+        const suffix = isCompressed ? '_compressed' : ''
+        a.download = `rec_${recording.fileUri}${suffix}_${recording?.sampleRate ?? 'NOSAMPLE'}_${recording?.bitDepth ?? 'NOBITDEPTH'}.${isCompressed ? recording.compression?.mimeType?.split('/')[1] : 'wav'}`
         a.click()
     }
 
@@ -252,7 +312,7 @@ export const AudioRecordingView = ({
                             length,
                         }
                     )
-                    console.debug(`Loaded file data:`, fileData)
+                    logger.debug(`Loaded file data:`, fileData)
                     const step = atob(fileData)
                     byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
                 }
@@ -271,35 +331,15 @@ export const AudioRecordingView = ({
             <Text style={[styles.detailText, { fontWeight: 'bold' }]}>
                 {recording.filename}
             </Text>
-            <Text style={styles.detailText}>
-                Duration: {formatDuration(recording.durationMs)}
-            </Text>
-            <Text style={styles.detailText}>
-                Size: {formatBytes(recording.size)}
-            </Text>
-            <Text style={styles.detailText}>Format: {recording.mimeType}</Text>
 
-            {recording.sampleRate ? (
-                <Text style={styles.detailText}>
-                    Sample Rate: {recording.sampleRate} Hz
-                </Text>
-            ) : null}
-
-            {recording.channels ? (
-                <Text style={styles.detailText}>
-                    Channels: {recording.channels}
-                </Text>
-            ) : null}
-
-            {recording.bitDepth ? (
-                <Text style={styles.detailText}>
-                    Bit Depth: {recording.bitDepth}
-                </Text>
-            ) : null}
-
-            <Text style={[styles.positionText]}>
-                Position: {(position / 1000).toFixed(2)}
-            </Text>
+            <RecordingStats
+                duration={recording.durationMs}
+                size={recording.size}
+                sampleRate={recording.sampleRate}
+                bitDepth={recording.bitDepth}
+                channels={recording.channels}
+                compression={recording.compression}
+            />
 
             {processing && <ActivityIndicator />}
 
@@ -362,13 +402,15 @@ export const AudioRecordingView = ({
             {selectedDataPoint && (
                 <View>
                     <DataPointViewer dataPoint={selectedDataPoint} />
-                    <View style={styles.attributeContainer}>
-                        <Text style={styles.label}>Byte Range:</Text>
-                        <Text style={styles.value}>
-                            {selectedDataPoint.startPosition} to{' '}
-                            {selectedDataPoint.endPosition}
-                        </Text>
-                    </View>
+                    <InfoRow 
+                        label="Byte Range" 
+                        value={
+                            <Text style={styles.value}>
+                                {`${selectedDataPoint.startPosition} to ${selectedDataPoint.endPosition}`}
+                            </Text>
+                        }
+                        styles={styles}
+                    />
                     {hexByteArray && (
                         <HexDataViewer
                             byteArray={hexByteArray}
@@ -386,29 +428,105 @@ export const AudioRecordingView = ({
                 />
             )}
 
-            <View style={styles.buttons}>
-                {onActionPress && (
-                    <Button onPress={onActionPress}>
-                        {actionText ?? 'Action'}
-                    </Button>
-                )}
-                <Button onPress={handlePlayPause}>
-                    {isPlaying ? 'Pause' : 'Play'}
-                </Button>
-                {isWeb ? (
-                    <Button onPress={handleSaveToDisk}>Save</Button>
-                ) : (
-                    <Button onPress={handleShare}>Share</Button>
-                )}
-                {onDelete && (
-                    <Button
-                        buttonColor={theme.colors.error}
-                        textColor={theme.colors.onError}
-                        onPress={onDelete}
+            <View style={styles.buttonGroups}>
+                <View style={styles.actionButtons}>
+                    <Button 
+                        onPress={handlePlayPause}
+                        mode="contained"
                     >
-                        Delete
+                        <View style={styles.iconButton}>
+                            <MaterialCommunityIcons
+                                name={isPlaying ? "pause" : "play"}
+                                size={20}
+                                color={theme.colors.onPrimary}
+                            />
+                            <Text>{isPlaying ? 'Pause' : 'Play'}</Text>
+                        </View>
                     </Button>
-                )}
+
+                    {onActionPress && (
+                        <Button 
+                            onPress={onActionPress}
+                            mode="contained"
+                        >
+                            <View style={styles.iconButton}>
+                                <MaterialCommunityIcons
+                                    name="check"
+                                    size={20}
+                                    color={theme.colors.onPrimary}
+                                />
+                                <Text>{actionText ?? 'Action'}</Text>
+                            </View>
+                        </Button>
+                    )}
+
+                    {isWeb ? (
+                        <Button 
+                            onPress={() => handleSaveToDisk()}
+                            mode="outlined"
+                        >
+                            <View style={styles.iconButton}>
+                                <MaterialCommunityIcons
+                                    name="download"
+                                    size={20}
+                                    color={theme.colors.primary}
+                                />
+                                <Text>Save</Text>
+                            </View>
+                        </Button>
+                    ) : (
+                        <Button 
+                            onPress={() => handleShare()}
+                            mode="outlined"
+                        >
+                            <View style={styles.iconButton}>
+                                <MaterialCommunityIcons
+                                    name="share"
+                                    size={20}
+                                    color={theme.colors.primary}
+                                />
+                                <Text>Share</Text>
+                            </View>
+                        </Button>
+                    )}
+
+                    {recording.compression?.compressedFileUri && (
+                        <Button 
+                            onPress={() => isWeb ? 
+                                handleSaveToDisk(recording.compression?.compressedFileUri, true) : 
+                                handleShare(recording.compression?.compressedFileUri)
+                            }
+                            mode="outlined"
+                        >
+                            <View style={styles.iconButton}>
+                                <MaterialCommunityIcons
+                                    name={isWeb ? "download-outline" : "share-outline"}
+                                    size={20}
+                                    color={theme.colors.primary}
+                                />
+                                <Text>{isWeb ? 'Compressed' : 'Share Compressed'}</Text>
+                            </View>
+                        </Button>
+                    )}
+
+                    {onDelete && (
+                        <Button
+                            mode="outlined"
+                            buttonColor={theme.colors.errorContainer}
+                            textColor={theme.colors.error}
+                            onPress={onDelete}
+                        >
+                            <View style={styles.iconButton}>
+                                <MaterialCommunityIcons
+                                    name="delete"
+                                    size={20}
+                                    color={theme.colors.error}
+                                />
+                                <Text>Delete</Text>
+                            </View>
+                        </Button>
+                    )}
+                </View>
             </View>
         </View>
     )

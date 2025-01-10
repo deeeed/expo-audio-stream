@@ -9,6 +9,7 @@ const initContext: UseAudioRecorderState = {
     isPaused: false,
     durationMs: 0,
     size: 0,
+    compression: undefined,
     startRecording: async () => {
         throw new Error('AudioRecorderProvider not found')
     },

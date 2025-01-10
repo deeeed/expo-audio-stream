@@ -6,6 +6,13 @@ import {
 } from './AudioAnalysis/AudioAnalysis.types'
 import { AudioAnalysisEvent } from './events'
 
+export interface CompressionInfo {
+    size: number
+    mimeType: string
+    bitrate: number
+    format: string
+}
+
 export interface AudioStreamStatus {
     isRecording: boolean
     isPaused: boolean
@@ -13,6 +20,7 @@ export interface AudioStreamStatus {
     size: number
     interval: number
     mimeType: string
+    compression?: CompressionInfo
 }
 
 export interface AudioDataEvent {
@@ -21,6 +29,9 @@ export interface AudioDataEvent {
     fileUri: string
     eventDataSize: number
     totalSize: number
+    compression?: CompressionInfo & {
+        data?: string | Blob // Base64 (native) or Float32Array (web) encoded compressed data chunk
+    }
 }
 
 export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'
@@ -60,6 +71,9 @@ export interface AudioRecording {
     transcripts?: TranscriberData[]
     wavPCMData?: Float32Array // Full PCM data for the recording in WAV format (only on web, for native use the fileUri)
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
+    compression?: CompressionInfo & {
+        compressedFileUri: string
+    }
 }
 
 export interface StartRecordingResult {
@@ -68,6 +82,9 @@ export interface StartRecordingResult {
     channels?: number
     bitDepth?: BitDepth
     sampleRate?: SampleRate
+    compression?: CompressionInfo & {
+        compressedFileUri: string
+    }
 }
 
 export interface AudioSessionConfig {
@@ -147,6 +164,12 @@ export interface RecordingConfig {
 
     // Callback function to handle audio features extraction results
     onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void>
+
+    compression?: {
+        enabled: boolean
+        format: 'aac' | 'opus' | 'mp3'
+        bitrate?: number
+    }
 }
 
 export interface NotificationConfig {
@@ -216,14 +239,28 @@ export interface WaveformConfig {
     height?: number // Height of the waveform view in dp (default: 64)
 }
 
+export interface WebRecordingOptions {
+    /**
+     * Web-specific option to skip the final audio data consolidation process.
+     * When true, it will:
+     * - Skip the time-consuming process of concatenating all audio chunks
+     * - Return immediately with the compressed audio (if compression is enabled)
+     * - Improve performance when stopping large recordings
+     * - Useful when only the compressed audio is needed (e.g., when not using transcription)
+     * @default false
+     */
+    skipFinalConsolidation?: boolean
+}
+
 export interface UseAudioRecorderState {
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
-    stopRecording: () => Promise<AudioRecording | null>
+    stopRecording: (options?: WebRecordingOptions) => Promise<AudioRecording | null>
     pauseRecording: () => Promise<void>
     resumeRecording: () => Promise<void>
     isRecording: boolean
     isPaused: boolean
     durationMs: number // Duration of the recording
     size: number // Size in bytes of the recorded audio
+    compression?: CompressionInfo
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
 }
