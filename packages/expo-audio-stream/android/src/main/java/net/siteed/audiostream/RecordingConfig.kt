@@ -45,6 +45,18 @@ data class RecordingConfig(
             val compressedFormat = (compressionMap["format"] as? String)?.lowercase() ?: "aac"
             val compressedBitRate = (compressionMap["bitrate"] as? Number)?.toInt() ?: 128000
 
+            // Validate bitrate if compression is enabled
+            if (enableCompressedOutput) {
+                when {
+                    compressedBitRate < 8000 -> return Result.failure(
+                        IllegalArgumentException("Bitrate must be at least 8000 bps")
+                    )
+                    compressedBitRate > 960000 -> return Result.failure(
+                        IllegalArgumentException("Bitrate cannot exceed 960000 bps")
+                    )
+                }
+            }
+
             // Initialize the recording configuration
             val tempRecordingConfig = RecordingConfig(
                 sampleRate = options.getNumberOrDefault("sampleRate", Constants.DEFAULT_SAMPLE_RATE),

@@ -5,6 +5,7 @@ import 'ts-node/register' // Add this to import TypeScript files
 import { ConfigContext, ExpoConfig } from '@expo/config'
 import { config as dotenvConfig } from 'dotenv-flow'
 import Joi from 'joi'
+import { version as packageVersion } from './package.json'
 
 dotenvConfig({ silent: true }) // Load variables from .env* file
 
@@ -44,6 +45,7 @@ const APP_IDENTIFIER = getAppIdentifier('net.siteed.audioplayground', env.APP_VA
 logConfig({
     'App Variant': env.APP_VARIANT,
     'App Identifier': APP_IDENTIFIER,
+    'App Version': packageVersion,
     'EAS Project ID': env.EAS_PROJECT_ID,
     'Apple Team ID': env.APPLE_TEAM_ID || 'Not set',
     'Environment': process.env.NODE_ENV || 'development',
@@ -57,7 +59,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             ? 'AudioPlayground'
             : `AudioPlayground (${env.APP_VARIANT})`,
     slug: 'audioplayground',
-    version: '0.1.0',
+    version: packageVersion,
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -99,12 +101,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     newArchEnabled: true,
     owner: 'deeeed',
     plugins: [
-        [
-            '../../packages/expo-audio-stream/app.plugin.js',
-            {
-                apiKey: 'custom_secret_api',
-            },
-        ],
         [
             'expo-font',
             {
