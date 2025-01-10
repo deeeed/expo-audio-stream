@@ -213,6 +213,7 @@ const styles = StyleSheet.create({
   icon: {
     position: 'absolute',
     right: 16,
+    top: 10,
   },
   expandedContent: {
     overflow: 'hidden',

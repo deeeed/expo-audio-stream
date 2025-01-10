@@ -29,7 +29,9 @@ export interface AudioDataEvent {
     fileUri: string
     eventDataSize: number
     totalSize: number
-    compression?: CompressionInfo
+    compression?: CompressionInfo & {
+        data?: string | Blob // Base64 (native) or Float32Array (web) encoded compressed data chunk
+    }
 }
 
 export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'

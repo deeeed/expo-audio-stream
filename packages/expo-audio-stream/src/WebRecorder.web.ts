@@ -220,6 +220,9 @@ export class WebRecorder {
                     this.pendingCompressedChunk = null
                 }
 
+                console.log(
+                    `VERSUS uncompressed=${this.audioBufferSize} compressed=${compressionData?.size}`
+                )
                 this.emitAudioEventCallback({
                     data: pcmBufferFloat,
                     position: this.position,
