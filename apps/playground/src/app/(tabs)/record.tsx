@@ -283,7 +283,7 @@ export default function RecordScreen() {
         isPaused,
         durationMs: duration,
         size,
-        compressedSize,
+        compression,
         isRecording,
         analysisData,
     } = useSharedAudioRecorder()
@@ -433,14 +433,14 @@ export default function RecordScreen() {
                 />
             )}
 
+            <Text>Compression: {JSON.stringify(compression)}</Text>
             <RecordingStats
                 duration={duration}
                 size={size}
-                compressedSize={compressedSize}
                 sampleRate={streamConfig?.sampleRate}
                 bitDepth={streamConfig?.bitDepth}
                 channels={streamConfig?.channels}
-                compression={startRecordingConfig.compression}
+                compression={compression}
             />
 
             {isModelLoading && <ProgressItems items={progressItems} />}

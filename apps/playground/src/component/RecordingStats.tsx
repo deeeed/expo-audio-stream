@@ -8,19 +8,15 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useState } from "react";
+import { CompressionInfo } from "@siteed/expo-audio-stream/src";
 
 interface RecordingStatsProps {
   duration: number;
   size: number;
-  compressedSize?: number;
   sampleRate?: number;
   bitDepth?: number;
   channels?: number;
-  compression?: {
-    enabled: boolean;
-    format: string;
-    bitrate?: number;
-  };
+  compression?: CompressionInfo
 }
 
 function formatDuration(durationMs: number) {
@@ -40,11 +36,10 @@ function formatBytes(bytes: number): string {
 export function RecordingStats({ 
   duration, 
   size,
-  compressedSize,
+  compression,
   sampleRate,
   bitDepth,
-  channels,
-  compression 
+  channels
 }: RecordingStatsProps) {
   const { colors } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -58,6 +53,11 @@ export function RecordingStats({
   const animatedStyle = useAnimatedStyle(() => ({
     height: animationHeight.value,
   }));
+
+  function getCompressionRatio(original: number, compressed: number): string {
+    const ratio = ((compressed / original) * 100).toFixed(0);
+    return `${ratio}%`;
+  }
 
   return (
     <View style={[styles.wrapper, { backgroundColor: colors.surfaceVariant }]}>
@@ -85,22 +85,28 @@ export function RecordingStats({
             >
               Size
             </Text>
-            <Text
-              variant="headlineSmall"
-              style={[styles.value, { color: colors.primary }]}
-            >
-              {formatBytes(size)}
-            </Text>
-            {compression?.enabled && compressedSize && (
+            {compression ? (
               <>
-                <Text style={[styles.compressedLabel, { color: colors.onSurfaceVariant }]}>
-                  Compressed
+                <Text
+                  variant="headlineSmall"
+                  style={[styles.value, { color: colors.primary }]}
+                >
+                  {formatBytes(compression.size)}
                 </Text>
-                <Text style={[styles.compressedValue, { color: colors.secondary }]}>
-                  {formatBytes(compressedSize)}
-                  {` (${((compressedSize / size) * 100).toFixed(1)}%)`}
+                <Text style={[styles.rawSizeLabel, { color: colors.onSurfaceVariant }]}>
+                  Raw: {formatBytes(size)}
+                </Text>
+                <Text style={[styles.compressionRatio, { color: colors.secondary }]}>
+                  {getCompressionRatio(size, compression.size)} of original
                 </Text>
               </>
+            ) : (
+              <Text
+                variant="headlineSmall"
+                style={[styles.value, { color: colors.primary }]}
+              >
+                {formatBytes(size)}
+              </Text>
             )}
           </View>
           <Ionicons
@@ -214,12 +220,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  compressedLabel: {
+  rawSizeLabel: {
     fontSize: 12,
-    marginTop: 8,
+    marginTop: 4,
   },
-  compressedValue: {
-    fontSize: 14,
+  compressionRatio: {
+    fontSize: 12,
     fontWeight: '600',
+    marginTop: 2,
   },
 }); 

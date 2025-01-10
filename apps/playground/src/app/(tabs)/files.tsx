@@ -28,7 +28,6 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
         },
         contentContainer: {
             gap: 10,
-            paddingTop: 10,
             paddingBottom: 80,
         },
         recordingContainer: {
@@ -104,7 +103,7 @@ const FilesScreen = () => {
     }
 
     return (
-        <ScreenWrapper useInsets style={styles.container}>
+        <ScreenWrapper withScrollView={false} useInsets style={styles.container}>
             <FlatList
                 data={files}
                 keyExtractor={(item) => item.fileUri}

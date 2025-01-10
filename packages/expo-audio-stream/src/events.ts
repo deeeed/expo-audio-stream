@@ -7,6 +7,7 @@ import ExpoAudioStreamModule from './ExpoAudioStreamModule'
 
 const emitter = new LegacyEventEmitter(ExpoAudioStreamModule)
 
+// Internal event payload from native module
 export interface AudioEventPayload {
     encoded?: string
     buffer?: Float32Array
@@ -17,6 +18,11 @@ export interface AudioEventPayload {
     totalSize: number
     mimeType: string
     streamUuid: string
+    compression?: {
+        position: number
+        eventDataSize: number
+        totalSize: number
+    }
 }
 
 export function addAudioEventListener(
