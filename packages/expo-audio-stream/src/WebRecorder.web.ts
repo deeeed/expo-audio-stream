@@ -1,7 +1,7 @@
 // src/WebRecorder.ts
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
-import { ConsoleLike, RecordingConfig } from './ExpoAudioStream.types'
+import { ConsoleLike, RecordingConfig, WebRecordingOptions } from './ExpoAudioStream.types'
 import {
     EmitAudioAnalysisFunction,
     EmitAudioEventFunction,
@@ -352,7 +352,7 @@ export class WebRecorder {
         }
     }
 
-    async stop(): Promise<{ pcmData: Float32Array; compressedBlob?: Blob }> {
+    async stop(options?: WebRecordingOptions): Promise<{ pcmData: Float32Array; compressedBlob?: Blob }> {
         return new Promise((resolve, reject) => {
             let isCleanupDone = false
 
@@ -374,6 +374,24 @@ export class WebRecorder {
             }
             try {
                 this.logger?.debug(`Stopping WebRecorder ${this.audioChunks.length} chunks - this.compressedChunks.length=${this.compressedChunks.length}`)
+
+                // If skipFinalConsolidation is true and we have compressed data, return early
+                if (options?.skipFinalConsolidation && this.compressedMediaRecorder) {
+                    this.compressedMediaRecorder.onstop = () => {
+                        const compressedBlob = new Blob(this.compressedChunks, {
+                            type: 'audio/webm;codecs=opus',
+                        })
+                        cleanup()
+                        // Return the last chunk as pcmData to maintain interface compatibility
+                        resolve({
+                            pcmData: this.audioChunks[this.audioChunks.length - 1] || new Float32Array(),
+                            compressedBlob,
+                        })
+                    }
+                    this.compressedMediaRecorder.stop()
+                    return
+                }
+
                 // Handle compressed recording first
                 if (this.compressedMediaRecorder) {
                     this.compressedMediaRecorder.onstop = () => {
