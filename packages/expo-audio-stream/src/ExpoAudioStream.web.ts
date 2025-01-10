@@ -18,6 +18,14 @@ import { writeWavHeader } from './utils/writeWavHeader'
 export interface EmitAudioEventProps {
     data: Float32Array
     position: number
+    compression?: {
+        data: Blob
+        size: number
+        totalSize: number
+        mimeType: string
+        format: string
+        bitrate: number
+    }
 }
 export type EmitAudioEventFunction = (_: EmitAudioEventProps) => void
 export type EmitAudioAnalysisFunction = (_: AudioAnalysis) => void
@@ -180,16 +188,16 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             throw new Error('Recorder is not initialized')
         }
 
-        const fullPcmBufferArray = await this.customRecorder.stop()
+        const { pcmData, compressedBlob } = await this.customRecorder.stop()
 
-        this.logger?.debug(`Stopped recording`, fullPcmBufferArray)
+        this.logger?.debug(`Stopped recording`, pcmData)
         this.isRecording = false
         this.isPaused = false
         this.currentDurationMs = Date.now() - this.recordingStartTime
 
         // Create WAV header and combine with PCM data in one step
         const wavBuffer = writeWavHeader({
-            buffer: fullPcmBufferArray.buffer,
+            buffer: pcmData.buffer,
             sampleRate: this.recordingConfig?.sampleRate ?? 44100,
             numChannels: this.recordingConfig?.channels ?? 1,
             bitDepth: this.bitDepth,
@@ -204,6 +212,18 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         })
         const fileUri = URL.createObjectURL(blob)
 
+        let compression: AudioRecording['compression']
+        if (compressedBlob && this.recordingConfig?.compression?.enabled) {
+            const compressedUri = URL.createObjectURL(compressedBlob)
+            compression = {
+                compressedFileUri: compressedUri,
+                size: compressedBlob.size,
+                mimeType: 'audio/webm',
+                format: 'opus',
+                bitrate: this.recordingConfig.compression.bitrate ?? 128000,
+            }
+        }
+
         const result: AudioRecording = {
             fileUri,
             filename: `${this.streamUuid}.${this.extension}`,
@@ -214,6 +234,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             durationMs: this.currentDurationMs,
             size: this.currentSize,
             mimeType: `audio/${this.extension}`,
+            compression,
         }
 
         return result

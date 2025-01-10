@@ -1,4 +1,5 @@
 // playground/src/component/AudioRecording.tsx
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useFont } from '@shopify/react-native-skia'
 import {
     AppTheme,
@@ -22,8 +23,9 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
 
+import { useAudio } from '../hooks/useAudio'
+import { isWeb } from '../utils/utils'
 import {
     AudioRecordingAnalysisConfig,
     SelectedAnalysisConfig,
@@ -31,9 +33,8 @@ import {
 import { SelectedAudioVisualizerProps } from './AudioRecordingConfigForm'
 import { DataPointViewer } from './DataViewer'
 import { HexDataViewer } from './HexDataViewer'
+import { RecordingStats } from './RecordingStats'
 import Transcript from './Transcript'
-import { useAudio } from '../hooks/useAudio'
-import { formatBytes, formatDuration, isWeb } from '../utils/utils'
 
 const logger = getLogger('AudioRecording')
 
@@ -331,75 +332,14 @@ export const AudioRecordingView = ({
                 {recording.filename}
             </Text>
 
-            <View style={styles.infoSection}>
-                <InfoRow 
-                    label="Duration" 
-                    value={formatDuration(recording.durationMs)}
-                    styles={styles}
-                />
-                {recording.size && (
-                    <>
-                        <InfoRow 
-                            label="Size" 
-                            value={formatBytes(recording.size)}
-                            styles={styles}
-                        />
-                        {recording.compression?.compressedFileUri && (
-                            <View>
-                                <InfoRow 
-                                    label="Compressed Size" 
-                                    value={formatBytes(recording.compression.size)}
-                                    styles={styles}
-                                />
-                                {recording.compression?.mimeType && (
-                                    <InfoRow 
-                                        label="Compressed Format" 
-                                        value={recording.compression.mimeType}
-                                        styles={styles}
-                                    />
-                                )}
-                                {typeof recording.size === 'number' && 
-                                 Number(recording.size) > 0 && (
-                                    <Text style={styles.compressionRate}>
-                                        {((Number(recording.compression.size) / Number(recording.size)) * 100).toFixed(1)}% of original size
-                                    </Text>
-                                )}
-                            </View>
-                        )}
-                    </>
-                )}
-                <InfoRow 
-                    label="Format" 
-                    value={recording.mimeType}
-                    styles={styles}
-                />
-                {recording.sampleRate && (
-                    <InfoRow 
-                        label="Sample Rate" 
-                        value={`${recording.sampleRate} Hz`}
-                        styles={styles}
-                    />
-                )}
-                {recording.channels && (
-                    <InfoRow 
-                        label="Channels" 
-                        value={recording.channels}
-                        styles={styles}
-                    />
-                )}
-                {recording.bitDepth && (
-                    <InfoRow 
-                        label="Bit Depth" 
-                        value={recording.bitDepth}
-                        styles={styles}
-                    />
-                )}
-                <InfoRow 
-                    label="Position" 
-                    value={`${(position / 1000).toFixed(2)}`}
-                    styles={styles}
-                />
-            </View>
+            <RecordingStats
+                duration={recording.durationMs}
+                size={recording.size}
+                sampleRate={recording.sampleRate}
+                bitDepth={recording.bitDepth}
+                channels={recording.channels}
+                compression={recording.compression}
+            />
 
             {processing && <ActivityIndicator />}
 

@@ -53,6 +53,10 @@ export class WebRecorder {
     private audioAnalysisData: AudioAnalysis // Keep updating the full audio analysis data with latest events
     private packetCount: number = 0
     private logger?: ConsoleLike
+    private compressedMediaRecorder: MediaRecorder | null = null
+    private compressedChunks: Blob[] = []
+    private compressedSize: number = 0
+    private pendingCompressedChunk: Blob | null = null
 
     constructor({
         audioContext,
@@ -120,6 +124,11 @@ export class WebRecorder {
 
         if (recordingConfig.enableProcessing) {
             this.initFeatureExtractorWorker()
+        }
+
+        // Initialize compressed recording if enabled
+        if (recordingConfig.compression?.enabled) {
+            this.initializeCompressedRecorder()
         }
     }
 
@@ -197,9 +206,24 @@ export class WebRecorder {
                 // Track the number of packets
                 this.packetCount += 1
 
+                // Prepare compression data if available
+                let compressionData
+                if (this.pendingCompressedChunk) {
+                    compressionData = {
+                        data: this.pendingCompressedChunk,
+                        size: this.pendingCompressedChunk.size,
+                        totalSize: this.compressedSize,
+                        mimeType: 'audio/webm',
+                        format: 'opus',
+                        bitrate: this.config.compression?.bitrate ?? 128000,
+                    }
+                    this.pendingCompressedChunk = null
+                }
+
                 this.emitAudioEventCallback({
-                    data,
+                    data: pcmBufferFloat,
                     position: this.position,
+                    compression: compressionData,
                 })
                 this.position += duration // Update position
 
@@ -331,9 +355,13 @@ export class WebRecorder {
         this.source.connect(this.audioWorkletNode)
         this.audioWorkletNode.connect(this.audioContext.destination)
         this.packetCount = 0
+
+        if (this.compressedMediaRecorder) {
+            this.compressedMediaRecorder.start(this.config.interval ?? 1000)
+        }
     }
 
-    stop(): Promise<Float32Array> {
+    async stop(): Promise<{ pcmData: Float32Array; compressedBlob?: Blob }> {
         return new Promise((resolve, reject) => {
             try {
                 if (this.audioWorkletNode) {
@@ -393,7 +421,7 @@ export class WebRecorder {
                                 bitDepth: this.exportBitDepth,
                             })
 
-                            resolve(convertedPCM.pcmValues) // Resolve the promise with the collected buffers
+                            resolve({ pcmData: convertedPCM.pcmValues }) // Resolve the promise with the collected buffers
                         }
                     }
                     this.audioWorkletNode.port.addEventListener(
@@ -404,6 +432,21 @@ export class WebRecorder {
 
                 // Stop all media stream tracks to stop the browser recording
                 this.stopMediaStreamTracks()
+
+                if (this.compressedMediaRecorder) {
+                    this.compressedMediaRecorder.onstop = () => {
+                        const compressedBlob = new Blob(this.compressedChunks, {
+                            type: 'audio/webm;codecs=opus',
+                        })
+                        resolve({
+                            pcmData: this.audioBuffer,
+                            compressedBlob,
+                        })
+                    }
+                    this.compressedMediaRecorder.stop()
+                } else {
+                    resolve({ pcmData: this.audioBuffer })
+                }
             } catch (error) {
                 reject(error)
             }
@@ -414,6 +457,7 @@ export class WebRecorder {
         this.source.disconnect(this.audioWorkletNode) // Disconnect the source from the AudioWorkletNode
         this.audioWorkletNode.disconnect(this.audioContext.destination) // Disconnect the AudioWorkletNode from the destination
         this.audioWorkletNode.port.postMessage({ command: 'pause' })
+        this.compressedMediaRecorder?.pause()
     }
 
     stopMediaStreamTracks() {
@@ -484,5 +528,40 @@ export class WebRecorder {
         this.source.connect(this.audioWorkletNode)
         this.audioWorkletNode.connect(this.audioContext.destination)
         this.audioWorkletNode.port.postMessage({ command: 'resume' })
+        this.compressedMediaRecorder?.resume()
+    }
+
+    private initializeCompressedRecorder() {
+        try {
+            const mimeType = 'audio/webm;codecs=opus'
+            if (!MediaRecorder.isTypeSupported(mimeType)) {
+                this.logger?.warn(
+                    'Opus compression not supported in this browser'
+                )
+                return
+            }
+
+            this.compressedMediaRecorder = new MediaRecorder(
+                this.source.mediaStream,
+                {
+                    mimeType,
+                    audioBitsPerSecond:
+                        this.config.compression?.bitrate ?? 128000,
+                }
+            )
+
+            this.compressedMediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    this.compressedChunks.push(event.data)
+                    this.compressedSize += event.data.size
+                    this.pendingCompressedChunk = event.data
+                }
+            }
+        } catch (error) {
+            this.logger?.error(
+                'Failed to initialize compressed recorder:',
+                error
+            )
+        }
     }
 }
