@@ -432,8 +432,6 @@ export default function RecordScreen() {
                     audioData={analysisData}
                 />
             )}
-
-            <Text>Compression: {JSON.stringify(compression)}</Text>
             <RecordingStats
                 duration={duration}
                 size={size}
