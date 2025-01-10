@@ -626,11 +626,12 @@ export default function RecordScreen() {
                                         value: 'opus',
                                         selected: startRecordingConfig.compression?.format === 'opus',
                                     },
-                                    {
+                                    // Only show AAC option for native platforms
+                                    ...(!isWeb ? [{
                                         label: 'AAC',
                                         value: 'aac',
                                         selected: startRecordingConfig.compression?.format === 'aac',
-                                    },
+                                    }] : []),
                                 ]}
                                 onFinish={(options) => {
                                     const selected = options?.find((option) => option.selected)
