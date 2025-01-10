@@ -14,6 +14,7 @@
 - [AudioSessionConfig](interfaces/AudioSessionConfig.md)
 - [AudioStreamStatus](interfaces/AudioStreamStatus.md)
 - [Chunk](interfaces/Chunk.md)
+- [CompressionInfo](interfaces/CompressionInfo.md)
 - [DataPoint](interfaces/DataPoint.md)
 - [IOSConfig](interfaces/IOSConfig.md)
 - [NotificationAction](interfaces/NotificationAction.md)
@@ -25,6 +26,7 @@
 - [WaveformConfig](interfaces/WaveformConfig.md)
 - [WavFileInfo](interfaces/WavFileInfo.md)
 - [WavHeaderOptions](interfaces/WavHeaderOptions.md)
+- [WebRecordingOptions](interfaces/WebRecordingOptions.md)
 
 ## Type Aliases
 
