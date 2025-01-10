@@ -9,6 +9,7 @@ import {
     ConsoleLike,
     RecordingConfig,
     StartRecordingResult,
+    WebRecordingOptions,
 } from './ExpoAudioStream.types'
 import { WebRecorder } from './WebRecorder.web'
 import { AudioEventPayload } from './events'
@@ -217,7 +218,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
     }
 
     // Stop recording
-    async stopRecording(): Promise<AudioRecording> {
+    async stopRecording(options?: WebRecordingOptions): Promise<AudioRecording> {
         if (!this.customRecorder) {
             throw new Error('Recorder is not initialized')
         }
@@ -228,7 +229,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             requestAnimationFrame(() => {
                 // Move the async work inside a self-executing async function
                 (async () => {
-                    const { pcmData, compressedBlob } = await this.customRecorder!.stop()
+                    const { pcmData, compressedBlob } = await this.customRecorder!.stop(options)
 
                     this.logger?.debug(`Stopped recording`, pcmData)
                     this.isRecording = false
