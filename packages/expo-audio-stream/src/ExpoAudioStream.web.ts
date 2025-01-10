@@ -48,6 +48,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
     currentInterval: number
     lastEmittedSize: number
     lastEmittedTime: number
+    lastEmittedCompressionSize: number
     streamUuid: string | null
     extension: 'webm' | 'wav' = 'wav' // Default extension is 'webm'
     recordingConfig?: RecordingConfig
@@ -55,6 +56,8 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
     audioWorkletUrl: string
     featuresExtratorUrl: string
     logger?: ConsoleLike
+    latestPosition: number = 0
+    totalCompressedSize: number = 0
 
     constructor({
         audioWorkletUrl,
@@ -84,6 +87,8 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         this.currentInterval = 1000 // Default interval in ms
         this.lastEmittedSize = 0
         this.lastEmittedTime = 0
+        this.latestPosition = 0
+        this.lastEmittedCompressionSize = 0
         this.streamUuid = null // Initialize UUID on first recording start
         this.audioWorkletUrl = audioWorkletUrl
         this.featuresExtratorUrl = featuresExtratorUrl
@@ -94,7 +99,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         try {
             return await navigator.mediaDevices.getUserMedia({ audio: true })
         } catch (error) {
-            console.error('Failed to get media stream:', error)
+            this.logger?.error('Failed to get media stream:', error)
             throw error
         }
     }
@@ -125,12 +130,14 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             emitAudioEventCallback: ({
                 data,
                 position,
+                compression,
             }: EmitAudioEventProps) => {
                 this.audioChunks.push(new Float32Array(data))
                 this.currentSize += data.byteLength
-                this.emitAudioEvent({ data, position })
+                this.emitAudioEvent({ data, position, compression })
                 this.lastEmittedTime = Date.now()
                 this.lastEmittedSize = this.currentSize
+                this.lastEmittedCompressionSize = compression?.size ?? 0
             },
             emitAudioAnalysisCallback: (audioAnalysisData: AudioAnalysis) => {
                 this.logger?.log(`Emitted AudioAnalysis:`, audioAnalysisData)
@@ -154,6 +161,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         this.isPaused = false
         this.lastEmittedSize = 0
         this.lastEmittedTime = 0
+        this.lastEmittedCompressionSize = 0
         this.streamUuid = Date.now().toString()
         const fileUri = `${this.streamUuid}.${this.extension}`
         const streamConfig: StartRecordingResult = {
@@ -162,21 +170,46 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             bitDepth: this.bitDepth,
             channels: recordingConfig.channels ?? 1,
             sampleRate: recordingConfig.sampleRate ?? 44100,
+            compression: recordingConfig.compression
+                ? {
+                      ...recordingConfig.compression,
+                      bitrate: recordingConfig.compression?.bitrate ?? 128000,
+                      size: 0,
+                      mimeType: 'audio/webm',
+                      format: recordingConfig.compression?.format ?? 'opus',
+                      compressedFileUri: '',
+                  }
+                : undefined,
         }
         return streamConfig
     }
 
-    emitAudioEvent({ data, position }: EmitAudioEventProps) {
+    emitAudioEvent({ data, position, compression }: EmitAudioEventProps) {
         const fileUri = `${this.streamUuid}.${this.extension}`
+        if (compression?.size) {
+            this.lastEmittedCompressionSize = compression.size
+            this.totalCompressedSize = compression.totalSize
+        }
+        this.latestPosition = position
+        this.currentDurationMs = position * 1000 // Convert position (in seconds) to ms
+
         const audioEventPayload: AudioEventPayload = {
             fileUri,
             mimeType: `audio/${this.extension}`,
-            lastEmittedSize: this.lastEmittedSize, // Since this might be continuously streaming, adjust accordingly
+            lastEmittedSize: this.lastEmittedSize,
             deltaSize: data.byteLength,
             position,
             totalSize: this.currentSize,
             buffer: data,
-            streamUuid: this.streamUuid ?? '', // Generate or manage UUID for stream identification
+            streamUuid: this.streamUuid ?? '',
+            compression: compression
+                ? {
+                      data: compression?.data,
+                      totalSize: this.totalCompressedSize,
+                      eventDataSize: compression?.size ?? 0,
+                      position,
+                  }
+                : undefined,
         }
 
         this.emit('AudioData', audioEventPayload)
@@ -271,10 +304,19 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         const status: AudioStreamStatus = {
             isRecording: this.isRecording,
             isPaused: this.isPaused,
-            durationMs: Date.now() - this.recordingStartTime,
+            durationMs: this.currentDurationMs,
             size: this.currentSize,
             interval: this.currentInterval,
             mimeType: `audio/${this.extension}`,
+            compression: this.recordingConfig?.compression?.enabled
+                ? {
+                      size: this.totalCompressedSize,
+                      mimeType: 'audio/webm',
+                      format: this.recordingConfig.compression.format ?? 'opus',
+                      bitrate:
+                          this.recordingConfig.compression.bitrate ?? 128000,
+                  }
+                : undefined,
         }
         return status
     }

@@ -23,16 +23,24 @@ Add support for simultaneous raw (WAV/PCM) and compressed (AAC/OPUS) audio recor
 interface RecordingConfig {
     // Existing fields remain unchanged
     compression?: {
-    enabled: boolean
-    format: 'aac' | 'opus' | 'mp3'
-    bitrate?: number
+        enabled: boolean
+        format: 'aac' | 'opus' | 'mp3'
+        bitrate?: number
+    }
+}
+
+export interface CompressionInfo {
+    size: number
+    mimeType: string
+    bitrate: number
+    format: string
 }
 
 interface AudioRecording {
     // Existing fields remain unchanged
-    compressedUri?: string
-    compressedMimeType?: string
-    compressedSize?: number
+    compression?: CompressionInfo & {
+        compressedFileUri: string
+    }
 }
 
 export interface AudioStreamStatus {
@@ -42,12 +50,7 @@ export interface AudioStreamStatus {
     size: number
     interval: number
     mimeType: string
-    compression?: {
-        size: number        // Size of compressed data in bytes
-        mimeType: string    // MIME type of compressed format
-        bitrate: number     // Current bitrate of compression
-        format: string      // Format being used (aac/opus/mp3)
-    }
+    compression?: CompressionInfo
 }
 
 export interface AudioDataEvent {
@@ -56,12 +59,8 @@ export interface AudioDataEvent {
     fileUri: string
     eventDataSize: number
     totalSize: number
-    compression?: {
-        data?: string        // Base64 encoded compressed data chunk
-        position: number     // Current position in compressed stream
-        fileUri: string      // URI to compressed file
-        eventDataSize: number // Size of this compressed chunk
-        totalSize: number    // Total size of compressed data
+    compression?: CompressionInfo & {
+        data?: string // Base64 encoded compressed data chunk
     }
 }
 

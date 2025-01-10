@@ -32,13 +32,13 @@ import { IOSSettingsConfig } from '../../component/IOSSettingsConfig'
 import LiveTranscriber from '../../component/LiveTranscriber'
 import { NativeNotificationConfig } from '../../component/NativeNotificationConfig'
 import { ProgressItems } from '../../component/ProgressItems'
+import { RecordingStats } from '../../component/RecordingStats'
 import { baseLogger, WhisperSampleRate } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { useTranscription } from '../../context/TranscriptionProvider'
 import { useLiveTranscriber } from '../../hooks/useLiveTranscriber'
 import { storeAudioFile } from '../../utils/indexedDB'
-import { formatBytes, formatDuration, isWeb } from '../../utils/utils'
-import { RecordingStats } from '../../component/RecordingStats'
+import { isWeb } from '../../utils/utils'
 
 const CHUNK_DURATION_MS = 500 // 500 ms chunks
 
@@ -494,17 +494,14 @@ export default function RecordScreen() {
                     audioData={analysisData}
                 />
             )}
-            <Text>Duration: {formatDuration(duration)}</Text>
-            <Text>Size: {formatBytes(size)}</Text>
-            {streamConfig?.sampleRate ? (
-                <Text>sampleRate: {streamConfig?.sampleRate}</Text>
-            ) : null}
-            {streamConfig?.bitDepth ? (
-                <Text>bitDepth: {streamConfig?.bitDepth}</Text>
-            ) : null}
-            {streamConfig?.channels ? (
-                <Text>channels: {streamConfig?.channels}</Text>
-            ) : null}
+            <RecordingStats
+                duration={duration}
+                size={size}
+                sampleRate={streamConfig?.sampleRate}
+                bitDepth={streamConfig?.bitDepth}
+                channels={streamConfig?.channels}
+                compression={compression}
+            />
             <Button mode="contained" onPress={resumeRecording}>
                 Resume Recording
             </Button>
@@ -537,7 +534,6 @@ export default function RecordScreen() {
                     },
                 ]}
                 onFinish={(options) => {
-                    console.log(`Selected options`, options)
                     const selected = options?.find((option) => option.selected)
                     if (!selected) return
                     setStartRecordingConfig((prev) => ({
