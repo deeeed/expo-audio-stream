@@ -121,12 +121,10 @@ class AudioRecorderManager(
 
             if (!initializeAudioRecord(promise)) return
 
-            if (recordingConfig.enableCompressedOutput) {
-                if (!initializeCompressedRecorder(
-                    if (recordingConfig.compressedFormat == "aac") "aac" else "opus",
-                    promise
-                )) return
-            }
+            if (recordingConfig.enableCompressedOutput && !initializeCompressedRecorder(
+                if (recordingConfig.compressedFormat == "aac") "aac" else "opus",
+                promise
+            )) return
 
             if (!initializeRecordingResources(audioFormatInfo.fileExtension, promise)) return
 
