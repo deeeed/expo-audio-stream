@@ -25,7 +25,7 @@
         "@react-native/assets-registry": "^0.76.5",
         "@react-navigation/native": "^7.0.0",
         "@shopify/react-native-skia": "1.5.0",
-        "@siteed/design-system": "^0.34.1",
+        "@siteed/design-system": "^0.35.0",
         "@siteed/expo-audio-stream": "workspace:^",
         "@siteed/expo-audio-ui": "workspace:^",
         "@siteed/react-native-logger": "^0.11.0",
