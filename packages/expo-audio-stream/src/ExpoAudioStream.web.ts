@@ -123,6 +123,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         const source = audioContext.createMediaStreamSource(stream)
 
         this.customRecorder = new WebRecorder({
+            logger: this.logger,
             audioContext,
             source,
             recordingConfig,
@@ -221,56 +222,63 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             throw new Error('Recorder is not initialized')
         }
 
-        const { pcmData, compressedBlob } = await this.customRecorder.stop()
+        // Create a promise to handle the PCM data processing asynchronously
+        return new Promise<AudioRecording>(async (resolve) => {
+            // Use requestAnimationFrame to avoid blocking the UI
+            requestAnimationFrame(async () => {
+                const { pcmData, compressedBlob } = await this.customRecorder!.stop()
 
-        this.logger?.debug(`Stopped recording`, pcmData)
-        this.isRecording = false
-        this.isPaused = false
-        this.currentDurationMs = Date.now() - this.recordingStartTime
+                this.logger?.debug(`Stopped recording`, pcmData)
+                this.isRecording = false
+                this.isPaused = false
+                this.currentDurationMs = Date.now() - this.recordingStartTime
 
-        // Create WAV header and combine with PCM data in one step
-        const wavBuffer = writeWavHeader({
-            buffer: pcmData.buffer,
-            sampleRate: this.recordingConfig?.sampleRate ?? 44100,
-            numChannels: this.recordingConfig?.channels ?? 1,
-            bitDepth: this.bitDepth,
+                // Process in the next frame to avoid blocking
+                requestAnimationFrame(() => {
+                    // Create WAV header and combine with PCM data in one step
+                    const wavBuffer = writeWavHeader({
+                        buffer: pcmData.buffer,
+                        sampleRate: this.recordingConfig?.sampleRate ?? 44100,
+                        numChannels: this.recordingConfig?.channels ?? 1,
+                        bitDepth: this.bitDepth,
+                    })
+
+                    // Create a cloneable copy
+                    const cloneableBuffer = wavBuffer.slice(0)
+
+                    // Create blob with complete WAV data
+                    const blob = new Blob([cloneableBuffer], {
+                        type: `audio/${this.extension}`,
+                    })
+                    const fileUri = URL.createObjectURL(blob)
+
+                    let compression: AudioRecording['compression']
+                    if (compressedBlob && this.recordingConfig?.compression?.enabled) {
+                        const compressedUri = URL.createObjectURL(compressedBlob)
+                        compression = {
+                            compressedFileUri: compressedUri,
+                            size: compressedBlob.size,
+                            mimeType: 'audio/webm',
+                            format: 'opus',
+                            bitrate: this.recordingConfig.compression.bitrate ?? 128000,
+                        }
+                    }
+
+                    resolve({
+                        fileUri,
+                        filename: `${this.streamUuid}.${this.extension}`,
+                        wavPCMData: new Float32Array(cloneableBuffer),
+                        bitDepth: this.bitDepth,
+                        channels: this.recordingConfig?.channels ?? 1,
+                        sampleRate: this.recordingConfig?.sampleRate ?? 44100,
+                        durationMs: this.currentDurationMs,
+                        size: this.currentSize,
+                        mimeType: `audio/${this.extension}`,
+                        compression,
+                    })
+                })
+            })
         })
-
-        // Create a cloneable copy
-        const cloneableBuffer = wavBuffer.slice(0)
-
-        // Create blob with complete WAV data
-        const blob = new Blob([cloneableBuffer], {
-            type: `audio/${this.extension}`,
-        })
-        const fileUri = URL.createObjectURL(blob)
-
-        let compression: AudioRecording['compression']
-        if (compressedBlob && this.recordingConfig?.compression?.enabled) {
-            const compressedUri = URL.createObjectURL(compressedBlob)
-            compression = {
-                compressedFileUri: compressedUri,
-                size: compressedBlob.size,
-                mimeType: 'audio/webm',
-                format: 'opus',
-                bitrate: this.recordingConfig.compression.bitrate ?? 128000,
-            }
-        }
-
-        const result: AudioRecording = {
-            fileUri,
-            filename: `${this.streamUuid}.${this.extension}`,
-            wavPCMData: new Float32Array(cloneableBuffer),
-            bitDepth: this.bitDepth,
-            channels: this.recordingConfig?.channels ?? 1,
-            sampleRate: this.recordingConfig?.sampleRate ?? 44100,
-            durationMs: this.currentDurationMs,
-            size: this.currentSize,
-            mimeType: `audio/${this.extension}`,
-            compression,
-        }
-
-        return result
     }
 
     // Pause recording

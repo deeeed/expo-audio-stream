@@ -70,7 +70,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         backgroundColor:
             env.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
     },
-    assetBundlePatterns: ['**/*', 'assets/audio_samples/*'],
+    assetBundlePatterns: ['**/*', 'assets/audio_samples/*', 'public/audioStorage.worker.js'],
     ios: {
         supportsTablet: true,
         bundleIdentifier: APP_IDENTIFIER,

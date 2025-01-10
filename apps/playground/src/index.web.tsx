@@ -4,6 +4,7 @@ import { version as SkiaVersion } from 'canvaskit-wasm/package.json'
 import { renderRootComponent } from 'expo-router/build/renderRootComponent'
 
 import { AppRoot } from './AppRoot'
+import { initWorker } from './utils/indexedDB'
 
 LoadSkiaWeb({
     locateFile: (path) => {
@@ -14,6 +15,9 @@ LoadSkiaWeb({
 })
     .then(async () => {
         renderRootComponent(AppRoot)
+        initWorker({ 
+            audioStorageWorkerUrl: '/audioStorage.worker.js'
+         })
         return true
     })
     .catch((error) => {

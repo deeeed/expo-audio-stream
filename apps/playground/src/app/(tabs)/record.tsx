@@ -367,7 +367,6 @@ export default function RecordScreen() {
                 ])
                 clearTimeout(timeout)
                 hide()
-                console.log(`After wait transcripts`, transcriptions)
                 result.transcripts = transcriptions
             }
 
@@ -615,7 +614,7 @@ export default function RecordScreen() {
                             }))
                         }}
                     />
-                    
+
                     {startRecordingConfig.compression?.enabled && (
                         <>
                             <Picker

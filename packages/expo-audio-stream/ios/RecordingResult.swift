@@ -9,6 +9,7 @@ struct RecordingResult {
     var channels: Int
     var bitDepth: Int
     var sampleRate: Double
+    var compression: CompressedRecordingInfo?
 }
 
 struct StartRecordingResult {
@@ -17,4 +18,5 @@ struct StartRecordingResult {
     var channels: Int
     var bitDepth: Int
     var sampleRate: Double
+    var compression: CompressedRecordingInfo?
 }

@@ -159,7 +159,7 @@ export function RecordingStats({
 
                 <View style={styles.specItem}>
                   <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
-                    Original Size
+                    Uncompressed Size
                   </Text>
                   <Text style={[styles.detailValue, { color: colors.primary }]}>
                     {formatBytes(size)}
