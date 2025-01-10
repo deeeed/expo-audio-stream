@@ -123,7 +123,6 @@ function audioRecorderReducer(
                       }
                     : undefined,
             }
-            console.warn(`NEW_STATE`, newState)
             return newState
         }
         case 'UPDATE_ANALYSIS':
@@ -334,7 +333,6 @@ export function useAudioRecorder({
                                 : undefined,
                     })
                 } else if (buffer) {
-                    console.warn(`SSSSSSS`, startResultRef.current?.compression)
                     // Coming from web
                     const webEvent: AudioDataEvent = {
                         data: buffer,
