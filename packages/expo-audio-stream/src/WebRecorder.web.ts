@@ -57,6 +57,7 @@ export class WebRecorder {
     private compressedChunks: Blob[] = []
     private compressedSize: number = 0
     private pendingCompressedChunk: Blob | null = null
+    private audioChunks: Float32Array[] = []
 
     constructor({
         audioContext,
@@ -164,18 +165,8 @@ export class WebRecorder {
                     return
                 }
 
-                // Handle the audio blob (e.g., send it to the server or process it further)
-                this.logger?.debug(
-                    `Received audio blob from processor len:${pcmBufferFloat?.length}`,
-                    event
-                )
-                // Concatenate the incoming Float32Array to the existing buffer
-                const newBuffer = new Float32Array(
-                    this.audioBufferSize + pcmBufferFloat.length
-                )
-                newBuffer.set(this.audioBuffer, 0)
-                newBuffer.set(pcmBufferFloat, this.audioBufferSize)
-                this.audioBuffer = newBuffer
+                // Store chunks instead of concatenating
+                this.audioChunks.push(pcmBufferFloat)
                 this.audioBufferSize += pcmBufferFloat.length
 
                 const sampleRate =
@@ -220,9 +211,6 @@ export class WebRecorder {
                     this.pendingCompressedChunk = null
                 }
 
-                console.log(
-                    `VERSUS uncompressed=${this.audioBufferSize} compressed=${compressionData?.size}`
-                )
                 this.emitAudioEventCallback({
                     data: pcmBufferFloat,
                     position: this.position,
@@ -366,91 +354,149 @@ export class WebRecorder {
 
     async stop(): Promise<{ pcmData: Float32Array; compressedBlob?: Blob }> {
         return new Promise((resolve, reject) => {
-            try {
+            let isCleanupDone = false
+
+            const cleanup = () => {
+                if (isCleanupDone) return
+                isCleanupDone = true
+
+                if (this.audioContext) {
+                    this.audioContext.close()
+                }
                 if (this.audioWorkletNode) {
-                    // this.source.disconnect(this.audioWorkletNode);
-                    // this.audioWorkletNode.disconnect(this.audioContext.destination);
-                    this.audioWorkletNode.port.postMessage({ command: 'stop' })
-
-                    // Set a timeout to reject the promise if no message is received within 5 seconds
-                    const timeout = setTimeout(() => {
-                        this.audioWorkletNode.port.removeEventListener(
-                            'message',
-                            onMessage
-                        )
-                        reject(
-                            new Error(
-                                "Timeout error, audioWorkletNode didn't complete."
-                            )
-                        )
-                    }, 5000)
-
-                    // Listen for the recordedData message to confirm stopping
-                    const onMessage = async (event: AudioWorkletEvent) => {
-                        const command = event.data.command
-                        if (command === 'recordedData') {
-                            clearTimeout(timeout) // Clear the timeout
-
-                            const rawPCMDataFull =
-                                event.data.recordedData?.slice(0)
-
-                            if (!rawPCMDataFull) {
-                                reject(new Error('Failed to get recorded data'))
-                                return
-                            }
-
-                            // Compute duration of the recorded data
-                            const duration =
-                                rawPCMDataFull.byteLength /
-                                (this.audioContext.sampleRate *
-                                    (this.exportBitDepth /
-                                        this.numberOfChannels))
-                            this.logger?.debug(
-                                `Received recorded data -- Duration: ${duration} vs ${rawPCMDataFull.byteLength / this.audioContext.sampleRate} seconds`
-                            )
-                            this.logger?.debug(
-                                `recordedData.length=${rawPCMDataFull.byteLength} vs transmittedData.length=${this.audioBufferSize}`
-                            )
-
-                            // Remove the event listener after receiving the final data
-                            this.audioWorkletNode.port.removeEventListener(
-                                'message',
-                                onMessage
-                            )
-
-                            const convertedPCM = await convertPCMToFloat32({
-                                buffer: rawPCMDataFull.buffer,
-                                skipWavHeader: true,
-                                bitDepth: this.exportBitDepth,
-                            })
-
-                            resolve({ pcmData: convertedPCM.pcmValues }) // Resolve the promise with the collected buffers
-                        }
-                    }
-                    this.audioWorkletNode.port.addEventListener(
-                        'message',
-                        onMessage
-                    )
+                    this.audioWorkletNode.disconnect()
+                }
+                if (this.source) {
+                    this.source.disconnect()
                 }
 
-                // Stop all media stream tracks to stop the browser recording
                 this.stopMediaStreamTracks()
-
+            }
+            try {
+                this.logger?.debug(`Stopping WebRecorder ${this.audioChunks.length} chunks - this.compressedChunks.length=${this.compressedChunks.length}`)
+                // Handle compressed recording first
                 if (this.compressedMediaRecorder) {
                     this.compressedMediaRecorder.onstop = () => {
                         const compressedBlob = new Blob(this.compressedChunks, {
                             type: 'audio/webm;codecs=opus',
                         })
-                        resolve({
-                            pcmData: this.audioBuffer,
-                            compressedBlob,
+
+                        // Process chunks in batches
+                        requestAnimationFrame(() => {
+                            const combinedBuffer = new Float32Array(this.audioBufferSize)
+                            let offset = 0
+                            let chunkIndex = 0
+                            const CHUNKS_PER_BATCH = 10 // Process 5 seconds worth of chunks at a time (10 * 500ms = 5s)
+
+                            this.logger?.debug(
+                                `Processing ${this.audioChunks.length} chunks in batches of ${CHUNKS_PER_BATCH}`
+                            )
+
+                            const processNextBatch = () => {
+                                const endIndex = Math.min(chunkIndex + CHUNKS_PER_BATCH, this.audioChunks.length)
+                                
+                                // Process a batch of chunks
+                                for (let i = chunkIndex; i < endIndex; i++) {
+                                    const chunk = this.audioChunks[i]
+                                    combinedBuffer.set(chunk, offset)
+                                    offset += chunk.length
+                                }
+
+                                chunkIndex = endIndex
+
+                                if (chunkIndex < this.audioChunks.length) {
+                                    // Process next batch in next frame
+                                    requestAnimationFrame(processNextBatch)
+                                } else {
+                                    // All chunks processed
+                                    this.audioBuffer = combinedBuffer
+                                    queueMicrotask(() => {
+                                        cleanup()
+                                        resolve({
+                                            pcmData: this.audioBuffer,
+                                            compressedBlob,
+                                        })
+                                    })
+                                }
+                            }
+
+                            processNextBatch()
                         })
                     }
                     this.compressedMediaRecorder.stop()
-                } else {
+                }
+
+                // Handle audio worklet data
+                if (this.audioWorkletNode) {
+                    const onMessage = (event: AudioWorkletEvent) => {
+                        if (event.data.command === 'recordedData') {
+                            this.audioWorkletNode?.port.removeEventListener(
+                                'message',
+                                onMessage
+                            )
+
+                            queueMicrotask(async () => {
+                                try {
+                                    const rawPCMDataFull =
+                                        event.data.recordedData?.slice(0)
+                                    if (!rawPCMDataFull) {
+                                        cleanup()
+                                        reject(
+                                            new Error(
+                                                'Failed to get recorded data'
+                                            )
+                                        )
+                                        return
+                                    }
+
+                                    // Convert PCM data if needed based on bit depth
+                                    if (this.exportBitDepth !== this.bitDepth) {
+                                        const convertedData =
+                                            await convertPCMToFloat32({
+                                                buffer: rawPCMDataFull.buffer,
+                                                bitDepth: this.exportBitDepth,
+                                                skipWavHeader: true,
+                                                logger: this.logger,
+                                            })
+                                        this.audioBuffer =
+                                            convertedData.pcmValues
+                                    } else {
+                                        this.audioBuffer = rawPCMDataFull
+                                    }
+
+                                    if (!this.compressedMediaRecorder) {
+                                        cleanup()
+                                        resolve({ pcmData: this.audioBuffer })
+                                    }
+                                } catch (error) {
+                                    cleanup()
+                                    reject(error)
+                                }
+                            })
+                        }
+                    }
+
+                    this.audioWorkletNode.port.addEventListener(
+                        'message',
+                        onMessage
+                    )
+                    this.audioWorkletNode.port.postMessage({ command: 'stop' })
+
+                    // Safety timeout
+                    setTimeout(() => {
+                        this.audioWorkletNode?.port.removeEventListener(
+                            'message',
+                            onMessage
+                        )
+                        cleanup()
+                        reject(new Error('Timeout while stopping recording'))
+                    }, 5000)
+                } else if (!this.compressedMediaRecorder) {
+                    cleanup()
                     resolve({ pcmData: this.audioBuffer })
                 }
             } catch (error) {
+                cleanup()
                 reject(error)
             }
         })

@@ -12,6 +12,7 @@ interface StoreAudioFileParams {
     fileName: string
     arrayBuffer: ArrayBuffer
     metadata: AudioRecording
+    skipWorker?: boolean
 }
 
 interface GetAudioFileParams {
@@ -29,6 +30,19 @@ interface AudioFileRecord {
 }
 
 const logger = getLogger('indexedDB')
+
+let worker: Worker | null = null
+
+interface InitWorkerParams {
+    audioStorageWorkerUrl: string
+}
+
+export function initWorker({ audioStorageWorkerUrl }: InitWorkerParams) {
+    if (!worker && typeof Worker !== 'undefined') {
+        worker = new Worker(audioStorageWorkerUrl)
+    }
+    return worker
+}
 
 /**
  * Opens an IndexedDB database with the specified name and version.
@@ -71,7 +85,30 @@ export const storeAudioFile = async ({
     fileName,
     arrayBuffer,
     metadata,
-}: StoreAudioFileParams) => {
+    skipWorker = false,
+}: StoreAudioFileParams): Promise<void> => {
+    if (worker && !skipWorker) {
+        return new Promise((resolve, reject) => {
+            const handleMessage = (e: MessageEvent) => {
+                if (e.data.type === 'success' && e.data.fileName === fileName) {
+                    worker?.removeEventListener('message', handleMessage)
+                    logger.debug(`Stored audio file ${fileName} successfully in background`)
+                    resolve()
+                } else if (e.data.type === 'error') {
+                    worker?.removeEventListener('message', handleMessage)
+                    reject(new Error(e.data.error))
+                }
+            }
+
+            worker?.addEventListener('message', handleMessage)
+            worker?.postMessage({
+                type: 'storeAudioFile',
+                payload: { fileName, arrayBuffer, metadata }
+            })
+        })
+    }
+
+    // Fallback to synchronous storage if worker is not available or skipWorker is true
     const db = await openDatabase({ dbName: 'AudioStorage', dbVersion: 1 })
     const transaction = db.transaction('audioFiles', 'readwrite')
     const store = transaction.objectStore('audioFiles')

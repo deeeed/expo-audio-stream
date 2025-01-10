@@ -17,8 +17,8 @@ data class RecordingConfig(
     val notification: NotificationConfig = NotificationConfig(),
     val features: Map<String, Boolean> = emptyMap(),
     val enableCompressedOutput: Boolean = false,
-    val compressedFormat: String = "aac", // aac or opus
-    val compressedBitRate: Int = 128000, // Default to 128kbps
+    val compressedFormat: String = "opus",
+    val compressedBitRate: Int = 24000,
 ) {
     companion object {
         fun fromMap(options: Map<String, Any?>?): Result<Pair<RecordingConfig, AudioFormatInfo>> {
