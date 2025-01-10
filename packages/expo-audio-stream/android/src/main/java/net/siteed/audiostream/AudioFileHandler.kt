@@ -108,11 +108,24 @@ class AudioFileHandler(private val filesDir: File) {
         }
     }
 
-    fun deleteFile(file: File?) {
-        try {
-            file?.delete()
+    fun deleteFile(file: File?): Boolean {
+        return try {
+            if (file == null) {
+                Log.w(Constants.TAG, "Attempted to delete null file")
+                false
+            } else if (!file.exists()) {
+                Log.w(Constants.TAG, "File does not exist: ${file.absolutePath}")
+                false
+            } else {
+                val wasDeleted = file.delete()
+                if (!wasDeleted) {
+                    Log.w(Constants.TAG, "Failed to delete file: ${file.absolutePath}")
+                }
+                wasDeleted
+            }
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to delete file: ${file?.absolutePath}", e)
+            Log.e(Constants.TAG, "Error deleting file: ${file?.absolutePath}", e)
+            false
         }
     }
 }
