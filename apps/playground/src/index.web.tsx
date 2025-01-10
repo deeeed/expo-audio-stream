@@ -2,6 +2,7 @@ import '@expo/metro-runtime'
 import { LoadSkiaWeb } from '@shopify/react-native-skia/lib/module/web'
 import { version as SkiaVersion } from 'canvaskit-wasm/package.json'
 import { renderRootComponent } from 'expo-router/build/renderRootComponent'
+import Constants from 'expo-constants'
 
 import { AppRoot } from './AppRoot'
 import { initWorker } from './utils/indexedDB'
@@ -15,9 +16,10 @@ LoadSkiaWeb({
 })
     .then(async () => {
         renderRootComponent(AppRoot)
+        const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? ''
         initWorker({ 
-            audioStorageWorkerUrl: '/audioStorage.worker.js'
-         })
+            audioStorageWorkerUrl: `${baseUrl}/audioStorage.worker.js`
+        })
         return true
     })
     .catch((error) => {
