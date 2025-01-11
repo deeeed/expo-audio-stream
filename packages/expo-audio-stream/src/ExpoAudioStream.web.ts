@@ -252,7 +252,18 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                     // Step 2: Process WAV header in the next frame
                     requestAnimationFrame(() => {
                         try {
-                            this.logger?.debug('[Stop] Creating WAV header')
+                            this.logger?.debug('[Stop] Creating WAV header', {
+                                hasPcmData: !!pcmData,
+                                pcmDataLength: pcmData?.length ?? 0,
+                                pcmBufferSize: pcmData?.buffer?.byteLength ?? 0,
+                            })
+
+                            if (!pcmData?.buffer) {
+                                throw new Error(
+                                    'No PCM data available for WAV header creation'
+                                )
+                            }
+
                             const wavBuffer = writeWavHeader({
                                 buffer: pcmData.buffer,
                                 sampleRate:

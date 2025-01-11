@@ -254,7 +254,9 @@ export interface WebRecordingOptions {
 
 export interface UseAudioRecorderState {
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
-    stopRecording: (options?: WebRecordingOptions) => Promise<AudioRecording | null>
+    stopRecording: (
+        options?: WebRecordingOptions
+    ) => Promise<AudioRecording | null>
     pauseRecording: () => Promise<void>
     resumeRecording: () => Promise<void>
     isRecording: boolean
