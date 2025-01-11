@@ -1,11 +1,7 @@
 // src/WebRecorder.ts
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
-import {
-    ConsoleLike,
-    RecordingConfig,
-    WebRecordingOptions,
-} from './ExpoAudioStream.types'
+import { ConsoleLike, RecordingConfig } from './ExpoAudioStream.types'
 import {
     EmitAudioAnalysisFunction,
     EmitAudioEventFunction,
@@ -188,7 +184,6 @@ export class WebRecorder {
                             {
                                 command: 'process',
                                 channelData: chunk,
-                                logger: this.logger,
                                 sampleRate,
                                 pointsPerSecond:
                                     this.config.pointsPerSecond ||
@@ -232,8 +227,7 @@ export class WebRecorder {
             )
             this.audioWorkletNode.port.postMessage({
                 command: 'init',
-                logger: this.logger,
-                recordSampleRate: this.audioContext.sampleRate, // Pass the original sample rate
+                recordSampleRate: this.audioContext.sampleRate,
                 exportSampleRate:
                     this.config.sampleRate ?? this.audioContext.sampleRate,
                 bitDepth: this.bitDepth,
@@ -343,9 +337,7 @@ export class WebRecorder {
         }
     }
 
-    async stop(
-        options?: WebRecordingOptions
-    ): Promise<{ pcmData: Float32Array; compressedBlob?: Blob }> {
+    async stop(): Promise<{ pcmData: Float32Array; compressedBlob?: Blob }> {
         try {
             if (this.compressedMediaRecorder) {
                 this.compressedMediaRecorder.stop()
