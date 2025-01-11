@@ -69,7 +69,6 @@ export interface AudioRecording {
     bitDepth: BitDepth
     sampleRate: SampleRate
     transcripts?: TranscriberData[]
-    wavPCMData?: Float32Array // Full PCM data for the recording in WAV format (only on web, for native use the fileUri)
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
     compression?: CompressionInfo & {
         compressedFileUri: string
@@ -239,22 +238,9 @@ export interface WaveformConfig {
     height?: number // Height of the waveform view in dp (default: 64)
 }
 
-export interface WebRecordingOptions {
-    /**
-     * Web-specific option to skip the final audio data consolidation process.
-     * When true, it will:
-     * - Skip the time-consuming process of concatenating all audio chunks
-     * - Return immediately with the compressed audio (if compression is enabled)
-     * - Improve performance when stopping large recordings
-     * - Useful when only the compressed audio is needed (e.g., when not using transcription)
-     * @default false
-     */
-    skipFinalConsolidation?: boolean
-}
-
 export interface UseAudioRecorderState {
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
-    stopRecording: (options?: WebRecordingOptions) => Promise<AudioRecording | null>
+    stopRecording: () => Promise<AudioRecording | null>
     pauseRecording: () => Promise<void>
     resumeRecording: () => Promise<void>
     isRecording: boolean
