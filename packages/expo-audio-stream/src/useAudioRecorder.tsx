@@ -11,7 +11,6 @@ import {
     ConsoleLike,
     RecordingConfig,
     StartRecordingResult,
-    WebRecordingOptions,
 } from './ExpoAudioStream.types'
 import ExpoAudioStreamModule from './ExpoAudioStreamModule'
 import {
@@ -28,7 +27,7 @@ export interface UseAudioRecorderProps {
 
 export interface UseAudioRecorderState {
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
-    stopRecording: (options?: WebRecordingOptions) => Promise<AudioRecording>
+    stopRecording: () => Promise<AudioRecording>
     pauseRecording: () => Promise<void>
     resumeRecording: () => Promise<void>
     isRecording: boolean

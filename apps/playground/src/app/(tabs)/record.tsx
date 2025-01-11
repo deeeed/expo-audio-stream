@@ -41,6 +41,7 @@ import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
 
 const CHUNK_DURATION_MS = 500 // 500 ms chunks
+const MAX_AUDIO_BUFFER_LENGTH = 48000 * 5; // 5 seconds of audio at 48kHz
 
 const baseRecordingConfig: RecordingConfig = {
     interval: CHUNK_DURATION_MS,
@@ -244,31 +245,32 @@ export default function RecordScreen() {
                     logger.warn(
                         `Invalid base64 data for chunks#${audioChunks.current.length} position=${position}`
                     )
-                } else {
-                    // const binaryString = atob(data)
-                    // const len = binaryString.length
-                    // const bytes = new Uint8Array(len)
-                    // for (let i = 0; i < len; i++) {
-                    //     bytes[i] = binaryString.charCodeAt(i)
-                    // }
-                    // const wavAudioBuffer = bytes.buffer
-                    // liveWavFormBuffer.current[liveWavFormBufferIndex.current] =
-                    //     wavAudioBuffer
-                    // liveWavFormBufferIndex.current =
-                    //     (liveWavFormBufferIndex.current + 1) %
-                    //     LIVE_WAVE_FORM_CHUNKS_LENGTH
                 }
             } else if (data instanceof Float32Array) {
-                // append to webAudioChunks
-                const concatenatedBuffer = new Float32Array(
+                // Keep only a sliding window of audio data
+                const newLength = Math.min(
+                    MAX_AUDIO_BUFFER_LENGTH,
                     webAudioChunks.current.length + data.length
                 )
-                concatenatedBuffer.set(webAudioChunks.current)
-                concatenatedBuffer.set(data, webAudioChunks.current.length)
+                
+                const concatenatedBuffer = new Float32Array(newLength)
+                
+                if (webAudioChunks.current.length + data.length > MAX_AUDIO_BUFFER_LENGTH) {
+                    // If we would exceed max length, copy only the most recent data
+                    const startOffset = (webAudioChunks.current.length + data.length) - MAX_AUDIO_BUFFER_LENGTH
+                    concatenatedBuffer.set(
+                        webAudioChunks.current.slice(startOffset), 
+                        0
+                    )
+                    concatenatedBuffer.set(data, MAX_AUDIO_BUFFER_LENGTH - data.length)
+                } else {
+                    // If we're still under max length, copy everything
+                    concatenatedBuffer.set(webAudioChunks.current)
+                    concatenatedBuffer.set(data, webAudioChunks.current.length)
+                }
+                
                 webAudioChunks.current = concatenatedBuffer
-                // TODO: we should use either the webAudioChunks or the liveWebAudio
                 setLiveWebAudio(webAudioChunks.current)
-                // logger.debug(`TEMP Received audio data ${typeof data}`, data)
             }
         } catch (error) {
             logger.error(`Error while processing audio data`, error)
@@ -337,6 +339,10 @@ export default function RecordScreen() {
         try {
             setStopping(true)
             setProcessing(true)
+
+            // Defer the stop operation to the next tick to let UI update
+            await new Promise(resolve => setTimeout(resolve, 0))
+            
             const result = await stopRecording()
             logger.debug(`Recording stopped. `, result)
 
@@ -345,19 +351,21 @@ export default function RecordScreen() {
                 return
             }
 
-            // Attach transcripts to the result if available
+            // Defer post-processing to let UI breathe
+            await new Promise(resolve => requestAnimationFrame(resolve))
+
+            // Handle live transcription if enabled
             if (enableLiveTranscription) {
                 show({
                     loading: true,
                     message: 'Waiting for transcription to complete',
                 })
-                // wait for end of transcription or timeout within 15 seconds
-                let timeout
+
+                let timeout: NodeJS.Timeout
                 const transcriptions = await Promise.race([
                     new Promise<TranscriberData[]>((resolve) => {
                         timeout = setTimeout(() => {
                             logger.warn(`Timeout waiting for transcriptions`)
-                            // return last received ones in case of timeout
                             resolve(transcripts)
                         }, 15000)
                     }),
@@ -365,45 +373,49 @@ export default function RecordScreen() {
                         transcriptionResolveRef.current = resolve
                     }),
                 ])
-                clearTimeout(timeout)
+                clearTimeout(timeout!)
                 hide()
                 result.transcripts = transcriptions
             }
 
-            if (isWeb && result.wavPCMData) {
-                const audioBuffer = result.wavPCMData.buffer
+            // Defer file storage operations
+            await new Promise(resolve => requestAnimationFrame(resolve))
 
+            setResult(result)
+
+            if (isWeb) {
                 try {
-                    // Store the audio file
+                    let arrayBuffer: ArrayBuffer = new ArrayBuffer(0)
+                    if(result.compression?.compressedFileUri) {
+                        const audioBuffer = result.compression.compressedFileUri
+                        arrayBuffer = await fetch(audioBuffer).then(res => res.arrayBuffer())
+                    }
+
                     await storeAudioFile({
                         fileName: result.filename,
-                        arrayBuffer: audioBuffer,
+                        arrayBuffer,
                         metadata: result,
                     })
 
-                    logger.debug('Audio file stored successfully')
-                    setResult(result)
                     await refreshFiles()
-                } catch (error) {
-                    logger.error('Failed to store audio:', error)
-                    if (error instanceof Error) {
-                        logger.error('Error details:', {
-                            message: error.message,
-                            name: error.name,
-                            stack: error.stack
-                        })
-                    }
-                    throw new Error('Failed to store audio file')
+                    logger.debug('Audio file stored successfully')
+            } catch (error) {
+                logger.error('Failed to store audio:', error)
+                if (error instanceof Error) {
+                    logger.error('Error details:', {
+                        message: error.message,
+                        name: error.name,
+                        stack: error.stack
+                    })
                 }
+                throw new Error('Failed to store audio file')
+            }
             } else {
-                setResult(result)
-                const jsonPath = result.fileUri.replace(/\.wav$/, '.json') // Assuming fileUri has a .wav extension
+                const jsonPath = result.fileUri.replace(/\.wav$/, '.json')
                 await FileSystem.writeAsStringAsync(
                     jsonPath,
                     JSON.stringify(result, null, 2),
-                    {
-                        encoding: FileSystem.EncodingType.UTF8,
-                    }
+                    { encoding: FileSystem.EncodingType.UTF8 }
                 )
                 logger.log(`Metadata saved to ${jsonPath}`)
                 refreshFiles()
@@ -458,8 +470,13 @@ export default function RecordScreen() {
             <Button mode="contained" onPress={pauseRecording}>
                 Pause Recording
             </Button>
-            <Button mode="contained" onPress={() => handleStopRecording()}>
-                Stop Recording
+            <Button 
+                mode="contained" 
+                onPress={() => handleStopRecording()}
+                loading={stopping}
+                disabled={stopping}
+            >
+                {stopping ? 'Stopping...' : 'Stop Recording'}
             </Button>
         </View>
     )

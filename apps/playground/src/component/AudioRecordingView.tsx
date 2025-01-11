@@ -460,21 +460,7 @@ export const AudioRecordingView = ({
                         </Button>
                     )}
 
-                    {isWeb ? (
-                        <Button 
-                            onPress={() => handleSaveToDisk()}
-                            mode="outlined"
-                        >
-                            <View style={styles.iconButton}>
-                                <MaterialCommunityIcons
-                                    name="download"
-                                    size={20}
-                                    color={theme.colors.primary}
-                                />
-                                <Text>Save</Text>
-                            </View>
-                        </Button>
-                    ) : (
+                    {!isWeb && (
                         <Button 
                             onPress={() => handleShare()}
                             mode="outlined"
@@ -504,7 +490,7 @@ export const AudioRecordingView = ({
                                     size={20}
                                     color={theme.colors.primary}
                                 />
-                                <Text>{isWeb ? 'Compressed' : 'Share Compressed'}</Text>
+                                <Text>{isWeb ? 'Save' : 'Share Compressed'}</Text>
                             </View>
                         </Button>
                     )}
