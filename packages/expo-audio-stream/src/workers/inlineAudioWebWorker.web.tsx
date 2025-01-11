@@ -17,11 +17,13 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.numberOfChannels = 1 // Default to 1 channel (mono)
         this.isRecording = true
         this.port.onmessage = this.handleMessage.bind(this)
+        this.logger = undefined
     }
 
     handleMessage(event) {
         switch (event.data.command) {
             case 'init':
+                this.logger = event.data.logger
                 this.recordSampleRate = event.data.recordSampleRate
                 this.exportSampleRate =
                     event.data.exportSampleRate || event.data.recordSampleRate
@@ -37,6 +39,11 @@ class RecorderProcessor extends AudioWorkletProcessor {
                     event.data.exportBitDepth ||
                     this.recordBitDepth ||
                     DEFAULT_BIT_DEPTH
+                if (this.logger) {
+                    this.logger.debug(
+                        \`RecorderProcessor -- Initializing with recordSampleRate: \${this.recordSampleRate}, exportSampleRate: \${this.exportSampleRate}, exportIntervalSamples: \${this.exportIntervalSamples}\`
+                    )
+                }
                 break
             case 'stop':
                 this.isRecording = false
@@ -93,10 +100,12 @@ class RecorderProcessor extends AudioWorkletProcessor {
             const s = Math.max(-1, Math.min(1, input[i]))
             output[i] = s < 0 ? s * 0x8000 : s * 0x7fff
         }
-        console.debug(
-            'RecorderProcessor Float to 16-bit PCM conversion complete. Output byte length:',
-            output.byteLength
-        )
+        if (this.logger) {
+            this.logger.debug(
+                'RecorderProcessor Float to 16-bit PCM conversion complete. Output byte length:',
+                output.byteLength
+            )
+        }
         return output
     }
 
@@ -106,10 +115,12 @@ class RecorderProcessor extends AudioWorkletProcessor {
             const s = Math.max(-1, Math.min(1, input[i]))
             output[i] = s < 0 ? s * 0x80000000 : s * 0x7fffffff
         }
-        console.debug(
-            'RecorderProcessor Float to 32-bit PCM conversion complete. Output byte length:',
-            output.byteLength
-        )
+        if (this.logger) {
+            this.logger.debug(
+                'RecorderProcessor Float to 32-bit PCM conversion complete. Output byte length:',
+                output.byteLength
+            )
+        }
         return output
     }
 
@@ -193,9 +204,23 @@ class RecorderProcessor extends AudioWorkletProcessor {
             }
         }
 
-        const originalSize = mergedBuffer.byteLength
-        const resampledSize = resampledBuffer.byteLength
-        const finalSize = finalBuffer.byteLength
+        if (this.logger) {
+            this.logger.debug(
+                \`RecorderProcessor - Original buffer length: \${mergedBuffer.byteLength}\`
+            )
+            this.logger.debug(
+                \`RecorderProcessor - Resampled buffer length: \${resampledBuffer.byteLength}\`
+            )
+            this.logger.debug(
+                \`RecorderProcessor - Final buffer length (after conversion): \${finalBuffer.byteLength}\`
+            )
+            this.logger.debug(
+                \`RecorderProcessor - Resampled buffer size ratio: \${(resampledBuffer.byteLength / mergedBuffer.byteLength).toFixed(2)}\`
+            )
+            this.logger.debug(
+                \`RecorderProcessor - Final buffer size ratio: \${(finalBuffer.byteLength / mergedBuffer.byteLength).toFixed(2)}\`
+            )
+        }
 
         // Clear the new recorded buffers after they have been processed
         this.newRecBuffer.length = 0
@@ -217,6 +242,12 @@ class RecorderProcessor extends AudioWorkletProcessor {
     }
 
     async getAllRecordedData() {
+        if (this.logger) {
+            this.logger.debug(
+                \`RecorderProcessor - getAllRecordedData - sampleRate: \${this.recordSampleRate}\`
+            )
+        }
+
         const length = this.recordedBuffers.reduce(
             (acc, buffer) => acc + buffer.length,
             0
@@ -236,9 +267,23 @@ class RecorderProcessor extends AudioWorkletProcessor {
             }
         }
 
-        const originalSize = mergedBuffer.byteLength
-        const resampledSize = resampledBuffer.byteLength
-        const finalSize = finalBuffer.byteLength
+        if (this.logger) {
+            this.logger.debug(
+                \`RecorderProcessor - Original buffer length: \${mergedBuffer.byteLength}\`
+            )
+            this.logger.debug(
+                \`RecorderProcessor - Resampled buffer length: \${resampledBuffer.byteLength}\`
+            )
+            this.logger.debug(
+                \`RecorderProcessor - Final buffer length (after conversion): \${finalBuffer.byteLength}\`
+            )
+            this.logger.debug(
+                \`RecorderProcessor - Resampled buffer size ratio: \${(resampledBuffer.byteLength / mergedBuffer.byteLength).toFixed(2)}\`
+            )
+            this.logger.debug(
+                \`RecorderProcessor - Final buffer size ratio: \${(finalBuffer.byteLength / mergedBuffer.byteLength).toFixed(2)}\`
+            )
+        }
 
         this.recordedBuffers.length = 0 // Clear the buffers after extraction
 

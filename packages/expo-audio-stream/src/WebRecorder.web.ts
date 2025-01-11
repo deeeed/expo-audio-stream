@@ -39,6 +39,14 @@ const DEFAULT_ALGORITHM = 'rms'
 
 const TAG = 'WebRecorder'
 
+const STOP_PERFORMANCE_MARKS = {
+    STOP_INITIATED: 'stopInitiated',
+    COMPRESSED_RECORDING_STOP: 'compressedRecordingStop',
+    AUDIO_WORKLET_STOP: 'audioWorkletStop',
+    CLEANUP: 'cleanup',
+    TOTAL_STOP_TIME: 'totalStopTime',
+} as const
+
 export class WebRecorder {
     private audioContext: AudioContext
     private audioWorkletNode!: AudioWorkletNode
@@ -359,12 +367,21 @@ export class WebRecorder {
     async stop(
         options?: WebRecordingOptions
     ): Promise<{ pcmData: Float32Array; compressedBlob?: Blob }> {
+        const stopStartTime = performance.now()
+        this.logger?.debug(
+            `[Performance][${STOP_PERFORMANCE_MARKS.STOP_INITIATED}] Starting stop process`
+        )
+
         let isCleanupDone = false
 
         const cleanup = () => {
             if (isCleanupDone) return
-            isCleanupDone = true
+            const cleanupStart = performance.now()
+            this.logger?.debug(
+                `[Performance][${STOP_PERFORMANCE_MARKS.CLEANUP}] Starting cleanup`
+            )
 
+            isCleanupDone = true
             if (this.audioContext) {
                 this.audioContext.close()
             }
@@ -376,11 +393,15 @@ export class WebRecorder {
             }
 
             this.stopMediaStreamTracks()
+
+            this.logger?.debug(
+                `[Performance][${STOP_PERFORMANCE_MARKS.CLEANUP}] Cleanup completed in ${performance.now() - cleanupStart}ms`
+            )
         }
 
         try {
             this.logger?.debug(
-                `Stopping WebRecorder ${this.audioChunks.length} chunks - this.compressedChunks.length=${this.compressedChunks.length}`
+                `[Performance] Stopping WebRecorder with ${this.audioChunks.length} chunks, compressed chunks: ${this.compressedChunks.length}`
             )
 
             // If skipFinalConsolidation is true and we have compressed data, return early
@@ -416,10 +437,14 @@ export class WebRecorder {
                 ),
             ])) as { pcmData: Float32Array; compressedBlob?: Blob }
 
+            const totalTime = performance.now() - stopStartTime
+            this.logger?.debug(
+                `[Performance][${STOP_PERFORMANCE_MARKS.TOTAL_STOP_TIME}] Total stop time: ${totalTime}ms`
+            )
+
             return result
         } catch (error) {
-            this.logger?.error('Error stopping recording:', error)
-            // Return current buffer instead of rejecting
+            this.logger?.error('[Performance] Error stopping recording:', error)
             return {
                 pcmData: this.audioBuffer || new Float32Array(),
                 compressedBlob: this.compressedMediaRecorder
@@ -438,11 +463,17 @@ export class WebRecorder {
         pcmData: Float32Array
         compressedBlob?: Blob
     }> {
+        const processStartTime = performance.now()
+        this.logger?.debug('[Performance] Starting recording stop process')
+
         const [compressedData, workletData] = await Promise.all([
             this.stopCompressedRecording(),
             this.stopAudioWorklet(),
         ])
 
+        this.logger?.debug(
+            `[Performance] Recording stop process completed in ${performance.now() - processStartTime}ms`
+        )
         return {
             pcmData: workletData || this.audioBuffer,
             compressedBlob: compressedData,
@@ -451,15 +482,25 @@ export class WebRecorder {
 
     // Helper method to stop compressed recording
     private stopCompressedRecording(): Promise<Blob | undefined> {
-        if (!this.compressedMediaRecorder) return Promise.resolve(undefined)
+        const startTime = performance.now()
+        this.logger?.debug(
+            `[Performance][${STOP_PERFORMANCE_MARKS.COMPRESSED_RECORDING_STOP}] Starting compressed recording stop`
+        )
+
+        if (!this.compressedMediaRecorder) {
+            this.logger?.debug('[Performance] No compressed recorder to stop')
+            return Promise.resolve(undefined)
+        }
 
         return new Promise((resolve) => {
             this.compressedMediaRecorder!.onstop = () => {
-                resolve(
-                    new Blob(this.compressedChunks, {
-                        type: 'audio/webm;codecs=opus',
-                    })
+                const blob = new Blob(this.compressedChunks, {
+                    type: 'audio/webm;codecs=opus',
+                })
+                this.logger?.debug(
+                    `[Performance][${STOP_PERFORMANCE_MARKS.COMPRESSED_RECORDING_STOP}] Compressed recording stopped in ${performance.now() - startTime}ms, size: ${blob.size}`
                 )
+                resolve(blob)
             }
             this.compressedMediaRecorder!.stop()
         })
@@ -467,7 +508,15 @@ export class WebRecorder {
 
     // Helper method to stop audio worklet
     private stopAudioWorklet(): Promise<Float32Array | undefined> {
-        if (!this.audioWorkletNode) return Promise.resolve(undefined)
+        const startTime = performance.now()
+        this.logger?.debug(
+            `[Performance][${STOP_PERFORMANCE_MARKS.AUDIO_WORKLET_STOP}] Starting audio worklet stop`
+        )
+
+        if (!this.audioWorkletNode) {
+            this.logger?.debug('[Performance] No audio worklet to stop')
+            return Promise.resolve(undefined)
+        }
 
         return new Promise((resolve) => {
             const onMessage = (event: AudioWorkletEvent) => {
@@ -479,18 +528,31 @@ export class WebRecorder {
                     const rawPCMDataFull = event.data.recordedData?.slice(0)
 
                     if (!rawPCMDataFull) {
+                        this.logger?.debug('[Performance] No PCM data received')
                         resolve(undefined)
                         return
                     }
 
                     if (this.exportBitDepth !== this.bitDepth) {
+                        const conversionStart = performance.now()
                         convertPCMToFloat32({
                             buffer: rawPCMDataFull.buffer,
                             bitDepth: this.exportBitDepth,
                             skipWavHeader: true,
                             logger: this.logger,
-                        }).then(({ pcmValues }) => resolve(pcmValues))
+                        }).then(({ pcmValues }) => {
+                            this.logger?.debug(
+                                `[Performance] PCM conversion completed in ${performance.now() - conversionStart}ms`
+                            )
+                            this.logger?.debug(
+                                `[Performance][${STOP_PERFORMANCE_MARKS.AUDIO_WORKLET_STOP}] Audio worklet stopped in ${performance.now() - startTime}ms`
+                            )
+                            resolve(pcmValues)
+                        })
                     } else {
+                        this.logger?.debug(
+                            `[Performance][${STOP_PERFORMANCE_MARKS.AUDIO_WORKLET_STOP}] Audio worklet stopped in ${performance.now() - startTime}ms`
+                        )
                         resolve(rawPCMDataFull)
                     }
                 }
