@@ -337,6 +337,10 @@ export default function RecordScreen() {
         try {
             setStopping(true)
             setProcessing(true)
+
+            // Defer the stop operation to the next tick to let UI update
+            await new Promise(resolve => setTimeout(resolve, 0))
+            
             const result = await stopRecording()
             logger.debug(`Recording stopped. `, result)
 
@@ -345,19 +349,21 @@ export default function RecordScreen() {
                 return
             }
 
-            // Attach transcripts to the result if available
+            // Defer post-processing to let UI breathe
+            await new Promise(resolve => requestAnimationFrame(resolve))
+
+            // Handle live transcription if enabled
             if (enableLiveTranscription) {
                 show({
                     loading: true,
                     message: 'Waiting for transcription to complete',
                 })
-                // wait for end of transcription or timeout within 15 seconds
-                let timeout
+
+                let timeout: NodeJS.Timeout
                 const transcriptions = await Promise.race([
                     new Promise<TranscriberData[]>((resolve) => {
                         timeout = setTimeout(() => {
                             logger.warn(`Timeout waiting for transcriptions`)
-                            // return last received ones in case of timeout
                             resolve(transcripts)
                         }, 15000)
                     }),
@@ -365,16 +371,18 @@ export default function RecordScreen() {
                         transcriptionResolveRef.current = resolve
                     }),
                 ])
-                clearTimeout(timeout)
+                clearTimeout(timeout!)
                 hide()
                 result.transcripts = transcriptions
             }
+
+            // Defer file storage operations
+            await new Promise(resolve => requestAnimationFrame(resolve))
 
             if (isWeb && result.wavPCMData) {
                 const audioBuffer = result.wavPCMData.buffer
 
                 try {
-                    // Store the audio file
                     await storeAudioFile({
                         fileName: result.filename,
                         arrayBuffer: audioBuffer,
@@ -397,13 +405,11 @@ export default function RecordScreen() {
                 }
             } else {
                 setResult(result)
-                const jsonPath = result.fileUri.replace(/\.wav$/, '.json') // Assuming fileUri has a .wav extension
+                const jsonPath = result.fileUri.replace(/\.wav$/, '.json')
                 await FileSystem.writeAsStringAsync(
                     jsonPath,
                     JSON.stringify(result, null, 2),
-                    {
-                        encoding: FileSystem.EncodingType.UTF8,
-                    }
+                    { encoding: FileSystem.EncodingType.UTF8 }
                 )
                 logger.log(`Metadata saved to ${jsonPath}`)
                 refreshFiles()
@@ -458,8 +464,13 @@ export default function RecordScreen() {
             <Button mode="contained" onPress={pauseRecording}>
                 Pause Recording
             </Button>
-            <Button mode="contained" onPress={() => handleStopRecording()}>
-                Stop Recording
+            <Button 
+                mode="contained" 
+                onPress={() => handleStopRecording()}
+                loading={stopping}
+                disabled={stopping}
+            >
+                {stopping ? 'Stopping...' : 'Stop Recording'}
             </Button>
         </View>
     )
