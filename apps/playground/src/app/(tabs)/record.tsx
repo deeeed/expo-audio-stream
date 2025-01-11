@@ -41,6 +41,7 @@ import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
 
 const CHUNK_DURATION_MS = 500 // 500 ms chunks
+const MAX_AUDIO_BUFFER_LENGTH = 48000 * 5; // 5 seconds of audio at 48kHz
 
 const baseRecordingConfig: RecordingConfig = {
     interval: CHUNK_DURATION_MS,
@@ -244,31 +245,32 @@ export default function RecordScreen() {
                     logger.warn(
                         `Invalid base64 data for chunks#${audioChunks.current.length} position=${position}`
                     )
-                } else {
-                    // const binaryString = atob(data)
-                    // const len = binaryString.length
-                    // const bytes = new Uint8Array(len)
-                    // for (let i = 0; i < len; i++) {
-                    //     bytes[i] = binaryString.charCodeAt(i)
-                    // }
-                    // const wavAudioBuffer = bytes.buffer
-                    // liveWavFormBuffer.current[liveWavFormBufferIndex.current] =
-                    //     wavAudioBuffer
-                    // liveWavFormBufferIndex.current =
-                    //     (liveWavFormBufferIndex.current + 1) %
-                    //     LIVE_WAVE_FORM_CHUNKS_LENGTH
                 }
             } else if (data instanceof Float32Array) {
-                // append to webAudioChunks
-                const concatenatedBuffer = new Float32Array(
+                // Keep only a sliding window of audio data
+                const newLength = Math.min(
+                    MAX_AUDIO_BUFFER_LENGTH,
                     webAudioChunks.current.length + data.length
                 )
-                concatenatedBuffer.set(webAudioChunks.current)
-                concatenatedBuffer.set(data, webAudioChunks.current.length)
+                
+                const concatenatedBuffer = new Float32Array(newLength)
+                
+                if (webAudioChunks.current.length + data.length > MAX_AUDIO_BUFFER_LENGTH) {
+                    // If we would exceed max length, copy only the most recent data
+                    const startOffset = (webAudioChunks.current.length + data.length) - MAX_AUDIO_BUFFER_LENGTH
+                    concatenatedBuffer.set(
+                        webAudioChunks.current.slice(startOffset), 
+                        0
+                    )
+                    concatenatedBuffer.set(data, MAX_AUDIO_BUFFER_LENGTH - data.length)
+                } else {
+                    // If we're still under max length, copy everything
+                    concatenatedBuffer.set(webAudioChunks.current)
+                    concatenatedBuffer.set(data, webAudioChunks.current.length)
+                }
+                
                 webAudioChunks.current = concatenatedBuffer
-                // TODO: we should use either the webAudioChunks or the liveWebAudio
                 setLiveWebAudio(webAudioChunks.current)
-                // logger.debug(`TEMP Received audio data ${typeof data}`, data)
             }
         } catch (error) {
             logger.error(`Error while processing audio data`, error)
@@ -379,32 +381,36 @@ export default function RecordScreen() {
             // Defer file storage operations
             await new Promise(resolve => requestAnimationFrame(resolve))
 
-            if (isWeb && result.wavPCMData) {
-                const audioBuffer = result.wavPCMData.buffer
+            setResult(result)
 
+            if (isWeb) {
                 try {
+                    let arrayBuffer: ArrayBuffer = new ArrayBuffer(0)
+                    if(result.compression?.compressedFileUri) {
+                        const audioBuffer = result.compression.compressedFileUri
+                        arrayBuffer = await fetch(audioBuffer).then(res => res.arrayBuffer())
+                    }
+
                     await storeAudioFile({
                         fileName: result.filename,
-                        arrayBuffer: audioBuffer,
+                        arrayBuffer,
                         metadata: result,
                     })
 
-                    logger.debug('Audio file stored successfully')
-                    setResult(result)
                     await refreshFiles()
-                } catch (error) {
-                    logger.error('Failed to store audio:', error)
-                    if (error instanceof Error) {
-                        logger.error('Error details:', {
-                            message: error.message,
-                            name: error.name,
-                            stack: error.stack
-                        })
-                    }
-                    throw new Error('Failed to store audio file')
+                    logger.debug('Audio file stored successfully')
+            } catch (error) {
+                logger.error('Failed to store audio:', error)
+                if (error instanceof Error) {
+                    logger.error('Error details:', {
+                        message: error.message,
+                        name: error.name,
+                        stack: error.stack
+                    })
                 }
+                throw new Error('Failed to store audio file')
+            }
             } else {
-                setResult(result)
                 const jsonPath = result.fileUri.replace(/\.wav$/, '.json')
                 await FileSystem.writeAsStringAsync(
                     jsonPath,

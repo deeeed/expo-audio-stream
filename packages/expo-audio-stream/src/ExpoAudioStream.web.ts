@@ -14,7 +14,6 @@ import {
 import { WebRecorder } from './WebRecorder.web'
 import { AudioEventPayload } from './events'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
-import { writeWavHeader } from './utils/writeWavHeader'
 
 export interface EmitAudioEventProps {
     data: Float32Array
@@ -35,6 +34,7 @@ export interface ExpoAudioStreamWebProps {
     logger?: ConsoleLike
     audioWorkletUrl: string
     featuresExtratorUrl: string
+    maxBufferSize?: number // Maximum number of chunks to keep in memory
 }
 
 export class ExpoAudioStreamWeb extends LegacyEventEmitter {
@@ -59,11 +59,13 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
     logger?: ConsoleLike
     latestPosition: number = 0
     totalCompressedSize: number = 0
+    private readonly maxBufferSize: number
 
     constructor({
         audioWorkletUrl,
         featuresExtratorUrl,
         logger,
+        maxBufferSize = 100, // Default to storing last 100 chunks (1 chunk = 0.5 seconds)
     }: ExpoAudioStreamWebProps) {
         const mockNativeModule = {
             addListener: () => {
@@ -93,6 +95,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         this.streamUuid = null // Initialize UUID on first recording start
         this.audioWorkletUrl = audioWorkletUrl
         this.featuresExtratorUrl = featuresExtratorUrl
+        this.maxBufferSize = maxBufferSize
     }
 
     // Utility to handle user media stream
@@ -134,7 +137,11 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                 position,
                 compression,
             }: EmitAudioEventProps) => {
+                // Keep only the latest chunks based on maxBufferSize
                 this.audioChunks.push(new Float32Array(data))
+                if (this.audioChunks.length > this.maxBufferSize) {
+                    this.audioChunks.shift() // Remove oldest chunk
+                }
                 this.currentSize += data.byteLength
                 this.emitAudioEvent({ data, position, compression })
                 this.lastEmittedTime = Date.now()
@@ -225,136 +232,58 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             throw new Error('Recorder is not initialized')
         }
 
-        this.logger?.debug('[Stop] Starting non-blocking stop process')
+        this.logger?.debug('[Stop] Starting stop process')
         const startTime = performance.now()
 
-        // Create a promise to handle the PCM data processing
-        return new Promise<AudioRecording>((resolve) => {
-            // Step 1: Stop the recorder in the next frame
-            requestAnimationFrame(async () => {
-                try {
-                    this.logger?.debug('[Stop] Stopping recorder')
-                    const { pcmData, compressedBlob } =
-                        await this.customRecorder!.stop(options)
-                    this.logger?.debug(
-                        '[Stop] Recorder stopped, processing data',
-                        {
-                            pcmDataLength: pcmData.length,
-                            hasCompressedBlob: !!compressedBlob,
-                        }
-                    )
+        try {
+            this.logger?.debug('[Stop] Stopping recorder')
+            const { compressedBlob } = await this.customRecorder.stop(options)
 
-                    this.isRecording = false
-                    this.isPaused = false
-                    this.currentDurationMs =
-                        Date.now() - this.recordingStartTime
+            this.isRecording = false
+            this.isPaused = false
+            this.currentDurationMs = Date.now() - this.recordingStartTime
 
-                    // Step 2: Process WAV header in the next frame
-                    requestAnimationFrame(() => {
-                        try {
-                            this.logger?.debug('[Stop] Creating WAV header', {
-                                hasPcmData: !!pcmData,
-                                pcmDataLength: pcmData?.length ?? 0,
-                                pcmBufferSize: pcmData?.buffer?.byteLength ?? 0,
-                            })
+            let compression: AudioRecording['compression']
+            let fileUri = `${this.streamUuid}.${this.extension}`
+            let mimeType = `audio/${this.extension}`
 
-                            if (!pcmData?.buffer) {
-                                throw new Error(
-                                    'No PCM data available for WAV header creation'
-                                )
-                            }
-
-                            const wavBuffer = writeWavHeader({
-                                buffer: pcmData.buffer,
-                                sampleRate:
-                                    this.recordingConfig?.sampleRate ?? 44100,
-                                numChannels:
-                                    this.recordingConfig?.channels ?? 1,
-                                bitDepth: this.bitDepth,
-                            })
-
-                            // Step 3: Create blobs and URLs in the next frame
-                            requestAnimationFrame(() => {
-                                try {
-                                    this.logger?.debug(
-                                        '[Stop] Creating blobs and URLs'
-                                    )
-                                    const cloneableBuffer = wavBuffer.slice(0)
-                                    const blob = new Blob([cloneableBuffer], {
-                                        type: `audio/${this.extension}`,
-                                    })
-                                    const fileUri = URL.createObjectURL(blob)
-
-                                    let compression: AudioRecording['compression']
-                                    if (
-                                        compressedBlob &&
-                                        this.recordingConfig?.compression
-                                            ?.enabled
-                                    ) {
-                                        const compressedUri =
-                                            URL.createObjectURL(compressedBlob)
-                                        compression = {
-                                            compressedFileUri: compressedUri,
-                                            size: compressedBlob.size,
-                                            mimeType: 'audio/webm',
-                                            format: 'opus',
-                                            bitrate:
-                                                this.recordingConfig.compression
-                                                    .bitrate ?? 128000,
-                                        }
-                                    }
-
-                                    this.logger?.debug(
-                                        `[Stop] Complete non-blocking stop process in ${performance.now() - startTime}ms`,
-                                        {
-                                            size: this.currentSize,
-                                            durationMs: this.currentDurationMs,
-                                            compressedSize: compression?.size,
-                                        }
-                                    )
-
-                                    resolve({
-                                        fileUri,
-                                        filename: `${this.streamUuid}.${this.extension}`,
-                                        wavPCMData: new Float32Array(
-                                            cloneableBuffer
-                                        ),
-                                        bitDepth: this.bitDepth,
-                                        channels:
-                                            this.recordingConfig?.channels ?? 1,
-                                        sampleRate:
-                                            this.recordingConfig?.sampleRate ??
-                                            44100,
-                                        durationMs: this.currentDurationMs,
-                                        size: this.currentSize,
-                                        mimeType: `audio/${this.extension}`,
-                                        compression,
-                                    })
-                                } catch (error) {
-                                    this.logger?.error(
-                                        '[Stop] Error in final processing:',
-                                        error
-                                    )
-                                    throw error
-                                }
-                            })
-                        } catch (error) {
-                            this.logger?.error(
-                                '[Stop] Error in WAV header creation:',
-                                error
-                            )
-                            throw error
-                        }
-                    })
-                } catch (error) {
-                    this.logger?.error(
-                        '[Stop] Error in initial stop process:',
-                        error
-                    )
-                    throw error
+            if (compressedBlob && this.recordingConfig?.compression?.enabled) {
+                const compressedUri = URL.createObjectURL(compressedBlob)
+                compression = {
+                    compressedFileUri: compressedUri,
+                    size: compressedBlob.size,
+                    mimeType: 'audio/webm',
+                    format: 'opus',
+                    bitrate: this.recordingConfig.compression.bitrate ?? 128000,
                 }
-            })
-        })
+                // Use compressed values when compression is enabled
+                fileUri = compressedUri
+                mimeType = 'audio/webm'
+            }
+
+            this.logger?.debug(
+                `[Stop] Completed stop process in ${performance.now() - startTime}ms`,
+                {
+                    durationMs: this.currentDurationMs,
+                    compressedSize: compression?.size,
+                }
+            )
+
+            return {
+                fileUri,
+                filename: `${this.streamUuid}.${this.extension}`,
+                bitDepth: this.bitDepth,
+                channels: this.recordingConfig?.channels ?? 1,
+                sampleRate: this.recordingConfig?.sampleRate ?? 44100,
+                durationMs: this.currentDurationMs,
+                size: this.currentSize,
+                mimeType,
+                compression,
+            }
+        } catch (error) {
+            this.logger?.error('[Stop] Error stopping recording:', error)
+            throw error
+        }
     }
 
     // Pause recording

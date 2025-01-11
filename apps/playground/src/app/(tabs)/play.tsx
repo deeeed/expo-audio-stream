@@ -277,7 +277,6 @@ export const PlayPage = () => {
 
     const saveToFiles = useCallback(async () => {
         let wavMetadata: WavFileInfo | undefined
-        let audioBuffer: Float32Array | undefined
         let arrayBuffer: ArrayBuffer | undefined
 
         if (!fileName || !audioUri) {
@@ -339,7 +338,6 @@ export const PlayPage = () => {
             logger.log('Saving file to files:', audioResult)
 
             if (isWeb) {
-                audioResult.wavPCMData = audioBuffer
                 // Store the audio file and metadata in IndexedDB
                 await storeAudioFile({
                     fileName: audioResult.fileUri,

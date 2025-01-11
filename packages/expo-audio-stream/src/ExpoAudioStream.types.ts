@@ -69,7 +69,6 @@ export interface AudioRecording {
     bitDepth: BitDepth
     sampleRate: SampleRate
     transcripts?: TranscriberData[]
-    wavPCMData?: Float32Array // Full PCM data for the recording in WAV format (only on web, for native use the fileUri)
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
     compression?: CompressionInfo & {
         compressedFileUri: string

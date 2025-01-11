@@ -56,12 +56,10 @@ export class WebRecorder {
     private emitAudioEventCallback: EmitAudioEventFunction
     private emitAudioAnalysisCallback: EmitAudioAnalysisFunction
     private config: RecordingConfig
-    private position: number // Track the cumulative position
+    private position: number = 0
     private numberOfChannels: number // Number of audio channels
     private bitDepth: number // Bit depth of the audio
     private exportBitDepth: number // Bit depth of the audio
-    private audioBuffer: Float32Array // Single buffer to store the audio data
-    private audioBufferSize: number // Keep track of the buffer size
     private audioAnalysisData: AudioAnalysis // Keep updating the full audio analysis data with latest events
     private packetCount: number = 0
     private logger?: ConsoleLike
@@ -69,7 +67,7 @@ export class WebRecorder {
     private compressedChunks: Blob[] = []
     private compressedSize: number = 0
     private pendingCompressedChunk: Blob | null = null
-    private audioChunks: Float32Array[] = []
+    private readonly wavMimeType = 'audio/wav'
 
     constructor({
         audioContext,
@@ -94,7 +92,6 @@ export class WebRecorder {
         this.emitAudioEventCallback = emitAudioEventCallback
         this.emitAudioAnalysisCallback = emitAudioAnalysisCallback
         this.config = recordingConfig
-        this.position = 0
         this.logger = logger
 
         const audioContextFormat = this.checkAudioContextFormat({
@@ -116,10 +113,6 @@ export class WebRecorder {
             }) ||
             audioContextFormat.bitDepth ||
             DEFAULT_WEB_BITDEPTH
-
-        // Initialize the audio buffer separately
-        this.audioBuffer = new Float32Array(0)
-        this.audioBufferSize = 0
 
         this.audioAnalysisData = {
             amplitudeRange: { min: 0, max: 0 },
@@ -167,85 +160,70 @@ export class WebRecorder {
                 event: AudioWorkletEvent
             ) => {
                 const command = event.data.command
-                if (command !== 'newData') {
-                    return
-                }
-                const pcmBufferFloat = event.data.recordedData
+                if (command !== 'newData') return
 
+                const pcmBufferFloat = event.data.recordedData
                 if (!pcmBufferFloat) {
                     this.logger?.warn('Received empty audio buffer', event)
                     return
                 }
 
-                // Store chunks instead of concatenating
-                this.audioChunks.push(pcmBufferFloat)
-                this.audioBufferSize += pcmBufferFloat.length
-
+                // Process data in smaller chunks and emit immediately
+                const chunkSize = this.audioContext.sampleRate * 2 // Reduce to 2 seconds chunks
                 const sampleRate =
                     event.data.sampleRate ?? this.audioContext.sampleRate
-                const duration = pcmBufferFloat.length / sampleRate // Calculate duration of the current buffer
+                const duration = pcmBufferFloat.length / sampleRate
 
-                let data: Float32Array
-                if (this.packetCount === 0) {
-                    // Initialize WAV header
-                    const wavHeaderBuffer = writeWavHeader({
-                        sampleRate: this.audioContext.sampleRate,
-                        numChannels: this.numberOfChannels,
-                        bitDepth: this.exportBitDepth,
-                    })
+                // Emit chunks without storing them
+                for (let i = 0; i < pcmBufferFloat.length; i += chunkSize) {
+                    const chunk = pcmBufferFloat.slice(i, i + chunkSize)
+                    const chunkPosition = this.position + i / sampleRate
 
-                    // For the first packet, combine WAV header with audio data
-                    const headerFloatArray = new Float32Array(wavHeaderBuffer)
-                    data = new Float32Array(
-                        headerFloatArray.length + this.audioBuffer.length
-                    )
-                    data.set(headerFloatArray, 0)
-                    data.set(this.audioBuffer, headerFloatArray.length)
-                } else {
-                    // For subsequent packets, just send the new audio data
-                    data = pcmBufferFloat
-                }
-
-                // Track the number of packets
-                this.packetCount += 1
-
-                // Prepare compression data if available
-                let compressionData
-                if (this.pendingCompressedChunk) {
-                    compressionData = {
-                        data: this.pendingCompressedChunk,
-                        size: this.pendingCompressedChunk.size,
-                        totalSize: this.compressedSize,
-                        mimeType: 'audio/webm',
-                        format: 'opus',
-                        bitrate: this.config.compression?.bitrate ?? 128000,
+                    // Process features if enabled
+                    if (
+                        this.config.enableProcessing &&
+                        this.featureExtractorWorker
+                    ) {
+                        this.featureExtractorWorker.postMessage(
+                            {
+                                command: 'process',
+                                channelData: chunk,
+                                logger: this.logger,
+                                sampleRate,
+                                pointsPerSecond:
+                                    this.config.pointsPerSecond ||
+                                    DEFAULT_WEB_POINTS_PER_SECOND,
+                                algorithm: this.config.algorithm || 'rms',
+                                bitDepth: this.bitDepth,
+                                fullAudioDurationMs: this.position * 1000,
+                                numberOfChannels: this.numberOfChannels,
+                                features: this.config.features,
+                            },
+                            []
+                        )
                     }
-                    this.pendingCompressedChunk = null
+
+                    // Emit chunk immediately
+                    this.emitAudioEventCallback({
+                        data: chunk,
+                        position: chunkPosition,
+                        compression: this.pendingCompressedChunk
+                            ? {
+                                  data: this.pendingCompressedChunk,
+                                  size: this.pendingCompressedChunk.size,
+                                  totalSize: this.compressedSize,
+                                  mimeType: 'audio/webm',
+                                  format: 'opus',
+                                  bitrate:
+                                      this.config.compression?.bitrate ??
+                                      128000,
+                              }
+                            : undefined,
+                    })
                 }
 
-                this.emitAudioEventCallback({
-                    data: pcmBufferFloat,
-                    position: this.position,
-                    compression: compressionData,
-                })
-                this.position += duration // Update position
-
-                this.featureExtractorWorker?.postMessage(
-                    {
-                        command: 'process',
-                        channelData: pcmBufferFloat,
-                        sampleRate,
-                        pointsPerSecond:
-                            this.config.pointsPerSecond ||
-                            DEFAULT_WEB_POINTS_PER_SECOND,
-                        algorithm: this.config.algorithm || 'rms',
-                        bitDepth: this.bitDepth,
-                        fullAudioDurationMs: this.position * 1000,
-                        numberOfChannels: this.numberOfChannels,
-                        features: this.config.features,
-                    },
-                    []
-                )
+                this.position += duration
+                this.pendingCompressedChunk = null
             }
 
             this.logger?.debug(
@@ -254,6 +232,7 @@ export class WebRecorder {
             )
             this.audioWorkletNode.port.postMessage({
                 command: 'init',
+                logger: this.logger,
                 recordSampleRate: this.audioContext.sampleRate, // Pass the original sample rate
                 exportSampleRate:
                     this.config.sampleRate ?? this.audioContext.sampleRate,
@@ -367,95 +346,33 @@ export class WebRecorder {
     async stop(
         options?: WebRecordingOptions
     ): Promise<{ pcmData: Float32Array; compressedBlob?: Blob }> {
-        const stopStartTime = performance.now()
-        this.logger?.debug(
-            `[Performance][${STOP_PERFORMANCE_MARKS.STOP_INITIATED}] Starting stop process`
-        )
-
-        let isCleanupDone = false
-
-        const cleanup = () => {
-            if (isCleanupDone) return
-            const cleanupStart = performance.now()
-            this.logger?.debug(
-                `[Performance][${STOP_PERFORMANCE_MARKS.CLEANUP}] Starting cleanup`
-            )
-
-            isCleanupDone = true
-            if (this.audioContext) {
-                this.audioContext.close()
-            }
-            if (this.audioWorkletNode) {
-                this.audioWorkletNode.disconnect()
-            }
-            if (this.source) {
-                this.source.disconnect()
-            }
-
-            this.stopMediaStreamTracks()
-
-            this.logger?.debug(
-                `[Performance][${STOP_PERFORMANCE_MARKS.CLEANUP}] Cleanup completed in ${performance.now() - cleanupStart}ms`
-            )
-        }
-
         try {
-            this.logger?.debug(
-                `[Performance] Stopping WebRecorder with ${this.audioChunks.length} chunks, compressed chunks: ${this.compressedChunks.length}`
-            )
-
-            // If skipFinalConsolidation is true and we have compressed data, return early
-            if (
-                options?.skipFinalConsolidation &&
-                this.compressedMediaRecorder
-            ) {
-                return new Promise((resolve) => {
-                    this.compressedMediaRecorder!.onstop = () => {
-                        const compressedBlob = new Blob(this.compressedChunks, {
-                            type: 'audio/webm;codecs=opus',
-                        })
-                        // Return the last chunk as pcmData to maintain interface compatibility
-                        resolve({
-                            pcmData:
-                                this.audioChunks[this.audioChunks.length - 1] ||
-                                new Float32Array(),
-                            compressedBlob,
-                        })
-                    }
-                    this.compressedMediaRecorder!.stop()
-                })
+            if (this.compressedMediaRecorder) {
+                this.compressedMediaRecorder.stop()
+                return {
+                    pcmData: new Float32Array(), // Return empty array since we're streaming
+                    compressedBlob: new Blob(this.compressedChunks, {
+                        type: 'audio/webm;codecs=opus',
+                    }),
+                }
             }
-
-            // Process compressed and audio worklet data
-            const result = (await Promise.race([
-                this.processRecordingStop(),
-                new Promise((_, reject) =>
-                    setTimeout(
-                        () => reject(new Error('Recording stop timeout')),
-                        30000
-                    )
-                ),
-            ])) as { pcmData: Float32Array; compressedBlob?: Blob }
-
-            const totalTime = performance.now() - stopStartTime
-            this.logger?.debug(
-                `[Performance][${STOP_PERFORMANCE_MARKS.TOTAL_STOP_TIME}] Total stop time: ${totalTime}ms`
-            )
-
-            return result
-        } catch (error) {
-            this.logger?.error('[Performance] Error stopping recording:', error)
-            return {
-                pcmData: this.audioBuffer || new Float32Array(),
-                compressedBlob: this.compressedMediaRecorder
-                    ? new Blob(this.compressedChunks, {
-                          type: 'audio/webm;codecs=opus',
-                      })
-                    : undefined,
-            }
+            return { pcmData: new Float32Array() }
         } finally {
-            cleanup()
+            this.cleanup()
         }
+    }
+
+    private cleanup() {
+        if (this.audioContext) {
+            this.audioContext.close()
+        }
+        if (this.audioWorkletNode) {
+            this.audioWorkletNode.disconnect()
+        }
+        if (this.source) {
+            this.source.disconnect()
+        }
+        this.stopMediaStreamTracks()
     }
 
     // Helper method to process recording stop
@@ -475,7 +392,9 @@ export class WebRecorder {
             `[Performance] Recording stop process completed in ${performance.now() - processStartTime}ms`
         )
         return {
-            pcmData: workletData || this.audioBuffer,
+            pcmData:
+                workletData ??
+                new Float32Array(this.audioAnalysisData.dataPoints.length),
             compressedBlob: compressedData,
         }
     }

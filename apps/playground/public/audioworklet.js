@@ -5,25 +5,23 @@ const DEFAULT_SAMPLE_RATE = 44100
 class RecorderProcessor extends AudioWorkletProcessor {
     constructor() {
         super()
-        this.recordedBuffers = [] // Float32Array
-        this.newRecBuffer = [] // Float32Array
-        this.resampledBuffer = [] // Float32Array
-        this.exportIntervalSamples = 0
+        this.currentChunk = [] // Float32Array
         this.samplesSinceLastExport = 0
-        this.recordSampleRate = DEFAULT_SAMPLE_RATE // To be overwritten
-        this.exportSampleRate = DEFAULT_SAMPLE_RATE // To be overwritten
-        this.recordBitDepth = DEFAULT_BIT_DEPTH // Default to 32-bit depth
-        this.exportBitDepth = DEFAULT_BIT_DEPTH // To be overwritten
-        this.numberOfChannels = 1 // Default to 1 channel (mono)
+        this.recordSampleRate = DEFAULT_SAMPLE_RATE
+        this.exportSampleRate = DEFAULT_SAMPLE_RATE
+        this.recordBitDepth = DEFAULT_BIT_DEPTH
+        this.exportBitDepth = DEFAULT_BIT_DEPTH
+        this.numberOfChannels = 1
         this.isRecording = true
         this.port.onmessage = this.handleMessage.bind(this)
         this.logger = undefined
+        this.exportIntervalSamples = 0
     }
 
     handleMessage(event) {
         switch (event.data.command) {
             case 'init':
-                this.logger = event.data.logger // Simply assign logger if provided
+                this.logger = event.data.logger
                 this.recordSampleRate = event.data.recordSampleRate
                 this.exportSampleRate =
                     event.data.exportSampleRate || event.data.recordSampleRate
@@ -36,33 +34,14 @@ class RecorderProcessor extends AudioWorkletProcessor {
                     this.recordBitDepth = event.data.recordBitDepth
                 }
                 this.exportBitDepth =
-                    event.data.exportBitDepth ||
-                    this.recordBitDepth ||
-                    DEFAULT_BIT_DEPTH
-                if (this.logger) {
-                    this.logger.debug(
-                        `RecorderProcessor -- Initializing with recordSampleRate: ${this.recordSampleRate}, exportSampleRate: ${this.exportSampleRate}, exportIntervalSamples: ${this.exportIntervalSamples}`
-                    )
-                }
+                    event.data.exportBitDepth || this.recordBitDepth
                 break
+
             case 'stop':
                 this.isRecording = false
-                this.getAllRecordedData()
-                    .then((fullRecordedData) => {
-                        this.port.postMessage({
-                            command: 'recordedData',
-                            recordedData: fullRecordedData,
-                            bitDepth: this.exportBitDepth,
-                            sampleRate: this.exportSampleRate,
-                        })
-                        return fullRecordedData
-                    })
-                    .catch((error) => {
-                        console.error(
-                            'RecorderProcessor Error extracting recorded data:',
-                            error
-                        )
-                    })
+                if (this.currentChunk.length > 0) {
+                    this.processChunk()
+                }
                 break
         }
     }
@@ -72,12 +51,11 @@ class RecorderProcessor extends AudioWorkletProcessor {
         const input = inputs[0]
         if (input.length > 0) {
             const newBuffer = new Float32Array(input[0])
-            this.newRecBuffer.push(newBuffer)
-            this.recordedBuffers.push(newBuffer)
+            this.currentChunk.push(newBuffer)
             this.samplesSinceLastExport += newBuffer.length
 
             if (this.samplesSinceLastExport >= this.exportIntervalSamples) {
-                this.exportNewData()
+                this.processChunk()
                 this.samplesSinceLastExport = 0
             }
         }
@@ -94,42 +72,15 @@ class RecorderProcessor extends AudioWorkletProcessor {
         return result
     }
 
-    floatTo16BitPCM(input) {
-        const output = new Int16Array(input.length)
-        for (let i = 0; i < input.length; i++) {
-            const s = Math.max(-1, Math.min(1, input[i]))
-            output[i] = s < 0 ? s * 0x8000 : s * 0x7fff
-        }
-        if (this.logger) {
-            this.logger.debug(
-                'RecorderProcessor Float to 16-bit PCM conversion complete. Output byte length:',
-                output.byteLength
-            )
-        }
-        return output
-    }
-
-    floatTo32BitPCM(input) {
-        const output = new Int32Array(input.length)
-        for (let i = 0; i < input.length; i++) {
-            const s = Math.max(-1, Math.min(1, input[i]))
-            output[i] = s < 0 ? s * 0x80000000 : s * 0x7fffffff
-        }
-        if (this.logger) {
-            this.logger.debug(
-                'RecorderProcessor Float to 32-bit PCM conversion complete. Output byte length:',
-                output.byteLength
-            )
-        }
-        return output
-    }
-
+    // Keep basic resampling for sample rate conversion
     resample(samples, targetSampleRate) {
         if (this.recordSampleRate === targetSampleRate) {
             return samples
         }
         const resampledBuffer = new Float32Array(
-            (samples.length * targetSampleRate) / this.recordSampleRate
+            Math.ceil(
+                (samples.length * targetSampleRate) / this.recordSampleRate
+            )
         )
         const ratio = this.recordSampleRate / targetSampleRate
         let offset = 0
@@ -141,167 +92,62 @@ class RecorderProcessor extends AudioWorkletProcessor {
                 accum += samples[j]
                 count++
             }
-            resampledBuffer[i] = accum / count
+            resampledBuffer[i] = count > 0 ? accum / count : 0
             offset = nextOffset
         }
         return resampledBuffer
     }
 
-    async resampleBuffer(buffer, targetSampleRate) {
-        if (typeof OfflineAudioContext === 'undefined') {
-            return this.resample(buffer, targetSampleRate)
+    // Keep bit depth conversion if needed
+    convertBitDepth(input, targetBitDepth) {
+        if (targetBitDepth === 32) {
+            const output = new Int32Array(input.length)
+            for (let i = 0; i < input.length; i++) {
+                const s = Math.max(-1, Math.min(1, input[i]))
+                output[i] = s < 0 ? s * 0x80000000 : s * 0x7fffffff
+            }
+            return output
+        } else if (targetBitDepth === 16) {
+            const output = new Int16Array(input.length)
+            for (let i = 0; i < input.length; i++) {
+                const s = Math.max(-1, Math.min(1, input[i]))
+                output[i] = s < 0 ? s * 0x8000 : s * 0x7fff
+            }
+            return output
         }
-
-        if (this.recordSampleRate === targetSampleRate) {
-            return buffer
-        }
-        const offlineContext = new OfflineAudioContext(
-            this.numberOfChannels,
-            buffer.length,
-            this.recordSampleRate
-        )
-        const sourceBuffer = offlineContext.createBuffer(
-            this.numberOfChannels,
-            buffer.length,
-            this.recordSampleRate
-        )
-        sourceBuffer.copyToChannel(buffer, 0)
-
-        const bufferSource = offlineContext.createBufferSource()
-        bufferSource.buffer = sourceBuffer
-        bufferSource.connect(offlineContext.destination)
-        bufferSource.start()
-
-        const renderedBuffer = await offlineContext.startRendering()
-
-        const resampledBuffer = new Float32Array(renderedBuffer.length)
-        renderedBuffer.copyFromChannel(resampledBuffer, 0)
-
-        return resampledBuffer
+        return input
     }
 
-    async exportNewData() {
-        // Calculate the total length of the new recorded buffers
-        const length = this.newRecBuffer.reduce(
-            (acc, buffer) => acc + buffer.length,
+    processChunk() {
+        if (this.currentChunk.length === 0) return
+
+        // Merge buffers
+        const chunkLength = this.currentChunk.reduce(
+            (acc, buf) => acc + buf.length,
             0
         )
+        const mergedChunk = this.mergeBuffers(this.currentChunk, chunkLength)
 
-        // Merge all new recorded buffers into a single buffer
-        const mergedBuffer = this.mergeBuffers(this.newRecBuffer, length)
+        // Resample if needed
+        const resampledChunk = this.resample(mergedChunk, this.exportSampleRate)
 
-        const resampledBuffer = await this.resampleBuffer(
-            mergedBuffer,
-            this.exportSampleRate
-        )
+        // Convert bit depth if needed
+        const finalBuffer =
+            this.recordBitDepth !== this.exportBitDepth
+                ? this.convertBitDepth(resampledChunk, this.exportBitDepth)
+                : resampledChunk
 
-        let finalBuffer = resampledBuffer // Float32Array
-        if (this.recordBitDepth !== this.exportBitDepth) {
-            if (this.exportBitDepth === 16) {
-                finalBuffer = this.floatTo16BitPCM(resampledBuffer)
-            } else if (this.exportBitDepth === 32) {
-                finalBuffer = this.floatTo32BitPCM(resampledBuffer)
-            }
-        }
+        // Send processed chunk
+        this.port.postMessage({
+            command: 'newData',
+            recordedData: finalBuffer,
+            sampleRate: this.exportSampleRate,
+            bitDepth: this.exportBitDepth,
+            numberOfChannels: this.numberOfChannels,
+        })
 
-        if (this.logger) {
-            this.logger.debug(
-                `RecorderProcessor - Original buffer length: ${mergedBuffer.byteLength}`
-            )
-            this.logger.debug(
-                `RecorderProcessor - Resampled buffer length: ${resampledBuffer.byteLength}`
-            )
-            this.logger.debug(
-                `RecorderProcessor - Final buffer length (after conversion): ${finalBuffer.byteLength}`
-            )
-        }
-
-        const originalSize = mergedBuffer.byteLength
-        const resampledSize = resampledBuffer.byteLength
-        const finalSize = finalBuffer.byteLength
-
-        if (this.logger) {
-            this.logger.debug(
-                `RecorderProcessor - Resampled buffer size ratio: ${(resampledSize / originalSize).toFixed(2)}`
-            )
-            this.logger.debug(
-                `RecorderProcessor - Final buffer size ratio: ${(finalSize / originalSize).toFixed(2)}`
-            )
-        }
-
-        // Clear the new recorded buffers after they have been processed
-        this.newRecBuffer.length = 0
-
-        // Post the message to the main thread
-        // The first argument is the message data, containing the encoded WAV buffer
-        // The second argument is the transfer list, which transfers ownership of the ArrayBuffer
-        // to the main thread, avoiding the need to copy the buffer and improving performance
-        // this.port.postMessage({ recordedData: encodedWav.buffer, sampleRate: this.recordSampleRate }, [encodedWav.buffer]);
-        this.port.postMessage(
-            {
-                command: 'newData',
-                recordedData: finalBuffer,
-                sampleRate: this.exportSampleRate,
-                bitDepth: this.exportBitDepth,
-            },
-            []
-        )
-    }
-
-    async getAllRecordedData() {
-        if (this.logger) {
-            this.logger.debug(
-                `RecorderProcessor - getAllRecordedData - sampleRate: ${this.recordSampleRate}`
-            )
-        }
-
-        const length = this.recordedBuffers.reduce(
-            (acc, buffer) => acc + buffer.length,
-            0
-        )
-        const mergedBuffer = this.mergeBuffers(this.recordedBuffers, length)
-        const resampledBuffer = await this.resampleBuffer(
-            mergedBuffer,
-            this.exportSampleRate
-        )
-        // Convert to the desired bit depth if necessary
-        let finalBuffer = resampledBuffer
-        if (this.recordBitDepth !== this.exportBitDepth) {
-            if (this.exportBitDepth === 16) {
-                finalBuffer = this.floatTo16BitPCM(resampledBuffer)
-            } else if (this.exportBitDepth === 32) {
-                finalBuffer = this.floatTo32BitPCM(resampledBuffer)
-            }
-        }
-
-        if (this.logger) {
-            this.logger.debug(
-                `RecorderProcessor - Original buffer length: ${mergedBuffer.byteLength}`
-            )
-            this.logger.debug(
-                `RecorderProcessor - Resampled buffer length: ${resampledBuffer.byteLength}`
-            )
-            this.logger.debug(
-                `RecorderProcessor - Final buffer length (after conversion): ${finalBuffer.byteLength}`
-            )
-        }
-
-        const originalSize = mergedBuffer.byteLength
-        const resampledSize = resampledBuffer.byteLength
-        const finalSize = finalBuffer.byteLength
-
-        if (this.logger) {
-            this.logger.debug(
-                `RecorderProcessor - Resampled buffer size ratio: ${(resampledSize / originalSize).toFixed(2)}`
-            )
-            this.logger.debug(
-                `RecorderProcessor - Final buffer size ratio: ${(finalSize / originalSize).toFixed(2)}`
-            )
-        }
-
-        this.recordedBuffers.length = 0 // Clear the buffers after extraction
-
-        return finalBuffer
+        // Clear the current chunk
+        this.currentChunk = []
     }
 }
 
