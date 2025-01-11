@@ -112,7 +112,7 @@ export const FullAudioViewerPage = () => {
             {selectedFile && (
                 <AudioRecordingView
                     recording={selectedFile}
-                    extractAnalysis
+                    audioAnalysis={selectedFile.analysisData}
                     visualConfig={config}
                     showTranscript
                     onDelete={async () => {

@@ -12,7 +12,7 @@ The `AudioRecording` interface represents the result of an audio recording. This
 
 ```ts
 export interface AudioRecording {
-    fileUri: string
+    fileUri: string // on web is this is the same as the filename
     filename: string
     durationMs: number
     size: number
@@ -20,8 +20,10 @@ export interface AudioRecording {
     channels: number
     bitDepth: BitDepth
     sampleRate: SampleRate
-    wavPCMData?: ArrayBuffer // Full PCM data for the recording in WAV format (only on web, for native use the fileUri)
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
+    compression?: CompressionInfo & {
+        compressedFileUri: string
+    }
 }
 ```
 
@@ -49,9 +51,14 @@ const handleStop = async () => {
         console.log('Channels:', result.channels);
         console.log('Bit depth:', result.bitDepth);
         console.log('Sample rate:', result.sampleRate);
-        if (result.wavPCMData) {
-            console.log('WAV PCM Data:', result.wavPCMData);
+        
+        if (result.compression) {
+            console.log('Compressed File URI:', result.compression.compressedFileUri);
+            console.log('Compressed Size:', result.compression.size);
+            console.log('Compression Format:', result.compression.format);
+            console.log('Compressed Bitrate:', result.compression.bitrate);
         }
+        
         if (result.analysisData) {
             console.log('Analysis Data:', result.analysisData);
         }
