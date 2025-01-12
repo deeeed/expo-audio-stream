@@ -410,8 +410,10 @@ class AudioStreamManager: NSObject {
             "interval": emissionInterval
         ]
         
-        // Add compression info if enabled
-        if settings.enableCompressedOutput, let compressedURL = compressedFileURL {
+        // Add compression info if enabled and file exists
+        if settings.enableCompressedOutput,
+           let compressedURL = compressedFileURL,
+           FileManager.default.fileExists(atPath: compressedURL.path) {
             do {
                 let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedURL.path)
                 if let compressedSize = compressedAttributes[.size] as? Int64 {
@@ -550,23 +552,42 @@ class AudioStreamManager: NSObject {
             
             // Setup compressed recording if enabled
             if settings.enableCompressedOutput {
-                let compressedSettings: [String: Any] = [
-                    AVFormatIDKey: settings.compressedFormat == "aac" ? kAudioFormatMPEG4AAC : kAudioFormatOpus,
-                    AVSampleRateKey: settings.sampleRate,
-                    AVNumberOfChannelsKey: settings.numberOfChannels,
-                    AVEncoderBitRateKey: settings.compressedBitRate,
-                    AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-                ]
-                
-                compressedFileURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent(UUID().uuidString)
-                    .appendingPathExtension(settings.compressedFormat)
+                do {
+                    let compressedSettings: [String: Any] = [
+                        AVFormatIDKey: settings.compressedFormat == "aac" ? kAudioFormatMPEG4AAC : kAudioFormatOpus,
+                        AVSampleRateKey: settings.sampleRate,
+                        AVNumberOfChannelsKey: settings.numberOfChannels,
+                        AVEncoderBitRateKey: settings.compressedBitRate,
+                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                    ]
                     
-                if let url = compressedFileURL {
-                    compressedRecorder = try AVAudioRecorder(url: url, settings: compressedSettings)
-                    compressedRecorder?.record()
-                    compressedFormat = settings.compressedFormat
-                    compressedBitRate = settings.compressedBitRate
+                    // Create directory if it doesn't exist
+                    let tempDirectory = FileManager.default.temporaryDirectory
+                    try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+                    
+                    // Create compressed file URL and ensure file exists
+                    compressedFileURL = tempDirectory.appendingPathComponent(UUID().uuidString)
+                        .appendingPathExtension(settings.compressedFormat)
+                    
+                    if let url = compressedFileURL {
+                        // Create empty file first
+                        FileManager.default.createFile(atPath: url.path, contents: nil)
+                        
+                        // Then initialize recorder
+                        compressedRecorder = try AVAudioRecorder(url: url, settings: compressedSettings)
+                        if let recorder = compressedRecorder {
+                            recorder.prepareToRecord()
+                            recorder.record()
+                            compressedFormat = settings.compressedFormat
+                            compressedBitRate = settings.compressedBitRate
+                            Logger.debug("Compressed recording initialized at: \(url.path)")
+                        }
+                    }
+                } catch {
+                    Logger.debug("Failed to setup compressed recording: \(error)")
+                    // Don't fail the entire recording if compression fails
+                    compressedFileURL = nil
+                    compressedRecorder = nil
                 }
             }
             
