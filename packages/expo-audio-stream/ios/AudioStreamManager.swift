@@ -410,13 +410,14 @@ class AudioStreamManager: NSObject {
             "interval": emissionInterval
         ]
         
-        // Add compression info if enabled and file exists
+        // Add compression info if enabled
         if settings.enableCompressedOutput,
            let compressedURL = compressedFileURL,
            FileManager.default.fileExists(atPath: compressedURL.path) {
             do {
                 let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedURL.path)
                 if let compressedSize = compressedAttributes[.size] as? Int64 {
+                    Logger.debug("Compressed file status - Size: \(compressedSize)")
                     let compressionBundle: [String: Any] = [
                         "fileUri": compressedURL.absoluteString,
                         "mimeType": compressedFormat == "aac" ? "audio/aac" : "audio/opus",
@@ -558,34 +559,47 @@ class AudioStreamManager: NSObject {
                         AVSampleRateKey: settings.sampleRate,
                         AVNumberOfChannelsKey: settings.numberOfChannels,
                         AVEncoderBitRateKey: settings.compressedBitRate,
-                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+                        AVEncoderBitDepthHintKey: 16
                     ]
                     
-                    // Create directory if it doesn't exist
+                    Logger.debug("Initializing compressed recording with settings: \(compressedSettings)")
+                    
                     let tempDirectory = FileManager.default.temporaryDirectory
                     try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
                     
-                    // Create compressed file URL and ensure file exists
-                    compressedFileURL = tempDirectory.appendingPathComponent(UUID().uuidString)
-                        .appendingPathExtension(settings.compressedFormat)
-                    
-                    if let url = compressedFileURL {
-                        // Create empty file first
-                        FileManager.default.createFile(atPath: url.path, contents: nil)
+                    // Use the same UUID as the main recording
+                    if let recordingUUID = recordingUUID {
+                        compressedFileURL = tempDirectory.appendingPathComponent(recordingUUID.uuidString)
+                            .appendingPathExtension(settings.compressedFormat)
                         
-                        // Then initialize recorder
-                        compressedRecorder = try AVAudioRecorder(url: url, settings: compressedSettings)
-                        if let recorder = compressedRecorder {
-                            recorder.prepareToRecord()
-                            recorder.record()
-                            compressedFormat = settings.compressedFormat
-                            compressedBitRate = settings.compressedBitRate
-                            Logger.debug("Compressed recording initialized at: \(url.path)")
+                        if let url = compressedFileURL {
+                            // Create empty file first
+                            if FileManager.default.createFile(atPath: url.path, contents: nil) {
+                                Logger.debug("Created empty file at: \(url.path)")
+                            } else {
+                                Logger.debug("Failed to create empty file at: \(url.path)")
+                            }
+                            
+                            // Then initialize recorder
+                            compressedRecorder = try AVAudioRecorder(url: url, settings: compressedSettings)
+                            if let recorder = compressedRecorder {
+                                let prepared = recorder.prepareToRecord()
+                                Logger.debug("Recorder prepared: \(prepared)")
+                                
+                                let started = recorder.record()
+                                Logger.debug("Recorder started: \(started)")
+                                
+                                Logger.debug("Recorder current time: \(recorder.currentTime)")
+                                
+                                compressedFormat = settings.compressedFormat
+                                compressedBitRate = settings.compressedBitRate
+                                Logger.debug("Compressed recording initialized - Format: \(compressedFormat), Bitrate: \(compressedBitRate)")
+                            }
                         }
                     }
                 } catch {
                     Logger.debug("Failed to setup compressed recording: \(error)")
-                    // Don't fail the entire recording if compression fails
                     compressedFileURL = nil
                     compressedRecorder = nil
                 }
@@ -1213,32 +1227,50 @@ class AudioStreamManager: NSObject {
             var compressionInfo: [String: Any]? = nil
             if settings.enableCompressedOutput, let compressedURL = compressedFileURL {
                 do {
-                    let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedURL.path)
-                    if let compressedSize = compressedAttributes[.size] as? Int64 {
-                        let eventDataSize = compressedSize - lastEmittedCompressedSize
-                        
-                        // Read the new compressed data if there's new data
-                        var compressedData: String? = nil
-                        if eventDataSize > 0 {
-                            let fileHandle = try FileHandle(forReadingFrom: compressedURL)
-                            fileHandle.seek(toFileOffset: UInt64(lastEmittedCompressedSize))
-                            let data = fileHandle.readData(ofLength: Int(eventDataSize))
-                            compressedData = data.base64EncodedString()
-                            fileHandle.closeFile()
+                    // Ensure file exists and has data
+                    if FileManager.default.fileExists(atPath: compressedURL.path) {
+                        let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedURL.path)
+                        if let compressedSize = compressedAttributes[.size] as? Int64 {
+                            let eventDataSize = compressedSize - lastEmittedCompressedSize
+                            
+                            Logger.debug("Compressed file status - Total size: \(compressedSize), New data size: \(eventDataSize)")
+                            
+                            // Read the new compressed data if there's new data
+                            var compressedData: String? = nil
+                            if eventDataSize > 0 {
+                                do {
+                                    let fileHandle = try FileHandle(forReadingFrom: compressedURL)
+                                    defer { fileHandle.closeFile() }
+                                    
+                                    fileHandle.seek(toFileOffset: UInt64(lastEmittedCompressedSize))
+                                    let data = fileHandle.readData(ofLength: Int(eventDataSize))
+                                    compressedData = data.base64EncodedString()
+                                    
+                                    Logger.debug("Read compressed data of size: \(data.count)")
+                                } catch {
+                                    Logger.debug("Error reading compressed data: \(error)")
+                                }
+                            }
+                            
+                            lastEmittedCompressedSize = compressedSize
+                            
+                            compressionInfo = [
+                                "position": recordingTime * 1000, // Convert to milliseconds
+                                "fileUri": compressedURL.absoluteString,
+                                "eventDataSize": eventDataSize,
+                                "totalSize": compressedSize,
+                                "data": compressedData ?? ""
+                            ]
+                            
+                            Logger.debug("Compression info prepared: \(String(describing: compressionInfo))")
+                        } else {
+                            Logger.debug("Could not get compressed file size")
                         }
-                        
-                        lastEmittedCompressedSize = compressedSize
-                        
-                        compressionInfo = [
-                            "position": recordingTime * 1000, // Convert to milliseconds
-                            "fileUri": compressedURL.absoluteString,
-                            "eventDataSize": eventDataSize,
-                            "totalSize": compressedSize,
-                            "data": compressedData ?? ""
-                        ]
+                    } else {
+                        Logger.debug("Compressed file does not exist at path: \(compressedURL.path)")
                     }
                 } catch {
-                    Logger.debug("Failed to read compressed data: \(error)")
+                    Logger.debug("Error preparing compression info: \(error)")
                 }
             }
             
