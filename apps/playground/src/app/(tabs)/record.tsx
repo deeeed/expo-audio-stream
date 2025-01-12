@@ -668,11 +668,6 @@ export default function RecordScreen() {
                                 multi={false}
                                 options={[
                                     {
-                                        label: '24 kbps (Recommended for voice)',
-                                        value: '24000',
-                                        selected: startRecordingConfig.compression?.bitrate === 24000,
-                                    },
-                                    {
                                         label: '32 kbps (High quality voice)',
                                         value: '32000',
                                         selected: startRecordingConfig.compression?.bitrate === 32000,

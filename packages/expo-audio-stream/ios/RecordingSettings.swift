@@ -23,18 +23,25 @@ struct CompressedRecordingInfo {
     var bitrate: Int
     var format: String
     
-    static func validate(format: String, bitrate: Int) -> Result<Void, Error> {
+    static func validate(format: String, bitrate: Int) -> Result<(String, Int), Error> {
         // Validate format
         guard ["aac", "opus"].contains(format.lowercased()) else {
             return .failure(RecordingError.unsupportedFormat(format))
         }
         
-        // Validate bitrate
-        guard (8000...960000).contains(bitrate) else {
-            return .failure(RecordingError.invalidBitrate(bitrate))
+        // Adjust bitrate based on format
+        let adjustedBitrate: Int
+        if format.lowercased() == "aac" {
+            // Standard AAC bitrates (bps)
+            let standardAACBitrates = [32000, 48000, 64000, 96000, 128000, 160000, 192000, 256000, 320000]
+            adjustedBitrate = standardAACBitrates.min(by: { abs($0 - bitrate) < abs($1 - bitrate) }) ?? 128000
+        } else {
+            // For Opus, allow lower bitrates (especially good for voice)
+            // Typical Opus voice bitrates: 8-24 kbps, music: 32-128 kbps
+            adjustedBitrate = min(max(bitrate, 8000), 320000)
         }
         
-        return .success(())
+        return .success((format, adjustedBitrate))
     }
 }
 
