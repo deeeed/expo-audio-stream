@@ -539,7 +539,11 @@ class AudioRecorderManager(
             acquireWakeLock()
             pausedDuration += System.currentTimeMillis() - lastPauseTime
             isPaused.set(false)
+            
+            // Add these lines to resume both recordings
             audioRecord?.startRecording()
+            compressedRecorder?.resume()
+            
             promise.resolve("Recording resumed")
         } catch (e: Exception) {
             releaseWakeLock()
@@ -549,7 +553,10 @@ class AudioRecorderManager(
 
     fun pauseRecording(promise: Promise) {
         if (isRecording.get() && !isPaused.get()) {
+            // Add these lines to pause both recordings
             audioRecord?.stop()
+            compressedRecorder?.pause()
+            
             lastPauseTime = System.currentTimeMillis()
             isPaused.set(true)
 
