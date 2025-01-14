@@ -10335,7 +10335,7 @@ __metadata:
     react-native: "npm:0.76.5"
     react-native-gesture-handler: "npm:~2.20.2"
     react-native-localize: "npm:^3.2.1"
-    react-native-paper: "npm:^5.13.0"
+    react-native-paper: "npm:^5.13.1"
     react-native-paper-dates: "npm:^0.22.26"
     react-native-quick-base64: "npm:^2.1.2"
     react-native-reanimated: "npm:~3.16.2"
@@ -15592,18 +15592,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-font@npm:^13.0.2, expo-font@npm:~13.0.2":
-  version: 13.0.2
-  resolution: "expo-font@npm:13.0.2"
-  dependencies:
-    fontfaceobserver: "npm:^2.1.0"
-  peerDependencies:
-    expo: "*"
-    react: "*"
-  checksum: 10/a8ced69396fcc92eda3d562b82144dfd70b13721856307b73adea3a92a1a723fad6079c7c2c75014db246d320dfdcab3028bbdaf4366d9680aa76a3560615f6b
-  languageName: node
-  linkType: hard
-
 "expo-font@npm:~13.0.1":
   version: 13.0.1
   resolution: "expo-font@npm:13.0.1"
@@ -15613,6 +15601,18 @@ __metadata:
     expo: "*"
     react: "*"
   checksum: 10/c28b41d2861f92b169791e3ecd7d005eb70eb02b72bcded378ad17d3a3e7fb57e26f57021b5b6d9dce8c6707d63c6cf8e2157b2caf28c0fecd235b13a9b2b147
+  languageName: node
+  linkType: hard
+
+"expo-font@npm:~13.0.2":
+  version: 13.0.2
+  resolution: "expo-font@npm:13.0.2"
+  dependencies:
+    fontfaceobserver: "npm:^2.1.0"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+  checksum: 10/a8ced69396fcc92eda3d562b82144dfd70b13721856307b73adea3a92a1a723fad6079c7c2c75014db246d320dfdcab3028bbdaf4366d9680aa76a3560615f6b
   languageName: node
   linkType: hard
 
@@ -25727,20 +25727,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-paper@npm:^5.13.0":
-  version: 5.13.0
-  resolution: "react-native-paper@npm:5.13.0"
+"react-native-paper@npm:^5.13.1":
+  version: 5.13.1
+  resolution: "react-native-paper@npm:5.13.1"
   dependencies:
     "@callstack/react-theme-provider": "npm:^3.0.9"
     color: "npm:^3.1.2"
-    expo-font: "npm:^13.0.2"
     use-latest-callback: "npm:^0.1.5"
   peerDependencies:
     react: "*"
     react-native: "*"
     react-native-safe-area-context: "*"
     react-native-vector-icons: "*"
-  checksum: 10/c67a5c6ba08ee0340acbff1d6095f343970ce1e3b6672be9dba59327f18533a3f176ab2c630a3ba491766a3a8495855c7006ef312b6e3d7e59a052e37be55107
+  checksum: 10/704a516d06304a2687146a6cc2d3ccd710ee19abc00a00878d28e2a6e64636f9ee1a1831cc6510b43a68abe30425d41a9739a0b325508fcd69db9d1a3a223763
   languageName: node
   linkType: hard
 
