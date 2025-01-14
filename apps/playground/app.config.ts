@@ -72,11 +72,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     assetBundlePatterns: ['**/*', 'assets/audio_samples/*', 'public/audioStorage.worker.js'],
     ios: {
+        newArchEnabled: true,
         supportsTablet: true,
         bundleIdentifier: APP_IDENTIFIER,
         appleTeamId: env.APPLE_TEAM_ID,
     },
     android: {
+        newArchEnabled: false,
         adaptiveIcon: {
             foregroundImage: './assets/adaptive-icon.png',
             backgroundColor:
@@ -98,7 +100,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         url: 'https://u.expo.dev/' + env.EAS_PROJECT_ID,
     },
     runtimeVersion: '1.0.0',
-    newArchEnabled: true,
     owner: 'deeeed',
     plugins: [
         [
