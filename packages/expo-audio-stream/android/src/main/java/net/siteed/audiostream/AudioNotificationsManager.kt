@@ -18,6 +18,7 @@ import androidx.core.app.NotificationCompat
 import java.lang.ref.WeakReference
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.Objects
 
 class AudioNotificationManager private constructor(context: Context) {
     private val contextRef = WeakReference(context.applicationContext)
@@ -40,6 +41,7 @@ class AudioNotificationManager private constructor(context: Context) {
     private var lastPauseTime: Long = 0
     private var lastWaveformUpdate: Long = 0
     private val waveformRenderer = WaveformRenderer()
+    private var lastNotificationHash: Int? = null
 
     companion object {
         private const val WAVEFORM_UPDATE_INTERVAL = 100L
@@ -66,20 +68,15 @@ class AudioNotificationManager private constructor(context: Context) {
             val channel = NotificationChannel(
                 recordingConfig.notification.channelId,
                 recordingConfig.notification.channelName,
-                NotificationManager.IMPORTANCE_LOW // Lower importance means no sound by default
+                NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = recordingConfig.notification.channelDescription
-                enableLights(true)
-                lightColor = Color.parseColor(recordingConfig.notification.lightColor)
-                enableVibration(true)
-                setShowBadge(true)
+                enableLights(false)
+                enableVibration(false)
+                setSound(null, null)
+                setShowBadge(false)
+                vibrationPattern = null
             }
-
-            // Set description, disable lights, vibration, and sound.
-            channel.enableLights(false);
-            channel.enableVibration(false);
-            channel.setSound(null, null);
-            channel.setShowBadge(false);
 
             notificationManager.createNotificationChannel(channel)
         }
@@ -134,6 +131,9 @@ class AudioNotificationManager private constructor(context: Context) {
     }
 
     private fun addNotificationActions(context: Context) {
+        // Clear existing actions first
+        notificationBuilder.clearActions()
+
         // Create pause action
         val pauseIntent = Intent(context, RecordingActionReceiver::class.java).apply {
             action = RecordingActionReceiver.ACTION_PAUSE_RECORDING
@@ -156,7 +156,7 @@ class AudioNotificationManager private constructor(context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Add pause or resume action based on current state
+        // Add only one pause/resume action based on current state
         if (isPaused.get()) {
             notificationBuilder.addAction(
                 R.drawable.ic_play,
@@ -171,20 +171,23 @@ class AudioNotificationManager private constructor(context: Context) {
             )
         }
 
-        // Add configured custom actions
+        // Add configured custom actions (only if they don't already exist)
+        val existingActions = mutableSetOf<String>()
         recordingConfig.notification.actions.forEach { action ->
-            val intent = Intent(context, RecordingActionReceiver::class.java).apply {
-                this.action = action.intentAction
+            if (existingActions.add(action.intentAction)) { // Only add if action is unique
+                val intent = Intent(context, RecordingActionReceiver::class.java).apply {
+                    this.action = action.intentAction
+                }
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    action.intentAction.hashCode(),
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val actionIconResId = action.icon?.let { getResourceIdByName(it) }
+                    ?: R.drawable.ic_default_action_icon
+                notificationBuilder.addAction(actionIconResId, action.title, pendingIntent)
             }
-            val pendingIntent = PendingIntent.getBroadcast(
-                context,
-                action.intentAction.hashCode(),
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val actionIconResId = action.icon?.let { getResourceIdByName(it) }
-                ?: R.drawable.ic_default_action_icon
-            notificationBuilder.addAction(actionIconResId, action.title, pendingIntent)
         }
     }
 
@@ -232,20 +235,41 @@ class AudioNotificationManager private constructor(context: Context) {
 
         try {
             val currentTime = SystemClock.elapsedRealtime()
-            val needsRemoteViewsRefresh = currentTime - lastRemoteViewsUpdate >= remoteViewsRefreshInterval ||
-                    consecutiveUpdateFailures >= maxUpdateFailures
-
-            if (needsRemoteViewsRefresh) {
-                // Only recreate RemoteViews periodically or after failures
-                remoteViews = RemoteViews(context.packageName, R.layout.notification_recording)
-                lastRemoteViewsUpdate = currentTime
-                consecutiveUpdateFailures = 0
-            }
-
+            
+            // Calculate current notification state
             val recordingDuration = if (isPaused.get()) {
                 lastPauseTime - recordingStartTime - pausedDuration
             } else {
                 System.currentTimeMillis() - recordingStartTime - pausedDuration
+            }
+            
+            // Create a hash of the current notification state
+            val currentHash = Objects.hash(
+                recordingConfig.notification.title,
+                recordingConfig.notification.text,
+                formatDuration(recordingDuration),
+                isPaused.get()
+            )
+
+            val needsRemoteViewsRefresh = currentTime - lastRemoteViewsUpdate >= remoteViewsRefreshInterval ||
+                    consecutiveUpdateFailures >= maxUpdateFailures
+
+            // Only update if content changed or refresh needed
+            if (currentHash == lastNotificationHash && !needsRemoteViewsRefresh) {
+                // Update waveform only if needed
+                if (shouldUpdateWaveform(audioData, currentTime)) {
+                    updateWaveformOnly(audioData)
+                }
+                return
+            }
+
+            lastNotificationHash = currentHash
+
+            // Only recreate RemoteViews periodically or after failures
+            if (needsRemoteViewsRefresh) {
+                remoteViews = RemoteViews(context.packageName, R.layout.notification_recording)
+                lastRemoteViewsUpdate = currentTime
+                consecutiveUpdateFailures = 0
             }
 
             // Update RemoteViews content
@@ -280,11 +304,13 @@ class AudioNotificationManager private constructor(context: Context) {
                 addNotificationActions(context)
             }
 
-            // Update the notification without triggering a new alert
+            // Update the notification with disabled alerts
             notificationManager.notify(
                 recordingConfig.notification.notificationId,
                 notificationBuilder
                     .setOnlyAlertOnce(true)
+                    .setVibrate(null)
+                    .setDefaults(0)
                     .build()
             )
 
@@ -300,6 +326,37 @@ class AudioNotificationManager private constructor(context: Context) {
             }
         }
     }
+
+    private fun shouldUpdateWaveform(audioData: FloatArray?, currentTime: Long): Boolean {
+        return recordingConfig.showWaveformInNotification &&
+                audioData != null &&
+                audioData.isNotEmpty() &&
+                currentTime - lastWaveformUpdate >= WAVEFORM_UPDATE_INTERVAL
+    }
+
+    private fun updateWaveformOnly(audioData: FloatArray?) {
+        if (audioData == null) return
+        
+        try {
+            val waveformBitmap = waveformRenderer.generateWaveform(audioData, recordingConfig.notification.waveform)
+            remoteViews.setImageViewBitmap(R.id.notification_waveform, waveformBitmap)
+            lastWaveformUpdate = SystemClock.elapsedRealtime()
+            
+            notificationManager.notify(
+                recordingConfig.notification.notificationId,
+                notificationBuilder
+                    .setCustomContentView(remoteViews)
+                    .setCustomBigContentView(remoteViews)
+                    .setOnlyAlertOnce(true)
+                    .setVibrate(null)
+                    .setDefaults(0)
+                    .build()
+            )
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Error updating waveform", e)
+        }
+    }
+
     private fun reinitializeNotification() {
         try {
             val context = contextRef.get() ?: return
@@ -321,7 +378,6 @@ class AudioNotificationManager private constructor(context: Context) {
             Log.e(Constants.TAG, "Failed to reinitialize notification", e)
         }
     }
-
 
     fun getNotification(): Notification = notificationBuilder.build()
 
