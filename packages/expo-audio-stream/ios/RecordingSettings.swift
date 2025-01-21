@@ -98,6 +98,8 @@ struct RecordingSettings {
     let compressedFormat: String // "aac" or "opus"
     let compressedBitRate: Int
     
+    let autoResumeAfterInterruption: Bool
+    
     static func fromDictionary(_ dict: [String: Any]) -> Result<RecordingSettings, Error> {
         // Extract compression settings
         let compression = dict["compression"] as? [String: Any]
@@ -122,7 +124,8 @@ struct RecordingSettings {
             desiredSampleRate: dict["desiredSampleRate"] as? Double ?? 44100.0,
             enableCompressedOutput: enableCompressedOutput,
             compressedFormat: compressedFormat,
-            compressedBitRate: compressedBitRate
+            compressedBitRate: compressedBitRate,
+            autoResumeAfterInterruption: dict["autoResumeAfterInterruption"] as? Bool ?? false
         )
         
         // Parse core settings
