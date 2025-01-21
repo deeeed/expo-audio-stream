@@ -13,19 +13,40 @@ The recording configuration specifies the settings used for audio recording on d
 
 ```tsx
 export interface RecordingConfig {
-    sampleRate?: SampleRate // Sample rate for recording
-    channels?: 1 | 2 // 1 or 2 (MONO or STEREO)
-    encoding?: EncodingType // Encoding type for the recording
+    sampleRate?: SampleRate // Sample rate for recording (16000, 44100, or 48000 Hz)
+    channels?: 1 | 2 // Number of audio channels (1 for mono, 2 for stereo)
+    encoding?: EncodingType // Encoding type for the recording (pcm_32bit, pcm_16bit, pcm_8bit)
     interval?: number // Interval in milliseconds at which to emit recording data
 
-    // Optional parameters for audio processing
-    enableProcessing?: boolean // Boolean to enable/disable audio processing (default is false)
+    // Device and notification settings
+    keepAwake?: boolean // Keep the device awake while recording (default is false)
+    showNotification?: boolean // Show a notification during recording (default is false)
+    showWaveformInNotification?: boolean // Show waveform in the notification (Android only)
+    notification?: NotificationConfig // Configuration for the notification
+
+    // Audio processing settings
+    enableProcessing?: boolean // Enable audio processing (default is false)
     pointsPerSecond?: number // Number of data points to extract per second of audio (default is 1000)
-    algorithm?: string // Algorithm to use for amplitude computation (default is "rms")
+    algorithm?: AmplitudeAlgorithm // Algorithm to use for amplitude computation (default is "rms")
     features?: AudioFeaturesOptions // Feature options to extract (default is empty)
 
+    // Platform specific configuration
+    ios?: IOSConfig // iOS-specific configuration
+
+    // Compression settings
+    compression?: {
+        enabled: boolean
+        format: 'aac' | 'opus' | 'mp3'
+        bitrate?: number
+    }
+
+    // Interruption handling
+    autoResumeAfterInterruption?: boolean // Whether to automatically resume after interruption
+    onRecordingInterrupted?: (_: RecordingInterruptionEvent) => void // Callback for interruption events
+
+    // Callback functions
     onAudioStream?: (_: AudioDataEvent) => Promise<void> // Callback function to handle audio stream
-    onAudioAnalysis?: (_: AudioAnalysisEventPayload) => Promise<void> // Callback function to handle audio features extraction results
+    onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void> // Callback function to handle audio features
 }
 
 ```
@@ -69,11 +90,15 @@ export interface StartRecordingResult {
     channels?: number
     bitDepth?: BitDepth
     sampleRate?: SampleRate
+    compression?: {
+        compressedFileUri: string
+        size: number
+        mimeType: string
+        bitrate: number
+        format: string
+    }
 }
 ```
-
-The `StartRecordingResult` provides the actual values used for recording, which can be useful if some properties of `RecordingConfig` are not accepted natively by the platform (e.g., the web only accepts 32-bit PCM).
-
 
 ## Example Usage
 
@@ -86,15 +111,26 @@ const config = {
     encoding: 'pcm_16bit',
     interval: 500,
     enableProcessing: true,
+    keepAwake: true,
+    showNotification: true,
+    compression: {
+        enabled: true,
+        format: 'aac',
+        bitrate: 128000
+    },
     pointsPerSecond: 1000,
     algorithm: 'rms',
     features: { energy: true, rms: true },
+    autoResumeAfterInterruption: true,
     onAudioStream: async (event) => {
         console.log('Audio data:', event);
     },
     onAudioAnalysis: async (data) => {
         console.log('Processing:', data);
     },
+    onRecordingInterrupted: (event) => {
+        console.log('Recording interrupted:', event);
+    }
 };
 
 const {
