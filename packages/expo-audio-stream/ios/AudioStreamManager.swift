@@ -74,6 +74,9 @@ class AudioStreamManager: NSObject {
     private var compressedFormat: String = "aac"
     private var compressedBitRate: Int = 128000
     
+    // Add property to track auto-resume preference
+    private var autoResumeAfterInterruption: Bool = false
+    
     /// Initializes the AudioStreamManager
     override init() {
         super.init()
@@ -118,15 +121,34 @@ class AudioStreamManager: NSObject {
         
         Logger.debug("audio session interruption \(type)")
         if type == .began {
-            disableWakeLock()  // Disable wake lock when audio is interrupted
+            if isRecording && !isPaused {
+                pauseRecording()
+                delegate?.audioStreamManager(self, didUpdateNotificationState: true)
+                delegate?.audioStreamManager(self, didPauseRecording: Date())
+                
+                // Emit interruption event
+                eventSender?.sendExpoEvent("onRecordingInterrupted", [
+                    "reason": "phoneCall",
+                    "isPaused": true
+                ])
+            }
+            disableWakeLock()
         } else if type == .ended {
             if let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-                if options.contains(.shouldResume) {
-                    // Resume your audio recording
-                    Logger.debug("Resume audio recording \(recordingUUID!)")
+                if options.contains(.shouldResume) && isRecording && isPaused && autoResumeAfterInterruption {
                     try? AVAudioSession.sharedInstance().setActive(true)
-                    enableWakeLock()  // Re-enable wake lock when audio resumes
+                    resumeRecording()
+                    delegate?.audioStreamManager(self, didUpdateNotificationState: false)
+                    delegate?.audioStreamManager(self, didResumeRecording: Date())
+                    
+                    // Emit interruption ended event
+                    eventSender?.sendExpoEvent("onRecordingInterrupted", [
+                        "reason": "phoneCallEnded",
+                        "isPaused": false
+                    ])
+                    
+                    enableWakeLock()
                 }
             }
         }
@@ -441,6 +463,9 @@ class AudioStreamManager: NSObject {
     ///   - intervalMilliseconds: The interval in milliseconds for emitting audio data.
     /// - Returns: A StartRecordingResult object if recording starts successfully, or nil otherwise.
     func startRecording(settings: RecordingSettings, intervalMilliseconds: Int) -> StartRecordingResult? {
+        // Update auto-resume preference from settings
+        autoResumeAfterInterruption = settings.autoResumeAfterInterruption
+        
         guard !isRecording else {
             Logger.debug("Debug: Recording is already in progress.")
             return nil

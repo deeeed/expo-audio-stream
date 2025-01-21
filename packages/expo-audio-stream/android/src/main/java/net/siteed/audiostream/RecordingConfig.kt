@@ -19,6 +19,7 @@ data class RecordingConfig(
     val enableCompressedOutput: Boolean = false,
     val compressedFormat: String = "opus",
     val compressedBitRate: Int = 24000,
+    val autoResumeAfterInterruption: Boolean = false,
 ) {
     companion object {
         fun fromMap(options: Map<String, Any?>?): Result<Pair<RecordingConfig, AudioFormatInfo>> {
@@ -73,7 +74,8 @@ data class RecordingConfig(
                 features = features,
                 enableCompressedOutput = enableCompressedOutput,
                 compressedFormat = compressedFormat,
-                compressedBitRate = compressedBitRate
+                compressedBitRate = compressedBitRate,
+                autoResumeAfterInterruption = options.getBooleanOrDefault("autoResumeAfterInterruption", false)
             )
 
             // Validate sample rate and channels

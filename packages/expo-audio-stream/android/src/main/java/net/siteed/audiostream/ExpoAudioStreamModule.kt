@@ -20,7 +20,11 @@ class ExpoAudioStreamModule : Module(), EventSender {
         // The module will be accessible from `requireNativeModule('ExpoAudioStream')` in JavaScript.
         Name("ExpoAudioStream")
 
-        Events(Constants.AUDIO_EVENT_NAME, Constants.AUDIO_ANALYSIS_EVENT_NAME)
+        Events(
+            Constants.AUDIO_EVENT_NAME,
+            Constants.AUDIO_ANALYSIS_EVENT_NAME,
+            Constants.RECORDING_INTERRUPTED_EVENT_NAME
+        )
 
         // Initialize AudioRecorderManager
         initializeManager()

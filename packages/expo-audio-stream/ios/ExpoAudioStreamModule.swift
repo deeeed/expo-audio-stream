@@ -13,7 +13,13 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         Name("ExpoAudioStream")
         
         // Defines event names that the module can send to JavaScript.
-        Events([audioDataEvent, audioAnalysisEvent, "recordingStateChanged", "notificationStateChanged"])
+        Events([
+            audioDataEvent,
+            audioAnalysisEvent,
+            "recordingStateChanged",
+            "notificationStateChanged",
+            "onRecordingInterrupted"
+        ])
         
         OnCreate {
             print("Setting streamManager delegate")
