@@ -154,3 +154,60 @@ const handleStop = async () => {
     console.log('Recording stopped with result:', result);
 };
 ```
+
+## Recording Interruption Handling
+
+The library provides robust handling of recording interruptions that may occur during audio capture. These interruptions can happen for various reasons such as incoming phone calls or audio focus changes.
+
+### Interruption Types
+
+The `RecordingInterruptionEvent` includes the following possible reasons for interruption:
+
+```tsx
+type RecordingInterruptionReason =
+    | 'audioFocusLoss'    // Another app has taken audio focus
+    | 'audioFocusGain'    // Audio focus has been regained
+    | 'phoneCall'         // An incoming phone call has interrupted recording
+    | 'phoneCallEnded'    // The interrupting phone call has ended
+```
+
+### Handling Interruptions
+
+You can handle interruptions in two ways:
+
+1. **Automatic Resume**: Set `autoResumeAfterInterruption: true` in your config to automatically resume recording after an interruption ends.
+
+2. **Manual Handling**: Use the `onRecordingInterrupted` callback to implement custom interruption handling:
+
+```tsx
+const config = {
+    // ... other config options ...
+    autoResumeAfterInterruption: false,
+    onRecordingInterrupted: (event) => {
+        const { reason, isPaused } = event;
+        
+        switch (reason) {
+            case 'phoneCall':
+                console.log('Recording paused due to phone call');
+                break;
+            case 'phoneCallEnded':
+                console.log('Phone call ended, can resume recording');
+                break;
+            case 'audioFocusLoss':
+                console.log('Audio focus lost to another app');
+                break;
+            case 'audioFocusGain':
+                console.log('Audio focus regained');
+                break;
+        }
+        
+        console.log('Recording is currently paused:', isPaused);
+    }
+};
+```
+
+### Platform Behavior
+
+- **iOS**: Interruptions are handled through the AVAudioSession system
+- **Android**: Interruptions are managed via AudioManager focus changes
+- **Web**: Interruptions are handled through the Web Audio API's state changes
