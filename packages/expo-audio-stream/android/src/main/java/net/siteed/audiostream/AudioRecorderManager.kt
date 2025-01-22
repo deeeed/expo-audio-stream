@@ -28,6 +28,7 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
+import android.app.ActivityManager
 
 class AudioRecorderManager(
     private val context: Context,
@@ -136,6 +137,11 @@ class AudioRecorderManager(
                     context, filesDir, permissionUtils, audioDataEncoder, eventSender
                 ).also { instance = it }
             }
+        }
+
+        fun destroy() {
+            instance?.cleanup()
+            instance = null
         }
     }
 
@@ -641,15 +647,28 @@ class AudioRecorderManager(
 
     fun getStatus(): Bundle {
         synchronized(audioRecordLock) {
+            // Check if service is actually running
+            val isServiceRunning = context.let { ctx ->
+                val manager = ctx.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+                manager?.getRunningServices(Integer.MAX_VALUE)
+                    ?.any { it.service.className == AudioRecordingService::class.java.name }
+            } ?: false
+
+            // If service is running but we think we're not recording, clean up
+            if (isServiceRunning && !isRecording.get()) {
+                Log.d(Constants.TAG, "Detected orphaned recording service, cleaning up...")
+                cleanup()
+                AudioRecordingService.stopService(context)
+            }
+
             if (!isRecording.get()) {
                 Log.d(Constants.TAG, "Not recording --- skip status with default values")
-
                 return bundleOf(
                     "isRecording" to false,
                     "isPaused" to false,
                     "mime" to mimeType,
                     "size" to 0,
-                    "interval" to recordingConfig.interval,
+                    "interval" to (recordingConfig?.interval ?: 0)
                 )
             }
 
@@ -916,27 +935,51 @@ class AudioRecorderManager(
         isFirstChunk = false
     }
 
-    private fun cleanup() {
-        try {
-            if (recordingConfig.showNotification) {
-                notificationManager.stopUpdates()
-                AudioRecordingService.stopService(context)
-            }
+    fun cleanup() {
+        synchronized(audioRecordLock) {
+            try {
+                if (isRecording.get()) {
+                    audioRecord?.stop()
+                    compressedRecorder?.stop()
+                    compressedRecorder?.release()
+                }
+                
+                isRecording.set(false)
+                isPaused.set(false)
+                
+                if (recordingConfig.showNotification) {
+                    notificationManager.stopUpdates()
+                    AudioRecordingService.stopService(context)
+                }
 
-            // Reset all states
-            isRecording.set(false)
-            isPaused.set(false)
-            totalRecordedTime = 0
-            pausedDuration = 0
-            lastEmittedSize = 0
-            recordingStartTime = 0
-        } catch (e: Exception) {
-            Log.e(Constants.TAG, "Error in cleanup", e)
-        } finally {
-            releaseWakeLock()
+                releaseWakeLock()
+                releaseAudioFocus()
+                audioRecord?.release()
+                audioRecord = null
+                
+                // Reset all state
+                totalRecordedTime = 0
+                pausedDuration = 0
+                lastEmittedSize = 0
+                recordingStartTime = 0
+                
+                // Update the WAV header if needed
+                audioFile?.let { file ->
+                    audioFileHandler.updateWavHeader(file)
+                }
+
+                // Send event to notify that recording was stopped
+                eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                    "reason" to "appKilled",
+                    "isPaused" to false
+                ))
+            } catch (e: Exception) {
+                Log.e(Constants.TAG, "Error during cleanup", e)
+            }
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun initializeCompressedRecorder(fileExtension: String, promise: Promise): Boolean {
         try {
             // Use the existing audioFileHandler instance

@@ -1,6 +1,8 @@
 package net.siteed.audiostream
 
 import android.Manifest
+import android.app.ActivityManager
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -170,6 +172,29 @@ class ExpoAudioStreamModule : Module(), EventSender {
                     )
                 )
             }
+        }
+
+        OnDestroy {
+            AudioRecorderManager.destroy()
+        }
+
+        // Add a new function to check if recording is actually running
+        AsyncFunction("checkRecordingStatus") { promise: Promise ->
+            val isServiceRunning = AudioRecordingService::class.java.name.let { className ->
+                val manager = appContext.reactContext?.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+                manager?.getRunningServices(Integer.MAX_VALUE)
+                    ?.any { it.service.className == className }
+            } ?: false
+
+            val status = audioRecorderManager.getStatus()
+            
+            // If service is running but isRecording is false, we need to cleanup
+            if (isServiceRunning && !status.getBoolean("isRecording")) {
+                audioRecorderManager.cleanup()
+                AudioRecordingService.stopService(appContext.reactContext!!)
+            }
+            
+            promise.resolve(status)
         }
     }
 

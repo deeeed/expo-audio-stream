@@ -8,6 +8,7 @@ import android.os.IBinder
 import android.util.Log
 import android.os.Handler
 import android.os.Looper
+import expo.modules.kotlin.Promise
 
 class AudioRecordingService : Service() {
     private val notificationManager by lazy {
@@ -43,15 +44,44 @@ class AudioRecordingService : Service() {
     override fun onDestroy() {
         Log.d(Constants.TAG, "AudioRecordingService onDestroy")
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
-        }
+        stopForeground(STOP_FOREGROUND_REMOVE)
 
         isRunning = false
         super.onDestroy()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.d(Constants.TAG, "AudioRecordingService onTaskRemoved")
+        
+        // Stop recording when app is killed
+        AudioRecorderManager.getInstance()?.let { manager ->
+            mainHandler.post {
+                // Create a simple promise object for internal use
+                val promise = object : Promise {
+                    override fun resolve(value: Any?) {
+                        Log.d(Constants.TAG, "Successfully stopped recording on task removed")
+                        cleanup()
+                    }
+                    override fun reject(code: String, message: String?, cause: Throwable?) {
+                        Log.e(Constants.TAG, "Failed to stop recording on task removed: $message")
+                        cleanup()
+                    }
+                }
+
+                try {
+                    manager.stopRecording(promise)
+                } catch (e: Exception) {
+                    promise.reject("ERROR", e.message, e)
+                }
+            }
+        }
+    }
+
+    
+    private fun cleanup() {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
     companion object {
