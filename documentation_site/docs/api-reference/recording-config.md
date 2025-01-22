@@ -10,6 +10,7 @@ The recording configuration specifies the settings used for audio recording on d
 - On IOS: 48kHz sample rate, 16-bit depth, 1 channel.
 - On the web, default configuration is 44.1kHz sample rate, 32-bit depth, 1 channel.
 
+> **Important Note for iOS Simulator Users**: When working with the iOS simulator, be aware that it has limitations regarding supported recording frequencies. For example, while real iOS devices support various sample rates (16kHz, 44.1kHz, 48kHz), the simulator may only work properly with 44.1kHz. Using unsupported frequencies in the simulator may cause the app to crash. Always test audio recording functionality on real devices for accurate behavior and support of all sample rates.
 
 ```tsx
 export interface RecordingConfig {

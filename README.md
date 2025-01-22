@@ -31,6 +31,7 @@ For more details, please refer to the [README](packages/expo-audio-ui/README.md)
 
 - [x] Automate Changelog generation on monorepo.
 - [x] Implement dual audio stream (one RAW for analysis, one compressed for playback).
+- [x] Intelligent call interruption handling
 - [ ] Integrate with react-native-whisper for real-time on device transcriptions.
 - [ ] Migrate audio analysis to c++ native library (share same logic on web via wasm and Kotlin / Swift for native). 
 - [ ] Implement example app for custom VAD.

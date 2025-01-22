@@ -37,6 +37,10 @@
   - Compression formats: OPUS or AAC
   - Configurable bitrate for compressed audio
   - Optimized storage for both high-quality and compressed formats
+- Intelligent interruption handling:
+  - Automatic pause/resume during phone calls
+  - Configurable automatic resumption
+  - Detailed interruption event callbacks
 - Configurable intervals for audio buffer receipt.
 - Automated microphone permissions setup in managed Expo projects.
 - Background audio recording on iOS.
