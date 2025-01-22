@@ -50,7 +50,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:185](https://github.com/deeeed/expo-audio-stream/blob/dfc3843c174e3887863dde47b9001ba0e8e9e87e/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L185)
+[src/ExpoAudioStream.types.ts:204](https://github.com/deeeed/expo-audio-stream/blob/835d9e911edef71820c197532ad33e3c0a97d131/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L204)
 
 ***
 
@@ -60,7 +60,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:182](https://github.com/deeeed/expo-audio-stream/blob/dfc3843c174e3887863dde47b9001ba0e8e9e87e/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L182)
+[src/ExpoAudioStream.types.ts:201](https://github.com/deeeed/expo-audio-stream/blob/835d9e911edef71820c197532ad33e3c0a97d131/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L201)
 
 ***
 
@@ -74,7 +74,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:215](https://github.com/deeeed/expo-audio-stream/blob/dfc3843c174e3887863dde47b9001ba0e8e9e87e/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L215)
+[src/ExpoAudioStream.types.ts:234](https://github.com/deeeed/expo-audio-stream/blob/835d9e911edef71820c197532ad33e3c0a97d131/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L234)
 
 ***
 
@@ -84,7 +84,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:179](https://github.com/deeeed/expo-audio-stream/blob/dfc3843c174e3887863dde47b9001ba0e8e9e87e/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L179)
+[src/ExpoAudioStream.types.ts:198](https://github.com/deeeed/expo-audio-stream/blob/835d9e911edef71820c197532ad33e3c0a97d131/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L198)
 
 ***
 
@@ -94,4 +94,4 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:176](https://github.com/deeeed/expo-audio-stream/blob/dfc3843c174e3887863dde47b9001ba0e8e9e87e/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L176)
+[src/ExpoAudioStream.types.ts:195](https://github.com/deeeed/expo-audio-stream/blob/835d9e911edef71820c197532ad33e3c0a97d131/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L195)
