@@ -6762,9 +6762,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@siteed/design-system@npm:^0.35.0":
-  version: 0.35.0
-  resolution: "@siteed/design-system@npm:0.35.0"
+"@siteed/design-system@npm:^0.35.1":
+  version: 0.35.1
+  resolution: "@siteed/design-system@npm:0.35.1"
   dependencies:
     "@pchmn/expo-material3-theme": "npm:^1.3.2"
     color: "npm:^4.2.3"
@@ -6789,7 +6789,7 @@ __metadata:
     react-native-paper-dates: "*"
     react-native-screens: "*"
     react-native-vector-icons: "*"
-  checksum: 10/1b539b156a21d90a5d0d8a2899631982a2a5286141489dbf8d245ea55e27b8a25b55917e1085162ba80f2fd96b67314656ec0b6018af7cefa3fddcc64c32dad8
+  checksum: 10/771c7c1933b55b3ae9ac2268a45a1ca2cdda6441739b6ac3c9e8a72335a8a571d01b8ccf0cc858bd9f31384d7fa59a41b9a22bcb2888288827d175a4badf951b
   languageName: node
   linkType: hard
 
@@ -6812,6 +6812,7 @@ __metadata:
   resolution: "@siteed/expo-audio-stream@workspace:packages/expo-audio-stream"
   dependencies:
     "@expo/config-plugins": "npm:~8.0.0"
+    "@siteed/design-system": "npm:^0.35.1"
     "@siteed/publisher": "npm:^0.4.15"
     "@size-limit/preset-big-lib": "npm:^11.1.4"
     "@types/jest": "npm:^29.5.12"
@@ -10283,7 +10284,7 @@ __metadata:
     "@react-navigation/native": "npm:^7.0.0"
     "@reduxjs/toolkit": "npm:^2.5.0"
     "@shopify/react-native-skia": "npm:1.5.0"
-    "@siteed/design-system": "npm:^0.35.0"
+    "@siteed/design-system": "npm:^0.35.1"
     "@siteed/expo-audio-stream": "workspace:^"
     "@siteed/expo-audio-ui": "workspace:^"
     "@siteed/react-native-logger": "npm:^0.11.0"

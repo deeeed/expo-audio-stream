@@ -104,6 +104,7 @@
         "registry": "https://registry.npmjs.org"
     },
     "dependencies": {
+        "@siteed/design-system": "^0.35.1",
         "expo-modules-core": "^2.1.1"
     }
 }
