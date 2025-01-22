@@ -70,6 +70,9 @@ const baseRecordingConfig: RecordingConfig = {
             ],
         },
     },
+    onRecordingInterrupted: (event) => {
+        console.log('Recording interrupted', event)
+    },
     notification: {
         title: 'Recording in progress',
         text: 'Please wait while we transcribe your audio',
