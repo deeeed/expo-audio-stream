@@ -42,7 +42,6 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
 
     debugLog('📱 Configuring Recording Permissions Plugin...', options)
 
-    // Rest of the code remains the same...
     // iOS Configuration
     config = withInfoPlist(config as any, (config) => {
         // Base microphone permission (always required)
