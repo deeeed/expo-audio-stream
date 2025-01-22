@@ -20,6 +20,7 @@
 - [NotificationAction](interfaces/NotificationAction.md)
 - [NotificationConfig](interfaces/NotificationConfig.md)
 - [RecordingConfig](interfaces/RecordingConfig.md)
+- [RecordingInterruptionEvent](interfaces/RecordingInterruptionEvent.md)
 - [StartRecordingResult](interfaces/StartRecordingResult.md)
 - [TranscriberData](interfaces/TranscriberData.md)
 - [UseAudioRecorderState](interfaces/UseAudioRecorderState.md)
@@ -33,6 +34,7 @@
 - [BitDepth](type-aliases/BitDepth.md)
 - [ConsoleLike](type-aliases/ConsoleLike.md)
 - [EncodingType](type-aliases/EncodingType.md)
+- [RecordingInterruptionReason](type-aliases/RecordingInterruptionReason.md)
 - [SampleRate](type-aliases/SampleRate.md)
 
 ## Variables
