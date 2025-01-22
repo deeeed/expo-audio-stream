@@ -48,4 +48,12 @@ class PermissionUtils(private val context: Context) {
         }
         return result
     }
+
+    fun checkPhoneStatePermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            context.checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
 }

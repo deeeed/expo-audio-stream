@@ -16,89 +16,112 @@ function debugLog(message: string, ...args: unknown[]): void {
     }
 }
 
-const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
-    debugLog('📱 Configuring Recording Permissions Plugin...')
+interface AudioStreamPluginOptions {
+    enablePhoneStateHandling?: boolean
+    enableNotifications?: boolean
+    enableBackgroundAudio?: boolean
+}
+
+const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
+    config: ExpoConfig,
+    props: AudioStreamPluginOptions | void
+) => {
+    // Default options if pluginOptions is undefined (void)
+    const options: AudioStreamPluginOptions = {
+        enablePhoneStateHandling: true,
+        enableNotifications: true,
+        enableBackgroundAudio: true,
+        ...(props || {}),
+    }
+
+    const {
+        enablePhoneStateHandling,
+        enableNotifications,
+        enableBackgroundAudio,
+    } = options
+
+    debugLog('📱 Configuring Recording Permissions Plugin...', options)
 
     // iOS Configuration
     config = withInfoPlist(config as any, (config) => {
-        debugLog('🍎 Configuring iOS permissions and capabilities...')
-
-        // Existing microphone permission
+        // Base microphone permission (always required)
         config.modResults['NSMicrophoneUsageDescription'] =
             config.modResults['NSMicrophoneUsageDescription'] ||
             MICROPHONE_USAGE
 
-        // Add notification permissions
-        config.modResults['NSUserNotificationsUsageDescription'] =
-            NOTIFICATION_USAGE
+        if (enableNotifications) {
+            config.modResults['NSUserNotificationsUsageDescription'] =
+                NOTIFICATION_USAGE
+            config.modResults['NSUserNotificationAlertStyle'] = 'alert'
+        }
 
-        // Add notification style
-        config.modResults['NSUserNotificationAlertStyle'] = 'alert'
-
-        // Background modes
         const existingBackgroundModes =
             config.modResults.UIBackgroundModes || []
-        if (!existingBackgroundModes.includes('audio')) {
+
+        if (
+            enableBackgroundAudio &&
+            !existingBackgroundModes.includes('audio')
+        ) {
             existingBackgroundModes.push('audio')
         }
-        if (!existingBackgroundModes.includes('remote-notification')) {
-            existingBackgroundModes.push('remote-notification')
+
+        if (enablePhoneStateHandling) {
+            if (!existingBackgroundModes.includes('voip')) {
+                existingBackgroundModes.push('voip')
+            }
+            const existingCapabilities = (config.modResults
+                .UIRequiredDeviceCapabilities || []) as string[]
+            if (!existingCapabilities.includes('telephony')) {
+                existingCapabilities.push('telephony')
+            }
+            config.modResults.UIRequiredDeviceCapabilities =
+                existingCapabilities
         }
+
         config.modResults.UIBackgroundModes = existingBackgroundModes
-
-        debugLog('iOS Background Modes:', config.modResults.UIBackgroundModes)
-
         return config
     })
 
     // Android Configuration
     config = withAndroidManifest(config as any, (config) => {
-        debugLog('🤖 Configuring Android Manifest...')
-
-        const androidManifest = config.modResults
-        if (!androidManifest.manifest) {
-            console.error(`${LOG_PREFIX} ❌ Android Manifest is null - plugin cannot continue`)
-            return config
-        }
-
-        // Add xmlns:android attribute to manifest
-        androidManifest.manifest.$ = {
-            ...androidManifest.manifest.$,
-            'xmlns:android': 'http://schemas.android.com/apk/res/android',
-        }
-
-        // Ensure permissions array exists
-        if (!androidManifest.manifest['uses-permission']) {
-            androidManifest.manifest['uses-permission'] = []
-        }
-
-        const { addPermission } = AndroidConfig.Permissions
-
-        debugLog('📋 Existing Android permissions:', 
-            androidManifest.manifest['uses-permission']?.map(p => p.$?.['android:name']) || [])
-
-        const permissionsToAdd = [
+        const basePermissions = [
             'android.permission.RECORD_AUDIO',
-            'android.permission.FOREGROUND_SERVICE',
-            'android.permission.FOREGROUND_SERVICE_MICROPHONE',
             'android.permission.WAKE_LOCK',
-            'android.permission.POST_NOTIFICATIONS',
         ]
+
+        const optionalPermissions = [
+            enableNotifications && 'android.permission.POST_NOTIFICATIONS',
+            enablePhoneStateHandling && 'android.permission.READ_PHONE_STATE',
+            enableBackgroundAudio && 'android.permission.FOREGROUND_SERVICE',
+            enableBackgroundAudio &&
+                'android.permission.FOREGROUND_SERVICE_MICROPHONE',
+        ].filter(Boolean) as string[]
+
+        const permissionsToAdd = [...basePermissions, ...optionalPermissions]
+
+        debugLog(
+            '📋 Existing Android permissions:',
+            config.modResults.manifest['uses-permission']?.map(
+                (p) => p.$?.['android:name']
+            ) || []
+        )
 
         debugLog('➕ Adding Android permissions:', permissionsToAdd)
 
+        const { addPermission } = AndroidConfig.Permissions
+
         // Add each permission only if it doesn't exist
         permissionsToAdd.forEach((permission) => {
-            const existingPermission = androidManifest.manifest[
+            const existingPermission = config.modResults.manifest[
                 'uses-permission'
             ]?.find((p) => p.$?.['android:name'] === permission)
             if (!existingPermission) {
-                addPermission(androidManifest, permission)
+                addPermission(config.modResults, permission)
             }
         })
 
         // Get the main application node
-        const mainApplication = androidManifest.manifest.application?.[0]
+        const mainApplication = config.modResults.manifest.application?.[0]
         if (mainApplication) {
             debugLog('📱 Configuring Android application components...')
 
@@ -163,7 +186,9 @@ const withRecordingPermission: ConfigPlugin = (config: ExpoConfig) => {
 
             debugLog('✅ AudioRecordingService configured')
         } else {
-            console.error(`${LOG_PREFIX} ❌ Main application node not found in Android Manifest`)
+            console.error(
+                `${LOG_PREFIX} ❌ Main application node not found in Android Manifest`
+            )
         }
 
         return config

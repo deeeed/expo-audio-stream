@@ -11,6 +11,7 @@ import Accelerate
 import UIKit
 import MediaPlayer
 import UserNotifications
+import CallKit
 
 // Helper to convert to little-endian byte array
 extension UInt32 {
@@ -74,6 +75,9 @@ class AudioStreamManager: NSObject {
     private var compressedFormat: String = "aac"
     private var compressedBitRate: Int = 128000
     
+    // Add property to track auto-resume preference
+    private var autoResumeAfterInterruption: Bool = false
+    
     /// Initializes the AudioStreamManager
     override init() {
         super.init()
@@ -107,28 +111,62 @@ class AudioStreamManager: NSObject {
         }
     }
     
-    /// Handles audio session interruptions.
-    /// - Parameter notification: The notification object containing interruption information.
-    @objc func handleAudioSessionInterruption(notification: Notification) {
-        guard let info = notification.userInfo,
-              let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+    /// Handles an audio session interruption.
+    @objc private func handleAudioSessionInterruption(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
             return
         }
         
-        Logger.debug("audio session interruption \(type)")
-        if type == .began {
-            disableWakeLock()  // Disable wake lock when audio is interrupted
-        } else if type == .ended {
-            if let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt {
+        let wasSuspended = isPaused
+        
+        switch type {
+        case .began:
+            Logger.debug("Audio session interruption began")
+            pauseRecording()
+            
+            // Notify about the interruption
+            delegate?.audioStreamManager(
+                self,
+                didReceiveInterruption: [
+                    "type": "began",
+                    "wasSuspended": wasSuspended
+                ]
+            )
+            
+        case .ended:
+            Logger.debug("Audio session interruption ended")
+            if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
                 if options.contains(.shouldResume) {
-                    // Resume your audio recording
-                    Logger.debug("Resume audio recording \(recordingUUID!)")
-                    try? AVAudioSession.sharedInstance().setActive(true)
-                    enableWakeLock()  // Re-enable wake lock when audio resumes
+                    if autoResumeAfterInterruption && !wasSuspended {
+                        resumeRecording()
+                    }
+                    
+                    // Notify about the interruption
+                    delegate?.audioStreamManager(
+                        self,
+                        didReceiveInterruption: [
+                            "type": "ended",
+                            "wasSuspended": wasSuspended,
+                            "shouldResume": true
+                        ]
+                    )
+                } else {
+                    // Notify about the interruption without resume option
+                    delegate?.audioStreamManager(
+                        self,
+                        didReceiveInterruption: [
+                            "type": "ended",
+                            "wasSuspended": wasSuspended,
+                            "shouldResume": false
+                        ]
+                    )
                 }
             }
+        @unknown default:
+            break
         }
     }
     
@@ -441,6 +479,9 @@ class AudioStreamManager: NSObject {
     ///   - intervalMilliseconds: The interval in milliseconds for emitting audio data.
     /// - Returns: A StartRecordingResult object if recording starts successfully, or nil otherwise.
     func startRecording(settings: RecordingSettings, intervalMilliseconds: Int) -> StartRecordingResult? {
+        // Update auto-resume preference from settings
+        autoResumeAfterInterruption = settings.autoResumeAfterInterruption
+        
         guard !isRecording else {
             Logger.debug("Debug: Recording is already in progress.")
             return nil

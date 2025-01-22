@@ -118,6 +118,19 @@ export interface IOSConfig {
     audioSession?: AudioSessionConfig
 }
 
+// Add new type for interruption reasons
+export type RecordingInterruptionReason =
+    | 'audioFocusLoss'
+    | 'audioFocusGain'
+    | 'phoneCall'
+    | 'phoneCallEnded'
+
+// Add new interface for interruption events
+export interface RecordingInterruptionEvent {
+    reason: RecordingInterruptionReason
+    isPaused: boolean
+}
+
 export interface RecordingConfig {
     // Sample rate for recording (16000, 44100, or 48000 Hz)
     sampleRate?: SampleRate
@@ -169,6 +182,12 @@ export interface RecordingConfig {
         format: 'aac' | 'opus' | 'mp3'
         bitrate?: number
     }
+
+    // Whether to automatically resume recording after an interruption (default is false)
+    autoResumeAfterInterruption?: boolean
+
+    // Optional callback to handle recording interruptions
+    onRecordingInterrupted?: (_: RecordingInterruptionEvent) => void
 }
 
 export interface NotificationConfig {
@@ -249,4 +268,5 @@ export interface UseAudioRecorderState {
     size: number // Size in bytes of the recorded audio
     compression?: CompressionInfo
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
+    onRecordingInterrupted?: (_: RecordingInterruptionEvent) => void
 }

@@ -3,6 +3,7 @@ package net.siteed.audiostream
 object Constants {
     const val AUDIO_EVENT_NAME = "AudioData"
     const val AUDIO_ANALYSIS_EVENT_NAME = "AudioAnalysis"
+    const val RECORDING_INTERRUPTED_EVENT_NAME = "onRecordingInterrupted"
     const val DEFAULT_SAMPLE_RATE = 16000 // Default sample rate for audio recording
     const val DEFAULT_CHANNEL_CONFIG = 1 // Mono
     const val DEFAULT_AUDIO_FORMAT = 16 // 16-bit PCM
