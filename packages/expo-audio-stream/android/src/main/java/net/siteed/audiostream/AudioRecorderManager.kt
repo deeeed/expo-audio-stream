@@ -23,6 +23,11 @@ import android.os.PowerManager
 import android.content.Context
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import android.media.AudioManager
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.telephony.PhoneStateListener
+import android.telephony.TelephonyManager
 
 class AudioRecorderManager(
     private val context: Context,
@@ -63,6 +68,55 @@ class AudioRecorderManager(
     private var compressedRecorder: MediaRecorder? = null
     private var compressedFile: File? = null
 
+    private var audioManager: AudioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var audioFocusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
+    private var audioFocusRequest: Any? = null  // Type Any to handle both old and new APIs
+    private var phoneStateListener: PhoneStateListener? = null
+    private var telephonyManager: TelephonyManager? = null
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private val audioFocusCallback = object : AudioManager.OnAudioFocusChangeListener {
+        override fun onAudioFocusChange(focusChange: Int) {
+            when (focusChange) {
+                AudioManager.AUDIOFOCUS_LOSS,
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                    if (isRecording.get() && !isPaused.get()) {
+                        mainHandler.post {
+                            pauseRecording(object : Promise {
+                                override fun resolve(value: Any?) {
+                                    eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                        "reason" to "audioFocusLoss",
+                                        "isPaused" to true
+                                    ))
+                                }
+                                override fun reject(code: String, message: String?, cause: Throwable?) {
+                                    Log.e(Constants.TAG, "Failed to pause recording on audio focus loss")
+                                }
+                            })
+                        }
+                    }
+                }
+                AudioManager.AUDIOFOCUS_GAIN -> {
+                    if (isRecording.get() && isPaused.get()) {
+                        mainHandler.post {
+                            resumeRecording(object : Promise {
+                                override fun resolve(value: Any?) {
+                                    eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                        "reason" to "audioFocusGain",
+                                        "isPaused" to false
+                                    ))
+                                }
+                                override fun reject(code: String, message: String?, cause: Throwable?) {
+                                    Log.e(Constants.TAG, "Failed to resume recording on audio focus gain")
+                                }
+                            })
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     companion object {
         @SuppressLint("StaticFieldLeak")
         @Volatile
@@ -88,6 +142,15 @@ class AudioRecorderManager(
     @RequiresApi(Build.VERSION_CODES.R)
     fun startRecording(options: Map<String, Any?>, promise: Promise) {
         try {
+            // Initialize phone state listener
+            initializePhoneStateListener()
+
+            // Request audio focus
+            if (!requestAudioFocus()) {
+                promise.reject("AUDIO_FOCUS_ERROR", "Failed to obtain audio focus", null)
+                return
+            }
+
             Log.d(Constants.TAG, "Starting recording with options: $options")
 
             // Check permissions
@@ -158,7 +221,8 @@ class AudioRecorderManager(
             promise.resolve(result)
 
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Unexpected error in startRecording", e)
+            releaseAudioFocus()
+            telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
             promise.reject("UNEXPECTED_ERROR", "Unexpected error: ${e.message}", e)
         }
     }
@@ -905,5 +969,146 @@ class AudioRecorderManager(
             promise.reject("COMPRESSED_INIT_FAILED", "Failed to initialize compressed recorder", e)
             return false
         }
+    }
+
+    private fun initializePhoneStateListener() {
+        try {
+            // Check for READ_PHONE_STATE permission before initializing phone state listener
+            if (permissionUtils.checkPhoneStatePermission()) {
+                phoneStateListener = object : PhoneStateListener() {
+                    override fun onCallStateChanged(state: Int, phoneNumber: String?) {
+                        when (state) {
+                            TelephonyManager.CALL_STATE_RINGING,
+                            TelephonyManager.CALL_STATE_OFFHOOK -> {
+                                if (isRecording.get() && !isPaused.get()) {
+                                    mainHandler.post {
+                                        pauseRecording(object : Promise {
+                                            override fun resolve(value: Any?) {
+                                                eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                                    "reason" to "phoneCall",
+                                                    "isPaused" to true
+                                                ))
+                                            }
+                                            override fun reject(code: String, message: String?, cause: Throwable?) {
+                                                Log.e(Constants.TAG, "Failed to pause recording on phone call")
+                                            }
+                                        })
+                                    }
+                                }
+                            }
+                            TelephonyManager.CALL_STATE_IDLE -> {
+                                if (isRecording.get() && isPaused.get()) {
+                                    mainHandler.post {
+                                        resumeRecording(object : Promise {
+                                            override fun resolve(value: Any?) {
+                                                eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                                    "reason" to "phoneCallEnded",
+                                                    "isPaused" to false
+                                                ))
+                                            }
+                                            override fun reject(code: String, message: String?, cause: Throwable?) {
+                                                Log.e(Constants.TAG, "Failed to resume recording after phone call")
+                                            }
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
+                if (telephonyManager != null) {
+                    try {
+                        telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+                    } catch (e: Exception) {
+                        Log.e(Constants.TAG, "Failed to register phone state listener", e)
+                    }
+                }
+            } else {
+                Log.w(Constants.TAG, "READ_PHONE_STATE permission not granted, phone call interruption handling disabled")
+            }
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to initialize phone state listener", e)
+        }
+    }
+
+    @SuppressLint("NewApi")
+    private fun requestAudioFocus(): Boolean {
+        audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+            when (focusChange) {
+                AudioManager.AUDIOFOCUS_LOSS,
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                    if (isRecording.get() && !isPaused.get()) {
+                        mainHandler.post {
+                            pauseRecording(object : Promise {
+                                override fun resolve(value: Any?) {
+                                    eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                        "reason" to "audioFocusLoss",
+                                        "isPaused" to true
+                                    ))
+                                }
+                                override fun reject(code: String, message: String?, cause: Throwable?) {
+                                    Log.e(Constants.TAG, "Failed to pause recording on audio focus loss")
+                                }
+                            })
+                        }
+                    }
+                }
+                AudioManager.AUDIOFOCUS_GAIN -> {
+                    if (isRecording.get() && isPaused.get()) {
+                        mainHandler.post {
+                            resumeRecording(object : Promise {
+                                override fun resolve(value: Any?) {
+                                    eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                        "reason" to "audioFocusGain",
+                                        "isPaused" to false
+                                    ))
+                                }
+                                override fun reject(code: String, message: String?, cause: Throwable?) {
+                                    Log.e(Constants.TAG, "Failed to resume recording on audio focus gain")
+                                }
+                            })
+                        }
+                    }
+                }
+            }
+        }
+
+        val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                .setAudioAttributes(AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build())
+                .setOnAudioFocusChangeListener(audioFocusChangeListener!!)
+                .build()
+            audioFocusRequest = focusRequest
+            audioManager.requestAudioFocus(focusRequest)
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(
+                audioFocusChangeListener,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+            )
+        }
+        
+        return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
+    private fun releaseAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            (audioFocusRequest as? AudioFocusRequest)?.let { request ->
+                audioManager.abandonAudioFocusRequest(request)
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            audioFocusChangeListener?.let { listener ->
+                audioManager.abandonAudioFocus(listener)
+            }
+        }
+        audioFocusRequest = null
+        audioFocusChangeListener = null
     }
 }

@@ -109,6 +109,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             },
         ],
         [
+            '../../packages/expo-audio-stream/app.plugin.js',
+            {
+                enablePhoneStateHandling: true,
+                enableNotifications: true,
+                enableBackgroundAudio: true,
+            },
+        ],
+        [
             'expo-build-properties',
             {
                 ios: {},

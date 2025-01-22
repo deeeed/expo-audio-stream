@@ -3,6 +3,9 @@ import AVFoundation
 
 let audioDataEvent: String = "AudioData"
 let audioAnalysisEvent: String = "AudioAnalysis"
+let recordingStateChangedEvent: String = "recordingStateChanged"
+let notificationStateChangedEvent: String = "notificationStateChanged"
+let recordingInterruptedEvent: String = "onRecordingInterrupted"
 
 public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     private var streamManager = AudioStreamManager()
@@ -13,7 +16,13 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         Name("ExpoAudioStream")
         
         // Defines event names that the module can send to JavaScript.
-        Events([audioDataEvent, audioAnalysisEvent, "recordingStateChanged", "notificationStateChanged"])
+        Events([
+            audioDataEvent,
+            audioAnalysisEvent,
+            recordingStateChangedEvent,
+            notificationStateChangedEvent,
+            recordingInterruptedEvent
+        ])
         
         OnCreate {
             print("Setting streamManager delegate")
@@ -299,21 +308,21 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didPauseRecording pauseTime: Date) {
-        sendEvent("recordingStateChanged", [
+        sendEvent(recordingStateChangedEvent, [
             "state": "paused",
             "timestamp": pauseTime.timeIntervalSince1970 * 1000
         ])
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didResumeRecording resumeTime: Date) {
-        sendEvent("recordingStateChanged", [
+        sendEvent(recordingStateChangedEvent, [
             "state": "recording",
             "timestamp": resumeTime.timeIntervalSince1970 * 1000
         ])
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didUpdateNotificationState isPaused: Bool) {
-        sendEvent("notificationStateChanged", [
+        sendEvent(notificationStateChangedEvent, [
             "isPaused": isPaused
         ])
     }
@@ -447,4 +456,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         }
     }
     
+    func audioStreamManager(_ manager: AudioStreamManager, didReceiveInterruption info: [String: Any]) {
+        sendEvent(recordingInterruptedEvent, info)
+    }
 }
