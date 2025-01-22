@@ -11,6 +11,7 @@ import Accelerate
 import UIKit
 import MediaPlayer
 import UserNotifications
+import CallKit
 
 // Helper to convert to little-endian byte array
 extension UInt32 {
@@ -110,47 +111,62 @@ class AudioStreamManager: NSObject {
         }
     }
     
-    /// Handles audio session interruptions.
-    /// - Parameter notification: The notification object containing interruption information.
-    @objc func handleAudioSessionInterruption(notification: Notification) {
-        guard let info = notification.userInfo,
-              let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+    /// Handles an audio session interruption.
+    @objc private func handleAudioSessionInterruption(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
             return
         }
         
-        Logger.debug("audio session interruption \(type)")
-        if type == .began {
-            if isRecording && !isPaused {
-                pauseRecording()
-                delegate?.audioStreamManager(self, didUpdateNotificationState: true)
-                delegate?.audioStreamManager(self, didPauseRecording: Date())
-                
-                // Emit interruption event
-                eventSender?.sendExpoEvent("onRecordingInterrupted", [
-                    "reason": "phoneCall",
-                    "isPaused": true
-                ])
-            }
-            disableWakeLock()
-        } else if type == .ended {
-            if let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt {
+        let wasSuspended = isPaused
+        
+        switch type {
+        case .began:
+            Logger.debug("Audio session interruption began")
+            pauseRecording()
+            
+            // Notify about the interruption
+            delegate?.audioStreamManager(
+                self,
+                didReceiveInterruption: [
+                    "type": "began",
+                    "wasSuspended": wasSuspended
+                ]
+            )
+            
+        case .ended:
+            Logger.debug("Audio session interruption ended")
+            if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-                if options.contains(.shouldResume) && isRecording && isPaused && autoResumeAfterInterruption {
-                    try? AVAudioSession.sharedInstance().setActive(true)
-                    resumeRecording()
-                    delegate?.audioStreamManager(self, didUpdateNotificationState: false)
-                    delegate?.audioStreamManager(self, didResumeRecording: Date())
+                if options.contains(.shouldResume) {
+                    if autoResumeAfterInterruption && !wasSuspended {
+                        resumeRecording()
+                    }
                     
-                    // Emit interruption ended event
-                    eventSender?.sendExpoEvent("onRecordingInterrupted", [
-                        "reason": "phoneCallEnded",
-                        "isPaused": false
-                    ])
-                    
-                    enableWakeLock()
+                    // Notify about the interruption
+                    delegate?.audioStreamManager(
+                        self,
+                        didReceiveInterruption: [
+                            "type": "ended",
+                            "wasSuspended": wasSuspended,
+                            "shouldResume": true
+                        ]
+                    )
+                } else {
+                    // Notify about the interruption without resume option
+                    delegate?.audioStreamManager(
+                        self,
+                        didReceiveInterruption: [
+                            "type": "ended",
+                            "wasSuspended": wasSuspended,
+                            "shouldResume": false
+                        ]
+                    )
                 }
             }
+        @unknown default:
+            break
         }
     }
     
