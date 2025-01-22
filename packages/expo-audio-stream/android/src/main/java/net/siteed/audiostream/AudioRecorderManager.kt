@@ -972,50 +972,65 @@ class AudioRecorderManager(
     }
 
     private fun initializePhoneStateListener() {
-        phoneStateListener = object : PhoneStateListener() {
-            override fun onCallStateChanged(state: Int, phoneNumber: String?) {
-                when (state) {
-                    TelephonyManager.CALL_STATE_RINGING,
-                    TelephonyManager.CALL_STATE_OFFHOOK -> {
-                        if (isRecording.get() && !isPaused.get()) {
-                            mainHandler.post {
-                                pauseRecording(object : Promise {
-                                    override fun resolve(value: Any?) {
-                                        eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
-                                            "reason" to "phoneCall",
-                                            "isPaused" to true
-                                        ))
+        try {
+            // Check for READ_PHONE_STATE permission before initializing phone state listener
+            if (permissionUtils.checkPhoneStatePermission()) {
+                phoneStateListener = object : PhoneStateListener() {
+                    override fun onCallStateChanged(state: Int, phoneNumber: String?) {
+                        when (state) {
+                            TelephonyManager.CALL_STATE_RINGING,
+                            TelephonyManager.CALL_STATE_OFFHOOK -> {
+                                if (isRecording.get() && !isPaused.get()) {
+                                    mainHandler.post {
+                                        pauseRecording(object : Promise {
+                                            override fun resolve(value: Any?) {
+                                                eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                                    "reason" to "phoneCall",
+                                                    "isPaused" to true
+                                                ))
+                                            }
+                                            override fun reject(code: String, message: String?, cause: Throwable?) {
+                                                Log.e(Constants.TAG, "Failed to pause recording on phone call")
+                                            }
+                                        })
                                     }
-                                    override fun reject(code: String, message: String?, cause: Throwable?) {
-                                        Log.e(Constants.TAG, "Failed to pause recording on phone call")
-                                    }
-                                })
+                                }
                             }
-                        }
-                    }
-                    TelephonyManager.CALL_STATE_IDLE -> {
-                        if (isRecording.get() && isPaused.get()) {
-                            mainHandler.post {
-                                resumeRecording(object : Promise {
-                                    override fun resolve(value: Any?) {
-                                        eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
-                                            "reason" to "phoneCallEnded",
-                                            "isPaused" to false
-                                        ))
+                            TelephonyManager.CALL_STATE_IDLE -> {
+                                if (isRecording.get() && isPaused.get()) {
+                                    mainHandler.post {
+                                        resumeRecording(object : Promise {
+                                            override fun resolve(value: Any?) {
+                                                eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                                    "reason" to "phoneCallEnded",
+                                                    "isPaused" to false
+                                                ))
+                                            }
+                                            override fun reject(code: String, message: String?, cause: Throwable?) {
+                                                Log.e(Constants.TAG, "Failed to resume recording after phone call")
+                                            }
+                                        })
                                     }
-                                    override fun reject(code: String, message: String?, cause: Throwable?) {
-                                        Log.e(Constants.TAG, "Failed to resume recording after phone call")
-                                    }
-                                })
+                                }
                             }
                         }
                     }
                 }
-            }
-        }
 
-        telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
-        telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+                telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
+                if (telephonyManager != null) {
+                    try {
+                        telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+                    } catch (e: Exception) {
+                        Log.e(Constants.TAG, "Failed to register phone state listener", e)
+                    }
+                }
+            } else {
+                Log.w(Constants.TAG, "READ_PHONE_STATE permission not granted, phone call interruption handling disabled")
+            }
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to initialize phone state listener", e)
+        }
     }
 
     @SuppressLint("NewApi")
