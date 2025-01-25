@@ -6,35 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- feat: cleanup (#83) ([c557bd7](https://github.com/deeeed/expo-audio-stream/commit/c557bd79e3b043bc89695a0351014eaca6857036))
 
+## [0.1.19] - 2024-01-25
 ### Added
-- For new features.
+- Initial release of @siteed/expo-audio-stream-ui
+- Feature: Customizable UI components for real-time audio streaming
+- Feature: Intuitive interfaces for audio controls and visualizations
+- Feature: Seamless integration with @siteed/expo-audio-stream
+- Feature: Support for iOS, Android, and web platforms
 
-### Changed
-- For changes in existing functionality.
-
-### Deprecated
-- For soon-to-be removed features.
-
-### Removed
-- For now removed features.
-
-### Fixed
-- For any bug fixes.
-
-### Security
-- In case of vulnerabilities.
-
-## [1.0.0] - YYYY-MM-DD
-
-### Added
-- Initial release of @siteed/expo-audio-stream.
-- Feature: Real-time audio streaming across iOS, Android, and web.
-- Feature: Configurable intervals for audio buffer receipt.
-- Feature: Automated microphone permissions setup in managed Expo projects.
-- Feature: Background audio recording on iOS.
-- Feature: Audio features extraction during recording.
-- Feature: Consistent WAV PCM recording format across all platforms.
-
-[Unreleased]: https://github.com/deeeed/expo-audio-stream/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/deeeed/expo-audio-stream/releases/tag/v1.0.0
+[Unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.1.19...HEAD
+[0.1.19]: https://github.com/deeeed/expo-audio-stream/releases/tag/@siteed/expo-audio-ui@0.1.19
