@@ -16,7 +16,9 @@ import { isWeb } from '../../utils/utils'
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
-        container: {},
+        container: {
+            gap: 10,
+        },
         iconContainer: {
             alignItems: 'center',
         },
@@ -45,7 +47,7 @@ export const MoreScreen = () => {
     const { isHackEnabled, handleHackToggle } = useReanimatedWebHack()
 
     return (
-        <ScreenWrapper withScrollView useInsets>
+        <ScreenWrapper withScrollView useInsets contentContainerStyle={styles.container}>
             <View style={styles.iconContainer}>
                 <Image
                     source={logoSource}
@@ -76,6 +78,7 @@ export const MoreScreen = () => {
             <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,
+                    margin: 0,
                 }}
                 label="Logs"
                 subLabel="Debug console logs"
@@ -86,6 +89,7 @@ export const MoreScreen = () => {
             <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,
+                    margin: 0,
                 }}
                 label="Transcriber Config"
                 subLabel="Configure model and AI parameters for transcription"
@@ -96,6 +100,7 @@ export const MoreScreen = () => {
             <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,
+                    margin: 0,
                 }}
                 label="Permissions"
                 subLabel="Check and request permissions"
@@ -107,6 +112,7 @@ export const MoreScreen = () => {
                 <ListItem
                     contentContainerStyle={{
                         backgroundColor: theme.colors.surface,
+                        margin: 0,
                     }}
                     label="Native Whisper"
                     subLabel="Native Whisper"
@@ -118,6 +124,7 @@ export const MoreScreen = () => {
             <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,
+                    margin: 0,
                 }}
                 label="Infinite Canvas"
                 subLabel="Minimal implementation for infinite canvas"
