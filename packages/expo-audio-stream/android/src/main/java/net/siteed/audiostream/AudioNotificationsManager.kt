@@ -115,10 +115,12 @@ class AudioNotificationManager private constructor(context: Context) {
             PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Configure notification builder with settings optimized for recording service
+        // and wearable device compatibility
         notificationBuilder = NotificationCompat.Builder(context, recordingConfig.notification.channelId)
             .setSmallIcon(iconResId)
             .setContentIntent(pendingIntent)
-            .setOngoing(true)
+            .setOngoing(true)  // Notification cannot be dismissed by user
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -126,10 +128,11 @@ class AudioNotificationManager private constructor(context: Context) {
             .setCustomContentView(remoteViews)
             .setCustomBigContentView(remoteViews)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-            .setOnlyAlertOnce(true)
-            .setVibrate(null)
-            .setDefaults(0)
-            .setLocalOnly(true)
+            // Prevent repeated alerts and vibrations
+            .setOnlyAlertOnce(true)  // Only alert on first notification
+            .setVibrate(null)        // Disable vibration
+            .setDefaults(0)          // Clear all default notification behaviors
+            .setLocalOnly(true)      // Prevent notification from appearing on wearable devices
 
         addNotificationActions(context)
     }
