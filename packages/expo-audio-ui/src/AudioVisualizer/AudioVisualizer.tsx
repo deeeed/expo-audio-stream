@@ -1,7 +1,10 @@
 // playground/src/component/audio-visualizer/audio-visualizer.tsx
 import { SkFont } from '@shopify/react-native-skia'
-import { AudioAnalysis, DataPoint } from '@siteed/expo-audio-stream'
-import { getLogger } from '@siteed/react-native-logger'
+import {
+    AudioAnalysis,
+    DataPoint,
+    ConsoleLike,
+} from '@siteed/expo-audio-stream'
 import React, {
     useCallback,
     useEffect,
@@ -57,7 +60,6 @@ const reducer = (
             return state
     }
 }
-
 export interface AudioVisualizerProps {
     audioData: AudioAnalysis
     currentTime?: number // in seconds
@@ -71,6 +73,7 @@ export interface AudioVisualizerProps {
     showNavigation?: boolean
     enableInertia?: GestureHandlerProps['enableInertia']
     font?: SkFont
+    logger?: ConsoleLike
     onSelection?: ({
         dataPoint,
         index,
@@ -93,8 +96,6 @@ export interface AudioVisualizerProps {
     onTranslateXChange?: (translateX: number) => void
 }
 
-const logger = getLogger('AudioVisualizer')
-
 export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     audioData,
     canvasHeight = 100,
@@ -108,6 +109,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     showDottedLine = true,
     showSilence = false,
     showYAxis = false,
+    logger,
     onSeekEnd,
     onSelection,
     font,
@@ -137,7 +139,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     const handleLayout = useCallback((event: LayoutChangeEvent) => {
         const { width } = event.nativeEvent.layout
-        logger.log(`Layout width: ${width}`)
+        logger?.log(`Layout width: ${width}`)
         dispatch({ type: 'UPDATE_STATE', state: { canvasWidth: width } })
     }, [])
 
@@ -213,7 +215,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 candleSpace,
             },
         })
-        logger.log(`Updated active points: ${updatedActivePoints.length}`)
+        logger?.log(`Updated active points: ${updatedActivePoints.length}`)
         updateActivePointsResult.current = {
             activePoints: updatedActivePoints,
             range: updatedRange,
@@ -246,7 +248,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     useEffect(() => {
         if (currentTime && audioData.durationMs) {
-            logger.log(`Syncing translateX... currentTime=${currentTime}`)
+            logger?.log(`Syncing translateX... currentTime=${currentTime}`)
             const newTranslateX = syncTranslateX({
                 currentTime,
                 durationMs: audioData.durationMs,
@@ -264,7 +266,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             // Define a threshold to update active points
             const translateXThreshold = canvasWidth
 
-            logger.log(
+            logger?.log(
                 `Moved distance: ${movedDistance} newTranslateX: ${newTranslateX} Threshold: ${translateXThreshold}`
             )
             if (movedDistance >= translateXThreshold) {
@@ -302,7 +304,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     const handleDragEnd = useCallback(
         ({ newTranslateX }: { newTranslateX: number }) => {
-            console.log(
+            logger?.log(
                 `handleDragEnd newTranslateX=${newTranslateX} disableTapSelection=${disableTapSelection}`
             )
             if (audioData.durationMs && onSeekEnd) {
@@ -366,7 +368,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     const handlePrevNextSelection = useCallback(
         (direction: 'prev' | 'next') => {
-            logger.debug(
+            logger?.debug(
                 `[${direction}] Selected index: ${selectedIndex}`,
                 selectedCandle
             )
@@ -377,7 +379,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             const newIndex =
                 direction === 'prev' ? selectedIndex - 1 : selectedIndex + 1
 
-            logger.debug(`New index: ${newIndex}`)
+            logger?.debug(`New index: ${newIndex}`)
             if (newIndex < 0 || newIndex >= audioData.dataPoints.length) return
 
             const newSelectedCandle = audioData.dataPoints[newIndex]
@@ -390,7 +392,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 },
             })
 
-            logger.debug(
+            logger?.debug(
                 `New selected candle: ${newSelectedCandle.id}`,
                 onSelection
             )
@@ -424,7 +426,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                 candleSpace,
             },
         })
-        logger.log(`Updated active points: ${updatedActivePoints.length}`)
+        logger?.log(`Updated active points: ${updatedActivePoints.length}`)
         updateActivePointsResult.current = {
             activePoints: updatedActivePoints,
             range: updatedRange,
@@ -476,13 +478,13 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                     index: candleUnderReferenceLine,
                 })
             } else {
-                logger.debug(
+                logger?.debug(
                     'No candle found at index:',
                     candleUnderReferenceLine
                 )
             }
         } else {
-            logger.log('Candle index out of range:', candleUnderReferenceLine)
+            logger?.log('Candle index out of range:', candleUnderReferenceLine)
         }
     }, [
         translateX,
