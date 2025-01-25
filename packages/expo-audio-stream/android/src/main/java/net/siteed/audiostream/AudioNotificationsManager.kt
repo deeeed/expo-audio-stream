@@ -126,6 +126,10 @@ class AudioNotificationManager private constructor(context: Context) {
             .setCustomContentView(remoteViews)
             .setCustomBigContentView(remoteViews)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setOnlyAlertOnce(true)
+            .setVibrate(null)
+            .setDefaults(0)
+            .setLocalOnly(true)
 
         addNotificationActions(context)
     }
