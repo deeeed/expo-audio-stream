@@ -43,7 +43,16 @@ You can customize the plugin's behavior by providing options:
                 {
                     "enablePhoneStateHandling": true,
                     "enableNotifications": true,
-                    "enableBackgroundAudio": true
+                    "enableBackgroundAudio": true,
+                    "iosBackgroundModes": {
+                        "useVoIP": false,
+                        "useAudio": false,
+                        "useProcessing": true
+                    },
+                    "iosConfig": {
+                        "backgroundProcessingTitle": "Audio Recording",
+                        "keepAliveInBackground": true
+                    }
                 }
             ]
         ]
@@ -53,9 +62,10 @@ You can customize the plugin's behavior by providing options:
 
 ### Configuration Options
 
+#### Core Options
 - **enablePhoneStateHandling** (default: `true`): 
   - Enables handling of phone state changes (calls, etc.)
-  - Adds telephony capabilities and VoIP background mode on iOS
+  - Adds telephony capabilities on iOS
   - Adds READ_PHONE_STATE permission on Android
 
 - **enableNotifications** (default: `true`):
@@ -65,8 +75,33 @@ You can customize the plugin's behavior by providing options:
 
 - **enableBackgroundAudio** (default: `true`):
   - Enables background audio recording capabilities
-  - Adds audio background mode on iOS
   - Adds FOREGROUND_SERVICE and FOREGROUND_SERVICE_MICROPHONE permissions on Android
+
+#### iOS Background Modes
+- **iosBackgroundModes**:
+  - `useVoIP` (default: `false`): Enable VoIP background mode
+  - `useAudio` (default: `false`): Enable audio background mode
+  - `useProcessing` (default: `false`): Enable background processing mode
+  - `useLocation` (default: `false`): Enable location updates in background
+  - `useExternalAccessory` (default: `false`): Enable external audio accessories
+
+#### iOS Specific Configuration
+- **iosConfig**:
+  - `allowBackgroundAudioControls` (default: `false`): Show audio controls in control center
+  - `backgroundProcessingTitle` (default: `'Audio Recording'`): Description for background processing
+  - `keepAliveInBackground` (default: `true`): Enable background keep-alive mechanisms
+
+### App Store Submission Notes
+
+When submitting to the App Store, it's important to configure the background modes appropriately to avoid rejection:
+
+1. If your app only needs background recording without playback:
+   - Set `useAudio` to `false`
+   - Use `useProcessing` instead for background operation
+
+2. If your app doesn't use VoIP features:
+   - Set `useVoIP` to `false`
+   - Use alternative background modes like `useProcessing` for background operation
 
 Make sure to run `npx expo prebuild` after modifying the plugin configuration in your app.json file.
 
