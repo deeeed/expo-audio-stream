@@ -63,7 +63,6 @@
     "@rollup/plugin-url": "^8.0.2",
     "@shopify/react-native-skia": "1.5.0",
     "@siteed/expo-audio-stream": "workspace:^",
-    "@siteed/react-native-logger": "^0.10.0",
     "@size-limit/preset-big-lib": "^11.1.4",
     "@storybook/addon-actions": "^8.3.6",
     "@storybook/addon-backgrounds": "^8.3.6",
