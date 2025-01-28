@@ -6591,7 +6591,7 @@ __metadata:
   dependencies:
     "@expo/config-plugins": "npm:~9.0.0"
     "@siteed/design-system": "npm:^0.35.1"
-    "@siteed/publisher": "npm:^0.4.15"
+    "@siteed/publisher": "npm:^0.4.18"
     "@size-limit/preset-big-lib": "npm:^11.1.4"
     "@types/jest": "npm:^29.5.12"
     "@types/node": "npm:^20.12.7"
@@ -6703,7 +6703,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@siteed/publisher@npm:^0.4.15":
+"@siteed/publisher@npm:^0.4.18":
   version: 0.4.18
   resolution: "@siteed/publisher@npm:0.4.18"
   dependencies:

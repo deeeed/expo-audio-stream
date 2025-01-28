@@ -7,8 +7,10 @@ BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Change to script's directory
-cd "$(dirname "$0")"
+# Get absolute path of script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+echo "Script directory: $SCRIPT_DIR"
+cd "$SCRIPT_DIR"
 echo -e "${BLUE}Changed to script directory: $(pwd)${NC}"
 
 # Cleanup and rebuild first
@@ -32,15 +34,23 @@ else
     echo -e "${YELLOW}Generating updated documentation...${NC}"
     yarn docgen
 
-    cd ../../documentation_site
+    # Store the root directory path
+    ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    
+    cd "$ROOT_DIR/documentation_site"
     yarn build
 
-    cd "$(dirname "$0")"
+    cd "$SCRIPT_DIR"
 
     sleep 2
     
-    git add "$(pwd)/../../docs" "$(pwd)/../../documentation_site" # add all changes in the root folder
+    # Change to root directory before git operations
+    cd "$ROOT_DIR"
+    git add "docs" "documentation_site"
     git commit -m "docs: update api references for v$version"
+    
+    # Return to script directory
+    cd "$SCRIPT_DIR"
     
     echo -e "${BLUE}Waiting while docs are generated...${NC}"
     sleep 2
