@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+- feat: publsih script with proper doc build ([f67b439](https://github.com/deeeed/expo-audio-stream/commit/f67b439841cb2a4ea519104c0c7525c6337cfcc7))
 
 ## [1.11.4] - 2025-01-28
 ### Bug Fixes
