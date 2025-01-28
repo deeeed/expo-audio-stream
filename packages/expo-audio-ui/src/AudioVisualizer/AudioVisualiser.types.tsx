@@ -1,5 +1,5 @@
 // playground/src/component/audio-visualizer/autio-visualizer.types.ts
-import { DataPoint } from '@siteed/expo-audio-stream'
+import { ConsoleLike, DataPoint } from '@siteed/expo-audio-stream'
 import { TextStyle, ViewStyle } from 'react-native'
 import { SharedValue } from 'react-native-reanimated'
 
@@ -67,6 +67,7 @@ export interface AudioVisualizerState {
 
 export interface UpdateActivePointsParams {
     x: number
+    logger?: ConsoleLike
     context: {
         dataPoints: DataPoint[]
         activePoints: CandleData[]
