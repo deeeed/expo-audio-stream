@@ -6641,7 +6641,6 @@ __metadata:
     "@rollup/plugin-url": "npm:^8.0.2"
     "@shopify/react-native-skia": "npm:1.5.0"
     "@siteed/expo-audio-stream": "workspace:^"
-    "@siteed/react-native-logger": "npm:^0.10.0"
     "@size-limit/preset-big-lib": "npm:^11.1.4"
     "@storybook/addon-actions": "npm:^8.3.6"
     "@storybook/addon-backgrounds": "npm:^8.3.6"
