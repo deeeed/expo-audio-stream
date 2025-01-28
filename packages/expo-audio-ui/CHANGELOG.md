@@ -6,7 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+- refactor(AudioVisualizer): Update AudioVisualizer to use optional logger ([6bcf954](https://github.com/deeeed/expo-audio-stream/commit/6bcf954f43963acb75ebf1e6846bcd28f76bac76))
+- chore(expo-audio-ui): Remove @siteed/react-native-logger dependency ([d09f27b](https://github.com/deeeed/expo-audio-stream/commit/d09f27bc94223eee90c21233650830f433c129a1))
 
 ## [0.2.0] - 2025-01-25
 - cleanup (#83) ([c557bd7](https://github.com/deeeed/expo-audio-stream/commit/c557bd79e3b043bc89695a0351014eaca6857036))
