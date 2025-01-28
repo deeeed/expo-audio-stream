@@ -1,16 +1,8 @@
 // playground/src/component/audio-visualizer/audio-visualiser.helpers.tsx
 import { Skia, SkPath } from '@shopify/react-native-skia'
-import { getLogger } from '@siteed/react-native-logger'
 import { DimensionValue } from 'react-native'
 import { withSpring } from 'react-native-reanimated'
 
-import {
-    CalculateReferenceLinePositionParams,
-    DrawDottedLineParams,
-    SyncTranslateXParams,
-    UpdateActivePointsParams,
-    UpdateActivePointsResult,
-} from './AudioVisualiser.types'
 import {
     CANDLE_ACTIVE_AUDIO_COLOR,
     CANDLE_ACTIVE_SPEECH_COLOR,
@@ -19,6 +11,13 @@ import {
     DEFAULT_LABEL_COLOR,
     DEFAULT_TICK_COLOR,
 } from '../constants'
+import {
+    CalculateReferenceLinePositionParams,
+    DrawDottedLineParams,
+    SyncTranslateXParams,
+    UpdateActivePointsParams,
+    UpdateActivePointsResult,
+} from './AudioVisualiser.types'
 
 export const calculateReferenceLinePosition = ({
     canvasWidth,
@@ -29,8 +28,6 @@ export const calculateReferenceLinePosition = ({
     }
     return canvasWidth / 2 // Default to MIDDLE
 }
-
-const logger = getLogger('AudioVisualiser.helpers')
 
 export const createDefaultTheme = (
     canvasWidth: number,
@@ -121,6 +118,7 @@ export const drawDottedLine = ({
 
 export const updateActivePoints = ({
     x,
+    logger,
     context,
 }: UpdateActivePointsParams): UpdateActivePointsResult => {
     const {
@@ -138,7 +136,7 @@ export const updateActivePoints = ({
         return { activePoints, range, lastUpdatedTranslateX: x }
     }
 
-    logger.debug(
+    logger?.debug(
         `Updating active points x=${x}, mode=${mode}, dataPoints.length=${dataPoints.length}, activePoints.length=${activePoints.length}, referenceLineX=${referenceLineX}, maxDisplayedItems=${maxDisplayedItems}`
     )
 
@@ -166,7 +164,7 @@ export const updateActivePoints = ({
 
         const lastUpdatedPointId =
             activePoints[activePoints.length - 1]?.id ?? -1
-        logger.log(
+        logger?.log(
             `Last updated point ID: ${lastUpdatedPointId} activePoints.length=${activePoints.length}`
         )
         // TODO: can we have a single pass on the data instead of first searching for the last updated point? Worst case is O(n) currently.
@@ -177,7 +175,7 @@ export const updateActivePoints = ({
                 break
             }
         }
-        logger.log(`Last point index: ${lastPointIndex}`)
+        logger?.log(`Last point index: ${lastPointIndex}`)
         for (let i = 0; i < liveMaxDisplayedItems; i++) {
             const itemIndex = startIndex + i
             const dataPoint = dataPoints[itemIndex]
@@ -192,7 +190,7 @@ export const updateActivePoints = ({
                 addedPointsCount++
             }
         }
-        logger.log(
+        logger?.log(
             `Live mode: Updated ${updatedPoints.length} active points`,
             updatedPoints
         )
@@ -201,11 +199,11 @@ export const updateActivePoints = ({
         const finalUpdatedPoints = updatedPoints.slice(-liveMaxDisplayedItems)
         result.activePoints = [...finalUpdatedPoints]
 
-        logger.log(
+        logger?.log(
             `Live mode: Updated ${finalUpdatedPoints.length} active points`,
             finalUpdatedPoints
         )
-        logger.log(`Number of new points added: ${addedPointsCount}`)
+        logger?.log(`Number of new points added: ${addedPointsCount}`)
     } else {
         const translateX = Math.abs(x)
         const rawHiddenItemsLeft = Math.floor(
@@ -253,12 +251,12 @@ export const updateActivePoints = ({
             startVisibleIndex,
             endVisibleIndex,
         }
-        logger.debug(
+        logger?.debug(
             `Range updated: start=${startIndex}, end=${endIndex}, startVisibleIndex=${startVisibleIndex}, endVisibleIndex=${endVisibleIndex}`
         )
     }
 
-    logger.debug(
+    logger?.debug(
         `Active points updated. First point ID: ${activePoints[0]?.id}, Last point ID: ${activePoints[activePoints.length - 1]?.id}`
     )
 
