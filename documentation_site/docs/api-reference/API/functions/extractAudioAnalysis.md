@@ -20,4 +20,4 @@
 
 ## Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:32](https://github.com/deeeed/expo-audio-stream/blob/ef77da1abb65e9e4bd17e0ef69fab0a3f6843e73/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L32)
+[src/AudioAnalysis/extractAudioAnalysis.ts:32](https://github.com/deeeed/expo-audio-stream/blob/ba353911fdf6c5275be49c3589b33665f6636884/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L32)
