@@ -38,11 +38,12 @@ else
     ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
     
     cd "$ROOT_DIR/documentation_site"
+
     yarn build
-
-    cd "$SCRIPT_DIR"
-
+    echo -e "${BLUE}Waiting while docs are generated...${NC}"
     sleep 2
+
+    yarn deploy
     
     # Change to root directory before git operations
     cd "$ROOT_DIR"
@@ -51,9 +52,6 @@ else
     
     # Return to script directory
     cd "$SCRIPT_DIR"
-    
-    echo -e "${BLUE}Waiting while docs are generated...${NC}"
-    sleep 2
 fi
 
 # Ask about deploying playground app
