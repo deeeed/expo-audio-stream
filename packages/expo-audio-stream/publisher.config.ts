@@ -4,7 +4,7 @@ const config: DeepPartial<ReleaseConfig> = {
     packageManager: 'yarn',
     changelogFile: 'CHANGELOG.md',
     conventionalCommits: true,
-    changelogFormat: 'conventional',
+    changelogFormat: 'keep-a-changelog',
     versionStrategy: 'independent',
     bumpStrategy: 'prompt',
     packValidation: {
