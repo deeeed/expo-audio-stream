@@ -7,13 +7,15 @@ import { App as ExpoRouterApp } from 'expo-router/build/qualified-entry'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useState } from 'react'
 import { ActivityIndicator } from 'react-native-paper'
+import { en, registerTranslation } from "react-native-paper-dates"
 import { Provider } from 'react-redux'
 
 import { PersistGate } from 'redux-persist/integration/react'
+import { baseLogger } from './config'
 import { useReanimatedWebHack } from './hooks/useReanimatedWebHack'
 import { persistor, setThemePreferences, store, useAppDispatch, useAppSelector } from './store'
-import { baseLogger } from './config'
 
+registerTranslation("en", en);
 setLoggerConfig({
     namespaces: '*',
     maxLogs: 20,
