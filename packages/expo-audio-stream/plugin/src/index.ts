@@ -20,17 +20,40 @@ interface AudioStreamPluginOptions {
     enablePhoneStateHandling?: boolean
     enableNotifications?: boolean
     enableBackgroundAudio?: boolean
+    iosBackgroundModes?: {
+        useVoIP?: boolean
+        useAudio?: boolean
+        useProcessing?: boolean
+        useLocation?: boolean
+        useExternalAccessory?: boolean
+    }
+    iosConfig?: {
+        allowBackgroundAudioControls?: boolean
+        backgroundProcessingTitle?: string
+        keepAliveInBackground?: boolean
+    }
 }
 
 const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
     config: ExpoConfig,
     props: AudioStreamPluginOptions | void
 ) => {
-    // Default options if pluginOptions is undefined (void)
     const options: AudioStreamPluginOptions = {
         enablePhoneStateHandling: true,
         enableNotifications: true,
         enableBackgroundAudio: true,
+        iosBackgroundModes: {
+            useVoIP: false,
+            useAudio: false,
+            useProcessing: false,
+            useLocation: false,
+            useExternalAccessory: false,
+        },
+        iosConfig: {
+            allowBackgroundAudioControls: false,
+            backgroundProcessingTitle: 'Audio Recording',
+            keepAliveInBackground: true,
+        },
         ...(props || {}),
     }
 
@@ -58,14 +81,16 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
         const existingBackgroundModes =
             config.modResults.UIBackgroundModes || []
 
+        // Only add background modes if explicitly enabled
         if (
+            options.iosBackgroundModes?.useAudio &&
             enableBackgroundAudio &&
             !existingBackgroundModes.includes('audio')
         ) {
             existingBackgroundModes.push('audio')
         }
 
-        if (enablePhoneStateHandling) {
+        if (options.iosBackgroundModes?.useVoIP && enablePhoneStateHandling) {
             if (!existingBackgroundModes.includes('voip')) {
                 existingBackgroundModes.push('voip')
             }
@@ -76,6 +101,44 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
             }
             config.modResults.UIRequiredDeviceCapabilities =
                 existingCapabilities
+        }
+
+        // Add additional background modes if enabled
+        if (options.iosBackgroundModes?.useProcessing) {
+            if (!existingBackgroundModes.includes('processing')) {
+                existingBackgroundModes.push('processing')
+            }
+            // Add processing info if enabled
+            config.modResults.BGTaskSchedulerPermittedIdentifiers = [
+                'com.siteed.audiostream.processing'
+            ]
+        }
+
+        if (options.iosBackgroundModes?.useLocation) {
+            if (!existingBackgroundModes.includes('location')) {
+                existingBackgroundModes.push('location')
+            }
+        }
+
+        if (options.iosBackgroundModes?.useExternalAccessory) {
+            if (!existingBackgroundModes.includes('external-accessory')) {
+                existingBackgroundModes.push('external-accessory')
+            }
+        }
+
+        // Configure background processing info if enabled
+        if (options.iosConfig?.backgroundProcessingTitle) {
+            config.modResults.BGProcessingTaskTitle = 
+                options.iosConfig.backgroundProcessingTitle
+        }
+
+        // Configure audio session behavior
+        if (options.iosConfig?.allowBackgroundAudioControls) {
+            config.modResults.UIBackgroundModes = [
+                ...existingBackgroundModes,
+                'remote-notification'
+            ]
+            config.modResults.MPNowPlayingInfoPropertyPlaybackRate = true
         }
 
         config.modResults.UIBackgroundModes = existingBackgroundModes
