@@ -91,6 +91,97 @@ You can customize the plugin's behavior by providing options:
   - `backgroundProcessingTitle` (default: `'Audio Recording'`): Description for background processing
   - `keepAliveInBackground` (default: `true`): Enable background keep-alive mechanisms
 
+#### Android Specific Configuration
+- **androidConfig**:
+  - **Notification Settings**:
+    - `notificationChannelId` (default: `'audio_recording'`): Custom notification channel ID
+    - `notificationChannelName` (default: `'Audio Recording'`): Display name for the notification channel
+    - `notificationChannelDescription` (default: `'Recording controls and status'`): Description for the notification channel
+    - `notificationPriority` (default: `'high'`): Priority level for notifications
+    - `notificationIcon` (optional): Custom notification icon resource name
+    - `notificationColor` (optional): Custom notification color in hex format
+
+  - **Service Configuration**:
+    - `foregroundServiceType` (default: `'microphone'`): Type of foreground service
+    - `wakeLockEnabled` (default: `true`): Keep device awake during recording
+    - `stopWithTask` (default: `true`): Stop recording when app is killed
+
+Example configuration with Android options:
+```json
+{
+    "expo": {
+        "plugins": [
+            [
+                "@siteed/expo-audio-stream",
+                {
+                    "enablePhoneStateHandling": true,
+                    "enableNotifications": true,
+                    "enableBackgroundAudio": true,
+                    "iosBackgroundModes": {
+                        "useVoIP": false,
+                        "useAudio": false,
+                        "useProcessing": true
+                    },
+                    "iosConfig": {
+                        "backgroundProcessingTitle": "Audio Recording",
+                        "keepAliveInBackground": true
+                    },
+                    "androidConfig": {
+                        "notificationChannelId": "audio_recording",
+                        "notificationChannelName": "Audio Recording",
+                        "notificationChannelDescription": "Recording controls and status",
+                        "notificationPriority": "high",
+                        "notificationIcon": "ic_recording",
+                        "notificationColor": "#FF0000",
+                        "foregroundServiceType": "microphone",
+                        "wakeLockEnabled": true,
+                        "stopWithTask": true
+                    }
+                }
+            ]
+        ]
+    }
+}
+```
+
+### Android Manifest Permissions
+
+The plugin automatically adds the following permissions to your Android manifest:
+```xml
+<!-- Base Permissions (Always Added) -->
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+
+<!-- Optional Permissions (Based on Configuration) -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.READ_PHONE_STATE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+```
+
+### Android Service Components
+
+The plugin also adds necessary service components to your Android manifest:
+```xml
+<!-- Recording Action Receiver -->
+<receiver
+    android:name=".RecordingActionReceiver"
+    android:exported="false">
+    <intent-filter>
+        <action android:name="PAUSE_RECORDING" />
+        <action android:name="RESUME_RECORDING" />
+        <action android:name="STOP_RECORDING" />
+    </intent-filter>
+</receiver>
+
+<!-- Audio Recording Service -->
+<service
+    android:name=".AudioRecordingService"
+    android:enabled="true"
+    android:exported="false"
+    android:foregroundServiceType="microphone" />
+```
+
 ### App Store Submission Notes
 
 When submitting to the App Store, it's important to configure the background modes appropriately to avoid rejection:
