@@ -31,6 +31,13 @@ if [[ $generate_docs =~ ^[Nn]$ ]]; then
 else
     echo -e "${YELLOW}Generating updated documentation...${NC}"
     yarn docgen
+
+    cd ../../documentation_site
+    yarn build
+
+    cd "$(dirname "$0")"
+
+    sleep 2
     
     git add "$(pwd)/../../docs" "$(pwd)/../../documentation_site" # add all changes in the root folder
     git commit -m "docs: update api references for v$version"
