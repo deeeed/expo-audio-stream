@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [1.12.0] - 2025-01-31
+- feat: add call state checks before starting or resuming recording (#94) ([63e70a0](https://github.com/deeeed/expo-audio-stream/commit/63e70a09f70dd8e5798094b360cf7ec8de1275e9))
+- feat: add custom filename and directory support for audio recordings (#92) ([2f30f9d](https://github.com/deeeed/expo-audio-stream/commit/2f30f9db2558c456f93f31b79b01cd54a57f392b))
+- feat: enhance compressed recording info with file size (#90) ([47254aa](https://github.com/deeeed/expo-audio-stream/commit/47254aa8cb3ae1c01138ebebce1c1d8c65afd794))
 
 ## [1.11.3] - 2025-01-25
 - disable duplicate notification alerts for audio stream (#82) ([12f9992](https://github.com/deeeed/expo-audio-stream/commit/12f999247cdd6b08753bcf1b481582a604826383))
