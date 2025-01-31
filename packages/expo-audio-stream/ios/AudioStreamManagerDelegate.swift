@@ -12,4 +12,5 @@ protocol AudioStreamManagerDelegate: AnyObject {
     func audioStreamManager(_ manager: AudioStreamManager, didResumeRecording resumeTime: Date)
     func audioStreamManager(_ manager: AudioStreamManager, didUpdateNotificationState isPaused: Bool)
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveInterruption info: [String: Any])
+    func audioStreamManager(_ manager: AudioStreamManager, didFailWithError error: String)
 }

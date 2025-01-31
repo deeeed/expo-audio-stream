@@ -470,4 +470,11 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveInterruption info: [String: Any]) {
         sendEvent(recordingInterruptedEvent, info)
     }
+    
+    func audioStreamManager(_ manager: AudioStreamManager, didFailWithError error: String) {
+        // Send error event to JavaScript
+        sendEvent("error", [
+            "message": error
+        ])
+    }
 }

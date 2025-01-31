@@ -519,6 +519,14 @@ class AudioStreamManager: NSObject {
     ///   - intervalMilliseconds: The interval in milliseconds for emitting audio data.
     /// - Returns: A StartRecordingResult object if recording starts successfully, or nil otherwise.
     func startRecording(settings: RecordingSettings, intervalMilliseconds: Int) -> StartRecordingResult? {
+        // Check for active call first
+        let callCenter = CXCallObserver()
+        if callCenter.calls.contains(where: { $0.hasEnded == false }) {
+            Logger.debug("Cannot start recording during an active call")
+            delegate?.audioStreamManager(self, didFailWithError: "Cannot start recording during an active call")
+            return nil
+        }
+
         // Store settings first before doing anything else
         recordingSettings = settings
         
@@ -836,6 +844,14 @@ class AudioStreamManager: NSObject {
     
     /// Resumes the current audio recording.
     func resumeRecording() {
+        // Check for active call first
+        let callCenter = CXCallObserver()
+        if callCenter.calls.contains(where: { $0.hasEnded == false }) {
+            Logger.debug("Cannot resume recording during an active call")
+            delegate?.audioStreamManager(self, didFailWithError: "Cannot resume recording during an active call")
+            return
+        }
+
         guard isRecording && isPaused else { return }
         
         lastValidDuration = nil  // Clear the stored duration when resuming

@@ -597,6 +597,12 @@ class AudioRecorderManager(
     }
 
     fun resumeRecording(promise: Promise) {
+        // Check for active call first
+        if (telephonyManager?.callState != TelephonyManager.CALL_STATE_IDLE) {
+            promise.reject("CALL_IN_PROGRESS", "Cannot resume recording during an active call", null)
+            return
+        }
+
         if (!isPaused.get()) {
             promise.reject("NOT_PAUSED", "Recording is not paused", null)
             return
