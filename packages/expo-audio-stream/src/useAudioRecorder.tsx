@@ -378,18 +378,13 @@ export function useAudioRecorder({
             )
 
             // Check and update recording state
-            if (
-                status.isRecording !== state.isRecording ||
-                status.isPaused !== state.isPaused
-            ) {
-                dispatch({
-                    type: 'UPDATE_RECORDING_STATE',
-                    payload: {
-                        isRecording: status.isRecording,
-                        isPaused: status.isPaused,
-                    },
-                })
-            }
+            dispatch({
+                type: 'UPDATE_RECORDING_STATE',
+                payload: {
+                    isRecording: status.isRecording,
+                    isPaused: status.isPaused,
+                },
+            })
 
             // Check and update recording progress
             if (

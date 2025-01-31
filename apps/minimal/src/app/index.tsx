@@ -1,11 +1,11 @@
 import {
-    ExpoAudioStreamModule,
     AudioRecording,
+    ExpoAudioStreamModule,
     useAudioRecorder,
 } from '@siteed/expo-audio-stream'
 import { getLogger } from '@siteed/react-native-logger'
 import { useAudioPlayer } from 'expo-audio'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Button, StyleSheet, Text, View } from 'react-native'
 
 const STOP_BUTTON_COLOR = 'red'
@@ -36,11 +36,32 @@ export default function App() {
         size,
         isRecording,
         isPaused,
+        analysisData,
     } = useAudioRecorder({
         logger: console,
     })
     const [audioResult, setAudioResult] = useState<AudioRecording | null>(null)
     const player = useAudioPlayer(audioResult?.fileUri ?? '')
+
+    const [isActive, setIsActive] = useState(true)
+    const [streamEvents, setStreamEvents] = useState<number>(0)
+    const [analysisEvents, setAnalysisEvents] = useState<number>(0)
+
+    // Track audio stream events
+    useEffect(() => {
+        console.log(`Stream events count: ${streamEvents}`)
+    }, [streamEvents])
+
+    // Track analysis data updates
+    useEffect(() => {
+        if (analysisData) {
+            setAnalysisEvents((prev) => prev + 1)
+            console.log(
+                `Analysis events count: ${analysisEvents}`,
+                analysisData
+            )
+        }
+    }, [analysisData])
 
     const handleStart = async () => {
         try {
@@ -52,8 +73,9 @@ export default function App() {
             const startResult = await startRecording({
                 interval: 500,
                 enableProcessing: true,
-                onAudioStream: async (_) => {
-                    console.log(`onAudioStream`, _)
+                onAudioStream: async (event) => {
+                    setStreamEvents((prev) => prev + 1)
+                    console.log(`onAudioStream event received`, event)
                 },
             })
             return startResult
@@ -79,11 +101,37 @@ export default function App() {
         }
     }, [])
 
+    // Test pause/resume based on isActive
+    useEffect(() => {
+        if (!isRecording) return
+
+        const handleStateChange = async () => {
+            console.log(
+                `State change - isActive: ${isActive}, isPaused: ${isPaused}`
+            )
+
+            if (isActive && isPaused) {
+                console.log('Resuming recording...')
+                await resumeRecording()
+            } else if (!isActive && !isPaused) {
+                console.log('Pausing recording...')
+                await pauseRecording()
+            }
+        }
+
+        handleStateChange()
+    }, [isActive, isPaused, isRecording, pauseRecording, resumeRecording])
+
     const renderRecording = () => (
         <View style={styles.container}>
             <Text>Duration: {durationMs / 1000} seconds</Text>
             <Text>Size: {size} bytes</Text>
-            <Button title="Pause Recording" onPress={pauseRecording} />
+            <Text>Stream Events: {streamEvents}</Text>
+            <Text>Analysis Events: {analysisEvents}</Text>
+            <Button
+                title={isActive ? 'Pause Recording' : 'Resume Recording'}
+                onPress={() => setIsActive(!isActive)}
+            />
             <Button
                 title="Stop Recording"
                 onPress={handleStop}
@@ -96,6 +144,8 @@ export default function App() {
         <View style={styles.container}>
             <Text>Duration: {durationMs / 1000} seconds</Text>
             <Text>Size: {size} bytes</Text>
+            <Text>Stream Events: {streamEvents}</Text>
+            <Text>Analysis Events: {analysisEvents}</Text>
             <Button title="Resume Recording" onPress={resumeRecording} />
             <Button
                 title="Stop Recording"
@@ -107,6 +157,13 @@ export default function App() {
 
     const renderStopped = () => (
         <View style={styles.container}>
+            <Text>Recording Status:</Text>
+            <Text>Is Recording: {String(isRecording)}</Text>
+            <Text>Is Paused: {String(isPaused)}</Text>
+            <Text>Duration: {durationMs / 1000} seconds</Text>
+            <Text>Size: {size} bytes</Text>
+            <Text>Stream Events: {streamEvents}</Text>
+            <Text>Analysis Events: {analysisEvents}</Text>
             <Button title="Start Recording" onPress={handleStart} />
             {audioResult && (
                 <View>

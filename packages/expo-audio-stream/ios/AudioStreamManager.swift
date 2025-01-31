@@ -126,7 +126,6 @@ class AudioStreamManager: NSObject {
             Logger.debug("Audio session interruption began")
             pauseRecording()
             
-            // Notify about the interruption
             delegate?.audioStreamManager(
                 self,
                 didReceiveInterruption: [
@@ -139,31 +138,24 @@ class AudioStreamManager: NSObject {
             Logger.debug("Audio session interruption ended")
             if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-                if options.contains(.shouldResume) {
-                    if autoResumeAfterInterruption && !wasSuspended {
-                        resumeRecording()
+                
+                // Check if we should auto-resume and the recording wasn't manually paused
+                if autoResumeAfterInterruption && !wasSuspended {
+                    // Add a slight delay to ensure the audio session is fully ready
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                        guard let self = self else { return }
+                        self.resumeRecording()
                     }
-                    
-                    // Notify about the interruption
-                    delegate?.audioStreamManager(
-                        self,
-                        didReceiveInterruption: [
-                            "type": "ended",
-                            "wasSuspended": wasSuspended,
-                            "shouldResume": true
-                        ]
-                    )
-                } else {
-                    // Notify about the interruption without resume option
-                    delegate?.audioStreamManager(
-                        self,
-                        didReceiveInterruption: [
-                            "type": "ended",
-                            "wasSuspended": wasSuspended,
-                            "shouldResume": false
-                        ]
-                    )
                 }
+                
+                delegate?.audioStreamManager(
+                    self,
+                    didReceiveInterruption: [
+                        "type": "ended",
+                        "wasSuspended": wasSuspended,
+                        "shouldResume": options.contains(.shouldResume)
+                    ]
+                )
             }
         @unknown default:
             break
@@ -744,7 +736,7 @@ class AudioStreamManager: NSObject {
             Logger.debug("Debug: Recording started successfully.")
             
             var compression = compressedRecorder != nil ? CompressedRecordingInfo(
-                fileUri: compressedFileURL?.absoluteString ?? "",
+                compressedFileUri: compressedFileURL?.absoluteString ?? "",
                 mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
                 bitrate: compressedBitRate,
                 format: compressedFormat
@@ -981,7 +973,7 @@ class AudioStreamManager: NSObject {
             updateWavHeader(fileURL: fileURL, totalDataSize: fileSize - 44)
             
             var compression = compressedRecorder != nil ? CompressedRecordingInfo(
-                fileUri: compressedFileURL?.absoluteString ?? "",
+                compressedFileUri: compressedFileURL?.absoluteString ?? "",
                 mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
                 bitrate: compressedBitRate,
                 format: compressedFormat
