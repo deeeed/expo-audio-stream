@@ -50,7 +50,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
     lastEmittedTime: number
     lastEmittedCompressionSize: number
     streamUuid: string | null
-    extension: 'webm' | 'wav' = 'wav' // Default extension is 'webm'
+    extension: 'webm' | 'wav' = 'wav' // Default extension is 'wav'
     recordingConfig?: RecordingConfig
     bitDepth: BitDepth // Bit depth of the audio
     audioWorkletUrl: string
@@ -108,7 +108,9 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
     }
 
     // Start recording with options
-    async startRecording(recordingConfig: RecordingConfig = {}) {
+    async startRecording(
+        recordingConfig: RecordingConfig = {}
+    ): Promise<StartRecordingResult> {
         if (this.isRecording) {
             throw new Error('Recording is already in progress')
         }
@@ -170,7 +172,15 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         this.lastEmittedSize = 0
         this.lastEmittedTime = 0
         this.lastEmittedCompressionSize = 0
-        this.streamUuid = Date.now().toString()
+
+        // Use custom filename if provided, otherwise fallback to timestamp
+        if (recordingConfig.filename) {
+            // Remove any existing extension from the filename
+            this.streamUuid = recordingConfig.filename.replace(/\.[^/.]+$/, '')
+        } else {
+            this.streamUuid = Date.now().toString()
+        }
+
         const fileUri = `${this.streamUuid}.${this.extension}`
         const streamConfig: StartRecordingResult = {
             fileUri,
@@ -266,9 +276,11 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                 }
             )
 
-            return {
+            // Use the stored streamUuid (which contains our custom filename) for the final filename
+            const filename = `${this.streamUuid}.${this.extension}`
+            const result: AudioRecording = {
                 fileUri,
-                filename: `${this.streamUuid}.${this.extension}`,
+                filename, // This will now use our custom filename
                 bitDepth: this.bitDepth,
                 channels: this.recordingConfig?.channels ?? 1,
                 sampleRate: this.recordingConfig?.sampleRate ?? 44100,
@@ -277,6 +289,11 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                 mimeType,
                 compression,
             }
+
+            // Reset after creating the result
+            this.streamUuid = null
+
+            return result
         } catch (error) {
             this.logger?.error('[Stop] Error stopping recording:', error)
             throw error
