@@ -700,18 +700,27 @@ class AudioStreamManager: NSObject {
             isPaused = false
             Logger.debug("Debug: Recording started successfully.")
             
+            var compression = compressedRecorder != nil ? CompressedRecordingInfo(
+                fileUri: compressedFileURL?.absoluteString ?? "",
+                mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
+                bitrate: compressedBitRate,
+                format: compressedFormat
+            ) : nil
+
+            // Get the size separately since it's not part of the initializer
+            if let compressedPath = compressedFileURL?.path,
+               let attributes = try? FileManager.default.attributesOfItem(atPath: compressedPath),
+               let fileSize = attributes[.size] as? Int64 {
+                compression?.size = fileSize
+            }
+
             return StartRecordingResult(
                 fileUri: recordingFileURL!.path,
                 mimeType: mimeType,
                 channels: settings.numberOfChannels,
                 bitDepth: settings.bitDepth,
                 sampleRate: settings.sampleRate,
-                compression: settings.enableCompressedOutput && compressedFileURL != nil ? CompressedRecordingInfo(
-                    fileUri: compressedFileURL!.absoluteString,
-                    mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
-                    bitrate: compressedBitRate,
-                    format: compressedFormat
-                ) : nil
+                compression: compression
             )
             
         } catch {
@@ -920,6 +929,20 @@ class AudioStreamManager: NSObject {
             // Update the WAV header with the correct file size
             updateWavHeader(fileURL: fileURL, totalDataSize: fileSize - 44)
             
+            var compression = compressedRecorder != nil ? CompressedRecordingInfo(
+                fileUri: compressedFileURL?.absoluteString ?? "",
+                mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
+                bitrate: compressedBitRate,
+                format: compressedFormat
+            ) : nil
+
+            // Get the size separately since it's not part of the initializer
+            if let compressedPath = compressedFileURL?.path,
+               let attributes = try? FileManager.default.attributesOfItem(atPath: compressedPath),
+               let fileSize = attributes[.size] as? Int64 {
+                compression?.size = fileSize
+            }
+
             let result = RecordingResult(
                 fileUri: fileURL.absoluteString,
                 filename: fileURL.lastPathComponent,
@@ -929,12 +952,7 @@ class AudioStreamManager: NSObject {
                 channels: settings.numberOfChannels,
                 bitDepth: settings.bitDepth,
                 sampleRate: settings.sampleRate,
-                compression: settings.enableCompressedOutput && compressedFileURL != nil ? CompressedRecordingInfo(
-                    fileUri: compressedFileURL!.absoluteString,
-                    mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
-                    bitrate: compressedBitRate,
-                    format: compressedFormat
-                ) : nil
+                compression: compression
             )
             
             // Cleanup
