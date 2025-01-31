@@ -60,6 +60,7 @@ struct IOSConfig {
 enum RecordingError: Error {
     case unsupportedFormat(String)
     case invalidBitrate(Int)
+    case invalidOutputDirectory(String)
     
     var localizedDescription: String {
         switch self {
@@ -67,6 +68,8 @@ enum RecordingError: Error {
             return "Unsupported compression format: \(format). iOS only supports AAC."
         case .invalidBitrate(let bitrate):
             return "Invalid bitrate: \(bitrate). Must be between 8000 and 960000 bps."
+        case .invalidOutputDirectory(let directory):
+            return "Invalid output directory: \(directory). Directory does not exist, is not a directory, or is not writable."
         }
     }
 }
@@ -100,6 +103,10 @@ struct RecordingSettings {
     let compressedBitRate: Int
     
     let autoResumeAfterInterruption: Bool
+    
+    // Make these optional with nil default values
+    var outputDirectory: String? = nil
+    var filename: String? = nil
     
     static func fromDictionary(_ dict: [String: Any]) -> Result<RecordingSettings, Error> {
         // Extract compression settings
@@ -222,6 +229,34 @@ struct RecordingSettings {
             
             settings.notification = notificationConfig
         }
+        
+        // Parse output settings (they remain nil if not provided)
+        if let directory = dict["outputDirectory"] as? String {
+            // Only validate if a custom directory is provided
+            let fileManager = FileManager.default
+            var isDirectory: ObjCBool = false
+            
+            // Clean up the directory path by removing file:// protocol if present
+            let cleanDirectory = directory.replacingOccurrences(of: "file://", with: "")
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                .replacingOccurrences(of: "//", with: "/")
+            
+            if !fileManager.fileExists(atPath: cleanDirectory, isDirectory: &isDirectory) {
+                return .failure(RecordingError.invalidOutputDirectory("Directory does not exist: \(cleanDirectory)"))
+            }
+            
+            if !isDirectory.boolValue {
+                return .failure(RecordingError.invalidOutputDirectory("Path is not a directory: \(cleanDirectory)"))
+            }
+            
+            if !fileManager.isWritableFile(atPath: cleanDirectory) {
+                return .failure(RecordingError.invalidOutputDirectory("Directory is not writable: \(cleanDirectory)"))
+            }
+            
+            settings.outputDirectory = cleanDirectory
+        }
+        
+        settings.filename = dict["filename"] as? String
         
         return .success(settings)
     }

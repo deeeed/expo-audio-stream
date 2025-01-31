@@ -1,6 +1,7 @@
 // playground/src/app/(tabs)/index.tsx
 import {
     Button,
+    EditableInfoCard,
     LabelSwitch,
     Notice,
     Picker,
@@ -25,7 +26,7 @@ import { useRouter } from 'expo-router'
 import isBase64 from 'is-base64'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
-import { ActivityIndicator, Text } from 'react-native-paper'
+import { ActivityIndicator, Text, useTheme } from 'react-native-paper'
 
 import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { IOSSettingsConfig } from '../../component/IOSSettingsConfig'
@@ -176,6 +177,9 @@ export default function RecordScreen() {
     const validSRTranscription =
         startRecordingConfig.sampleRate === WhisperSampleRate
     const [stopping, setStopping] = useState(false)
+    const { colors } = useTheme()
+    const [customFileName, setCustomFileName] = useState<string>('')
+    const [defaultDirectory, setDefaultDirectory] = useState<string>('')
 
     const { transcripts, activeTranscript } = useLiveTranscriber({
         stopping,
@@ -296,42 +300,54 @@ export default function RecordScreen() {
     const handleStart = async () => {
         try {
             setProcessing(true)
-            // Request all necessary permissions
-            const permissionsGranted = await requestPermissions()
-            if (!permissionsGranted) {
-                return
+            
+            // Ensure we have a valid directory
+            if (!defaultDirectory) {
+                throw new Error('Storage directory not initialized')
             }
 
+            // Request permissions and other checks...
+            const permissionsGranted = await requestPermissions()
+            if (!permissionsGranted) return
+
+            // Restore web-specific initialization
             if (!ready && isWeb) {
                 logger.info(`Initializing transcription...`)
                 initialize()
             }
+
             // Clear previous audio chunks
             audioChunks.current = []
             webAudioChunks.current = new Float32Array(0)
             currentSize.current = 0
             setLiveWebAudio(null)
-            logger.log(`Starting recording...`, startRecordingConfig)
-            const streamConfig: StartRecordingResult = await startRecording({
+
+            // Ensure filename has proper extension if provided
+            let finalFileName = customFileName
+            if (finalFileName && !finalFileName.endsWith('.wav')) {
+                finalFileName = `${finalFileName}.wav`
+            }
+
+            const finalConfig = {
                 ...startRecordingConfig,
-                showNotification: notificationEnabled,
-                keepAwake: true,
-                notification: notificationConfig,
-                onAudioAnalysis: async (analysis) => {
-                    logger.debug(`Received audio analysis`, analysis)
-                    return undefined
-                },
-            })
-            logger.debug(`Recording started `, streamConfig)
+                filename: finalFileName || undefined,
+                outputDirectory: Platform.OS !== 'web' ? defaultDirectory : undefined,
+            }
+
+            logger.debug(`Starting recording with config:`, finalConfig)
+            const streamConfig: StartRecordingResult = await startRecording(finalConfig)
+            logger.debug(`Recording started:`, streamConfig)
             setStreamConfig(streamConfig)
 
-            // // Debug Only with fixed audio buffer
-            // setTimeout(async () => {
-            //   console.log("AUTO Stopping recording");
-            //   await handleStopRecording();
-            // }, 3000);
         } catch (error) {
-            logger.error(`Error while starting recording`, error)
+            logger.error(`Error while starting recording:`, error)
+            if (error instanceof Error) {
+                show({
+                    type: 'error',
+                    message: `Recording failed: ${error.message}`,
+                    duration: 3000,
+                })
+            }
             setError('Failed to start recording. Please try again.')
         } finally {
             setProcessing(false)
@@ -530,8 +546,53 @@ export default function RecordScreen() {
         </View>
     )
 
+    const showDirectoryInfo = () => {
+        show({
+            type: 'info',
+            message: 'Files are saved to the app\'s designated storage area for security. Use the Share button after recording to save files elsewhere.',
+            duration: 5000,
+        })
+    }
+
     const renderStopped = () => (
         <View style={{ gap: 10 }}>
+            <EditableInfoCard
+                label="File Name"
+                value={customFileName}
+                placeholder="pick a filename for your recording"
+                inlineEditable
+                editable
+                containerStyle={{
+                    backgroundColor: colors.secondaryContainer,
+                }}
+                onInlineEdit={(newFileName) => {
+                    if (typeof newFileName === 'string') {
+                        setCustomFileName(newFileName)
+                        setStartRecordingConfig(prev => ({
+                            ...prev,
+                            filename: newFileName || undefined
+                        }))
+                    }
+                }}
+            />
+
+            {Platform.OS !== 'web' && (
+                <>
+                    <Button 
+                        mode="outlined" 
+                        onPress={showDirectoryInfo}
+                        icon="folder-information"
+                    >
+                        Storage Location Info
+                    </Button>
+                    <Notice
+                        type="info"
+                        title="Storage Location"
+                        message={`Files will be saved to:\n${defaultDirectory}`}
+                    />
+                </>
+            )}
+
             <Picker
                 label="Sample Rate"
                 multi={false}
@@ -761,6 +822,33 @@ export default function RecordScreen() {
             ios: iosSettings,
         }))
     }, [notificationEnabled, notificationConfig, iosSettings])
+
+    useEffect(() => {
+        async function initializeDefaultDirectory() {
+            try {
+                // Use documentDirectory for both iOS and Android
+                const baseDir = FileSystem.documentDirectory
+                if (!baseDir) throw new Error('Could not get documents directory')
+                
+                // Remove file:// protocol and trailing slash
+                const directory = baseDir
+                    .replace('file://', '')
+                    .replace(/\/$/, '')
+                
+                setDefaultDirectory(directory)
+                logger.debug(`Storage directory initialized: ${directory}`)
+            } catch (error) {
+                logger.error('Error initializing default directory:', error)
+                show({
+                    type: 'error',
+                    message: 'Failed to initialize storage directory',
+                    duration: 3000,
+                })
+            }
+        }
+
+        initializeDefaultDirectory()
+    }, [show])
 
     if (error) {
         return (

@@ -119,15 +119,14 @@ export const AudioFilesProvider = ({
                     throw new Error(`No directoryUri found`)
                 }
 
-                const fileList =
-                    await FileSystem.readDirectoryAsync(directoryUri)
+                const cleanDirectory = directoryUri
+                    .replace('file://', '')
+                    .replace(/\/$/, '')
+
+                const fileList = await FileSystem.readDirectoryAsync(directoryUri)
                 logger.debug(`Found files in directory`, fileList)
-                const audioFiles = fileList.filter((file) =>
-                    file.endsWith('.wav')
-                )
-                const jsonFiles = fileList.filter((file) =>
-                    file.endsWith('.json')
-                )
+                const audioFiles = fileList.filter((file) => file.endsWith('.wav'))
+                const jsonFiles = fileList.filter((file) => file.endsWith('.json'))
 
                 const audioStreamResults = await Promise.all(
                     audioFiles.map(async (audioFile) => {
@@ -146,12 +145,11 @@ export const AudioFilesProvider = ({
                                 metadata
                             )
                             return {
-                                fileUri: `${directoryUri}${audioFile}`,
+                                fileUri: `${cleanDirectory}/${audioFile}`,
                                 ...metadata,
                             }
                         } else {
                             logger.warn(`No metadata found for ${audioFile}`)
-                            // Remove the audio file if no metadata is found
                             try {
                                 await deleteAudioAndMetadata(
                                     `${directoryUri}${audioFile}`
@@ -163,19 +161,6 @@ export const AudioFilesProvider = ({
                         return null
                     })
                 )
-
-                // // Iterate through json files and remove any that don't have a corresponding audio file
-                // await Promise.all(
-                //   jsonFiles.map(async (jsonFile) => {
-                //     const audioFile = audioFiles.find(
-                //       (af) => af.replace(".wav", "") === jsonFile.replace(".json", ""),
-                //     );
-                //     if (!audioFile) {
-                //       logger.error(`No audio file found for ${jsonFile}`);
-                //       await FileSystem.deleteAsync(`${directoryUri}${jsonFile}`);
-                //     }
-                //   }),
-                // );
 
                 return audioStreamResults.filter(
                     (result) => result !== null
