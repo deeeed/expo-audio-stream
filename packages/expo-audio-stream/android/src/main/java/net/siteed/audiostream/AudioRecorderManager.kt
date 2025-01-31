@@ -99,7 +99,7 @@ class AudioRecorderManager(
                     }
                 }
                 AudioManager.AUDIOFOCUS_GAIN -> {
-                    if (isRecording.get() && isPaused.get()) {
+                    if (isRecording.get() && isPaused.get() && recordingConfig.autoResumeAfterInterruption) {
                         mainHandler.post {
                             resumeRecording(object : Promise {
                                 override fun resolve(value: Any?) {
@@ -597,12 +597,6 @@ class AudioRecorderManager(
     }
 
     fun resumeRecording(promise: Promise) {
-        // Check for active call first
-        if (telephonyManager?.callState != TelephonyManager.CALL_STATE_IDLE) {
-            promise.reject("CALL_IN_PROGRESS", "Cannot resume recording during an active call", null)
-            return
-        }
-
         if (!isPaused.get()) {
             promise.reject("NOT_PAUSED", "Recording is not paused", null)
             return
@@ -617,7 +611,6 @@ class AudioRecorderManager(
             pausedDuration += System.currentTimeMillis() - lastPauseTime
             isPaused.set(false)
             
-            // Add these lines to resume both recordings
             audioRecord?.startRecording()
             compressedRecorder?.resume()
             
@@ -630,7 +623,6 @@ class AudioRecorderManager(
 
     fun pauseRecording(promise: Promise) {
         if (isRecording.get() && !isPaused.get()) {
-            // Add these lines to pause both recordings
             audioRecord?.stop()
             compressedRecorder?.pause()
             
@@ -679,19 +671,14 @@ class AudioRecorderManager(
                 )
             }
 
-            // Ensure you update this to check if audioFile is null or not
             val fileSize = audioFile?.length() ?: 0
-
             val duration = when (mimeType) {
                 "audio/wav" -> {
-                    val dataFileSize =
-                        fileSize - Constants.WAV_HEADER_SIZE // Assuming header is always 44 bytes
-                    val byteRate =
-                        recordingConfig.sampleRate * recordingConfig.channels * (if (recordingConfig.encoding == "pcm_8bit") 8 else 16) / 8
+                    val dataFileSize = fileSize - Constants.WAV_HEADER_SIZE
+                    val byteRate = recordingConfig.sampleRate * recordingConfig.channels * 
+                        (if (recordingConfig.encoding == "pcm_8bit") 8 else 16) / 8
                     if (byteRate > 0) dataFileSize * 1000 / byteRate else 0
                 }
-
-//                "audio/opus", "audio/aac" -> getCompressedAudioDuration(audioFile)
                 else -> totalRecordedTime
             }
 
@@ -704,7 +691,6 @@ class AudioRecorderManager(
                 )
             } else null
 
-            
             return bundleOf(
                 "durationMs" to duration,
                 "isRecording" to isRecording.get(),
@@ -1047,7 +1033,7 @@ class AudioRecorderManager(
                                 }
                             }
                             TelephonyManager.CALL_STATE_IDLE -> {
-                                if (isRecording.get() && isPaused.get()) {
+                                if (isRecording.get() && isPaused.get() && recordingConfig.autoResumeAfterInterruption) {
                                     mainHandler.post {
                                         resumeRecording(object : Promise {
                                             override fun resolve(value: Any?) {
@@ -1061,6 +1047,12 @@ class AudioRecorderManager(
                                             }
                                         })
                                     }
+                                } else if (isRecording.get() && isPaused.get()) {
+                                    // If autoResume is false, just notify that call ended but stay paused
+                                    eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                        "reason" to "phoneCallEnded",
+                                        "isPaused" to true
+                                    ))
                                 }
                             }
                         }
@@ -1093,6 +1085,7 @@ class AudioRecorderManager(
                         mainHandler.post {
                             pauseRecording(object : Promise {
                                 override fun resolve(value: Any?) {
+                                    isPaused.set(true)
                                     eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
                                         "reason" to "audioFocusLoss",
                                         "isPaused" to true
@@ -1106,7 +1099,7 @@ class AudioRecorderManager(
                     }
                 }
                 AudioManager.AUDIOFOCUS_GAIN -> {
-                    if (isRecording.get() && isPaused.get()) {
+                    if (isRecording.get() && isPaused.get() && recordingConfig.autoResumeAfterInterruption) {
                         mainHandler.post {
                             resumeRecording(object : Promise {
                                 override fun resolve(value: Any?) {
