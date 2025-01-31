@@ -18,7 +18,7 @@ struct IOSNotificationConfig {
 }
 
 struct CompressedRecordingInfo {
-    var fileUri: String
+    var compressedFileUri: String
     var mimeType: String
     var bitrate: Int
     var format: String
