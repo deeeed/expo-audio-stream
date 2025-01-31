@@ -48,7 +48,7 @@ const baseRecordingConfig: RecordingConfig = {
     interval: CHUNK_DURATION_MS,
     sampleRate: WhisperSampleRate,
     keepAwake: true,
-    showNotification: false,
+    showNotification: true,
     showWaveformInNotification: true,
     encoding: 'pcm_32bit',
     pointsPerSecond: 10,
@@ -58,6 +58,7 @@ const baseRecordingConfig: RecordingConfig = {
         format: 'opus',
         bitrate: 24000,
     },
+    autoResumeAfterInterruption: true,
     ios: {
         audioSession: {
             category: 'PlayAndRecord',
@@ -120,7 +121,7 @@ logger.debug(`Base Recording Config`, baseRecordingConfig)
 export default function RecordScreen() {
     const [error, setError] = useState<string | null>(null)
     const [notificationEnabled, setNotificationEnabled] = useState(
-        baseRecordingConfig.showNotification ?? false
+        baseRecordingConfig.showNotification ?? true
     )
 
     const [notificationConfig, setNotificationConfig] =
