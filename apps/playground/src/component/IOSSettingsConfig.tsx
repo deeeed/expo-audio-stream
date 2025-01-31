@@ -24,10 +24,6 @@ export const IOSSettingsConfig = ({
         try {
             const result = await openDrawer({
                 initialData: localConfig ?? { audioSession: {} },
-                bottomSheetProps: {
-                    snapPoints: ['80%'],
-                    enableDynamicSizing: false,
-                },
                 containerType: 'scrollview',
                 title: 'iOS Audio Settings',
                 footerType: 'confirm_cancel',

@@ -2,6 +2,7 @@ package net.siteed.audiostream
 
 import android.media.AudioFormat
 import android.os.Build
+import java.io.File
 
 data class RecordingConfig(
     val sampleRate: Int = Constants.DEFAULT_SAMPLE_RATE,
@@ -20,6 +21,8 @@ data class RecordingConfig(
     val compressedFormat: String = "opus",
     val compressedBitRate: Int = 24000,
     val autoResumeAfterInterruption: Boolean = false,
+    val outputDirectory: String? = null,
+    val filename: String? = null,
 ) {
     companion object {
         fun fromMap(options: Map<String, Any?>?): Result<Pair<RecordingConfig, AudioFormatInfo>> {
@@ -58,7 +61,28 @@ data class RecordingConfig(
                 }
             }
 
-            // Initialize the recording configuration
+            // Only validate directory if it's provided
+            val outputDirectory = options["outputDirectory"] as? String
+            if (outputDirectory != null) {
+                // Clean up the directory path by removing file:// protocol and normalizing
+                val cleanDirectory = outputDirectory
+                    .replace(Regex("^file://"), "")
+                    .trim('/')
+                    .replace("//", "/")
+
+                val directory = File(cleanDirectory)
+                if (!directory.exists()) {
+                    return Result.failure(IllegalArgumentException("Directory does not exist: $cleanDirectory"))
+                }
+                if (!directory.isDirectory) {
+                    return Result.failure(IllegalArgumentException("Path is not a directory: $cleanDirectory"))
+                }
+                if (!directory.canWrite()) {
+                    return Result.failure(IllegalArgumentException("Directory is not writable: $cleanDirectory"))
+                }
+            }
+
+            // Initialize the recording configuration with cleaned directory path
             val tempRecordingConfig = RecordingConfig(
                 sampleRate = options.getNumberOrDefault("sampleRate", Constants.DEFAULT_SAMPLE_RATE),
                 channels = options.getNumberOrDefault("channels", 1),
@@ -75,7 +99,13 @@ data class RecordingConfig(
                 enableCompressedOutput = enableCompressedOutput,
                 compressedFormat = compressedFormat,
                 compressedBitRate = compressedBitRate,
-                autoResumeAfterInterruption = options.getBooleanOrDefault("autoResumeAfterInterruption", false)
+                autoResumeAfterInterruption = options.getBooleanOrDefault("autoResumeAfterInterruption", false),
+                outputDirectory = outputDirectory?.let {
+                    it.replace(Regex("^file://"), "")
+                        .trim('/')
+                        .replace("//", "/")
+                },
+                filename = options["filename"] as? String
             )
 
             // Validate sample rate and channels
