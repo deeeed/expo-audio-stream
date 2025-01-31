@@ -325,6 +325,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                       format: this.recordingConfig.compression.format ?? 'opus',
                       bitrate:
                           this.recordingConfig.compression.bitrate ?? 128000,
+                      compressedFileUri: `${this.streamUuid}.webm`,
                   }
                 : undefined,
         }

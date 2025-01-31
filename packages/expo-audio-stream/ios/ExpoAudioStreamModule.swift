@@ -213,8 +213,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///   - promise: A promise to resolve with the recording result or reject with an error.
         AsyncFunction("stopRecording") { (promise: Promise) in
             if let recordingResult = self.streamManager.stopRecording() {
-                // Convert RecordingResult to a dictionary
-                let resultDict: [String: Any] = [
+                var resultDict: [String: Any] = [
                     "fileUri": recordingResult.fileUri,
                     "filename": recordingResult.filename,
                     "durationMs": recordingResult.duration,
@@ -224,6 +223,18 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     "sampleRate": recordingResult.sampleRate,
                     "mimeType": recordingResult.mimeType,
                 ]
+                
+                // Add compression info if available
+                if let compression = recordingResult.compression {
+                    resultDict["compression"] = [
+                        "fileUri": compression.fileUri,
+                        "mimeType": compression.mimeType,
+                        "bitrate": compression.bitrate,
+                        "format": compression.format,
+                        "size": compression.size
+                    ]
+                }
+                
                 promise.resolve(resultDict)
             } else {
                 promise.reject("ERROR", "Failed to stop recording or no recording in progress.")

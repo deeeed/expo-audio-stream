@@ -23,7 +23,7 @@ import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
 import { useRouter } from 'expo-router'
 import isBase64 from 'is-base64'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 
@@ -783,7 +783,7 @@ export default function RecordScreen() {
     }
 
     return (
-        <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
+        <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container}>
             {result && (
                 <View style={{ gap: 10, paddingBottom: 100 }}>
                     <AudioRecordingView
