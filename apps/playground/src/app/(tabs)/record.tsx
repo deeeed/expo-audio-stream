@@ -301,8 +301,8 @@ export default function RecordScreen() {
         try {
             setProcessing(true)
             
-            // Ensure we have a valid directory
-            if (!defaultDirectory) {
+            // Only check directory on native platforms
+            if (Platform.OS !== 'web' && !defaultDirectory) {
                 throw new Error('Storage directory not initialized')
             }
 
@@ -448,6 +448,7 @@ export default function RecordScreen() {
         } finally {
             setStopping(false)
             setProcessing(false)
+            setCustomFileName('')
         }
     }, [stopRecording, enableLiveTranscription, router, show, hide, transcripts, refreshFiles])
 
@@ -824,6 +825,7 @@ export default function RecordScreen() {
     }, [notificationEnabled, notificationConfig, iosSettings])
 
     useEffect(() => {
+        if(isWeb) return
         async function initializeDefaultDirectory() {
             try {
                 // Use documentDirectory for both iOS and Android
