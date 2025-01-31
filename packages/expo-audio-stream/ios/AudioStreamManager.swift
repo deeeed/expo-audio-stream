@@ -380,11 +380,51 @@ class AudioStreamManager: NSObject {
     
     /// Creates a new recording file.
     /// - Returns: The URL of the newly created recording file, or nil if creation failed.
-    private func createRecordingFile() -> URL? {
-        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        recordingUUID = UUID()
-        let fileName = "\(recordingUUID!.uuidString).wav"
-        let fileURL = documentsDirectory.appendingPathComponent(fileName)
+    private func createRecordingFile(isCompressed: Bool = false) -> URL? {
+        // Add debug logging
+        Logger.debug("Creating recording file - settings filename: \(recordingSettings?.filename ?? "nil")")
+        
+        // Get base directory - use default if no custom directory provided
+        let baseDirectory: URL
+        if let customDir = recordingSettings?.outputDirectory {
+            baseDirectory = URL(fileURLWithPath: customDir)
+            Logger.debug("Using custom directory: \(customDir)")
+        } else {
+            // Use existing default behavior
+            baseDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+            Logger.debug("Using default directory: \(baseDirectory.path)")
+        }
+        
+        // Use custom filename if provided, otherwise generate UUID
+        let baseFilename = recordingSettings?.filename ?? UUID().uuidString
+        Logger.debug("Using base filename: \(baseFilename)")
+        
+        // Remove any existing extension from the filename
+        let filenameWithoutExtension = baseFilename.replacingOccurrences(
+            of: "\\.[^\\.]+$",
+            with: "",
+            options: .regularExpression
+        )
+        
+        // Choose extension based on whether this is a compressed file
+        let fileExtension: String
+        if isCompressed {
+            fileExtension = recordingSettings?.compressedFormat.lowercased() ?? "aac"
+        } else {
+            fileExtension = "wav"
+        }
+        
+        let fullFilename = "\(filenameWithoutExtension).\(fileExtension)"
+        Logger.debug("Full filename: \(fullFilename)")
+        
+        let fileURL = baseDirectory.appendingPathComponent(fullFilename)
+        Logger.debug("Final file URL: \(fileURL.path)")
+        
+        // Check if file already exists
+        if fileManager.fileExists(atPath: fileURL.path) {
+            Logger.debug("File already exists at: \(fileURL.path)")
+            return nil
+        }
         
         if !fileManager.createFile(atPath: fileURL.path, contents: nil, attributes: nil) {
             Logger.debug("Failed to create file at: \(fileURL.path)")
@@ -479,6 +519,12 @@ class AudioStreamManager: NSObject {
     ///   - intervalMilliseconds: The interval in milliseconds for emitting audio data.
     /// - Returns: A StartRecordingResult object if recording starts successfully, or nil otherwise.
     func startRecording(settings: RecordingSettings, intervalMilliseconds: Int) -> StartRecordingResult? {
+        // Store settings first before doing anything else
+        recordingSettings = settings
+        
+        // Add debug logging to verify settings
+        Logger.debug("Starting recording with settings - filename: \(settings.filename ?? "nil"), directory: \(settings.outputDirectory ?? "nil")")
+        
         // Update auto-resume preference from settings
         autoResumeAfterInterruption = settings.autoResumeAfterInterruption
         
@@ -606,37 +652,26 @@ class AudioStreamManager: NSObject {
                     
                     Logger.debug("Initializing compressed recording with settings: \(compressedSettings)")
                     
-                    let tempDirectory = FileManager.default.temporaryDirectory
-                    try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+                    // Use createRecordingFile for consistency in file handling
+                    compressedFileURL = createRecordingFile(isCompressed: true)
                     
-                    // Use the same UUID as the main recording
-                    if let recordingUUID = recordingUUID {
-                        compressedFileURL = tempDirectory.appendingPathComponent(recordingUUID.uuidString)
-                            .appendingPathExtension(settings.compressedFormat)
+                    if let url = compressedFileURL {
+                        Logger.debug("Using compressed file URL: \(url.path)")
                         
-                        if let url = compressedFileURL {
-                            // Create empty file first
-                            if FileManager.default.createFile(atPath: url.path, contents: nil) {
-                                Logger.debug("Created empty file at: \(url.path)")
-                            } else {
-                                Logger.debug("Failed to create empty file at: \(url.path)")
-                            }
+                        // Initialize recorder
+                        compressedRecorder = try AVAudioRecorder(url: url, settings: compressedSettings)
+                        if let recorder = compressedRecorder {
+                            let prepared = recorder.prepareToRecord()
+                            Logger.debug("Recorder prepared: \(prepared)")
                             
-                            // Then initialize recorder
-                            compressedRecorder = try AVAudioRecorder(url: url, settings: compressedSettings)
-                            if let recorder = compressedRecorder {
-                                let prepared = recorder.prepareToRecord()
-                                Logger.debug("Recorder prepared: \(prepared)")
-                                
-                                let started = recorder.record()
-                                Logger.debug("Recorder started: \(started)")
-                                
-                                Logger.debug("Recorder current time: \(recorder.currentTime)")
-                                
-                                compressedFormat = settings.compressedFormat
-                                compressedBitRate = settings.compressedBitRate
-                                Logger.debug("Compressed recording initialized - Format: \(compressedFormat), Bitrate: \(compressedBitRate)")
-                            }
+                            let started = recorder.record()
+                            Logger.debug("Recorder started: \(started)")
+                            
+                            Logger.debug("Recorder current time: \(recorder.currentTime)")
+                            
+                            compressedFormat = settings.compressedFormat
+                            compressedBitRate = settings.compressedBitRate
+                            Logger.debug("Compressed recording initialized - Format: \(compressedFormat), Bitrate: \(compressedBitRate)")
                         }
                     }
                 } catch {

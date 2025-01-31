@@ -29,6 +29,7 @@ import android.media.AudioFocusRequest
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 import android.app.ActivityManager
+import java.util.UUID
 
 class AudioRecorderManager(
     private val context: Context,
@@ -434,7 +435,7 @@ class AudioRecorderManager(
     private fun initializeRecordingResources(fileExtension: String, promise: Promise): Boolean {
         try {
             streamUuid = java.util.UUID.randomUUID().toString()
-            audioFile = File(filesDir, "audio_${streamUuid}.$fileExtension")
+            audioFile = createRecordingFile(recordingConfig)
             totalDataSize = 0
 
             FileOutputStream(audioFile, true).use { fos ->
@@ -982,8 +983,8 @@ class AudioRecorderManager(
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun initializeCompressedRecorder(fileExtension: String, promise: Promise): Boolean {
         try {
-            // Use the existing audioFileHandler instance
-            compressedFile = audioFileHandler.createAudioFile(fileExtension)
+            // Pass true to indicate this is a compressed file
+            compressedFile = createRecordingFile(recordingConfig, isCompressed = true)
             
             compressedRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 MediaRecorder(context)
@@ -1153,5 +1154,24 @@ class AudioRecorderManager(
         }
         audioFocusRequest = null
         audioFocusChangeListener = null
+    }
+
+    private fun createRecordingFile(config: RecordingConfig, isCompressed: Boolean = false): File {
+        // Use custom directory or default to existing behavior
+        val baseDir = config.outputDirectory?.let { File(it) } ?: filesDir
+        
+        // Get base filename and remove any existing extension
+        val baseFilename = config.filename?.let {
+            it.substringBeforeLast('.', it)  // Remove extension if present
+        } ?: UUID.randomUUID().toString()
+        
+        // Choose extension based on whether this is a compressed file
+        val extension = if (isCompressed) {
+            config.compressedFormat.lowercase()
+        } else {
+            "wav"
+        }
+        
+        return File(baseDir, "$baseFilename.$extension")
     }
 }

@@ -189,6 +189,10 @@ export interface RecordingConfig {
 
     // Optional callback to handle recording interruptions
     onRecordingInterrupted?: (_: RecordingInterruptionEvent) => void
+
+    // Optional output configuration
+    outputDirectory?: string // If not provided, uses default app directory
+    filename?: string // If not provided, uses UUID
 }
 
 export interface NotificationConfig {

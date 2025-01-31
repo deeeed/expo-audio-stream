@@ -351,6 +351,10 @@ export class WebRecorder {
             return { pcmData: new Float32Array() }
         } finally {
             this.cleanup()
+            // Reset the chunks array
+            this.compressedChunks = []
+            this.compressedSize = 0
+            this.pendingCompressedChunk = null
         }
     }
 
