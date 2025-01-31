@@ -20,4 +20,4 @@
 
 ## Defined in
 
-[src/useAudioRecorder.tsx:143](https://github.com/deeeed/expo-audio-stream/blob/f331673c63a1455c43da58e2ce3d990dd3519dae/packages/expo-audio-stream/src/useAudioRecorder.tsx#L143)
+[src/useAudioRecorder.tsx:143](https://github.com/deeeed/expo-audio-stream/blob/64f579e2de98e4f4de0db407bcc9f613ba4e2505/packages/expo-audio-stream/src/useAudioRecorder.tsx#L143)
