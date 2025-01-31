@@ -22,6 +22,7 @@ struct CompressedRecordingInfo {
     var mimeType: String
     var bitrate: Int
     var format: String
+    var size: Int64 = 0  // Add size with default value
     
     static func validate(format: String, bitrate: Int) -> Result<(String, Int), Error> {
         // Validate format
