@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+- fix: improve audio recording interruption handling and consistency (#98) ([0fd5a14](https://github.com/deeeed/expo-audio-stream/commit/0fd5a1460e998b5a36e43a084d158852707f60b9))
+- docs: changelog adjustment ([b6d02b1](https://github.com/deeeed/expo-audio-stream/commit/b6d02b146a2dbd35863149b5feb627b4ee78d437))
+- chore(expo-audio-stream): release @siteed/expo-audio-stream@1.12.0 ([f331673](https://github.com/deeeed/expo-audio-stream/commit/f331673c63a1455c43da58e2ce3d990dd3519dae))
 
 ## [1.12.0] - 2025-01-31
 - feat: add call state checks before starting or resuming recording (#94) ([63e70a0](https://github.com/deeeed/expo-audio-stream/commit/63e70a09f70dd8e5798094b360cf7ec8de1275e9))
