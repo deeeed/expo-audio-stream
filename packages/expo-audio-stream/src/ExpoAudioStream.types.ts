@@ -11,6 +11,7 @@ export interface CompressionInfo {
     mimeType: string
     bitrate: number
     format: string
+    compressedFileUri?: string
 }
 
 export interface AudioStreamStatus {

@@ -561,7 +561,7 @@ class AudioRecorderManager(
                 compressedRecorder = null
     
 
-                // Create result bundle
+                // Create result bundle with compression info
                 val result = bundleOf(
                     "fileUri" to audioFile?.toURI().toString(),
                     "filename" to audioFile?.name,

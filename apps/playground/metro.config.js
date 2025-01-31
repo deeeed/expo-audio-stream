@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable no-undef */
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Learn more https://docs.expo.io/guides/customizing-metro
 const escape = require('escape-string-regexp')
 const { getDefaultConfig } = require('expo/metro-config')
