@@ -172,7 +172,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                         // Add compression info if available
                         if let compression = result.compression {
                             resultDict["compression"] = [
-                                "fileUri": compression.fileUri,
+                                "compressedFileUri": compression.compressedFileUri,
                                 "mimeType": compression.mimeType,
                                 "bitrate": compression.bitrate,
                                 "format": compression.format
@@ -227,7 +227,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 // Add compression info if available
                 if let compression = recordingResult.compression {
                     resultDict["compression"] = [
-                        "fileUri": compression.fileUri,
+                        "compressedFileUri": compression.compressedFileUri,
                         "mimeType": compression.mimeType,
                         "bitrate": compression.bitrate,
                         "format": compression.format,
