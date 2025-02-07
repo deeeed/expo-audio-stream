@@ -377,19 +377,26 @@ export function useAudioRecorder({
                 status.compression
             )
 
-            // Check and update recording state
-            dispatch({
-                type: 'UPDATE_RECORDING_STATE',
-                payload: {
-                    isRecording: status.isRecording,
-                    isPaused: status.isPaused,
-                },
-            })
+            // Only dispatch if values actually changed
+            if (
+                status.isRecording !== state.isRecording ||
+                status.isPaused !== state.isPaused
+            ) {
+                dispatch({
+                    type: 'UPDATE_RECORDING_STATE',
+                    payload: {
+                        isRecording: status.isRecording,
+                        isPaused: status.isPaused,
+                    },
+                })
+            }
 
-            // Check and update recording progress
+            // Only dispatch if progress values changed
             if (
                 status.durationMs !== state.durationMs ||
-                status.size !== state.size
+                status.size !== state.size ||
+                JSON.stringify(status.compression) !==
+                    JSON.stringify(state.compression)
             ) {
                 dispatch({
                     type: 'UPDATE_STATUS',
@@ -403,7 +410,13 @@ export function useAudioRecorder({
         } catch (error) {
             logger?.error(`Error getting status:`, error)
         }
-    }, [state.isRecording])
+    }, [
+        state.isRecording,
+        state.isPaused,
+        state.durationMs,
+        state.size,
+        state.compression,
+    ])
 
     const startRecording = useCallback(
         async (recordingOptions: RecordingConfig) => {
@@ -484,13 +497,20 @@ export function useAudioRecorder({
     }, [dispatch])
 
     useEffect(() => {
-        let interval: ReturnType<typeof setTimeout>
-        if (state.isRecording || state.isPaused) {
-            interval = setInterval(checkStatus, 1000)
+        let intervalId: NodeJS.Timeout | undefined
+
+        const runInterval = () => {
+            if (state.isRecording || state.isPaused) {
+                checkStatus()
+                intervalId = setTimeout(runInterval, 1000)
+            }
         }
+
+        runInterval()
+
         return () => {
-            if (interval) {
-                clearInterval(interval)
+            if (intervalId) {
+                clearTimeout(intervalId)
             }
         }
     }, [checkStatus, state.isRecording, state.isPaused])
