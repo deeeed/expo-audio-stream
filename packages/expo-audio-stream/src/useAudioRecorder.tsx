@@ -381,7 +381,7 @@ export function useAudioRecorder({
         try {
             const status: AudioStreamStatus = ExpoAudioStream.status()
             logger?.debug(
-                `Status: paused: ${status.isPaused} durationMs: ${status.durationMs} size: ${status.size}`,
+                `Status: paused: ${status.isPaused} isRecording: ${status.isRecording} durationMs: ${status.durationMs} size: ${status.size}`,
                 status.compression
             )
 
@@ -520,18 +520,18 @@ export function useAudioRecorder({
     useEffect(() => {
         let intervalId: NodeJS.Timeout | undefined
 
-        const runInterval = () => {
-            if (state.isRecording || state.isPaused) {
-                checkStatus()
-                intervalId = setTimeout(runInterval, 1000)
-            }
-        }
+        if (state.isRecording || state.isPaused) {
+            // Immediately check status when starting
+            checkStatus()
 
-        runInterval()
+            // Start interval
+            intervalId = setInterval(checkStatus, 1000)
+        }
 
         return () => {
             if (intervalId) {
-                clearTimeout(intervalId)
+                clearInterval(intervalId)
+                intervalId = undefined
             }
         }
     }, [checkStatus, state.isRecording, state.isPaused])
