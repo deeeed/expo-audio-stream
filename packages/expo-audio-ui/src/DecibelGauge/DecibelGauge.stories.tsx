@@ -156,7 +156,7 @@ export const MultipleRanges: Story = {
 
 // Simulated live audio levels
 export const LiveAudio: Story = {
-    render: () => {
+    render: function LiveAudioStory() {
         const [db, setDb] = React.useState(-60)
         const font = useFont(RobotoRegular, 14)
 
@@ -192,6 +192,72 @@ export const LiveAudio: Story = {
                                         size: 16,
                                     },
                                 }}
+                            />
+                        </Canvas>
+                    </View>
+                </View>
+            </View>
+        )
+    },
+}
+
+// Add a new story for different sizes
+export const DifferentSizes: Story = {
+    render: function DifferentSizesStory() {
+        const font = useFont(RobotoRegular, 14)
+
+        if (!font) return <ActivityIndicator />
+
+        return (
+            <View style={styles.container}>
+                <View style={styles.row}>
+                    <View style={styles.gauge}>
+                        <Text style={styles.label}>Small</Text>
+                        <Canvas style={{ width: 100, height: 60 }}>
+                            <DecibelGauge
+                                db={-30}
+                                theme={{
+                                    size: {
+                                        width: 100,
+                                        height: 60,
+                                        radius: 20,
+                                    },
+                                    strokeWidth: 8,
+                                }}
+                                font={font}
+                            />
+                        </Canvas>
+                    </View>
+                    <View style={styles.gauge}>
+                        <Text style={styles.label}>Medium</Text>
+                        <Canvas style={{ width: 200, height: 120 }}>
+                            <DecibelGauge
+                                db={-30}
+                                theme={{
+                                    size: {
+                                        width: 200,
+                                        height: 120,
+                                        radius: 40,
+                                    },
+                                }}
+                                font={font}
+                            />
+                        </Canvas>
+                    </View>
+                    <View style={styles.gauge}>
+                        <Text style={styles.label}>Large</Text>
+                        <Canvas style={{ width: 300, height: 180 }}>
+                            <DecibelGauge
+                                db={-30}
+                                theme={{
+                                    size: {
+                                        width: 300,
+                                        height: 180,
+                                        radius: 60,
+                                    },
+                                    strokeWidth: 15,
+                                }}
+                                font={font}
                             />
                         </Canvas>
                     </View>
