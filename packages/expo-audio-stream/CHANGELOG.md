@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.12.3] - 2025-02-08
+
 ## [1.12.2] - 2025-02-07
 
 ## [1.12.1] - 2025-02-01
@@ -102,7 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.12.2...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.12.3...HEAD
+[1.12.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.12.2...@siteed/expo-audio-stream@1.12.3
 [1.12.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.12.1...@siteed/expo-audio-stream@1.12.2
 [1.12.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.12.0...@siteed/expo-audio-stream@1.12.1
 [1.12.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.11.6...@siteed/expo-audio-stream@1.12.0
