@@ -1173,4 +1173,8 @@ class AudioRecorderManager(
         
         return File(baseDir, "$baseFilename.$extension")
     }
+
+    fun getKeepAwakeStatus(): Boolean {
+        return recordingConfig?.keepAwake ?: false
+    }
 }

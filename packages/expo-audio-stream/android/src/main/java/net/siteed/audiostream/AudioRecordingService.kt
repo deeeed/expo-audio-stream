@@ -9,6 +9,11 @@ import android.util.Log
 import android.os.Handler
 import android.os.Looper
 import expo.modules.kotlin.Promise
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build.VERSION_CODES
+import android.app.Notification
+import androidx.core.app.NotificationCompat
 
 class AudioRecordingService : Service() {
     private val notificationManager by lazy {
@@ -28,17 +33,33 @@ class AudioRecordingService : Service() {
         Log.d(Constants.TAG, "AudioRecordingService onStartCommand")
 
         if (!isRunning) {
-            try {
-                val notification = notificationManager.getNotification()
-                startForeground(1, notification)
-                isRunning = true
-            } catch (e: Exception) {
-                Log.e(Constants.TAG, "Error starting foreground service", e)
-                stopSelf()
+            isRunning = true
+            
+            // Start as foreground service if keepAwake is true, regardless of notification settings
+            val keepAwake = AudioRecorderManager.getInstance()?.getKeepAwakeStatus() ?: false
+            if (keepAwake) {
+                // Create a minimal notification channel if needed, but don't show the notification
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val channel = NotificationChannel(
+                        "recording_service",
+                        "Recording Service",
+                        NotificationManager.IMPORTANCE_LOW
+                    )
+                    val notificationManager = getSystemService(NotificationManager::class.java)
+                    notificationManager.createNotificationChannel(channel)
+                    
+                    // Create minimal notification but don't show it
+                    val notification = NotificationCompat.Builder(this, "recording_service")
+                        .setContentTitle("")
+                        .setContentText("")
+                        .build()
+                    
+                    startForeground(1, notification)
+                }
             }
         }
-
-        return START_NOT_STICKY
+        
+        return START_STICKY
     }
 
     override fun onDestroy() {
