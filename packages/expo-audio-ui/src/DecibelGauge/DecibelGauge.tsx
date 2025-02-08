@@ -13,6 +13,11 @@ interface DecibelGaugeTheme {
     maxDb: number
     backgroundColor?: string
     strokeWidth?: number
+    size?: {
+        width: number
+        height: number
+        radius?: number
+    }
     colors: {
         low: string
         mid: string
@@ -31,6 +36,11 @@ const DEFAULT_THEME: DecibelGaugeTheme = {
     maxDb: 0,
     backgroundColor: '#333333',
     strokeWidth: 10,
+    size: {
+        width: 200,
+        height: 120,
+        radius: 30,
+    },
     colors: {
         low: '#34C759',
         mid: '#FFD60A',
@@ -52,11 +62,20 @@ interface DecibelGaugeProps {
 export function DecibelGauge({
     db,
     theme,
-    showValue = false,
+    showValue = true,
     font,
 }: DecibelGaugeProps) {
-    const mergedTheme = useMemo(() => ({ ...DEFAULT_THEME, ...theme }), [theme])
-    const { minDb, maxDb } = mergedTheme
+    const mergedTheme = useMemo(() => {
+        const defaulted = { ...DEFAULT_THEME, ...theme }
+        return {
+            ...defaulted,
+            size: defaulted.size ?? DEFAULT_THEME.size,
+        } satisfies DecibelGaugeTheme
+    }, [theme])
+    const { minDb, maxDb, size } = mergedTheme as Required<
+        Pick<DecibelGaugeTheme, 'size'>
+    > &
+        DecibelGaugeTheme
 
     const animatedDb = useSharedValue(minDb)
     const animatedProgress = useDerivedValue(() => {
@@ -71,16 +90,16 @@ export function DecibelGauge({
         animatedDb.value = withSpring(db)
     }, [db])
 
-    const centerX = 100
-    const centerY = 60
+    const centerX = size.width / 2
+    const centerY = size.height / 2
+    const radius = size.radius ?? Math.min(size.width, size.height) / 4
 
     const gradientPath = useMemo(() => {
-        const radius = 30
         const startX = centerX - radius
         const endX = centerX + radius
 
         return `M ${startX} ${centerY} A ${radius} ${radius} 0 0 1 ${endX} ${centerY}`
-    }, [])
+    }, [centerX, centerY, radius])
 
     const getColor = useCallback(
         (value: number) => {
