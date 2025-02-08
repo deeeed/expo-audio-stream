@@ -30,7 +30,6 @@ interface AudioStreamPluginOptions {
     iosConfig?: {
         allowBackgroundAudioControls?: boolean
         backgroundProcessingTitle?: string
-        keepAliveInBackground?: boolean
     }
 }
 
@@ -48,11 +47,6 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
             useProcessing: false,
             useLocation: false,
             useExternalAccessory: false,
-        },
-        iosConfig: {
-            allowBackgroundAudioControls: false,
-            backgroundProcessingTitle: 'Audio Recording',
-            keepAliveInBackground: true,
         },
         ...(props || {}),
     }
