@@ -1,25 +1,65 @@
-import { Canvas } from '@shopify/react-native-skia'
+import { Canvas, useFont } from '@shopify/react-native-skia'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
-import { View } from 'react-native'
+import {
+    ActivityIndicator,
+    StyleSheet,
+    Text,
+    TextStyle,
+    View,
+    ViewStyle,
+} from 'react-native'
 
 import { DecibelGauge } from './DecibelGauge'
 
-const styles = {
+// Import the font file
+const RobotoRegular = require('../../assets/Roboto/Roboto-Regular.ttf')
+
+interface Styles {
+    container: ViewStyle
+    gaugeWrapper: ViewStyle
+    row: ViewStyle
+    gauge: ViewStyle
+    label: TextStyle
+}
+
+const styles = StyleSheet.create<Styles>({
     container: {
-        padding: 16,
-        backgroundColor: '#000',
+        flex: 1,
+        padding: 20,
+        backgroundColor: '#1C1C1E',
     },
     gaugeWrapper: {
         marginBottom: 16,
     },
-}
+    row: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-around' as const,
+        width: '100%',
+    },
+    gauge: {
+        alignItems: 'center' as const,
+    },
+    label: {
+        color: '#FFFFFF',
+        marginBottom: 10,
+        fontSize: 16,
+    },
+})
 
-const DecibelGaugeStory = (args: React.ComponentProps<typeof DecibelGauge>) => (
-    <Canvas style={{ width: 200, height: 60 }}>
-        <DecibelGauge {...args} />
-    </Canvas>
-)
+const DecibelGaugeStory = (args: React.ComponentProps<typeof DecibelGauge>) => {
+    const font = useFont(RobotoRegular, 14)
+
+    if (!font) {
+        return null
+    }
+
+    return (
+        <Canvas style={{ width: 200, height: 60 }}>
+            <DecibelGauge {...args} font={font} />
+        </Canvas>
+    )
+}
 
 const meta = {
     title: 'Audio UI/DecibelGauge',
@@ -112,4 +152,51 @@ export const MultipleRanges: Story = {
             </View>
         </>
     ),
+}
+
+// Simulated live audio levels
+export const LiveAudio: Story = {
+    render: () => {
+        const [db, setDb] = React.useState(-60)
+        const font = useFont(RobotoRegular, 14)
+
+        React.useEffect(() => {
+            const interval = setInterval(() => {
+                const randomDb = Math.sin(Date.now() / 1000) * 30 - 30
+                setDb(randomDb)
+            }, 100)
+            return () => clearInterval(interval)
+        }, [])
+
+        if (!font) return <ActivityIndicator />
+
+        return (
+            <View style={styles.container}>
+                <View style={styles.row}>
+                    <View style={styles.gauge}>
+                        <Text style={styles.label}>Without Value</Text>
+                        <Canvas style={{ width: 200, height: 60 }}>
+                            <DecibelGauge db={db} font={font} />
+                        </Canvas>
+                    </View>
+                    <View style={styles.gauge}>
+                        <Text style={styles.label}>With Value</Text>
+                        <Canvas style={{ width: 200, height: 60 }}>
+                            <DecibelGauge
+                                db={db}
+                                showValue
+                                font={font}
+                                theme={{
+                                    text: {
+                                        color: '#FFFFFF',
+                                        size: 16,
+                                    },
+                                }}
+                            />
+                        </Canvas>
+                    </View>
+                </View>
+            </View>
+        )
+    },
 }
