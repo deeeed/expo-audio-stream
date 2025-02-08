@@ -70,6 +70,13 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
+                name="extract"
+                options={{
+                    title: 'Extract',
+                    href: 'extract',
+                }}
+            />
+            <Tabs.Screen
                 name="more"
                 options={{
                     title: 'More',

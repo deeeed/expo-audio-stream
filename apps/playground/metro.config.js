@@ -87,8 +87,16 @@ config.resolver = {
         'wasm',
         'ttf',
         'bin',
-        'wav',
         'mil',
+        'wav',
+        'opus',
+        'mp3',
+        'm4a',
+        'ogg',
+        'flac',
+        'aac',
+        'webm',
+        'm4b',
     ],
     resolveRequest: (context, moduleName, platform) => {
         if (moduleName === '@siteed/expo-audio-ui') {
