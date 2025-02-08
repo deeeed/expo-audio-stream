@@ -178,6 +178,14 @@ export function useAudioRecorder({
         ((_: AudioDataEvent) => Promise<void>) | null
     >(null)
 
+    const stateRef = useRef({
+        isRecording: false,
+        isPaused: false,
+        durationMs: 0,
+        size: 0,
+        compression: undefined as CompressionInfo | undefined,
+    })
+
     const handleAudioAnalysis = useCallback(
         async ({
             analysis,
@@ -379,9 +387,11 @@ export function useAudioRecorder({
 
             // Only dispatch if values actually changed
             if (
-                status.isRecording !== state.isRecording ||
-                status.isPaused !== state.isPaused
+                status.isRecording !== stateRef.current.isRecording ||
+                status.isPaused !== stateRef.current.isPaused
             ) {
+                stateRef.current.isRecording = status.isRecording
+                stateRef.current.isPaused = status.isPaused
                 dispatch({
                     type: 'UPDATE_RECORDING_STATE',
                     payload: {
@@ -391,13 +401,13 @@ export function useAudioRecorder({
                 })
             }
 
-            // Only dispatch if progress values changed
             if (
-                status.durationMs !== state.durationMs ||
-                status.size !== state.size ||
-                JSON.stringify(status.compression) !==
-                    JSON.stringify(state.compression)
+                status.durationMs !== stateRef.current.durationMs ||
+                status.size !== stateRef.current.size
             ) {
+                stateRef.current.durationMs = status.durationMs
+                stateRef.current.size = status.size
+                stateRef.current.compression = status.compression
                 dispatch({
                     type: 'UPDATE_STATUS',
                     payload: {
@@ -409,6 +419,17 @@ export function useAudioRecorder({
             }
         } catch (error) {
             logger?.error(`Error getting status:`, error)
+        }
+    }, [ExpoAudioStream, logger]) // Only depend on ExpoAudioStream and logger
+
+    // Update ref when state changes
+    useEffect(() => {
+        stateRef.current = {
+            isRecording: state.isRecording,
+            isPaused: state.isPaused,
+            durationMs: state.durationMs,
+            size: state.size,
+            compression: state.compression,
         }
     }, [
         state.isRecording,
