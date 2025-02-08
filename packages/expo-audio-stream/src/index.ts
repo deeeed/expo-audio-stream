@@ -1,6 +1,9 @@
 // src/index.ts
 
-import { extractAudioAnalysis } from './AudioAnalysis/extractAudioAnalysis'
+import {
+    extractAudioAnalysis,
+    extractAudioFromAnyFormat,
+} from './AudioAnalysis/extractAudioAnalysis'
 import {
     AudioRecorderProvider,
     useSharedAudioRecorder,
@@ -16,6 +19,7 @@ export {
     AudioRecorderProvider,
     ExpoAudioStreamModule,
     extractAudioAnalysis,
+    extractAudioFromAnyFormat,
     useAudioRecorder,
     useSharedAudioRecorder,
 }
