@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [0.3.0] - 2025-02-08
+- feat(expo-audio-ui): Add DecibelGauge and DecibelMeter components (#101) ([cb47fba](https://github.com/deeeed/expo-audio-stream/commit/cb47fbad8e10eec98932c40c6c75aebac82a0bc8))
 
 ## [0.2.1] - 2025-01-28
 
