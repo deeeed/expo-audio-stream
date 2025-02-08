@@ -47,11 +47,13 @@ You can customize the plugin's behavior by providing options:
                     "iosBackgroundModes": {
                         "useVoIP": false,
                         "useAudio": false,
-                        "useProcessing": true
+                        "useProcessing": false,
+                        "useLocation": false,
+                        "useExternalAccessory": false
                     },
                     "iosConfig": {
-                        "backgroundProcessingTitle": "Audio Recording",
-                        "keepAliveInBackground": true
+                        "allowBackgroundAudioControls": false,
+                        "backgroundProcessingTitle": "Audio Recording"
                     }
                 }
             ]
@@ -70,7 +72,7 @@ You can customize the plugin's behavior by providing options:
 
 - **enableNotifications** (default: `true`):
   - Enables recording notifications and controls
-  - Adds notification permissions on both platforms
+  - Adds notification permissions on iOS
   - Adds POST_NOTIFICATIONS permission on Android
 
 - **enableBackgroundAudio** (default: `true`):
@@ -87,62 +89,8 @@ You can customize the plugin's behavior by providing options:
 
 #### iOS Specific Configuration
 - **iosConfig**:
-  - `allowBackgroundAudioControls` (default: `false`): Show audio controls in control center
-  - `backgroundProcessingTitle` (default: `'Audio Recording'`): Description for background processing
-  - `keepAliveInBackground` (default: `true`): Enable background keep-alive mechanisms
-
-#### Android Specific Configuration
-- **androidConfig**:
-  - **Notification Settings**:
-    - `notificationChannelId` (default: `'audio_recording'`): Custom notification channel ID
-    - `notificationChannelName` (default: `'Audio Recording'`): Display name for the notification channel
-    - `notificationChannelDescription` (default: `'Recording controls and status'`): Description for the notification channel
-    - `notificationPriority` (default: `'high'`): Priority level for notifications
-    - `notificationIcon` (optional): Custom notification icon resource name
-    - `notificationColor` (optional): Custom notification color in hex format
-
-  - **Service Configuration**:
-    - `foregroundServiceType` (default: `'microphone'`): Type of foreground service
-    - `wakeLockEnabled` (default: `true`): Keep device awake during recording
-    - `stopWithTask` (default: `true`): Stop recording when app is killed
-
-Example configuration with Android options:
-```json
-{
-    "expo": {
-        "plugins": [
-            [
-                "@siteed/expo-audio-stream",
-                {
-                    "enablePhoneStateHandling": true,
-                    "enableNotifications": true,
-                    "enableBackgroundAudio": true,
-                    "iosBackgroundModes": {
-                        "useVoIP": false,
-                        "useAudio": false,
-                        "useProcessing": true
-                    },
-                    "iosConfig": {
-                        "backgroundProcessingTitle": "Audio Recording",
-                        "keepAliveInBackground": true
-                    },
-                    "androidConfig": {
-                        "notificationChannelId": "audio_recording",
-                        "notificationChannelName": "Audio Recording",
-                        "notificationChannelDescription": "Recording controls and status",
-                        "notificationPriority": "high",
-                        "notificationIcon": "ic_recording",
-                        "notificationColor": "#FF0000",
-                        "foregroundServiceType": "microphone",
-                        "wakeLockEnabled": true,
-                        "stopWithTask": true
-                    }
-                }
-            ]
-        ]
-    }
-}
-```
+  - `allowBackgroundAudioControls` (default: `false`): Show audio controls in control center and enables remote-notification background mode
+  - `backgroundProcessingTitle` (default: `undefined`): Description for background processing
 
 ### Android Manifest Permissions
 
@@ -181,18 +129,6 @@ The plugin also adds necessary service components to your Android manifest:
     android:exported="false"
     android:foregroundServiceType="microphone" />
 ```
-
-### App Store Submission Notes
-
-When submitting to the App Store, it's important to configure the background modes appropriately to avoid rejection:
-
-1. If your app only needs background recording without playback:
-   - Set `useAudio` to `false`
-   - Use `useProcessing` instead for background operation
-
-2. If your app doesn't use VoIP features:
-   - Set `useVoIP` to `false`
-   - Use alternative background modes like `useProcessing` for background operation
 
 Make sure to run `npx expo prebuild` after modifying the plugin configuration in your app.json file.
 
