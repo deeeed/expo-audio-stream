@@ -20,7 +20,20 @@ yarn build
 yarn build:plugin
 
 echo -e "${YELLOW}Starting publication process...${NC}"
-publisher release
+
+# Check for git changes
+if [[ -n $(git status -s) ]]; then
+    echo -e "${YELLOW}Warning: There are uncommitted changes in the repository.${NC}"
+    read -p "$(echo -e ${YELLOW}Do you want to proceed with --no-git-check? [y/N]: ${NC})" skip_git_check
+    if [[ $skip_git_check =~ ^[Yy]$ ]]; then
+        publisher release --no-git-check
+    else
+        echo -e "${BLUE}Please commit or stash your changes before proceeding.${NC}"
+        exit 1
+    fi
+else
+    publisher release
+fi
 
 # Get new version after bump
 version=$(node -p "require('./package.json').version")
