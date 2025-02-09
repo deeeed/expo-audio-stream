@@ -8,9 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.13.0] - 2025-02-09
+
 ## [1.12.3] - 2025-02-08
 - fix: infinite rerender issue ([54a6a84](https://github.com/deeeed/expo-audio-stream/commit/54a6a8414688c9fbf897c56503c0091dcaf55e26))
-
 ## [1.12.1] - 2025-02-01
 - fix: improve audio recording interruption handling and consistency (#98) ([0fd5a146](https://github.com/deeeed/expo-audio-stream/pull/98))
 ## [1.12.0] - 2025-01-31
@@ -103,7 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.12.3...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.13.0...HEAD
+[1.13.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.12.3...@siteed/expo-audio-stream@1.13.0
 [1.12.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.12.2...@siteed/expo-audio-stream@1.12.3
 [1.12.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.12.1...@siteed/expo-audio-stream@1.12.2
 [1.12.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.12.0...@siteed/expo-audio-stream@1.12.1
