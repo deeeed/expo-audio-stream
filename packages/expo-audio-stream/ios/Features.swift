@@ -21,6 +21,36 @@ public struct Features {
     var chromagram: [Float]?
     var tempo: Float?
     var hnr: Float?
+    
+    init(
+        energy: Float = 0,
+        mfcc: [Float] = [],
+        rms: Float = 0,
+        minAmplitude: Float = 0,
+        maxAmplitude: Float = 0,
+        zcr: Float = 0,
+        spectralCentroid: Float = 0,
+        spectralFlatness: Float = 0,
+        spectralRollOff: Float? = nil,
+        spectralBandwidth: Float? = nil,
+        chromagram: [Float]? = nil,
+        tempo: Float? = nil,
+        hnr: Float? = nil
+    ) {
+        self.energy = energy
+        self.mfcc = mfcc
+        self.rms = rms
+        self.minAmplitude = minAmplitude
+        self.maxAmplitude = maxAmplitude
+        self.zcr = zcr
+        self.spectralCentroid = spectralCentroid
+        self.spectralFlatness = spectralFlatness
+        self.spectralRollOff = spectralRollOff
+        self.spectralBandwidth = spectralBandwidth
+        self.chromagram = chromagram
+        self.tempo = tempo
+        self.hnr = hnr
+    }
 }
 
 extension Features {
