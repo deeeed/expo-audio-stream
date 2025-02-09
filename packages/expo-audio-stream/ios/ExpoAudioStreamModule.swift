@@ -316,6 +316,106 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 promise.reject("UNKNOWN_ERROR", "Unknown permission status")
             }
         }
+
+        /// Extracts audio features from an audio file.
+        /// - Parameters:
+        ///   - options: A dictionary containing:
+        ///     - `fileUri`: The URI of the audio file.
+        ///     - `startTimeMs`: Optional start time in milliseconds.
+        ///     - `endTimeMs`: Optional end time in milliseconds.
+        ///     - `pointsPerSecond`: Number of points per second for analysis.
+        ///     - `algorithm`: The algorithm to use for extraction.
+        ///     - `featureOptions`: Features to extract.
+        AsyncFunction("extractPreview") { (options: [String: Any], promise: Promise) in
+            guard let fileUri = options["fileUri"] as? String,
+                  let url = URL(string: fileUri) else {
+                promise.reject("INVALID_ARGUMENTS", "Invalid file URI provided")
+                return
+            }
+
+            let startTimeMs = options["startTimeMs"] as? Double
+            let endTimeMs = options["endTimeMs"] as? Double
+            let pointsPerSecond = options["pointsPerSecond"] as? Int ?? 20
+            let algorithm = options["algorithm"] as? String ?? "rms"
+            let featureOptions = options["featureOptions"] as? [String: Bool] ?? [:]
+
+            DispatchQueue.global().async {
+                do {
+                    let audioProcessor = try AudioProcessor(
+                        url: url,
+                        resolve: { result in
+                            promise.resolve(result)
+                        },
+                        reject: { code, message in
+                            promise.reject(code, message)
+                        }
+                    )
+                    
+                    if let result = audioProcessor.processAudioData(
+                        startTimeMs: startTimeMs,
+                        endTimeMs: endTimeMs,
+                        pointsPerSecond: pointsPerSecond,
+                        algorithm: algorithm,
+                        featureOptions: featureOptions
+                    ) {
+                        promise.resolve(result.toDictionary())
+                    } else {
+                        promise.reject("PROCESSING_ERROR", "Failed to process audio data")
+                    }
+                } catch {
+                    promise.reject("PROCESSING_ERROR", "Failed to initialize audio processor: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        /// Trims an audio file to specified start and end times.
+        /// - Parameters:
+        ///   - options: A dictionary containing:
+        ///     - `fileUri`: The URI of the audio file.
+        ///     - `startTimeMs`: Start time in milliseconds.
+        ///     - `endTimeMs`: End time in milliseconds.
+        ///     - `outputFormat`: Optional output format configuration.
+        AsyncFunction("trimAudio") { (options: [String: Any], promise: Promise) in
+            guard let fileUri = options["fileUri"] as? String,
+                  let startTimeMs = options["startTimeMs"] as? Double,
+                  let endTimeMs = options["endTimeMs"] as? Double,
+                  let url = URL(string: fileUri) else {
+                promise.reject("INVALID_ARGUMENTS", "Invalid arguments provided")
+                return
+            }
+
+            let outputFormat = options["outputFormat"] as? [String: Any]
+
+            DispatchQueue.global().async {
+                do {
+                    let audioProcessor = try AudioProcessor(
+                        url: url,
+                        resolve: { result in
+                            promise.resolve(result)
+                        },
+                        reject: { code, message in
+                            promise.reject(code, message)
+                        }
+                    )
+                    
+                    if let result = audioProcessor.trimAudio(
+                        startTimeMs: startTimeMs,
+                        endTimeMs: endTimeMs,
+                        outputFormat: outputFormat
+                    ) {
+                        promise.resolve([
+                            "uri": result.uri,
+                            "duration": result.duration,
+                            "size": result.size
+                        ])
+                    } else {
+                        promise.reject("TRIM_ERROR", "Failed to trim audio")
+                    }
+                } catch {
+                    promise.reject("PROCESSING_ERROR", "Failed to initialize audio processor: \(error.localizedDescription)")
+                }
+            }
+        }
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didPauseRecording pauseTime: Date) {
