@@ -1,5 +1,5 @@
 import { useFont } from '@shopify/react-native-skia'
-import { EditableInfoCard, Notice, NumberAdjuster, Picker, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
+import { Notice, NumberAdjuster, Picker, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
 import { AudioPreview, extractPreview } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import * as DocumentPicker from 'expo-document-picker'
