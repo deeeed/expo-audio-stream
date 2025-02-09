@@ -3,6 +3,7 @@
 import {
     extractAudioAnalysis,
     extractAudioFromAnyFormat,
+    extractPreview,
 } from './AudioAnalysis/extractAudioAnalysis'
 import {
     AudioRecorderProvider,
@@ -20,14 +21,15 @@ export {
     ExpoAudioStreamModule,
     extractAudioAnalysis,
     extractAudioFromAnyFormat,
+    extractPreview,
     useAudioRecorder,
     useSharedAudioRecorder,
 }
 
 export type * from './AudioAnalysis/AudioAnalysis.types'
+
 export type * from './ExpoAudioStream.types'
 export type {
-    DecodingConfig,
     ExtractAudioAnalysisProps,
     ExtractAudioFromAnyFormatProps,
 } from './AudioAnalysis/extractAudioAnalysis'

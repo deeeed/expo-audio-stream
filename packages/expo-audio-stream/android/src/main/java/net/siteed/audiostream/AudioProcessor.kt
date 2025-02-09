@@ -40,15 +40,14 @@ class AudioProcessor(private val filesDir: File) {
         }
     }
 
-    data class AudioData(val data: ByteArray, val sampleRate: Int, val bitDepth: Int, val channels: Int)
+    data class AudioData(val data: ByteArray, val sampleRate: Int, val bitDepth: Int, val channels: Int, val durationMs: Long = 0)
 
     private var cumulativeMinAmplitude = Float.MAX_VALUE
     private var cumulativeMaxAmplitude = Float.NEGATIVE_INFINITY
 
-    fun loadAudioFile(originalFileUri: String, skipWavHeader: Boolean = false): AudioData? {
-        var raf: RandomAccessFile? = null
+    fun loadAudioFile(filePath: String, debug: Boolean = false): AudioData? {
         try {
-            val fileUri = originalFileUri.removePrefix("file://")
+            val fileUri = filePath.removePrefix("file://")
             Log.d("AudioProcessor", "Processing WAV file: $fileUri")
 
             val file = File(fileUri).takeIf { it.exists() } ?: File(filesDir, File(fileUri).name).takeIf { it.exists() }
@@ -57,7 +56,7 @@ class AudioProcessor(private val filesDir: File) {
                     return null
                 }
 
-            raf = RandomAccessFile(file, "r")
+            val raf = RandomAccessFile(file, "r")
             val fileSize = raf.length()
             
             // Read RIFF header
@@ -156,22 +155,28 @@ class AudioProcessor(private val filesDir: File) {
 
             Log.d("AudioProcessor", "Reading PCM data: offset=$dataOffset, size=$dataSize")
             
-            return if (skipWavHeader) {
-                val audioData = ByteArray(dataSize.toInt())
-                raf.seek(dataOffset)
-                raf.readFully(audioData)
-                AudioData(audioData, sampleRate, bitDepth, channels)
-            } else {
-                val audioData = ByteArray(fileSize.toInt())
-                raf.seek(0)
-                raf.readFully(audioData)
-                AudioData(audioData, sampleRate, bitDepth, channels)
-            }
+            val wavData = ByteArray(dataSize.toInt())
+            raf.seek(dataOffset)
+            raf.readFully(wavData)
+
+            // Calculate duration in ms
+            // Each sample is bitsPerSample/8 bytes, and we have 'channels' samples per frame
+            val bytesPerFrame = channels * (bitDepth / 8)
+            val numFrames = wavData.size / bytesPerFrame
+            val durationMs = (numFrames * 1000L) / sampleRate
+
+            Log.d(Constants.TAG, "WAV duration calculation: size=${wavData.size}, bytesPerFrame=$bytesPerFrame, numFrames=$numFrames, sampleRate=$sampleRate, duration=${durationMs}ms")
+
+            return AudioData(
+                data = wavData,
+                sampleRate = sampleRate,
+                channels = channels,
+                bitDepth = bitDepth,
+                durationMs = durationMs
+            )
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "WAV parsing failed: ${e.javaClass.simpleName} - ${e.message}")
+            Log.e(Constants.TAG, "Failed to load WAV file: ${e.message}")
             return null
-        } finally {
-            raf?.close()
         }
     }
 
@@ -752,6 +757,15 @@ class AudioProcessor(private val filesDir: File) {
                 // Get original audio properties
                 val originalSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
                 val originalChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                val totalDurationUs = try {
+                    format.getLong(MediaFormat.KEY_DURATION)
+                } catch (e: Exception) {
+                    (format.getString(MediaFormat.KEY_DURATION) ?: "-1").toLong()
+                }
+                Log.d("AudioProcessor", "Raw duration from format: ${totalDurationUs}us")
+                
+                val totalDurationMs = totalDurationUs / 1000
+                Log.d("AudioProcessor", "Final duration: ${totalDurationMs}ms")
 
                 // Process using MediaExtractor
                 val pcmData = decodeAudioToPCM(extractor, format)
@@ -772,7 +786,8 @@ class AudioProcessor(private val filesDir: File) {
                     data = processedData,
                     sampleRate = decodingConfig?.targetSampleRate ?: originalSampleRate,
                     bitDepth = decodingConfig?.targetBitDepth ?: 16,
-                    channels = decodingConfig?.targetChannels ?: originalChannels
+                    channels = decodingConfig?.targetChannels ?: originalChannels,
+                    durationMs = totalDurationMs  // Pass through the duration
                 )
             }
         } catch (e: Exception) {
@@ -798,7 +813,8 @@ class AudioProcessor(private val filesDir: File) {
                         data = processedData,
                         sampleRate = decodingConfig.targetSampleRate ?: wavData.sampleRate,
                         bitDepth = decodingConfig.targetBitDepth,
-                        channels = decodingConfig.targetChannels ?: wavData.channels
+                        channels = decodingConfig.targetChannels ?: wavData.channels,
+                        durationMs = wavData.durationMs  // Pass through the duration
                     )
                 } else {
                     wavData
@@ -1009,5 +1025,462 @@ class AudioProcessor(private val filesDir: File) {
         } catch (e: Exception) {
             Log.e("AudioProcessor", "Failed to debug WAV header: ${e.message}")
         }
+    }
+
+    fun generatePreview(
+        audioData: AudioData,
+        numberOfPoints: Int,
+        startTimeMs: Long? = null,
+        endTimeMs: Long? = null,
+        config: RecordingConfig
+    ): AudioAnalysisData {
+        val totalDurationMs = audioData.durationMs
+        
+        Log.d(Constants.TAG, "Total audio duration: ${totalDurationMs}ms")
+        
+        // Validate time range
+        if (startTimeMs != null) {
+            require(startTimeMs >= 0) { "startTime must be non-negative, got: $startTimeMs" }
+            require(startTimeMs <= totalDurationMs) { "startTime ($startTimeMs) is beyond audio duration ($totalDurationMs)" }
+        }
+        
+        if (endTimeMs != null) {
+            require(endTimeMs >= 0) { "endTime must be non-negative, got: $endTimeMs" }
+            if (endTimeMs > totalDurationMs) {
+                Log.w(Constants.TAG, "endTime ($endTimeMs) is beyond audio duration ($totalDurationMs), clamping to duration")
+            }
+            if (startTimeMs != null) {
+                require(startTimeMs < endTimeMs) { "startTime ($startTimeMs) must be less than endTime ($endTimeMs)" }
+            }
+        }
+        
+        // Calculate effective range
+        val effectiveStartMs = startTimeMs ?: 0L
+        val effectiveEndMs = (endTimeMs ?: totalDurationMs).coerceAtMost(totalDurationMs)
+        val durationMs = effectiveEndMs - effectiveStartMs
+        
+        Log.d(Constants.TAG, "Preview range: ${effectiveStartMs}ms to ${effectiveEndMs}ms (${durationMs}ms)")
+        
+        // Calculate sample range
+        val startSampleIndex = ((effectiveStartMs * audioData.sampleRate) / 1000).toInt()
+        val endSampleIndex = ((effectiveEndMs * audioData.sampleRate) / 1000).toInt().coerceAtMost(audioData.data.size)
+        val samplesInRange = endSampleIndex - startSampleIndex
+        
+        if (samplesInRange <= 0) {
+            throw IllegalArgumentException("Invalid sample range: contains no samples")
+        }
+        
+        val samplesPerPoint = (samplesInRange / numberOfPoints).coerceAtLeast(1)
+        val pointsPerSecond = numberOfPoints.toDouble() / (durationMs.toDouble() / 1000.0)
+        
+        val dataPoints = mutableListOf<DataPoint>()
+        var minAmplitude = Float.MAX_VALUE
+        var maxAmplitude = Float.MIN_VALUE
+        
+        val extractionTimeMs = measureTimeMillis {
+            for (i in 0 until numberOfPoints) {
+                val pointStartSample = startSampleIndex + (i * samplesPerPoint)
+                val pointEndSample = minOf(startSampleIndex + ((i + 1) * samplesPerPoint), endSampleIndex)
+                
+                if (pointStartSample >= pointEndSample) break
+                
+                try {
+                    val segmentBytes = audioData.data.sliceArray(pointStartSample until pointEndSample)
+                    
+                    // Convert PCM bytes to float samples with proper bit depth handling
+                    val segmentData = when (audioData.bitDepth) {
+                        16 -> convert16BitPcmToFloat(segmentBytes)
+                        32 -> convert32BitPcmToFloat(segmentBytes)
+                        else -> convert8BitPcmToFloat(segmentBytes)
+                    }
+                    
+                    // Calculate time points based on actual sample rate
+                    val startTimePoint = ((pointStartSample * 1000L) / (audioData.sampleRate * audioData.channels)).toFloat()
+                    val endTimePoint = ((pointEndSample * 1000L) / (audioData.sampleRate * audioData.channels)).toFloat()
+                    
+                    val amplitude = when (config.algorithm.lowercase()) {
+                        "peak" -> segmentData.maxOf { abs(it) }
+                        else -> sqrt(segmentData.map { it * it }.average().toFloat())
+                    }
+                    
+                    minAmplitude = minOf(minAmplitude, amplitude)
+                    maxAmplitude = maxOf(maxAmplitude, amplitude)
+                    
+                    dataPoints.add(DataPoint(
+                        id = i.toLong(),
+                        amplitude = amplitude,
+                        startTime = startTimePoint,
+                        endTime = endTimePoint,
+                        startPosition = pointStartSample,
+                        endPosition = pointEndSample,
+                        samples = pointEndSample - pointStartSample
+                    ))
+                } catch (e: Exception) {
+                    Log.e(Constants.TAG, "Error processing segment $i: ${e.message}")
+                    throw IllegalStateException("Failed to process audio segment: ${e.message}", e)
+                }
+            }
+        }
+        
+        if (dataPoints.isEmpty()) {
+            throw IllegalStateException("No data points were generated")
+        }
+        
+        return AudioAnalysisData(
+            pointsPerSecond = pointsPerSecond,
+            durationMs = durationMs.toInt(),
+            bitDepth = audioData.bitDepth,
+            numberOfChannels = audioData.channels,
+            sampleRate = audioData.sampleRate,
+            samples = samplesInRange,
+            dataPoints = dataPoints,
+            amplitudeRange = AudioAnalysisData.AmplitudeRange(minAmplitude, maxAmplitude),
+            speakerChanges = emptyList(),
+            extractionTimeMs = extractionTimeMs.toFloat()
+        )
+    }
+
+    // Add these conversion helpers
+    private fun convert16BitPcmToFloat(bytes: ByteArray): FloatArray {
+        val shorts = ShortArray(bytes.size / 2)
+        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
+        return shorts.map { it.toFloat() / Short.MAX_VALUE }.toFloatArray()
+    }
+
+    private fun convert32BitPcmToFloat(bytes: ByteArray): FloatArray {
+        val ints = IntArray(bytes.size / 4)
+        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(ints)
+        return ints.map { it.toFloat() / Int.MAX_VALUE }.toFloatArray()
+    }
+
+    private fun convert8BitPcmToFloat(bytes: ByteArray): FloatArray {
+        return bytes.map { (it.toInt() - 128).toFloat() / 127f }.toFloatArray()
+    }
+
+    fun loadAudioRange(
+        fileUri: String,
+        startTimeMs: Long? = null,
+        endTimeMs: Long? = null,
+        config: DecodingConfig
+    ): AudioData? {
+        try {
+            // Clean up the URI and get a proper File object
+            val cleanUri = fileUri.removePrefix("file://")
+            val file = File(cleanUri).takeIf { it.exists() } ?: File(filesDir, File(cleanUri).name).takeIf { it.exists() }
+                ?: run {
+                    Log.e(Constants.TAG, "File not found in any location: $cleanUri")
+                    return null
+                }
+
+            // Check if it's a WAV file by reading first 4 bytes
+            val isWav = FileInputStream(file).use { fis ->
+                val header = ByteArray(4)
+                fis.read(header)
+                String(header) == "RIFF"
+            }
+
+            return if (isWav) {
+                loadWavRange(file, startTimeMs, endTimeMs, config)
+            } else {
+                loadCompressedAudioRange(file, startTimeMs, endTimeMs, config)
+            }
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to load audio range: ${e.message}", e)
+            return null
+        }
+    }
+
+    private fun loadWavRange(
+        file: File,
+        startTimeMs: Long?,
+        endTimeMs: Long?,
+        config: DecodingConfig
+    ): AudioData? {
+        try {
+            // Read WAV header to get format info
+            val fis = FileInputStream(file)
+            val headerBuffer = ByteArray(44)  // WAV header is 44 bytes
+            fis.read(headerBuffer)
+            
+            // Parse WAV header
+            val sampleRate = ByteBuffer.wrap(headerBuffer, 24, 4).order(ByteOrder.LITTLE_ENDIAN).int
+            val channels = ByteBuffer.wrap(headerBuffer, 22, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+            val bitDepth = ByteBuffer.wrap(headerBuffer, 34, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+            
+            // Calculate duration
+            val bytesPerFrame = channels * (bitDepth / 8)
+            val numFrames = (file.length() - 44) / bytesPerFrame  // Subtract header size
+            val durationMs = (numFrames * 1000L) / sampleRate
+            
+            // Calculate positions
+            val startByte = 44 + ((startTimeMs ?: 0) * sampleRate * bytesPerFrame / 1000)
+            val endByte = 44 + ((endTimeMs ?: (file.length() * 1000 / (sampleRate * bytesPerFrame))) * sampleRate * bytesPerFrame / 1000)
+            val length = (endByte - startByte).toInt()
+            
+            Log.d(Constants.TAG, """
+                Loading WAV section:
+                - start: ${startTimeMs}ms (pos: $startByte)
+                - end: ${endTimeMs}ms (pos: $endByte)
+                - length: $length bytes
+                - format: ${sampleRate}Hz, $channels channels, $bitDepth-bit
+            """.trimIndent())
+            
+            // Read the requested section
+            val audioData = ByteArray(length)
+            fis.skip(startByte - 44)  // Skip to start position (accounting for header we already read)
+            fis.read(audioData)
+            fis.close()
+            
+            return AudioData(
+                data = audioData,
+                sampleRate = config.targetSampleRate ?: sampleRate,
+                channels = config.targetChannels ?: channels,
+                bitDepth = config.targetBitDepth ?: bitDepth,
+                durationMs = durationMs  // Pass the duration
+            )
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to load WAV range: ${e.message}", e)
+            return null
+        }
+    }
+
+    private fun loadCompressedAudioRange(
+        file: File,
+        startTimeMs: Long?,
+        endTimeMs: Long?,
+        config: DecodingConfig
+    ): AudioData? {
+        val extractor = MediaExtractor()
+        var decoder: MediaCodec? = null
+        
+        try {
+            extractor.setDataSource(file.absolutePath)
+            val format = extractor.getTrackFormat(0)
+            extractor.selectTrack(0)
+
+            val originalSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            val originalChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            val totalDurationUs = try {
+                format.getLong(MediaFormat.KEY_DURATION)
+            } catch (e: Exception) {
+                (format.getString(MediaFormat.KEY_DURATION) ?: "-1").toLong()
+            }
+            Log.d("AudioProcessor", "Raw duration from format: ${totalDurationUs}us")
+            
+            val totalDurationMs = totalDurationUs / 1000
+            Log.d("AudioProcessor", "Final duration: ${totalDurationMs}ms")
+
+            // Calculate valid time range
+            val validStartMs = startTimeMs?.coerceIn(0, totalDurationMs) ?: 0
+            val validEndMs = endTimeMs?.coerceIn(validStartMs, totalDurationMs) ?: totalDurationMs
+            val effectiveDurationMs = validEndMs - validStartMs
+
+            // Initialize decoder
+            decoder = MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME)!!)
+            decoder.configure(format, null, null, 0)
+            decoder.start()
+
+            // Seek to start position if needed
+            if (validStartMs > 0) {
+                extractor.seekTo(validStartMs * 1000, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+            }
+
+            // Calculate buffer sizes
+            val targetSampleRate = config.targetSampleRate ?: originalSampleRate
+            val targetChannels = config.targetChannels ?: originalChannels
+            val targetBitDepth = config.targetBitDepth ?: 16
+            val bytesPerSample = targetBitDepth / 8
+            val samplesPerSecond = targetSampleRate * targetChannels
+            val totalBytes = (effectiveDurationMs * samplesPerSecond * bytesPerSample) / 1000
+
+            Log.d(Constants.TAG, """
+                Loading audio range:
+                - start: ${validStartMs}ms
+                - end: ${validEndMs}ms
+                - duration: ${effectiveDurationMs}ms
+                - bytes: $totalBytes
+                - format: ${targetSampleRate}Hz, $targetChannels channels, $targetBitDepth-bit
+            """.trimIndent())
+
+            val outputBuffer = ByteBuffer.allocateDirect(totalBytes.toInt())
+            val bufferInfo = MediaCodec.BufferInfo()
+            var isEOS = false
+            
+            while (!isEOS) {
+                // Handle input
+                val inputBufferId = decoder.dequeueInputBuffer(10000)
+                if (inputBufferId >= 0) {
+                    val inputBuffer = decoder.getInputBuffer(inputBufferId)!!
+                    val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                    
+                    when {
+                        sampleSize < 0 -> {
+                            decoder.queueInputBuffer(inputBufferId, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            isEOS = true
+                        }
+                        extractor.sampleTime > validEndMs * 1000 -> {
+                            decoder.queueInputBuffer(inputBufferId, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            isEOS = true
+                        }
+                        else -> {
+                            decoder.queueInputBuffer(inputBufferId, 0, sampleSize, extractor.sampleTime, 0)
+                            extractor.advance()
+                        }
+                    }
+                }
+
+                // Handle output
+                val outputBufferId = decoder.dequeueOutputBuffer(bufferInfo, 10000)
+                if (outputBufferId >= 0) {
+                    val outputBuffer = decoder.getOutputBuffer(outputBufferId)!!
+                    if (bufferInfo.size > 0) {
+                        outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
+                        outputBuffer.position(bufferInfo.offset)
+                        if (outputBuffer.remaining() <= totalBytes - outputBuffer.position()) {
+                            outputBuffer.get(ByteArray(outputBuffer.remaining()))
+                        }
+                    }
+                    decoder.releaseOutputBuffer(outputBufferId, false)
+                }
+            }
+
+            outputBuffer.flip()
+            val audioData = ByteArray(outputBuffer.remaining())
+            outputBuffer.get(audioData)
+
+            return AudioData(
+                data = audioData,
+                sampleRate = targetSampleRate,
+                channels = targetChannels,
+                bitDepth = targetBitDepth,
+                durationMs = effectiveDurationMs  // Pass the duration
+            ).also {
+                Log.d(Constants.TAG, "Loaded compressed audio with duration: ${effectiveDurationMs}ms")
+            }
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to load compressed audio range: ${e.message}", e)
+            return null
+        } finally {
+            decoder?.stop()
+            decoder?.release()
+            extractor.release()
+        }
+    }
+
+    // Future audio editing methods
+    fun trimAudio(
+        fileUri: String,
+        startTimeMs: Long,
+        endTimeMs: Long,
+        config: DecodingConfig? = null,
+        outputFileName: String? = null
+    ): AudioData? {
+        try {
+            // Load the specified range
+            val audioData = loadAudioRange(fileUri, startTimeMs, endTimeMs, config ?: DecodingConfig())
+                ?: return null
+            
+            // Generate output filename if not provided
+            val outputFile = if (outputFileName != null) {
+                File(filesDir, outputFileName)
+            } else {
+                val timestamp = System.currentTimeMillis()
+                File(filesDir, "trimmed_${timestamp}.wav")
+            }
+            
+            val durationMs = (endTimeMs - startTimeMs).toInt()
+            
+            Log.d(Constants.TAG, """
+                Trimming audio:
+                - start: ${startTimeMs}ms
+                - end: ${endTimeMs}ms
+                - duration: ${durationMs}ms
+                - output: ${outputFile.name}
+            """.trimIndent())
+
+            // Write WAV header
+            RandomAccessFile(outputFile, "rw").use { raf ->
+                // RIFF header
+                raf.write("RIFF".toByteArray())
+                val fileSize = audioData.data.size + 36 // File size minus RIFF header
+                raf.writeInt(fileSize)
+                raf.write("WAVE".toByteArray())
+
+                // fmt chunk
+                raf.write("fmt ".toByteArray())
+                raf.writeInt(16) // Subchunk1Size (16 for PCM)
+                val formatBytes = ByteBuffer.allocate(2).order(ByteOrder.LITTLE_ENDIAN)
+                formatBytes.putShort(1) // AudioFormat (1 for PCM)
+                raf.write(formatBytes.array())
+
+                val channelsBytes = ByteBuffer.allocate(2).order(ByteOrder.LITTLE_ENDIAN)
+                channelsBytes.putShort(audioData.channels.toShort())
+                raf.write(channelsBytes.array())
+
+                val sampleRateBytes = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN)
+                sampleRateBytes.putInt(audioData.sampleRate)
+                raf.write(sampleRateBytes.array())
+                
+                val byteRate = audioData.sampleRate * audioData.channels * (audioData.bitDepth / 8)
+                raf.writeInt(byteRate) // ByteRate
+                
+                val blockAlign = audioData.channels * (audioData.bitDepth / 8)
+                raf.writeShort(blockAlign) // BlockAlign
+                raf.writeShort(audioData.bitDepth) // BitsPerSample
+
+                // data chunk
+                raf.write("data".toByteArray())
+                raf.writeInt(audioData.data.size) // Subchunk2Size
+                
+                // Write audio data
+                raf.write(audioData.data)
+            }
+
+            // Debug WAV header to verify
+            debugWavHeader(outputFile)
+
+            // Return the trimmed audio data
+            return AudioData(
+                data = audioData.data,
+                sampleRate = audioData.sampleRate,
+                channels = audioData.channels,
+                bitDepth = audioData.bitDepth
+            )
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to trim audio: ${e.message}", e)
+            return null
+        }
+    }
+
+    fun removeSection(
+        fileUri: String,
+        startTimeMs: Long,
+        endTimeMs: Long,
+        config: DecodingConfig? = null
+    ): AudioData? {
+        // TODO: Implement removing a section by concatenating before and after ranges
+        // This will use loadAudioRange to get two sections and join them
+        return null
+    }
+
+    fun joinAudioSections(
+        sections: List<AudioData>,
+        config: DecodingConfig? = null
+    ): AudioData? {
+        // TODO: Implement joining multiple audio sections
+        // This will be used by removeSection and other future editing features
+        return null
+    }
+
+    // Helper method for future editing features
+    private fun convertAudioFormat(
+        audioData: AudioData,
+        targetSampleRate: Int? = null,
+        targetChannels: Int? = null,
+        targetBitDepth: Int? = null
+    ): AudioData {
+        // TODO: Implement audio format conversion
+        // This will help ensure consistent format when joining sections
+        return audioData
     }
 }

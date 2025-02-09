@@ -6,6 +6,9 @@ import {
     AmplitudeAlgorithm,
     AudioAnalysis,
     AudioFeaturesOptions,
+    AudioPreview,
+    DecodingConfig,
+    PreviewOptions,
 } from './AudioAnalysis.types'
 import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
 import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
@@ -28,14 +31,6 @@ export interface ExtractAudioAnalysisProps {
     featuresExtratorUrl?: string
     logger?: ConsoleLike
     decodingOptions?: DecodingConfig
-}
-
-// Add DecodingConfig interface to match native implementation
-export interface DecodingConfig {
-    targetSampleRate?: number
-    targetChannels?: number
-    targetBitDepth?: number
-    normalizeAudio?: boolean
 }
 
 export interface ExtractAudioFromAnyFormatProps
@@ -289,4 +284,47 @@ export const extractAudioAnalysis = async ({
         logger?.log(`extractAudioAnalysis`, res)
         return res
     }
+}
+
+export async function extractPreview({
+    fileUri,
+    numberOfPoints,
+    algorithm = 'rms',
+    startTime,
+    endTime,
+    decodingOptions,
+}: PreviewOptions): Promise<AudioPreview> {
+    if (isWeb) {
+        // For web, we can reuse the existing extractAudioFromAnyFormat with modified parameters
+        const analysis = await extractAudioFromAnyFormat({
+            fileUri,
+            algorithm,
+            decodingOptions,
+            pointsPerSecond:
+                (numberOfPoints ?? 100) /
+                (endTime ? (endTime - (startTime || 0)) / 1000 : 1),
+        })
+
+        // Convert AudioAnalysis to AudioPreview format
+        return {
+            pointsPerSecond: analysis.pointsPerSecond,
+            durationMs: analysis.durationMs,
+            amplitudeRange: analysis.amplitudeRange,
+            dataPoints: analysis.dataPoints.map((point) => ({
+                id: point.id,
+                amplitude: point.amplitude,
+                startTime: point.startTime,
+                endTime: point.endTime,
+            })),
+        }
+    }
+
+    return await ExpoAudioStreamModule.extractPreview({
+        fileUri,
+        numberOfPoints,
+        algorithm,
+        startTime,
+        endTime,
+        decodingOptions,
+    })
 }

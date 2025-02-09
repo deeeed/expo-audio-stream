@@ -74,6 +74,26 @@ export default function TabLayout() {
                 options={{
                     title: 'Extract',
                     href: 'extract',
+                    tabBarIcon: ({ color }) => (
+                        <MaterialCommunityIcons
+                            name="file-music"
+                            size={24}
+                            color={color}
+                        />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="preview"
+                options={{
+                    title: 'Preview',
+                    tabBarIcon: ({ color }) => (
+                        <MaterialCommunityIcons
+                            name="waveform"
+                            size={24}
+                            color={color}
+                        />
+                    ),
                 }}
             />
             <Tabs.Screen
@@ -89,6 +109,7 @@ export default function TabLayout() {
                     ),
                 }}
             />
+            
         </Tabs>
     )
 }
