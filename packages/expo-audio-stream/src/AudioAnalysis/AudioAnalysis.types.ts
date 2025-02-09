@@ -1,6 +1,16 @@
 // packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts
 
 /**
+ * Represents the configuration for decoding audio data.
+ */
+export interface DecodingConfig {
+    targetSampleRate?: number
+    targetChannels?: number
+    targetBitDepth?: number
+    normalizeAudio?: boolean
+}
+
+/**
  * Represents various audio features extracted from an audio signal.
  */
 export interface AudioFeatures {
@@ -80,4 +90,60 @@ export interface AudioAnalysis {
         timestamp: number // Timestamp of the speaker change in milliseconds.
         speaker: number // Speaker identifier.
     }[]
+}
+
+/**
+ * Options for specifying a time range within an audio file.
+ */
+export interface AudioRangeOptions {
+    /** Start time in milliseconds */
+    startTime?: number
+    /** End time in milliseconds */
+    endTime?: number
+}
+
+/**
+ * Options for generating a quick preview of audio waveform.
+ * This is optimized for UI rendering with a specified number of points.
+ */
+export interface PreviewOptions extends AudioRangeOptions {
+    /** URI of the audio file to analyze */
+    fileUri: string
+    /**
+     * Total number of points to generate for the preview.
+     * @default 100
+     */
+    numberOfPoints?: number
+    /**
+     * Algorithm used to calculate amplitude values
+     * @default "rms"
+     */
+    algorithm?: AmplitudeAlgorithm
+    /**
+     * Optional configuration for decoding the audio file.
+     * Defaults to:
+     * - targetSampleRate: undefined (keep original)
+     * - targetChannels: undefined (keep original)
+     * - targetBitDepth: 16
+     * - normalizeAudio: false
+     */
+    decodingOptions?: DecodingConfig
+}
+
+/**
+ * Represents a simplified preview of audio waveform,
+ * optimized for quick visualization.
+ */
+export interface AudioPreview {
+    /** Number of data points per second */
+    pointsPerSecond: number
+    /** Duration of the audio in milliseconds */
+    durationMs: number
+    /** Range of amplitude values in the preview */
+    amplitudeRange: {
+        min: number
+        max: number
+    }
+    /** Array of data points representing the waveform */
+    dataPoints: DataPoint[]
 }

@@ -165,7 +165,15 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     const theme = useMemo(() => {
         const defaultTheme = createDefaultTheme(canvasWidth, referenceLineX)
-        return { ...defaultTheme, ...customTheme }
+        return {
+            ...defaultTheme,
+            ...customTheme,
+            container: {
+                ...defaultTheme.container,
+                marginTop: 20,
+                ...(customTheme?.container || {}),
+            },
+        }
     }, [canvasWidth, referenceLineX, customTheme])
 
     // Choose between user-provided or default NavigationControls
@@ -509,10 +517,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     }, [translateXPosition])
 
     return (
-        <View
-            style={[theme.container, { marginTop: 20 }]}
-            onLayout={handleLayout}
-        >
+        <View style={theme.container} onLayout={handleLayout}>
             {mode !== 'live' && showNavigation && (
                 <NavigationControlsComponent
                     selectedCandle={selectedCandle}
