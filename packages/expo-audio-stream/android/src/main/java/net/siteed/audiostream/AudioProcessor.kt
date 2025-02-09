@@ -9,6 +9,19 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.system.measureTimeMillis
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaCodec
+import java.io.FileInputStream
+import java.nio.channels.FileChannel
+import java.io.RandomAccessFile
+
+data class DecodingConfig(
+    val targetSampleRate: Int? = null,     // Optional target sample rate
+    val targetChannels: Int? = null,       // Optional target number of channels
+    val targetBitDepth: Int = 16,          // Default to 16-bit PCM
+    val normalizeAudio: Boolean = false    // Whether to normalize audio levels
+)
 
 class AudioProcessor(private val filesDir: File) {
     companion object {
@@ -32,99 +45,133 @@ class AudioProcessor(private val filesDir: File) {
     private var cumulativeMinAmplitude = Float.MAX_VALUE
     private var cumulativeMaxAmplitude = Float.NEGATIVE_INFINITY
 
-
     fun loadAudioFile(originalFileUri: String, skipWavHeader: Boolean = false): AudioData? {
-        // Remove the file:// prefix if present
-        val fileUri = originalFileUri.removePrefix("file://")
-        var file = File(fileUri)
-
-        // Check if the file exists at the provided fileUri
-        if (!file.exists()) {
-            // Fallback to filesDir if the file does not exist at fileUri
-            file = File(filesDir, file.name)
-            if (!file.exists()) {
-                Log.e("AudioProcessor", "File does not exist at provided path or in filesDir: $fileUri")
-                return null
-            }
-        }
-
-        // Check if the file has a valid extension
-        val validExtensions = listOf("wav", "pcm")
-        val fileExtension = file.extension.lowercase()
-        if (fileExtension !in validExtensions) {
-            Log.e("AudioProcessor", "Invalid file extension: $fileExtension. Supported extensions are: $validExtensions")
-            return null
-        }
-
+        var raf: RandomAccessFile? = null
         try {
-            val fileData = file.readBytes()
+            val fileUri = originalFileUri.removePrefix("file://")
+            Log.d("AudioProcessor", "Processing WAV file: $fileUri")
 
-            if (fileData.size < Constants.WAV_HEADER_SIZE) {
-                Log.e("AudioProcessor", "File is too small to be a valid WAV file")
-                return null
-            }
+            val file = File(fileUri).takeIf { it.exists() } ?: File(filesDir, File(fileUri).name).takeIf { it.exists() }
+                ?: run {
+                    Log.e("AudioProcessor", "File not found: $fileUri")
+                    return null
+                }
 
-            // Read the WAV header
-            val riffHeader = String(fileData.sliceArray(0..3))
-            if (riffHeader != "RIFF") {
+            raf = RandomAccessFile(file, "r")
+            val fileSize = raf.length()
+            
+            // Read RIFF header
+            val riffHeader = ByteArray(4).apply { raf.readFully(this) }
+            if (String(riffHeader) != "RIFF") {
                 Log.e("AudioProcessor", "Invalid RIFF header")
                 return null
             }
 
-            val format = String(fileData.sliceArray(8..11))
-            if (format != "WAVE") {
-                Log.e("AudioProcessor", "Invalid WAVE format")
+            // Read file size (4 bytes little-endian)
+            val fileSizeBytes = ByteArray(4).apply { raf.readFully(this) }
+            val expectedFileSize = ByteBuffer.wrap(fileSizeBytes).order(ByteOrder.LITTLE_ENDIAN).int + 8L
+
+            // Read WAVE header
+            val waveHeader = ByteArray(4).apply { raf.readFully(this) }
+            if (String(waveHeader) != "WAVE") {
+                Log.e("AudioProcessor", "Invalid WAVE header")
                 return null
             }
 
-            var offset = 12
-            var dataSize = 0
+            var fmtChunkFound = false
+            var dataChunkFound = false
             var sampleRate = 0
             var channels = 0
             var bitDepth = 0
+            var dataOffset = 0L
+            var dataSize = 0L
 
-            // Parse chunks until we find the 'data' chunk
-            while (offset < fileData.size - 8) {
-                val chunkId = String(fileData.sliceArray(offset until offset + 4))
-                val chunkSize = ByteBuffer.wrap(fileData.sliceArray(offset + 4 until offset + 8)).order(ByteOrder.LITTLE_ENDIAN).int
+            // Parse chunks
+            while (raf.filePointer < fileSize - 8) {
+                val chunkId = ByteArray(4).apply { raf.readFully(this) }.toString(Charsets.UTF_8)
+                val chunkSizeBytes = ByteArray(4).apply { raf.readFully(this) }
+                val chunkSize = ByteBuffer.wrap(chunkSizeBytes).order(ByteOrder.LITTLE_ENDIAN).int.toLong() and 0xFFFFFFFFL
+
+                Log.d("AudioProcessor", "Found chunk: $chunkId ($chunkSize bytes)")
 
                 when (chunkId) {
                     "fmt " -> {
-                        channels = ByteBuffer.wrap(fileData.sliceArray(offset + 10 until offset + 12)).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-                        sampleRate = ByteBuffer.wrap(fileData.sliceArray(offset + 12 until offset + 16)).order(ByteOrder.LITTLE_ENDIAN).int
-                        bitDepth = ByteBuffer.wrap(fileData.sliceArray(offset + 22 until offset + 24)).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+                        if (chunkSize < 16) {
+                            Log.e("AudioProcessor", "Invalid fmt chunk size")
+                            return null
+                        }
+                        
+                        val formatData = ByteArray(16)
+                        raf.readFully(formatData)
+                        val formatBuffer = ByteBuffer.wrap(formatData).order(ByteOrder.LITTLE_ENDIAN)
+                        
+                        val audioFormat = formatBuffer.short // Skip audio format
+                        channels = formatBuffer.short.toInt() and 0xFFFF
+                        sampleRate = formatBuffer.int
+                        val byteRate = formatBuffer.int
+                        val blockAlign = formatBuffer.short
+                        bitDepth = formatBuffer.short.toInt() and 0xFFFF
+                        
+                        Log.d("AudioProcessor", "Raw format data: ${formatData.joinToString(", ")}")
+                        Log.d("AudioProcessor", "Format chunk: audioFormat=$audioFormat, channels=$channels, sampleRate=$sampleRate, bitDepth=$bitDepth, byteRate=$byteRate, blockAlign=$blockAlign")
+                        
+                        if (bitDepth !in listOf(8, 16, 32)) {
+                            Log.e("AudioProcessor", "Invalid bit depth: $bitDepth")
+                            return null
+                        }
+                        
+                        val remainingFmtBytes = chunkSize - 16
+                        if (remainingFmtBytes > 0) {
+                            raf.skipBytes(remainingFmtBytes.toInt())
+                        }
+                        fmtChunkFound = true
                     }
                     "data" -> {
+                        dataOffset = raf.filePointer
                         dataSize = chunkSize
-                        offset += 8 // Skip chunk ID and size
+                        dataChunkFound = true
                         break
                     }
+                    else -> {
+                        // Skip unknown chunks
+                        val skipBytes = chunkSize
+                        if (skipBytes > 0) {
+                            val actualSkip = minOf(skipBytes, fileSize - raf.filePointer)
+                            raf.seek(raf.filePointer + actualSkip)
+                        }
+                    }
                 }
-
-                offset += chunkSize + 8 // Move to the next chunk
             }
 
-            if (dataSize == 0) {
-                Log.e("AudioProcessor", "No data chunk found in WAV file")
+            if (!fmtChunkFound || !dataChunkFound) {
+                Log.e("AudioProcessor", "Missing essential chunks (fmt=$fmtChunkFound, data=$dataChunkFound)")
                 return null
             }
 
-            val audioData = if (skipWavHeader) {
-                fileData.sliceArray(offset until offset + dataSize)
-            } else {
-                fileData
+            // Calculate actual data size if it seems wrong
+            if (dataSize <= 0 || dataSize > fileSize - dataOffset) {
+                dataSize = fileSize - dataOffset
+                Log.d("AudioProcessor", "Adjusted data size to: $dataSize")
             }
 
-            return AudioData(audioData, sampleRate, bitDepth.toInt(), channels.toInt())
-        } catch (e: IOException) {
-            Log.e("AudioProcessor", "Failed to load audio file: ${e.message}", e)
-            return null
-        } catch (e: IllegalArgumentException) {
-            Log.e("AudioProcessor", "Invalid audio file format: ${e.message}", e)
-            return null
+            Log.d("AudioProcessor", "Reading PCM data: offset=$dataOffset, size=$dataSize")
+            
+            return if (skipWavHeader) {
+                val audioData = ByteArray(dataSize.toInt())
+                raf.seek(dataOffset)
+                raf.readFully(audioData)
+                AudioData(audioData, sampleRate, bitDepth, channels)
+            } else {
+                val audioData = ByteArray(fileSize.toInt())
+                raf.seek(0)
+                raf.readFully(audioData)
+                AudioData(audioData, sampleRate, bitDepth, channels)
+            }
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "Unexpected error: ${e.message}", e)
+            Log.e("AudioProcessor", "WAV parsing failed: ${e.javaClass.simpleName} - ${e.message}")
             return null
+        } finally {
+            raf?.close()
         }
     }
 
@@ -249,7 +296,6 @@ class AudioProcessor(private val filesDir: File) {
         )
     }
 
-
     fun resetCumulativeAmplitudeRange() {
         cumulativeMinAmplitude = Float.MAX_VALUE
         cumulativeMaxAmplitude = Float.MIN_VALUE
@@ -279,8 +325,6 @@ class AudioProcessor(private val filesDir: File) {
             else -> throw IllegalArgumentException("Unsupported bit depth: $bitDepth")
         }
     }
-
-
 
     /**
      * Computes the features of the audio data.
@@ -445,8 +489,6 @@ class AudioProcessor(private val filesDir: File) {
         }
     }
 
-
-
     /**
      * Computes the Mel filter bank.
      * @param numFilters The number of Mel filters.
@@ -482,7 +524,6 @@ class AudioProcessor(private val filesDir: File) {
         return melFilters
     }
 
-
     /**
      * Computes the Discrete Cosine Transform (DCT) of the log energies.
      * @param logEnergies The log energies.
@@ -504,7 +545,6 @@ class AudioProcessor(private val filesDir: File) {
         return dct.toList()
     }
 
-
     /**
      * Extracts the spectral centroid from the audio data.
      * @param segmentData The segment data.
@@ -519,7 +559,6 @@ class AudioProcessor(private val filesDir: File) {
         val weightedSum = magnitudeSpectrum.mapIndexed { index, value -> index * value }.sum()
         return (weightedSum / sum) * (sampleRate / 2) / magnitudeSpectrum.size
     }
-
 
     /**
      * Extracts the spectral flatness from the audio data.
@@ -686,5 +725,289 @@ class AudioProcessor(private val filesDir: File) {
 
         // Compute the HNR
         return if (autocorrelation[0] != 0f) 10 * log10(maxAutocorrelation / (autocorrelation[0] - maxAutocorrelation)) else 0f
+    }
+
+    fun loadAudioFromAnyFormat(fileUri: String, decodingConfig: DecodingConfig? = null): AudioData? {
+        val cleanUri = fileUri.removePrefix("file://")
+        val file = File(cleanUri).takeIf { it.exists() } ?: File(filesDir, File(cleanUri).name).takeIf { it.exists() }
+            ?: run {
+                Log.e("AudioProcessor", "File not found in any location: $cleanUri")
+                return null
+            }
+
+        // First try MediaExtractor
+        val extractor = MediaExtractor()
+        try {
+            Log.d("AudioProcessor", "Attempting MediaExtractor with path: ${file.absolutePath}")
+            extractor.setDataSource(file.absolutePath)
+            
+            // Find the first audio track
+            val audioTrackIndex = (0 until extractor.trackCount)
+                .find { extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true }
+            
+            if (audioTrackIndex != null) {
+                val format = extractor.getTrackFormat(audioTrackIndex)
+                extractor.selectTrack(audioTrackIndex)
+
+                // Get original audio properties
+                val originalSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                val originalChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+
+                // Process using MediaExtractor
+                val pcmData = decodeAudioToPCM(extractor, format)
+                val processedData = if (decodingConfig != null) {
+                    processAudio(
+                        pcmData,
+                        originalSampleRate,
+                        decodingConfig.targetSampleRate,
+                        originalChannels,
+                        decodingConfig.targetChannels,
+                        decodingConfig.normalizeAudio
+                    )
+                } else {
+                    pcmData
+                }
+
+                return AudioData(
+                    data = processedData,
+                    sampleRate = decodingConfig?.targetSampleRate ?: originalSampleRate,
+                    bitDepth = decodingConfig?.targetBitDepth ?: 16,
+                    channels = decodingConfig?.targetChannels ?: originalChannels
+                )
+            }
+        } catch (e: Exception) {
+            Log.d("AudioProcessor", "MediaExtractor failed, attempting WAV parser: ${e.message}")
+        } finally {
+            extractor.release()
+        }
+
+        // If MediaExtractor failed and file is WAV, try WAV parser
+        if (file.name.lowercase().endsWith(".wav")) {
+            Log.d("AudioProcessor", "Falling back to WAV parser")
+            return loadAudioFile(file.absolutePath, false)?.let { wavData ->
+                if (decodingConfig != null) {
+                    val processedData = processAudio(
+                        wavData.data,
+                        wavData.sampleRate,
+                        decodingConfig.targetSampleRate,
+                        wavData.channels,
+                        decodingConfig.targetChannels,
+                        decodingConfig.normalizeAudio
+                    )
+                    AudioData(
+                        data = processedData,
+                        sampleRate = decodingConfig.targetSampleRate ?: wavData.sampleRate,
+                        bitDepth = decodingConfig.targetBitDepth,
+                        channels = decodingConfig.targetChannels ?: wavData.channels
+                    )
+                } else {
+                    wavData
+                }
+            }
+        }
+
+        Log.e("AudioProcessor", "Failed to process audio file with both MediaExtractor and WAV parser")
+        return null
+    }
+
+    private fun decodeAudioToPCM(extractor: MediaExtractor, format: MediaFormat): ByteArray {
+        val decoder = MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME)!!)
+        decoder.configure(format, null, null, 0)
+        decoder.start()
+
+        val info = MediaCodec.BufferInfo()
+        val pcmData = mutableListOf<Byte>()
+
+        var isEOS = false
+        while (!isEOS) {
+            val inputBufferId = decoder.dequeueInputBuffer(10000)
+            if (inputBufferId >= 0) {
+                val inputBuffer = decoder.getInputBuffer(inputBufferId)!!
+                val sampleSize = extractor.readSampleData(inputBuffer, 0)
+
+                if (sampleSize < 0) {
+                    decoder.queueInputBuffer(inputBufferId, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                    isEOS = true
+                } else {
+                    decoder.queueInputBuffer(inputBufferId, 0, sampleSize, extractor.sampleTime, 0)
+                    extractor.advance()
+                }
+            }
+
+            val outputBufferId = decoder.dequeueOutputBuffer(info, 10000)
+            if (outputBufferId >= 0) {
+                val outputBuffer = decoder.getOutputBuffer(outputBufferId)!!
+                val chunk = ByteArray(info.size)
+                outputBuffer.get(chunk)
+                pcmData.addAll(chunk.toList())
+                decoder.releaseOutputBuffer(outputBufferId, false)
+            }
+        }
+
+        decoder.stop()
+        decoder.release()
+
+        return pcmData.toByteArray()
+    }
+
+    private fun resampleAudio(
+        pcmData: ByteArray,
+        originalSampleRate: Int,
+        targetSampleRate: Int,
+        originalChannels: Int
+    ): ByteArray {
+        // Convert byte array to short array (16-bit samples)
+        val shortArray = ShortArray(pcmData.size / 2)
+        ByteBuffer.wrap(pcmData).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shortArray)
+
+        // Convert to mono if needed
+        val monoShortArray = if (originalChannels > 1) {
+            convertToMono(shortArray, originalChannels)
+        } else {
+            shortArray
+        }
+
+        // Resample
+        val resampleRatio = targetSampleRate.toDouble() / originalSampleRate
+        val newLength = (monoShortArray.size * resampleRatio).toInt()
+        val resampledArray = ShortArray(newLength)
+
+        for (i in resampledArray.indices) {
+            val originalIndex = (i / resampleRatio).toInt()
+            val nextIndex = minOf(originalIndex + 1, monoShortArray.size - 1)
+            val fraction = (i / resampleRatio) - originalIndex
+
+            // Linear interpolation
+            val sample = linearInterpolate(
+                monoShortArray[originalIndex].toDouble(),
+                monoShortArray[nextIndex].toDouble(),
+                fraction
+            ).toInt().toShort()
+
+            resampledArray[i] = sample
+        }
+
+        // Convert back to byte array
+        val resultBuffer = ByteBuffer.allocate(resampledArray.size * 2)
+        resultBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        resultBuffer.asShortBuffer().put(resampledArray)
+        return resultBuffer.array()
+    }
+
+    private fun convertToMono(stereoData: ShortArray, channels: Int): ShortArray {
+        val monoLength = stereoData.size / channels
+        val monoData = ShortArray(monoLength)
+
+        for (i in 0 until monoLength) {
+            var sum = 0
+            for (ch in 0 until channels) {
+                sum += stereoData[i * channels + ch]
+            }
+            monoData[i] = (sum / channels).toShort()
+        }
+
+        return monoData
+    }
+
+    private fun linearInterpolate(a: Double, b: Double, fraction: Double): Double {
+        return a + fraction * (b - a)
+    }
+
+    private fun processAudio(
+        pcmData: ByteArray,
+        originalSampleRate: Int,
+        targetSampleRate: Int?,
+        originalChannels: Int,
+        targetChannels: Int?,
+        normalize: Boolean
+    ): ByteArray {
+        var processedData = pcmData
+
+        // Only resample if target sample rate is explicitly specified and different
+        if (targetSampleRate != null && originalSampleRate != targetSampleRate) {
+            processedData = resampleAudio(processedData, originalSampleRate, targetSampleRate, originalChannels)
+        }
+
+        // Only convert channels if target channels is explicitly specified and different
+        if (targetChannels != null && originalChannels != targetChannels) {
+            processedData = convertChannels(processedData, originalChannels, targetChannels)
+        }
+
+        // Only normalize if explicitly requested
+        if (normalize) {
+            processedData = normalizeAudio(processedData)
+        }
+
+        return processedData
+    }
+
+    private fun normalizeAudio(pcmData: ByteArray): ByteArray {
+        val shorts = ShortArray(pcmData.size / 2)
+        ByteBuffer.wrap(pcmData).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
+
+        // Find maximum amplitude
+        var maxAmplitude = 0
+        for (sample in shorts) {
+            maxAmplitude = maxOf(maxAmplitude, abs(sample.toInt()))
+        }
+
+        // Normalize if we found a non-zero maximum
+        if (maxAmplitude > 0) {
+            val normalizationFactor = Short.MAX_VALUE.toFloat() / maxAmplitude
+            for (i in shorts.indices) {
+                shorts[i] = (shorts[i] * normalizationFactor).toInt().toShort()
+            }
+        }
+
+        // Convert back to bytes
+        val resultBuffer = ByteBuffer.allocate(shorts.size * 2)
+        resultBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        resultBuffer.asShortBuffer().put(shorts)
+        return resultBuffer.array()
+    }
+
+    private fun convertChannels(pcmData: ByteArray, originalChannels: Int, targetChannels: Int): ByteArray {
+        val result = ByteArray(pcmData.size * targetChannels / originalChannels)
+        val inputBuffer = ByteBuffer.wrap(pcmData).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+        val outputBuffer = ByteBuffer.wrap(result).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+
+        for (i in 0 until result.size) {
+            val channelData = ShortArray(targetChannels)
+            for (j in 0 until targetChannels) {
+                channelData[j] = inputBuffer.get()
+            }
+            outputBuffer.put(channelData)
+        }
+
+        return result
+    }
+
+    private fun debugWavHeader(file: File) {
+        try {
+            val bytes = ByteArray(44) // Standard WAV header size
+            RandomAccessFile(file, "r").use { raf ->
+                raf.readFully(bytes)
+            }
+            
+            Log.d("AudioProcessor", "WAV Header Bytes: ${bytes.joinToString(", ") { String.format("%02X", it) }}")
+            Log.d("AudioProcessor", "ASCII: ${bytes.map { it.toInt().toChar() }.joinToString("")}")
+            
+            val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+            Log.d("AudioProcessor", """
+                RIFF header: ${String(bytes, 0, 4)}
+                File size: ${buffer.getInt(4)}
+                WAVE header: ${String(bytes, 8, 4)}
+                fmt  header: ${String(bytes, 12, 4)}
+                Chunk size: ${buffer.getInt(16)}
+                Audio format: ${buffer.getShort(20)}
+                Channels: ${buffer.getShort(22)}
+                Sample rate: ${buffer.getInt(24)}
+                Byte rate: ${buffer.getInt(28)}
+                Block align: ${buffer.getShort(32)}
+                Bits per sample: ${buffer.getShort(34)}
+            """.trimIndent())
+        } catch (e: Exception) {
+            Log.e("AudioProcessor", "Failed to debug WAV header: ${e.message}")
+        }
     }
 }

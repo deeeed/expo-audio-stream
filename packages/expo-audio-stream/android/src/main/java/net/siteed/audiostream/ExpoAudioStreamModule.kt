@@ -52,45 +52,54 @@ class ExpoAudioStreamModule : Module(), EventSender {
         }
 
         AsyncFunction("extractAudioAnalysis") { options: Map<String, Any>, promise: Promise ->
-            val fileUri = options["fileUri"] as? String
-            val pointsPerSecond =  (options["pointsPerSecond"] as? Double) ?: 20.0
-            val algorithm = options["algorithm"] as? String ?: "peak"
-            val featuresMap = options["features"] as? Map<*, *>
-            val features = featuresMap?.filterKeys { it is String }
-                ?.filterValues { it is Boolean }
-                ?.mapKeys { it.key as String }
-                ?.mapValues { it.value as Boolean }
-                ?: emptyMap()
-            val skipWavHeader = (options["skipWavHeader"] as? Boolean) ?: true
-
-            if (fileUri == null) {
-                promise.reject("INVALID_ARGUMENTS", "fileUri is required", null)
-                return@AsyncFunction
-            }
-
             try {
-                val audioData = audioProcessor.loadAudioFile(fileUri, skipWavHeader)
-                if (audioData == null) {
-                    promise.reject("PROCESSING_ERROR", "Failed to load audio file", null)
-                    return@AsyncFunction
-                }
+                val fileUri = requireNotNull(options["fileUri"] as? String) { "fileUri is required" }
+                
+                // Get decoding options
+                val decodingOptionsMap = options["decodingOptions"] as? Map<String, Any>
+                val decodingConfig = if (decodingOptionsMap != null) {
+                    DecodingConfig(
+                        targetSampleRate = decodingOptionsMap["targetSampleRate"] as? Int,
+                        targetChannels = decodingOptionsMap["targetChannels"] as? Int,
+                        targetBitDepth = (decodingOptionsMap["targetBitDepth"] as? Int) ?: 16,
+                        normalizeAudio = (decodingOptionsMap["normalizeAudio"] as? Boolean) ?: false
+                    )
+                } else null
+
+                val audioData = audioProcessor.loadAudioFromAnyFormat(fileUri, decodingConfig)
+                    ?: throw IllegalStateException("Failed to load audio file")
+
+                val pointsPerSecond = (options["pointsPerSecond"] as? Double) ?: 20.0
+                val algorithm = options["algorithm"] as? String ?: "peak"
+                val featuresMap = options["features"] as? Map<*, *>
+                val features = featuresMap?.filterKeys { it is String }
+                    ?.filterValues { it is Boolean }
+                    ?.mapKeys { it.key as String }
+                    ?.mapValues { it.value as Boolean }
+                    ?: emptyMap()
 
                 val recordingConfig = RecordingConfig(
                     sampleRate = audioData.sampleRate,
                     channels = audioData.channels,
-                    encoding = "pcm_${audioData.bitDepth}bit",
+                    encoding = when (audioData.bitDepth) {
+                        8 -> "pcm_8bit"
+                        16 -> "pcm_16bit"
+                        32 -> "pcm_32bit"
+                        else -> throw IllegalArgumentException("Unsupported bit depth: ${audioData.bitDepth}")
+                    },
                     pointsPerSecond = pointsPerSecond,
                     algorithm = algorithm,
                     features = features
                 )
 
-                Log.d("ExpoAudioStreamModule", "extractAudioAnalysis: $recordingConfig")
+                Log.d(Constants.TAG, "extractAudioAnalysis: $recordingConfig")
                 audioProcessor.resetCumulativeAmplitudeRange()
 
                 val analysisData = audioProcessor.processAudioData(audioData.data, recordingConfig)
                 promise.resolve(analysisData.toDictionary())
             } catch (e: Exception) {
-                promise.reject("PROCESSING_ERROR", "Failed to process audio file: ${e.message}", e)
+                Log.e(Constants.TAG, "Audio processing failed: ${e.message}", e)
+                promise.reject("PROCESSING_ERROR", e.message ?: "Unknown error", e)
             }
         }
 

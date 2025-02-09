@@ -301,7 +301,7 @@ export default function ExtractScreen() {
                     />
                 )}
 
-                {audioData && (
+                {audioData && !isProcessing && (
                     <View style={{ gap: 16 }}>
                         <EditableInfoCard
                             label="Audio Details"
