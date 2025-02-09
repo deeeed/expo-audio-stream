@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [1.13.0] - 2025-02-09
-
+- Audiodecode (#104) ([173f589](https://github.com/deeeed/expo-audio-stream/commit/173f589ebe8763f7361088d150bba1d4bd2c4154))
+- fix: resolve background recording issues and improve status checking (#103) ([a174d50](https://github.com/deeeed/expo-audio-stream/commit/a174d50932b2ee4682f4bd6edb3eaa9a7d579bfc))
 ## [1.12.3] - 2025-02-08
 - fix: infinite rerender issue ([54a6a84](https://github.com/deeeed/expo-audio-stream/commit/54a6a8414688c9fbf897c56503c0091dcaf55e26))
 ## [1.12.1] - 2025-02-01
