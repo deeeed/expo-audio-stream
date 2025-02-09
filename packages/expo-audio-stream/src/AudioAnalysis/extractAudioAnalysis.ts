@@ -37,6 +37,8 @@ export interface ExtractAudioFromAnyFormatProps
     extends ExtractAudioAnalysisProps {
     mimeType?: string
     decodingOptions?: DecodingConfig
+    startTime?: number // Add start time in milliseconds
+    endTime?: number // Add end time in milliseconds
 }
 
 export async function extractAudioFromAnyFormat({
@@ -44,6 +46,8 @@ export async function extractAudioFromAnyFormat({
     arrayBuffer,
     mimeType,
     decodingOptions,
+    startTime,
+    endTime,
     ...restProps
 }: ExtractAudioFromAnyFormatProps): Promise<AudioAnalysis> {
     if (isWeb) {
@@ -76,19 +80,46 @@ export async function extractAudioFromAnyFormat({
             const decodedAudioBuffer =
                 await audioContext.decodeAudioData(audioBuffer)
 
+            // Calculate the actual duration in milliseconds
+            const fullDurationMs = decodedAudioBuffer.duration * 1000
+            const effectiveDurationMs = endTime
+                ? endTime - (startTime || 0)
+                : fullDurationMs - (startTime || 0)
+
+            // Create a new buffer for the selected range
+            const rangeLength = decodedAudioBuffer.length
+            const rangeBuffer = new AudioBuffer({
+                length: rangeLength,
+                numberOfChannels: decodedAudioBuffer.numberOfChannels,
+                sampleRate: decodedAudioBuffer.sampleRate,
+            })
+
+            // Copy the selected range
+            for (
+                let channel = 0;
+                channel < decodedAudioBuffer.numberOfChannels;
+                channel++
+            ) {
+                const channelData = decodedAudioBuffer.getChannelData(channel)
+                const rangeData = channelData.slice(0, rangeLength)
+                rangeBuffer.copyToChannel(rangeData, channel)
+            }
+
+            // Use the range buffer instead of the full buffer
+            let processedBuffer = rangeBuffer
+
             // Get original properties
-            const originalChannels = decodedAudioBuffer.numberOfChannels
-            const originalSampleRate = decodedAudioBuffer.sampleRate
-            const length = decodedAudioBuffer.length
+            const originalSampleRate = processedBuffer.sampleRate
+            const length = processedBuffer.length
 
             // Determine target format
             const targetChannels =
-                decodingOptions?.targetChannels ?? originalChannels
+                decodingOptions?.targetChannels ??
+                processedBuffer.numberOfChannels
             const targetSampleRate =
-                decodingOptions?.targetSampleRate ?? originalSampleRate
+                decodingOptions?.targetSampleRate ?? processedBuffer.sampleRate
 
             // Create offline context for resampling if needed
-            let processedBuffer = decodedAudioBuffer
             if (targetSampleRate !== originalSampleRate) {
                 const offlineCtx = new OfflineAudioContext(
                     targetChannels,
@@ -96,7 +127,7 @@ export async function extractAudioFromAnyFormat({
                     targetSampleRate
                 )
                 const source = offlineCtx.createBufferSource()
-                source.buffer = decodedAudioBuffer
+                source.buffer = processedBuffer
                 source.connect(offlineCtx.destination)
                 source.start()
                 processedBuffer = await offlineCtx.startRendering()
@@ -146,13 +177,14 @@ export async function extractAudioFromAnyFormat({
                 }
             }
 
-            // Now call the original extractAudioAnalysis with the processed data
+            // Pass the duration to extractAudioAnalysis
             return await extractAudioAnalysis({
                 arrayBuffer: wavBuffer.buffer as ArrayBuffer,
                 bitDepth: decodingOptions?.targetBitDepth ?? 32,
                 skipWavHeader: true,
                 sampleRate: targetSampleRate,
                 numberOfChannels: targetChannels,
+                durationMs: effectiveDurationMs,
                 ...restProps,
             })
         } catch (error) {
@@ -160,7 +192,7 @@ export async function extractAudioFromAnyFormat({
             throw error
         }
     } else {
-        // For native platforms, pass through the decodingOptions
+        // For native platforms, pass through all options
         return await extractAudioAnalysis({
             fileUri,
             decodingOptions,
@@ -300,15 +332,19 @@ export async function extractPreview({
             fileUri,
             algorithm,
             decodingOptions,
+            startTime, // Pass startTime
+            endTime, // Pass endTime
             pointsPerSecond:
                 (numberOfPoints ?? 100) /
-                (endTime ? (endTime - (startTime || 0)) / 1000 : 1),
+                ((endTime ? endTime - (startTime || 0) : 1000) / 1000), // Adjust points per second calculation
         })
 
-        // Convert AudioAnalysis to AudioPreview format
+        // Convert AudioAnalysis to AudioPreview format and adjust duration
         return {
             pointsPerSecond: analysis.pointsPerSecond,
-            durationMs: analysis.durationMs,
+            durationMs: endTime
+                ? endTime - (startTime || 0)
+                : analysis.durationMs, // Use range duration if specified
             amplitudeRange: analysis.amplitudeRange,
             dataPoints: analysis.dataPoints.map((point) => ({
                 id: point.id,

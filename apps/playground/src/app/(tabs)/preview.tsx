@@ -51,6 +51,13 @@ export default function PreviewScreen() {
     const generatePreview = useCallback(async (fileUri: string) => {
         try {
             setIsProcessing(true)
+            if (isWeb && fileUri === SAMPLE_AUDIO.web) {
+                setCurrentFile({
+                    fileUri,
+                    mimeType: 'audio/mp3',
+                    filename: 'JFK Speech Sample'
+                })
+            }
             show({
                 loading: true,
                 message: 'Generating preview...'
