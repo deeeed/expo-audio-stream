@@ -1,6 +1,6 @@
 {
     "name": "audio-playground",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "main": "src/index",
     "scripts": {
         "eas-build-pre-install": "corepack enable && cd ../.. && yarn install && cd packages/expo-audio-stream && yarn build && yarn build:plugin",
@@ -27,7 +27,7 @@
         "@react-navigation/native": "^7.0.0",
         "@reduxjs/toolkit": "^2.5.0",
         "@shopify/react-native-skia": "1.5.0",
-        "@siteed/design-system": "^0.43.0",
+        "@siteed/design-system": "^0.43.1",
         "@siteed/expo-audio-stream": "workspace:^",
         "@siteed/expo-audio-ui": "workspace:^",
         "@siteed/react-native-logger": "^0.11.0",

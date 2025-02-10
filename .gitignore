@@ -66,3 +66,4 @@ playground/vendor/
 **/install-state.gz
 **/.pnp.*
 *storybook.log
+apps/playground/.env.development
