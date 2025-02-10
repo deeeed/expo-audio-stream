@@ -16,7 +16,7 @@ Interface representing the metadata of a WAV file.
 
 #### Defined in
 
-[src/utils/getWavFileInfo.ts:32](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L32)
+[src/utils/getWavFileInfo.ts:32](https://github.com/deeeed/expo-audio-stream/blob/9c6449d8edbf8895b3e36e4e30302d7cf8839d2c/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L32)
 
 ***
 
@@ -26,7 +26,7 @@ Interface representing the metadata of a WAV file.
 
 #### Defined in
 
-[src/utils/getWavFileInfo.ts:29](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L29)
+[src/utils/getWavFileInfo.ts:29](https://github.com/deeeed/expo-audio-stream/blob/9c6449d8edbf8895b3e36e4e30302d7cf8839d2c/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L29)
 
 ***
 
@@ -36,7 +36,7 @@ Interface representing the metadata of a WAV file.
 
 #### Defined in
 
-[src/utils/getWavFileInfo.ts:34](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L34)
+[src/utils/getWavFileInfo.ts:34](https://github.com/deeeed/expo-audio-stream/blob/9c6449d8edbf8895b3e36e4e30302d7cf8839d2c/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L34)
 
 ***
 
@@ -46,7 +46,7 @@ Interface representing the metadata of a WAV file.
 
 #### Defined in
 
-[src/utils/getWavFileInfo.ts:33](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L33)
+[src/utils/getWavFileInfo.ts:33](https://github.com/deeeed/expo-audio-stream/blob/9c6449d8edbf8895b3e36e4e30302d7cf8839d2c/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L33)
 
 ***
 
@@ -56,7 +56,7 @@ Interface representing the metadata of a WAV file.
 
 #### Defined in
 
-[src/utils/getWavFileInfo.ts:36](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L36)
+[src/utils/getWavFileInfo.ts:36](https://github.com/deeeed/expo-audio-stream/blob/9c6449d8edbf8895b3e36e4e30302d7cf8839d2c/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L36)
 
 ***
 
@@ -66,7 +66,7 @@ Interface representing the metadata of a WAV file.
 
 #### Defined in
 
-[src/utils/getWavFileInfo.ts:37](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L37)
+[src/utils/getWavFileInfo.ts:37](https://github.com/deeeed/expo-audio-stream/blob/9c6449d8edbf8895b3e36e4e30302d7cf8839d2c/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L37)
 
 ***
 
@@ -76,7 +76,7 @@ Interface representing the metadata of a WAV file.
 
 #### Defined in
 
-[src/utils/getWavFileInfo.ts:35](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L35)
+[src/utils/getWavFileInfo.ts:35](https://github.com/deeeed/expo-audio-stream/blob/9c6449d8edbf8895b3e36e4e30302d7cf8839d2c/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L35)
 
 ***
 
@@ -86,7 +86,7 @@ Interface representing the metadata of a WAV file.
 
 #### Defined in
 
-[src/utils/getWavFileInfo.ts:38](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L38)
+[src/utils/getWavFileInfo.ts:38](https://github.com/deeeed/expo-audio-stream/blob/9c6449d8edbf8895b3e36e4e30302d7cf8839d2c/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L38)
 
 ***
 
@@ -96,7 +96,7 @@ Interface representing the metadata of a WAV file.
 
 #### Defined in
 
-[src/utils/getWavFileInfo.ts:31](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L31)
+[src/utils/getWavFileInfo.ts:31](https://github.com/deeeed/expo-audio-stream/blob/9c6449d8edbf8895b3e36e4e30302d7cf8839d2c/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L31)
 
 ***
 
@@ -106,7 +106,7 @@ Interface representing the metadata of a WAV file.
 
 #### Defined in
 
-[src/utils/getWavFileInfo.ts:28](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L28)
+[src/utils/getWavFileInfo.ts:28](https://github.com/deeeed/expo-audio-stream/blob/9c6449d8edbf8895b3e36e4e30302d7cf8839d2c/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L28)
 
 ***
 
@@ -116,7 +116,7 @@ Interface representing the metadata of a WAV file.
 
 #### Defined in
 
-[src/utils/getWavFileInfo.ts:27](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L27)
+[src/utils/getWavFileInfo.ts:27](https://github.com/deeeed/expo-audio-stream/blob/9c6449d8edbf8895b3e36e4e30302d7cf8839d2c/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L27)
 
 ***
 
@@ -126,4 +126,4 @@ Interface representing the metadata of a WAV file.
 
 #### Defined in
 
-[src/utils/getWavFileInfo.ts:30](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L30)
+[src/utils/getWavFileInfo.ts:30](https://github.com/deeeed/expo-audio-stream/blob/9c6449d8edbf8895b3e36e4e30302d7cf8839d2c/packages/expo-audio-stream/src/utils/getWavFileInfo.ts#L30)
