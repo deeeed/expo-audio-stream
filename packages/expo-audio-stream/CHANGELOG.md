@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [1.13.2] - 2025-02-10
-
+- fix: ensure foreground service starts within required timeframe ([60dad52](https://github.com/deeeed/expo-audio-stream/commit/60dad5237c11b9a60e6239701317d52c56625d6e))
 ## [1.13.1] - 2025-02-10
-
+- readme update with latest demos
 ## [1.13.0] - 2025-02-09
 - Audiodecode (#104) ([173f589](https://github.com/deeeed/expo-audio-stream/commit/173f589ebe8763f7361088d150bba1d4bd2c4154))
 - fix: resolve background recording issues and improve status checking (#103) ([a174d50](https://github.com/deeeed/expo-audio-stream/commit/a174d50932b2ee4682f4bd6edb3eaa9a7d579bfc))
