@@ -67,3 +67,4 @@ playground/vendor/
 **/.pnp.*
 *storybook.log
 apps/playground/.env.development
+apps/playground/.env.production
