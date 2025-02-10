@@ -38,20 +38,30 @@ class AudioRecordingService : Service() {
             // Start as foreground service if keepAwake is true, regardless of notification settings
             val keepAwake = AudioRecorderManager.getInstance()?.getKeepAwakeStatus() ?: false
             if (keepAwake) {
-                // Create a minimal notification channel if needed, but don't show the notification
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    // Create a minimal notification channel if needed
                     val channel = NotificationChannel(
                         "recording_service",
                         "Recording Service",
                         NotificationManager.IMPORTANCE_LOW
-                    )
+                    ).apply {
+                        setSound(null, null)
+                        enableLights(false)
+                        enableVibration(false)
+                    }
                     val notificationManager = getSystemService(NotificationManager::class.java)
                     notificationManager.createNotificationChannel(channel)
                     
-                    // Create minimal notification but don't show it
+                    // Create minimal silent notification
                     val notification = NotificationCompat.Builder(this, "recording_service")
                         .setContentTitle("")
                         .setContentText("")
+                        .setSmallIcon(R.drawable.ic_microphone)
+                        .setOngoing(true)
+                        .setSound(null)
+                        .setVibrate(null)
+                        .setDefaults(0)
+                        .setPriority(NotificationCompat.PRIORITY_LOW)
                         .build()
                     
                     startForeground(1, notification)
