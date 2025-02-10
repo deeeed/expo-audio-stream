@@ -29,7 +29,7 @@ Algorithm used to calculate amplitude values
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:121](https://github.com/deeeed/expo-audio-stream/blob/5b78ac5765ee3fd334df797c5aa52ca63fddd43d/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L121)
+[src/AudioAnalysis/AudioAnalysis.types.ts:121](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L121)
 
 ***
 
@@ -46,7 +46,7 @@ Defaults to:
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:130](https://github.com/deeeed/expo-audio-stream/blob/5b78ac5765ee3fd334df797c5aa52ca63fddd43d/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L130)
+[src/AudioAnalysis/AudioAnalysis.types.ts:130](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L130)
 
 ***
 
@@ -62,7 +62,7 @@ End time in milliseconds
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:102](https://github.com/deeeed/expo-audio-stream/blob/5b78ac5765ee3fd334df797c5aa52ca63fddd43d/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L102)
+[src/AudioAnalysis/AudioAnalysis.types.ts:102](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L102)
 
 ***
 
@@ -74,7 +74,7 @@ URI of the audio file to analyze
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:111](https://github.com/deeeed/expo-audio-stream/blob/5b78ac5765ee3fd334df797c5aa52ca63fddd43d/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L111)
+[src/AudioAnalysis/AudioAnalysis.types.ts:111](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L111)
 
 ***
 
@@ -92,7 +92,7 @@ Total number of points to generate for the preview.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:116](https://github.com/deeeed/expo-audio-stream/blob/5b78ac5765ee3fd334df797c5aa52ca63fddd43d/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L116)
+[src/AudioAnalysis/AudioAnalysis.types.ts:116](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L116)
 
 ***
 
@@ -108,4 +108,4 @@ Start time in milliseconds
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:100](https://github.com/deeeed/expo-audio-stream/blob/5b78ac5765ee3fd334df797c5aa52ca63fddd43d/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L100)
+[src/AudioAnalysis/AudioAnalysis.types.ts:100](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L100)
