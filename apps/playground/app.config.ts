@@ -16,11 +16,27 @@ const envSchema = Joi.object({
     APPLE_TEAM_ID: Joi.string().optional(),
     APP_VARIANT: Joi.string()
         .valid('development', 'staging', 'production')
-        .default('development'),
+        .default('development')
+        .required(),
 }).unknown() // Allow other environment variables
 
 // Validate and get environment variables
-const { value: env } = envSchema.validate(process.env)
+const { error, value: env } = envSchema.validate(process.env, {
+    abortEarly: true,
+    debug: true,
+    presence: 'required', // This ensures defaults are applied
+    stripUnknown: false,
+})
+
+if (error) {
+    console.error('Environment validation error:', error.message)
+    throw error
+}
+
+// Add type assertion to ensure APP_VARIANT is typed correctly
+const validatedEnv = env as typeof env & {
+    APP_VARIANT: 'development' | 'staging' | 'production'
+}
 
 // Add a helper function for logging
 function logConfig(config: Record<string, unknown>, prefix = '') {
@@ -39,15 +55,15 @@ const getAppIdentifier = (base: string, variant: string): string => {
     return `${base}.${variant}`
 }
 
-const APP_IDENTIFIER = getAppIdentifier('net.siteed.audioplayground', env.APP_VARIANT)
+const APP_IDENTIFIER = getAppIdentifier('net.siteed.audioplayground', validatedEnv.APP_VARIANT)
 
 // Log the important configuration values
 logConfig({
-    'App Variant': env.APP_VARIANT,
+    'App Variant': validatedEnv.APP_VARIANT,
     'App Identifier': APP_IDENTIFIER,
     'App Version': packageVersion,
-    'EAS Project ID': env.EAS_PROJECT_ID,
-    'Apple Team ID': env.APPLE_TEAM_ID || 'Not set',
+    'EAS Project ID': validatedEnv.EAS_PROJECT_ID,
+    'Apple Team ID': validatedEnv.APPLE_TEAM_ID || 'Not set',
     'Environment': process.env.NODE_ENV || 'development',
 })
 
@@ -55,9 +71,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     return {
     ...config,
     name:
-        env.APP_VARIANT === 'production'
+        validatedEnv.APP_VARIANT === 'production'
             ? 'AudioPlayground'
-            : `AudioPlayground (${env.APP_VARIANT})`,
+            : `AudioPlayground (${validatedEnv.APP_VARIANT})`,
     slug: 'audioplayground',
     version: packageVersion,
     orientation: 'portrait',
@@ -68,21 +84,21 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         image: './assets/splash.png',
         resizeMode: 'contain',
         backgroundColor:
-            env.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
+            validatedEnv.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
     },
     assetBundlePatterns: ['**/*', 'assets/audio_samples/*', 'public/audioStorage.worker.js'],
     ios: {
         newArchEnabled: true,
         supportsTablet: true,
         bundleIdentifier: APP_IDENTIFIER,
-        appleTeamId: env.APPLE_TEAM_ID,
+        appleTeamId: validatedEnv.APPLE_TEAM_ID,
     },
     android: {
         newArchEnabled: false,
         adaptiveIcon: {
             foregroundImage: './assets/adaptive-icon.png',
             backgroundColor:
-                env.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
+                validatedEnv.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
         },
         package: APP_IDENTIFIER,
     },
@@ -92,12 +108,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     experiments: {
         baseUrl:
-            env.APP_VARIANT === 'production'
+            validatedEnv.APP_VARIANT === 'production'
                 ? '/expo-audio-stream/playground/'
                 : '',
     },
     updates: {
-        url: 'https://u.expo.dev/' + env.EAS_PROJECT_ID,
+        url: 'https://u.expo.dev/' + validatedEnv.EAS_PROJECT_ID,
     },
     runtimeVersion: '1.0.0',
     owner: 'deeeed',
@@ -135,7 +151,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ],
     extra: {
         eas: {
-            projectId: env.EAS_PROJECT_ID,
+            projectId: validatedEnv.EAS_PROJECT_ID,
         },
     },
 }

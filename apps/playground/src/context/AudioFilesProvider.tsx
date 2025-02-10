@@ -64,25 +64,26 @@ export const AudioFilesProvider = ({
                     );
                 } else {
                     const jsonPath = audioUriORfilename.replace(
-                        /\.wav$/,
+                        /\.(wav|opus|aac)$/,
                         '.json'
                     );
 
-                    const audioExists =
-                        await FileSystem.getInfoAsync(audioUriORfilename)
-                    if (audioExists.exists) {
-                        await FileSystem.deleteAsync(audioUriORfilename)
-                    } else {
-                        logger.error(
-                            `Audio file does not exist at ${audioUriORfilename}`
-                        )
+                    // Try to delete all possible audio files
+                    const possibleExtensions = ['.wav', '.opus', '.aac'];
+                    for (const ext of possibleExtensions) {
+                        const audioPath = audioUriORfilename.replace(/\.(wav|opus|aac)$/, ext);
+                        const audioExists = await FileSystem.getInfoAsync(audioPath);
+                        if (audioExists.exists) {
+                            await FileSystem.deleteAsync(audioPath);
+                            logger.debug(`Deleted audio file at ${audioPath}`);
+                        }
                     }
 
                     const jsonExists = await FileSystem.getInfoAsync(jsonPath)
                     if (jsonExists.exists) {
                         await FileSystem.deleteAsync(jsonPath)
                     } else {
-                        logger.error(
+                        logger.info(
                             `Metadata file does not exist at ${jsonPath}`
                         )
                     }
@@ -125,41 +126,85 @@ export const AudioFilesProvider = ({
 
                 const fileList = await FileSystem.readDirectoryAsync(directoryUri)
                 logger.debug(`Found files in directory`, fileList)
-                const audioFiles = fileList.filter((file) => file.endsWith('.wav'))
+                
+                // First, find all JSON metadata files
                 const jsonFiles = fileList.filter((file) => file.endsWith('.json'))
+                const processedMetadata = new Set<string>() // Track processed base filenames
 
+                // Process all audio files
                 const audioStreamResults = await Promise.all(
-                    audioFiles.map(async (audioFile) => {
-                        const jsonFile = jsonFiles.find(
-                            (jf) =>
-                                jf.replace('.json', '') ===
-                                audioFile.replace('.wav', '')
-                        )
-                        if (jsonFile) {
-                            const jsonData = await FileSystem.readAsStringAsync(
-                                `${directoryUri}${jsonFile}`
-                            )
-                            const metadata = JSON.parse(jsonData)
-                            logger.debug(
-                                `Loaded metadata for ${audioFile}`,
-                                metadata
-                            )
-                            return {
-                                fileUri: `${cleanDirectory}/${audioFile}`,
-                                ...metadata,
+                    fileList
+                        .filter(file => /\.(wav|opus|aac)$/.test(file))
+                        .map(async (audioFile) => {
+                            const baseName = audioFile.replace(/\.(wav|opus|aac)$/, '')
+                            
+                            // Skip if we've already processed this base filename
+                            if (processedMetadata.has(baseName)) {
+                                return null
                             }
-                        } else {
-                            logger.warn(`No metadata found for ${audioFile}`)
-                            try {
-                                await deleteAudioAndMetadata(
-                                    `${directoryUri}${audioFile}`
+
+                            const jsonFile = jsonFiles.find(
+                                (jf) => jf === `${baseName}.json`
+                            )
+                            
+                            if (jsonFile) {
+                                const jsonData = await FileSystem.readAsStringAsync(
+                                    `${directoryUri}${jsonFile}`
                                 )
-                            } catch {
-                                // ignore delete error
+                                const metadata = JSON.parse(jsonData)
+                                
+                                // Mark this base filename as processed
+                                processedMetadata.add(baseName)
+
+                                // If this is a WAV file with compression info, use the compressed file
+                                if (metadata.compression?.compressedFileUri) {
+                                    const compressedFileName = metadata.compression.compressedFileUri.split('/').pop()
+                                    if (compressedFileName && fileList.includes(compressedFileName)) {
+                                        return {
+                                            ...metadata,
+                                            fileUri: `${cleanDirectory}/${compressedFileName}`,
+                                            // Update relevant fields for the compressed version
+                                            mimeType: metadata.compression.mimeType,
+                                            size: metadata.compression.size,
+                                        }
+                                    }
+                                }
+
+                                // Otherwise return the original file
+                                return {
+                                    fileUri: `${cleanDirectory}/${audioFile}`,
+                                    ...metadata,
+                                }
+                            } else {
+                                logger.warn(`No metadata found for ${audioFile}`)
+                                
+                                // Check if this file is referenced in any other metadata file
+                                let isReferencedInMetadata = false
+                                for (const jf of jsonFiles) {
+                                    const jsonData = await FileSystem.readAsStringAsync(
+                                        `${directoryUri}${jf}`
+                                    )
+                                    const metadata = JSON.parse(jsonData)
+                                    
+                                    if (metadata.compression?.compressedFileUri?.includes(audioFile)) {
+                                        isReferencedInMetadata = true
+                                        break
+                                    }
+                                }
+
+                                if (!isReferencedInMetadata) {
+                                    logger.warn(`No metadata references found for ${audioFile}, deleting file`)
+                                    try {
+                                        await deleteAudioAndMetadata(
+                                            `${directoryUri}${audioFile}`
+                                        )
+                                    } catch {
+                                        // ignore delete error
+                                    }
+                                }
                             }
-                        }
-                        return null
-                    })
+                            return null
+                        })
                 )
 
                 return audioStreamResults.filter(
