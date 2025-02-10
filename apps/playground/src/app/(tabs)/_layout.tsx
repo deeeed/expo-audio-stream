@@ -60,20 +60,11 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
-                name="files"
-                options={{
-                    title: 'Files',
-                    href: 'files',
-                    tabBarIcon: ({ color }) => (
-                        <FontAwesome size={28} name="cog" color={color} />
-                    ),
-                }}
-            />
-            <Tabs.Screen
                 name="extract"
                 options={{
                     title: 'Extract',
-                    href: 'extract',
+                    // href: 'extract',
+                    href: null, // hide it for now
                     tabBarIcon: ({ color }) => (
                         <MaterialCommunityIcons
                             name="file-music"
@@ -97,6 +88,16 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
+                name="files"
+                options={{
+                    title: 'Files',
+                    href: 'files',
+                    tabBarIcon: ({ color }) => (
+                        <FontAwesome size={28} name="cog" color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
                 name="more"
                 options={{
                     title: 'More',
@@ -109,7 +110,6 @@ export default function TabLayout() {
                     ),
                 }}
             />
-            
         </Tabs>
     )
 }

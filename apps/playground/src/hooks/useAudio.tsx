@@ -4,13 +4,14 @@ import {
     AudioAnalysis,
     AudioRecording,
     extractAudioAnalysis,
+    extractAudioFromAnyFormat,
 } from '@siteed/expo-audio-stream'
 import { Audio, AVPlaybackStatus } from 'expo-av'
 import { useCallback, useEffect, useState } from 'react'
 
 import { SelectedAnalysisConfig } from '../component/AudioRecordingAnalysisConfig'
 import { baseLogger, config } from '../config'
-import { fetchArrayBuffer } from '../utils/utils'
+import { fetchArrayBuffer, isWeb } from '../utils/utils'
 
 interface PlayOptions {
     position?: number
@@ -75,22 +76,44 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
                 }
 
                 if (options.extractAnalysis) {
-                    const analysis = await extractAudioAnalysis({
-                        fileUri: actualAudioBuffer ? undefined : audioUri, // Priority to audioBuffer if provided
-                        skipWavHeader: options.analysisOptions?.skipWavHeader,
-                        arrayBuffer: actualAudioBuffer,
-                        sampleRate: recording?.sampleRate,
-                        bitDepth: recording?.bitDepth,
-                        durationMs: recording?.durationMs,
-                        numberOfChannels: recording?.channels,
-                        algorithm: options.analysisOptions?.algorithm,
-                        pointsPerSecond:
-                            options.analysisOptions?.pointsPerSecond,
-                        features: options.analysisOptions?.features,
-                        featuresExtratorUrl: config.featuresExtratorUrl,
-                    })
-                    setAudioAnalysis(analysis)
-                    // logger.debug(`Extracted audio analysis from ${audioUri}`, analysis);
+                    const isCompressedFormat = audioUri?.toLowerCase().match(/\.(opus|aac)$/);
+                    
+                    // Ensure file:// protocol for native platforms
+                    const normalizedAudioUri = audioUri && !isWeb && !audioUri.startsWith('file://')
+                        ? `file://${audioUri}`
+                        : audioUri;
+
+                    const analysis = isCompressedFormat 
+                        ? await extractAudioFromAnyFormat({
+                            fileUri: actualAudioBuffer ? undefined : normalizedAudioUri,
+                            arrayBuffer: actualAudioBuffer,
+                            mimeType: recording?.mimeType,
+                            sampleRate: recording?.sampleRate,
+                            algorithm: options.analysisOptions?.algorithm,
+                            pointsPerSecond: options.analysisOptions?.pointsPerSecond,
+                            features: options.analysisOptions?.features,
+                            featuresExtratorUrl: config.featuresExtratorUrl,
+                            decodingOptions: {
+                                targetSampleRate: recording?.sampleRate,
+                                targetBitDepth: recording?.bitDepth,
+                                targetChannels: recording?.channels,
+                            },
+                        })
+                        : await extractAudioAnalysis({
+                            fileUri: actualAudioBuffer ? undefined : normalizedAudioUri,
+                            skipWavHeader: options.analysisOptions?.skipWavHeader,
+                            arrayBuffer: actualAudioBuffer,
+                            sampleRate: recording?.sampleRate,
+                            bitDepth: recording?.bitDepth,
+                            durationMs: recording?.durationMs,
+                            numberOfChannels: recording?.channels,
+                            algorithm: options.analysisOptions?.algorithm,
+                            pointsPerSecond: options.analysisOptions?.pointsPerSecond,
+                            features: options.analysisOptions?.features,
+                            featuresExtratorUrl: config.featuresExtratorUrl,
+                        });
+                    
+                    setAudioAnalysis(analysis);
                 }
             } catch (error) {
                 logger.error(`Failed to process audio ${audioUri}:`, error)
@@ -101,7 +124,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         }
 
         processAudioData().catch(logger.error)
-    }, [audioUri, options.loadArrayBuffer, options.extractAnalysis, options.analysisOptions?.skipWavHeader, options.analysisOptions?.pointsPerSecond, options.analysisOptions?.algorithm, show, options.analysisOptions?.features, recording?.sampleRate, recording?.bitDepth, recording?.durationMs, recording?.channels])
+    }, [audioUri, options.loadArrayBuffer, options.extractAnalysis, options.analysisOptions?.skipWavHeader, options.analysisOptions?.pointsPerSecond, options.analysisOptions?.algorithm, show, options.analysisOptions?.features, recording?.sampleRate, recording?.bitDepth, recording?.durationMs, recording?.channels, recording?.mimeType])
 
     const updatePlaybackStatus = useCallback((status: AVPlaybackStatus) => {
         if (!status.isLoaded) {

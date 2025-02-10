@@ -22,10 +22,10 @@ import {
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
-import { useRouter } from 'expo-router'
+import { useRouter, Stack } from 'expo-router'
 import isBase64 from 'is-base64'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Platform, StyleSheet, View } from 'react-native'
+import { Platform, StyleSheet, View, Image } from 'react-native'
 import { ActivityIndicator, Text, useTheme } from 'react-native-paper'
 
 import { AudioRecordingView } from '../../component/AudioRecordingView'
@@ -116,7 +116,7 @@ if (Platform.OS === 'ios') {
     baseRecordingConfig.sampleRate = 44100
 }
 
-logger.debug(`Base Recording Config`, baseRecordingConfig)
+const logoSource = require('@assets/icon.png')
 
 export default function RecordScreen() {
     const [error, setError] = useState<string | null>(null)
@@ -548,14 +548,6 @@ export default function RecordScreen() {
         </View>
     )
 
-    const showDirectoryInfo = () => {
-        show({
-            type: 'info',
-            message: 'Files are saved to the app\'s designated storage area for security. Use the Share button after recording to save files elsewhere.',
-            duration: 5000,
-        })
-    }
-
     const renderStopped = () => (
         <View style={{ gap: 10 }}>
             <EditableInfoCard
@@ -577,23 +569,6 @@ export default function RecordScreen() {
                     }
                 }}
             />
-
-            {Platform.OS !== 'web' && (
-                <>
-                    <Button 
-                        mode="outlined" 
-                        onPress={showDirectoryInfo}
-                        icon="folder-information"
-                    >
-                        Storage Location Info
-                    </Button>
-                    <Notice
-                        type="info"
-                        title="Storage Location"
-                        message={`Files will be saved to:\n${defaultDirectory}`}
-                    />
-                </>
-            )}
 
             <Picker
                 label="Sample Rate"
@@ -874,26 +849,38 @@ export default function RecordScreen() {
     }
 
     return (
-        <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container}>
-            {result && (
-                <View style={{ gap: 10, paddingBottom: 100 }}>
-                    <AudioRecordingView
-                        recording={result}
-                        onDelete={() => handleDelete(result)}
-                        onActionPress={() => {
-                            router.navigate(`(recordings)/${result.filename}`)
-                        }}
-                        actionText="Visualize"
-                    />
-                    <Button mode="contained" onPress={() => setResult(null)}>
-                        Record Again
-                    </Button>
-                </View>
-            )}
-            {isRecording && !isPaused && renderRecording()}
-            {isPaused && renderPaused()}
-            {!result && !isRecording && !isPaused && renderStopped()}
-        </ScreenWrapper>
+        <>
+            <Stack.Screen
+                options={{
+                    headerRight: () => (
+                        <Image
+                            source={logoSource}
+                            style={{ width: 30, height: 30, marginRight: 10 }}
+                        />
+                    ),
+                }}
+            />
+            <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container}>
+                {result && (
+                    <View style={{ gap: 10, paddingBottom: 100 }}>
+                        <AudioRecordingView
+                            recording={result}
+                            onDelete={() => handleDelete(result)}
+                            onActionPress={() => {
+                                router.navigate(`(recordings)/${result.filename}`)
+                            }}
+                            actionText="Visualize"
+                        />
+                        <Button mode="contained" onPress={() => setResult(null)}>
+                            Record Again
+                        </Button>
+                    </View>
+                )}
+                {isRecording && !isPaused && renderRecording()}
+                {isPaused && renderPaused()}
+                {!result && !isRecording && !isPaused && renderStopped()}
+            </ScreenWrapper>
+        </>
     )
 }
 
@@ -912,5 +899,8 @@ const styles = StyleSheet.create({
     recordingContainer: {
         gap: 10,
         borderWidth: 1,
+    },
+    button: {
+        marginTop: 10,
     },
 })

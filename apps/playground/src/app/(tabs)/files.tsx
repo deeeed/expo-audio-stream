@@ -106,7 +106,7 @@ const FilesScreen = () => {
         <ScreenWrapper withScrollView={false} useInsets style={styles.container}>
             <FlatList
                 data={files}
-                keyExtractor={(item) => item.fileUri}
+                keyExtractor={(item, index) => `${item.fileUri}_${index}`}
                 contentContainerStyle={styles.contentContainer}
                 refreshControl={
                     <RefreshControl refreshing={false} onRefresh={refreshFiles} />
