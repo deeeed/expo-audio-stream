@@ -16,7 +16,7 @@ Represents the configuration for decoding audio data.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:10](https://github.com/deeeed/expo-audio-stream/blob/5b78ac5765ee3fd334df797c5aa52ca63fddd43d/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L10)
+[src/AudioAnalysis/AudioAnalysis.types.ts:10](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L10)
 
 ***
 
@@ -26,7 +26,7 @@ Represents the configuration for decoding audio data.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:9](https://github.com/deeeed/expo-audio-stream/blob/5b78ac5765ee3fd334df797c5aa52ca63fddd43d/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L9)
+[src/AudioAnalysis/AudioAnalysis.types.ts:9](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L9)
 
 ***
 
@@ -36,7 +36,7 @@ Represents the configuration for decoding audio data.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:8](https://github.com/deeeed/expo-audio-stream/blob/5b78ac5765ee3fd334df797c5aa52ca63fddd43d/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L8)
+[src/AudioAnalysis/AudioAnalysis.types.ts:8](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L8)
 
 ***
 
@@ -46,4 +46,4 @@ Represents the configuration for decoding audio data.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:7](https://github.com/deeeed/expo-audio-stream/blob/5b78ac5765ee3fd334df797c5aa52ca63fddd43d/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L7)
+[src/AudioAnalysis/AudioAnalysis.types.ts:7](https://github.com/deeeed/expo-audio-stream/blob/21209ab9cd7c63e9f57f28eb12d3c981b7525e74/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L7)
