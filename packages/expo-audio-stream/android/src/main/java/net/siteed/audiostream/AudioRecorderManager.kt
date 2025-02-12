@@ -534,16 +534,17 @@ class AudioRecorderManager(
             } catch (e: IllegalStateException) {
                 Log.e(Constants.TAG, "Error reading from AudioRecord", e)
             } finally {
-                // Release wake lock at the end
                 releaseWakeLock()
                 audioRecord?.release()
             }
 
             try {
-                AudioProcessor.resetUniqueIdCounter() // Reset the unique ID counter when stopping the recording
+                AudioProcessor.resetUniqueIdCounter()
                 audioProcessor.resetCumulativeAmplitudeRange()
 
                 val fileSize = audioFile?.length() ?: 0
+                Log.d(Constants.TAG, "WAV File validation - Size: $fileSize bytes, Path: ${audioFile?.absolutePath}")
+                
                 val dataFileSize = fileSize - 44  // Subtract header size
                 val byteRate =
                     recordingConfig.sampleRate * recordingConfig.channels * when (recordingConfig.encoding) {
@@ -552,7 +553,6 @@ class AudioRecorderManager(
                         "pcm_32bit" -> 4
                         else -> 2 // Default to 2 bytes per sample if the encoding is not recognized
                     }
-                // Calculate duration based on the data size and byte rate
                 val duration = if (byteRate > 0) (dataFileSize * 1000 / byteRate) else 0
 
                 compressedRecorder?.apply {
@@ -560,9 +560,13 @@ class AudioRecorderManager(
                     release()
                 }
                 compressedRecorder = null
-    
 
-                // Create result bundle with compression info
+                // Log compressed file status if enabled
+                if (recordingConfig.enableCompressedOutput) {
+                    val compressedSize = compressedFile?.length() ?: 0
+                    Log.d(Constants.TAG, "Compressed File validation - Size: $compressedSize bytes, Path: ${compressedFile?.absolutePath}")
+                }
+
                 val result = bundleOf(
                     "fileUri" to audioFile?.toURI().toString(),
                     "filename" to audioFile?.name,

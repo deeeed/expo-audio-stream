@@ -120,16 +120,14 @@ export const AudioFilesProvider = ({
                     throw new Error(`No directoryUri found`)
                 }
 
-                const cleanDirectory = directoryUri
-                    .replace('file://', '')
-                    .replace(/\/$/, '')
+                // Store clean directory path without file:// prefix
+                const cleanDirectory = directoryUri.replace('file://', '')
 
                 const fileList = await FileSystem.readDirectoryAsync(directoryUri)
                 logger.debug(`Found files in directory`, fileList)
                 
-                // First, find all JSON metadata files
                 const jsonFiles = fileList.filter((file) => file.endsWith('.json'))
-                const processedFiles = new Set<string>() // Track processed files
+                const processedFiles = new Set<string>()
 
                 const audioStreamResults = await Promise.all(
                     jsonFiles.map(async (jsonFile) => {
@@ -140,16 +138,14 @@ export const AudioFilesProvider = ({
                             const metadata = JSON.parse(jsonData)
                             const baseName = jsonFile.replace('.json', '')
                             
-                            // Skip if we've already processed this recording
                             if (processedFiles.has(baseName)) {
                                 return null
                             }
 
-                            // Mark both the base filename and any compressed filename as processed
                             processedFiles.add(baseName)
 
-                            // Verify both WAV and compressed files exist if specified
                             const wavFile = `${baseName}.wav`
+                            // Use directoryUri for FileSystem operations
                             const wavExists = await FileSystem.getInfoAsync(`${directoryUri}${wavFile}`)
                             
                             let compressedExists = { exists: false }
@@ -157,16 +153,11 @@ export const AudioFilesProvider = ({
                                 const compressedFileName = metadata.compression.compressedFileUri.split('/').pop()
                                 if (compressedFileName) {
                                     processedFiles.add(compressedFileName.replace(/\.(opus|aac)$/, ''))
-                                    compressedExists = await FileSystem.getInfoAsync(metadata.compression.compressedFileUri)
+                                    // Store clean paths without file:// prefix
+                                    metadata.compression.compressedFileUri = `${cleanDirectory}${compressedFileName}`
+                                    compressedExists = await FileSystem.getInfoAsync(`${directoryUri}${compressedFileName}`)
                                 }
                             }
-
-                            logger.debug(`File verification for ${baseName}:`, {
-                                wavExists: wavExists.exists,
-                                compressedExists: compressedExists.exists,
-                                wavPath: `${directoryUri}${wavFile}`,
-                                compressedPath: metadata.compression?.compressedFileUri
-                            })
 
                             if (!wavExists.exists && !compressedExists.exists) {
                                 logger.warn(`Neither WAV nor compressed file exists for ${baseName}`)
@@ -175,8 +166,8 @@ export const AudioFilesProvider = ({
 
                             return {
                                 ...metadata,
-                                fileUri: `${cleanDirectory}/${wavFile}`,
-                                // Update size if available
+                                // Store clean paths without file:// prefix
+                                fileUri: `${cleanDirectory}${wavFile}`,
                                 size: wavExists.exists ? wavExists.size : metadata.size,
                                 compression: metadata.compression ? {
                                     ...metadata.compression,
