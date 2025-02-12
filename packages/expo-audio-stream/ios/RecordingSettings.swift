@@ -83,7 +83,7 @@ struct RecordingSettings {
     var interval: Int?
     
     // Feature flags
-    var keepAwake: Bool = false
+    var keepAwake: Bool = true
     var showNotification: Bool = false
     var enableProcessing: Bool = false
     
@@ -142,7 +142,7 @@ struct RecordingSettings {
         settings.interval = dict["interval"] as? Int
         
         // Parse feature flags
-        settings.keepAwake = dict["keepAwake"] as? Bool ?? false
+        settings.keepAwake = dict["keepAwake"] as? Bool ?? true
         settings.showNotification = dict["showNotification"] as? Bool ?? false
         settings.enableProcessing = dict["enableProcessing"] as? Bool ?? false
         

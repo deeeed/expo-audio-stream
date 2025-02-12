@@ -24,7 +24,7 @@ const initialState: PreferencesState = {
         sampleRate: 16000,
         channels: 1,
         encoding: "pcm_16bit",
-        keepAwake: false,
+        keepAwake: true,
         interval: 1000,
     }
 }
