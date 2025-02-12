@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.14.0] - 2025-02-12
+
 ## [1.13.2] - 2025-02-10
 - fix: ensure foreground service starts within required timeframe ([60dad52](https://github.com/deeeed/expo-audio-stream/commit/60dad5237c11b9a60e6239701317d52c56625d6e))
 ## [1.13.1] - 2025-02-10
@@ -109,7 +111,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.13.2...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.0...HEAD
+[1.14.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.13.2...@siteed/expo-audio-stream@1.14.0
 [1.13.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.13.1...@siteed/expo-audio-stream@1.13.2
 [1.13.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.13.0...@siteed/expo-audio-stream@1.13.1
 [1.13.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.12.3...@siteed/expo-audio-stream@1.13.0
