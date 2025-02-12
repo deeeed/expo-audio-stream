@@ -120,16 +120,14 @@ export const AudioFilesProvider = ({
                     throw new Error(`No directoryUri found`)
                 }
 
-                const cleanDirectory = directoryUri
-                    .replace('file://', '')
-                    .replace(/\/$/, '')
+                // Store clean directory path without file:// prefix
+                const cleanDirectory = directoryUri.replace('file://', '')
 
                 const fileList = await FileSystem.readDirectoryAsync(directoryUri)
                 logger.debug(`Found files in directory`, fileList)
                 
-                // First, find all JSON metadata files
                 const jsonFiles = fileList.filter((file) => file.endsWith('.json'))
-                const processedFiles = new Set<string>() // Track processed files
+                const processedFiles = new Set<string>()
 
                 const audioStreamResults = await Promise.all(
                     jsonFiles.map(async (jsonFile) => {
@@ -140,35 +138,42 @@ export const AudioFilesProvider = ({
                             const metadata = JSON.parse(jsonData)
                             const baseName = jsonFile.replace('.json', '')
                             
-                            // Skip if we've already processed this recording
                             if (processedFiles.has(baseName)) {
                                 return null
                             }
+
                             processedFiles.add(baseName)
 
-                            // If there's a compressed version, use that instead of the WAV
+                            const wavFile = `${baseName}.wav`
+                            // Use directoryUri for FileSystem operations
+                            const wavExists = await FileSystem.getInfoAsync(`${directoryUri}${wavFile}`)
+                            
+                            let compressedExists = { exists: false }
                             if (metadata.compression?.compressedFileUri) {
                                 const compressedFileName = metadata.compression.compressedFileUri.split('/').pop()
-                                if (compressedFileName && fileList.includes(compressedFileName)) {
-                                    return {
-                                        ...metadata,
-                                        fileUri: `${cleanDirectory}/${compressedFileName}`,
-                                        mimeType: metadata.compression.mimeType,
-                                        size: metadata.compression.size,
-                                    }
+                                if (compressedFileName) {
+                                    processedFiles.add(compressedFileName.replace(/\.(opus|aac)$/, ''))
+                                    // Store clean paths without file:// prefix
+                                    metadata.compression.compressedFileUri = `${cleanDirectory}${compressedFileName}`
+                                    compressedExists = await FileSystem.getInfoAsync(`${directoryUri}${compressedFileName}`)
                                 }
                             }
 
-                            // Fall back to the original WAV file
-                            const wavFile = `${baseName}.wav`
-                            if (fileList.includes(wavFile)) {
-                                return {
-                                    ...metadata,
-                                    fileUri: `${cleanDirectory}/${wavFile}`
-                                }
+                            if (!wavExists.exists && !compressedExists.exists) {
+                                logger.warn(`Neither WAV nor compressed file exists for ${baseName}`)
+                                return null
                             }
 
-                            return null
+                            return {
+                                ...metadata,
+                                // Store clean paths without file:// prefix
+                                fileUri: `${cleanDirectory}${wavFile}`,
+                                size: wavExists.exists ? wavExists.size : metadata.size,
+                                compression: metadata.compression ? {
+                                    ...metadata.compression,
+                                    size: compressedExists.exists && 'size' in compressedExists ? compressedExists.size : metadata.compression.size
+                                } : undefined
+                            }
                         } catch (error) {
                             logger.error(`Error processing JSON file ${jsonFile}:`, error)
                             return null

@@ -146,7 +146,7 @@ export interface RecordingConfig {
     // Interval in milliseconds at which to emit recording data
     interval?: number
 
-    // Keep the device awake while recording (default is false)
+    // Continue recording when app is in background (default is true)
     keepAwake?: boolean
 
     // Show a notification during recording (default is false)

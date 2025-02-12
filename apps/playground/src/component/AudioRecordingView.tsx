@@ -298,26 +298,38 @@ export const AudioRecordingView = ({
                     ? recording.compression.compressedFileUri
                     : recording.fileUri
 
-                // Ensure proper file:// prefix and encoding
-                const formattedUri = audioUriToPlay.startsWith('file://')
-                    ? audioUriToPlay
-                    : `file://${audioUriToPlay}`
+                if (isWeb) {
+                    // For web, directly use the blob URL without file:// prefix
+                    const cleanUri = audioUriToPlay.replace('file://', '')
+                    logger.debug(`Playing web audio from: ${cleanUri}`)
+                    await play({ audioUri: cleanUri })
+                } else {
+                    // For native platforms, ensure proper file:// prefix
+                    const formattedUri = audioUriToPlay.startsWith('file://')
+                        ? audioUriToPlay
+                        : `file://${audioUriToPlay}`
 
-                // Encode the URI to handle special characters
-                const encodedUri = encodeURI(formattedUri)
-                
-                logger.debug(`Attempting to play audio from: ${encodedUri}`)
-                logger.debug(`File format: ${activeFormat}`)
-                logger.debug(`Original URI: ${audioUriToPlay}`)
-                
-                // Verify file exists before playing
-                const fileInfo = await FileSystem.getInfoAsync(decodeURIComponent(formattedUri.replace('file://', '')))
-                if (!fileInfo.exists) {
-                    throw new Error(`File does not exist: ${formattedUri}`)
+                    // Remove any double file:// prefixes
+                    const cleanUri = formattedUri.replace(/^file:\/\/file:\/\//, 'file://')
+                    
+                    logger.debug(`Playing native audio from: ${cleanUri}`)
+                    
+                    // Verify file exists before playing
+                    const fileInfo = await FileSystem.getInfoAsync(cleanUri)
+                    if (!fileInfo.exists) {
+                        // Try alternative path format
+                        const alternativePath = cleanUri.replace('file://', '')
+                        const alternativeFileInfo = await FileSystem.getInfoAsync(alternativePath)
+                        if (!alternativeFileInfo.exists) {
+                            throw new Error(`File does not exist at either path:\n${cleanUri}\n${alternativePath}`)
+                        }
+                        logger.debug(`File exists at alternative path with size: ${alternativeFileInfo.size} bytes`)
+                        await play({ audioUri: alternativePath })
+                    } else {
+                        logger.debug(`File exists with size: ${fileInfo.size} bytes`)
+                        await play({ audioUri: cleanUri })
+                    }
                 }
-                
-                logger.debug(`File exists with size: ${fileInfo.size} bytes`)
-                await play({ audioUri: encodedUri })
             }
         } catch (error) {
             logger.error('Error playing audio:', error)
