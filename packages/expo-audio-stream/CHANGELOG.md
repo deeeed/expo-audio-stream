@@ -92,7 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove frequently firing log statements on web.
 ## [1.2.0] - 2024-10-24
 ### Added
-- Feature: Keep device awake during recording with `keepAwake` option
+- Feature: `keepAwake` Continue recording when app is in background (default is true)
 - Feature: Customizable recording notifications for Android and iOS
   - Android: Rich notification support with live waveform visualization
   - Android: Configurable notification actions, colors, and priorities

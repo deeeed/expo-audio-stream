@@ -36,7 +36,7 @@ class AudioRecordingService : Service() {
             isRunning = true
             
             // Start as foreground service if keepAwake is true, regardless of notification settings
-            val keepAwake = AudioRecorderManager.getInstance()?.getKeepAwakeStatus() ?: false
+            val keepAwake = AudioRecorderManager.getInstance()?.getKeepAwakeStatus() ?: true
             if (keepAwake) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     // Create a minimal notification channel if needed

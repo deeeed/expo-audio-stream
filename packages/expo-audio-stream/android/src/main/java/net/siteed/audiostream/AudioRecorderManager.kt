@@ -1180,6 +1180,6 @@ class AudioRecorderManager(
     }
 
     fun getKeepAwakeStatus(): Boolean {
-        return recordingConfig?.keepAwake ?: false
+        return recordingConfig?.keepAwake ?: true
     }
 }
