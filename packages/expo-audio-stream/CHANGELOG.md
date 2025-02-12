@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [1.14.1] - 2025-02-12
-
+- fix: enable background recording by default and improve audio playground (#114) ([2f60d5e](https://github.com/deeeed/expo-audio-stream/commit/2f60d5edd96ea6d0db7cf35614bc12dcd8d9c6ed))
 ## [1.14.0] - 2025-02-12
 - fix: keepAwake issue on ios and auto resume after call (#113) ([ed8e184](https://github.com/deeeed/expo-audio-stream/commit/ed8e184c23ba26973cc9f716e1506d4d7ac4a73d))
 ## [1.13.2] - 2025-02-10
