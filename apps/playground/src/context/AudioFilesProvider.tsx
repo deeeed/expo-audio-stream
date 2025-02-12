@@ -144,31 +144,45 @@ export const AudioFilesProvider = ({
                             if (processedFiles.has(baseName)) {
                                 return null
                             }
+
+                            // Mark both the base filename and any compressed filename as processed
                             processedFiles.add(baseName)
 
-                            // If there's a compressed version, use that instead of the WAV
+                            // Verify both WAV and compressed files exist if specified
+                            const wavFile = `${baseName}.wav`
+                            const wavExists = await FileSystem.getInfoAsync(`${directoryUri}${wavFile}`)
+                            
+                            let compressedExists = { exists: false }
                             if (metadata.compression?.compressedFileUri) {
                                 const compressedFileName = metadata.compression.compressedFileUri.split('/').pop()
-                                if (compressedFileName && fileList.includes(compressedFileName)) {
-                                    return {
-                                        ...metadata,
-                                        fileUri: `${cleanDirectory}/${compressedFileName}`,
-                                        mimeType: metadata.compression.mimeType,
-                                        size: metadata.compression.size,
-                                    }
+                                if (compressedFileName) {
+                                    processedFiles.add(compressedFileName.replace(/\.(opus|aac)$/, ''))
+                                    compressedExists = await FileSystem.getInfoAsync(metadata.compression.compressedFileUri)
                                 }
                             }
 
-                            // Fall back to the original WAV file
-                            const wavFile = `${baseName}.wav`
-                            if (fileList.includes(wavFile)) {
-                                return {
-                                    ...metadata,
-                                    fileUri: `${cleanDirectory}/${wavFile}`
-                                }
+                            logger.debug(`File verification for ${baseName}:`, {
+                                wavExists: wavExists.exists,
+                                compressedExists: compressedExists.exists,
+                                wavPath: `${directoryUri}${wavFile}`,
+                                compressedPath: metadata.compression?.compressedFileUri
+                            })
+
+                            if (!wavExists.exists && !compressedExists.exists) {
+                                logger.warn(`Neither WAV nor compressed file exists for ${baseName}`)
+                                return null
                             }
 
-                            return null
+                            return {
+                                ...metadata,
+                                fileUri: `${cleanDirectory}/${wavFile}`,
+                                // Update size if available
+                                size: wavExists.exists ? wavExists.size : metadata.size,
+                                compression: metadata.compression ? {
+                                    ...metadata.compression,
+                                    size: compressedExists.exists && 'size' in compressedExists ? compressedExists.size : metadata.compression.size
+                                } : undefined
+                            }
                         } catch (error) {
                             logger.error(`Error processing JSON file ${jsonFile}:`, error)
                             return null

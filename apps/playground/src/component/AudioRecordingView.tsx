@@ -303,21 +303,28 @@ export const AudioRecordingView = ({
                     ? audioUriToPlay
                     : `file://${audioUriToPlay}`
 
-                // Encode the URI to handle special characters
-                const encodedUri = encodeURI(formattedUri)
+                // Remove any double file:// prefixes that might have been added
+                const cleanUri = formattedUri.replace(/^file:\/\/file:\/\//, 'file://')
                 
-                logger.debug(`Attempting to play audio from: ${encodedUri}`)
+                logger.debug(`Attempting to play audio from: ${cleanUri}`)
                 logger.debug(`File format: ${activeFormat}`)
                 logger.debug(`Original URI: ${audioUriToPlay}`)
                 
                 // Verify file exists before playing
-                const fileInfo = await FileSystem.getInfoAsync(decodeURIComponent(formattedUri.replace('file://', '')))
+                const fileInfo = await FileSystem.getInfoAsync(cleanUri)
                 if (!fileInfo.exists) {
-                    throw new Error(`File does not exist: ${formattedUri}`)
+                    // Try alternative path format
+                    const alternativePath = cleanUri.replace('file://', '')
+                    const alternativeFileInfo = await FileSystem.getInfoAsync(alternativePath)
+                    if (!alternativeFileInfo.exists) {
+                        throw new Error(`File does not exist at either path:\n${cleanUri}\n${alternativePath}`)
+                    }
+                    logger.debug(`File exists at alternative path with size: ${alternativeFileInfo.size} bytes`)
+                    await play({ audioUri: alternativePath })
+                } else {
+                    logger.debug(`File exists with size: ${fileInfo.size} bytes`)
+                    await play({ audioUri: cleanUri })
                 }
-                
-                logger.debug(`File exists with size: ${fileInfo.size} bytes`)
-                await play({ audioUri: encodedUri })
             }
         } catch (error) {
             logger.error('Error playing audio:', error)
