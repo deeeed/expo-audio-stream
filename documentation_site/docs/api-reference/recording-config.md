@@ -20,7 +20,7 @@ export interface RecordingConfig {
     interval?: number // Interval in milliseconds at which to emit recording data
 
     // Device and notification settings
-    keepAwake?: boolean // Keep the device awake while recording (default is false)
+    keepAwake?: boolean // Continue recording when app is in background (default is true)
     showNotification?: boolean // Show a notification during recording (default is false)
     showWaveformInNotification?: boolean // Show waveform in the notification (Android only)
     notification?: NotificationConfig // Configuration for the notification
@@ -37,9 +37,13 @@ export interface RecordingConfig {
     // Compression settings
     compression?: {
         enabled: boolean
-        format: 'aac' | 'opus' | 'mp3'
+        format: 'aac' | 'opus'  // Available compression formats
         bitrate?: number
     }
+
+    // Output configuration
+    outputDirectory?: string // Custom directory for saving recordings (uses app default if not specified)
+    filename?: string // Custom filename for the recording (uses UUID if not specified)
 
     // Interruption handling
     autoResumeAfterInterruption?: boolean // Whether to automatically resume after interruption
