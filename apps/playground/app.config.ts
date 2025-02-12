@@ -7,7 +7,10 @@ import { config as dotenvConfig } from 'dotenv-flow'
 import Joi from 'joi'
 import { version as packageVersion } from './package.json'
 
-dotenvConfig({ silent: true }) // Load variables from .env* file
+dotenvConfig({ 
+    silent: true,
+    default_node_env: 'development' // This ensures .env.development is loaded by default
+}) // Load variables from .env* files
 
 // Define a schema for the environment variables
 const envSchema = Joi.object({
