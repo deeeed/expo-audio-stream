@@ -44,6 +44,8 @@ import { isWeb } from '../../utils/utils'
 const CHUNK_DURATION_MS = 500 // 500 ms chunks
 const MAX_AUDIO_BUFFER_LENGTH = 48000 * 5; // 5 seconds of audio at 48kHz
 
+const logger = baseLogger.extend('RecordScreen')
+
 const baseRecordingConfig: RecordingConfig = {
     interval: CHUNK_DURATION_MS,
     sampleRate: WhisperSampleRate,
@@ -55,8 +57,8 @@ const baseRecordingConfig: RecordingConfig = {
     enableProcessing: true,
     compression: {
         enabled: true,
-        format: 'opus',
-        bitrate: 24000,
+        format: Platform.OS === 'ios' ? 'aac' : 'opus',
+        bitrate: Platform.OS === 'ios' ? 32000 : 24000,
     },
     autoResumeAfterInterruption: true,
     ios: {
@@ -73,7 +75,7 @@ const baseRecordingConfig: RecordingConfig = {
         },
     },
     onRecordingInterrupted: (event) => {
-        console.log('Recording interrupted', event)
+        logger.warn('Recording interrupted', event)
     },
     notification: {
         title: 'Recording in progress',
@@ -106,7 +108,6 @@ const baseRecordingConfig: RecordingConfig = {
     },
 }
 
-const logger = baseLogger.extend('RecordScreen')
 
 if (Platform.OS === 'ios') {
     baseRecordingConfig.sampleRate = 48000
@@ -237,7 +238,7 @@ export default function RecordScreen() {
 
     const onAudioData = useCallback(async (event: AudioDataEvent) => {
         try {
-            logger.log(`Received audio data event`, event)
+            logger.log(`Received audio data event`)
             const { data, position, eventDataSize } = event
             if (eventDataSize === 0) {
                 logger.warn(`Invalid data size=${eventDataSize}`)
@@ -735,6 +736,16 @@ export default function RecordScreen() {
                     )}
                 </>
             )}
+            <LabelSwitch
+                label="Keep Recording in Background"
+                value={startRecordingConfig.keepAwake ?? true}
+                onValueChange={(enabled) => {
+                    setStartRecordingConfig((prev) => ({
+                        ...prev,
+                        keepAwake: enabled,
+                    }))
+                }}
+            />
             {Platform.OS !== 'web' && (
                 <NativeNotificationConfig
                     enabled={notificationEnabled}
@@ -770,7 +781,7 @@ export default function RecordScreen() {
                         <IOSSettingsConfig
                             config={iosSettings}
                             onConfigChange={(newConfig) => {
-                                console.debug(`New iOS config`, newConfig)
+                                logger.debug(`New iOS config`, newConfig)
                                 setIOSSettings(newConfig)
                             }}
                         />
@@ -835,6 +846,11 @@ export default function RecordScreen() {
                 <Button
                     onPress={() => {
                         setError(null)
+                        // Reset all settings to initial baseRecordingConfig
+                        setStartRecordingConfig({
+                            ...baseRecordingConfig,
+                            onAudioStream: (a) => onAudioData(a),
+                        })
                         handleStart()
                     }}
                 >

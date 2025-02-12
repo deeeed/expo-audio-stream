@@ -14,6 +14,7 @@ import { baseLogger, config } from '../config'
 import { fetchArrayBuffer, isWeb } from '../utils/utils'
 
 interface PlayOptions {
+    audioUri?: string
     position?: number
 }
 
@@ -144,12 +145,14 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     }, [])
 
     const play = async (options?: PlayOptions) => {
-        if (!audioUri) return
+        const uriToPlay = options?.audioUri || audioUri
+        if (!uriToPlay) return
+        
         try {
             if (!sound) {
-                console.log(`Playing audio from ${audioUri}`)
+                console.log(`Playing audio from ${uriToPlay}`)
                 const { sound: newSound } = await Audio.Sound.createAsync(
-                    { uri: audioUri },
+                    { uri: uriToPlay },
                     {
                         shouldPlay: true,
                         positionMillis: options?.position || position,
