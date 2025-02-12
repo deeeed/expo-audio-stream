@@ -282,6 +282,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                 fileUri,
                 filename, // This will now use our custom filename
                 bitDepth: this.bitDepth,
+                createdAt: this.recordingStartTime,
                 channels: this.recordingConfig?.channels ?? 1,
                 sampleRate: this.recordingConfig?.sampleRate ?? 44100,
                 durationMs: this.currentDurationMs,

@@ -572,6 +572,7 @@ class AudioRecorderManager(
                     "sampleRate" to recordingConfig.sampleRate,
                     "size" to fileSize,
                     "mimeType" to mimeType,
+                    "createdAt" to System.currentTimeMillis(),
                     "compression" to if (compressedFile != null) bundleOf(
                         "size" to compressedFile?.length(),
                         "mimeType" to if (recordingConfig.compressedFormat == "aac") "audio/aac" else "audio/opus",
