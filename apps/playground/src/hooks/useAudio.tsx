@@ -150,10 +150,12 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         
         try {
             if (!sound) {
-                // Normalize the URI to ensure proper file:// protocol handling
-                const normalizedUri = uriToPlay.startsWith('file://')
-                    ? uriToPlay
-                    : `file://${uriToPlay}`
+                // Handle URI differently for web vs native platforms
+                const normalizedUri = isWeb 
+                    ? uriToPlay.replace('file://', '') // Remove file:// prefix for web blobs
+                    : !uriToPlay.startsWith('file://') 
+                        ? `file://${uriToPlay}` 
+                        : uriToPlay
                 
                 logger.debug(`Playing audio from ${normalizedUri}`)
                 const { sound: newSound } = await Audio.Sound.createAsync(
