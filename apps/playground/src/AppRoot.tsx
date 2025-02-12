@@ -5,7 +5,7 @@ import { UIProvider, useThemePreferences } from '@siteed/design-system'
 import { setLoggerConfig } from '@siteed/react-native-logger'
 import { App as ExpoRouterApp } from 'expo-router/build/qualified-entry'
 import { StatusBar } from 'expo-status-bar'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { ActivityIndicator } from 'react-native-paper'
 import { en, registerTranslation } from "react-native-paper-dates"
 import { Provider } from 'react-redux'

@@ -69,6 +69,7 @@ export interface AudioRecording {
     channels: number
     bitDepth: BitDepth
     sampleRate: SampleRate
+    createdAt?: number
     transcripts?: TranscriberData[]
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
     compression?: CompressionInfo & {

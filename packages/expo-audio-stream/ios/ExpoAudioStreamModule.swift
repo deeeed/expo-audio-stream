@@ -222,6 +222,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     "bitDepth": recordingResult.bitDepth,
                     "sampleRate": recordingResult.sampleRate,
                     "mimeType": recordingResult.mimeType,
+                    "createdAt": Date().timeIntervalSince1970 * 1000,
                 ]
                 
                 // Add compression info if available

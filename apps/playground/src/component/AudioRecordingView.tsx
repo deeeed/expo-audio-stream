@@ -47,10 +47,75 @@ const getStyles = ({
 }) => {
     return StyleSheet.create({
         container: {
-            padding: 10,
-            backgroundColor: theme.colors.background,
-            borderBottomWidth: 3,
-            borderColor: isPlaying ? theme.colors.primary : theme.colors.border,
+            padding: 16,
+            backgroundColor: theme.colors.surface,
+            borderRadius: 12,
+            marginHorizontal: 16,
+            marginVertical: 8,
+            elevation: 2,
+            shadowColor: theme.colors.shadow,
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+        },
+        header: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+        },
+        titleContainer: {
+            flex: 1,
+        },
+        title: {
+            fontSize: 18,
+            fontWeight: 'bold',
+            color: theme.colors.onSurface,
+        },
+        subtitle: {
+            fontSize: 14,
+            color: theme.colors.onSurfaceVariant,
+            marginTop: 4,
+        },
+        playbackContainer: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            marginVertical: 12,
+            backgroundColor: theme.colors.surfaceVariant,
+            padding: 12,
+            borderRadius: 8,
+        },
+        formatBadge: {
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: 4,
+            backgroundColor: theme.colors.secondaryContainer,
+        },
+        formatText: {
+            color: theme.colors.onSecondaryContainer,
+            fontSize: 12,
+            fontWeight: '600',
+        },
+        actionButtons: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            marginTop: 12,
+        },
+        primaryActions: {
+            flexDirection: 'row',
+            gap: 8,
+            flex: 1,
+        },
+        secondaryActions: {
+            flexDirection: 'row',
+            gap: 8,
+        },
+        iconButton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
         },
         detailText: {
             fontSize: 16,
@@ -60,11 +125,6 @@ const getStyles = ({
             fontSize: 16,
             marginBottom: 5,
             fontWeight: isPlaying ? 'bold' : 'normal',
-        },
-        buttons: {
-            flexDirection: 'row',
-            justifyContent: 'space-around',
-            marginTop: 10,
         },
         attributeContainer: {
             flexDirection: 'row',
@@ -98,17 +158,6 @@ const getStyles = ({
         },
         buttonGroups: {
             marginTop: 16,
-        },
-        actionButtons: {
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            gap: 8,
-            justifyContent: 'center',
-        },
-        iconButton: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
         },
     })
 }
@@ -194,6 +243,9 @@ export const AudioRecordingView = ({
         },
     })
     const [hexByteArray, setHexByteArray] = useState<Uint8Array>()
+    const [activeFormat, setActiveFormat] = useState<'wav' | 'compressed'>(
+        recording.compression ? 'compressed' : 'wav'
+    )
 
     const audioAnalysis = actualAnalysis ?? _audioAnalysis
 
@@ -241,10 +293,38 @@ export const AudioRecordingView = ({
             if (isPlaying) {
                 pause()
             } else {
-                play()
+                // Get the appropriate URI based on format
+                const audioUriToPlay = activeFormat === 'compressed' && recording.compression?.compressedFileUri
+                    ? recording.compression.compressedFileUri
+                    : recording.fileUri
+
+                // Ensure proper file:// prefix and encoding
+                const formattedUri = audioUriToPlay.startsWith('file://')
+                    ? audioUriToPlay
+                    : `file://${audioUriToPlay}`
+
+                // Encode the URI to handle special characters
+                const encodedUri = encodeURI(formattedUri)
+                
+                logger.debug(`Attempting to play audio from: ${encodedUri}`)
+                logger.debug(`File format: ${activeFormat}`)
+                logger.debug(`Original URI: ${audioUriToPlay}`)
+                
+                // Verify file exists before playing
+                const fileInfo = await FileSystem.getInfoAsync(decodeURIComponent(formattedUri.replace('file://', '')))
+                if (!fileInfo.exists) {
+                    throw new Error(`File does not exist: ${formattedUri}`)
+                }
+                
+                logger.debug(`File exists with size: ${fileInfo.size} bytes`)
+                await play({ audioUri: encodedUri })
             }
         } catch (error) {
             logger.error('Error playing audio:', error)
+            show({ 
+                type: 'error', 
+                message: `Failed to play audio file: ${error instanceof Error ? error.message : 'Unknown error'}`
+            })
         }
     }
 
@@ -340,9 +420,21 @@ export const AudioRecordingView = ({
 
     return (
         <View style={styles.container}>
-            <Text style={[styles.detailText, { fontWeight: 'bold' }]}>
-                {recording.filename}
-            </Text>
+            <View style={styles.header}>
+                <View style={styles.titleContainer}>
+                    <Text style={styles.title}>{recording.filename}</Text>
+                    <Text style={styles.subtitle}>
+                        {new Date(recording.createdAt ?? Date.now()).toLocaleString()}
+                    </Text>
+                </View>
+                {recording.compression?.compressedFileUri && (
+                    <View style={styles.formatBadge}>
+                        <Text style={styles.formatText}>
+                            {recording.compression.format.toUpperCase()}
+                        </Text>
+                    </View>
+                )}
+            </View>
 
             <RecordingStats
                 duration={recording.durationMs}
@@ -353,10 +445,115 @@ export const AudioRecordingView = ({
                 compression={recording.compression}
             />
 
+            <View style={styles.playbackContainer}>
+                <Button 
+                    mode="contained"
+                    onPress={handlePlayPause}
+                    style={{ flex: 1 }}
+                >
+                    <View style={styles.iconButton}>
+                        <MaterialCommunityIcons
+                            name={isPlaying ? "pause" : "play"}
+                            size={20}
+                            color={theme.colors.onPrimary}
+                        />
+                        <Text>
+                            {isPlaying ? 'Pause' : `Play ${activeFormat === 'compressed' ? '(Compressed)' : '(WAV)'}`}
+                        </Text>
+                    </View>
+                </Button>
+                
+                {recording.compression?.compressedFileUri && (
+                    <Button
+                        mode="outlined"
+                        onPress={() => setActiveFormat(activeFormat === 'wav' ? 'compressed' : 'wav')}
+                    >
+                        <MaterialCommunityIcons
+                            name="swap-horizontal"
+                            size={20}
+                            color={theme.colors.primary}
+                        />
+                    </Button>
+                )}
+            </View>
+
+            <View style={styles.actionButtons}>
+                <View style={styles.primaryActions}>
+                    {onActionPress && (
+                        <Button 
+                            mode="contained-tonal"
+                            onPress={onActionPress}
+                            style={{ flex: 1 }}
+                        >
+                            <View style={styles.iconButton}>
+                                <MaterialCommunityIcons
+                                    name="waveform"
+                                    size={20}
+                                    color={theme.colors.onSecondaryContainer}
+                                />
+                                <Text>{actionText ?? 'Visualize'}</Text>
+                            </View>
+                        </Button>
+                    )}
+                </View>
+
+                <View style={styles.secondaryActions}>
+                    {!isWeb && (
+                        <Button 
+                            mode="outlined"
+                            onPress={() => handleShare(activeFormat === 'compressed' ? recording.compression?.compressedFileUri : recording.fileUri)}
+                        >
+                            <View style={styles.iconButton}>
+                                <MaterialCommunityIcons
+                                    name="share"
+                                    size={20}
+                                    color={theme.colors.primary}
+                                />
+                                <Text>Share</Text>
+                            </View>
+                        </Button>
+                    )}
+
+                    {isWeb && (
+                        <Button 
+                            mode="outlined"
+                            onPress={() => handleSaveToDisk(
+                                activeFormat === 'compressed' ? recording.compression?.compressedFileUri : recording.fileUri,
+                                activeFormat === 'compressed'
+                            )}
+                        >
+                            <View style={styles.iconButton}>
+                                <MaterialCommunityIcons
+                                    name="download"
+                                    size={20}
+                                    color={theme.colors.primary}
+                                />
+                                <Text>Save</Text>
+                            </View>
+                        </Button>
+                    )}
+
+                    {onDelete && (
+                        <Button
+                            mode="outlined"
+                            buttonColor={theme.colors.errorContainer}
+                            textColor={theme.colors.error}
+                            onPress={onDelete}
+                        >
+                            <MaterialCommunityIcons
+                                name="delete"
+                                size={20}
+                                color={theme.colors.error}
+                            />
+                        </Button>
+                    )}
+                </View>
+            </View>
+
             {processing && <ActivityIndicator />}
 
             {audioAnalysis && (
-                <View>
+                <View style={styles.infoSection}>
                     <EditableInfoCard
                         label="Analysis Config"
                         value={JSON.stringify(selectedAnalysisConfig)}
@@ -439,93 +636,6 @@ export const AudioRecordingView = ({
                     onSelectChunk={handleTranscriptSelection}
                 />
             )}
-
-            <View style={styles.buttonGroups}>
-                <View style={styles.actionButtons}>
-                    <Button 
-                        onPress={handlePlayPause}
-                        mode="contained"
-                    >
-                        <View style={styles.iconButton}>
-                            <MaterialCommunityIcons
-                                name={isPlaying ? "pause" : "play"}
-                                size={20}
-                                color={theme.colors.onPrimary}
-                            />
-                            <Text>{isPlaying ? 'Pause' : 'Play'}</Text>
-                        </View>
-                    </Button>
-
-                    {onActionPress && (
-                        <Button 
-                            onPress={onActionPress}
-                            mode="contained"
-                        >
-                            <View style={styles.iconButton}>
-                                <MaterialCommunityIcons
-                                    name="check"
-                                    size={20}
-                                    color={theme.colors.onPrimary}
-                                />
-                                <Text>{actionText ?? 'Action'}</Text>
-                            </View>
-                        </Button>
-                    )}
-
-                    {!isWeb && (
-                        <Button 
-                            onPress={() => handleShare()}
-                            mode="outlined"
-                        >
-                            <View style={styles.iconButton}>
-                                <MaterialCommunityIcons
-                                    name="share"
-                                    size={20}
-                                    color={theme.colors.primary}
-                                />
-                                <Text>Share</Text>
-                            </View>
-                        </Button>
-                    )}
-
-                    {recording.compression?.compressedFileUri && (
-                        <Button 
-                            onPress={() => isWeb ? 
-                                handleSaveToDisk(recording.compression?.compressedFileUri, true) : 
-                                handleShare(recording.compression?.compressedFileUri)
-                            }
-                            mode="outlined"
-                        >
-                            <View style={styles.iconButton}>
-                                <MaterialCommunityIcons
-                                    name={isWeb ? "download-outline" : "share-outline"}
-                                    size={20}
-                                    color={theme.colors.primary}
-                                />
-                                <Text>{isWeb ? 'Save' : 'Share Compressed'}</Text>
-                            </View>
-                        </Button>
-                    )}
-
-                    {onDelete && (
-                        <Button
-                            mode="outlined"
-                            buttonColor={theme.colors.errorContainer}
-                            textColor={theme.colors.error}
-                            onPress={onDelete}
-                        >
-                            <View style={styles.iconButton}>
-                                <MaterialCommunityIcons
-                                    name="delete"
-                                    size={20}
-                                    color={theme.colors.error}
-                                />
-                                <Text>Delete</Text>
-                            </View>
-                        </Button>
-                    )}
-                </View>
-            </View>
         </View>
     )
 }
