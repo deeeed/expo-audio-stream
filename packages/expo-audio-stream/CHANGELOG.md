@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.14.1] - 2025-02-12
+
 ## [1.14.0] - 2025-02-12
 - fix: keepAwake issue on ios and auto resume after call (#113) ([ed8e184](https://github.com/deeeed/expo-audio-stream/commit/ed8e184c23ba26973cc9f716e1506d4d7ac4a73d))
 ## [1.13.2] - 2025-02-10
@@ -111,7 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.1...HEAD
+[1.14.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.0...@siteed/expo-audio-stream@1.14.1
 [1.14.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.13.2...@siteed/expo-audio-stream@1.14.0
 [1.13.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.13.1...@siteed/expo-audio-stream@1.13.2
 [1.13.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.13.0...@siteed/expo-audio-stream@1.13.1
