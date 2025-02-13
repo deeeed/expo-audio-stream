@@ -98,7 +98,15 @@ function audioRecorderReducer(
                 analysisData: defaultAnalysis,
             }
         case 'STOP':
-            return { ...state, isRecording: false, isPaused: false }
+            return {
+                ...state,
+                isRecording: false,
+                isPaused: false,
+                durationMs: 0,
+                size: 0,
+                compression: undefined,
+                analysisData: undefined,
+            }
         case 'PAUSE':
             return { ...state, isPaused: true, isRecording: false }
         case 'RESUME':
