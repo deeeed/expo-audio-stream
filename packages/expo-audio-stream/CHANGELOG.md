@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [1.14.2] - 2025-02-13
-
+- fix: update STOP action to clear recording metadata ([3484f76](https://github.com/deeeed/expo-audio-stream/commit/3484f76331c0cc83e2384dd18a7f4555f5c5ce8d))
 ## [1.14.1] - 2025-02-12
 - fix: enable background recording by default and improve audio playground (#114) ([2f60d5e](https://github.com/deeeed/expo-audio-stream/commit/2f60d5edd96ea6d0db7cf35614bc12dcd8d9c6ed))
 ## [1.14.0] - 2025-02-12
