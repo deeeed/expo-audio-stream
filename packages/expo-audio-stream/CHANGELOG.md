@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.14.2] - 2025-02-13
+
 ## [1.14.1] - 2025-02-12
 - fix: enable background recording by default and improve audio playground (#114) ([2f60d5e](https://github.com/deeeed/expo-audio-stream/commit/2f60d5edd96ea6d0db7cf35614bc12dcd8d9c6ed))
 ## [1.14.0] - 2025-02-12
@@ -113,7 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.1...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.2...HEAD
+[1.14.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.1...@siteed/expo-audio-stream@1.14.2
 [1.14.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.0...@siteed/expo-audio-stream@1.14.1
 [1.14.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.13.2...@siteed/expo-audio-stream@1.14.0
 [1.13.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.13.1...@siteed/expo-audio-stream@1.13.2
