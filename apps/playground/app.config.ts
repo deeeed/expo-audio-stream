@@ -1,5 +1,5 @@
 // Keeo this on top
-import 'ts-node/register' // Add this to import TypeScript files
+import 'ts-node/register'
 
 // Deps
 import { ConfigContext, ExpoConfig } from '@expo/config'
@@ -7,7 +7,7 @@ import { config as dotenvConfig } from 'dotenv-flow'
 import Joi from 'joi'
 import { version as packageVersion } from './package.json'
 
-dotenvConfig({ 
+dotenvConfig({
     silent: true,
     default_node_env: 'development' // This ensures .env.development is loaded by default
 }) // Load variables from .env* files
@@ -76,7 +76,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     name:
         validatedEnv.APP_VARIANT === 'production'
             ? 'AudioPlayground'
-            : `AudioPlayground (${validatedEnv.APP_VARIANT})`,
+            : `AudioDevPlayground`,
     slug: 'audioplayground',
     version: packageVersion,
     orientation: 'portrait',
@@ -118,7 +118,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     updates: {
         url: 'https://u.expo.dev/' + validatedEnv.EAS_PROJECT_ID,
     },
-    runtimeVersion: '1.0.0',
+    runtimeVersion: '0.5.0',
     owner: 'deeeed',
     plugins: [
         [
