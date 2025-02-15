@@ -22,7 +22,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:26](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L26)
+[src/AudioAnalysis/extractAudioAnalysis.ts:26](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L26)
 
 ***
 
@@ -36,7 +36,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:20](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L20)
+[src/AudioAnalysis/extractAudioAnalysis.ts:20](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L20)
 
 ***
 
@@ -50,7 +50,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:21](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L21)
+[src/AudioAnalysis/extractAudioAnalysis.ts:21](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L21)
 
 ***
 
@@ -64,7 +64,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:39](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L39)
+[src/AudioAnalysis/extractAudioAnalysis.ts:39](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L39)
 
 ***
 
@@ -78,7 +78,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:23](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L23)
+[src/AudioAnalysis/extractAudioAnalysis.ts:23](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L23)
 
 ***
 
@@ -88,7 +88,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:41](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L41)
+[src/AudioAnalysis/extractAudioAnalysis.ts:41](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L41)
 
 ***
 
@@ -102,7 +102,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:30](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L30)
+[src/AudioAnalysis/extractAudioAnalysis.ts:30](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L30)
 
 ***
 
@@ -116,7 +116,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:31](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L31)
+[src/AudioAnalysis/extractAudioAnalysis.ts:31](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L31)
 
 ***
 
@@ -130,7 +130,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:18](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L18)
+[src/AudioAnalysis/extractAudioAnalysis.ts:18](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L18)
 
 ***
 
@@ -144,7 +144,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:28](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L28)
+[src/AudioAnalysis/extractAudioAnalysis.ts:28](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L28)
 
 ***
 
@@ -158,7 +158,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:32](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L32)
+[src/AudioAnalysis/extractAudioAnalysis.ts:32](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L32)
 
 ***
 
@@ -168,7 +168,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:38](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L38)
+[src/AudioAnalysis/extractAudioAnalysis.ts:38](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L38)
 
 ***
 
@@ -182,7 +182,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:25](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L25)
+[src/AudioAnalysis/extractAudioAnalysis.ts:25](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L25)
 
 ***
 
@@ -196,7 +196,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:29](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L29)
+[src/AudioAnalysis/extractAudioAnalysis.ts:29](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L29)
 
 ***
 
@@ -210,7 +210,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:27](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L27)
+[src/AudioAnalysis/extractAudioAnalysis.ts:27](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L27)
 
 ***
 
@@ -224,7 +224,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:24](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L24)
+[src/AudioAnalysis/extractAudioAnalysis.ts:24](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L24)
 
 ***
 
@@ -238,7 +238,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:22](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L22)
+[src/AudioAnalysis/extractAudioAnalysis.ts:22](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L22)
 
 ***
 
@@ -248,7 +248,7 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:40](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L40)
+[src/AudioAnalysis/extractAudioAnalysis.ts:40](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L40)
 
 ***
 
@@ -262,4 +262,4 @@
 
 #### Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:19](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L19)
+[src/AudioAnalysis/extractAudioAnalysis.ts:19](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L19)
