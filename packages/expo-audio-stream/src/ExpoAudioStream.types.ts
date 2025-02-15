@@ -126,6 +126,7 @@ export type RecordingInterruptionReason =
     | 'audioFocusGain'
     | 'phoneCall'
     | 'phoneCallEnded'
+    | 'recordingStopped'
 
 // Add new interface for interruption events
 export interface RecordingInterruptionEvent {
