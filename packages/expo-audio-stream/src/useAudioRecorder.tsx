@@ -279,11 +279,19 @@ export function useAudioRecorder({
                 savedAnalysisData
             )
 
+            // Call the onAudioAnalysis callback if it exists in the recording config
+            if (recordingConfigRef.current?.onAudioAnalysis) {
+                try {
+                    await recordingConfigRef.current.onAudioAnalysis(analysis)
+                } catch (error) {
+                    logger?.error('Error in onAudioAnalysis callback:', error)
+                }
+            }
+
             // Update the ref
             analysisRef.current = savedAnalysisData
 
             // Dispatch the updated analysis data to state to trigger re-render
-            // need to use spread operator otherwise it doesnt trigger update.
             dispatch({
                 type: 'UPDATE_ANALYSIS',
                 payload: { ...savedAnalysisData },
