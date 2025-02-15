@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.15.0] - 2025-02-15
+### Changed
+- fix(ios): improve audio recording interruption handling and auto-resume functionality (#119) ([7767dff](https://github.com/deeeed/expo-audio-stream/commit/7767dff09c7c8d2f2dc8558d24fd2419cb981f4d))
+- fix(android): improve background recording and call interruption handling (#118) ([bf19fe9](https://github.com/deeeed/expo-audio-stream/commit/bf19fe92cadbcc080c27a8aa06ba9a2f6ca841b0))
 ## [1.14.2] - 2025-02-13
 - fix: update STOP action to clear recording metadata ([3484f76](https://github.com/deeeed/expo-audio-stream/commit/3484f76331c0cc83e2384dd18a7f4555f5c5ce8d))
 ## [1.14.1] - 2025-02-12
@@ -115,7 +119,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.2...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.15.0...HEAD
+[1.15.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.2...@siteed/expo-audio-stream@1.15.0
 [1.14.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.1...@siteed/expo-audio-stream@1.14.2
 [1.14.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.0...@siteed/expo-audio-stream@1.14.1
 [1.14.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.13.2...@siteed/expo-audio-stream@1.14.0
