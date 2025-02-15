@@ -5,17 +5,31 @@ import { AudioRecorderProvider } from '@siteed/expo-audio-stream'
 import { getLogger } from '@siteed/react-native-logger'
 import Constants from 'expo-constants'
 import { Stack } from 'expo-router/stack'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { config } from '../config'
 import { ApplicationContextProvider } from '../context/ApplicationProvider'
 import { AudioFilesProvider } from '../context/AudioFilesProvider'
 import { TranscriptionProvider } from '../context/TranscriptionProvider'
+import { isWeb } from '../utils/utils'
+import { useAppUpdates } from '../hooks/useAppUpdates'
 const logger = getLogger('RootLayout')
 
 export default function RootLayout() {
     const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? ''
     const theme = useTheme()
+
+
+    const hasCheckedForUpdates = useRef<boolean>(isWeb);
+    const { checkUpdates } = useAppUpdates();
+
+    useEffect(() => {
+      if (!hasCheckedForUpdates.current && !isWeb) {
+        checkUpdates(true);
+        hasCheckedForUpdates.current = true;
+      }
+    }, [checkUpdates]);
+
 
     useEffect(() => {
         logger.log(`Base URL: ${baseUrl}`)

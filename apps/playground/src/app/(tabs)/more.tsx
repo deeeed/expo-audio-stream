@@ -13,6 +13,8 @@ import { Text } from 'react-native-paper'
 
 import { useReanimatedWebHack } from '../../hooks/useReanimatedWebHack'
 import { isWeb } from '../../utils/utils'
+import { Updater } from '../../component/Updater'
+import { useAppUpdates } from '../../hooks/useAppUpdates'
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
@@ -45,6 +47,14 @@ export const MoreScreen = () => {
     const styles = useMemo(() => getStyles({ theme }), [theme])
     const appVersion = Constants.expoConfig?.version
     const { isHackEnabled, handleHackToggle } = useReanimatedWebHack()
+    const {
+        checking,
+        downloading,
+        doUpdate,
+        isUpdateAvailable,
+        checkUpdates,
+        canUpdate,
+      } = useAppUpdates();
 
     return (
         <ScreenWrapper withScrollView useInsets contentContainerStyle={styles.container}>
@@ -64,6 +74,17 @@ export const MoreScreen = () => {
                 onValueChange={toggleDarkMode}
                 value={darkMode}
             />
+            {!isWeb && (
+                    <Updater
+                        isUpdateAvailable={isUpdateAvailable}
+                        checking={checking}
+                        downloading={downloading}
+                        onUpdate={doUpdate}
+                onCheck={() => checkUpdates(false)}
+                canUpdate={canUpdate}
+                />
+            )}
+
             {isWeb && (
                 <LabelSwitch
                     label="Reanimated Web Hack"
@@ -86,17 +107,19 @@ export const MoreScreen = () => {
                     router.navigate('/logs')
                 }}
             />
-            <ListItem
-                contentContainerStyle={{
-                    backgroundColor: theme.colors.surface,
-                    margin: 0,
-                }}
+            {isWeb && (
+                <ListItem
+                    contentContainerStyle={{
+                        backgroundColor: theme.colors.surface,
+                        margin: 0,
+                    }}
                 label="Transcriber Config"
                 subLabel="Configure model and AI parameters for transcription"
-                onPress={() => {
-                    router.navigate('/transcription-config')
-                }}
-            />
+                    onPress={() => {
+                        router.navigate('/transcription-config')
+                    }}
+                />
+            )}
             <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,
@@ -121,7 +144,7 @@ export const MoreScreen = () => {
                     }}
                 />
             )}
-            <ListItem
+            {/* <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,
                     margin: 0,
@@ -131,7 +154,7 @@ export const MoreScreen = () => {
                 onPress={() => {
                     router.navigate('/minimal')
                 }}
-            />
+            /> */}
         </ScreenWrapper>
     )
 }
