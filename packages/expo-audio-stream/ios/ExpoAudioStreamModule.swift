@@ -3,8 +3,6 @@ import AVFoundation
 
 let audioDataEvent: String = "AudioData"
 let audioAnalysisEvent: String = "AudioAnalysis"
-let recordingStateChangedEvent: String = "recordingStateChanged"
-let notificationStateChangedEvent: String = "notificationStateChanged"
 let recordingInterruptedEvent: String = "onRecordingInterrupted"
 
 public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
@@ -19,8 +17,6 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         Events([
             audioDataEvent,
             audioAnalysisEvent,
-            recordingStateChangedEvent,
-            notificationStateChangedEvent,
             recordingInterruptedEvent
         ])
         
@@ -419,23 +415,63 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         }
     }
     
+    func audioStreamManager(_ manager: AudioStreamManager, didReceiveInterruption info: [String: Any]) {
+        // Convert iOS interruption events to match the TypeScript types
+        var reason: String
+        var isPaused: Bool = true
+        
+        if let type = info["type"] as? String {
+            switch type {
+            case "began":
+                // Phone call or other audio session interruption began
+                reason = "audioFocusLoss"
+            case "ended":
+                reason = "audioFocusGain"
+                isPaused = false
+                // Check if this was from a phone call
+                if let wasSuspended = info["wasSuspended"] as? Bool, wasSuspended {
+                    reason = "phoneCallEnded"
+                }
+            default:
+                return
+            }
+        } else if let specificReason = info["reason"] as? String {
+            // Handle specific reasons that are already properly formatted
+            reason = specificReason
+            isPaused = info["isPaused"] as? Bool ?? true
+        } else {
+            return
+        }
+        
+        // Send event in the correct format
+        sendEvent(recordingInterruptedEvent, [
+            "reason": reason,
+            "isPaused": isPaused,
+            "timestamp": Date().timeIntervalSince1970 * 1000
+        ])
+    }
+    
     func audioStreamManager(_ manager: AudioStreamManager, didPauseRecording pauseTime: Date) {
-        sendEvent(recordingStateChangedEvent, [
-            "state": "paused",
+        sendEvent(recordingInterruptedEvent, [
+            "reason": "userPaused",
+            "isPaused": true,
             "timestamp": pauseTime.timeIntervalSince1970 * 1000
         ])
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didResumeRecording resumeTime: Date) {
-        sendEvent(recordingStateChangedEvent, [
-            "state": "recording",
+        sendEvent(recordingInterruptedEvent, [
+            "reason": "userResumed",
+            "isPaused": false,
             "timestamp": resumeTime.timeIntervalSince1970 * 1000
         ])
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didUpdateNotificationState isPaused: Bool) {
-        sendEvent(notificationStateChangedEvent, [
-            "isPaused": isPaused
+        sendEvent(recordingInterruptedEvent, [
+            "reason": "notification",
+            "isPaused": isPaused,
+            "timestamp": Date().timeIntervalSince1970 * 1000
         ])
     }
     
@@ -566,10 +602,6 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             print("Error listing audio files:", error.localizedDescription)
             return []
         }
-    }
-    
-    func audioStreamManager(_ manager: AudioStreamManager, didReceiveInterruption info: [String: Any]) {
-        sendEvent(recordingInterruptedEvent, info)
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didFailWithError error: String) {
