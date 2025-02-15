@@ -17,6 +17,7 @@ import {
     addAudioAnalysisListener,
     addAudioEventListener,
     AudioEventPayload,
+    addRecordingInterruptionListener,
 } from './events'
 
 export interface UseAudioRecorderProps {
@@ -194,6 +195,8 @@ export function useAudioRecorder({
         compression: undefined as CompressionInfo | undefined,
     })
 
+    const recordingConfigRef = useRef<RecordingConfig | null>(null)
+
     const handleAudioAnalysis = useCallback(
         async ({
             analysis,
@@ -276,11 +279,19 @@ export function useAudioRecorder({
                 savedAnalysisData
             )
 
+            // Call the onAudioAnalysis callback if it exists in the recording config
+            if (recordingConfigRef.current?.onAudioAnalysis) {
+                try {
+                    await recordingConfigRef.current.onAudioAnalysis(analysis)
+                } catch (error) {
+                    logger?.error('Error in onAudioAnalysis callback:', error)
+                }
+            }
+
             // Update the ref
             analysisRef.current = savedAnalysisData
 
             // Dispatch the updated analysis data to state to trigger re-render
-            // need to use spread operator otherwise it doesnt trigger update.
             dispatch({
                 type: 'UPDATE_ANALYSIS',
                 payload: { ...savedAnalysisData },
@@ -449,6 +460,7 @@ export function useAudioRecorder({
 
     const startRecording = useCallback(
         async (recordingOptions: RecordingConfig) => {
+            recordingConfigRef.current = recordingOptions
             logger?.debug(`start recoding`, recordingOptions)
 
             analysisRef.current = { ...defaultAnalysis } // Reset analysis data
@@ -560,6 +572,34 @@ export function useAudioRecorder({
             subscribeAudio.remove()
         }
     }, [handleAudioEvent, handleAudioAnalysis])
+
+    useEffect(() => {
+        // Add event subscription for recording interruptions
+        logger?.debug('Setting up recording interruption listener')
+
+        const subscription = addRecordingInterruptionListener((event) => {
+            logger?.debug('Received recording interruption event:', event)
+
+            // Check if we have a callback configured
+            if (recordingConfigRef.current?.onRecordingInterrupted) {
+                try {
+                    recordingConfigRef.current.onRecordingInterrupted(event)
+                } catch (error) {
+                    logger?.error(
+                        'Error in recording interruption callback:',
+                        error
+                    )
+                }
+            } else {
+                logger?.warn('No recording interruption callback configured')
+            }
+        })
+
+        return () => {
+            logger?.debug('Removing recording interruption listener')
+            subscription.remove()
+        }
+    }, []) // Empty dependency array since we want this to run once
 
     return {
         startRecording,
