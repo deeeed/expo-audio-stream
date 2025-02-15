@@ -3,6 +3,7 @@
 import { LegacyEventEmitter, type EventSubscription } from 'expo-modules-core'
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
+import { RecordingInterruptionEvent } from './ExpoAudioStream.types'
 import ExpoAudioStreamModule from './ExpoAudioStreamModule'
 
 const emitter = new LegacyEventEmitter(ExpoAudioStreamModule)
@@ -39,4 +40,21 @@ export function addAudioAnalysisListener(
     listener: (event: AudioAnalysisEvent) => Promise<void>
 ): EventSubscription {
     return emitter.addListener<AudioAnalysisEvent>('AudioAnalysis', listener)
+}
+
+export function addRecordingInterruptionListener(
+    listener: (event: RecordingInterruptionEvent) => void
+): EventSubscription {
+    // Add debug logging
+    console.debug('Adding recording interruption listener')
+
+    const subscription = emitter.addListener<RecordingInterruptionEvent>(
+        'onRecordingInterrupted', // Make sure this matches the native event name
+        (event) => {
+            console.debug('Recording interruption event received:', event)
+            listener(event)
+        }
+    )
+
+    return subscription
 }
