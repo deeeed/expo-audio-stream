@@ -296,7 +296,7 @@ export function NativeWhisperScreen() {
             <View style={styles.container}>
                 <View style={styles.warningBanner}>
                     <Text style={styles.warningText}>
-                        ⚠️ This page is for debugging and testing purposes only.
+                        ⚠️ This is an experimental feature for testing native audio transcription using whisper.rn. The model runs locally on your device and may impact performance.
                     </Text>
                 </View>
 
