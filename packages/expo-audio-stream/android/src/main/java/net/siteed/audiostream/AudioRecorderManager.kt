@@ -682,6 +682,12 @@ class AudioRecorderManager(
             }
 
             recordingThread = Thread { recordingProcess() }.apply { start() }
+            
+            // Start service if keepAwake is true, regardless of notification settings
+            if (recordingConfig.keepAwake) {
+                AudioRecordingService.startService(context)
+            }
+            
             return true
 
         } catch (e: Exception) {
@@ -913,18 +919,16 @@ class AudioRecorderManager(
         }
     }
 
-    private val wakeLockTimeout = 60 * 60 * 1000L // 1 hour timeout
-
     private fun acquireWakeLock() {
         if (recordingConfig.keepAwake && wakeLock == null) {
             try {
                 val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
                 wakeLock = powerManager.newWakeLock(
-                    PowerManager.PARTIAL_WAKE_LOCK, // Use PARTIAL_WAKE_LOCK instead of deprecated SCREEN_DIM_WAKE_LOCK
+                    PowerManager.PARTIAL_WAKE_LOCK,
                     "AudioRecorderManager::RecordingWakeLock"
                 ).apply {
                     setReferenceCounted(false)
-                    acquire(wakeLockTimeout) // Add timeout
+                    acquire()
                 }
                 wasWakeLockEnabled = true
                 Log.d(Constants.TAG, "Wake lock acquired")
