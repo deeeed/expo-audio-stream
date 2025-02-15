@@ -281,11 +281,11 @@ export function useAudioRecorder({
 
             // Call the onAudioAnalysis callback if it exists in the recording config
             if (recordingConfigRef.current?.onAudioAnalysis) {
-                try {
-                    await recordingConfigRef.current.onAudioAnalysis(analysis)
-                } catch (error) {
-                    logger?.error('Error in onAudioAnalysis callback:', error)
-                }
+                recordingConfigRef.current
+                    .onAudioAnalysis(analysis)
+                    .catch((error) => {
+                        logger?.warn(`Error processing audio analysis:`, error)
+                    })
             }
 
             // Update the ref
