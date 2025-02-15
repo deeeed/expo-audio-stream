@@ -27,7 +27,7 @@ Range of amplitude values in the preview
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:143](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L143)
+[src/AudioAnalysis/AudioAnalysis.types.ts:143](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L143)
 
 ***
 
@@ -39,7 +39,7 @@ Array of data points representing the waveform
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:148](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L148)
+[src/AudioAnalysis/AudioAnalysis.types.ts:148](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L148)
 
 ***
 
@@ -51,7 +51,7 @@ Duration of the audio in milliseconds
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:141](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L141)
+[src/AudioAnalysis/AudioAnalysis.types.ts:141](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L141)
 
 ***
 
@@ -63,4 +63,4 @@ Number of data points per second
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:139](https://github.com/deeeed/expo-audio-stream/blob/67c0151498a79fdb4d385168c502a8eaeb33efe1/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L139)
+[src/AudioAnalysis/AudioAnalysis.types.ts:139](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L139)
