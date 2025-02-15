@@ -71,10 +71,9 @@
   },
   "submit": {
     "production": {
-      "ios": {
-        "appleId": "deeeed@gmail.com",
-        "ascAppId": "$APPLE_APP_ID",
-        "appleTeamId": "$APPLE_TEAM_ID"
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
       }
     }
   }
