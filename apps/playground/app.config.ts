@@ -9,7 +9,7 @@ import { version as packageVersion } from './package.json'
 
 dotenvConfig({
     silent: true,
-    default_node_env: 'development' // This ensures .env.development is loaded by default
+    node_env: process.env.APP_VARIANT || "production", // This will use APP_VARIANT for env file selection
 }) // Load variables from .env* files
 
 // Define a schema for the environment variables
@@ -19,7 +19,7 @@ const envSchema = Joi.object({
     APPLE_TEAM_ID: Joi.string().optional(),
     APP_VARIANT: Joi.string()
         .valid('development', 'staging', 'production')
-        .default('development')
+        .default('production')
         .required(),
 }).unknown() // Allow other environment variables
 
@@ -149,7 +149,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         [
             'expo-build-properties',
             {
-                ios: {},
+                ios: {
+                    infoPlist: {
+                        ITSAppUsesNonExemptEncryption: false
+                    }
+                },
                 android: {},
             },
         ],
