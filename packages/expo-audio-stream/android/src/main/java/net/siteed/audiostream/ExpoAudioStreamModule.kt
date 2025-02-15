@@ -113,7 +113,10 @@ class ExpoAudioStreamModule : Module(), EventSender {
 
         AsyncFunction("requestPermissionsAsync") { promise: Promise ->
             try {
-                val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
+                val permissions = mutableListOf(
+                    Manifest.permission.RECORD_AUDIO,
+                    Manifest.permission.READ_PHONE_STATE
+                )
 
                 // Add foreground service permission for Android 14+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -134,7 +137,10 @@ class ExpoAudioStreamModule : Module(), EventSender {
         }
 
         AsyncFunction("getPermissionsAsync") { promise: Promise ->
-            val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
+            val permissions = mutableListOf(
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.READ_PHONE_STATE
+            )
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 permissions.add(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)

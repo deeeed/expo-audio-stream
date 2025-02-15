@@ -17,7 +17,7 @@ function debugLog(message: string, ...args: unknown[]): void {
 }
 
 interface AudioStreamPluginOptions {
-    enablePhoneStateHandling?: boolean
+    enablePhoneStateHandling?: boolean  // Controls READ_PHONE_STATE permission
     enableNotifications?: boolean
     enableBackgroundAudio?: boolean
     iosBackgroundModes?: {
@@ -38,7 +38,7 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
     props: AudioStreamPluginOptions | void
 ) => {
     const options: AudioStreamPluginOptions = {
-        enablePhoneStateHandling: true,
+        enablePhoneStateHandling: true,  // Default to true for backward compatibility
         enableNotifications: true,
         enableBackgroundAudio: true,
         iosBackgroundModes: {

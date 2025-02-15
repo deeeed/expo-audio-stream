@@ -133,6 +133,17 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 enablePhoneStateHandling: true,
                 enableNotifications: true,
                 enableBackgroundAudio: true,
+                iosBackgroundModes: {
+                    useVoIP: true,
+                    useAudio: true,
+                    useProcessing: true,
+                    useLocation: true,
+                    useExternalAccessory: true
+                },
+                iosConfig: {
+                    allowBackgroundAudioControls: true,
+                    backgroundProcessingTitle: "Audio Processing"
+                }
             },
         ],
         [
