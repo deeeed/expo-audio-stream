@@ -163,13 +163,13 @@ class AudioStreamManager: NSObject {
                         // Configure audio session
                         do {
                             let session = AVAudioSession.sharedInstance()
-                            try session.setActive(false, options: .notifyOthersOnDeactivation)
                             try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .mixWithOthers])
                             try session.setActive(true, options: .notifyOthersOnDeactivation)
                             
                             // Resume if we're still recording and paused
                             if self.isRecording && self.isPaused {
                                 Logger.debug("Resuming recording after phone call interruption")
+                                self.audioEngine.prepare() 
                                 self.resumeRecording()
                             } else {
                                 Logger.debug("Cannot resume - recording state invalid: isRecording=\(self.isRecording), isPaused=\(self.isPaused)")
