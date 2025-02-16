@@ -95,6 +95,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         supportsTablet: true,
         bundleIdentifier: APP_IDENTIFIER,
         appleTeamId: validatedEnv.APPLE_TEAM_ID,
+        infoPlist: {
+            "ITSAppUsesNonExemptEncryption": false,
+        },
     },
     android: {
         newArchEnabled: false,
@@ -134,11 +137,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 enableNotifications: true,
                 enableBackgroundAudio: true,
                 iosBackgroundModes: {
-                    useVoIP: true,
                     useAudio: true,
                     useProcessing: true,
-                    useLocation: true,
-                    useExternalAccessory: true
+                    useVoIP: false,
+                    useLocation: false,
+                    useExternalAccessory: false
                 },
                 iosConfig: {
                     allowBackgroundAudioControls: true,

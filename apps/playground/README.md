@@ -62,16 +62,10 @@ eas build --profile development --platform ios # for iOS
 eas build --profile development --platform android # for Android
 ```
 
-#### Preview Build
-
-```bash
-eas build --profile preview
-```
-
 #### Production Build
 
 ```bash
-eas build --profile production
+yarn build:ios:production --auto-submit
 ```
 
 ### Building Local Shareable Builds
@@ -90,11 +84,6 @@ eas build --platform android --profile preview --local
 The APK will be available in the `android/app/build/outputs/apk/` directory.
 
 #### iOS IPA
-1. Create archive (requires Apple Developer account):
-```bash
-eas build --platform ios --profile preview --local
-```
-
 2. For development testing on specific devices:
 ```bash
 eas device:create # Register test devices first
