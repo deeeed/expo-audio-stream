@@ -1,5 +1,6 @@
 ---
 name: Bug report
+about: Create a bug report to help improve expo-audio-stream
 title: '[BUG] '
 labels: bug
 assignees: ''
