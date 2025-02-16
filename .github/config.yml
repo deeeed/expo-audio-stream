@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://deeeed.github.io/expo-audio-stream/docs/
+    about: Check our documentation before creating an issue
+  - name: 🎮 Playground Demo
+    url: https://deeeed.github.io/expo-audio-stream/playground
+    about: Try reproducing your issue in our playground
+  - name: 💬 Discussions
+    url: https://github.com/deeeed/expo-audio-stream/discussions
+    about: Please ask and answer questions here 
