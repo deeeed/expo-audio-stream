@@ -23,9 +23,11 @@ assignees: ''
 - [ ] No, it only happens in my app
 
 If yes, please provide the steps in the Playground:
-1. 
-2. 
-3. 
+
+- 1. 
+- 2. 
+- 3. 
+
 
 
 ## Configuration
@@ -52,6 +54,7 @@ const result = await startRecording({
 
 Then paste the relevant logs here:
 -->
+```log
 ```
 
 
