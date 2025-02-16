@@ -18,7 +18,7 @@
         "build:ios:development": "APP_VARIANT=development NODE_ENV=development eas build --platform ios --profile development --local",
         "build:ios:preview": "eas build --platform ios --profile preview --local",
         "build:ios:production": "NODE_ENV=production APP_VARIANT=production eas build --platform ios --profile production",
-        "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && gh-pages -t -d dist --dest playground",
+        "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && cp playstore_policy.html dist/ && gh-pages -t -d dist --dest playground",
         "predeploy": "APP_VARIANT=production EXPO_WEB=true expo export -p web",
         "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/"
     },
