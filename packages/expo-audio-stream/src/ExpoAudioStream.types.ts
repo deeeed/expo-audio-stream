@@ -20,6 +20,7 @@ export interface AudioStreamStatus {
     durationMs: number
     size: number
     interval: number
+    intervalAnalysis: number
     mimeType: string
     compression?: CompressionInfo
 }
@@ -36,7 +37,7 @@ export interface AudioDataEvent {
 }
 
 export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'
-export type SampleRate = 16000 | 44100 | 48000
+export type SampleRate = 16000 | 44100 | 48000 
 export type BitDepth = 8 | 16 | 32
 
 export type ConsoleLike = {
@@ -147,7 +148,10 @@ export interface RecordingConfig {
     // Interval in milliseconds at which to emit recording data
     interval?: number
 
-    // Continue recording when app is in background (default is true)
+    // Interval in milliseconds at which to emit analysis data
+    intervalAnalysis?: number
+
+    // Keep the device awake while recording (default is false)
     keepAwake?: boolean
 
     // Show a notification during recording (default is false)
