@@ -1,6 +1,6 @@
 {
     "name": "audio-playground",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "main": "src/index",
     "scripts": {
         "eas-build-pre-install": "corepack enable && cd ../.. && yarn install && cd packages/expo-audio-stream && yarn build && yarn build:plugin",
