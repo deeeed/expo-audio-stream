@@ -17,7 +17,7 @@ function debugLog(message: string, ...args: unknown[]): void {
 }
 
 interface AudioStreamPluginOptions {
-    enablePhoneStateHandling?: boolean  // Controls READ_PHONE_STATE permission
+    enablePhoneStateHandling?: boolean // Controls READ_PHONE_STATE permission
     enableNotifications?: boolean
     enableBackgroundAudio?: boolean
     iosBackgroundModes?: {
@@ -38,7 +38,7 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
     props: AudioStreamPluginOptions | void
 ) => {
     const options: AudioStreamPluginOptions = {
-        enablePhoneStateHandling: true,  // Default to true for backward compatibility
+        enablePhoneStateHandling: true, // Default to true for backward compatibility
         enableNotifications: true,
         enableBackgroundAudio: true,
         iosBackgroundModes: {
@@ -75,16 +75,19 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
         const existingBackgroundModes =
             config.modResults.UIBackgroundModes || []
 
-        // Only add background modes if explicitly enabled
+        // Only add background modes if explicitly enabled and set to true
         if (
-            options.iosBackgroundModes?.useAudio &&
-            enableBackgroundAudio &&
+            options.iosBackgroundModes?.useAudio === true &&
+            enableBackgroundAudio === true &&
             !existingBackgroundModes.includes('audio')
         ) {
             existingBackgroundModes.push('audio')
         }
 
-        if (options.iosBackgroundModes?.useVoIP && enablePhoneStateHandling) {
+        if (
+            options.iosBackgroundModes?.useVoIP === true &&
+            enablePhoneStateHandling === true
+        ) {
             if (!existingBackgroundModes.includes('voip')) {
                 existingBackgroundModes.push('voip')
             }
@@ -97,24 +100,24 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
                 existingCapabilities
         }
 
-        // Add additional background modes if enabled
-        if (options.iosBackgroundModes?.useProcessing) {
+        // Add additional background modes only if explicitly set to true
+        if (options.iosBackgroundModes?.useProcessing === true) {
             if (!existingBackgroundModes.includes('processing')) {
                 existingBackgroundModes.push('processing')
             }
             // Add processing info if enabled
             config.modResults.BGTaskSchedulerPermittedIdentifiers = [
-                'com.siteed.audiostream.processing'
+                'com.siteed.audiostream.processing',
             ]
         }
 
-        if (options.iosBackgroundModes?.useLocation) {
+        if (options.iosBackgroundModes?.useLocation === true) {
             if (!existingBackgroundModes.includes('location')) {
                 existingBackgroundModes.push('location')
             }
         }
 
-        if (options.iosBackgroundModes?.useExternalAccessory) {
+        if (options.iosBackgroundModes?.useExternalAccessory === true) {
             if (!existingBackgroundModes.includes('external-accessory')) {
                 existingBackgroundModes.push('external-accessory')
             }
@@ -122,7 +125,7 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
 
         // Configure background processing info if enabled
         if (options.iosConfig?.backgroundProcessingTitle) {
-            config.modResults.BGProcessingTaskTitle = 
+            config.modResults.BGProcessingTaskTitle =
                 options.iosConfig.backgroundProcessingTitle
         }
 
@@ -130,7 +133,7 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
         if (options.iosConfig?.allowBackgroundAudioControls) {
             config.modResults.UIBackgroundModes = [
                 ...existingBackgroundModes,
-                'remote-notification'
+                'remote-notification',
             ]
             config.modResults.MPNowPlayingInfoPropertyPlaybackRate = true
         }
