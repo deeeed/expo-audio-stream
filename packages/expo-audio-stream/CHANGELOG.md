@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.16.0] - 2025-02-17
+### Changed
+- fix(expo-audio-stream): prevent adding iOS background modes when disabled ([5c9d09c](https://github.com/deeeed/expo-audio-stream/commit/5c9d09c715ce008fe72177431224a10f5fd7a865))
+- fix(ios): replace CallKit with AVAudioSession for phone call detection ([e3b664b](https://github.com/deeeed/expo-audio-stream/commit/e3b664ba6925c379b323ded5fc408154e5f092c6))
+- chore(expo-audio-stream): release @siteed/expo-audio-stream@1.15.1 ([cbc3d10](https://github.com/deeeed/expo-audio-stream/commit/cbc3d10661a415811f1fe46cb3acaf63451a9df9))
 ## [1.15.1] - 2025-02-17
 ### Changed
 - fix: restore Opus compression support on iOS (#122) ([06614e6](https://github.com/deeeed/expo-audio-stream/commit/06614e6d96fa2a6af56edf0fd2e2b3966e13c8f7))
@@ -124,7 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.15.1...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.16.0...HEAD
+[1.16.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.15.1...@siteed/expo-audio-stream@1.16.0
 [1.15.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.15.0...@siteed/expo-audio-stream@1.15.1
 [1.15.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.2...@siteed/expo-audio-stream@1.15.0
 [1.14.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.1...@siteed/expo-audio-stream@1.14.2
