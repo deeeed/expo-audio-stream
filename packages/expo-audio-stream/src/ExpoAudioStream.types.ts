@@ -182,7 +182,7 @@ export interface RecordingConfig {
 
     compression?: {
         enabled: boolean
-        format: 'aac' | 'opus' | 'mp3'
+        format: 'aac' | 'opus'
         bitrate?: number
     }
 
