@@ -11,7 +11,6 @@ import Accelerate
 import UIKit
 import MediaPlayer
 import UserNotifications
-import CallKit
 
 // Helper to convert to little-endian byte array
 extension UInt32 {
@@ -566,17 +565,26 @@ class AudioStreamManager: NSObject {
         return status
     }
     
+    /// Detects if a phone call is active without using CallKit.
+    /// We avoid CallKit because its usage prevents apps from being available in China's App Store.
+    /// This is a workaround that uses AVAudioSession to detect phone calls instead.
+    private func isPhoneCallActive() -> Bool {
+        let audioSession = AVAudioSession.sharedInstance()
+        return audioSession.isOtherAudioPlaying && 
+               audioSession.secondaryAudioShouldBeSilencedHint && 
+               audioSession.currentRoute.outputs.contains { $0.portType == .builtInReceiver }
+    }
+
     /// Starts a new audio recording with the specified settings and interval.
     /// - Parameters:
     ///   - settings: The recording settings to use.
     ///   - intervalMilliseconds: The interval in milliseconds for emitting audio data.
     /// - Returns: A StartRecordingResult object if recording starts successfully, or nil otherwise.
     func startRecording(settings: RecordingSettings, intervalMilliseconds: Int) -> StartRecordingResult? {
-        // Check for active call first
-        let callCenter = CXCallObserver()
-        if callCenter.calls.contains(where: { $0.hasEnded == false }) {
-            Logger.debug("Cannot start recording during an active call")
-            delegate?.audioStreamManager(self, didFailWithError: "Cannot start recording during an active call")
+        // Check for active call using the new method
+        if isPhoneCallActive() {
+            Logger.debug("Cannot start recording during an active phone call")
+            delegate?.audioStreamManager(self, didFailWithError: "Cannot start recording during an active phone call")
             return nil
         }
 
@@ -922,11 +930,10 @@ class AudioStreamManager: NSObject {
     
     /// Resumes the current audio recording.
     func resumeRecording() {
-        // Check for active call first
-        let callCenter = CXCallObserver()
-        if callCenter.calls.contains(where: { $0.hasEnded == false }) {
-            Logger.debug("Cannot resume recording during an active call")
-            delegate?.audioStreamManager(self, didFailWithError: "Cannot resume recording during an active call")
+        // Check for active call using the new method
+        if isPhoneCallActive() {
+            Logger.debug("Cannot resume recording during an active phone call")
+            delegate?.audioStreamManager(self, didFailWithError: "Cannot resume recording during an active phone call")
             return
         }
 
