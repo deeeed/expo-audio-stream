@@ -81,7 +81,6 @@ struct RecordingSettings {
     var numberOfChannels: Int = 1
     var bitDepth: Int = 16
     var interval: Int?
-    var intervalAnalysis: Int?
     
     // Feature flags
     var keepAwake: Bool = true
@@ -141,7 +140,6 @@ struct RecordingSettings {
         settings.numberOfChannels = dict["channels"] as? Int ?? 1
         settings.bitDepth = dict["bitDepth"] as? Int ?? 16
         settings.interval = dict["interval"] as? Int
-        settings.intervalAnalysis = dict["intervalAnalysis"] as? Int
         
         // Parse feature flags
         settings.keepAwake = dict["keepAwake"] as? Bool ?? true
