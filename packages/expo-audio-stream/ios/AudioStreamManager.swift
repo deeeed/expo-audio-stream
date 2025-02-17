@@ -717,11 +717,12 @@ class AudioStreamManager: NSObject {
             if settings.enableCompressedOutput {
                 do {
                     let compressedSettings: [String: Any] = [
-                        AVFormatIDKey: kAudioFormatMPEG4AAC,
+                        AVFormatIDKey: settings.compressedFormat == "aac" ? kAudioFormatMPEG4AAC : kAudioFormatOpus,
                         AVSampleRateKey: Float64(settings.sampleRate),
                         AVNumberOfChannelsKey: settings.numberOfChannels,
-                        AVEncoderBitRateKey: settings.compressedBitRate ?? 24000,
-                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                        AVEncoderBitRateKey: settings.compressedBitRate,
+                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+                        AVEncoderBitDepthHintKey: settings.bitDepth
                     ]
                     
                     Logger.debug("Initializing compressed recording with settings: \(compressedSettings)")
@@ -735,21 +736,23 @@ class AudioStreamManager: NSObject {
                         do {
                             compressedRecorder = try AVAudioRecorder(url: url, settings: compressedSettings)
                             if let recorder = compressedRecorder {
-                                recorder.delegate = self  // Add this line to get recording callbacks
+                                recorder.delegate = self
                                 
                                 if !recorder.prepareToRecord() {
                                     Logger.debug("Failed to prepare recorder")
-                                    throw NSError(domain: "AudioStreamManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to prepare recorder"])
+                                    throw NSError(domain: "AudioStreamManager", code: -1, 
+                                        userInfo: [NSLocalizedDescriptionKey: "Failed to prepare recorder"])
                                 }
                                 
                                 if !recorder.record() {
                                     Logger.debug("Failed to start recorder")
-                                    throw NSError(domain: "AudioStreamManager", code: -2, userInfo: [NSLocalizedDescriptionKey: "Failed to start recorder"])
+                                    throw NSError(domain: "AudioStreamManager", code: -2, 
+                                        userInfo: [NSLocalizedDescriptionKey: "Failed to start recorder"])
                                 }
                                 
                                 Logger.debug("Compressed recording started successfully")
-                                compressedFormat = "aac"
-                                compressedBitRate = settings.compressedBitRate ?? 24000
+                                compressedFormat = settings.compressedFormat
+                                compressedBitRate = settings.compressedBitRate
                             }
                         } catch {
                             Logger.debug("Failed to initialize compressed recorder: \(error)")
