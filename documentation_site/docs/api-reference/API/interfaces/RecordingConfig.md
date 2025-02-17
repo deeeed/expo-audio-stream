@@ -52,7 +52,7 @@
 
 #### format
 
-> **format**: `"opus"` \| `"aac"` \| `"mp3"`
+> **format**: `"opus"` \| `"aac"`
 
 #### Defined in
 
