@@ -16,7 +16,7 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:27](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L27)
+[src/AudioAnalysis/AudioAnalysis.types.ts:27](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L27)
 
 ***
 
@@ -26,7 +26,7 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:17](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L17)
+[src/AudioAnalysis/AudioAnalysis.types.ts:17](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L17)
 
 ***
 
@@ -36,7 +36,7 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:29](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L29)
+[src/AudioAnalysis/AudioAnalysis.types.ts:29](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L29)
 
 ***
 
@@ -46,7 +46,7 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:21](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L21)
+[src/AudioAnalysis/AudioAnalysis.types.ts:21](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L21)
 
 ***
 
@@ -56,7 +56,7 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:18](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L18)
+[src/AudioAnalysis/AudioAnalysis.types.ts:18](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L18)
 
 ***
 
@@ -66,7 +66,7 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:20](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L20)
+[src/AudioAnalysis/AudioAnalysis.types.ts:20](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L20)
 
 ***
 
@@ -76,7 +76,7 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:19](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L19)
+[src/AudioAnalysis/AudioAnalysis.types.ts:19](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L19)
 
 ***
 
@@ -86,7 +86,7 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:26](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L26)
+[src/AudioAnalysis/AudioAnalysis.types.ts:26](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L26)
 
 ***
 
@@ -96,7 +96,7 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:23](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L23)
+[src/AudioAnalysis/AudioAnalysis.types.ts:23](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L23)
 
 ***
 
@@ -106,7 +106,7 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:24](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L24)
+[src/AudioAnalysis/AudioAnalysis.types.ts:24](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L24)
 
 ***
 
@@ -116,7 +116,7 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:25](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L25)
+[src/AudioAnalysis/AudioAnalysis.types.ts:25](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L25)
 
 ***
 
@@ -126,7 +126,7 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:28](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L28)
+[src/AudioAnalysis/AudioAnalysis.types.ts:28](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L28)
 
 ***
 
@@ -136,4 +136,4 @@ Represents various audio features extracted from an audio signal.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:22](https://github.com/deeeed/expo-audio-stream/blob/f94c6016ba4ce968cafbf68644199405f5991d7f/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L22)
+[src/AudioAnalysis/AudioAnalysis.types.ts:22](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L22)

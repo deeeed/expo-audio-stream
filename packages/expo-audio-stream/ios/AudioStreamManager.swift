@@ -11,7 +11,6 @@ import Accelerate
 import UIKit
 import MediaPlayer
 import UserNotifications
-import CallKit
 
 // Helper to convert to little-endian byte array
 extension UInt32 {
@@ -581,6 +580,16 @@ class AudioStreamManager: NSObject {
         return status
     }
     
+    /// Detects if a phone call is active without using CallKit.
+    /// We avoid CallKit because its usage prevents apps from being available in China's App Store.
+    /// This is a workaround that uses AVAudioSession to detect phone calls instead.
+    private func isPhoneCallActive() -> Bool {
+        let audioSession = AVAudioSession.sharedInstance()
+        return audioSession.isOtherAudioPlaying && 
+               audioSession.secondaryAudioShouldBeSilencedHint && 
+               audioSession.currentRoute.outputs.contains { $0.portType == .builtInReceiver }
+    }
+
     /// Starts a new audio recording with the specified settings and interval.
     /// - Parameters:
     ///   - settings: The recording settings to use.
@@ -593,6 +602,10 @@ class AudioStreamManager: NSObject {
         if callCenter.calls.contains(where: { $0.hasEnded == false }) {
             Logger.debug("Cannot start recording during an active call")
             delegate?.audioStreamManager(self, didFailWithError: "Cannot start recording during an active call")
+        // Check for active call using the new method
+        if isPhoneCallActive() {
+            Logger.debug("Cannot start recording during an active phone call")
+            delegate?.audioStreamManager(self, didFailWithError: "Cannot start recording during an active phone call")
             return nil
         }
 
@@ -739,11 +752,12 @@ class AudioStreamManager: NSObject {
             if settings.enableCompressedOutput {
                 do {
                     let compressedSettings: [String: Any] = [
-                        AVFormatIDKey: kAudioFormatMPEG4AAC,
+                        AVFormatIDKey: settings.compressedFormat == "aac" ? kAudioFormatMPEG4AAC : kAudioFormatOpus,
                         AVSampleRateKey: Float64(settings.sampleRate),
                         AVNumberOfChannelsKey: settings.numberOfChannels,
-                        AVEncoderBitRateKey: settings.compressedBitRate ?? 24000,
-                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                        AVEncoderBitRateKey: settings.compressedBitRate,
+                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+                        AVEncoderBitDepthHintKey: settings.bitDepth
                     ]
                     
                     Logger.debug("Initializing compressed recording with settings: \(compressedSettings)")
@@ -757,21 +771,23 @@ class AudioStreamManager: NSObject {
                         do {
                             compressedRecorder = try AVAudioRecorder(url: url, settings: compressedSettings)
                             if let recorder = compressedRecorder {
-                                recorder.delegate = self  // Add this line to get recording callbacks
+                                recorder.delegate = self
                                 
                                 if !recorder.prepareToRecord() {
                                     Logger.debug("Failed to prepare recorder")
-                                    throw NSError(domain: "AudioStreamManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to prepare recorder"])
+                                    throw NSError(domain: "AudioStreamManager", code: -1, 
+                                        userInfo: [NSLocalizedDescriptionKey: "Failed to prepare recorder"])
                                 }
                                 
                                 if !recorder.record() {
                                     Logger.debug("Failed to start recorder")
-                                    throw NSError(domain: "AudioStreamManager", code: -2, userInfo: [NSLocalizedDescriptionKey: "Failed to start recorder"])
+                                    throw NSError(domain: "AudioStreamManager", code: -2, 
+                                        userInfo: [NSLocalizedDescriptionKey: "Failed to start recorder"])
                                 }
                                 
                                 Logger.debug("Compressed recording started successfully")
-                                compressedFormat = "aac"
-                                compressedBitRate = settings.compressedBitRate ?? 24000
+                                compressedFormat = settings.compressedFormat
+                                compressedBitRate = settings.compressedBitRate
                             }
                         } catch {
                             Logger.debug("Failed to initialize compressed recorder: \(error)")
@@ -941,11 +957,10 @@ class AudioStreamManager: NSObject {
     
     /// Resumes the current audio recording.
     func resumeRecording() {
-        // Check for active call first
-        let callCenter = CXCallObserver()
-        if callCenter.calls.contains(where: { $0.hasEnded == false }) {
-            Logger.debug("Cannot resume recording during an active call")
-            delegate?.audioStreamManager(self, didFailWithError: "Cannot resume recording during an active call")
+        // Check for active call using the new method
+        if isPhoneCallActive() {
+            Logger.debug("Cannot resume recording during an active phone call")
+            delegate?.audioStreamManager(self, didFailWithError: "Cannot resume recording during an active phone call")
             return
         }
 
