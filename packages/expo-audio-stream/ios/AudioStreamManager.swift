@@ -44,17 +44,31 @@ class AudioStreamManager: NSObject {
     private var wasIdleTimerDisabled: Bool = false  // Track previous idle timer state
     private var isWakeLockEnabled: Bool = false     // Track current wake lock state
 
+
+    // Data emission for onAudioStream
     internal var lastEmissionTime: Date?
     internal var lastEmittedSize: Int64 = 0
     internal var lastEmittedCompressedSize: Int64 = 0
     private var emissionInterval: TimeInterval = 1.0 // Default to 1 second
     private var totalDataSize: Int64 = 0
+    private var lastBufferTime: AVAudioTime?
+    private var accumulatedData = Data()
+
+    // Data emission for onAudioAnalysis
+    internal var lastEmissionTimeAnalysis: Date?
+    internal var lastEmittedSizeAnalysis: Int64 = 0
+    internal var lastEmittedCompressedSizeAnalysis: Int64 = 0
+    private var emissionIntervalAnalysis: TimeInterval = 1.0 // Default to 1 second
+    private var totalDataSizeAnalysis: Int64 = 0
+    private var lastBufferTimeAnalysis: AVAudioTime?
+    private var accumulatedAnalysisData = Data()
+
+
+
     private var fileManager = FileManager.default
     internal var recordingSettings: RecordingSettings?
     internal var recordingUUID: UUID?
     internal var mimeType: String = "audio/wav"
-    private var lastBufferTime: AVAudioTime?
-    private var accumulatedData = Data()
     private var recentData = [Float]() // This property stores the recent audio data
     private var notificationUpdateTimer: Timer?
     
@@ -537,7 +551,8 @@ class AudioStreamManager: NSObject {
             "isPaused": isPaused,
             "mimeType": mimeType,
             "size": totalDataSize,
-            "interval": emissionInterval
+            "interval": emissionInterval,
+            "intervalAnalysis": emissionIntervalAnalysis
         ]
         
         // Add compression info if enabled
@@ -579,8 +594,14 @@ class AudioStreamManager: NSObject {
     /// - Parameters:
     ///   - settings: The recording settings to use.
     ///   - intervalMilliseconds: The interval in milliseconds for emitting audio data.
+    ///   - intervalMillisecondsAnalysis: The interval in milliseconds for emitting analysis data.
     /// - Returns: A StartRecordingResult object if recording starts successfully, or nil otherwise.
-    func startRecording(settings: RecordingSettings, intervalMilliseconds: Int) -> StartRecordingResult? {
+    func startRecording(settings: RecordingSettings, intervalMilliseconds: Int, intervalMillisecondsAnalysis: Int) -> StartRecordingResult? {
+        // Check for active call first
+        let callCenter = CXCallObserver()
+        if callCenter.calls.contains(where: { $0.hasEnded == false }) {
+            Logger.debug("Cannot start recording during an active call")
+            delegate?.audioStreamManager(self, didFailWithError: "Cannot start recording during an active call")
         // Check for active call using the new method
         if isPhoneCallActive() {
             Logger.debug("Cannot start recording during an active phone call")
@@ -621,12 +642,18 @@ class AudioStreamManager: NSObject {
         
         // Add these initializations back
         emissionInterval = max(100.0, Double(intervalMilliseconds)) / 1000.0
+        emissionIntervalAnalysis = max(100.0, Double(intervalMillisecondsAnalysis)) / 1000.0
         lastEmissionTime = Date()
+        lastEmissionTimeAnalysis = Date()
         accumulatedData.removeAll()
+        accumulatedAnalysisData.removeAll()
         totalDataSize = 0
+        totalDataSizeAnalysis = 0
         totalPausedDuration = 0
         lastEmittedSize = 0
+        lastEmittedCompressedSizeAnalysis = 0
         isPaused = false
+
         
         // Create recording file first
         recordingFileURL = createRecordingFile()
@@ -1149,9 +1176,12 @@ class AudioStreamManager: NSObject {
             totalPausedDuration = 0
             currentPauseStart = nil
             lastEmissionTime = nil
+            lastEmissionTimeAnalysis = nil
             lastEmittedSize = 0
+            lastEmittedSizeAnalysis = 0
             lastEmittedCompressedSize = 0
             accumulatedData.removeAll()
+            accumulatedAnalysisData.removeAll()
             recordingUUID = nil
             
             return result
@@ -1459,6 +1489,7 @@ class AudioStreamManager: NSObject {
         // Update total size and accumulated data
         totalDataSize += Int64(data.count)
         accumulatedData.append(data)
+        accumulatedAnalysisData.append(data)
         
         // Handle notifications if enabled
         if recordingSettings?.showNotification == true {
@@ -1534,7 +1565,21 @@ class AudioStreamManager: NSObject {
                 compressionInfo: compressionInfo
             )
             
-            // Process audio if enabled
+            // Update state after emission
+            self.lastEmissionTime = currentTime
+            self.lastEmittedSize = totalDataSize
+            accumulatedData.removeAll()
+        }
+
+
+        if let lastEmissionTimeAnalysis = lastEmissionTimeAnalysis,
+           let startTime = startTime,
+           currentTime.timeIntervalSince(lastEmissionTimeAnalysis) >= emissionIntervalAnalysis {
+            
+            let recordingTime = currentTime.timeIntervalSince(startTime)
+            let dataToProcess = accumulatedAnalysisData
+
+                       // Process audio if enabled
             if settings.enableProcessing {
                 DispatchQueue.global().async { [weak self] in
                     guard let self = self else { return }
@@ -1555,14 +1600,14 @@ class AudioStreamManager: NSObject {
                                 self.delegate?.audioStreamManager(self, didReceiveProcessingResult: result)
                             }
                         }
+
+                            // Update state after emission
+                        self.lastEmissionTimeAnalysis = currentTime
+                        self.lastEmittedSizeAnalysis = totalDataSizeAnalysis
+                        accumulatedAnalysisData.removeAll()
                     }
                 }
             }
-            
-            // Update state after emission
-            self.lastEmissionTime = currentTime
-            self.lastEmittedSize = totalDataSize
-            accumulatedData.removeAll()
         }
     }
 
