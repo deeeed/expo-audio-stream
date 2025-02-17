@@ -860,7 +860,7 @@ class AudioStreamManager: NSObject {
     }
     
     /// Pauses the current audio recording.
-    func pauseRecording() {
+    public func pauseRecording() {
         guard isRecording && !isPaused else { return }
         
         // Store the current duration when pausing
@@ -929,8 +929,8 @@ class AudioStreamManager: NSObject {
     }
     
     /// Resumes the current audio recording.
-    func resumeRecording() {
-        // Check for active call using the new method
+    public func resumeRecording() {
+        // Check for active phone call
         if isPhoneCallActive() {
             Logger.debug("Cannot resume recording during an active phone call")
             delegate?.audioStreamManager(self, didFailWithError: "Cannot resume recording during an active phone call")
@@ -987,7 +987,7 @@ class AudioStreamManager: NSObject {
         return formatDescription
     }
     
-    private func describeCommonFormat(_ format: AVAudioCommonFormat) -> String {
+    func describeCommonFormat(_ format: AVAudioCommonFormat) -> String {
         switch format {
         case .pcmFormatFloat32:
             return "32-bit float"
