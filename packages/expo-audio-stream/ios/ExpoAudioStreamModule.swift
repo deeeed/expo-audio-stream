@@ -156,7 +156,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                         }
                     }
                     
-                    if let result = self.streamManager.startRecording(settings: settings, intervalMilliseconds: settings.interval ?? 1000) {
+                    if let result = self.streamManager.startRecording(settings: settings, intervalMilliseconds: settings.interval ?? 1000, intervalMillisecondsAnalysis: settings.intervalAnalysis ?? 100) {
                         var resultDict: [String: Any] = [
                             "fileUri": result.fileUri,
                             "channels": result.channels,
