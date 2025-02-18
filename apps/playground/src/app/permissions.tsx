@@ -2,7 +2,7 @@
 import { ScreenWrapper } from '@siteed/design-system'
 import { ExpoAudioStreamModule } from '@siteed/expo-audio-stream'
 import React, { useCallback, useEffect, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Alert, Linking, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 
 import { baseLogger } from '../config'
@@ -36,10 +36,38 @@ export const PermissionsPage = () => {
             const status = await ExpoAudioStreamModule.requestPermissionsAsync()
             logger.info('[requestPermissions] Permissions status', { status })
             setPermissions(status)
+
+            // If permission is denied but can ask again, show settings alert
+            if (!status.granted && status.status === 'denied' && status.canAskAgain) {
+                Alert.alert(
+                    'Microphone Permission Required',
+                    'Please enable microphone access in your device settings to use audio features.',
+                    [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                            text: 'Open Settings',
+                            onPress: () => Linking.openSettings(),
+                        },
+                    ]
+                )
+            }
         } catch (error) {
             console.error('Error requesting permissions:', error)
         }
     }, [])
+
+    const resetPermissions = useCallback(async () => {
+        try {
+            const status = await ExpoAudioStreamModule.resetPermissionsAsync()
+            logger.info('[resetPermissions] Permissions status', { status })
+            setPermissions(status)
+            
+            // Force refresh the current status
+            await checkPermissions()
+        } catch (error) {
+            console.error('Error resetting permissions:', error)
+        }
+    }, [checkPermissions])
 
     useEffect(() => {
         checkPermissions()
@@ -65,6 +93,11 @@ export const PermissionsPage = () => {
                                     {permissions.canAskAgain ? 'Yes' : 'No'}
                                 </Text>
                             )}
+                            {!permissions.granted && (
+                                <Text style={styles.helpText}>
+                                    To enable microphone access, please go to Settings and grant permission for this app.
+                                </Text>
+                            )}
                         </>
                     )}
                 </View>
@@ -77,14 +110,33 @@ export const PermissionsPage = () => {
                     >
                         Check Permissions
                     </Button>
-                    <Button
-                        mode="contained"
-                        onPress={requestPermissions}
-                        style={styles.button}
-                        disabled={permissions?.granted}
-                    >
-                        Request Permissions
-                    </Button>
+                    {(!permissions?.granted && permissions?.canAskAgain) && (
+                        <Button
+                            mode="contained"
+                            onPress={requestPermissions}
+                            style={styles.button}
+                        >
+                            Request Permissions
+                        </Button>
+                    )}
+                    {(!permissions?.granted && !permissions?.canAskAgain) && (
+                        <Button
+                            mode="contained"
+                            onPress={() => Linking.openSettings()}
+                            style={styles.button}
+                        >
+                            Open Settings
+                        </Button>
+                    )}
+                    {__DEV__ && (
+                        <Button
+                            mode="contained-tonal"
+                            onPress={resetPermissions}
+                            style={styles.button}
+                        >
+                            Reset Permissions
+                        </Button>
+                    )}
                 </View>
             </View>
         </ScreenWrapper>
@@ -104,6 +156,11 @@ const styles = StyleSheet.create({
     },
     button: {
         alignSelf: 'flex-start',
+    },
+    helpText: {
+        marginTop: 8,
+        color: 'red',
+        fontSize: 14,
     },
 })
 
