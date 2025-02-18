@@ -414,26 +414,6 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 }
             }
         }
-
-        /// Resets audio recording permissions.
-        ///
-        /// - Parameters:
-        ///   - promise: A promise to resolve with the permission status or reject with an error.
-        /// - Returns: Promise to be resolved with the permission status.
-        AsyncFunction("resetPermissionsAsync") { (promise: Promise) in
-            // In development, we can try to reset by removing the permission status from UserDefaults
-            let bundleId = Bundle.main.bundleIdentifier ?? ""
-            UserDefaults.standard.removeObject(forKey: "AVMicrophoneUsageDescription_\(bundleId)")
-            UserDefaults.standard.removeObject(forKey: "AVAudioSessionAuthorizationStatus_\(bundleId)")
-            UserDefaults.standard.synchronize()
-            
-            promise.resolve([
-                "status": "undetermined",
-                "granted": false,
-                "expires": "never",
-                "canAskAgain": true
-            ])
-        }
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveInterruption info: [String: Any]) {

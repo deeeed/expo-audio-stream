@@ -34,14 +34,6 @@ if (Platform.OS === 'web') {
             canAskAgain: true,
         }
     }
-    ExpoAudioStreamModule.resetPermissionsAsync = async () => {
-        return {
-            status: 'undetermined',
-            granted: false,
-            expires: 'never',
-            canAskAgain: true,
-        }
-    }
 } else {
     ExpoAudioStreamModule = requireNativeModule('ExpoAudioStream')
 }

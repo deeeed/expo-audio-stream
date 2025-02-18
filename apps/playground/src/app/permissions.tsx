@@ -56,19 +56,6 @@ export const PermissionsPage = () => {
         }
     }, [])
 
-    const resetPermissions = useCallback(async () => {
-        try {
-            const status = await ExpoAudioStreamModule.resetPermissionsAsync()
-            logger.info('[resetPermissions] Permissions status', { status })
-            setPermissions(status)
-            
-            // Force refresh the current status
-            await checkPermissions()
-        } catch (error) {
-            console.error('Error resetting permissions:', error)
-        }
-    }, [checkPermissions])
-
     useEffect(() => {
         checkPermissions()
     }, [checkPermissions])
@@ -126,15 +113,6 @@ export const PermissionsPage = () => {
                             style={styles.button}
                         >
                             Open Settings
-                        </Button>
-                    )}
-                    {__DEV__ && (
-                        <Button
-                            mode="contained-tonal"
-                            onPress={resetPermissions}
-                            style={styles.button}
-                        >
-                            Reset Permissions
                         </Button>
                     )}
                 </View>
