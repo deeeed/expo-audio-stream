@@ -14,4 +14,4 @@
 
 ## Defined in
 
-[src/AudioRecorder.provider.tsx:46](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioRecorder.provider.tsx#L46)
+[src/AudioRecorder.provider.tsx:46](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioRecorder.provider.tsx#L46)

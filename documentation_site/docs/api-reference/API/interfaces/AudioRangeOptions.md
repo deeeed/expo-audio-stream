@@ -22,7 +22,7 @@ End time in milliseconds
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:102](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L102)
+[src/AudioAnalysis/AudioAnalysis.types.ts:102](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L102)
 
 ***
 
@@ -34,4 +34,4 @@ Start time in milliseconds
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:100](https://github.com/deeeed/expo-audio-stream/blob/cbc3d10661a415811f1fe46cb3acaf63451a9df9/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L100)
+[src/AudioAnalysis/AudioAnalysis.types.ts:100](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L100)
