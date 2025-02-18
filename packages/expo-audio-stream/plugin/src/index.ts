@@ -30,6 +30,8 @@ interface AudioStreamPluginOptions {
     iosConfig?: {
         allowBackgroundAudioControls?: boolean
         backgroundProcessingTitle?: string
+        microphoneUsageDescription?: string
+        notificationUsageDescription?: string
     }
 }
 
@@ -48,6 +50,10 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
             useLocation: false,
             useExternalAccessory: false,
         },
+        iosConfig: {
+            microphoneUsageDescription: MICROPHONE_USAGE,
+            notificationUsageDescription: NOTIFICATION_USAGE,
+        },
         ...(props || {}),
     }
 
@@ -61,13 +67,16 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
 
     // iOS Configuration
     config = withInfoPlist(config as any, (config) => {
-        // Base microphone permission (always required)
+        // Always set the microphone usage description from options first
         config.modResults['NSMicrophoneUsageDescription'] =
+            options.iosConfig?.microphoneUsageDescription ||
             config.modResults['NSMicrophoneUsageDescription'] ||
             MICROPHONE_USAGE
 
         if (enableNotifications) {
             config.modResults['NSUserNotificationsUsageDescription'] =
+                options.iosConfig?.notificationUsageDescription ||
+                config.modResults['NSUserNotificationsUsageDescription'] ||
                 NOTIFICATION_USAGE
             config.modResults['NSUserNotificationAlertStyle'] = 'alert'
         }

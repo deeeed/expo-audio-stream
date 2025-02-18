@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { withProjectBuildGradle } = require('@expo/config-plugins')
 
 module.exports = function withCustomGradleConfig(config) {

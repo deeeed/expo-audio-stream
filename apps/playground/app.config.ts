@@ -145,7 +145,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 },
                 iosConfig: {
                     allowBackgroundAudioControls: true,
-                    backgroundProcessingTitle: "Audio Processing"
+                    backgroundProcessingTitle: "Audio Processing",
+                    microphoneUsageDescription: "AudioPlayground needs microphone access to record your voice and audio for creating audio samples.",
+                    notificationUsageDescription: "Allow notifications to control audio recording from the notification center"
                 }
             },
         ],
