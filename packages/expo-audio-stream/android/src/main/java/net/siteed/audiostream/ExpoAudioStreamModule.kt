@@ -3,8 +3,10 @@ package net.siteed.audiostream
 import android.Manifest
 import android.app.ActivityManager
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.os.Bundle
+import android.os.Runtime
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.os.bundleOf
@@ -340,6 +342,32 @@ class ExpoAudioStreamModule : Module(), EventSender {
             }
             
             promise.resolve(status)
+        }
+
+        AsyncFunction("resetPermissionsAsync") { promise: Promise ->
+            if (appContext.reactContext?.applicationInfo?.flags?.and(ApplicationInfo.FLAG_DEBUGGABLE) == ApplicationInfo.FLAG_DEBUGGABLE) {
+                try {
+                    val context = appContext.reactContext ?: throw Exception("Context is null")
+                    
+                    // Clear permissions using shell command (requires root on some devices)
+                    val packageName = context.packageName
+                    val command = "pm reset-permissions $packageName"
+                    
+                    Runtime.getRuntime().exec(command)
+                    
+                    promise.resolve(bundleOf(
+                        "status" to "undetermined",
+                        "granted" to false,
+                        "expires" to "never",
+                        "canAskAgain" to true
+                    ))
+                } catch (e: Exception) {
+                    Log.e(Constants.TAG, "Failed to reset permissions: ${e.message}", e)
+                    promise.reject("RESET_ERROR", "Failed to reset permissions: ${e.message}", e)
+                }
+            } else {
+                promise.reject("INVALID_ENV", "resetPermissionsAsync is only available in development")
+            }
         }
     }
 

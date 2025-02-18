@@ -49,7 +49,6 @@ class AudioStreamManager: NSObject {
     internal var lastEmissionTime: Date?
     internal var lastEmittedSize: Int64 = 0
     internal var lastEmittedCompressedSize: Int64 = 0
-    private var emissionInterval: TimeInterval = 1.0 // Default to 1 second
     private var totalDataSize: Int64 = 0
     private var lastBufferTime: AVAudioTime?
     private var accumulatedData = Data()
@@ -58,7 +57,6 @@ class AudioStreamManager: NSObject {
     internal var lastEmissionTimeAnalysis: Date?
     internal var lastEmittedSizeAnalysis: Int64 = 0
     internal var lastEmittedCompressedSizeAnalysis: Int64 = 0
-    private var emissionIntervalAnalysis: TimeInterval = 1.0 // Default to 1 second
     private var totalDataSizeAnalysis: Int64 = 0
     private var lastBufferTimeAnalysis: AVAudioTime?
     private var accumulatedAnalysisData = Data()
@@ -91,6 +89,10 @@ class AudioStreamManager: NSObject {
     // Add property to track auto-resume preference
     private var autoResumeAfterInterruption: Bool = false
     
+    // Add these properties
+    private var emissionInterval: TimeInterval = 1.0  // Default 1 second
+    private var emissionIntervalAnalysis: TimeInterval = 0.5  // Default 0.5 seconds
+
     /// Initializes the AudioStreamManager
     override init() {
         super.init()
@@ -551,8 +553,8 @@ class AudioStreamManager: NSObject {
             "isPaused": isPaused,
             "mimeType": mimeType,
             "size": totalDataSize,
-            "interval": emissionInterval,
-            "intervalAnalysis": emissionIntervalAnalysis
+            "interval": settings.interval,
+            "intervalAnalysis": settings.intervalAnalysis
         ]
         
         // Add compression info if enabled
@@ -590,13 +592,11 @@ class AudioStreamManager: NSObject {
                audioSession.currentRoute.outputs.contains { $0.portType == .builtInReceiver }
     }
 
-    /// Starts a new audio recording with the specified settings and interval.
+    /// Starts a new audio recording with the specified settings.
     /// - Parameters:
     ///   - settings: The recording settings to use.
-    ///   - intervalMilliseconds: The interval in milliseconds for emitting audio data.
-    ///   - intervalMillisecondsAnalysis: The interval in milliseconds for emitting analysis data.
     /// - Returns: A StartRecordingResult object if recording starts successfully, or nil otherwise.
-    func startRecording(settings: RecordingSettings, intervalMilliseconds: Int, intervalMillisecondsAnalysis: Int) -> StartRecordingResult? {
+    func startRecording(settings: RecordingSettings) -> StartRecordingResult? {
         // Check for active call using the new method
         if isPhoneCallActive() {
             Logger.debug("Cannot start recording during an active phone call")
@@ -635,9 +635,8 @@ class AudioStreamManager: NSObject {
         let session = AVAudioSession.sharedInstance()
         var newSettings = settings
         
-        // Add these initializations back
-        emissionInterval = max(100.0, Double(intervalMilliseconds)) / 1000.0
-        emissionIntervalAnalysis = max(100.0, Double(intervalMillisecondsAnalysis)) / 1000.0
+        emissionInterval = max(100.0, Double(settings.interval ?? 1000)) / 1000.0
+        emissionIntervalAnalysis = max(100.0, Double(settings.intervalAnalysis ?? 500)) / 1000.0
         lastEmissionTime = Date()
         lastEmissionTimeAnalysis = Date()
         accumulatedData.removeAll()
@@ -699,6 +698,12 @@ class AudioStreamManager: NSObject {
                 - mode: \(mode)
                 - options: \(options)
                 - keepAwake: \(settings.keepAwake)
+                - emission interval: \(emissionInterval * 1000)ms
+                - analysis interval: \(emissionIntervalAnalysis * 1000)ms
+                - sample rate: \(settings.sampleRate)Hz
+                - channels: \(settings.numberOfChannels)
+                - bit depth: \(settings.bitDepth)-bit
+                - compression enabled: \(settings.enableCompressedOutput)
             """)
             
             try session.setPreferredSampleRate(settings.sampleRate)

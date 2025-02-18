@@ -124,6 +124,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///     - `channelConfig`: The number of channels (default is 1 for mono).
         ///     - `audioFormat`: The bit depth for recording (default is 16 bits).
         ///     - `interval`: The interval in milliseconds at which to emit recording data (default is 1000 ms).
+        ///     - `intervalAnalysis`: The interval in milliseconds at which to emit analysis data (default is 500 ms).
         ///     - `enableProcessing`: Boolean to enable/disable audio processing (default is false).
         ///     - `pointsPerSecond`: The number of data points to extract per second of audio (default is 20).
         ///     - `algorithm`: The algorithm to use for extraction (default is "rms").
@@ -156,7 +157,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                         }
                     }
                     
-                    if let result = self.streamManager.startRecording(settings: settings, intervalMilliseconds: settings.interval ?? 1000, intervalMillisecondsAnalysis: settings.intervalAnalysis ?? 100) {
+                    if let result = self.streamManager.startRecording(settings: settings) {
                         var resultDict: [String: Any] = [
                             "fileUri": result.fileUri,
                             "channels": result.channels,
@@ -412,6 +413,26 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     promise.reject("PROCESSING_ERROR", "Failed to initialize audio processor: \(error.localizedDescription)")
                 }
             }
+        }
+
+        /// Resets audio recording permissions.
+        ///
+        /// - Parameters:
+        ///   - promise: A promise to resolve with the permission status or reject with an error.
+        /// - Returns: Promise to be resolved with the permission status.
+        AsyncFunction("resetPermissionsAsync") { (promise: Promise) in
+            // In development, we can try to reset by removing the permission status from UserDefaults
+            let bundleId = Bundle.main.bundleIdentifier ?? ""
+            UserDefaults.standard.removeObject(forKey: "AVMicrophoneUsageDescription_\(bundleId)")
+            UserDefaults.standard.removeObject(forKey: "AVAudioSessionAuthorizationStatus_\(bundleId)")
+            UserDefaults.standard.synchronize()
+            
+            promise.resolve([
+                "status": "undetermined",
+                "granted": false,
+                "expires": "never",
+                "canAskAgain": true
+            ])
         }
     }
     
