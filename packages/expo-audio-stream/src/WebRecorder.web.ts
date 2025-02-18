@@ -193,6 +193,7 @@ export class WebRecorder {
                                 fullAudioDurationMs: this.position * 1000,
                                 numberOfChannels: this.numberOfChannels,
                                 features: this.config.features,
+                                intervalAnalysis: this.config.intervalAnalysis,
                             },
                             []
                         )
