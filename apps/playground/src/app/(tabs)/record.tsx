@@ -50,6 +50,7 @@ const baseRecordingConfig: RecordingConfig = {
     interval: CHUNK_DURATION_MS,
     sampleRate: WhisperSampleRate,
     keepAwake: true,
+    intervalAnalysis: 500,
     showNotification: true,
     showWaveformInNotification: true,
     encoding: 'pcm_32bit',
@@ -850,6 +851,10 @@ export default function RecordScreen() {
                         setStartRecordingConfig({
                             ...baseRecordingConfig,
                             onAudioStream: (a) => onAudioData(a),
+                            onAudioAnalysis: async (a) => {
+                                logger.log('audio analysis', a)
+                                return Promise.resolve()
+                            },
                         })
                         handleStart()
                     }}

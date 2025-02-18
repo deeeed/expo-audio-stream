@@ -7,9 +7,15 @@ import {
 } from '@siteed/design-system'
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
-import React, { useMemo } from 'react'
-import { Image, StyleSheet, View } from 'react-native'
+import React, { useMemo, useState, useCallback, memo } from 'react'
+import { Image, StyleSheet, View, Pressable } from 'react-native'
 import { Text } from 'react-native-paper'
+import { MaterialCommunityIcons } from "@expo/vector-icons"
+import Animated, {
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
+} from "react-native-reanimated"
 
 import { useReanimatedWebHack } from '../../hooks/useReanimatedWebHack'
 import { isWeb } from '../../utils/utils'
@@ -41,6 +47,75 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
 /* eslint-disable-next-line @typescript-eslint/no-var-requires, global-require */
 const logoSource = require('@assets/icon.png')
 
+const AppInfoBanner = memo(function AppInfoBanner({
+    theme,
+}: {
+    theme: AppTheme
+}) {
+    const [isExpanded, setIsExpanded] = useState(false)
+    const animatedHeight = useSharedValue(56)
+    const EXPANDED_HEIGHT = 200
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        height: animatedHeight.value,
+    }))
+
+    const toggleExpanded = useCallback(() => {
+        setIsExpanded((prev) => {
+            const newIsExpanded = !prev
+            animatedHeight.value = withTiming(newIsExpanded ? EXPANDED_HEIGHT : 56, {
+                duration: 300,
+            })
+            return newIsExpanded
+        })
+    }, [])
+
+    return (
+        <Pressable onPress={toggleExpanded}>
+            <Animated.View
+                style={[
+                    {
+                        borderRadius: 12,
+                        padding: 16,
+                        marginBottom: 16,
+                        overflow: "hidden",
+                        backgroundColor: theme.colors.tertiaryContainer,
+                    },
+                    animatedStyle,
+                ]}
+            >
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                        <Text style={{ color: theme.colors.onTertiaryContainer }}>
+                            About Audio Playground
+                        </Text>
+                    </View>
+                    <MaterialCommunityIcons
+                        name={isExpanded ? "chevron-up" : "chevron-down"}
+                        size={24}
+                        color={theme.colors.onTertiaryContainer}
+                    />
+                </View>
+
+                {isExpanded && (
+                    <Text
+                        style={{
+                            marginTop: 16,
+                            color: theme.colors.onTertiaryContainer,
+                        }}
+                    >
+                        Audio Playground is a professional audio recording application featuring advanced 
+                        real-time waveform visualization. It demonstrates high-quality audio processing 
+                        capabilities including live recording, playback, and visual representation of 
+                        audio signals. Perfect for developers and audio enthusiasts looking to understand 
+                        audio processing in mobile applications.
+                    </Text>
+                )}
+            </Animated.View>
+        </Pressable>
+    )
+})
+
 export const MoreScreen = () => {
     const router = useRouter()
     const { toggleDarkMode, darkMode, theme } = useThemePreferences()
@@ -66,6 +141,9 @@ export const MoreScreen = () => {
                 <Text>Audio PlayGround</Text>
                 <Text style={styles.version}>v{appVersion}</Text>
             </View>
+            
+            <AppInfoBanner theme={theme} />
+            
             <LabelSwitch
                 label="Dark Mode"
                 containerStyle={{
@@ -102,7 +180,7 @@ export const MoreScreen = () => {
                     margin: 0,
                 }}
                 label="Logs"
-                subLabel="Debug console logs"
+                subLabel="Console logs"
                 onPress={() => {
                     router.navigate('/logs')
                 }}
