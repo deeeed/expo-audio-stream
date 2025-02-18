@@ -66,6 +66,7 @@ eas build --profile development --platform android # for Android
 
 ```bash
 yarn build:ios:production --auto-submit
+yarn build:android:production --auto-submit
 ```
 
 ### Building Local Shareable Builds
