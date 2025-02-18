@@ -84,6 +84,10 @@ class AudioRecorderManager(
             return field
         }
 
+    private var lastEmissionTimeAnalysis = 0L
+    private val analysisBuffer = ByteArrayOutputStream()
+    private var isFirstAnalysis = true
+
     private fun initializePhoneStateListener() {
         try {
             Log.d(Constants.TAG, "Initializing phone state listener...")
@@ -671,7 +675,31 @@ class AudioRecorderManager(
 
     private fun startRecordingProcess(promise: Promise): Boolean {
         try {
-            Log.d(Constants.TAG, "Starting audio recording")
+            // Add detailed logging of recording configuration
+            Log.d(Constants.TAG, """
+                Starting audio recording with configuration:
+                - Sample Rate: ${recordingConfig.sampleRate} Hz
+                - Channels: ${recordingConfig.channels}
+                - Encoding: ${recordingConfig.encoding}
+                - Data Emission Interval: ${recordingConfig.interval}ms
+                - Analysis Interval: ${recordingConfig.intervalAnalysis}ms
+                - Processing Enabled: ${recordingConfig.enableProcessing}
+                - Points Per Second: ${recordingConfig.pointsPerSecond}
+                - Algorithm: ${recordingConfig.algorithm}
+                - Keep Awake: ${recordingConfig.keepAwake}
+                - Show Notification: ${recordingConfig.showNotification}
+                - Show Waveform: ${recordingConfig.showWaveformInNotification}
+                - Compressed Output: ${recordingConfig.enableCompressedOutput}
+                ${if (recordingConfig.enableCompressedOutput) """
+                    - Compressed Format: ${recordingConfig.compressedFormat}
+                    - Compressed Bitrate: ${recordingConfig.compressedBitRate}
+                """.trimIndent() else ""}
+                - Auto Resume: ${recordingConfig.autoResumeAfterInterruption}
+                - Output Directory: ${recordingConfig.outputDirectory ?: "default"}
+                - Filename: ${recordingConfig.filename ?: "auto-generated"}
+                - Features: ${recordingConfig.features.entries.joinToString { "${it.key}=${it.value}" }}
+            """.trimIndent())
+
             audioRecord?.startRecording()
             isPaused.set(false)
             isRecording.set(true)
@@ -969,8 +997,13 @@ class AudioRecorderManager(
         try {
             Log.i(Constants.TAG, "Starting recording process...")
             FileOutputStream(audioFile, true).use { fos ->
+                // Write audio data directly to the file
+                val audioData = ByteArray(bufferSizeInBytes)
+                Log.d(Constants.TAG, "Entering recording loop")
+                
                 // Buffer to accumulate data
                 val accumulatedAudioData = ByteArrayOutputStream()
+                val accumulatedAnalysisData = ByteArrayOutputStream()  // Separate buffer for analysis
                 audioFileHandler.writeWavHeader(
                     accumulatedAudioData,
                     recordingConfig.sampleRate,
@@ -982,17 +1015,34 @@ class AudioRecorderManager(
                         else -> 16 // Default to 16 if the encoding is not recognized
                     }
                 )
-                // Write audio data directly to the file
-                val audioData = ByteArray(bufferSizeInBytes)
-                Log.d(Constants.TAG, "Entering recording loop")
+                
+                // Initialize timing variables
+                var lastEmitTime = System.currentTimeMillis()
+                var lastEmissionTimeAnalysis = System.currentTimeMillis()
+                var isFirstAnalysis = true
+                var shouldProcessAnalysis = false
+                
+                // Debug log for intervals
+                Log.d(Constants.TAG, """
+                    Recording process started with intervals:
+                    - Data emission interval: ${recordingConfig.interval}ms
+                    - Analysis interval: ${recordingConfig.intervalAnalysis}ms
+                    - Buffer size: $bufferSizeInBytes bytes
+                """.trimIndent())
+
+                // Recording loop
                 while (isRecording.get() && !Thread.currentThread().isInterrupted) {
                     if (isPaused.get()) {
-                        // If recording is paused, skip reading from the microphone
+                        Thread.sleep(100) // Add small delay when paused
                         continue
                     }
 
+                    val currentTime = System.currentTimeMillis()
+                    val timeSinceLastAnalysis = currentTime - lastEmissionTimeAnalysis
+                    shouldProcessAnalysis = recordingConfig.enableProcessing && 
+                        (isFirstAnalysis || timeSinceLastAnalysis >= recordingConfig.intervalAnalysis)
+
                     val bytesRead = synchronized(audioRecordLock) {
-                        // Only synchronize the read operation and the check
                         audioRecord?.let {
                             if (it.state != AudioRecord.STATE_INITIALIZED) {
                                 Log.e(Constants.TAG, "AudioRecord not initialized")
@@ -1005,22 +1055,65 @@ class AudioRecorderManager(
                             }
                         } ?: -1 // Handle null case
                     }
+
                     if (bytesRead > 0) {
                         fos.write(audioData, 0, bytesRead)
                         totalDataSize += bytesRead
+                        
                         accumulatedAudioData.write(audioData, 0, bytesRead)
 
-                        // Emit audio data at defined intervals
-                        if (SystemClock.elapsedRealtime() - lastEmitTime >= recordingConfig.interval) {
+                        // Handle regular audio data emission
+                        if (currentTime - lastEmitTime >= recordingConfig.interval) {
                             emitAudioData(
                                 accumulatedAudioData.toByteArray(),
                                 accumulatedAudioData.size()
                             )
-                            lastEmitTime = SystemClock.elapsedRealtime() // Reset the timer
+                            lastEmitTime = currentTime
                             accumulatedAudioData.reset() // Clear the accumulator
                         }
-
-                        Log.d(Constants.TAG, "Bytes written to file: $bytesRead")
+                        
+                        // Handle analysis emission separately
+                        if (shouldProcessAnalysis) {
+                            val analysisDataSize = accumulatedAnalysisData.size()
+                            Log.d(Constants.TAG, """
+                                Processing analysis data:
+                                - Time since last: ${currentTime - lastEmissionTimeAnalysis}ms
+                                - Configured interval: ${recordingConfig.intervalAnalysis}ms
+                                - Accumulated size: $analysisDataSize bytes
+                                - Is first analysis: $isFirstAnalysis
+                            """.trimIndent())
+                            
+                            if (analysisDataSize > 0) {
+                                // Add this check to enforce minimum interval
+                                if (isFirstAnalysis || (currentTime - lastEmissionTimeAnalysis) >= recordingConfig.intervalAnalysis) {
+                                    // Process and emit analysis data
+                                    val analysisData = audioProcessor.processAudioData(
+                                        accumulatedAnalysisData.toByteArray(),
+                                        recordingConfig
+                                    )
+                                    
+                                    Log.d(Constants.TAG, """
+                                        Analysis data details:
+                                        - Raw data size: ${accumulatedAnalysisData.size()} bytes
+                                    """.trimIndent())
+                                    
+                                    mainHandler.post {
+                                        try {
+                                            eventSender.sendExpoEvent(
+                                                Constants.AUDIO_ANALYSIS_EVENT_NAME,
+                                                analysisData.toBundle()
+                                            )
+                                        } catch (e: Exception) {
+                                            Log.e(Constants.TAG, "Failed to send audio analysis event", e)
+                                        }
+                                    }
+                                    
+                                    lastEmissionTimeAnalysis = currentTime
+                                    accumulatedAnalysisData.reset()  // Clear the analysis accumulator
+                                    isFirstAnalysis = false
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1034,6 +1127,7 @@ class AudioRecorderManager(
             if (!isPaused.get()) {
                 releaseWakeLock()
             }
+            Log.e(Constants.TAG, "Error in recording process", e)
         }
     }
 
@@ -1120,22 +1214,41 @@ class AudioRecorderManager(
             audioData
         }
 
-        val audioAnalysisData = audioProcessor.processAudioData(dataToProcess, recordingConfig)
-        val analysisBundle = audioAnalysisData.toBundle()
+        // Accumulate data for analysis
+        if (recordingConfig.enableProcessing) {
+            synchronized(analysisBuffer) {
+                analysisBuffer.write(dataToProcess)
+            }
+            
+            val currentTime = SystemClock.elapsedRealtime()
+            if (isFirstAnalysis || (currentTime - lastEmissionTimeAnalysis) >= recordingConfig.intervalAnalysis) {
+                synchronized(analysisBuffer) {
+                    if (analysisBuffer.size() > 0) {
+                        val analysisData = audioProcessor.processAudioData(
+                            analysisBuffer.toByteArray(),
+                            recordingConfig
+                        )
+                        
+                        mainHandler.post {
+                            eventSender.sendExpoEvent(
+                                Constants.AUDIO_ANALYSIS_EVENT_NAME,
+                                analysisData.toBundle()
+                            )
+                        }
+                        
+                        // Reset buffer after processing
+                        analysisBuffer.reset()
+                        lastEmissionTimeAnalysis = currentTime
+                        isFirstAnalysis = false
+                    }
+                }
+            }
+        }
 
+        // Only update notification if needed
         if (recordingConfig.showNotification && recordingConfig.showWaveformInNotification) {
             val floatArray = convertByteArrayToFloatArray(audioData)
             notificationManager.updateNotification(floatArray)
-        }
-
-        mainHandler.post {
-            try {
-                eventSender.sendExpoEvent(
-                    Constants.AUDIO_ANALYSIS_EVENT_NAME, analysisBundle
-                )
-            } catch (e: Exception) {
-                Log.e(Constants.TAG, "Failed to send audio analysis event", e)
-            }
         }
 
         // Reset isFirstChunk after processing
