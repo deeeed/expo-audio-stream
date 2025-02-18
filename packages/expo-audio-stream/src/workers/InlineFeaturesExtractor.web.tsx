@@ -1,6 +1,8 @@
 export const InlineFeaturesExtractor = `
 // Unique ID counter
 let uniqueIdCounter = 0
+let accumulatedDataPoints = [] // Move outside message handler
+let lastEmitTime = Date.now() // Move outside message handler
 
 self.onmessage = function (event) {
     const {
@@ -12,6 +14,7 @@ self.onmessage = function (event) {
         fullAudioDurationMs,
         numberOfChannels,
         features: _features,
+        intervalAnalysis = 500, // Use intervalAnalysis instead of interval
     } = event.data
     const features = _features || {}
 
@@ -295,10 +298,24 @@ self.onmessage = function (event) {
             pointsPerSecond,
             algorithm
         )
-        self.postMessage({
-            command: 'features',
-            result,
-        })
+
+        // Accumulate data points
+        accumulatedDataPoints = accumulatedDataPoints.concat(result.dataPoints)
+        
+        const currentTime = Date.now()
+        const shouldEmitAccumulated = currentTime - lastEmitTime >= intervalAnalysis
+
+        if (shouldEmitAccumulated) {
+            self.postMessage({
+                command: 'features',
+                result: {
+                    ...result,
+                    dataPoints: accumulatedDataPoints
+                }
+            })
+            accumulatedDataPoints = [] // Reset accumulator
+            lastEmitTime = currentTime
+        }
     } catch (error) {
         console.error('[AudioFeaturesExtractor] Error in processing', error)
         self.postMessage({ error: error.message })

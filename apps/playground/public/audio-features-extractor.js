@@ -2,6 +2,8 @@
 
 // Unique ID counter
 let uniqueIdCounter = 0
+let accumulatedDataPoints = [] // Add accumulator
+let lastEmitTime = Date.now() // Add timer
 
 self.onmessage = function (event) {
     const {
@@ -13,6 +15,7 @@ self.onmessage = function (event) {
         fullAudioDurationMs,
         numberOfChannels,
         features: _features,
+        intervalAnalysis = 500, // Add intervalAnalysis parameter
     } = event.data
 
     console.log('[AudioFeaturesExtractor] Worker received message', event.data)
@@ -313,10 +316,24 @@ self.onmessage = function (event) {
             pointsPerSecond,
             algorithm
         )
-        self.postMessage({
-            command: 'features',
-            result,
-        })
+
+        // Accumulate data points
+        accumulatedDataPoints = accumulatedDataPoints.concat(result.dataPoints)
+        
+        const currentTime = Date.now()
+        const shouldEmitAccumulated = currentTime - lastEmitTime >= intervalAnalysis
+
+        if (shouldEmitAccumulated) {
+            self.postMessage({
+                command: 'features',
+                result: {
+                    ...result,
+                    dataPoints: accumulatedDataPoints
+                }
+            })
+            accumulatedDataPoints = [] // Reset accumulator
+            lastEmitTime = currentTime
+        }
     } catch (error) {
         console.error('[AudioFeaturesExtractor] Error in processing', error)
         self.postMessage({ error: error.message })

@@ -46,9 +46,11 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
     currentDurationMs: number
     currentSize: number
     currentInterval: number
+    currentIntervalAnalysis: number
     lastEmittedSize: number
     lastEmittedTime: number
     lastEmittedCompressionSize: number
+    lastEmittedAnalysisTime: number
     streamUuid: string | null
     extension: 'webm' | 'wav' = 'wav' // Default extension is 'wav'
     recordingConfig?: RecordingConfig
@@ -87,10 +89,12 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         this.currentSize = 0
         this.bitDepth = 32 // Default
         this.currentInterval = 1000 // Default interval in ms
+        this.currentIntervalAnalysis = 500 // Default analysis interval in ms
         this.lastEmittedSize = 0
         this.lastEmittedTime = 0
         this.latestPosition = 0
         this.lastEmittedCompressionSize = 0
+        this.lastEmittedAnalysisTime = 0
         this.streamUuid = null // Initialize UUID on first recording start
         this.audioWorkletUrl = audioWorkletUrl
         this.featuresExtratorUrl = featuresExtratorUrl
@@ -172,6 +176,9 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         this.lastEmittedSize = 0
         this.lastEmittedTime = 0
         this.lastEmittedCompressionSize = 0
+        this.currentInterval = recordingConfig.interval ?? 1000
+        this.currentIntervalAnalysis = recordingConfig.intervalAnalysis ?? 500
+        this.lastEmittedAnalysisTime = Date.now()
 
         // Use custom filename if provided, otherwise fallback to timestamp
         if (recordingConfig.filename) {
@@ -335,6 +342,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             durationMs: this.currentDurationMs,
             size: this.currentSize,
             interval: this.currentInterval,
+            intervalAnalysis: this.currentIntervalAnalysis,
             mimeType: `audio/${this.extension}`,
             compression: this.recordingConfig?.compression?.enabled
                 ? {
