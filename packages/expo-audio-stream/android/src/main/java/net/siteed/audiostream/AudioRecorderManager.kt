@@ -639,7 +639,16 @@ class AudioRecorderManager(
     private fun initializeRecordingResources(fileExtension: String, promise: Promise): Boolean {
         try {
             streamUuid = java.util.UUID.randomUUID().toString()
-            audioFile = createRecordingFile(recordingConfig)
+
+            val existingFileURI = recordingConfig.outputDirectory + recordingConfig.filename
+
+            if (File(existingFileURI).exists()) {
+                audioFile = File(existingFileURI)
+                Log.d(Constants.TAG, "Using existing file at: $existingFileURI")
+            } else {
+                audioFile = createRecordingFile(recordingConfig)
+            }
+
             totalDataSize = 0
 
             FileOutputStream(audioFile, true).use { fos ->
@@ -1302,8 +1311,26 @@ class AudioRecorderManager(
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun initializeCompressedRecorder(fileExtension: String, promise: Promise): Boolean {
         try {
-            // Pass true to indicate this is a compressed file
-            compressedFile = createRecordingFile(recordingConfig, isCompressed = true)
+            var baseFilename: String? = null
+            var existingCompressedFileURI: String? = null
+
+            // Set baseFilename if filename exists
+            if (recordingConfig.filename != null) {
+                baseFilename = recordingConfig.filename.substringBeforeLast('.', recordingConfig.filename)
+            }
+
+            // Set existingCompressedFileURI if both outputDirectory and baseFilename exist
+            if (recordingConfig.outputDirectory != null && baseFilename != null) {
+                existingCompressedFileURI = recordingConfig.outputDirectory + File.separator + baseFilename + "." + fileExtension
+            }
+
+            // Check if file exists and both required values are defined
+            if (baseFilename != null && existingCompressedFileURI != null && File(existingCompressedFileURI).exists()) {
+                compressedFile = File(existingCompressedFileURI)
+                Log.d(Constants.TAG, "Using existing compressed file at: $existingCompressedFileURI")
+            } else {
+                compressedFile = createRecordingFile(recordingConfig, isCompressed = true)
+            }
             
             compressedRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 MediaRecorder(context)

@@ -648,9 +648,23 @@ class AudioStreamManager: NSObject {
         lastEmittedCompressedSizeAnalysis = 0
         isPaused = false
 
-        
-        // Create recording file first
-        recordingFileURL = createRecordingFile()
+        if let outputDirectory = settings.outputDirectory,
+        let filename = settings.filename {
+            let combinedPath = (outputDirectory as NSString).appendingPathComponent(filename)
+            if FileManager.default.fileExists(atPath: combinedPath) {
+                self.recordingFileURL = URL(fileURLWithPath: combinedPath)
+                Logger.debug("Using existing file at: \(combinedPath)")
+            }
+        }
+        // Create recording file only if not already set
+        if recordingFileURL == nil {
+            recordingFileURL = createRecordingFile()
+            if recordingFileURL == nil {
+                Logger.debug("Error: Failed to create recording file.")
+                return nil
+            }
+        }
+
         if recordingFileURL == nil {
             Logger.debug("Error: Failed to create recording file.")
             return nil
@@ -761,8 +775,18 @@ class AudioStreamManager: NSObject {
                     ]
                     
                     Logger.debug("Initializing compressed recording with settings: \(compressedSettings)")
+
                     
-                    compressedFileURL = createRecordingFile(isCompressed: true)
+                    if let recordingURL = self.recordingFileURL {
+                        let recordingPath = recordingURL.deletingPathExtension().path
+                        let compressedPath = recordingPath + "." + settings.compressedFormat.lowercased()
+                        compressedFileURL = URL(fileURLWithPath: compressedPath)
+                        Logger.debug("Using derived compressed file URL: \(compressedPath)")
+                    } else {
+                        // Fall back to creating new file if no recording URL exists
+                        compressedFileURL = createRecordingFile(isCompressed: true)
+                        Logger.debug("Created new compressed file URL: \(String(describing: compressedFileURL))")
+                    }
                     
                     if let url = compressedFileURL {
                         Logger.debug("Using compressed file URL: \(url.path)")
