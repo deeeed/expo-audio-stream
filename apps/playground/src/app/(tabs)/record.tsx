@@ -50,7 +50,7 @@ const baseRecordingConfig: RecordingConfig = {
     interval: CHUNK_DURATION_MS,
     sampleRate: WhisperSampleRate,
     keepAwake: true,
-    intervalAnalysis: 500,
+    intervalAnalysis: CHUNK_DURATION_MS,
     showNotification: true,
     showWaveformInNotification: true,
     encoding: 'pcm_32bit',
