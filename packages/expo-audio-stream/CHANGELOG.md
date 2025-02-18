@@ -6,11 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+
+## [1.17.0] - 2025-02-18
+### Changed
 - feat(web): add audio interval analysis ([281b7e6](https://github.com/deeeed/expo-audio-stream/commit/281b7e6b1136afe0569450a9d1e3d5f01da7af28))
 - feat(android): implement interval visualization android ([7e9678e](https://github.com/deeeed/expo-audio-stream/commit/7e9678e23b82d8fd3d032fb1d802c925dcff254a))
 - feat(playground): implement intervalAnalysis and validate iOS settings (#126) ([3d35adf](https://github.com/deeeed/expo-audio-stream/commit/3d35adfcc68593c39a72a5e72b7ddf1e6ce6f1fd))
 - feat(ios): Make it possible to set a different interval for the audio analysis (#125) ([10a914e](https://github.com/deeeed/expo-audio-stream/commit/10a914e853deb66f9c3dec1845cab4cfcd34c6da))
-
 ## [1.16.0] - 2025-02-17
 ### Changed
 - fix(expo-audio-stream): prevent adding iOS background modes when disabled ([5c9d09c](https://github.com/deeeed/expo-audio-stream/commit/5c9d09c715ce008fe72177431224a10f5fd7a865))
@@ -132,7 +135,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.16.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.17.0...HEAD
+[1.17.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.16.0...@siteed/expo-audio-stream@1.17.0
 [1.16.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.15.1...@siteed/expo-audio-stream@1.16.0
 [1.15.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.15.0...@siteed/expo-audio-stream@1.15.1
 [1.15.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.14.2...@siteed/expo-audio-stream@1.15.0
