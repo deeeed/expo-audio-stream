@@ -169,7 +169,7 @@ export interface RecordingConfig {
     // iOS-specific configuration
     ios?: IOSConfig
 
-    // Number of data points to extract per second of audio (default is 1000)
+    // Number of data points to extract per second of audio (default is 10)
     pointsPerSecond?: number
 
     // Algorithm to use for amplitude computation (default is "rms")
