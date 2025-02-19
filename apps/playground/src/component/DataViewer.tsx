@@ -78,6 +78,7 @@ export const DataPointViewer = ({ dataPoint }: DataPointViewerProps) => {
             </View>
             <EditableInfoCard
                 label="Features"
+                multiline
                 value={JSON.stringify(dataPoint.features ?? {}, null, 2)}
                 containerStyle={{ margin: 0 }}
             />

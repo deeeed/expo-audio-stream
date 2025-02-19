@@ -135,6 +135,7 @@ export const AudioFilesProvider = ({
                             const jsonData = await FileSystem.readAsStringAsync(
                                 `${directoryUri}${jsonFile}`
                             )
+                            logger.log('jsonData:', jsonData)
                             const metadata = JSON.parse(jsonData)
                             const baseName = jsonFile.replace('.json', '')
                             

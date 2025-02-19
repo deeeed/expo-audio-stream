@@ -383,10 +383,10 @@ export const AudioRecordingView = ({
                 const position = selectedDataPoint.startPosition ?? 0
                 const length = (selectedDataPoint.endPosition ?? 0) - (selectedDataPoint.startPosition ?? 0)
                 let byteArray: Uint8Array = new Uint8Array()
-
+    
                 // Check if the file is compressed (opus or aac)
-                const isCompressedFormat = audioUri.toLowerCase().match(/\.(opus|aac)$/);
-
+                const isCompressedFormat = audioUri.toLowerCase().match(/\.(opus|aac)$/)
+    
                 if (isWeb) {
                     const response = await fetch(audioUri, {
                         headers: {
@@ -395,34 +395,40 @@ export const AudioRecordingView = ({
                     })
                     const step = await response.text()
                     byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
-                } else if (isCompressedFormat) {
-                    // For compressed formats, we need to read the whole file and slice it
-                    const fileUri = audioUri.startsWith('file://') ? audioUri : `file://${audioUri}`
-                    const response = await FileSystem.readAsStringAsync(fileUri, {
-                        encoding: FileSystem.EncodingType.Base64,
-                    })
-                    const fullArray = Uint8Array.from(atob(response), c => c.charCodeAt(0))
-                    byteArray = fullArray.slice(position, position + length)
                 } else {
-                    // For WAV files, we can read specific portions
-                    const fileData = await FileSystem.readAsStringAsync(
-                        audioUri,
-                        {
+                    // Ensure proper file:// prefix for native platforms
+                    const fileUri = audioUri.startsWith('file://') 
+                        ? audioUri 
+                        : `file://${audioUri}`
+    
+                    // For compressed formats, read the whole file and slice it
+                    if (isCompressedFormat) {
+                        const response = await FileSystem.readAsStringAsync(fileUri, {
                             encoding: FileSystem.EncodingType.Base64,
-                            position: selectedDataPoint.startPosition,
-                            length,
-                        }
-                    )
-                    const step = atob(fileData)
-                    byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
+                        })
+                        const fullArray = Uint8Array.from(atob(response), c => c.charCodeAt(0))
+                        byteArray = fullArray.slice(position, position + length)
+                    } else {
+                        // For WAV files, read specific portions
+                        const response = await FileSystem.readAsStringAsync(
+                            fileUri,
+                            {
+                                encoding: FileSystem.EncodingType.Base64,
+                                position: selectedDataPoint.startPosition,
+                                length,
+                            }
+                        )
+                        const step = atob(response)
+                        byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
+                    }
                 }
-
+    
                 setHexByteArray(byteArray)
             } catch (error) {
                 logger.error('Failed to load hex data', error)
                 show({ 
                     type: 'error', 
-                    message: 'Failed to load audio data segment' 
+                    message: `Failed to load audio data segment: ${error instanceof Error ? error.message : 'Unknown error'}` 
                 })
             }
         }
@@ -564,6 +570,12 @@ export const AudioRecordingView = ({
 
             {processing && <ActivityIndicator />}
 
+            {!audioAnalysis && (
+                <View style={styles.infoSection}>
+                    <Text>No analysis available</Text>
+                </View>
+            )}
+
             {audioAnalysis && (
                 <View style={styles.infoSection}>
                     <EditableInfoCard
@@ -574,6 +586,7 @@ export const AudioRecordingView = ({
                             backgroundColor: theme.colors.surface,
                         }}
                         editable
+                        multiline
                         onEdit={async () => {
                             logger.log('Edit analysis config')
                             openDrawer({

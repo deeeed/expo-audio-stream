@@ -65,7 +65,7 @@ export const PlayPage = () => {
     const [audioBuffer, setAudioBuffer] = useState<Float32Array | string>()
     const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
     const [enableTranscription, setEnableTranscription] =
-        useState<boolean>(true)
+        useState<boolean>(isWeb)
     const [transcript, setTranscript] = useState<TranscriberData>()
     const audioBufferRef = useRef<ArrayBuffer | null>(null)
     const { show } = useToast()
@@ -222,7 +222,7 @@ export const PlayPage = () => {
                 arrayBuffer,
                 pointsPerSecond: 10,
             })
-            logger.info(`AudioAnalysis:`, audioAnalysis)
+            logger.info(`AudioAnalysis computed in ${performance.now() - startAudioAnalysis}ms`)
             setAudioAnalysis(audioAnalysis)
             timings['Audio Analysis'] = performance.now() - startAudioAnalysis
 
@@ -309,7 +309,7 @@ export const PlayPage = () => {
                 skipWavHeader: false,
             })
 
-            logger.log('pcmValues:', pcmValues)
+            logger.log('pcmValues:', pcmValues.length)
             setAudioBuffer(pcmValues)
         } catch (error) {
             logger.error('Error saving file to files:', error)
@@ -328,6 +328,7 @@ export const PlayPage = () => {
             sampleRate: wavMetadata.sampleRate,
             channels: wavMetadata.numChannels,
             bitDepth: wavMetadata.bitDepth,
+            analysisData: audioAnalysis,
         }
 
         try {
@@ -367,7 +368,7 @@ export const PlayPage = () => {
             await removeFile(audioResult)
             throw error
         }
-    }, [fileName, audioUri, files, show, transcript, refreshFiles, removeFile])
+    }, [fileName, audioUri, files, show, transcript, refreshFiles, removeFile, audioAnalysis])
 
     const handleSelectChunk = ({ chunk }: { chunk: Chunk }) => {
         if (chunk.timestamp && chunk.timestamp.length > 0) {
@@ -386,12 +387,14 @@ export const PlayPage = () => {
 
     return (
         <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
-            <LabelSwitch
-                label="Transcription"
-                value={enableTranscription}
-                containerStyle={styles.labelSwitchContainer}
-                onValueChange={setEnableTranscription}
-            />
+            {isWeb && (
+                <LabelSwitch
+                    label="Transcription"
+                    value={enableTranscription}
+                    containerStyle={styles.labelSwitchContainer}
+                    onValueChange={setEnableTranscription}
+                />
+            )}
             <LabelSwitch
                 label="Show Visualizer"
                 value={showVisualizer}
@@ -447,7 +450,7 @@ export const PlayPage = () => {
                             />
                         </View>
                     )}
-                    {enableTranscription && audioBuffer && (
+                    {enableTranscription && audioBuffer && isWeb && (
                         <View>
                             <Transcriber
                                 fullAudio={audioBuffer}
