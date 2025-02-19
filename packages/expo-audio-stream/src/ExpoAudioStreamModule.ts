@@ -19,19 +19,63 @@ if (Platform.OS === 'web') {
         return instance
     }
     ExpoAudioStreamModule.requestPermissionsAsync = async () => {
-        return {
-            status: 'granted',
-            granted: true,
-            expires: 'never',
-            canAskAgain: true,
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+            })
+            stream.getTracks().forEach((track) => track.stop())
+            return {
+                status: 'granted',
+                expires: 'never',
+                canAskAgain: true,
+                granted: true,
+            }
+        } catch {
+            return {
+                status: 'denied',
+                expires: 'never',
+                canAskAgain: true,
+                granted: false,
+            }
         }
     }
     ExpoAudioStreamModule.getPermissionsAsync = async () => {
-        return {
-            status: 'granted',
-            granted: true,
-            expires: 'never',
-            canAskAgain: true,
+        let maybeStatus: string | null = null
+
+        if (
+            !navigator ||
+            !navigator.permissions ||
+            !navigator.permissions.query
+        ) {
+            maybeStatus = null
+        } else {
+            try {
+                const { state } = await navigator.permissions.query({
+                    name: 'microphone' as PermissionName,
+                })
+                maybeStatus = state
+            } catch {
+                maybeStatus = null
+            }
+        }
+
+        switch (maybeStatus) {
+            case 'granted':
+                return {
+                    status: 'granted',
+                    expires: 'never',
+                    canAskAgain: true,
+                    granted: true,
+                }
+            case 'denied':
+                return {
+                    status: 'denied',
+                    expires: 'never',
+                    canAskAgain: true,
+                    granted: false,
+                }
+            default:
+                return await ExpoAudioStreamModule.requestPermissionsAsync()
         }
     }
 } else {
