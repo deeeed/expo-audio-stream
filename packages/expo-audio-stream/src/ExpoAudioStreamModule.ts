@@ -42,13 +42,7 @@ if (Platform.OS === 'web') {
     ExpoAudioStreamModule.getPermissionsAsync = async () => {
         let maybeStatus: string | null = null
 
-        if (
-            !navigator ||
-            !navigator.permissions ||
-            !navigator.permissions.query
-        ) {
-            maybeStatus = null
-        } else {
+        if (navigator?.permissions?.query) {
             try {
                 const { state } = await navigator.permissions.query({
                     name: 'microphone' as PermissionName,
