@@ -520,6 +520,9 @@ func computeFeatures(segmentData: [Float], sampleRate: Float, sumSquares: Float,
     let spectralContrast = featureOptions["spectralContrast"] == true ? computeSpectralContrast(from: segmentData, sampleRate: sampleRate) : []
     let tonnetz = featureOptions["tonnetz"] == true ? computeTonnetz(from: segmentData, sampleRate: sampleRate) : []
     
+    // Add pitch calculation
+    let pitch = featureOptions["pitch"] == true ? estimatePitch(from: segmentData, sampleRate: sampleRate) : nil
+    
     return Features(
         energy: energy,
         mfcc: mfcc,
@@ -527,9 +530,58 @@ func computeFeatures(segmentData: [Float], sampleRate: Float, sumSquares: Float,
         minAmplitude: minAmplitude,
         maxAmplitude: maxAmplitude,
         zcr: zcr,
+        spectralCentroid: extractSpectralCentroid(from: segmentData, sampleRate: sampleRate),
+        spectralFlatness: extractSpectralFlatness(from: segmentData),
+        spectralRollOff: extractSpectralRollOff(from: segmentData, sampleRate: sampleRate),
+        spectralBandwidth: extractSpectralBandwidth(from: segmentData, sampleRate: sampleRate),
         chromagram: chromagram,
+        tempo: extractTempo(from: segmentData, sampleRate: sampleRate),
+        hnr: extractHNR(from: segmentData),
         melSpectrogram: melSpectrogram,
         spectralContrast: spectralContrast,
-        tonnetz: tonnetz
+        tonnetz: tonnetz,
+        pitch: pitch
     )
+}
+
+private func nextPowerOfTwo(_ n: Int) -> Int {
+    var power = 1
+    while power < n {
+        power *= 2
+    }
+    return power
+}
+
+func estimatePitch(from segment: [Float], sampleRate: Float) -> Float {
+    guard segment.count >= 2 else { return 0.0 }
+    
+    // Apply a Hann window to reduce edge effects
+    let windowed = applyHannWindow(to: segment)
+    
+    // Pad the signal for FFT
+    let fftLength = nextPowerOfTwo(segment.count * 2 - 1)
+    var padded = windowed + [Float](repeating: 0, count: fftLength - windowed.count)
+    let fft = FFT(fftLength)
+    fft.realForward(&padded)
+    
+    // Compute autocorrelation using FFT
+    var autocorrelation = [Float](repeating: 0, count: fftLength)
+    vDSP_conv(segment, 1, segment.reversed(), 1, &autocorrelation, 1, vDSP_Length(segment.count), vDSP_Length(segment.count))
+    
+    // Find the first peak within the pitch range (50-500 Hz)
+    let minLag = Int(sampleRate / 500.0) // Max frequency
+    let maxLag = Int(sampleRate / 50.0)  // Min frequency
+    var maxCorr: Float = -1.0
+    var pitchLag = 0
+    
+    // Skip the first few samples to avoid the zero-lag peak
+    for lag in minLag...maxLag {
+        if autocorrelation[lag] > maxCorr {
+            maxCorr = autocorrelation[lag]
+            pitchLag = lag
+        }
+    }
+    
+    // Convert lag to frequency (sampleRate / lag)
+    return pitchLag > 0 ? sampleRate / Float(pitchLag) : 0.0
 }

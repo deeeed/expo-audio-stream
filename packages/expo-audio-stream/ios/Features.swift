@@ -24,6 +24,7 @@ public struct Features {
     var melSpectrogram: [Float]?
     var spectralContrast: [Float]?
     var tonnetz: [Float]?
+    var pitch: Float?
     
     init(
         energy: Float = 0,
@@ -41,7 +42,8 @@ public struct Features {
         hnr: Float? = nil,
         melSpectrogram: [Float]? = nil,
         spectralContrast: [Float]? = nil,
-        tonnetz: [Float]? = nil
+        tonnetz: [Float]? = nil,
+        pitch: Float? = nil
     ) {
         self.energy = energy
         self.mfcc = mfcc
@@ -59,6 +61,7 @@ public struct Features {
         self.melSpectrogram = melSpectrogram
         self.spectralContrast = spectralContrast
         self.tonnetz = tonnetz
+        self.pitch = pitch
     }
 }
 
@@ -80,7 +83,8 @@ extension Features {
             "hnr": hnr ?? 0,
             "melSpectrogram": melSpectrogram ?? [],
             "spectralContrast": spectralContrast ?? [],
-            "tonnetz": tonnetz ?? []
+            "tonnetz": tonnetz ?? [],
+            "pitch": pitch ?? 0
         ]
     }
 }

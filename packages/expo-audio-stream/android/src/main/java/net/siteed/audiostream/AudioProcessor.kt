@@ -394,6 +394,8 @@ class AudioProcessor(private val filesDir: File) {
             emptyList()
         }
 
+        val pitch = if (featureOptions["pitch"] == true) estimatePitch(segmentData, sampleRate) else 0.0f
+
         return Features(
             energy = energy,
             mfcc = mfcc,
@@ -410,7 +412,8 @@ class AudioProcessor(private val filesDir: File) {
             melSpectrogram = melSpectrogram,
             chromagram = chroma,
             spectralContrast = spectralContrast,
-            tonnetz = tonnetz
+            tonnetz = tonnetz,
+            pitch = pitch
         )
     }
 
@@ -1690,5 +1693,56 @@ class AudioProcessor(private val filesDir: File) {
         }
         
         return tonnetz
+    }
+
+    private fun nextPowerOfTwo(n: Int): Int {
+        var value = 1
+        while (value < n) {
+            value *= 2
+        }
+        return value
+    }
+
+    private fun estimatePitch(segment: FloatArray, sampleRate: Float): Float {
+        if (segment.size < 2) return 0.0f
+
+        // Apply Hann window
+        val windowed = applyHannWindow(segment)
+
+        // Pad for FFT
+        val fftLength = nextPowerOfTwo(segment.size * 2 - 1)
+        val padded = windowed.copyOf(fftLength)
+        val fft = FFT(fftLength)
+        fft.realForward(padded)
+
+        // Compute power spectrum
+        val powerSpectrum = FloatArray(fftLength / 2 + 1)
+        for (i in powerSpectrum.indices) {
+            val re = padded[2 * i]
+            val im = if (2 * i + 1 < padded.size) padded[2 * i + 1] else 0f
+            powerSpectrum[i] = re * re + im * im
+        }
+
+        // Inverse FFT to get autocorrelation
+        val autocorrelation = FloatArray(fftLength)
+        fft.realInverse(powerSpectrum, autocorrelation)
+
+        // Normalize autocorrelation
+        val normFactor = 1.0f / fftLength
+        autocorrelation.forEachIndexed { index, value -> autocorrelation[index] = value * normFactor }
+
+        // Find the first peak within pitch range (50-500 Hz)
+        val minLag = (sampleRate / 500.0f).toInt()
+        val maxLag = (sampleRate / 50.0f).toInt()
+        var maxCorr = -1.0f
+        var pitchLag = 0
+        for (lag in minLag..maxLag) {
+            if (autocorrelation[lag] > maxCorr) {
+                maxCorr = autocorrelation[lag]
+                pitchLag = lag
+            }
+        }
+
+        return if (pitchLag > 0) sampleRate / pitchLag else 0.0f
     }
 }

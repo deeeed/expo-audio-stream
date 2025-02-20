@@ -70,4 +70,30 @@ class FFT(private val n: Int) {
             data[i + n / 2] = even[i] - t
         }
     }
+
+    fun realInverse(powerSpectrum: FloatArray, output: FloatArray) {
+        // Copy power spectrum to complex format for inverse FFT
+        val complexData = FloatArray(n * 2)
+        for (i in 0 until n/2 + 1) {
+            complexData[2 * i] = powerSpectrum[i]
+            if (2 * i + 1 < complexData.size) {
+                complexData[2 * i + 1] = 0f
+            }
+        }
+
+        // Conjugate for inverse FFT
+        for (i in 0 until n) {
+            if (2 * i + 1 < complexData.size) {
+                complexData[2 * i + 1] = -complexData[2 * i + 1]
+            }
+        }
+
+        // Perform forward FFT (which is inverse when input is conjugated)
+        realForward(complexData)
+
+        // Copy real part to output and conjugate again
+        for (i in 0 until n) {
+            output[i] = complexData[2 * i] / n
+        }
+    }
 }
