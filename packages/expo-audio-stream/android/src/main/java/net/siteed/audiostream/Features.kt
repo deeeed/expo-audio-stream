@@ -20,7 +20,8 @@ data class Features(
     val chromagram: List<Float> = emptyList(),
     val spectralContrast: List<Float> = emptyList(),
     val tonnetz: List<Float> = emptyList(),
-    val pitch: Float = 0f
+    val pitch: Float = 0f,
+    val dataChecksum: Int = 0
 ) {
     fun toDictionary(): Map<String, Any> {
         return mapOf(
@@ -40,7 +41,8 @@ data class Features(
             "chromagram" to chromagram,
             "spectralContrast" to spectralContrast,
             "tonnetz" to tonnetz,
-            "pitch" to pitch
+            "pitch" to pitch,
+            "dataChecksum" to dataChecksum
         )
     }
 
@@ -62,7 +64,33 @@ data class Features(
             "chromagram" to chromagram,
             "spectralContrast" to spectralContrast,
             "tonnetz" to tonnetz,
-            "pitch" to pitch
+            "pitch" to pitch,
+            "dataChecksum" to dataChecksum
         )
+    }
+
+    companion object {
+        fun parseFeatureOptions(options: Map<*, *>?): Map<String, Boolean> {
+            return options?.let { map ->
+                mapOf(
+                    "energy" to (map["energy"] as? Boolean ?: false),
+                    "mfcc" to (map["mfcc"] as? Boolean ?: false),
+                    "rms" to (map["rms"] as? Boolean ?: false),
+                    "zcr" to (map["zcr"] as? Boolean ?: false),
+                    "dB" to (map["dB"] as? Boolean ?: false),
+                    "spectralCentroid" to (map["spectralCentroid"] as? Boolean ?: false),
+                    "spectralFlatness" to (map["spectralFlatness"] as? Boolean ?: false),
+                    "spectralRollOff" to (map["spectralRollOff"] as? Boolean ?: false),
+                    "spectralBandwidth" to (map["spectralBandwidth"] as? Boolean ?: false),
+                    "chromagram" to (map["chromagram"] as? Boolean ?: false),
+                    "tempo" to (map["tempo"] as? Boolean ?: false),
+                    "hnr" to (map["hnr"] as? Boolean ?: false),
+                    "melSpectrogram" to (map["melSpectrogram"] as? Boolean ?: false),
+                    "spectralContrast" to (map["spectralContrast"] as? Boolean ?: false),
+                    "tonnetz" to (map["tonnetz"] as? Boolean ?: false),
+                    "pitch" to (map["pitch"] as? Boolean ?: false)
+                )
+            } ?: emptyMap()
+        }
     }
 }

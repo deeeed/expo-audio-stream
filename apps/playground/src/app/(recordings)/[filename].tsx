@@ -114,6 +114,7 @@ export const FullAudioViewerPage = () => {
                     recording={selectedFile}
                     audioAnalysis={selectedFile.analysisData}
                     visualConfig={config}
+                    extractAnalysis={true}
                     showTranscript
                     onDelete={async () => {
                         if (!selectedFile) return

@@ -31,6 +31,7 @@ export interface AudioFeatures {
     spectralContrast: number[] // Spectral contrast features representing the difference between peaks and valleys.
     tonnetz: number[] // Tonal network features representing harmonic relationships.
     pitch: number // Pitch of the audio signal, measured in Hertz (Hz).
+    dataChecksum: number // Checksum of the audio signal, used to verify the integrity of the audio.
 }
 
 /**

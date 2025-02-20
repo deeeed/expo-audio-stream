@@ -20,6 +20,7 @@ public struct DataPoint {
     public var startPosition: Int?
     public var endPosition: Int?
     public var speaker: Int?
+    public var samples: Int?
 }
 
 extension DataPoint {
@@ -35,7 +36,8 @@ extension DataPoint {
             "endTime": endTime ?? 0,
             "startPosition": startPosition ?? 0,
             "endPosition": endPosition ?? 0,
-            "speaker": speaker ?? 0
+            "speaker": speaker ?? 0,
+            "samples": samples ?? 0
         ]
     }
 }

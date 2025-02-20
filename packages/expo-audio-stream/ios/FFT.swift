@@ -39,12 +39,16 @@ class FFT {
                         &realOut,
                         &imagOut)
         
+        // Ensure data array has enough space for both real and imaginary parts
+        if data.count < 2 * length {
+            data.append(contentsOf: [Float](repeating: 0.0, count: 2 * length - data.count))
+        }
+        
         // Combine real and imaginary parts
         for i in 0..<length {
-            data[2*i] = realOut[i]
-            if 2*i + 1 < data.count {
-                data[2*i + 1] = imagOut[i]
-            }
+            let j = i * 2
+            data[j] = realOut[i]
+            data[j + 1] = imagOut[i]
         }
     }
     

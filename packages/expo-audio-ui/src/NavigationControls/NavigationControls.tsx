@@ -1,6 +1,7 @@
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { AudioAnalysis, DataPoint } from '@siteed/expo-audio-stream'
 import React from 'react'
-import { Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 import { AudioVisualizerTheme } from '../AudioVisualizer/AudioVisualiser.types'
 
@@ -22,34 +23,70 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         width: '100%',
-        marginTop: 10,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
     },
     navigationButtons: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 16,
+        gap: 12,
+        flex: 1,
+        marginRight: 16,
     },
     button: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 5,
-        paddingHorizontal: 12,
+        backgroundColor: 'transparent',
+        padding: 8,
         borderRadius: 8,
-        minWidth: 60,
+        minWidth: 40,
+        height: 40,
         alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#007AFF',
     },
     disabledButton: {
-        opacity: 0.5,
+        borderColor: '#CCCCCC',
     },
     buttonText: {
-        color: 'white',
+        color: '#007AFF',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: '600',
+    },
+    disabledButtonText: {
+        color: '#CCCCCC',
+    },
+    counterText: {
+        minWidth: 60,
+        textAlign: 'center',
+        fontSize: 14,
+        flexShrink: 1,
+    },
+    actionButtons: {
+        flexDirection: 'row',
+        gap: 8,
+        flexShrink: 0,
+    },
+    actionButton: {
+        padding: 8,
+        borderRadius: 8,
+        backgroundColor: '#007AFF',
+        height: 40,
+        width: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     resetButton: {
         backgroundColor: '#FF3B30',
     },
-    text: {
-        fontSize: 16,
+    samplesInfoContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+        gap: 6,
+    },
+    samplesInfo: {
+        fontSize: 14,
+        opacity: 0.7,
     },
 })
 
@@ -64,7 +101,17 @@ const NavigationControls: React.FC<NavigationControlsProps> = ({
     theme,
 }) => (
     <View style={theme.navigationContainer}>
-        <Text style={theme.text}>{audioData.samples} samples</Text>
+        <View style={styles.samplesInfoContainer}>
+            <MaterialCommunityIcons 
+                name="waveform" 
+                size={16} 
+                color={theme.text.color} 
+                style={{ opacity: 0.7 }}
+            />
+            <Text style={[styles.samplesInfo, theme.text]}>
+                {audioData.samples.toLocaleString()} audio samples
+            </Text>
+        </View>
         <View style={styles.controlsContainer}>
             <View style={styles.navigationButtons}>
                 <TouchableOpacity
@@ -75,18 +122,22 @@ const NavigationControls: React.FC<NavigationControlsProps> = ({
                     onPress={onPrev}
                     disabled={!selectedCandle}
                 >
-                    <Text style={[styles.buttonText, theme.text]}>{'<'}</Text>
+                    <Text
+                        style={[
+                            styles.buttonText,
+                            !selectedCandle && styles.disabledButtonText,
+                        ]}
+                    >
+                        ←
+                    </Text>
                 </TouchableOpacity>
 
-                {selectedCandle ? (
-                    <Text
-                        style={theme.text}
-                    >{`${selectedIndex + 1} / ${audioData.dataPoints.length}`}</Text>
-                ) : (
-                    <Text style={theme.text}>
-                        {audioData.dataPoints.length} items
-                    </Text>
-                )}
+                <Text style={[styles.counterText, theme.text]}>
+                    {selectedCandle
+                        ? `${selectedIndex + 1} / ${audioData.dataPoints.length}`
+                        : `${audioData.dataPoints.length} items`}
+                </Text>
+
                 <TouchableOpacity
                     style={[
                         styles.button,
@@ -95,11 +146,34 @@ const NavigationControls: React.FC<NavigationControlsProps> = ({
                     onPress={onNext}
                     disabled={!selectedCandle}
                 >
-                    <Text style={[styles.buttonText, theme.text]}>{'>'}</Text>
+                    <Text
+                        style={[
+                            styles.buttonText,
+                            !selectedCandle && styles.disabledButtonText,
+                        ]}
+                    >
+                        →
+                    </Text>
                 </TouchableOpacity>
             </View>
-            <Button title="Select" onPress={onCenter} />
-            <Button onPress={onReset} title="X" />
+
+            <View style={styles.actionButtons}>
+                <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={onCenter}
+                    accessibilityLabel="Select current position"
+                >
+                    <MaterialIcons name="gps-fixed" size={24} color="white" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.resetButton]}
+                    onPress={onReset}
+                    accessibilityLabel="Reset position"
+                >
+                    <MaterialIcons name="refresh" size={24} color="white" />
+                </TouchableOpacity>
+            </View>
         </View>
     </View>
 )

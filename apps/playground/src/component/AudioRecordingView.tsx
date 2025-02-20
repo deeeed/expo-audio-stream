@@ -47,11 +47,10 @@ const getStyles = ({
 }) => {
     return StyleSheet.create({
         container: {
-            padding: 16,
+            padding: theme.padding.m,
             backgroundColor: theme.colors.surface,
             borderRadius: 12,
-            marginHorizontal: 16,
-            marginVertical: 8,
+            marginHorizontal: theme.margin.s,
             elevation: 2,
             shadowColor: theme.colors.shadow,
             shadowOffset: { width: 0, height: 2 },
@@ -222,7 +221,11 @@ export const AudioRecordingView = ({
                 tempo: true,
                 zcr: true,
                 rms: true,
-                mfcc: false,
+                mfcc: true,
+                tonnetz: true,
+                melSpectrogram: true,
+                spectralContrast: true,
+                pitch: true,
             },
         })
 
@@ -238,7 +241,7 @@ export const AudioRecordingView = ({
         audioUri,
         recording,
         options: {
-            extractAnalysis: extractAnalysis && !_audioAnalysis,
+            extractAnalysis: extractAnalysis,
             analysisOptions: selectedAnalysisConfig,
         },
     })
@@ -253,7 +256,7 @@ export const AudioRecordingView = ({
         () => getStyles({ isPlaying, theme }),
         [isPlaying, theme]
     )
-    const { openDrawer, dismiss } = useModal()
+    const { openDrawer } = useModal()
 
     const handleShare = async (fileUri: string = audioUri) => {
         if (!fileUri) {
@@ -570,12 +573,6 @@ export const AudioRecordingView = ({
 
             {processing && <ActivityIndicator />}
 
-            {!audioAnalysis && (
-                <View style={styles.infoSection}>
-                    <Text>No analysis available</Text>
-                </View>
-            )}
-
             {audioAnalysis && (
                 <View style={styles.infoSection}>
                     <EditableInfoCard
@@ -586,24 +583,25 @@ export const AudioRecordingView = ({
                             backgroundColor: theme.colors.surface,
                         }}
                         editable
-                        multiline
                         onEdit={async () => {
-                            logger.log('Edit analysis config')
-                            openDrawer({
+                            const newConfig = await openDrawer<SelectedAnalysisConfig>({
                                 bottomSheetProps: {
                                     enableDynamicSizing: true,
                                 },
-                                render: () => (
+                                initialData: selectedAnalysisConfig,
+                                containerType: 'scrollview',
+                                footerType: 'confirm_cancel',
+                                render: ({ state, onChange }) => (
                                     <AudioRecordingAnalysisConfig
-                                        config={selectedAnalysisConfig}
-                                        onChange={(newConfig) => {
-                                            dismiss()
-                                            setSelectedAnalysisConfig(newConfig)
-                                            setSelectedDataPoint(undefined)
-                                        }}
+                                        config={state.data}
+                                        onChange={onChange}
                                     />
                                 ),
                             })
+                            if (newConfig) {
+                                setSelectedAnalysisConfig(newConfig)
+                                setSelectedDataPoint(undefined)
+                            }
                         }}
                     />
                     <AudioVisualizer

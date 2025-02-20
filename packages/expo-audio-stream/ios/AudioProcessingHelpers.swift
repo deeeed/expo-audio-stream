@@ -23,10 +23,14 @@ func extractMFCC(from segment: [Float], sampleRate: Float) -> [Float] {
     let melFilters = computeMelFilterbank(numFilters: nMFCC, fftSize: FFT_LENGTH, sampleRate: sampleRate)
     var melEnergies = [Float](repeating: 0, count: nMFCC)
     
+    // Safe array access with bounds checking
     for i in 0..<nMFCC {
         var energy: Float = 0
-        for j in 0..<powerSpectrum.count {
-            energy += powerSpectrum[j] * melFilters[i][j]
+        let filterBank = melFilters[i]
+        let minLength = min(powerSpectrum.count, filterBank.count)
+        
+        for j in 0..<minLength {
+            energy += powerSpectrum[j] * filterBank[j]
         }
         melEnergies[i] = log(max(energy, .leastNormalMagnitude))
     }
@@ -108,18 +112,23 @@ func extractSpectralBandwidth(from segment: [Float], sampleRate: Float) -> Float
 
 func extractChromagram(from segment: [Float], sampleRate: Float) -> [Float] {
     let fftData = sharedFFT.processSegment(segment)
-    
+    let numBins = fftData.count / 2
     let nChroma = 12
     var chroma = [Float](repeating: 0, count: nChroma)
     let freqsPerBin = sampleRate / Float(FFT_LENGTH)
     
-    for i in 0..<FFT_LENGTH/2 {
+    for i in 0..<numBins {
         let freq = Float(i) * freqsPerBin
         if freq > 0 {
             let pitchClass = Int((12 * log2(freq / 440.0)).truncatingRemainder(dividingBy: 12))
             if pitchClass >= 0 && pitchClass < nChroma {
-                let magnitude = sqrt(fftData[2*i] * fftData[2*i] + 
-                    (2*i+1 < fftData.count ? fftData[2*i+1] * fftData[2*i+1] : 0))
+                let realIndex = 2 * i
+                let imagIndex = realIndex + 1
+                
+                let re = realIndex < fftData.count ? fftData[realIndex] : 0
+                let im = imagIndex < fftData.count ? fftData[imagIndex] : 0
+                let magnitude = sqrt(re * re + im * im)
+                
                 chroma[pitchClass] += magnitude
             }
         }
@@ -136,34 +145,48 @@ func extractTempo(from segment: [Float], sampleRate: Float) -> Float {
     var onsetEnvelope = [Float]()
     var previousSpectrum = [Float](repeating: 0, count: frameLength / 2)
     
-    for i in stride(from: 0, to: segment.count - frameLength, by: hopLength) {
-        let frame = Array(segment[i..<min(i + frameLength, segment.count)])
+    // Ensure we have enough samples for at least one frame
+    guard segment.count >= frameLength else {
+        return 120.0 // Return default tempo if segment is too short
+    }
+    
+    // Safe frame processing
+    for i in stride(from: 0, to: max(0, segment.count - frameLength), by: hopLength) {
+        let endIndex = min(i + frameLength, segment.count)
+        let frame = Array(segment[i..<endIndex])
         var fftData = frame + [Float](repeating: 0, count: frameLength - frame.count)
         sharedFFT.realForward(&fftData)
         
         let magnitudes = computeMagnitudeSpectrum(from: fftData)
         var flux: Float = 0
-        for j in 0..<magnitudes.count {
+        for j in 0..<min(magnitudes.count, previousSpectrum.count) {
             flux += max(magnitudes[j] - previousSpectrum[j], 0)
         }
         onsetEnvelope.append(flux)
         previousSpectrum = magnitudes
     }
     
-    // Find peaks in onset envelope
+    // Find peaks in onset envelope - ensure we have enough points
     var peaks = [Int]()
-    for i in 1..<onsetEnvelope.count-1 {
-        if onsetEnvelope[i] > onsetEnvelope[i-1] && onsetEnvelope[i] > onsetEnvelope[i+1] {
-            peaks.append(i)
+    if onsetEnvelope.count >= 3 {
+        for i in 1..<(onsetEnvelope.count - 1) {
+            if onsetEnvelope[i] > onsetEnvelope[i-1] && onsetEnvelope[i] > onsetEnvelope[i+1] {
+                peaks.append(i)
+            }
         }
     }
     
     // Calculate tempo from peak intervals
     if peaks.count > 1 {
         let intervals = zip(peaks, peaks.dropFirst()).map { $1 - $0 }
-        let averageInterval = Float(intervals.reduce(0, +)) / Float(intervals.count)
-        let tempo = 60.0 * sampleRate / Float(hopLength) / averageInterval
-        return tempo
+        if !intervals.isEmpty {
+            let averageInterval = Float(intervals.reduce(0, +)) / Float(intervals.count)
+            if averageInterval > 0 {
+                let tempo = 60.0 * sampleRate / Float(hopLength) / averageInterval
+                // Constrain tempo to reasonable range (20-300 BPM)
+                return min(300.0, max(20.0, tempo))
+            }
+        }
     }
     
     return 120.0 // Default tempo if no clear peaks found
@@ -208,10 +231,15 @@ func extractHNR(from segment: [Float]) -> Float {
 
 // Helper functions
 private func computeMagnitudeSpectrum(from fftData: [Float]) -> [Float] {
+    let numBins = fftData.count / 2  // Since FFT data contains real and imaginary pairs
     var magnitudes = [Float]()
-    for i in 0...(fftData.count/2) {
-        let re = fftData[2*i]
-        let im = 2*i+1 < fftData.count ? fftData[2*i+1] : 0
+    
+    for i in 0..<numBins {
+        let realIndex = 2 * i
+        let imagIndex = realIndex + 1
+        
+        let re = realIndex < fftData.count ? fftData[realIndex] : 0
+        let im = imagIndex < fftData.count ? fftData[imagIndex] : 0
         magnitudes.append(sqrt(re*re + im*im))
     }
     return magnitudes
@@ -228,10 +256,15 @@ private func applyHannWindow(to segment: [Float]) -> [Float] {
 }
 
 private func computePowerSpectrum(from fftData: [Float]) -> [Float] {
+    let numBins = fftData.count / 2
     var powerSpectrum = [Float]()
-    for i in 0...(fftData.count/2) {
-        let re = fftData[2*i]
-        let im = 2*i+1 < fftData.count ? fftData[2*i+1] : 0
+    
+    for i in 0..<numBins {
+        let realIndex = 2 * i
+        let imagIndex = realIndex + 1
+        
+        let re = realIndex < fftData.count ? fftData[realIndex] : 0
+        let im = imagIndex < fftData.count ? fftData[imagIndex] : 0
         powerSpectrum.append(re*re + im*im)
     }
     return powerSpectrum
@@ -352,10 +385,14 @@ func computeSpectralContrast(from segment: [Float], sampleRate: Float) -> [Float
     return contrast
 }
 
+// Original function for backward compatibility
 func computeTonnetz(from segment: [Float], sampleRate: Float) -> [Float] {
-    // First compute chroma features
     let chroma = extractChromagram(from: segment, sampleRate: sampleRate)
-    
+    return computeTonnetz(fromChroma: chroma)
+}
+
+// New optimized function that accepts pre-computed chromagram
+func computeTonnetz(fromChroma chroma: [Float]) -> [Float] {
     // Tonnetz transformation matrix (6x12)
     let tonnetzMatrix: [[Float]] = [
         [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0], // Perfect fifth

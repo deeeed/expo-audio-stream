@@ -73,11 +73,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
                 val pointsPerSecond = (options["pointsPerSecond"] as? Double) ?: 20.0
                 val algorithm = options["algorithm"] as? String ?: "peak"
                 val featuresMap = options["features"] as? Map<*, *>
-                val features = featuresMap?.filterKeys { it is String }
-                    ?.filterValues { it is Boolean }
-                    ?.mapKeys { it.key as String }
-                    ?.mapValues { it.value as Boolean }
-                    ?: emptyMap()
+                val features = Features.parseFeatureOptions(featuresMap)
 
                 val recordingConfig = RecordingConfig(
                     sampleRate = audioData.sampleRate,
