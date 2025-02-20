@@ -215,6 +215,8 @@ export const extractAudioAnalysis = async ({
     features,
     featuresExtratorUrl,
     logger,
+    position = 0,
+    length,
 }: ExtractAudioAnalysisProps): Promise<AudioAnalysis> => {
     if (isWeb) {
         if (!arrayBuffer && !fileUri) {
@@ -265,6 +267,11 @@ export const extractAudioAnalysis = async ({
             `extractAudioAnalysis skipWaveHeader=${skipWavHeader} convertPCMToFloat32 length=${channelData.length} range: [ ${min} :: ${max} ]`
         )
 
+        // Apply position and length constraints to channelData if specified
+        const startIndex = position;
+        const endIndex = length ? startIndex + length : channelData.length;
+        const constrainedChannelData = channelData.slice(startIndex, endIndex);
+
         return new Promise((resolve, reject) => {
             let worker: Worker
             if (featuresExtratorUrl) {
@@ -289,7 +296,7 @@ export const extractAudioAnalysis = async ({
 
             worker.postMessage({
                 command: 'process',
-                channelData,
+                channelData: constrainedChannelData,
                 sampleRate,
                 pointsPerSecond,
                 algorithm,
@@ -313,6 +320,8 @@ export const extractAudioAnalysis = async ({
             skipWavHeader,
             algorithm,
             features,
+            position,
+            length,
         })
         logger?.log(`extractAudioAnalysis`, res)
         return res

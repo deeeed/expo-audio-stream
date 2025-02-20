@@ -1792,4 +1792,35 @@ class AudioProcessor(private val filesDir: File) {
         val powerSpectrum = magnitudeSpectrum.map { it * it }.toFloatArray()
         return Pair(powerSpectrum, magnitudeSpectrum)
     }
+
+    data class AudioFormat(
+        val sampleRate: Int,
+        val channels: Int,
+        val bitDepth: Int
+    )
+
+    fun getAudioFormat(fileUri: String): AudioFormat? {
+        val cleanUri = fileUri.removePrefix("file://")
+        val file = File(cleanUri).takeIf { it.exists() } ?: File(filesDir, File(cleanUri).name).takeIf { it.exists() }
+            ?: run {
+                Log.e(Constants.TAG, "File not found: $cleanUri")
+                return null
+            }
+
+        val extractor = MediaExtractor()
+        try {
+            extractor.setDataSource(file.absolutePath)
+            val format = extractor.getTrackFormat(0)
+            return AudioFormat(
+                sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE),
+                channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT),
+                bitDepth = 16  // Most compressed formats decode to 16-bit PCM
+            )
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to get audio format: ${e.message}")
+            return null
+        } finally {
+            extractor.release()
+        }
+    }
 }

@@ -16,7 +16,6 @@ import {
     DataPoint,
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
-import { getLogger } from '@siteed/react-native-logger'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import React, { useEffect, useMemo, useState } from 'react'
@@ -24,6 +23,7 @@ import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
 
+import { baseLogger } from '../config'
 import { useAudio } from '../hooks/useAudio'
 import { isWeb } from '../utils/utils'
 import {
@@ -35,8 +35,9 @@ import { DataPointViewer } from './DataViewer'
 import { HexDataViewer } from './HexDataViewer'
 import { RecordingStats } from './RecordingStats'
 import Transcript from './Transcript'
+import { SegmentAnalyzer } from './features/SegmentAnalyzer'
 
-const logger = getLogger('AudioRecording')
+const logger = baseLogger.extend('AudioRecording')
 
 const getStyles = ({
     isPlaying,
@@ -571,9 +572,9 @@ export const AudioRecordingView = ({
                 </View>
             </View>
 
-            {processing && <ActivityIndicator />}
+            {processing && <View style={{ justifyContent: 'center', alignItems: 'center', marginVertical: 20 }}><ActivityIndicator /></View>}
 
-            {audioAnalysis && (
+            {!processing && audioAnalysis && (
                 <View style={styles.infoSection}>
                     <EditableInfoCard
                         label="Analysis Config"
@@ -633,6 +634,20 @@ export const AudioRecordingView = ({
 
             {selectedDataPoint && (
                 <View>
+                    <SegmentAnalyzer
+                        dataPoint={selectedDataPoint}
+                        fileUri={audioUri}
+                        sampleRate={recording.sampleRate}
+                        onError={(error) => show({ 
+                            type: 'error', 
+                            message: error.message 
+                        })}
+                        analysisConfig={{
+                            pointsPerSecond: selectedAnalysisConfig.pointsPerSecond ?? 10,
+                            algorithm: selectedAnalysisConfig.algorithm ?? 'rms',
+                            features: selectedAnalysisConfig.features,
+                        }}
+                    />
                     <DataPointViewer dataPoint={selectedDataPoint} />
                     <InfoRow 
                         label="Byte Range" 

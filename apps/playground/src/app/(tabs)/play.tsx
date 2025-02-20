@@ -441,8 +441,11 @@ export const PlayPage = () => {
                                 showDottedLine
                                 font={font ?? undefined}
                                 playing={isPlaying}
+                                showSelectedCandle={false}
+                                showReferenceLine={true}
                                 candleWidth={5}
-                                enableInertia
+                                enableInertia={false}
+                                NavigationControls={() => null}
                                 currentTime={currentTime}
                                 canvasHeight={150}
                                 audioData={audioAnalysis}
