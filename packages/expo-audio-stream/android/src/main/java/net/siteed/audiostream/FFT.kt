@@ -1,17 +1,27 @@
+// packages/expo-audio-stream/android/src/main/java/net/siteed/audiostream/FFT.kt
 package net.siteed.audiostream
 
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 class FFT(private val n: Int) {
     private val cosTable = FloatArray(n / 2)
     private val sinTable = FloatArray(n / 2)
+    private val hannWindow = FloatArray(n)
 
     init {
+        // Precompute trig tables
         for (i in 0 until n / 2) {
             cosTable[i] = cos(2.0 * PI * i / n).toFloat()
             sinTable[i] = sin(2.0 * PI * i / n).toFloat()
+        }
+        
+        // Precompute normalized Hann window to match vDSP
+        val normalizationFactor = sqrt(2.0f / n)  // Match vDSP normalization
+        for (i in hannWindow.indices) {
+            hannWindow[i] = normalizationFactor * 0.5f * (1 - cos(2.0 * PI * i / (n - 1))).toFloat()
         }
     }
 
@@ -23,19 +33,15 @@ class FFT(private val n: Int) {
             segment.copyOf(n)
         }
 
-        // Apply Hann window
-        applyHannWindow(paddedSegment)
+        // Apply normalized Hann window
+        for (i in paddedSegment.indices) {
+            paddedSegment[i] *= hannWindow[i]
+        }
 
         // Perform FFT
         realForward(paddedSegment)
 
         return paddedSegment
-    }
-
-    private fun applyHannWindow(data: FloatArray) {
-        for (i in data.indices) {
-            data[i] *= 0.5f * (1 - cos(2.0 * PI * i / (data.size - 1)))
-        }
     }
 
     fun realForward(data: FloatArray) {

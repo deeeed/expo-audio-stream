@@ -1,4 +1,4 @@
-// net/siteed/audiostream/AudioProcessor.kt
+// packages/expo-audio-stream/android/src/main/java/net/siteed/audiostream/AudioProcessor.kt
 package net.siteed.audiostream
 
 import java.nio.ByteBuffer
@@ -414,6 +414,56 @@ class AudioProcessor(private val filesDir: File) {
         )
     }
 
+    private fun extractTempo(segmentData: FloatArray, sampleRate: Float): Float {
+        val hopLength = 512
+        val frameLength = 2048
+        
+        // Compute onset strength signal using spectral flux
+        val onsetEnvelope = mutableListOf<Float>()
+        var previousSpectrum = FloatArray(frameLength / 2)
+        
+        // Process frames with spectral flux
+        for (i in 0 until segmentData.size - frameLength step hopLength) {
+            val frame = segmentData.slice(i until minOf(i + frameLength, segmentData.size)).toFloatArray()
+            val fft = FFT(frameLength)
+            val fftData = frame.copyOf(frameLength)
+            fft.realForward(fftData)
+            
+            // Compute magnitude spectrum
+            val magnitudes = FloatArray(frameLength / 2)
+            for (j in magnitudes.indices) {
+                val re = fftData[2 * j]
+                val im = if (2 * j + 1 < fftData.size) fftData[2 * j + 1] else 0f
+                magnitudes[j] = sqrt(re * re + im * im)
+            }
+            
+            // Calculate spectral flux (sum of positive differences)
+            var flux = 0f
+            for (j in magnitudes.indices) {
+                flux += maxOf(magnitudes[j] - previousSpectrum[j], 0f)
+            }
+            onsetEnvelope.add(flux)
+            previousSpectrum = magnitudes
+        }
+        
+        // Find peaks in onset envelope
+        val peaks = mutableListOf<Int>()
+        for (i in 1 until onsetEnvelope.size - 1) {
+            if (onsetEnvelope[i] > onsetEnvelope[i-1] && onsetEnvelope[i] > onsetEnvelope[i+1]) {
+                peaks.add(i)
+            }
+        }
+        
+        // Calculate tempo from peak intervals
+        return if (peaks.size > 1) {
+            val intervals = peaks.zipWithNext { a, b -> b - a }
+            val averageInterval = intervals.average().toFloat()
+            60f * sampleRate / (hopLength * averageInterval)
+        } else {
+            120f // Default tempo if no clear peaks found
+        }
+    }
+
     private fun extractSpectralFeatures(
         samples: FloatArray,
         sampleRate: Float
@@ -461,10 +511,15 @@ class AudioProcessor(private val filesDir: File) {
     }
 
     private fun computeSpectralFlatness(powerSpectrum: FloatArray): Float {
-        val sum = powerSpectrum.sum()
-        val product = powerSpectrum.fold(1.0f) { acc, value -> acc * (value + 1e-10f) }
-        val geometricMean = product.pow(1.0f / powerSpectrum.size)
-        val arithmeticMean = sum / powerSpectrum.size
+        // Calculate geometric mean using log-space to avoid numerical issues
+        var sumLogValues: Float = 0.0f
+        for (value in powerSpectrum) {
+            sumLogValues += ln(value + 1e-10f) // Add small epsilon to avoid log(0)
+        }
+        val geometricMean = exp(sumLogValues / powerSpectrum.size)
+        
+        // Calculate arithmetic mean
+        val arithmeticMean = powerSpectrum.sum() / powerSpectrum.size
         
         return if (arithmeticMean != 0f) geometricMean / arithmeticMean else 0f
     }
@@ -541,12 +596,12 @@ class AudioProcessor(private val filesDir: File) {
         val fftData = windowed.copyOf(N_FFT)
         fft.realForward(fftData)
         
-        // Compute power spectrum
+        // Compute power spectrum (changed from magnitude to power spectrum)
         val powerSpectrum = FloatArray(1 + N_FFT / 2)
         for (i in powerSpectrum.indices) {
             val re = fftData[2 * i]
             val im = if (2 * i + 1 < fftData.size) fftData[2 * i + 1] else 0f
-            powerSpectrum[i] = sqrt(re * re + im * im)
+            powerSpectrum[i] = re * re + im * im  // Changed: Now using power instead of magnitude
         }
         
         // Apply Mel filterbank
@@ -558,7 +613,8 @@ class AudioProcessor(private val filesDir: File) {
             for (j in powerSpectrum.indices) {
                 energy += powerSpectrum[j] * melFilters[i][j]
             }
-            melEnergies[i] = ln(max(energy, Float.MIN_VALUE))
+            // Changed: Use consistent epsilon value
+            melEnergies[i] = ln(max(energy, 1e-10f))
         }
         
         // Apply DCT
@@ -640,64 +696,6 @@ class AudioProcessor(private val filesDir: File) {
         }
 
         return dct.toList()
-    }
-
-    /**
-     * Extracts the tempo from the audio data.
-     * @param segmentData The segment data.
-     * @param sampleRate The sample rate of the audio data.
-     * @return The tempo.
-     */
-    private fun extractTempo(segmentData: FloatArray, sampleRate: Float): Float {
-        // Calculate the onset strength envelope
-        val onsetEnv = calculateOnsetEnvelope(segmentData, sampleRate)
-
-        // Find peaks in the onset envelope
-        val peaks = findPeaks(onsetEnv)
-
-        // Calculate the inter-onset intervals (IOIs)
-        val iois = peaks.zipWithNext { a, b -> (b - a).toFloat() / sampleRate }
-
-        // Calculate the tempo in beats per minute (BPM)
-        val avgIoi = iois.average().toFloat()
-        return if (avgIoi != 0f) 60f / avgIoi else 0f
-    }
-
-    /**
-     * Calculates the onset envelope of the audio signal.
-     * @param segmentData The segment data.
-     * @param sampleRate The sample rate of the audio data.
-     * @return The onset envelope.
-     */
-    private fun calculateOnsetEnvelope(segmentData: FloatArray, sampleRate: Float): FloatArray {
-        val frameSize = sampleRate.toInt() / 100 // Assume 10ms frames
-        val onsetEnv = FloatArray(segmentData.size / frameSize)
-        var previousSpectrum = FloatArray(frameSize)
-
-        for (i in onsetEnv.indices) {
-            val frame = segmentData.sliceArray(i * frameSize until min((i + 1) * frameSize, segmentData.size))
-            val magnitudeSpectrum = frame.map { abs(it) }.toFloatArray()
-            val onset = magnitudeSpectrum.zip(previousSpectrum) { a, b -> max(0f, a - b) }.sum()
-            onsetEnv[i] = onset
-            previousSpectrum = magnitudeSpectrum
-        }
-
-        return onsetEnv
-    }
-
-    /**
-     * Finds the peaks in the onset envelope.
-     * @param onsetEnv The onset envelope.
-     * @return A list of peak indices.
-     */
-    private fun findPeaks(onsetEnv: FloatArray): List<Int> {
-        val peaks = mutableListOf<Int>()
-        for (i in 1 until onsetEnv.size - 1) {
-            if (onsetEnv[i] > onsetEnv[i - 1] && onsetEnv[i] > onsetEnv[i + 1]) {
-                peaks.add(i)
-            }
-        }
-        return peaks
     }
 
     /**
@@ -1565,11 +1563,12 @@ class AudioProcessor(private val filesDir: File) {
         val fftData = windowed.copyOf(N_FFT)
         fft.realForward(fftData)
         
+        // Changed: Now using power spectrum instead of magnitude spectrum
         val powerSpectrum = FloatArray(1 + N_FFT / 2)
         for (i in powerSpectrum.indices) {
             val re = fftData[2 * i]
             val im = if (2 * i + 1 < fftData.size) fftData[2 * i + 1] else 0f
-            powerSpectrum[i] = sqrt(re * re + im * im)
+            powerSpectrum[i] = re * re + im * im  // Changed: Now using power instead of magnitude
         }
         
         val melFilters = computeMelFilterbank(N_MELS, N_FFT, sampleRate)
@@ -1619,39 +1618,34 @@ class AudioProcessor(private val filesDir: File) {
         val contrast = mutableListOf<Float>()
         
         // Define standard octave-based frequency bands
-        val bandFrequencies = listOf(
-            Pair(20.0f, 125.0f),    // Sub-bass
-            Pair(125.0f, 250.0f),   // Bass
-            Pair(250.0f, 500.0f),   // Low-mids
-            Pair(500.0f, 1000.0f),  // Mids
-            Pair(1000.0f, 2000.0f), // High-mids
-            Pair(2000.0f, 4000.0f), // Presence
-            Pair(4000.0f, min(8000.0f, sampleRate / 2)) // Brilliance
+        val bandFrequencies = arrayOf(
+            20.0 to 125.0,     // Sub-bass
+            125.0 to 250.0,    // Bass
+            250.0 to 500.0,    // Low-mids
+            500.0 to 1000.0,   // Mids
+            1000.0 to 2000.0,  // High-mids
+            2000.0 to 4000.0,  // Presence
+            4000.0 to minOf(8000.0, sampleRate / 2.0) // Brilliance
         )
         
-        // Calculate frequency resolution
         val freqResolution = sampleRate / N_FFT
         
         for ((lowFreq, highFreq) in bandFrequencies) {
-            // Convert frequencies to FFT bin indices
             val startBin = (lowFreq / freqResolution).toInt()
-            val endBin = min((highFreq / freqResolution).toInt(), magnitudeSpectrum.size - 1)
+            val endBin = minOf((highFreq / freqResolution).toInt(), magnitudeSpectrum.size - 1)
             
             if (startBin < endBin) {
-                val bandSpectrum = magnitudeSpectrum.slice(startBin..endBin)
-                
-                // Sort magnitudes for percentile calculation
-                val sortedMagnitudes = bandSpectrum.sorted()
-                val length = sortedMagnitudes.size
+                val bandSpectrum = magnitudeSpectrum.slice(startBin..endBin).sorted()
+                val length = bandSpectrum.size
                 
                 // Calculate peak (95th percentile) and valley (5th percentile)
                 val peakIndex = (length * 0.95f).toInt()
                 val valleyIndex = (length * 0.05f).toInt()
-                val peak = sortedMagnitudes[peakIndex]
-                val valley = sortedMagnitudes[valleyIndex]
+                val peak = bandSpectrum[peakIndex]
+                val valley = bandSpectrum[valleyIndex]
                 
-                // Calculate contrast in dB scale
-                val contrastValue = 20 * log10(peak / max(valley, Float.MIN_VALUE))
+                // Calculate contrast in dB scale using consistent epsilon
+                val contrastValue = 20 * log10(peak / maxOf(valley, 1e-10f))
                 contrast.add(contrastValue)
             } else {
                 contrast.add(0f)
@@ -1678,10 +1672,10 @@ class AudioProcessor(private val filesDir: File) {
         // Tonnetz transformation matrix (6x12)
         val tonnetzMatrix = arrayOf(
             floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 1f, 0f, 0f, 0f, 0f), // Perfect fifth
-            floatArrayOf(0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 1f, 0f, 0f, 0f), // Minor third
+            floatArrayOf(0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 1f, 0f, 0f, 0f, 0f), // Minor third
             floatArrayOf(0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 1f, 0f, 0f), // Major third
             floatArrayOf(0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 1f, 0f), // Perfect fifth
-            floatArrayOf(0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 1f), // Minor third
+            floatArrayOf(0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 1f, 0f), // Minor third
             floatArrayOf(1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f)  // Major third
         )
         
