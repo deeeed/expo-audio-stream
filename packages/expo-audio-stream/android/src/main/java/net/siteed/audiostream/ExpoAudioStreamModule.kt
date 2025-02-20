@@ -319,6 +319,31 @@ class ExpoAudioStreamModule : Module(), EventSender {
             }
         }
 
+        AsyncFunction("extractFullFileFeatures") { options: Map<String, Any>, promise: Promise ->
+            try {
+                val fileUri = requireNotNull(options["fileUri"] as? String) { "fileUri is required" }
+                
+                val decodingConfig = DecodingConfig(
+                    targetSampleRate = 16000,
+                    targetChannels = 1,        // Mono audio
+                    targetBitDepth = 16,       // 16-bit PCM
+                    normalizeAudio = false
+                )
+
+                val audioData = audioProcessor.loadAudioFromAnyFormat(fileUri, decodingConfig)
+                    ?: throw IllegalStateException("Failed to load audio file")
+
+                val features = audioProcessor.processEntireFile(audioData)
+                
+                // Use the existing toDictionary() method from Features class
+                promise.resolve(features.toDictionary())
+                
+            } catch (e: Exception) {
+                Log.e(Constants.TAG, "Failed to extract full file features", e)
+                promise.reject("PROCESSING_ERROR", e.message ?: "Unknown error", e)
+            }
+        }
+
         OnDestroy {
             AudioRecorderManager.destroy()
         }

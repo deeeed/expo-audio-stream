@@ -37,7 +37,7 @@ export interface AudioDataEvent {
 }
 
 export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'
-export type SampleRate = 16000 | 44100 | 48000 
+export type SampleRate = 16000 | 44100 | 48000
 export type BitDepth = 8 | 16 | 32
 
 export type ConsoleLike = {

@@ -14,9 +14,12 @@ data class Features(
     val spectralFlatness: Float = 0f,
     val spectralRollOff: Float = 0f,
     val spectralBandwidth: Float = 0f,
-    val chromagram: List<Float> = emptyList(),
     val tempo: Float = 0f,
-    val hnr: Float = 0f
+    val hnr: Float = 0f,
+    val melSpectrogram: List<Float> = emptyList(),
+    val chromagram: List<Float> = emptyList(),
+    val spectralContrast: List<Float> = emptyList(),
+    val tonnetz: List<Float> = emptyList()
 ) {
     fun toDictionary(): Map<String, Any> {
         return mapOf(
@@ -30,9 +33,12 @@ data class Features(
             "spectralFlatness" to spectralFlatness,
             "spectralRollOff" to spectralRollOff,
             "spectralBandwidth" to spectralBandwidth,
-            "chromagram" to chromagram,
             "tempo" to tempo,
-            "hnr" to hnr
+            "hnr" to hnr,
+            "melSpectrogram" to melSpectrogram,
+            "chromagram" to chromagram,
+            "spectralContrast" to spectralContrast,
+            "tonnetz" to tonnetz
         )
     }
 
@@ -48,9 +54,12 @@ data class Features(
             "spectralFlatness" to spectralFlatness,
             "spectralRollOff" to spectralRollOff,
             "spectralBandwidth" to spectralBandwidth,
-            "chromagram" to chromagram,
             "tempo" to tempo,
-            "hnr" to hnr
+            "hnr" to hnr,
+            "melSpectrogram" to melSpectrogram,
+            "chromagram" to chromagram,
+            "spectralContrast" to spectralContrast,
+            "tonnetz" to tonnetz
         )
     }
 }

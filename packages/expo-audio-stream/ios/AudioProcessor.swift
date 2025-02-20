@@ -453,22 +453,6 @@ public class AudioProcessor {
         )
     }
 
-    private func calculateZeroCrossingRate(_ data: [Float]) -> Float {
-        var count: Float = 0
-        for i in 1..<data.count {
-            if (data[i] >= 0 && data[i-1] < 0) || (data[i] < 0 && data[i-1] >= 0) {
-                count += 1
-            }
-        }
-        return count / Float(data.count)
-    }
-
-    private func calculateEnergy(_ data: [Float]) -> Float {
-        var energy: Float = 0
-        vDSP_svesq(data, 1, &energy, vDSP_Length(data.count))
-        return energy / Float(data.count)
-    }
-
     /// Trims audio file to specified range
     public func trimAudio(
         startTimeMs: Double,

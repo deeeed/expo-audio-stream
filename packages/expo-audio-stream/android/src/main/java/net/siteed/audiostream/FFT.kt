@@ -15,6 +15,29 @@ class FFT(private val n: Int) {
         }
     }
 
+    fun processSegment(segment: FloatArray): FloatArray {
+        // Pad or truncate input to match FFT length
+        val paddedSegment = if (segment.size < n) {
+            segment + FloatArray(n - segment.size)
+        } else {
+            segment.copyOf(n)
+        }
+
+        // Apply Hann window
+        applyHannWindow(paddedSegment)
+
+        // Perform FFT
+        realForward(paddedSegment)
+
+        return paddedSegment
+    }
+
+    private fun applyHannWindow(data: FloatArray) {
+        for (i in data.indices) {
+            data[i] *= 0.5f * (1 - cos(2.0 * PI * i / (data.size - 1)))
+        }
+    }
+
     fun realForward(data: FloatArray) {
         realForwardRecursive(data)
     }

@@ -414,6 +414,38 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 }
             }
         }
+
+        AsyncFunction("extractFullFileFeatures") { (options: [String: Any], promise: Promise) in
+            guard let fileUri = options["fileUri"] as? String else {
+                promise.reject("INVALID_ARGUMENT", "fileUri is required")
+                return
+            }
+            
+            do {
+                let audioData = try loadAudioFile(fileUri)
+                let features = Features(
+                    energy: computeEnergy(from: audioData.samples),
+                    mfcc: extractMFCC(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
+                    rms: computeRMS(from: audioData.samples),
+                    minAmplitude: audioData.samples.min() ?? 0,
+                    maxAmplitude: audioData.samples.max() ?? 0,
+                    zcr: computeZCR(from: audioData.samples),
+                    spectralCentroid: extractSpectralCentroid(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
+                    spectralFlatness: extractSpectralFlatness(from: audioData.samples),
+                    spectralRollOff: extractSpectralRollOff(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
+                    spectralBandwidth: extractSpectralBandwidth(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
+                    chromagram: extractChromagram(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
+                    tempo: extractTempo(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
+                    hnr: extractHNR(from: audioData.samples),
+                    melSpectrogram: computeMelSpectrogram(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
+                    spectralContrast: computeSpectralContrast(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
+                    tonnetz: computeTonnetz(from: audioData.samples, sampleRate: Float(audioData.sampleRate))
+                )
+                promise.resolve(features.toDictionary())
+            } catch {
+                promise.reject("PROCESSING_ERROR", error.localizedDescription)
+            }
+        }
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveInterruption info: [String: Any]) {
