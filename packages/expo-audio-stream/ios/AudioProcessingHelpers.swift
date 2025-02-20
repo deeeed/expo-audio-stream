@@ -2,60 +2,11 @@
 
 import Accelerate
 import AVFoundation
+import QuartzCore
 
-// Add constant at the top level
+// Constants
 private let FFT_LENGTH = 1024
-
-// FFT Helper class
-private class FFT {
-    private let length: Int
-    private var setup: vDSP_DFT_Setup?
-    
-    init(_ length: Int) {
-        self.length = length
-        self.setup = vDSP_DFT_zop_CreateSetup(
-            nil,
-            vDSP_Length(length),
-            vDSP_DFT_Direction.FORWARD
-        )
-    }
-    
-    deinit {
-        if let setup = setup {
-            vDSP_DFT_DestroySetup(setup)
-        }
-    }
-    
-    func realForward(_ data: inout [Float]) {
-        var realIn = data
-        var imagIn = [Float](repeating: 0.0, count: length)
-        var realOut = [Float](repeating: 0.0, count: length)
-        var imagOut = [Float](repeating: 0.0, count: length)
-        
-        // Perform FFT
-        vDSP_DFT_Execute(setup!,
-                        &realIn,
-                        &imagIn,
-                        &realOut,
-                        &imagOut)
-        
-        // Combine real and imaginary parts
-        for i in 0..<length {
-            data[2*i] = realOut[i]
-            if 2*i + 1 < data.count {
-                data[2*i + 1] = imagOut[i]
-            }
-        }
-    }
-    
-    func processSegment(_ segment: [Float]) -> [Float] {
-        var fftData = segment.count < length ? 
-            segment + [Float](repeating: 0, count: length - segment.count) : 
-            Array(segment.prefix(length))
-        realForward(&fftData)
-        return fftData
-    }
-}
+private let sharedFFT = FFT(FFT_LENGTH)
 
 // Main feature extraction functions
 func extractMFCC(from segment: [Float], sampleRate: Float) -> [Float] {
@@ -63,8 +14,7 @@ func extractMFCC(from segment: [Float], sampleRate: Float) -> [Float] {
     
     // Apply Hann window and prepare for FFT
     let windowed = applyHannWindow(to: segment)
-    let fft = FFT(FFT_LENGTH)
-    let fftData = fft.processSegment(windowed)
+    let fftData = sharedFFT.processSegment(windowed)
     
     // Compute power spectrum
     let powerSpectrum = computePowerSpectrum(from: fftData)
@@ -86,8 +36,7 @@ func extractMFCC(from segment: [Float], sampleRate: Float) -> [Float] {
 }
 
 func extractSpectralCentroid(from segment: [Float], sampleRate: Float) -> Float {
-    let fft = FFT(FFT_LENGTH)
-    let fftData = fft.processSegment(segment)
+    let fftData = sharedFFT.processSegment(segment)
     
     let magnitudes = computeMagnitudeSpectrum(from: fftData)
     let frequencies = (0..<magnitudes.count).map { Float($0) * sampleRate / Float(2 * magnitudes.count) }
@@ -103,8 +52,7 @@ func extractSpectralCentroid(from segment: [Float], sampleRate: Float) -> Float 
 }
 
 func extractSpectralFlatness(from segment: [Float]) -> Float {
-    let fft = FFT(FFT_LENGTH)
-    let fftData = fft.processSegment(segment)
+    let fftData = sharedFFT.processSegment(segment)
     
     // Compute power spectrum
     let powerSpectrum = computePowerSpectrum(from: fftData)
@@ -123,8 +71,7 @@ func extractSpectralFlatness(from segment: [Float]) -> Float {
 }
 
 func extractSpectralRollOff(from segment: [Float], sampleRate: Float) -> Float {
-    let fft = FFT(FFT_LENGTH)
-    let fftData = fft.processSegment(segment)
+    let fftData = sharedFFT.processSegment(segment)
     
     let magnitudes = computeMagnitudeSpectrum(from: fftData)
     let totalEnergy = magnitudes.reduce(0, +)
@@ -142,8 +89,7 @@ func extractSpectralRollOff(from segment: [Float], sampleRate: Float) -> Float {
 }
 
 func extractSpectralBandwidth(from segment: [Float], sampleRate: Float) -> Float {
-    let fft = FFT(FFT_LENGTH)
-    let fftData = fft.processSegment(segment)
+    let fftData = sharedFFT.processSegment(segment)
     
     let centroid = extractSpectralCentroid(from: segment, sampleRate: sampleRate)
     
@@ -161,8 +107,7 @@ func extractSpectralBandwidth(from segment: [Float], sampleRate: Float) -> Float
 }
 
 func extractChromagram(from segment: [Float], sampleRate: Float) -> [Float] {
-    let fft = FFT(FFT_LENGTH)
-    let fftData = fft.processSegment(segment)
+    let fftData = sharedFFT.processSegment(segment)
     
     let nChroma = 12
     var chroma = [Float](repeating: 0, count: nChroma)
@@ -193,9 +138,8 @@ func extractTempo(from segment: [Float], sampleRate: Float) -> Float {
     
     for i in stride(from: 0, to: segment.count - frameLength, by: hopLength) {
         let frame = Array(segment[i..<min(i + frameLength, segment.count)])
-        let fft = FFT(frameLength)
         var fftData = frame + [Float](repeating: 0, count: frameLength - frame.count)
-        fft.realForward(&fftData)
+        sharedFFT.realForward(&fftData)
         
         let magnitudes = computeMagnitudeSpectrum(from: fftData)
         var flux: Float = 0
@@ -346,8 +290,7 @@ private func computeDCT(from input: [Float]) -> [Float] {
 
 func computeMelSpectrogram(from segment: [Float], sampleRate: Float) -> [Float] {
     let nMels = 128
-    let fft = FFT(FFT_LENGTH)
-    let fftData = fft.processSegment(segment)
+    let fftData = sharedFFT.processSegment(segment)
     
     let powerSpectrum = computePowerSpectrum(from: fftData)
     let melFilters = computeMelFilterbank(numFilters: nMels, fftSize: FFT_LENGTH, sampleRate: sampleRate)
@@ -361,8 +304,7 @@ func computeMelSpectrogram(from segment: [Float], sampleRate: Float) -> [Float] 
 
 func computeSpectralContrast(from segment: [Float], sampleRate: Float) -> [Float] {
     let nBands = 7
-    let fft = FFT(FFT_LENGTH)
-    let fftData = fft.processSegment(segment)
+    let fftData = sharedFFT.processSegment(segment)
     
     let magnitudeSpectrum = computeMagnitudeSpectrum(from: fftData)
     var contrast = [Float]()
@@ -561,8 +503,7 @@ func estimatePitch(from segment: [Float], sampleRate: Float) -> Float {
     // Pad the signal for FFT
     let fftLength = nextPowerOfTwo(segment.count * 2 - 1)
     var padded = windowed + [Float](repeating: 0, count: fftLength - windowed.count)
-    let fft = FFT(fftLength)
-    fft.realForward(&padded)
+    sharedFFT.realForward(&padded)
     
     // Compute autocorrelation using FFT
     var autocorrelation = [Float](repeating: 0, count: fftLength)
