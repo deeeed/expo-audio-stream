@@ -30,6 +30,7 @@ export interface AudioFeatures {
     melSpectrogram: number[] // Mel-scaled spectrogram representation of the audio.
     spectralContrast: number[] // Spectral contrast features representing the difference between peaks and valleys.
     tonnetz: number[] // Tonal network features representing harmonic relationships.
+    pitch: number // Pitch of the audio signal, measured in Hertz (Hz).
 }
 
 /**
@@ -50,6 +51,7 @@ export interface AudioFeaturesOptions {
     melSpectrogram?: boolean
     spectralContrast?: boolean
     tonnetz?: boolean
+    pitch?: boolean
 }
 
 /**

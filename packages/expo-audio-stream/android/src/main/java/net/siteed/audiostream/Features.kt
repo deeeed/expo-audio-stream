@@ -19,7 +19,8 @@ data class Features(
     val melSpectrogram: List<Float> = emptyList(),
     val chromagram: List<Float> = emptyList(),
     val spectralContrast: List<Float> = emptyList(),
-    val tonnetz: List<Float> = emptyList()
+    val tonnetz: List<Float> = emptyList(),
+    val pitch: Float = 0f
 ) {
     fun toDictionary(): Map<String, Any> {
         return mapOf(
@@ -38,7 +39,8 @@ data class Features(
             "melSpectrogram" to melSpectrogram,
             "chromagram" to chromagram,
             "spectralContrast" to spectralContrast,
-            "tonnetz" to tonnetz
+            "tonnetz" to tonnetz,
+            "pitch" to pitch
         )
     }
 
@@ -59,7 +61,8 @@ data class Features(
             "melSpectrogram" to melSpectrogram,
             "chromagram" to chromagram,
             "spectralContrast" to spectralContrast,
-            "tonnetz" to tonnetz
+            "tonnetz" to tonnetz,
+            "pitch" to pitch
         )
     }
 }
