@@ -104,11 +104,12 @@ export const drawDottedLine = ({
     canvasHeight,
 }: DrawDottedLineParams): SkPath => {
     const path = Skia.Path.Make()
-    const dashLength = 3
+    const dashLength = 5  // Increased from 3 for better visibility
     const gapLength = 5
     const baseline = canvasHeight / 2
 
-    for (let x = 0; x < canvasWidth; x += dashLength + gapLength) {
+    // Ensure we start from 0 and cover the entire width
+    for (let x = 0; x <= canvasWidth; x += dashLength + gapLength) {
         path.moveTo(x, baseline)
         path.lineTo(x + dashLength, baseline)
     }

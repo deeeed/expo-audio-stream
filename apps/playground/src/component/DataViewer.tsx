@@ -3,7 +3,6 @@ import { DataPoint } from '@siteed/expo-audio-stream'
 import React, { useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
-import { FeatureViewer } from './features/FeatureViewer'
 
 const getStyles = () => {
     return StyleSheet.create({
@@ -76,9 +75,6 @@ export const DataPointViewer = ({ dataPoint }: DataPointViewerProps) => {
                     />
                 </View>
             </View>
-            {dataPoint.features && (
-                <FeatureViewer features={dataPoint.features} />
-            )}
         </View>
     )
 }

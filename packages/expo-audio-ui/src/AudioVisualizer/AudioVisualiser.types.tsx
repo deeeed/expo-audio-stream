@@ -3,6 +3,33 @@ import { ConsoleLike, DataPoint } from '@siteed/expo-audio-stream'
 import { TextStyle, ViewStyle } from 'react-native'
 import { SharedValue } from 'react-native-reanimated'
 
+import { DecibelGaugeTheme } from '../DecibelGauge/DecibelGauge'
+import { DecibelMeterTheme } from '../DecibelMeter/DecibelMeter'
+
+export interface DecibelVisualizationConfig {
+    type: 'gauge' | 'meter'
+    position:
+        | 'top'
+        | 'bottom'
+        | 'left'
+        | 'right'
+        | 'topLeft'
+        | 'topRight'
+        | 'bottomLeft'
+        | 'bottomRight'
+    orientation?: 'horizontal' | 'vertical' // for meter type
+    offset?: {
+        x?: number
+        y?: number
+    }
+    dimensions?: {
+        width?: number
+        height?: number
+        length?: number // for meter type
+    }
+    theme?: Partial<DecibelGaugeTheme | DecibelMeterTheme>
+}
+
 export interface AudioVisualizerTheme {
     container: ViewStyle
     navigationContainer: ViewStyle
@@ -26,7 +53,10 @@ export interface AudioVisualizerTheme {
         offcanvasColor?: string
         selectedColor?: string
     }
+    decibelVisualization?: DecibelVisualizationConfig
 }
+
+export type AmplitudeScalingMode = 'raw' | 'normalized' | 'humanVoice'
 
 export interface CalculateReferenceLinePositionParams {
     canvasWidth: number

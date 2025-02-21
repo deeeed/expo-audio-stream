@@ -685,7 +685,6 @@ class AudioRecorderManager(
                 - Analysis Interval: ${recordingConfig.intervalAnalysis}ms
                 - Processing Enabled: ${recordingConfig.enableProcessing}
                 - Points Per Second: ${recordingConfig.pointsPerSecond}
-                - Algorithm: ${recordingConfig.algorithm}
                 - Keep Awake: ${recordingConfig.keepAwake}
                 - Show Notification: ${recordingConfig.showNotification}
                 - Show Waveform: ${recordingConfig.showWaveformInNotification}
