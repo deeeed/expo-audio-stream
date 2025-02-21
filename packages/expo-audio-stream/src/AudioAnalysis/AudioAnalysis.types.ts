@@ -11,6 +11,19 @@ export interface DecodingConfig {
 }
 
 /**
+ * Represents speech-related features extracted from audio.
+ */
+export interface SpeechFeatures {
+    isActive: boolean // Whether speech is detected in this segment
+    speakerId?: number // Optional speaker identification
+    // Could add more speech-related features here like:
+    // confidence: number
+    // language?: string
+    // sentiment?: number
+    // etc.
+}
+
+/**
  * Represents various audio features extracted from an audio signal.
  */
 export interface AudioFeatures {
@@ -60,11 +73,12 @@ export interface AudioFeaturesOptions {
  */
 export interface DataPoint {
     id: number
-    amplitude: number
-    activeSpeech?: boolean
-    dB?: number
-    silent?: boolean
+    amplitude: number // Peak amplitude for the segment
+    rms: number // Root mean square value
+    dB: number // Always computed
+    silent: boolean // Always computed
     features?: AudioFeatures
+    speech?: SpeechFeatures
     startTime?: number
     endTime?: number
     // start / end position in bytes
@@ -72,11 +86,7 @@ export interface DataPoint {
     endPosition?: number
     // number of audio samples for this point (samples size depends on bit depth)
     samples?: number
-    // TODO: speaker detection
-    speaker?: number
 }
-
-export type AmplitudeAlgorithm = 'peak' | 'rms'
 
 /**
  * Represents the complete data from the audio analysis.
@@ -89,16 +99,25 @@ export interface AudioAnalysis {
     numberOfChannels: number // Number of audio channels
     sampleRate: number // Sample rate of the audio
     dataPoints: DataPoint[] // Array of data points from the analysis.
-    amplitudeAlgorithm: AmplitudeAlgorithm // Algorithm used to calculate amplitude values.
     amplitudeRange: {
         min: number
         max: number
     }
-    // TODO: speaker detection
-    speakerChanges?: {
-        timestamp: number // Timestamp of the speaker change in milliseconds.
-        speaker: number // Speaker identifier.
-    }[]
+    rmsRange: {
+        min: number
+        max: number
+    }
+    // TODO: speaker changes into a broader speech analysis section
+    speechAnalysis?: {
+        speakerChanges: {
+            timestamp: number
+            speakerId: number
+        }[]
+        // Could add more speech analysis data here like:
+        // dominantSpeaker?: number
+        // totalSpeechDuration?: number
+        // speakerStats?: { [speakerId: number]: { duration: number, segments: number } }
+    }
 }
 
 /**
@@ -123,11 +142,6 @@ export interface PreviewOptions extends AudioRangeOptions {
      * @default 100
      */
     numberOfPoints?: number
-    /**
-     * Algorithm used to calculate amplitude values
-     * @default "rms"
-     */
-    algorithm?: AmplitudeAlgorithm
     /**
      * Optional configuration for decoding the audio file.
      * Defaults to:

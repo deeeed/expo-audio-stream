@@ -574,7 +574,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                     updateActivePointsResult.current
                                         .activePoints
                                 }
-                                algorithm={audioData.amplitudeAlgorithm}
                                 maxDisplayedItems={maxDisplayedItems}
                                 paddingLeft={paddingLeft}
                                 totalCandleWidth={totalCandleWidth}

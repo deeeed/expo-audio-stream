@@ -1,5 +1,4 @@
 import { SkFont, Line as SkiaLine, Text } from '@shopify/react-native-skia'
-import type { AmplitudeAlgorithm } from '@siteed/expo-audio-stream'
 import React from 'react'
 
 import { DEFAULT_LABEL_COLOR, DEFAULT_TICK_COLOR } from '../constants'
@@ -10,7 +9,6 @@ export interface YAxisProps {
     minAmplitude: number
     maxAmplitude: number
     padding: number
-    algorithm?: AmplitudeAlgorithm
     font?: SkFont
     tickInterval?: number // Interval for tick marks and labels
     tickLength?: number // Length of the tick marks

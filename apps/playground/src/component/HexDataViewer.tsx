@@ -8,6 +8,7 @@ import { convertPCMToFloat32 } from '@siteed/expo-audio-stream/src'
 interface HexDataViewerProps {
     byteArray: Uint8Array
     bitDepth: number
+    shouldComputeChecksum?: boolean
 }
 
 type ViewMode = 'hex' | 'base64' | 'string' | 'float32'
@@ -32,10 +33,36 @@ const bytesToString = (bytes: Uint8Array) => {
     return String.fromCharCode(...bytes)
 }
 
-export const HexDataViewer = ({ byteArray, bitDepth }: HexDataViewerProps) => {
+const computeChecksum = (bytes: Uint8Array): number => {
+    let sum = 0
+    for (let i = 0; i < bytes.length; i++) {
+        sum += bytes[i]
+    }
+    return sum
+}
+
+const computeFloat32Checksum = (float32Data: string): number => {
+    return Math.round(
+        float32Data.split(' ')
+            .map(val => parseFloat(val))
+            .reduce((acc, value) => acc + Math.abs(value), 0)
+    )
+}
+
+const formatChecksum = (value: number): string => {
+    if (isNaN(value) || value === undefined) return 'N/A'
+    return `0x${value.toString(16).padStart(8, '0')}`
+}
+
+export const HexDataViewer = ({ 
+    byteArray, 
+    bitDepth,
+    shouldComputeChecksum = false 
+}: HexDataViewerProps) => {
     const [viewMode, setViewMode] = useState<ViewMode>('hex')
     const [expanded, setExpanded] = useState(false)
     const [float32Data, setFloat32Data] = useState<string>('')
+    const [checksum, setChecksum] = useState<number>(0)
 
     const theme = useTheme()
 
@@ -49,7 +76,7 @@ export const HexDataViewer = ({ byteArray, bitDepth }: HexDataViewerProps) => {
             try {
                 logger.debug(`Starting PCM to Float32 conversion for buffer with byteLength: ${byteArray.byteLength}`);
                 const pcmConversionResult = await convertPCMToFloat32({
-                    buffer: byteArray.buffer,
+                    buffer: byteArray.buffer as ArrayBuffer,
                     bitDepth,
                     skipWavHeader: true
                 })
@@ -84,6 +111,19 @@ export const HexDataViewer = ({ byteArray, bitDepth }: HexDataViewerProps) => {
         convertToFloat32()
     }, [convertToFloat32])
 
+    useEffect(() => {
+        if (shouldComputeChecksum) {
+            setChecksum(computeChecksum(byteArray))
+        }
+    }, [byteArray, shouldComputeChecksum])
+
+    useEffect(() => {
+        if (float32Data) {
+            const float32Sum = computeFloat32Checksum(float32Data)
+            setChecksum(float32Sum)
+        }
+    }, [float32Data])
+
     return (
         <View style={styles.container}>
             <SegmentedButtons
@@ -106,6 +146,13 @@ export const HexDataViewer = ({ byteArray, bitDepth }: HexDataViewerProps) => {
                 ]}
                 style={styles.segmentedButton}
             />
+            {shouldComputeChecksum && (
+                <View style={styles.checksumContainer}>
+                    <Text style={[styles.checksumText, { color: theme.colors.text }]}>
+                        Checksum: {formatChecksum(checksum)}
+                    </Text>
+                </View>
+            )}
             <Text style={[styles.data, { color: theme.colors.text }]}>
                 {expanded ? displayedData : previewData}
                 {isExpandable && !expanded && (
@@ -153,5 +200,14 @@ const styles = StyleSheet.create({
     expandText: {
         fontSize: 14,
         fontWeight: 'bold',
+    },
+    checksumContainer: {
+        marginVertical: 8,
+    },
+    checksumText: {
+        fontSize: 14,
+    },
+    checksumValue: {
+        fontFamily: 'monospace',
     },
 })

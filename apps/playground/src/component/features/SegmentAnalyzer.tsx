@@ -1,9 +1,9 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { AppTheme, useTheme } from '@siteed/design-system'
+import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-stream'
 import React, { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { AmplitudeAlgorithm, AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-stream'
-import { AppTheme, useTheme } from '@siteed/design-system'
 import { baseLogger } from '../../config'
 import { FeatureViewer } from './FeatureViewer'
 
@@ -56,7 +56,6 @@ interface SegmentAnalyzerProps {
     onError?: (error: Error) => void
     analysisConfig: {
         pointsPerSecond: number
-        algorithm: AmplitudeAlgorithm,
         features?: AudioFeaturesOptions
     }
 }
@@ -118,9 +117,7 @@ export function SegmentAnalyzer({
                 fileUri,
                 position: startPosition,
                 length,
-                skipWavHeader: true,
                 pointsPerSecond: analysisConfig.pointsPerSecond,
-                algorithm: analysisConfig.algorithm,
                 features: analysisConfig.features,
             })
 

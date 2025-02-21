@@ -7,19 +7,30 @@
 
 import Foundation
 
+public struct SpeechFeatures {
+    public var isActive: Bool
+    public var speakerId: Int?
+    
+    func toDictionary() -> [String: Any] {
+        return [
+            "isActive": isActive,
+            "speakerId": speakerId as Any
+        ]
+    }
+}
 
 public struct DataPoint {
     public var id: Int
     public var amplitude: Float
-    public var activeSpeech: Bool?
-    public var dB: Float?
-    public var silent: Bool?
+    public var rms: Float
+    public var dB: Float
+    public var silent: Bool
     public var features: Features?
+    public var speech: SpeechFeatures?
     public var startTime: Float?
     public var endTime: Float?
     public var startPosition: Int?
     public var endPosition: Int?
-    public var speaker: Int?
     public var samples: Int?
 }
 
@@ -28,15 +39,15 @@ extension DataPoint {
         return [
             "id": id,
             "amplitude": amplitude,
-            "activeSpeech": activeSpeech ?? false,
-            "dB": dB ?? 0,
-            "silent": silent ?? false,
+            "rms": rms,
+            "dB": dB,
+            "silent": silent,
             "features": features?.toDictionary() ?? [:],
+            "speech": speech?.toDictionary() ?? [:],
             "startTime": startTime ?? 0,
             "endTime": endTime ?? 0,
             "startPosition": startPosition ?? 0,
             "endPosition": endPosition ?? 0,
-            "speaker": speaker ?? 0,
             "samples": samples ?? 0
         ]
     }
