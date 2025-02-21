@@ -67,9 +67,15 @@ class ExpoAudioStreamModule : Module(), EventSender {
                     - length: ${length ?: "until end"}
                 """.trimIndent())
                 
-                // Get decoding options
-                val decodingOptionsMap = options["decodingOptions"] as? Map<String, Any>
-                val decodingConfig = if (decodingOptionsMap != null) {
+                // Get decoding options with default configuration
+                val defaultConfig = DecodingConfig(
+                    targetSampleRate = null,
+                    targetChannels = null,
+                    targetBitDepth = 16,
+                    normalizeAudio = false
+                )
+                
+                val config = (options["decodingOptions"] as? Map<String, Any>)?.let { decodingOptionsMap ->
                     DecodingConfig(
                         targetSampleRate = decodingOptionsMap["targetSampleRate"] as? Int,
                         targetChannels = decodingOptionsMap["targetChannels"] as? Int,
@@ -84,7 +90,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
                             - normalizeAudio: ${it.normalizeAudio}
                         """.trimIndent())
                     }
-                } else null
+                } ?: defaultConfig
 
                 // Convert position/length to time if specified
                 val audioData = if (position != null && length != null) {
@@ -106,20 +112,15 @@ class ExpoAudioStreamModule : Module(), EventSender {
                             fileUri = fileUri,
                             startTimeMs = startTimeMs,
                             endTimeMs = startTimeMs + durationMs,
-                            config = decodingConfig ?: DecodingConfig(
-                                targetSampleRate = null,
-                                targetChannels = null,
-                                targetBitDepth = 16,
-                                normalizeAudio = false
-                            )
+                            config = config
                         )
                     } else {
                         Log.w(Constants.TAG, "Could not determine audio format, loading entire file")
-                        audioProcessor.loadAudioFromAnyFormat(fileUri, decodingConfig)
+                        audioProcessor.loadAudioFromAnyFormat(fileUri, config)
                     }
                 } else {
                     Log.d(Constants.TAG, "No range specified, loading entire file")
-                    audioProcessor.loadAudioFromAnyFormat(fileUri, decodingConfig)
+                    audioProcessor.loadAudioFromAnyFormat(fileUri, config)
                 } ?: throw IllegalStateException("Failed to load audio file")
 
                 val pointsPerSecond = (options["pointsPerSecond"] as? Double) ?: 20.0
@@ -147,7 +148,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
                 val analysisData = audioProcessor.processAudioData(audioData.data, recordingConfig)
                 promise.resolve(analysisData.toDictionary())
             } catch (e: Exception) {
-                Log.e(Constants.TAG, "Audio processing failed: ${e.message}", e)
+                Log.e(Constants.TAG, "Failed to extract audio analysis: ${e.message}", e)
                 promise.reject("PROCESSING_ERROR", e.message ?: "Unknown error", e)
             }
         }

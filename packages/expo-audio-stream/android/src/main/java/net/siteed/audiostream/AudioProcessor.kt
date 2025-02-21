@@ -13,6 +13,7 @@ import android.media.MediaFormat
 import android.media.MediaCodec
 import java.io.FileInputStream
 import java.io.RandomAccessFile
+import android.net.Uri
 
 data class DecodingConfig(
     val targetSampleRate: Int? = null,     // Optional target sample rate
@@ -257,12 +258,12 @@ class AudioProcessor(private val filesDir: File) {
                     zeroCrossings = zeroCrossings,
                     segmentLength = segmentData.size,
                     featureOptions = featureOptions,
-                    minAmplitude = localMinAmplitude,  // Make sure these are being passed
-                    maxAmplitude = localMaxAmplitude   // Make sure these are being passed
+                    minAmplitude = localMinAmplitude,
+                    maxAmplitude = localMaxAmplitude
                 )
                 val rms = features.rms
                 val silent = rms < 0.01
-                val dB = 20 * log10(rms.toDouble()).toFloat() // Always compute dB, removed featureOptions check
+                val dB = 20 * log10(rms.toDouble()).toFloat()
                 minAmplitude = min(minAmplitude, localMinAmplitude)
                 maxAmplitude = max(maxAmplitude, localMaxAmplitude)
                 minRms = min(minRms, rms)
@@ -425,10 +426,19 @@ class AudioProcessor(private val filesDir: File) {
 
         val pitch = if (featureOptions["pitch"] == true) estimatePitch(segmentData, sampleRate) else 0.0f
 
-        // Simple checksum computation
+        // Enhanced checksum computation with logging
         val checksum = segmentData.fold(0) { acc, value -> 
-            acc + value.toBits().toInt()
+            val bits = value.toBits()
+            acc + bits
         }
+        
+        Log.d("AudioProcessor", """
+            Checksum calculation details:
+            - Segment length: ${segmentData.size}
+            - First few samples: ${segmentData.take(5)}
+            - Last few samples: ${segmentData.takeLast(5)}
+            - Final checksum: $checksum
+        """.trimIndent())
         
         return Features(
             energy = energy,
@@ -1576,18 +1586,7 @@ class AudioProcessor(private val filesDir: File) {
             segmentLength = segmentLength,
             minAmplitude = minAmplitude,
             maxAmplitude = maxAmplitude,
-            featureOptions = mapOf(
-                "energy" to true,
-                "mfcc" to true,
-                "zcr" to true,
-                "spectralCentroid" to true,
-                "spectralFlatness" to true,
-                "spectralRollOff" to true,
-                "spectralBandwidth" to true,
-                "chromagram" to true,
-                "tempo" to true,
-                "hnr" to true,
-            )
+            featureOptions = mapOf() // Dont compute complex features
         )
     }
 
@@ -1832,6 +1831,110 @@ class AudioProcessor(private val filesDir: File) {
             return null
         } finally {
             extractor.release()
+        }
+    }
+
+    /**
+     * Gets the size of the audio file header.
+     * For WAV files, this includes the RIFF header and all metadata chunks before the data chunk.
+     * For other formats, this will return null as header size handling is format-specific.
+     *
+     * @param fileUri The URI of the audio file to analyze
+     * @return The size of the header in bytes, or null if:
+     *         - The file is not a WAV file
+     *         - The file cannot be read
+     *         - The file format is invalid
+     *         - The data chunk cannot be found
+     *
+     * WAV File Structure:
+     * - RIFF header (12 bytes)
+     *   - "RIFF" identifier (4 bytes)
+     *   - File size (4 bytes)
+     *   - "WAVE" identifier (4 bytes)
+     * - Format chunk ("fmt ") (24 bytes typically)
+     * - Optional metadata chunks (variable size)
+     *   - LIST (metadata like artist, title)
+     *   - JUNK (padding)
+     *   - fact (additional format info)
+     *   - cue  (cue points)
+     * - Data chunk
+     *   - "data" identifier (4 bytes)
+     *   - Chunk size (4 bytes)
+     *   - Actual audio data
+     */
+    fun getWavHeaderSize(fileUri: String): Int? {
+        val cleanUri = fileUri.removePrefix("file://")
+        val file = File(cleanUri).takeIf { it.exists() } ?: File(filesDir, File(cleanUri).name).takeIf { it.exists() }
+            ?: run {
+                Log.e(Constants.TAG, "File not found: $cleanUri")
+                return null
+            }
+
+        try {
+            // First check if it's a WAV file using MediaExtractor
+            val extractor = MediaExtractor()
+            try {
+                extractor.setDataSource(file.absolutePath)
+                val format = extractor.getTrackFormat(0)
+                val mimeType = format.getString(MediaFormat.KEY_MIME)
+                if (mimeType?.startsWith("audio/x-wav") != true) {
+                    Log.d(Constants.TAG, "Not a WAV file (mime type: $mimeType), skipping header size calculation")
+                    return null
+                }
+            } finally {
+                extractor.release()
+            }
+
+            val inputStream = FileInputStream(file)
+            val buffer = ByteArray(12)  // Read RIFF header and chunk size
+            
+            // Read RIFF header
+            if (inputStream.read(buffer) != 12) {
+                Log.e(Constants.TAG, "Failed to read RIFF header")
+                return null
+            }
+            
+            // Verify RIFF header
+            if (String(buffer, 0, 4) != "RIFF" || String(buffer, 8, 4) != "WAVE") {
+                Log.e(Constants.TAG, "Invalid WAV file format")
+                return null
+            }
+            
+            var headerSize = 12
+            var chunkSize: Int
+            
+            // Read chunks until we find the data chunk
+            while (true) {
+                if (inputStream.read(buffer, 0, 8) != 8) {
+                    Log.e(Constants.TAG, "Unexpected end of file while reading chunks")
+                    break
+                }
+                
+                chunkSize = (buffer[7].toInt() and 0xFF shl 24) or
+                           (buffer[6].toInt() and 0xFF shl 16) or
+                           (buffer[5].toInt() and 0xFF shl 8) or
+                           (buffer[4].toInt() and 0xFF)
+                
+                val chunkId = String(buffer, 0, 4)
+                Log.d(Constants.TAG, "Found chunk: $chunkId, size: $chunkSize")
+                
+                if (chunkId == "data") {
+                    headerSize += 8  // Add chunk header size
+                    Log.d(Constants.TAG, "Found data chunk at offset: $headerSize")
+                    break
+                }
+                
+                headerSize += 8 + chunkSize  // Add chunk header and data size
+                inputStream.skip(chunkSize.toLong())  // Skip chunk data
+            }
+            
+            inputStream.close()
+            Log.d(Constants.TAG, "Total WAV header size: $headerSize bytes")
+            return headerSize
+            
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Error calculating WAV header size: ${e.message}")
+            return null
         }
     }
 }
