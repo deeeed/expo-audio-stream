@@ -32,15 +32,13 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///   - options: A dictionary containing:
         ///     - `fileUri`: The URI of the audio file.
         ///     - `pointsPerSecond`: The number of data points to extract per second of audio.
-        ///     - `algorithm`: The algorithm to use for extraction.
         ///     - `features`: A dictionary specifying which features to extract (e.g., `energy`, `mfcc`, `rms`, etc.).
         ///   - promise: A promise to resolve with the extracted audio analysis data or reject with an error.
         /// - Returns: Promise to be resolved with audio analysis data.
         AsyncFunction("extractAudioAnalysis") { (options: [String: Any], promise: Promise) in
             guard let fileUri = options["fileUri"] as? String,
                   let url = URL(string: fileUri),
-                  let pointsPerSecond = options["pointsPerSecond"] as? Int,
-                  let algorithm = options["algorithm"] as? String else {
+                  let pointsPerSecond = options["pointsPerSecond"] as? Int else {
                 promise.reject("INVALID_ARGUMENTS", "Invalid arguments provided")
                 return
             }
@@ -60,7 +58,13 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                         promise.reject(code, message)
                     })
                     
-                    if let result = audioProcessor.processAudioData(numberOfSamples: nil, pointsPerSecond: pointsPerSecond, algorithm: algorithm, featureOptions: featureOptions, bitDepth: bitDepth, numberOfChannels: numberOfChannels) {
+                    if let result = audioProcessor.processAudioData(
+                        numberOfSamples: nil,
+                        pointsPerSecond: pointsPerSecond,
+                        featureOptions: featureOptions,
+                        bitDepth: bitDepth,
+                        numberOfChannels: numberOfChannels
+                    ) {
                         promise.resolve(result.toDictionary())
                     } else {
                         promise.reject("PROCESSING_ERROR", "Failed to process audio data")
@@ -105,7 +109,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                         promise.reject(code, message)
                     })
                     
-                    if let result = audioProcessor.processAudioData(numberOfSamples: numberOfSamples, offset: offset, length: length, pointsPerSecond: nil, algorithm: "rms", featureOptions: [:], bitDepth: bitDepth, numberOfChannels: numberOfChannels) {
+                    if let result = audioProcessor.processAudioData(numberOfSamples: numberOfSamples, offset: offset, length: length, pointsPerSecond: nil, featureOptions: [:], bitDepth: bitDepth, numberOfChannels: numberOfChannels) {
                         promise.resolve(result.toDictionary())
                     } else {
                         promise.reject("EXTRACTION_ERROR", "Failed to extract waveform")
@@ -335,7 +339,6 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             let startTimeMs = options["startTimeMs"] as? Double
             let endTimeMs = options["endTimeMs"] as? Double
             let pointsPerSecond = options["pointsPerSecond"] as? Int ?? 20
-            let algorithm = options["algorithm"] as? String ?? "rms"
             let featureOptions = options["featureOptions"] as? [String: Bool] ?? [:]
 
             DispatchQueue.global().async {
@@ -354,7 +357,6 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                         startTimeMs: startTimeMs,
                         endTimeMs: endTimeMs,
                         pointsPerSecond: pointsPerSecond,
-                        algorithm: algorithm,
                         featureOptions: featureOptions
                     ) {
                         promise.resolve(result.toDictionary())

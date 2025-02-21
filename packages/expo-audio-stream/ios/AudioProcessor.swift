@@ -68,13 +68,19 @@ public class AudioProcessor {
     ///   - offset: The offset to start reading from (in samples).
     ///   - length: The length of the audio to read (in samples).
     ///   - pointsPerSecond: The number of data points to extract per second (for features).
-    ///   - algorithm: The algorithm to use for feature extraction.
     ///   - featureOptions: The features to extract.
     ///   - bitDepth: The bit depth of the audio data.
     ///   - numberOfChannels: The number of channels in the audio data.
     /// - Returns: An `AudioAnalysisData` object containing the extracted features.
-    public func processAudioData(numberOfSamples: Int?, offset: Int? = 0, length: UInt? = nil, pointsPerSecond: Int?, algorithm: String, featureOptions: [String: Bool], bitDepth: Int, numberOfChannels: Int) -> AudioAnalysisData? {
-     
+    public func processAudioData(
+        numberOfSamples: Int?, 
+        offset: Int? = 0, 
+        length: UInt? = nil, 
+        pointsPerSecond: Int?,
+        featureOptions: [String: Bool],
+        bitDepth: Int,
+        numberOfChannels: Int
+    ) -> AudioAnalysisData? {
         guard let audioFile = audioFile else {
             reject("FILE_NOT_INITIALIZED", "Audio file is not initialized.")
             return nil
@@ -138,7 +144,14 @@ public class AudioProcessor {
             }
         }
         
-        return processChannelData(channelData: channelData, sampleRate: Float(audioFile.fileFormat.sampleRate), pointsPerSecond: actualPointsPerSecond, algorithm: algorithm, featureOptions: featureOptions, bitDepth: bitDepth, numberOfChannels: numberOfChannels)
+        return processChannelData(
+            channelData: channelData,
+            sampleRate: Float(audioFile.fileFormat.sampleRate),
+            pointsPerSecond: actualPointsPerSecond,
+            featureOptions: featureOptions,
+            bitDepth: bitDepth,
+            numberOfChannels: numberOfChannels
+        )
     }
     
     /// Processes audio data from a buffer.
@@ -146,12 +159,18 @@ public class AudioProcessor {
     ///   - data: The audio data buffer.
     ///   - sampleRate: The sample rate of the audio data.
     ///   - pointsPerSecond: The number of data points to extract per second (for features).
-    ///   - algorithm: The algorithm to use for feature extraction.
     ///   - featureOptions: The features to extract.
     ///   - bitDepth: The bit depth of the audio data.
     ///   - numberOfChannels: The number of channels in the audio data.
     /// - Returns: An `AudioAnalysisData` object containing the extracted features.
-    public func processAudioBuffer(data: Data, sampleRate: Float, pointsPerSecond: Int, algorithm: String, featureOptions: [String: Bool], bitDepth: Int, numberOfChannels: Int) -> AudioAnalysisData? {
+    public func processAudioBuffer(
+        data: Data,
+        sampleRate: Float,
+        pointsPerSecond: Int,
+        featureOptions: [String: Bool],
+        bitDepth: Int,
+        numberOfChannels: Int
+    ) -> AudioAnalysisData? {
         guard !data.isEmpty else {
             Logger.debug("Data is empty, rejecting")
             reject("DATA_EMPTY", "The audio data is empty.")
@@ -177,7 +196,14 @@ public class AudioProcessor {
             return nil
         }
 
-        return processChannelData(channelData: floatData, sampleRate: sampleRate, pointsPerSecond: pointsPerSecond, algorithm: algorithm, featureOptions: featureOptions, bitDepth: bitDepth, numberOfChannels: numberOfChannels)
+        return processChannelData(
+            channelData: floatData,
+            sampleRate: sampleRate,
+            pointsPerSecond: pointsPerSecond,
+            featureOptions: featureOptions,
+            bitDepth: bitDepth,
+            numberOfChannels: numberOfChannels
+        )
     }
 
     /// Processes the given audio channel data to extract features.
@@ -185,13 +211,19 @@ public class AudioProcessor {
     ///   - channelData: The audio channel data to process.
     ///   - sampleRate: The sample rate of the audio data.
     ///   - pointsPerSecond: The number of data points to extract per second (for features).
-    ///   - algorithm: The algorithm to use for feature extraction.
     ///   - featureOptions: The features to extract.
     ///   - bitDepth: The bit depth of the audio data.
     ///   - numberOfChannels: The number of channels in the audio data.
     /// - Returns: An `AudioAnalysisData` object containing the extracted features.
-    private func processChannelData(channelData: [Float], sampleRate: Float, pointsPerSecond: Int, algorithm: String, featureOptions: [String: Bool], bitDepth: Int, numberOfChannels: Int) -> AudioAnalysisData? {
-        Logger.debug("Processing audio data with sample rate: \(sampleRate), points per second: \(pointsPerSecond), algorithm: \(algorithm), bitDepth: \(bitDepth), numberOfChannels: \(numberOfChannels)")
+    private func processChannelData(
+        channelData: [Float],
+        sampleRate: Float,
+        pointsPerSecond: Int,
+        featureOptions: [String: Bool],
+        bitDepth: Int,
+        numberOfChannels: Int
+    ) -> AudioAnalysisData? {
+        Logger.debug("Processing audio data with sample rate: \(sampleRate), points per second: \(pointsPerSecond), bitDepth: \(bitDepth), numberOfChannels: \(numberOfChannels)")
         
         let startTime = CACurrentMediaTime() // Start the timer with high precision
 
@@ -236,17 +268,17 @@ public class AudioProcessor {
                let endPosition = startPosition + (segmentSize * bytesPerSample * numberOfChannels)
                
                 dataPoints.append(DataPoint(
-                    id: uniqueIdCounter,
-                    amplitude: algorithm == "peak" ? localMaxAmplitude : rms,
-                    activeSpeech: nil,
+                    id: Int(uniqueIdCounter),
+                    amplitude: localMaxAmplitude,
+                    rms: rms,
                     dB: dB,
                     silent: silent,
                     features: features,
+                    speech: SpeechFeatures(isActive: !silent),
                     startTime: segmentStartTime,
                     endTime: segmentEndTime,
                     startPosition: startPosition,
                     endPosition: endPosition,
-                    speaker: 0,
                     samples: segmentData.count
                 ))
                 uniqueIdCounter += 1 // Increment the unique ID counter
@@ -258,21 +290,28 @@ public class AudioProcessor {
             }
         }
         
-        let endTime = CACurrentMediaTime() // End the timer with high precision
+        let endTime = CACurrentMediaTime()
         let processingTimeMs = Float((endTime - startTime) * 1000)
 
         Logger.debug("Processed \(dataPoints.count) data points in \(processingTimeMs) ms")
 
         return AudioAnalysisData(
-            pointsPerSecond: pointsPerSecond,
-            durationMs: Float(durationMs),
+            pointsPerSecond: Double(pointsPerSecond),
+            durationMs: Int(durationMs),
             bitDepth: bitDepth,
             numberOfChannels: numberOfChannels,
-            sampleRate: sampleRate,
+            sampleRate: Int(sampleRate),
             samples: channelData.count,
             dataPoints: dataPoints,
-            amplitudeRange: (min: minAmplitude, max: maxAmplitude),
-            speakerChanges: [],
+            amplitudeRange: AudioAnalysisData.AmplitudeRange(
+                min: minAmplitude,
+                max: maxAmplitude
+            ),
+            rmsRange: AudioAnalysisData.AmplitudeRange(
+                min: 0,
+                max: 1
+            ),
+            speechAnalysis: nil,
             extractionTimeMs: processingTimeMs
         )
     }
@@ -351,7 +390,6 @@ public class AudioProcessor {
         startTimeMs: Double? = nil,
         endTimeMs: Double? = nil,
         pointsPerSecond: Int? = nil,
-        algorithm: String,
         featureOptions: [String: Bool]
     ) -> AudioAnalysisData? {
         guard let audioFile = audioFile else {
@@ -416,20 +454,18 @@ public class AudioProcessor {
                     summedData[i] /= Float(numberOfChannels)
                 }
                 
-                // Calculate amplitude based on algorithm
-                let amplitude: Float
-                if algorithm.lowercased() == "peak" {
-                    var localMax: Float = 0
-                    vDSP_maxmgv(summedData, 1, &localMax, vDSP_Length(framesToRead))
-                    amplitude = localMax
-                } else {
-                    var rms: Float = 0
-                    vDSP_rmsqv(summedData, 1, &rms, vDSP_Length(framesToRead))
-                    amplitude = rms
-                }
+                // Calculate both peak amplitude and RMS
+                var localMax: Float = 0
+                var rms: Float = 0
+                vDSP_maxmgv(summedData, 1, &localMax, vDSP_Length(framesToRead))
+
+                // Calculate RMS using vDSP
+                var meanSquare: Float = 0
+                vDSP_measqv(summedData, 1, &meanSquare, vDSP_Length(framesToRead))
+                rms = sqrt(meanSquare)
                 
-                minAmplitude = min(minAmplitude, amplitude)
-                maxAmplitude = max(maxAmplitude, amplitude)
+                minAmplitude = min(minAmplitude, localMax)
+                maxAmplitude = max(maxAmplitude, localMax)
                 
                 // Create data point
                 let startTime = Float(currentFrame) / Float(sampleRate)
@@ -437,7 +473,19 @@ public class AudioProcessor {
                 
                 let dataPoint = DataPoint(
                     id: currentId,
-                    amplitude: amplitude,
+                    amplitude: localMax,      // Always use peak amplitude
+                    rms: rms,                // Use calculated RMS value
+                    dB: Float(20 * log10(Double(rms))),  // Use RMS for dB calculation
+                    silent: rms < 0.01,      // Use RMS for silence detection
+                    features: computeFeatures(
+                        segmentData: Array(UnsafeBufferPointer(start: summedData, count: Int(framesToRead))),
+                        sampleRate: sampleRate,
+                        sumSquares: rms * rms,
+                        zeroCrossings: 0,
+                        segmentLength: Int(framesToRead),
+                        featureOptions: featureOptions
+                    ),
+                    speech: SpeechFeatures(isActive: rms >= 0.01),
                     startTime: startTime,
                     endTime: endTime,
                     startPosition: Int(currentFrame),
@@ -459,14 +507,22 @@ public class AudioProcessor {
         let extractionTime = Float(endTime - startTime) * 1000 // Convert to milliseconds
         
         return AudioAnalysisData(
-            pointsPerSecond: actualPointsPerSecond,
-            durationMs: Float(endFrame - startFrame) * 1000 / Float(sampleRate),
+            pointsPerSecond: Double(pointsPerSecond ?? 20),
+            durationMs: Int(Float(endFrame - startFrame) * 1000 / sampleRate),
             bitDepth: bitDepth,
             numberOfChannels: numberOfChannels,
-            sampleRate: sampleRate,
+            sampleRate: Int(sampleRate),
             samples: Int(endFrame - startFrame),
             dataPoints: dataPoints,
-            amplitudeRange: (min: minAmplitude, max: maxAmplitude),
+            amplitudeRange: AudioAnalysisData.AmplitudeRange(
+                min: minAmplitude,
+                max: maxAmplitude
+            ),
+            rmsRange: AudioAnalysisData.AmplitudeRange(
+                min: 0,
+                max: 1
+            ),
+            speechAnalysis: nil,
             extractionTimeMs: extractionTime
         )
     }
@@ -563,10 +619,14 @@ public class AudioProcessor {
     ///   - numberOfPoints: The number of points to extract
     ///   - startTimeMs: Optional start time in milliseconds
     ///   - endTimeMs: Optional end time in milliseconds
-    ///   - algorithm: The algorithm to use for feature extraction
     ///   - featureOptions: The features to extract
     /// - Returns: An `AudioAnalysisData` object containing the extracted features
-    public func extractPreview(numberOfPoints: Int, startTimeMs: Double? = nil, endTimeMs: Double? = nil, algorithm: String, featureOptions: [String: Bool]) -> AudioAnalysisData? {
+    public func extractPreview(
+        numberOfPoints: Int,
+        startTimeMs: Double? = nil,
+        endTimeMs: Double? = nil,
+        featureOptions: [String: Bool]
+    ) -> AudioAnalysisData? {
         guard let audioFile = audioFile else {
             reject("FILE_NOT_INITIALIZED", "Audio file is not initialized.")
             return nil
@@ -645,17 +705,17 @@ public class AudioProcessor {
                 let segmentEndTime = Float(pointEndFrame) / sampleRate
                 
                 let dataPoint = DataPoint(
-                    id: uniqueIdCounter,
-                    amplitude: algorithm == "peak" ? localMaxAmplitude : rms,
-                    activeSpeech: nil,
+                    id: Int(uniqueIdCounter),
+                    amplitude: localMaxAmplitude,
+                    rms: rms,
                     dB: dB,
                     silent: silent,
                     features: features,
+                    speech: SpeechFeatures(isActive: !silent),
                     startTime: segmentStartTime,
                     endTime: segmentEndTime,
                     startPosition: Int(pointStartFrame),
                     endPosition: Int(pointEndFrame),
-                    speaker: 0,
                     samples: Int(framesToRead)
                 )
                 dataPoints.append(dataPoint)
@@ -698,15 +758,22 @@ public class AudioProcessor {
         """)
         
         return AudioAnalysisData(
-            pointsPerSecond: numberOfPoints,
-            durationMs: Float(durationMs),
+            pointsPerSecond: Double(numberOfPoints),
+            durationMs: Int(durationMs),
             bitDepth: bitDepth,
             numberOfChannels: numberOfChannels,
-            sampleRate: sampleRate,
+            sampleRate: Int(sampleRate),
             samples: samplesInRange,
             dataPoints: dataPoints,
-            amplitudeRange: (min: minAmplitude, max: maxAmplitude),
-            speakerChanges: [],
+            amplitudeRange: AudioAnalysisData.AmplitudeRange(
+                min: minAmplitude,
+                max: maxAmplitude
+            ),
+            rmsRange: AudioAnalysisData.AmplitudeRange(
+                min: 0,
+                max: 1
+            ),
+            speechAnalysis: nil,
             extractionTimeMs: extractionTimeMs
         )
     }

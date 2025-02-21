@@ -351,6 +351,7 @@ export async function extractPreview({
             dataPoints: analysis.dataPoints.map((point) => ({
                 id: point.id,
                 amplitude: point.amplitude,
+                rms: point.rms,
                 startTime: point.startTime,
                 endTime: point.endTime,
                 dB: point.dB,

@@ -191,8 +191,8 @@ class AudioProcessor(private val filesDir: File) {
                 samples = 0,
                 dataPoints = emptyList(),
                 amplitudeRange = AudioAnalysisData.AmplitudeRange(0f, 0f),
+                rmsRange = AudioAnalysisData.AmplitudeRange(0f, 0f),
                 extractionTimeMs = 0f,
-                speakerChanges = emptyList()
             )
         }
 
@@ -223,6 +223,8 @@ class AudioProcessor(private val filesDir: File) {
         val dataPoints = mutableListOf<DataPoint>()
         var minAmplitude = Float.MAX_VALUE
         var maxAmplitude = Float.NEGATIVE_INFINITY
+        var minRms = Float.MAX_VALUE
+        var maxRms = Float.NEGATIVE_INFINITY
         val durationMs = (segmentDurationSeconds * 1000).toInt()
 
         // Measure the time taken for audio processing
@@ -263,6 +265,8 @@ class AudioProcessor(private val filesDir: File) {
                 val dB = 20 * log10(rms.toDouble()).toFloat() // Always compute dB, removed featureOptions check
                 minAmplitude = min(minAmplitude, localMinAmplitude)
                 maxAmplitude = max(maxAmplitude, localMaxAmplitude)
+                minRms = min(minRms, rms)
+                maxRms = max(maxRms, rms)
 
                 val bytesPerSample = bitDepth / 8
                 val startPosition = start * bytesPerSample * config.channels
@@ -273,18 +277,18 @@ class AudioProcessor(private val filesDir: File) {
                 cumulativeMaxAmplitude = max(cumulativeMaxAmplitude, localMaxAmplitude)
 
                 val dataPoint = DataPoint(
-                    id = uniqueIdCounter.getAndIncrement(), // Assign unique ID and increment the counter
-                    amplitude = if (algorithm == "peak") localMaxAmplitude else rms,
-                    activeSpeech = null,
+                    id = uniqueIdCounter.getAndIncrement(),
+                    amplitude = localMaxAmplitude,  // Always use peak amplitude
+                    rms = rms,                      // Always include RMS
                     dB = dB,
                     silent = silent,
                     features = features,
-                    samples = segmentData.size,
+                    speech = SpeechFeatures(isActive = !silent),
                     startTime = startPosition / (sampleRate * bytesPerSample * config.channels),
                     endTime = endPosition / (sampleRate * bytesPerSample * config.channels),
                     startPosition = startPosition,
                     endPosition = endPosition,
-                    speaker = 0
+                    samples = segmentData.size
                 )
 
                 dataPoints.add(dataPoint)
@@ -293,15 +297,15 @@ class AudioProcessor(private val filesDir: File) {
 
         return AudioAnalysisData(
             pointsPerSecond = pointsPerSecond,
-            durationMs = durationMs,
+            durationMs = durationMs.toInt(),
             bitDepth = bitDepth,
             numberOfChannels = config.channels,
-            sampleRate = config.sampleRate,
-            samples = totalSamples,
+            sampleRate = config.sampleRate,  // Use config.sampleRate instead of sampleRate
+            samples = totalSamples,          // Use totalSamples instead of samplesInRange
             dataPoints = dataPoints,
-            amplitudeRange = AudioAnalysisData.AmplitudeRange(cumulativeMinAmplitude, cumulativeMaxAmplitude),
-            speakerChanges = emptyList(),
-            extractionTimeMs = extractionTimeMs.toFloat() // Return the measured extraction time
+            amplitudeRange = AudioAnalysisData.AmplitudeRange(minAmplitude, maxAmplitude),
+            rmsRange = AudioAnalysisData.AmplitudeRange(minRms, maxRms),
+            extractionTimeMs = extractionTimeMs.toFloat()
         )
     }
 
@@ -1137,6 +1141,8 @@ class AudioProcessor(private val filesDir: File) {
         val dataPoints = mutableListOf<DataPoint>()
         var minAmplitude = Float.MAX_VALUE
         var maxAmplitude = Float.MIN_VALUE
+        var minRms = Float.MAX_VALUE      // Add minRms
+        var maxRms = Float.MIN_VALUE      // Add maxRms
         
         val extractionTimeMs = measureTimeMillis {
             for (i in 0 until numberOfPoints) {
@@ -1159,22 +1165,27 @@ class AudioProcessor(private val filesDir: File) {
                     val startTimePoint = ((pointStartSample * 1000L) / (audioData.sampleRate * audioData.channels)).toFloat()
                     val endTimePoint = ((pointEndSample * 1000L) / (audioData.sampleRate * audioData.channels)).toFloat()
                     
-                    val amplitude = when (config.algorithm.lowercase()) {
-                        "peak" -> segmentData.maxOf { abs(it) }
-                        else -> sqrt(segmentData.map { it * it }.average().toFloat())
-                    }
+                    val rms = sqrt(segmentData.map { it * it }.average().toFloat())
+                    val amplitude = segmentData.maxOf { abs(it) }  // Always use peak amplitude
                     
                     minAmplitude = minOf(minAmplitude, amplitude)
                     maxAmplitude = maxOf(maxAmplitude, amplitude)
+                    minRms = minOf(minRms, rms)
+                    maxRms = maxOf(maxRms, rms)
                     
                     dataPoints.add(DataPoint(
                         id = i.toLong(),
-                        amplitude = amplitude,
+                        amplitude = amplitude,  // Peak amplitude
+                        rms = rms,             // RMS value
+                        dB = 20 * log10(amplitude.toDouble()).toFloat(),
+                        silent = amplitude < 0.01,
+                        features = null,
+                        speech = null,
                         startTime = startTimePoint,
                         endTime = endTimePoint,
                         startPosition = pointStartSample,
                         endPosition = pointEndSample,
-                        samples = pointEndSample - pointStartSample
+                        samples = segmentData.size
                     ))
                 } catch (e: Exception) {
                     Log.e(Constants.TAG, "Error processing segment $i: ${e.message}")
@@ -1196,7 +1207,7 @@ class AudioProcessor(private val filesDir: File) {
             samples = samplesInRange,
             dataPoints = dataPoints,
             amplitudeRange = AudioAnalysisData.AmplitudeRange(minAmplitude, maxAmplitude),
-            speakerChanges = emptyList(),
+            rmsRange = AudioAnalysisData.AmplitudeRange(minRms, maxRms),
             extractionTimeMs = extractionTimeMs.toFloat()
         )
     }
