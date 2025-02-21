@@ -14,9 +14,14 @@ data class Features(
     val spectralFlatness: Float = 0f,
     val spectralRollOff: Float = 0f,
     val spectralBandwidth: Float = 0f,
-    val chromagram: List<Float> = emptyList(),
     val tempo: Float = 0f,
-    val hnr: Float = 0f
+    val hnr: Float = 0f,
+    val melSpectrogram: List<Float> = emptyList(),
+    val chromagram: List<Float> = emptyList(),
+    val spectralContrast: List<Float> = emptyList(),
+    val tonnetz: List<Float> = emptyList(),
+    val pitch: Float = 0f,
+    val dataChecksum: Int = 0
 ) {
     fun toDictionary(): Map<String, Any> {
         return mapOf(
@@ -30,9 +35,14 @@ data class Features(
             "spectralFlatness" to spectralFlatness,
             "spectralRollOff" to spectralRollOff,
             "spectralBandwidth" to spectralBandwidth,
-            "chromagram" to chromagram,
             "tempo" to tempo,
-            "hnr" to hnr
+            "hnr" to hnr,
+            "melSpectrogram" to melSpectrogram,
+            "chromagram" to chromagram,
+            "spectralContrast" to spectralContrast,
+            "tonnetz" to tonnetz,
+            "pitch" to pitch,
+            "dataChecksum" to dataChecksum
         )
     }
 
@@ -48,9 +58,39 @@ data class Features(
             "spectralFlatness" to spectralFlatness,
             "spectralRollOff" to spectralRollOff,
             "spectralBandwidth" to spectralBandwidth,
-            "chromagram" to chromagram,
             "tempo" to tempo,
-            "hnr" to hnr
+            "hnr" to hnr,
+            "melSpectrogram" to melSpectrogram,
+            "chromagram" to chromagram,
+            "spectralContrast" to spectralContrast,
+            "tonnetz" to tonnetz,
+            "pitch" to pitch,
+            "dataChecksum" to dataChecksum
         )
+    }
+
+    companion object {
+        fun parseFeatureOptions(options: Map<*, *>?): Map<String, Boolean> {
+            return options?.let { map ->
+                mapOf(
+                    "energy" to (map["energy"] as? Boolean ?: false),
+                    "mfcc" to (map["mfcc"] as? Boolean ?: false),
+                    "rms" to (map["rms"] as? Boolean ?: false),
+                    "zcr" to (map["zcr"] as? Boolean ?: false),
+                    "dB" to (map["dB"] as? Boolean ?: false),
+                    "spectralCentroid" to (map["spectralCentroid"] as? Boolean ?: false),
+                    "spectralFlatness" to (map["spectralFlatness"] as? Boolean ?: false),
+                    "spectralRollOff" to (map["spectralRollOff"] as? Boolean ?: false),
+                    "spectralBandwidth" to (map["spectralBandwidth"] as? Boolean ?: false),
+                    "chromagram" to (map["chromagram"] as? Boolean ?: false),
+                    "tempo" to (map["tempo"] as? Boolean ?: false),
+                    "hnr" to (map["hnr"] as? Boolean ?: false),
+                    "melSpectrogram" to (map["melSpectrogram"] as? Boolean ?: false),
+                    "spectralContrast" to (map["spectralContrast"] as? Boolean ?: false),
+                    "tonnetz" to (map["tonnetz"] as? Boolean ?: false),
+                    "pitch" to (map["pitch"] as? Boolean ?: false)
+                )
+            } ?: emptyMap()
+        }
     }
 }

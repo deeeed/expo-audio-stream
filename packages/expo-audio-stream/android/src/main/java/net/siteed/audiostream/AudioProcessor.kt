@@ -1,4 +1,4 @@
-// net/siteed/audiostream/AudioProcessor.kt
+// packages/expo-audio-stream/android/src/main/java/net/siteed/audiostream/AudioProcessor.kt
 package net.siteed.audiostream
 
 import java.nio.ByteBuffer
@@ -6,14 +6,12 @@ import java.nio.ByteOrder
 import kotlin.math.*
 import android.util.Log
 import java.io.File
-import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.system.measureTimeMillis
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaCodec
 import java.io.FileInputStream
-import java.nio.channels.FileChannel
 import java.io.RandomAccessFile
 
 data class DecodingConfig(
@@ -25,13 +23,12 @@ data class DecodingConfig(
 
 class AudioProcessor(private val filesDir: File) {
     companion object {
-        const val NUM_MFCC_COEFFICIENTS = 13
-        const val NUM_MEL_FILTERS = 26
-        const val MEL_MIN_FREQ = 0.0
-        const val MEL_MAX_FREQ_DIVISOR = 2595.0
-        const val MEL_MAX_FREQ_CONSTANT = 700.0
         const val DCT_SQRT_DIVISOR = 2.0
-        const val LOG_BASE = 10.0
+        private const val N_FFT = 1024
+        private const val N_MFCC = 40
+        private const val N_MELS = 128
+        private const val N_CHROMA = 12
+        private const val N_BANDS = 7
 
         private val uniqueIdCounter = AtomicLong(0L) // Keep as companion object property to maintain during pause/resume cycles
 
@@ -45,7 +42,7 @@ class AudioProcessor(private val filesDir: File) {
     private var cumulativeMinAmplitude = Float.MAX_VALUE
     private var cumulativeMaxAmplitude = Float.NEGATIVE_INFINITY
 
-    fun loadAudioFile(filePath: String, debug: Boolean = false): AudioData? {
+    private fun loadAudioFile(filePath: String): AudioData? {
         try {
             val fileUri = filePath.removePrefix("file://")
             Log.d("AudioProcessor", "Processing WAV file: $fileUri")
@@ -65,10 +62,6 @@ class AudioProcessor(private val filesDir: File) {
                 Log.e("AudioProcessor", "Invalid RIFF header")
                 return null
             }
-
-            // Read file size (4 bytes little-endian)
-            val fileSizeBytes = ByteArray(4).apply { raf.readFully(this) }
-            val expectedFileSize = ByteBuffer.wrap(fileSizeBytes).order(ByteOrder.LITTLE_ENDIAN).int + 8L
 
             // Read WAVE header
             val waveHeader = ByteArray(4).apply { raf.readFully(this) }
@@ -180,18 +173,6 @@ class AudioProcessor(private val filesDir: File) {
         }
     }
 
-    private fun byteArrayToInt(bytes: ByteArray): Int {
-        return (bytes[0].toInt() and 0xFF) or
-                ((bytes[1].toInt() and 0xFF) shl 8) or
-                ((bytes[2].toInt() and 0xFF) shl 16) or
-                ((bytes[3].toInt() and 0xFF) shl 24)
-    }
-
-    private fun byteArrayToShort(bytes: ByteArray): Short {
-        return (bytes[0].toInt() and 0xFF or
-                (bytes[1].toInt() and 0xFF shl 8)).toShort()
-    }
-
     /**
      * Processes the audio data and extracts features.
      * @param data The audio data in bytes.
@@ -199,6 +180,22 @@ class AudioProcessor(private val filesDir: File) {
      * @return AudioAnalysisData containing the extracted features.
      */
     fun processAudioData(data: ByteArray, config: RecordingConfig): AudioAnalysisData {
+        if (data.isEmpty()) {
+            Log.e("AudioProcessor", "Received empty audio data")
+            return AudioAnalysisData(
+                pointsPerSecond = config.pointsPerSecond,
+                durationMs = 0,
+                bitDepth = 16,
+                numberOfChannels = config.channels,
+                sampleRate = config.sampleRate,
+                samples = 0,
+                dataPoints = emptyList(),
+                amplitudeRange = AudioAnalysisData.AmplitudeRange(0f, 0f),
+                extractionTimeMs = 0f,
+                speakerChanges = emptyList()
+            )
+        }
+
         val sampleRate = config.sampleRate.toFloat()
         val bitDepth = when (config.encoding) {
             "pcm_8bit" -> 8
@@ -230,8 +227,6 @@ class AudioProcessor(private val filesDir: File) {
 
         // Measure the time taken for audio processing
         val extractionTimeMs = measureTimeMillis {
-            var currentPosition = 0 // Track the current byte position
-
             for (i in 0 until totalPoints) {
                 val start = i * samplesPerPoint
                 val end = min(start + samplesPerPoint, totalSamples)
@@ -253,10 +248,19 @@ class AudioProcessor(private val filesDir: File) {
                     localMaxAmplitude = max(localMaxAmplitude, absValue)
                 }
 
-                val features = computeFeatures(segmentData, sampleRate, minAmplitude, maxAmplitude, sumSquares, zeroCrossings, segmentData.size, featureOptions)
+                val features = computeFeatures(
+                    segmentData = segmentData,
+                    sampleRate = sampleRate,
+                    sumSquares = sumSquares,
+                    zeroCrossings = zeroCrossings,
+                    segmentLength = segmentData.size,
+                    featureOptions = featureOptions,
+                    minAmplitude = localMinAmplitude,  // Make sure these are being passed
+                    maxAmplitude = localMaxAmplitude   // Make sure these are being passed
+                )
                 val rms = features.rms
                 val silent = rms < 0.01
-                val dB = if (featureOptions["dB"] == true) 20 * log10(rms.toDouble()).toFloat() else 0f
+                val dB = 20 * log10(rms.toDouble()).toFloat() // Always compute dB, removed featureOptions check
                 minAmplitude = min(minAmplitude, localMinAmplitude)
                 maxAmplitude = max(maxAmplitude, localMaxAmplitude)
 
@@ -358,45 +362,33 @@ class AudioProcessor(private val filesDir: File) {
         val zcr = if (featureOptions["zcr"] == true) zeroCrossings / segmentLength.toFloat() else 0f
 
         val mfcc = try {
-            if (featureOptions["mfcc"] == true) extractMFCC(segmentData, sampleRate) else emptyList()
+            if (featureOptions["mfcc"] == true) computeMFCC(segmentData, sampleRate) else emptyList()
         } catch (e: Exception) {
             Log.e("AudioProcessor", "Failed to extract MFCC: ${e.message}", e)
             emptyList()
         }
 
-        val spectralCentroid = try {
-            if (featureOptions["spectralCentroid"] == true) extractSpectralCentroid(segmentData, sampleRate) else 0f
+        val melSpectrogram = try {
+            if (featureOptions["melSpectrogram"] == true) computeMelSpectrogram(segmentData, sampleRate) else emptyList()
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to extract spectral centroid: ${e.message}", e)
-            0f
-        }
-
-        val spectralFlatness = try {
-            if (featureOptions["spectralFlatness"] == true) extractSpectralFlatness(segmentData) else 0f
-        } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to extract spectral flatness: ${e.message}", e)
-            0f
-        }
-
-        val spectralRollOff = try {
-            if (featureOptions["spectralRollOff"] == true) extractSpectralRollOff(segmentData, sampleRate) else 0f
-        } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to extract spectral roll-off: ${e.message}", e)
-            0f
-        }
-
-        val spectralBandwidth = try {
-            if (featureOptions["spectralBandwidth"] == true) extractSpectralBandwidth(segmentData, sampleRate) else 0f
-        } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to extract spectral bandwidth: ${e.message}", e)
-            0f
-        }
-
-        val chromagram = try {
-            if (featureOptions["chromagram"] == true) extractChromagram(segmentData, sampleRate) else emptyList()
-        } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to extract chromagram: ${e.message}", e)
+            Log.e("AudioProcessor", "Failed to compute mel spectrogram: ${e.message}", e)
             emptyList()
+        }
+
+        val chroma = try {
+            if (featureOptions["chromagram"] == true) computeChroma(segmentData, sampleRate) else emptyList()
+        } catch (e: Exception) {
+            Log.e("AudioProcessor", "Failed to compute chroma: ${e.message}", e)
+            emptyList()
+        }
+
+        val spectralFeatures = if (featureOptions["spectralCentroid"] == true || 
+                                 featureOptions["spectralFlatness"] == true ||
+                                 featureOptions["spectralRollOff"] == true ||
+                                 featureOptions["spectralBandwidth"] == true) {
+            extractSpectralFeatures(segmentData, sampleRate)
+        } else {
+            SpectralFeatures()
         }
 
         val tempo = try {
@@ -413,22 +405,212 @@ class AudioProcessor(private val filesDir: File) {
             0f
         }
 
+        val spectralContrast = try {
+            if (featureOptions["spectralContrast"] == true) computeSpectralContrast(segmentData, sampleRate) else emptyList()
+        } catch (e: Exception) {
+            Log.e("AudioProcessor", "Failed to compute spectral contrast: ${e.message}", e)
+            emptyList()
+        }
+
+        val tonnetz = try {
+            if (featureOptions["tonnetz"] == true) computeTonnetz(segmentData, sampleRate) else emptyList()
+        } catch (e: Exception) {
+            Log.e("AudioProcessor", "Failed to compute tonnetz: ${e.message}", e)
+            emptyList()
+        }
+
+        val pitch = if (featureOptions["pitch"] == true) estimatePitch(segmentData, sampleRate) else 0.0f
+
+        // Simple checksum computation
+        val checksum = segmentData.fold(0) { acc, value -> 
+            acc + value.toBits().toInt()
+        }
+        
         return Features(
             energy = energy,
             mfcc = mfcc,
             rms = rms,
-            zcr = zcr,
             minAmplitude = minAmplitude,
             maxAmplitude = maxAmplitude,
-            spectralCentroid = spectralCentroid,
-            spectralFlatness = spectralFlatness,
-            spectralRollOff = spectralRollOff,
-            spectralBandwidth = spectralBandwidth,
-            chromagram = chromagram,
+            zcr = zcr,
+            spectralCentroid = spectralFeatures.centroid,
+            spectralFlatness = spectralFeatures.flatness,
+            spectralRollOff = spectralFeatures.rollOff,
+            spectralBandwidth = spectralFeatures.bandwidth,
             tempo = tempo,
-            hnr = hnr
+            hnr = hnr,
+            melSpectrogram = melSpectrogram,
+            chromagram = chroma,
+            spectralContrast = spectralContrast,
+            tonnetz = tonnetz,
+            pitch = pitch,
+            dataChecksum = checksum
         )
     }
+
+    private fun extractTempo(segmentData: FloatArray, sampleRate: Float): Float {
+        val hopLength = 512
+        val frameLength = 2048
+        
+        // Compute onset strength signal using spectral flux
+        val onsetEnvelope = mutableListOf<Float>()
+        var previousSpectrum = FloatArray(frameLength / 2)
+        
+        // Process frames with spectral flux
+        for (i in 0 until segmentData.size - frameLength step hopLength) {
+            val frame = segmentData.slice(i until minOf(i + frameLength, segmentData.size)).toFloatArray()
+            val fft = FFT(frameLength)
+            val fftData = frame.copyOf(frameLength)
+            fft.realForward(fftData)
+            
+            // Compute magnitude spectrum
+            val magnitudes = FloatArray(frameLength / 2)
+            for (j in magnitudes.indices) {
+                val re = fftData[2 * j]
+                val im = if (2 * j + 1 < fftData.size) fftData[2 * j + 1] else 0f
+                magnitudes[j] = sqrt(re * re + im * im)
+            }
+            
+            // Calculate spectral flux (sum of positive differences)
+            var flux = 0f
+            for (j in magnitudes.indices) {
+                flux += maxOf(magnitudes[j] - previousSpectrum[j], 0f)
+            }
+            onsetEnvelope.add(flux)
+            previousSpectrum = magnitudes
+        }
+        
+        // Find peaks in onset envelope
+        val peaks = mutableListOf<Int>()
+        for (i in 1 until onsetEnvelope.size - 1) {
+            if (onsetEnvelope[i] > onsetEnvelope[i-1] && onsetEnvelope[i] > onsetEnvelope[i+1]) {
+                peaks.add(i)
+            }
+        }
+        
+        // Calculate tempo from peak intervals
+        return if (peaks.size > 1) {
+            val intervals = peaks.zipWithNext { a, b -> b - a }
+            val averageInterval = intervals.average().toFloat()
+            60f * sampleRate / (hopLength * averageInterval)
+        } else {
+            120f // Default tempo if no clear peaks found
+        }
+    }
+
+    private fun extractSpectralFeatures(samples: FloatArray, sampleRate: Float): SpectralFeatures {
+        // FFT requires a fixed-size buffer (N_FFT). If our input is larger,
+        // we'll analyze just the first N_FFT samples to prevent buffer overflow.
+        // This is a common practice in audio analysis where we process chunks
+        // of consistent size rather than variable-length segments.
+        val windowed = if (samples.size > N_FFT) {
+            // If samples are larger than FFT size, take the first N_FFT samples
+            applyHannWindow(samples.copyOf(N_FFT))
+        } else {
+            applyHannWindow(samples)
+        }
+        
+        // Create padded array for FFT, ensuring we don't exceed N_FFT size
+        // Zero padding is automatic since FloatArray initializes with zeros
+        val paddedSamples = FloatArray(N_FFT).also { padded ->
+            windowed.copyInto(padded, 0, 0, minOf(windowed.size, N_FFT))
+        }
+
+        // Perform FFT
+        val fft = FFT(N_FFT)
+        fft.realForward(paddedSamples)
+
+        // Calculate magnitude spectrum (only need first half due to symmetry)
+        // Add 1 to include both DC (0 Hz) and Nyquist frequency components
+        val magnitudeSpectrum = FloatArray(N_FFT / 2 + 1)
+        for (i in 0 until N_FFT / 2) {  // Changed to avoid accessing beyond array bounds
+            val re = paddedSamples[2 * i]
+            val im = if (2 * i + 1 < N_FFT) paddedSamples[2 * i + 1] else 0f
+            magnitudeSpectrum[i] = sqrt(re * re + im * im)
+        }
+        // Handle Nyquist frequency component separately
+        magnitudeSpectrum[N_FFT / 2] = abs(paddedSamples[1])
+
+        // Compute power spectrum for spectral flatness
+        val powerSpectrum = magnitudeSpectrum.map { it * it }.toFloatArray()
+
+        // Compute spectral features
+        val centroid = computeSpectralCentroid(magnitudeSpectrum, sampleRate)
+        val flatness = computeSpectralFlatness(powerSpectrum)
+        val rollOff = computeSpectralRollOff(magnitudeSpectrum, sampleRate)
+        val bandwidth = computeSpectralBandwidth(magnitudeSpectrum, sampleRate, centroid)
+
+        return SpectralFeatures(
+            centroid = centroid,
+            flatness = flatness,
+            rollOff = rollOff,
+            bandwidth = bandwidth
+        )
+    }
+
+    private fun computeSpectralCentroid(magnitudeSpectrum: FloatArray, sampleRate: Float): Float {
+        val sum = magnitudeSpectrum.sum()
+        if (sum == 0f) return 0f
+        
+        val weightedSum = magnitudeSpectrum.mapIndexed { index, value -> 
+            index * (sampleRate / N_FFT) * value 
+        }.sum()
+        
+        return weightedSum / sum
+    }
+
+    private fun computeSpectralFlatness(powerSpectrum: FloatArray): Float {
+        // Calculate geometric mean using log-space to avoid numerical issues
+        var sumLogValues: Float = 0.0f
+        for (value in powerSpectrum) {
+            sumLogValues += ln(value + 1e-10f) // Add small epsilon to avoid log(0)
+        }
+        val geometricMean = exp(sumLogValues / powerSpectrum.size)
+        
+        // Calculate arithmetic mean
+        val arithmeticMean = powerSpectrum.sum() / powerSpectrum.size
+        
+        return if (arithmeticMean != 0f) geometricMean / arithmeticMean else 0f
+    }
+
+    private fun computeSpectralRollOff(magnitudeSpectrum: FloatArray, sampleRate: Float): Float {
+        val totalEnergy = magnitudeSpectrum.sum()
+        var cumulativeEnergy = 0f
+        val rollOffThreshold = totalEnergy * 0.85f
+        
+        for ((index, value) in magnitudeSpectrum.withIndex()) {
+            cumulativeEnergy += value
+            if (cumulativeEnergy >= rollOffThreshold) {
+                return index * (sampleRate / N_FFT)
+            }
+        }
+        
+        return 0f
+    }
+
+    private fun computeSpectralBandwidth(
+        magnitudeSpectrum: FloatArray, 
+        sampleRate: Float,
+        centroid: Float
+    ): Float {
+        val sum = magnitudeSpectrum.sum()
+        if (sum == 0f) return 0f
+        
+        // Match iOS frequency calculation
+        val weightedSum = magnitudeSpectrum.mapIndexed { index, value -> 
+            val freq = index * sampleRate / (2 * magnitudeSpectrum.size)
+            value * (freq - centroid).pow(2)
+        }.sum()
+        
+        return sqrt(weightedSum / sum)
+    }
+
+    private data class SpectralFeatures(
+        val centroid: Float = 0f,
+        val flatness: Float = 0f,
+        val rollOff: Float = 0f,
+        val bandwidth: Float = 0f
+    )
 
     /**
      * Resets the segment data.
@@ -453,45 +635,38 @@ class AudioProcessor(private val filesDir: File) {
     }
 
     /**
-     * Extracts the MFCC (Mel-Frequency Cepstral Coefficients) from the audio data.
-     * @param segmentData The segment data.
-     * @param sampleRate The sample rate of the audio data.
-     * @return The MFCC coefficients.
+     * Computes the MFCC (Mel-Frequency Cepstral Coefficients) from the audio data.
      */
-    private fun extractMFCC(segmentData: FloatArray, sampleRate: Float): List<Float> {
-        if (segmentData.size < 2) {
-            Log.e("AudioProcessor", "Segment data is too small for MFCC extraction: size=${segmentData.size}")
+    private fun computeMFCC(samples: FloatArray, sampleRate: Float): List<Float> {
+        val (powerSpectrum, _) = prepareFFT(samples, sampleRate)
+        val melFilters = computeMelFilterbank(
+            numFilters = 26,
+            powerSpectrumSize = powerSpectrum.size,
+            sampleRate = sampleRate
+        )
+
+        if (melFilters.any { it.size != powerSpectrum.size }) {
+            Log.e("AudioProcessor", "Mel filter size (${melFilters[0].size}) does not match power spectrum size (${powerSpectrum.size})")
             return emptyList()
         }
 
-        val fftData = segmentData.copyOf()
-        val fft = FFT(fftData.size)
-        fft.realForward(fftData)
-
-        // Compute the power spectrum
-        val powerSpectrum = try {
-            fftData.map { it * it }.chunked(2) { (re, im) -> sqrt(re + im) }
-        } catch (e: Exception) {
-            Log.e("AudioProcessor", "Error computing power spectrum: ${e.message}", e)
-            return emptyList()
+        val melEnergies = FloatArray(26) { i ->
+            var energy = 0f
+            for (j in powerSpectrum.indices) {
+                energy += powerSpectrum[j] * melFilters[i][j]
+            }
+            ln(maxOf(energy, 1e-10f))
         }
 
-        // Compute Mel filter bank
-        val melFilterBank = computeMelFilterBank(NUM_MEL_FILTERS, powerSpectrum.size, sampleRate)
-        val filterEnergies = melFilterBank.map { filter ->
-            filter.zip(powerSpectrum).sumOf { (f, p) -> (f * p).toDouble() }.toFloat()
+        val mfcc = FloatArray(13) { i ->
+            var sum = 0f
+            for (j in melEnergies.indices) {
+                sum += melEnergies[j] * cos(PI * i * (2 * j + 1) / (2 * 26)).toFloat()
+            }
+            sum * sqrt(2f / 26)
         }
 
-        // Apply log to filter energies
-        val logEnergies = filterEnergies.map { ln(it + Float.MIN_VALUE) }
-
-        // Compute Discrete Cosine Transform (DCT) of log energies to get MFCCs
-        return try {
-            computeDCT(logEnergies, NUM_MFCC_COEFFICIENTS)
-        } catch (e: Exception) {
-            Log.e("AudioProcessor", "Error computing DCT: ${e.message}", e)
-            emptyList()
-        }
+        return mfcc.toList()
     }
 
     /**
@@ -501,32 +676,53 @@ class AudioProcessor(private val filesDir: File) {
      * @param sampleRate The sample rate of the audio data.
      * @return A list of Mel filters.
      */
-    private fun computeMelFilterBank(numFilters: Int, powerSpectrumSize: Int, sampleRate: Float): List<List<Float>> {
-        val melFilters = mutableListOf<List<Float>>()
-        val melMaxFreq = MEL_MAX_FREQ_DIVISOR * log10(1.0 + sampleRate / 2.0 / MEL_MAX_FREQ_CONSTANT)
-        val melPoints = DoubleArray(numFilters + 2) { i ->
-            MEL_MIN_FREQ + i * (melMaxFreq - MEL_MIN_FREQ) / (numFilters + 1)
+    private fun computeMelFilterbank(numFilters: Int, powerSpectrumSize: Int, sampleRate: Float): Array<FloatArray> {
+        val fMin = 0f
+        val fMax = sampleRate / 2
+
+        // Convert Hz to Mel
+        val melMin = hzToMel(fMin)
+        val melMax = hzToMel(fMax)
+
+        // Create equally spaced points in Mel scale
+        val melPoints = FloatArray(numFilters + 2)
+        val melStep = (melMax - melMin) / (numFilters + 1)
+        for (i in melPoints.indices) {
+            melPoints[i] = melMin + i * melStep
         }
 
-        val hzPoints = melPoints.map { MEL_MAX_FREQ_CONSTANT * (LOG_BASE.pow(it / MEL_MAX_FREQ_DIVISOR) - 1.0) }
-        val bin = hzPoints.map { it * (powerSpectrumSize - 1) / sampleRate }
+        // Convert back to Hz
+        val hzPoints = melPoints.map { melToHz(it) }
 
-        for (i in 1..numFilters) {
-            val filter = FloatArray(powerSpectrumSize)
-            for (j in bin[i - 1].toInt() until bin[i].toInt()) {
-                if (j >= 0 && j < filter.size) {
-                    filter[j] = ((j - bin[i - 1]) / (bin[i] - bin[i - 1])).toFloat()
+        // Convert to FFT bin numbers, clamping to valid range
+        val bins = hzPoints.map { minOf((it * powerSpectrumSize / sampleRate).roundToInt(), powerSpectrumSize - 1) }.toList()
+
+        // Create the filterbank matrix with size matching powerSpectrumSize
+        val filterbank = Array(numFilters) { FloatArray(powerSpectrumSize) { 0f } }
+
+        // Ensure safe access to bins by limiting the loop and checking boundaries
+        for (i in 0 until numFilters) {
+            if (i + 2 < bins.size) { // Check to prevent out-of-bounds access
+                val startBin = bins[i]
+                val centerBin = bins[i + 1]
+                val endBin = bins[i + 2]
+
+                // Left slope (ascending triangle)
+                if (centerBin > startBin) {
+                    for (j in startBin until centerBin) {
+                        filterbank[i][j] = (j - startBin).toFloat() / (centerBin - startBin).toFloat()
+                    }
+                }
+                // Right slope (descending triangle)
+                if (endBin > centerBin) {
+                    for (j in centerBin until endBin) {
+                        filterbank[i][j] = (endBin - j).toFloat() / (endBin - centerBin).toFloat()
+                    }
                 }
             }
-            for (j in bin[i].toInt() until bin[i + 1].toInt()) {
-                if (j >= 0 && j < filter.size) {
-                    filter[j] = ((bin[i + 1] - j) / (bin[i + 1] - bin[i])).toFloat()
-                }
-            }
-            melFilters.add(filter.toList())
         }
 
-        return melFilters
+        return filterbank
     }
 
     /**
@@ -551,165 +747,8 @@ class AudioProcessor(private val filesDir: File) {
     }
 
     /**
-     * Extracts the spectral centroid from the audio data.
-     * @param segmentData The segment data.
-     * @param sampleRate The sample rate of the audio data.
-     * @return The spectral centroid.
-     */
-    private fun extractSpectralCentroid(segmentData: FloatArray, sampleRate: Float): Float {
-        val magnitudeSpectrum = segmentData.map { it * it }.toFloatArray()
-        val sum = magnitudeSpectrum.sum()
-        if (sum == 0f) return 0f
-
-        val weightedSum = magnitudeSpectrum.mapIndexed { index, value -> index * value }.sum()
-        return (weightedSum / sum) * (sampleRate / 2) / magnitudeSpectrum.size
-    }
-
-    /**
-     * Extracts the spectral flatness from the audio data.
-     * @param segmentData The segment data.
-     * @return The spectral flatness.
-     */
-    private fun extractSpectralFlatness(segmentData: FloatArray): Float {
-        val magnitudeSpectrum = segmentData.map { abs(it) }
-        val geometricMean = exp(magnitudeSpectrum.map { ln(it + Float.MIN_VALUE) }.average()).toFloat()
-        val arithmeticMean = magnitudeSpectrum.average().toFloat()
-        return if (arithmeticMean != 0f) geometricMean / arithmeticMean else 0f
-    }
-
-    /**
-     * Extracts the spectral roll-off from the audio data.
-     * @param segmentData The segment data.
-     * @param sampleRate The sample rate of the audio data.
-     * @return The spectral roll-off.
-     */
-    private fun extractSpectralRollOff(segmentData: FloatArray, sampleRate: Float): Float {
-        val magnitudeSpectrum = segmentData.map { abs(it) }
-        val totalEnergy = magnitudeSpectrum.sum()
-        var cumulativeEnergy = 0f
-        val rollOffThreshold = totalEnergy * 0.85f
-
-        for ((index, value) in magnitudeSpectrum.withIndex()) {
-            cumulativeEnergy += value
-            if (cumulativeEnergy >= rollOffThreshold) {
-                return index.toFloat() / magnitudeSpectrum.size * (sampleRate / 2)
-            }
-        }
-
-        return 0f
-    }
-
-    /**
-     * Extracts the spectral bandwidth from the audio data.
-     * @param segmentData The segment data.
-     * @param sampleRate The sample rate of the audio data.
-     * @return The spectral bandwidth.
-     */
-    private fun extractSpectralBandwidth(segmentData: FloatArray, sampleRate: Float): Float {
-        val centroid = extractSpectralCentroid(segmentData, sampleRate)
-        val magnitudeSpectrum = segmentData.map { abs(it) }
-        val sum = magnitudeSpectrum.sum()
-        if (sum == 0f) return 0f
-
-        val weightedSum = magnitudeSpectrum.mapIndexed { index, value -> value * (index - centroid).pow(2) }.sum()
-        return sqrt(weightedSum / sum)
-    }
-
-    /**
-     * Extracts the chromagram from the audio data.
-     * @param segmentData The segment data.
-     * @param sampleRate The sample rate of the audio data.
-     * @return The chromagram.
-     */
-    private fun extractChromagram(segmentData: FloatArray, sampleRate: Float): List<Float> {
-        val fftData = segmentData.copyOf()
-        val fft = FFT(fftData.size)
-        fft.realForward(fftData)
-
-        // Compute the magnitude spectrum
-        val magnitudeSpectrum = fftData.map { abs(it) }
-
-        // Initialize the chromagram with 12 bins (one for each pitch class)
-        val chromagram = FloatArray(12)
-
-        // Map frequencies to pitch classes
-        for (i in magnitudeSpectrum.indices) {
-            val freq = i * sampleRate / magnitudeSpectrum.size
-            val pitchClass = (12 * log2(freq / 440.0) % 12).toInt()
-            if (pitchClass in 0..11) {
-                chromagram[pitchClass] += magnitudeSpectrum[i]
-            }
-        }
-
-        return chromagram.toList()
-    }
-
-    /**
-     * Extracts the tempo from the audio data.
-     * @param segmentData The segment data.
-     * @param sampleRate The sample rate of the audio data.
-     * @return The tempo.
-     */
-    private fun extractTempo(segmentData: FloatArray, sampleRate: Float): Float {
-        // Calculate the onset strength envelope
-        val onsetEnv = calculateOnsetEnvelope(segmentData, sampleRate)
-
-        // Find peaks in the onset envelope
-        val peaks = findPeaks(onsetEnv)
-
-        // Calculate the inter-onset intervals (IOIs)
-        val iois = peaks.zipWithNext { a, b -> (b - a).toFloat() / sampleRate }
-
-        // Calculate the tempo in beats per minute (BPM)
-        val avgIoi = iois.average().toFloat()
-        return if (avgIoi != 0f) 60f / avgIoi else 0f
-    }
-
-    /**
-     * Calculates the onset envelope of the audio signal.
-     * @param segmentData The segment data.
-     * @param sampleRate The sample rate of the audio data.
-     * @return The onset envelope.
-     */
-    private fun calculateOnsetEnvelope(segmentData: FloatArray, sampleRate: Float): FloatArray {
-        val frameSize = sampleRate.toInt() / 100 // Assume 10ms frames
-        val onsetEnv = FloatArray(segmentData.size / frameSize)
-        var previousSpectrum = FloatArray(frameSize)
-
-        for (i in onsetEnv.indices) {
-            val frame = segmentData.sliceArray(i * frameSize until min((i + 1) * frameSize, segmentData.size))
-            val magnitudeSpectrum = frame.map { abs(it) }.toFloatArray()
-            val onset = magnitudeSpectrum.zip(previousSpectrum) { a, b -> max(0f, a - b) }.sum()
-            onsetEnv[i] = onset
-            previousSpectrum = magnitudeSpectrum
-        }
-
-        return onsetEnv
-    }
-
-    /**
-     * Finds the peaks in the onset envelope.
-     * @param onsetEnv The onset envelope.
-     * @return A list of peak indices.
-     */
-    private fun findPeaks(onsetEnv: FloatArray): List<Int> {
-        val peaks = mutableListOf<Int>()
-        for (i in 1 until onsetEnv.size - 1) {
-            if (onsetEnv[i] > onsetEnv[i - 1] && onsetEnv[i] > onsetEnv[i + 1]) {
-                peaks.add(i)
-            }
-        }
-        return peaks
-    }
-
-    /**
      * Extracts the HNR (Harmonics-to-Noise Ratio) from the audio data.
      * @param segmentData The segment data.
-     * @return The HNR.
-     */
-    /**
-     * Extracts the HNR (Harmonics-to-Noise Ratio) from the audio data.
-     * @param segmentData The segment data as FloatArray.
      * @return The HNR.
      */
     private fun extractHNR(segmentData: FloatArray): Float {
@@ -725,11 +764,33 @@ class AudioProcessor(private val filesDir: File) {
             autocorrelation[i] = sum
         }
 
-        // Find the maximum autocorrelation value (excluding the zero lag)
-        val maxAutocorrelation = autocorrelation.drop(1).maxOrNull() ?: 0f
+        // Find peaks with minimum prominence
+        val maxAutocorrelation = autocorrelation.maxOrNull() ?: 0f
+        val peaks = findPeaks(autocorrelation, minProminence = 0.1f * maxAutocorrelation)
+        
+        if (peaks.isNotEmpty()) {
+            val firstPeakIndex = peaks.firstOrNull { it > 0 } ?: 0
+            val harmonicEnergy = autocorrelation[firstPeakIndex]
+            val noiseEnergy = autocorrelation[0] - harmonicEnergy
+            if (noiseEnergy > 0) {
+                return 10 * log10(harmonicEnergy / noiseEnergy)
+            }
+        }
+        
+        return 0f
+    }
 
-        // Compute the HNR
-        return if (autocorrelation[0] != 0f) 10 * log10(maxAutocorrelation / (autocorrelation[0] - maxAutocorrelation)) else 0f
+    private fun findPeaks(data: FloatArray, minProminence: Float): List<Int> {
+        val peaks = mutableListOf<Int>()
+        for (i in 1 until data.size - 1) {
+            if (data[i] > data[i - 1] && data[i] > data[i + 1]) {
+                val prominence = data[i] - maxOf(data[i - 1], data[i + 1])
+                if (prominence >= minProminence) {
+                    peaks.add(i)
+                }
+            }
+        }
+        return peaks
     }
 
     fun loadAudioFromAnyFormat(fileUri: String, decodingConfig: DecodingConfig? = null): AudioData? {
@@ -799,7 +860,7 @@ class AudioProcessor(private val filesDir: File) {
         // If MediaExtractor failed and file is WAV, try WAV parser
         if (file.name.lowercase().endsWith(".wav")) {
             Log.d("AudioProcessor", "Falling back to WAV parser")
-            return loadAudioFile(file.absolutePath, false)?.let { wavData ->
+            return loadAudioFile(file.absolutePath)?.let { wavData ->
                 if (decodingConfig != null) {
                     val processedData = processAudio(
                         wavData.data,
@@ -987,7 +1048,7 @@ class AudioProcessor(private val filesDir: File) {
         val inputBuffer = ByteBuffer.wrap(pcmData).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
         val outputBuffer = ByteBuffer.wrap(result).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
 
-        for (i in 0 until result.size) {
+        for (i in result.indices) {
             val channelData = ShortArray(targetChannels)
             for (j in 0 until targetChannels) {
                 channelData[j] = inputBuffer.get()
@@ -1235,7 +1296,7 @@ class AudioProcessor(private val filesDir: File) {
                 data = audioData,
                 sampleRate = config.targetSampleRate ?: sampleRate,
                 channels = config.targetChannels ?: channels,
-                bitDepth = config.targetBitDepth ?: bitDepth,
+                bitDepth = config.targetBitDepth,
                 durationMs = durationMs  // Pass the duration
             )
         } catch (e: Exception) {
@@ -1288,7 +1349,7 @@ class AudioProcessor(private val filesDir: File) {
             // Calculate buffer sizes
             val targetSampleRate = config.targetSampleRate ?: originalSampleRate
             val targetChannels = config.targetChannels ?: originalChannels
-            val targetBitDepth = config.targetBitDepth ?: 16
+            val targetBitDepth = config.targetBitDepth
             val bytesPerSample = targetBitDepth / 8
             val samplesPerSecond = targetSampleRate * targetChannels
             val totalBytes = (effectiveDurationMs * samplesPerSecond * bytesPerSample) / 1000
@@ -1482,5 +1543,284 @@ class AudioProcessor(private val filesDir: File) {
         // TODO: Implement audio format conversion
         // This will help ensure consistent format when joining sections
         return audioData
+    }
+
+    // Add new function to process entire file
+    fun processEntireFile(audioData: AudioData): Features {
+        val samples = convertToFloatArray(audioData.data, audioData.bitDepth)
+        
+        // Compute basic features for the entire file
+        val sumSquares = samples.sumOf { it * it.toDouble() }.toFloat()
+        val segmentLength = samples.size
+        val zeroCrossings = countZeroCrossings(samples)
+        val minAmplitude = samples.minOrNull() ?: 0f
+        val maxAmplitude = samples.maxOrNull() ?: 0f
+        
+        // Use existing computeFeatures with the entire file as one segment
+        return computeFeatures(
+            segmentData = samples,
+            sampleRate = audioData.sampleRate.toFloat(),
+            sumSquares = sumSquares,
+            zeroCrossings = zeroCrossings,
+            segmentLength = segmentLength,
+            minAmplitude = minAmplitude,
+            maxAmplitude = maxAmplitude,
+            featureOptions = mapOf(
+                "energy" to true,
+                "mfcc" to true,
+                "zcr" to true,
+                "spectralCentroid" to true,
+                "spectralFlatness" to true,
+                "spectralRollOff" to true,
+                "spectralBandwidth" to true,
+                "chromagram" to true,
+                "tempo" to true,
+                "hnr" to true,
+            )
+        )
+    }
+
+    private fun countZeroCrossings(data: FloatArray): Int {
+        var crossings = 0
+        for (i in 1 until data.size) {
+            if (data[i - 1] * data[i] < 0) crossings++
+        }
+        return crossings
+    }
+
+    private fun hzToMel(hz: Float): Float {
+        return 2595f * log10(1f + hz / 700f)
+    }
+
+    private fun melToHz(mel: Float): Float {
+        return 700f * (10f.pow(mel / 2595f) - 1f)
+    }
+
+    private fun applyHannWindow(samples: FloatArray): FloatArray {
+        val output = FloatArray(samples.size)
+        for (i in samples.indices) {
+            val multiplier = 0.5f * (1f - cos(2f * PI.toFloat() * i / (samples.size - 1)))
+            output[i] = samples[i] * multiplier
+        }
+        return output
+    }
+
+    private fun computeMelSpectrogram(samples: FloatArray, sampleRate: Float): List<Float> {
+        val (powerSpectrum, _) = prepareFFT(samples, sampleRate)
+        val melFilters = computeMelFilterbank(
+            numFilters = 128,
+            powerSpectrumSize = powerSpectrum.size,
+            sampleRate = sampleRate
+        )
+        
+        // Apply Mel filters to power spectrum
+        return melFilters.map { filter ->
+            var energy = 0f
+            for (j in powerSpectrum.indices) {
+                energy += powerSpectrum[j] * filter[j]
+            }
+            kotlin.math.ln(maxOf(energy, 1e-10f))
+        }
+    }
+
+    private fun computeChroma(samples: FloatArray, sampleRate: Float): List<Float> {
+        val (_, magnitudeSpectrum) = prepareFFT(samples, sampleRate)
+        val chroma = FloatArray(N_CHROMA) { 0f }
+        val freqsPerBin = sampleRate / N_FFT
+        
+        for (i in 0 until N_FFT / 2) {
+            val freq = i * freqsPerBin
+            if (freq > 0) {
+                val pitchClass = (12 * log2(freq / 440.0) % 12).toInt()
+                if (pitchClass in 0..11) {
+                    val magnitude = sqrt(magnitudeSpectrum[2 * i] * magnitudeSpectrum[2 * i] + 
+                        (if (2 * i + 1 < magnitudeSpectrum.size) magnitudeSpectrum[2 * i + 1] else 0f) * 
+                        magnitudeSpectrum[2 * i + 1])
+                    chroma[pitchClass] += magnitude
+                }
+            }
+        }
+        
+        return chroma.toList()
+    }
+
+    private fun computeSpectralContrast(samples: FloatArray, sampleRate: Float): List<Float> {
+        val (_, magnitudeSpectrum) = prepareFFT(samples, sampleRate)
+        // ... rest of spectral contrast computation using magnitudeSpectrum ...
+        // Implementation depends on your specific requirements
+        return emptyList() // Placeholder
+    }
+
+    private fun computeTonnetz(samples: FloatArray, sampleRate: Float): List<Float> {
+        // First compute chroma features
+        val chroma = computeChroma(samples, sampleRate)
+        
+        // Tonnetz transformation matrix (6x12)
+        val tonnetzMatrix = arrayOf(
+            floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 1f, 0f, 0f, 0f, 0f), // Perfect fifth
+            floatArrayOf(0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 1f, 0f, 0f, 0f, 0f), // Minor third
+            floatArrayOf(0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 1f, 0f, 0f), // Major third
+            floatArrayOf(0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 1f, 0f), // Perfect fifth
+            floatArrayOf(0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f, 1f, 0f), // Minor third
+            floatArrayOf(1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f)  // Major third
+        )
+        
+        // Compute tonnetz features
+        val tonnetz = mutableListOf<Float>()
+        for (row in tonnetzMatrix) {
+            var sum = 0f
+            for (i in row.indices) {
+                sum += row[i] * (chroma.getOrNull(i) ?: 0f)
+            }
+            tonnetz.add(sum)
+        }
+        
+        return tonnetz
+    }
+
+    private fun nextPowerOfTwo(n: Int): Int {
+        var value = 1
+        while (value < n) {
+            value *= 2
+        }
+        return value
+    }
+
+    private fun estimatePitch(segment: FloatArray, sampleRate: Float): Float {
+        if (segment.size < 2) return 0.0f
+
+        // Apply Hann window
+        val windowed = applyHannWindow(segment)
+
+        // Pad for FFT - ensure length is power of 2 and sufficient for autocorrelation
+        val fftLength = nextPowerOfTwo(segment.size * 2)
+        val padded = FloatArray(fftLength) // Initialize with zeros
+        windowed.copyInto(padded) // Copy windowed data into padded array
+
+        // Perform forward FFT
+        val fft = FFT(fftLength)
+        try {
+            fft.realForward(padded)
+        } catch (e: Exception) {
+            Log.e("AudioProcessor", "FFT forward transform failed: ${e.message}")
+            return 0.0f
+        }
+
+        // Compute power spectrum
+        val powerSpectrum = FloatArray(fftLength)
+        try {
+            // Handle DC and Nyquist components separately
+            powerSpectrum[0] = padded[0] * padded[0]
+            powerSpectrum[fftLength/2] = padded[1] * padded[1]
+            
+            // Handle remaining frequencies
+            for (i in 1 until fftLength/2) {
+                val re = padded[2 * i]
+                val im = padded[2 * i + 1]
+                powerSpectrum[i] = re * re + im * im
+                powerSpectrum[fftLength - i] = powerSpectrum[i] // Mirror for inverse FFT
+            }
+        } catch (e: Exception) {
+            Log.e("AudioProcessor", "Power spectrum computation failed: ${e.message}")
+            return 0.0f
+        }
+
+        // Inverse FFT to get autocorrelation
+        val autocorrelation = FloatArray(fftLength)
+        try {
+            fft.realInverse(powerSpectrum, autocorrelation)
+        } catch (e: Exception) {
+            Log.e("AudioProcessor", "FFT inverse transform failed: ${e.message}")
+            return 0.0f
+        }
+
+        // Normalize autocorrelation
+        val normFactor = 1.0f / autocorrelation[0] // Normalize by zero-lag autocorrelation
+        for (i in autocorrelation.indices) {
+            autocorrelation[i] *= normFactor
+        }
+
+        // Find the first peak within pitch range (50-500 Hz)
+        val minLag = (sampleRate / 500.0f).toInt().coerceAtLeast(1)
+        val maxLag = (sampleRate / 50.0f).toInt().coerceAtMost(autocorrelation.size - 1)
+        
+        var maxCorr = -1.0f
+        var pitchLag = 0
+        
+        // Add peak picking criteria
+        val threshold = 0.3f // Correlation threshold
+        var isPeak = false
+        
+        for (lag in minLag..maxLag) {
+            if (lag > 0 && lag < autocorrelation.size - 1) {
+                // Check if this point is a peak
+                isPeak = autocorrelation[lag] > autocorrelation[lag - 1] && 
+                        autocorrelation[lag] > autocorrelation[lag + 1] &&
+                        autocorrelation[lag] > threshold
+                
+                if (isPeak && autocorrelation[lag] > maxCorr) {
+                    maxCorr = autocorrelation[lag]
+                    pitchLag = lag
+                }
+            }
+        }
+
+        return if (pitchLag > 0) sampleRate / pitchLag else 0.0f
+    }
+
+    /**
+     * Prepares FFT by applying Hann window, padding, and computing both power and magnitude spectra.
+     * @param samples Input audio samples
+     * @param sampleRate Sampling rate in Hz
+     * @param fftLength FFT size (must be power of 2)
+     * @return Pair of power spectrum and magnitude spectrum
+     */
+    private fun prepareFFT(samples: FloatArray, sampleRate: Float, fftLength: Int = nextPowerOfTwo(samples.size.coerceAtLeast(2048))): Pair<FloatArray, FloatArray> {
+        val windowed = applyHannWindow(samples)
+        val padded = windowed.copyOf(fftLength)
+        val fft = FFT(fftLength)
+        fft.realForward(padded)
+
+        val magnitudeSpectrum = FloatArray(fftLength / 2 + 1)
+        for (i in 0 until fftLength / 2) {
+            val re = padded[2 * i]
+            val im = padded[2 * i + 1]
+            magnitudeSpectrum[i] = sqrt(re * re + im * im)
+        }
+        magnitudeSpectrum[fftLength / 2] = abs(padded[1])
+
+        val powerSpectrum = magnitudeSpectrum.map { it * it }.toFloatArray()
+        return Pair(powerSpectrum, magnitudeSpectrum)
+    }
+
+    data class AudioFormat(
+        val sampleRate: Int,
+        val channels: Int,
+        val bitDepth: Int
+    )
+
+    fun getAudioFormat(fileUri: String): AudioFormat? {
+        val cleanUri = fileUri.removePrefix("file://")
+        val file = File(cleanUri).takeIf { it.exists() } ?: File(filesDir, File(cleanUri).name).takeIf { it.exists() }
+            ?: run {
+                Log.e(Constants.TAG, "File not found: $cleanUri")
+                return null
+            }
+
+        val extractor = MediaExtractor()
+        try {
+            extractor.setDataSource(file.absolutePath)
+            val format = extractor.getTrackFormat(0)
+            return AudioFormat(
+                sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE),
+                channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT),
+                bitDepth = 16  // Most compressed formats decode to 16-bit PCM
+            )
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to get audio format: ${e.message}")
+            return null
+        } finally {
+            extractor.release()
+        }
     }
 }

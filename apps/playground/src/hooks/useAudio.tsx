@@ -59,9 +59,9 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     useEffect(() => {
         if (!audioUri) return
 
-        logger.debug(`useEffect Audio URI: ${audioUri}`)
         const processAudioData = async () => {
             try {
+                logger.debug(`useEffect Audio URI: ${audioUri} ${options.loadArrayBuffer} extractAnalysis: ${options.extractAnalysis} analysisOptions: `, options.analysisOptions)
                 setProcessing(true)
                 let actualAudioBuffer: ArrayBuffer | undefined
 
@@ -125,7 +125,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         }
 
         processAudioData().catch(logger.error)
-    }, [audioUri, options.loadArrayBuffer, options.extractAnalysis, options.analysisOptions?.skipWavHeader, options.analysisOptions?.pointsPerSecond, options.analysisOptions?.algorithm, show, options.analysisOptions?.features, recording?.sampleRate, recording?.bitDepth, recording?.durationMs, recording?.channels, recording?.mimeType])
+    }, [audioUri, options.loadArrayBuffer, options.extractAnalysis, options.analysisOptions, show, recording?.sampleRate, recording?.bitDepth, recording?.durationMs, recording?.channels, recording?.mimeType])
 
     const updatePlaybackStatus = useCallback((status: AVPlaybackStatus) => {
         if (!status.isLoaded) {

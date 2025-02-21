@@ -1,16 +1,16 @@
-import { Button, LabelSwitch, NumberAdjuster } from '@siteed/design-system'
+import { AppTheme, LabelSwitch, NumberAdjuster, useTheme } from '@siteed/design-system'
 import {
     AudioFeaturesOptions,
     RecordingConfig,
 } from '@siteed/expo-audio-stream'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { SegmentedButtons } from 'react-native-paper'
 
-const getStyles = () => {
+const getStyles = ({theme}: {theme: AppTheme}) => {
     return StyleSheet.create({
         container: {
-            padding: 20,
+            padding: theme.padding.s,
         },
         actionContainer: {
             flexDirection: 'row',
@@ -50,50 +50,25 @@ export const AudioRecordingAnalysisConfig = ({
     config,
     onChange,
 }: AudioRecordingAnalysisConfigProps) => {
-    const styles = useMemo(() => getStyles(), [])
-
-    const [tempConfig, setTempConfig] = useState<SelectedAnalysisConfig>({
-        ...config,
-    })
-
-    useEffect(() => {
-        setTempConfig({ ...config })
-    }, [config])
+    const theme = useTheme()
+    const styles = useMemo(() => getStyles({theme}), [theme])
 
     const handleChange = useCallback(
         (
             key: keyof SelectedAnalysisConfig,
             value: number | boolean | string
         ) => {
-            setTempConfig((prevConfig) => {
-                const newConfig = { ...prevConfig, [key]: value }
-                return newConfig
-            })
+            onChange?.({ ...config, [key]: value })
         },
-        []
+        [onChange, config]
     )
 
     const handleFeatureChange = useCallback(
         (feature: keyof AudioFeaturesOptions, value: boolean) => {
-            setTempConfig((prevConfig) => {
-                const newConfig = {
-                    ...prevConfig,
-                    features: { ...prevConfig.features, [feature]: value },
-                }
-                return newConfig
-            })
+            onChange?.({ ...config, features: { ...config.features, [feature]: value } })
         },
-        []
+        [onChange, config]
     )
-
-    const handleSave = useCallback(() => {
-        onChange?.(tempConfig)
-    }, [tempConfig, onChange])
-
-    const handleCancel = useCallback(() => {
-        setTempConfig({ ...config })
-        onChange?.(config)
-    }, [config, onChange])
 
     return (
         <View style={styles.container}>
@@ -103,19 +78,19 @@ export const AudioRecordingAnalysisConfig = ({
                     onValueChange={(value) => {
                         handleChange('skipWavHeader', value)
                     }}
-                    value={tempConfig.skipWavHeader ?? false}
+                    value={config.skipWavHeader ?? false}
                     containerStyle={styles.labelContainerStyle}
                 />
                 <NumberAdjuster
                     label="Points Per Second"
-                    value={tempConfig.pointsPerSecond ?? 20}
+                    value={config.pointsPerSecond ?? 20}
                     onChange={(value) => handleChange('pointsPerSecond', value)}
                     min={0.1}
                     max={1000}
                     step={1}
                 />
                 <SegmentedButtons
-                    value={tempConfig.algorithm ?? 'rms'}
+                    value={config.algorithm ?? 'rms'}
                     onValueChange={(value) => handleChange('algorithm', value)}
                     buttons={[
                         {
@@ -135,7 +110,7 @@ export const AudioRecordingAnalysisConfig = ({
                 onValueChange={(value) => {
                     handleFeatureChange('mfcc', value)
                 }}
-                value={tempConfig.features.mfcc ?? false}
+                value={config.features.mfcc ?? false}
                 containerStyle={styles.labelContainerStyle}
             />
             <LabelSwitch
@@ -143,7 +118,7 @@ export const AudioRecordingAnalysisConfig = ({
                 onValueChange={(value) => {
                     handleFeatureChange('energy', value)
                 }}
-                value={tempConfig.features.energy ?? false}
+                value={config.features.energy ?? false}
                 containerStyle={styles.labelContainerStyle}
             />
             <LabelSwitch
@@ -151,7 +126,7 @@ export const AudioRecordingAnalysisConfig = ({
                 onValueChange={(value) => {
                     handleFeatureChange('zcr', value)
                 }}
-                value={tempConfig.features.zcr ?? false}
+                value={config.features.zcr ?? false}
                 containerStyle={styles.labelContainerStyle}
             />
             <LabelSwitch
@@ -159,7 +134,7 @@ export const AudioRecordingAnalysisConfig = ({
                 onValueChange={(value) => {
                     handleFeatureChange('spectralCentroid', value)
                 }}
-                value={tempConfig.features.spectralCentroid ?? false}
+                value={config.features.spectralCentroid ?? false}
                 containerStyle={styles.labelContainerStyle}
             />
             <LabelSwitch
@@ -167,7 +142,7 @@ export const AudioRecordingAnalysisConfig = ({
                 onValueChange={(value) => {
                     handleFeatureChange('spectralFlatness', value)
                 }}
-                value={tempConfig.features.spectralFlatness ?? false}
+                value={config.features.spectralFlatness ?? false}
                 containerStyle={styles.labelContainerStyle}
             />
             <LabelSwitch
@@ -175,7 +150,7 @@ export const AudioRecordingAnalysisConfig = ({
                 onValueChange={(value) => {
                     handleFeatureChange('spectralRolloff', value)
                 }}
-                value={tempConfig.features.spectralRolloff ?? false}
+                value={config.features.spectralRolloff ?? false}
                 containerStyle={styles.labelContainerStyle}
             />
             <LabelSwitch
@@ -183,7 +158,7 @@ export const AudioRecordingAnalysisConfig = ({
                 onValueChange={(value) => {
                     handleFeatureChange('spectralBandwidth', value)
                 }}
-                value={tempConfig.features.spectralBandwidth ?? false}
+                value={config.features.spectralBandwidth ?? false}
                 containerStyle={styles.labelContainerStyle}
             />
             <LabelSwitch
@@ -191,7 +166,7 @@ export const AudioRecordingAnalysisConfig = ({
                 onValueChange={(value) => {
                     handleFeatureChange('chromagram', value)
                 }}
-                value={tempConfig.features.chromagram ?? false}
+                value={config.features.chromagram ?? false}
                 containerStyle={styles.labelContainerStyle}
             />
             <LabelSwitch
@@ -199,7 +174,7 @@ export const AudioRecordingAnalysisConfig = ({
                 onValueChange={(value) => {
                     handleFeatureChange('tempo', value)
                 }}
-                value={tempConfig.features.tempo ?? false}
+                value={config.features.tempo ?? false}
                 containerStyle={styles.labelContainerStyle}
             />
             <LabelSwitch
@@ -207,25 +182,41 @@ export const AudioRecordingAnalysisConfig = ({
                 onValueChange={(value) => {
                     handleFeatureChange('hnr', value)
                 }}
-                value={tempConfig.features.hnr ?? false}
+                value={config.features.hnr ?? false}
                 containerStyle={styles.labelContainerStyle}
             />
-            <View style={styles.actionContainer}>
-                <Button
-                    onPress={handleCancel}
-                    mode="outlined"
-                    style={styles.actionButton}
-                >
-                    Cancel
-                </Button>
-                <Button
-                    onPress={handleSave}
-                    mode="contained"
-                    style={styles.actionButton}
-                >
-                    Save
-                </Button>
-            </View>
+            <LabelSwitch
+                label="Mel Spectrogram"
+                onValueChange={(value) => {
+                    handleFeatureChange('melSpectrogram', value)
+                }}
+                value={config.features.melSpectrogram ?? false}
+                containerStyle={styles.labelContainerStyle}
+            />
+            <LabelSwitch
+                label="Spectral Contrast"
+                onValueChange={(value) => {
+                    handleFeatureChange('spectralContrast', value)
+                }}
+                value={config.features.spectralContrast ?? false}
+                containerStyle={styles.labelContainerStyle}
+            />
+            <LabelSwitch
+                label="Tonnetz"
+                onValueChange={(value) => {
+                    handleFeatureChange('tonnetz', value)
+                }}
+                value={config.features.tonnetz ?? false}
+                containerStyle={styles.labelContainerStyle}
+            />
+            <LabelSwitch
+                label="Pitch"
+                onValueChange={(value) => {
+                    handleFeatureChange('pitch', value)
+                }}
+                value={config.features.pitch ?? false}
+                containerStyle={styles.labelContainerStyle}
+            />
         </View>
     )
 }
