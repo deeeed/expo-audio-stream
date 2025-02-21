@@ -287,3 +287,41 @@ export const SeekingAudio: StoryFn<ExtendedAudioVisualizerProps> = ({
 SeekingAudio.args = {
     ...Default.args,
 }
+
+export const WithDecibelGauge = Template.bind({})
+WithDecibelGauge.args = {
+    ...Default.args,
+    showDecibelVisualization: {
+        type: 'gauge',
+        position: 'top'
+    }
+}
+
+export const WithDecibelMeter = Template.bind({})
+WithDecibelMeter.args = {
+    ...Default.args,
+    showDecibelVisualization: {
+        type: 'meter',
+        position: 'bottom'
+    }
+}
+
+export const CustomDecibelTheme = Template.bind({})
+CustomDecibelTheme.args = {
+    ...Default.args,
+    showDecibelVisualization: {
+        type: 'gauge',
+        position: 'top'
+    },
+    theme: {
+        decibelVisualization: {
+            theme: {
+                colors: {
+                    low: '#00FF00',
+                    mid: '#FFFF00',
+                    high: '#FF0000'
+                }
+            }
+        }
+    }
+}

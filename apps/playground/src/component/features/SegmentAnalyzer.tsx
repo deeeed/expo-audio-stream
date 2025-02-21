@@ -6,15 +6,12 @@ import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { baseLogger } from '../../config'
 import { FeatureViewer } from './FeatureViewer'
+import { SpeechAnalyzer } from './SpeechAnalyzer'
 
 const logger = baseLogger.extend('SegmentAnalyzer')
 
 const getStyles = (theme: AppTheme) => StyleSheet.create({
     container: {
-        marginTop: theme.margin.m,
-        padding: theme.padding.m,
-        borderRadius: theme.roundness,
-        backgroundColor: theme.colors.surfaceVariant,
     },
     iconButton: {
         flexDirection: 'row',
@@ -46,7 +43,27 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
         padding: theme.padding.s,
         backgroundColor: theme.colors.secondaryContainer,
         borderRadius: theme.roundness,
-    }
+    },
+    attributeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+    },
+    detectionRow: {
+        flexDirection: 'row',
+        gap: theme.margin.l,
+        paddingVertical: theme.padding.s,
+    },
+    speechSection: {
+        marginTop: theme.margin.m,
+        padding: theme.padding.m,
+        backgroundColor: theme.colors.secondaryContainer,
+        borderRadius: theme.roundness,
+    },
+    checksumValue: {
+        fontFamily: 'monospace',
+        color: theme.colors.onSurfaceVariant,
+    },
 })
 
 interface SegmentAnalyzerProps {
@@ -197,12 +214,6 @@ export function SegmentAnalyzer({
                         <Text style={styles.value}>{processingTime?.toFixed(2)}ms</Text>
                     </View>
                     <View style={styles.resultRow}>
-                        <Text style={styles.label}>Duration:</Text>
-                        <Text style={styles.value}>
-                            {(segmentAnalysis.durationMs / 1000).toFixed(2)}s
-                        </Text>
-                    </View>
-                    <View style={styles.resultRow}>
                         <Text style={styles.label}>Data Points:</Text>
                         <Text style={styles.value}>{segmentAnalysis.dataPoints.length}</Text>
                     </View>
@@ -210,7 +221,17 @@ export function SegmentAnalyzer({
                         <Text style={styles.label}>Samples:</Text>
                         <Text style={styles.value}>{dataPoint.samples}</Text>
                     </View>
+                    {dataPoint.features?.dataChecksum !== undefined && (
+                        <View style={styles.resultRow}>
+                            <Text style={styles.label}>Checksum:</Text>
+                            <Text style={styles.checksumValue}>
+                                {`0x${dataPoint.features?.dataChecksum.toString(16).padStart(8, '0')}`}
+                            </Text>
+                        </View>
+                    )}
                     
+                    <SpeechAnalyzer analysis={segmentAnalysis} />
+
                     {segmentAnalysis.dataPoints[0]?.features && (
                         <View style={styles.featuresSection}>
                             <FeatureViewer features={segmentAnalysis.dataPoints[0].features} />

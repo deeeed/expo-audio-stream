@@ -325,41 +325,47 @@ export async function extractPreview({
     decodingOptions,
 }: PreviewOptions): Promise<AudioPreview> {
     if (isWeb) {
-        // For web, we can reuse the existing extractAudioFromAnyFormat with modified parameters
+        // Calculate effective duration for proper points per second calculation
+        const effectiveDurationMs = endTime ? endTime - (startTime || 0) : 1000
+
         const analysis = await extractAudioFromAnyFormat({
             fileUri,
             decodingOptions,
-            startTime, // Pass startTime
-            endTime, // Pass endTime
+            startTime,
+            endTime,
             pointsPerSecond:
-                (numberOfPoints ?? 100) /
-                ((endTime ? endTime - (startTime || 0) : 1000) / 1000), // Adjust points per second calculation
+                (numberOfPoints ?? 100) / (effectiveDurationMs / 1000),
         })
 
-        // Convert AudioAnalysis to AudioPreview format and adjust duration
+        // Adjust timestamps relative to the trimmed range
+        const timeOffset = startTime || 0
         return {
             pointsPerSecond: analysis.pointsPerSecond,
-            durationMs: endTime
-                ? endTime - (startTime || 0)
-                : analysis.durationMs, // Use range duration if specified
+            durationMs: effectiveDurationMs,
             amplitudeRange: analysis.amplitudeRange,
             dataPoints: analysis.dataPoints.map((point) => ({
                 id: point.id,
                 amplitude: point.amplitude,
                 rms: point.rms,
-                startTime: point.startTime,
-                endTime: point.endTime,
+                startTime: point.startTime
+                    ? point.startTime - timeOffset
+                    : undefined,
+                endTime: point.endTime ? point.endTime - timeOffset : undefined,
                 dB: point.dB,
                 silent: point.silent,
             })),
         }
     }
 
+    // Convert seconds to milliseconds for native platforms
+    const startTimeMs = startTime ? Math.floor(startTime * 1000) : undefined
+    const endTimeMs = endTime ? Math.floor(endTime * 1000) : undefined
+
     return await ExpoAudioStreamModule.extractPreview({
         fileUri,
         numberOfPoints,
-        startTime,
-        endTime,
+        startTime: startTimeMs,
+        endTime: endTimeMs,
         decodingOptions,
     })
 }

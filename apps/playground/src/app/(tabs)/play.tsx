@@ -1,60 +1,129 @@
 // playground/src/app/(tabs)/play.tsx
 import { useFont } from '@shopify/react-native-skia'
 import {
+    AppTheme,
     Button,
+    EditableInfoCard,
     LabelSwitch,
+    Notice,
     ScreenWrapper,
-    useToast,
+    useTheme,
+    useToast
 } from '@siteed/design-system'
 import {
     AudioAnalysis,
+    AudioPreview,
     AudioRecording,
+    BitDepth,
     Chunk,
     convertPCMToFloat32,
     extractAudioAnalysis,
+    extractPreview,
     getWavFileInfo,
+    SampleRate,
     TranscriberData,
-    WavFileInfo,
 } from '@siteed/expo-audio-stream'
-import { AudioVisualizer } from '@siteed/expo-audio-ui'
+import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
-import { Text, ActivityIndicator } from 'react-native-paper'
+import { ActivityIndicator, Text } from 'react-native-paper'
 
+import { RecordingStats } from '../../component/RecordingStats'
 import Transcriber from '../../component/Transcriber'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
 
 const logger = console
-const getStyles = () => {
+const getStyles = (theme: AppTheme) => {
     return StyleSheet.create({
         container: {
-            padding: 10,
-            gap: 10,
+            padding: theme.padding.m,
+            gap: theme.padding.s,
             paddingBottom: 80,
         },
+        controlsContainer: {
+            backgroundColor: theme.colors.surfaceVariant,
+            padding: theme.padding.m,
+            borderRadius: theme.roundness,
+            gap: theme.padding.s,
+        },
         actionsContainer: {
-            gap: 10,
+            gap: theme.padding.s,
             flexDirection: 'row',
             flexWrap: 'wrap',
-            alignItems: 'center', // Ensures proper alignment
+            alignItems: 'center',
+        },
+        fileDetailsContainer: {
+            gap: 8,
+            backgroundColor: 'rgba(0, 0, 0, 0.05)',
+            padding: 16,
+            borderRadius: 8,
+        },
+        switchesContainer: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: theme.padding.s,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: theme.colors.outline,
+            paddingTop: theme.padding.m,
+            marginTop: theme.padding.s,
         },
         audioPlayer: {},
         button: {},
         labelSwitchContainer: {
             margin: 0,
-            padding: 10,
-            flexShrink: 1, // Ensures label switch can shrink to fit space
+            padding: theme.padding.s,
+            backgroundColor: theme.colors.surfaceVariant,
+            flexShrink: 1,
+        },
+        disabledContainer: {
+            opacity: 0.5,
+        },
+        visualizerContainer: {
+            backgroundColor: theme.colors.surfaceVariant,
+            borderRadius: theme.roundness,
+            overflow: 'hidden',
+            padding: 0,
+            margin: 0,
+        },
+        processingContainer: {
+            alignItems: 'center',
+            gap: theme.padding.s,
+            padding: theme.padding.m,
+        },
+        saveContainer: {
+            gap: theme.padding.s,
+        },
+        waveformContainer: {
+            margin: 0,
+            padding: 0,
         },
     })
 }
 
+function formatDuration(seconds: number): string {
+    if (!seconds) return '0s'
+    
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const remainingSeconds = Math.floor(seconds % 60)
+    
+    const parts = []
+    
+    if (hours > 0) parts.push(`${hours}h`)
+    if (minutes > 0) parts.push(`${minutes}m`)
+    if (remainingSeconds > 0 || parts.length === 0) parts.push(`${remainingSeconds}s`)
+    
+    return parts.join(' ')
+}
+
 export const PlayPage = () => {
-    const styles = useMemo(() => getStyles(), [])
+    const theme = useTheme()
+    const styles = useMemo(() => getStyles(theme), [theme])
     const [audioUri, setAudioUri] = useState<string | null>(null)
     const [sound, setSound] = useState<Audio.Sound | null>(null)
     const [fileName, setFileName] = useState<string | null>(null)
@@ -67,62 +136,182 @@ export const PlayPage = () => {
     const [enableTranscription, setEnableTranscription] =
         useState<boolean>(isWeb)
     const [transcript, setTranscript] = useState<TranscriberData>()
-    const audioBufferRef = useRef<ArrayBuffer | null>(null)
     const { show } = useToast()
     const [showVisualizer, setShowVisualizer] = useState<boolean>(true)
+    const [isSaving, setIsSaving] = useState<boolean>(false)
+    const [previewData, setPreviewData] = useState<AudioPreview | null>(null)
+    const [startTime, setStartTime] = useState<number>(0)
+    const [endTime, setEndTime] = useState<number>(0)
+    const [customFileName, setCustomFileName] = useState<string>('')
+    const [enableTrim, setEnableTrim] = useState<boolean>(false)
+    const PREVIEW_POINTS = 100
+    const [fileSize, setFileSize] = useState<number>(0)
+    const [previewStats, setPreviewStats] = useState<{
+        durationMs: number;
+        size: number;
+    } | null>(null)
 
     const { files, removeFile, refreshFiles } = useAudioFiles()
+
+    const generatePreview = useCallback(async (fileUri: string) => {
+        try {
+            setProcessing(true)
+            show({
+                loading: true,
+                message: 'Generating preview...'
+            })
+
+            // First get the full preview to know the total duration
+            const fullPreview = await extractPreview({
+                fileUri,
+                numberOfPoints: PREVIEW_POINTS,
+            })
+
+            // Reset trim boundaries if not in trim mode
+            if (!enableTrim) {
+                setStartTime(0)
+                setEndTime(0)
+            }
+            
+            // Reset cursor position to start of trim range or 0
+            setCurrentTime(enableTrim ? startTime : 0)
+
+            // Get trimmed preview if trim is enabled
+            const preview = enableTrim ? await extractPreview({
+                fileUri,
+                numberOfPoints: PREVIEW_POINTS,
+                startTime: startTime > 0 ? startTime : undefined,
+                endTime: endTime > startTime ? endTime : undefined,
+            }) : fullPreview
+
+            // Ensure trim boundaries are within valid range
+            if (enableTrim) {
+                const durationSec = fullPreview.durationMs / 1000
+                if (startTime > durationSec || endTime > durationSec) {
+                    setStartTime(0)
+                    setEndTime(durationSec)
+                }
+            }
+
+            // Calculate preview stats using the full duration for the range selector
+            if (enableTrim && startTime !== undefined && endTime !== undefined) {
+                const trimDurationMs = (endTime - startTime) * 1000
+                const originalDuration = fullPreview.durationMs
+                const trimRatio = trimDurationMs / originalDuration
+                const estimatedSize = Math.floor(fileSize * trimRatio)
+                
+                setPreviewStats({
+                    durationMs: trimDurationMs,
+                    size: estimatedSize
+                })
+            } else {
+                setPreviewStats({
+                    durationMs: fullPreview.durationMs,
+                    size: fileSize
+                })
+            }
+
+            // Convert preview to AudioAnalysis format for visualizer
+            const audioAnalysis: AudioAnalysis = {
+                bitDepth: 16,
+                samples: 0,
+                numberOfChannels: 1,
+                sampleRate: 16000,
+                pointsPerSecond: PREVIEW_POINTS / (preview.durationMs / 1000),
+                durationMs: fullPreview.durationMs, // Use full duration for the range selector
+                dataPoints: preview.dataPoints,
+                amplitudeRange: preview.amplitudeRange || { min: -1, max: 1 },
+                rmsRange: preview.amplitudeRange || { min: -1, max: 1 },
+            }
+
+            setPreviewData(preview)
+            setAudioAnalysis(audioAnalysis)
+            
+            show({
+                type: 'success',
+                message: 'Preview generated successfully',
+                duration: 2000
+            })
+        } catch (error) {
+            logger.error('Error generating preview:', error)
+            show({
+                type: 'error',
+                message: 'Failed to generate preview',
+                duration: 3000
+            })
+        } finally {
+            setProcessing(false)
+        }
+    }, [endTime, show, startTime, enableTrim, fileSize, PREVIEW_POINTS])
 
     const pickAudioFile = async () => {
         try {
             setProcessing(true)
+            // Reset all values when loading new file
+            setStartTime(0)
+            setEndTime(0)
+            setEnableTrim(false)
+            setPreviewStats(null)
+            setCurrentTime(0)
+            setIsPlaying(false)
+            setAudioAnalysis(undefined)
+            setPreviewData(null)
+            setTranscript(undefined)
+            setCustomFileName('')
+            setAudioBuffer(undefined)
+
             const result = await DocumentPicker.getDocumentAsync({
-                type: 'audio/*',
+                type: ['audio/*'],
+                copyToCacheDirectory: true,
             })
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 const uri = result.assets[0].uri
                 const name = result.assets[0].name
-
-                // check if it has .wav extension
-                if (!name.endsWith('.wav')) {
-                    logger.error('Invalid file format')
-                    show({
-                        type: 'error',
-                        message: 'Invalid file format (.wav only)',
-                    })
-                    return
+                
+                // Get the actual file size using FileSystem
+                let size = result.assets[0].size || 0
+                if (!size && !isWeb) {
+                    const fileInfo = await FileSystem.getInfoAsync(uri, { size: true })
+                    size = (fileInfo as FileSystem.FileInfo & { size: number }).size || 0
+                } else if (!size && isWeb) {
+                    // For web, fetch the file and get its size
+                    const response = await fetch(uri)
+                    const blob = await response.blob()
+                    size = blob.size
                 }
 
-                // Unload any existing sound
                 if (sound) {
                     setSound(null)
                 }
 
                 setFileName(name)
-                if (isWeb) {
-                    await loadWebAudioFile({ audioUri: uri, filename: name })
-                } else {
-                    // Reset playback position and stop playback
-                    setAudioUri(uri)
-                    setIsPlaying(false)
-                    setCurrentTime(0)
+                setCustomFileName(name)
+                setAudioUri(uri)
+                setFileSize(size)
 
-                    const audioAnalysis = await extractAudioAnalysis({
-                        fileUri: uri,
-                        pointsPerSecond: 10,
-                    })
-                    logger.log(`AudioAnalysis:`, audioAnalysis)
-                    setAudioAnalysis(audioAnalysis)
-                    setAudioBuffer(uri)
-                }
+                // Generate preview for visualization
+                await generatePreview(uri)
             }
         } catch (error) {
             logger.error('Error picking audio file:', error)
+            show({
+                type: 'error',
+                message: 'Error loading audio file',
+                duration: 3000
+            })
         } finally {
             setProcessing(false)
         }
     }
+
+    const handleRangeChange = useCallback((newStartTimeMs: number, newEndTimeMs: number) => {
+        // Convert milliseconds to seconds since we work with seconds in the rest of the app
+        const newStartTimeSec = newStartTimeMs / 1000
+        const newEndTimeSec = newEndTimeMs / 1000
+        setStartTime(newStartTimeSec)
+        setEndTime(newEndTimeSec)
+    }, [])
 
     const loadWebAudioFile = async ({
         audioUri,
@@ -154,39 +343,17 @@ export const PlayPage = () => {
             const startFetchAudio = performance.now()
             const response = await fetch(audioUri)
             const arrayBuffer = await response.arrayBuffer()
-            timings['Fetch and Convert Audio'] =
-                performance.now() - startFetchAudio
-
-            const startDecodeAudio = performance.now()
-            // Decode the audio file to get metadata
-            const wavMetadata = await getWavFileInfo(arrayBuffer)
-            logger.info(`WavMetadata:`, wavMetadata)
-            timings['Decode Audio'] = performance.now() - startDecodeAudio
-            audioBufferRef.current = arrayBuffer
-            logger.debug(
-                `AudioBuffer: ${audioBufferRef.current.byteLength}`,
-                arrayBuffer
-            )
-
-            const startExtractFileName = performance.now()
-            // extract filename from audioUri and remove any query params
-            const actualFileName =
-                filename ??
-                audioUri.split('/').pop()?.split('?')[0] ??
-                'Unknown'
-            setFileName(actualFileName)
-            setAudioUri(audioUri)
-            timings['Extract Filename'] =
-                performance.now() - startExtractFileName
+            timings['Fetch and Convert Audio'] = performance.now() - startFetchAudio
 
             const audioCTX = new AudioContext({
                 sampleRate: 16000, // Always resample to 16000
             })
             const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
+
+            // Convert to mono if stereo
             let pcmAudio: Float32Array
             if (decoded.numberOfChannels === 2) {
                 const SCALING_FACTOR = Math.sqrt(2)
-
                 const left = decoded.getChannelData(0)
                 const right = decoded.getChannelData(1)
 
@@ -197,40 +364,37 @@ export const PlayPage = () => {
             } else {
                 pcmAudio = decoded.getChannelData(0)
             }
-            const { pcmValues: pcmAudio2 } = await convertPCMToFloat32({
-                buffer: arrayBuffer,
-                bitDepth: wavMetadata.bitDepth,
-            })
 
-            // compare the two pcmAudio
-            if (pcmAudio.length !== pcmAudio2.length) {
-                logger.error('Length mismatch')
-                logger.log('pcmAudio:', pcmAudio)
-                logger.log('pcmAudio2:', pcmAudio2)
-            }
             setAudioBuffer(pcmAudio)
 
             const startAudioAnalysis = performance.now()
             const audioAnalysis = await extractAudioAnalysis({
                 fileUri: audioUri,
-                bitDepth: wavMetadata.bitDepth,
-                durationMs: wavMetadata.durationMs,
-                sampleRate: wavMetadata.sampleRate,
-                numberOfChannels: wavMetadata.numChannels,
-                arrayBuffer,
                 pointsPerSecond: 10,
+                arrayBuffer,
+                sampleRate: decoded.sampleRate,
+                numberOfChannels: decoded.numberOfChannels,
+                durationMs: (decoded.length / decoded.sampleRate) * 1000,
             })
             logger.info(`AudioAnalysis computed in ${performance.now() - startAudioAnalysis}ms`)
             setAudioAnalysis(audioAnalysis)
             timings['Audio Analysis'] = performance.now() - startAudioAnalysis
 
-            timings['Total Time'] = performance.now() - startOverall
+            // extract filename from audioUri and remove any query params
+            const actualFileName = filename ?? audioUri.split('/').pop()?.split('?')[0] ?? 'Unknown'
+            setFileName(actualFileName)
+            setAudioUri(audioUri)
 
+            timings['Total Time'] = performance.now() - startOverall
             logger.log('Timings:', timings)
             logger.log(`AudioAnalysis:`, audioAnalysis)
-            logger.log(`wavMetadata:`, wavMetadata)
         } catch (error) {
             logger.error('Error loading audio file:', error)
+            show({
+                type: 'error',
+                message: 'Error loading audio file',
+                duration: 3000
+            })
         }
     }
 
@@ -251,6 +415,10 @@ export const PlayPage = () => {
                     await sound.pauseAsync()
                     setIsPlaying(false)
                 } else {
+                    // If trim is enabled, ensure we start from the trim start position
+                    if (enableTrim && startTime > 0) {
+                        await sound.setPositionAsync(startTime * 1000)
+                    }
                     await sound.playAsync()
                     setIsPlaying(true)
                 }
@@ -260,75 +428,85 @@ export const PlayPage = () => {
                 uri: audioUri,
             })
             setSound(newSound)
+            
+            // If trim is enabled, set initial position to start time
+            if (enableTrim && startTime > 0) {
+                await newSound.setPositionAsync(startTime * 1000)
+            }
+            
             await newSound.playAsync()
             setIsPlaying(true)
 
-            // Track playback position
+            // Track playback position and handle trim boundaries
             newSound.setOnPlaybackStatusUpdate((status) => {
                 if (status.isLoaded) {
-                    setCurrentTime(status.positionMillis / 1000)
+                    const currentPositionSec = status.positionMillis / 1000
+                    setCurrentTime(currentPositionSec)
                     setIsPlaying(status.isPlaying)
+
+                    // Stop playback if we reach the end trim point
+                    if (enableTrim && endTime > 0 && currentPositionSec >= endTime) {
+                        newSound.pauseAsync()
+                        newSound.setPositionAsync(startTime * 1000)
+                        setIsPlaying(false)
+                        setCurrentTime(startTime)
+                    }
                 }
             })
         }
-    }, [audioUri, sound])
+    }, [audioUri, sound, enableTrim, startTime, endTime])
 
     const saveToFiles = useCallback(async () => {
-        let wavMetadata: WavFileInfo | undefined
-        let arrayBuffer: ArrayBuffer | undefined
-
-        if (!fileName || !audioUri) {
+        if (isSaving || !fileName || !audioUri) {
             show({ type: 'error', message: 'No file to save' })
             return
         }
 
+        setIsSaving(true)
         // where to save the file
         const destination = `${FileSystem.documentDirectory ?? ''}${fileName}`
-
-        // Check if similar file already exists by comparing only the last part of the uri
-        const fileExists = files.some((file) => file.fileUri === destination)
-        if (fileExists) {
-            show({ type: 'warning', message: 'File already exists' })
-            return
-        }
-
+        
         try {
-            // Fetch the audio file as an ArrayBuffer
+            // Fetch the audio file
             const response = await fetch(audioUri)
-            arrayBuffer = await response.arrayBuffer()
+            const arrayBuffer = await response.arrayBuffer()
 
-            // Decode the audio file to get metadata
-            wavMetadata = await getWavFileInfo(arrayBuffer)
+            // Check if similar file already exists
+            const fileExists = files.some((file) => file.fileUri === destination)
+            if (fileExists) {
+                show({ type: 'warning', message: 'File already exists' })
+                return
+            }
 
-            // Convert PCM to Float32Array
-            const { pcmValues } = await convertPCMToFloat32({
-                buffer: arrayBuffer,
-                bitDepth: wavMetadata.bitDepth,
-            })
+            // Only try to get WAV metadata if it's a WAV file
+            let wavMetadata
+            if (fileName.toLowerCase().endsWith('.wav')) {
+                try {
+                    wavMetadata = await getWavFileInfo(arrayBuffer)
+                    const { pcmValues } = await convertPCMToFloat32({
+                        buffer: arrayBuffer,
+                        bitDepth: wavMetadata.bitDepth,
+                    })
+                    setAudioBuffer(pcmValues)
+                } catch (_error) {
+                    logger.warn('Not a valid WAV file, using audio analysis data instead')
+                }
+            }
 
-            logger.log('pcmValues:', pcmValues.length)
-            setAudioBuffer(pcmValues)
-        } catch (error) {
-            logger.error('Error saving file to files:', error)
-            show({ type: 'error', message: 'Error saving file' })
-            return
-        }
+            // Create audio recording metadata using either WAV metadata or audio analysis
+            const audioResult: AudioRecording = {
+                fileUri: destination,
+                filename: fileName,
+                mimeType: 'audio/*',
+                size: arrayBuffer.byteLength,
+                // Use WAV metadata if available, otherwise fall back to audio analysis data
+                durationMs: wavMetadata?.durationMs ?? audioAnalysis?.durationMs ?? 0,
+                sampleRate: (wavMetadata?.sampleRate ?? audioAnalysis?.sampleRate ?? 16000) as SampleRate,
+                channels: wavMetadata?.numChannels ?? audioAnalysis?.numberOfChannels ?? 1,
+                bitDepth: (wavMetadata?.bitDepth ?? audioAnalysis?.bitDepth ?? 16) as BitDepth,
+                analysisData: audioAnalysis,
+            }
 
-        logger.info(`saveTofiles wavMetadata:`, wavMetadata)
-        // Auto copy to local files
-        const audioResult: AudioRecording = {
-            fileUri: destination,
-            filename: fileName,
-            mimeType: 'audio/wav',
-            size: arrayBuffer.byteLength,
-            durationMs: wavMetadata.durationMs,
-            sampleRate: wavMetadata.sampleRate,
-            channels: wavMetadata.numChannels,
-            bitDepth: wavMetadata.bitDepth,
-            analysisData: audioAnalysis,
-        }
-
-        try {
             if (transcript) {
                 audioResult.transcripts = [transcript]
             }
@@ -336,7 +514,6 @@ export const PlayPage = () => {
             logger.log('Saving file to files:', audioResult)
 
             if (isWeb) {
-                // Store the audio file and metadata in IndexedDB
                 await storeAudioFile({
                     fileName: audioResult.fileUri,
                     arrayBuffer,
@@ -348,24 +525,35 @@ export const PlayPage = () => {
                     to: audioResult.fileUri,
                 })
 
-                // Also save metadata manually on native
-                const jsonPath = audioResult.fileUri.replace(/\.wav$/, '.json')
+                // Save metadata
+                const jsonPath = audioResult.fileUri.replace(/\.[^.]+$/, '.json')
                 await FileSystem.writeAsStringAsync(
                     jsonPath,
                     JSON.stringify(audioResult, null, 2)
                 )
             }
 
-            // Update your context or state with the new file information
             refreshFiles()
             show({ iconVisible: true, type: 'success', message: 'File saved' })
         } catch (error) {
             logger.error('Error saving file to files:', error)
+            show({ type: 'error', message: 'Error saving file' })
             // cleanup files if failed
-            await removeFile(audioResult)
+            await removeFile({
+                fileUri: destination,
+                filename: fileName,
+                mimeType: 'audio/*',
+                size: 0,
+                durationMs: 0,
+                sampleRate: 16000 as SampleRate,
+                channels: 1,
+                bitDepth: 16 as BitDepth,
+            })
             throw error
+        } finally {
+            setIsSaving(false)
         }
-    }, [fileName, audioUri, files, show, transcript, refreshFiles, removeFile, audioAnalysis])
+    }, [fileName, audioUri, files, show, transcript, refreshFiles, removeFile, audioAnalysis, isSaving])
 
     const handleSelectChunk = ({ chunk }: { chunk: Chunk }) => {
         if (chunk.timestamp && chunk.timestamp.length > 0) {
@@ -383,102 +571,213 @@ export const PlayPage = () => {
     }, [sound])
 
     return (
-        <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
-            {isWeb && (
-                <LabelSwitch
-                    label="Transcription"
-                    value={enableTranscription}
-                    containerStyle={styles.labelSwitchContainer}
-                    onValueChange={setEnableTranscription}
+        <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container}>
+            <Notice
+                type="info"
+                title="Audio Analysis"
+                message="Select an audio file to analyze its waveform. Save to Files to enable detailed segment analysis and feature extraction."
+            />
+            {fileName && (
+                <EditableInfoCard
+                    label="File Name"
+                    value={customFileName}
+                    placeholder="pick a filename for your recording"
+                    inlineEditable
+                    editable
+                    containerStyle={{
+                        backgroundColor: theme.colors.secondaryContainer,
+                    }}
+                    onInlineEdit={(newFileName) => {
+                        if (typeof newFileName === 'string') {
+                            setCustomFileName(newFileName)
+                        }
+                    }}
                 />
             )}
-            <LabelSwitch
-                label="Show Visualizer"
-                value={showVisualizer}
-                containerStyle={styles.labelSwitchContainer}
-                onValueChange={setShowVisualizer}
-            />
-            <View style={styles.actionsContainer}>
-                <Button onPress={pickAudioFile} mode="contained">
-                    Select Audio File
-                </Button>
-
+            <View 
+                style={[
+                    styles.controlsContainer, 
+                    processing || isSaving ? styles.disabledContainer : null
+                ]}
+            >
                 <View style={styles.actionsContainer}>
+                    <Button 
+                        onPress={pickAudioFile} 
+                        mode="contained"
+                        disabled={processing || isSaving}
+                        icon="file-upload"
+                    >
+                        Select Audio File
+                    </Button>
+
                     {isWeb && (
                         <Button
-                            mode="contained"
+                            mode="contained-tonal"
+                            disabled={processing || isSaving}
+                            icon="music-box"
                             onPress={async () => {
                                 try {
                                     await loadWebAudioFile({
-                                        audioUri:
-                                            'audio_samples/recorder_jre_lex_watch.wav',
+                                        audioUri: 'audio_samples/recorder_jre_lex_watch.wav',
                                     })
                                 } catch (error) {
-                                    logger.error(
-                                        'Error loading audio file:',
-                                        error
-                                    )
+                                    logger.error('Error loading audio file:', error)
                                 }
                             }}
                         >
-                            Auto Load
+                            Load Sample
                         </Button>
                     )}
                 </View>
+
+                <View style={styles.switchesContainer}>
+                    {isWeb && (
+                        <LabelSwitch
+                            disabled={processing || isSaving}
+                            label="Transcription"
+                            value={enableTranscription}
+                            containerStyle={styles.labelSwitchContainer}
+                            onValueChange={setEnableTranscription}
+                        />
+                    )}
+                    <LabelSwitch
+                        disabled={processing || isSaving}
+                        label="Waveform"
+                        value={showVisualizer}
+                        containerStyle={styles.labelSwitchContainer}
+                        onValueChange={setShowVisualizer}
+                    />
+                    {__DEV__ && (
+                        <LabelSwitch
+                            disabled={processing || isSaving}
+                            label="Trim Audio (__DEV__)"
+                            value={enableTrim}
+                            containerStyle={styles.labelSwitchContainer}
+                            onValueChange={setEnableTrim}
+                        />
+                    )}
+                </View>
             </View>
-            {processing && <ActivityIndicator size="large" />}
+
+            {(processing || isSaving) && (
+                <View style={styles.processingContainer}>
+                    <ActivityIndicator 
+                        size="large"
+                        color={theme.colors.primary}
+                    />
+                    <Text variant="bodyLarge">
+                        {isSaving ? 'Saving file...' : 'Processing audio...'}
+                    </Text>
+                </View>
+            )}
+
             {audioUri && (
-                <View style={{ gap: 10 }}>
+                <View style={[{gap: 10}, processing || isSaving ? styles.disabledContainer : null]}>
+                    <RecordingStats
+                        duration={previewStats?.durationMs ?? audioAnalysis?.durationMs ?? 0}
+                        size={previewStats?.size ?? fileSize}
+                        sampleRate={audioAnalysis?.sampleRate ?? 16000}
+                        bitDepth={audioAnalysis?.bitDepth ?? 16}
+                        channels={audioAnalysis?.numberOfChannels ?? 1}
+                    />
+
+                    {enableTrim && (
+                        <View style={styles.controlsContainer}>
+                            {previewStats && (
+                                <Notice
+                                    type="info"
+                                    title="Trim Preview"
+                                    message={`New duration: ${formatDuration(previewStats.durationMs / 1000)}`}
+                                />
+                            )}
+                            <AudioTimeRangeSelector
+                                durationMs={previewData?.durationMs || 0}
+                                startTime={startTime * 1000}
+                                endTime={endTime * 1000}
+                                onRangeChange={handleRangeChange}
+                                disabled={processing || !previewData}
+                                theme={{
+                                    container: {
+                                        backgroundColor: theme.colors.surfaceVariant,
+                                        height: 40,
+                                        borderRadius: theme.roundness,
+                                    },
+                                    selectedRange: {
+                                        backgroundColor: theme.colors.primary,
+                                        opacity: 0.5,
+                                    },
+                                    handle: {
+                                        backgroundColor: theme.colors.primary,
+                                        width: 12,
+                                    },
+                                }}
+                            />
+
+                            <Button
+                                mode="contained"
+                                onPress={() => generatePreview(audioUri)}
+                                loading={processing}
+                                disabled={processing || !previewData}
+                            >
+                                {`Preview Trim (${formatDuration(Math.max(0, endTime - startTime))})`}
+                            </Button>
+                        </View>
+                    )}
+
                     {showVisualizer && audioAnalysis && (
-                        <View>
+                        <View style={styles.visualizerContainer}>
                             <AudioVisualizer
-                                candleSpace={2}
-                                mode="static"
-                                showRuler
-                                showDottedLine
-                                font={font ?? undefined}
-                                playing={isPlaying}
-                                showSelectedCandle={false}
-                                showReferenceLine={true}
-                                candleWidth={5}
-                                enableInertia={false}
-                                NavigationControls={() => null}
-                                currentTime={currentTime}
-                                canvasHeight={150}
                                 audioData={audioAnalysis}
+                                canvasHeight={200}
+                                showRuler
+                                enableInertia
+                                currentTime={currentTime}
+                                playing={isPlaying}
                                 onSeekEnd={handleSeekEnd}
+                                NavigationControls={() => null}
+                                font={font ?? undefined}
+                                theme={{
+                                    container: styles.waveformContainer,
+                                }}
                             />
                         </View>
                     )}
+
                     {enableTranscription && audioBuffer && isWeb && (
-                        <View>
-                            <Transcriber
-                                fullAudio={audioBuffer}
-                                currentTimeMs={currentTime * 1000}
-                                sampleRate={16000} // this was resampled by AudioContext
-                                onSelectChunk={handleSelectChunk}
-                                onTranscriptionComplete={setTranscript}
-                                onTranscriptionUpdate={setTranscript}
-                            />
-                        </View>
+                        <Transcriber
+                            fullAudio={audioBuffer}
+                            currentTimeMs={currentTime * 1000}
+                            sampleRate={16000}
+                            onSelectChunk={handleSelectChunk}
+                            onTranscriptionComplete={setTranscript}
+                            onTranscriptionUpdate={setTranscript}
+                        />
                     )}
-                    <Button onPress={playPauseAudio} mode="outlined">
+
+                    <Button 
+                        onPress={playPauseAudio} 
+                        mode="contained"
+                        disabled={processing || isSaving}
+                        icon={isPlaying ? 'pause' : 'play'}
+                    >
                         {isPlaying ? 'Pause Audio' : 'Play Audio'}
                     </Button>
                 </View>
             )}
-            <View>
-                {fileName && (
-                    <View style={{ marginTop: 20, gap: 10 }}>
-                        <Text style={styles.audioPlayer}>
-                            Selected File: {fileName}
-                        </Text>
-                        <Button onPress={saveToFiles} mode="contained">
-                            Save to Files
-                        </Button>
-                    </View>
-                )}
-            </View>
+
+            {fileName && (
+                <View style={styles.saveContainer}>
+                    <Button 
+                        onPress={saveToFiles} 
+                        mode="contained"
+                        disabled={processing || isSaving}
+                        loading={isSaving}
+                        icon="content-save"
+                    >
+                        {isSaving ? 'Saving...' : 'Save to Files'}
+                    </Button>
+                </View>
+            )}
         </ScreenWrapper>
     )
 }

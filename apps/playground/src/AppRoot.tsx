@@ -64,6 +64,7 @@ const AppContent = () => {
                 },
             }}
             toastProviderProps={{
+                isStackable: false,
                 styleOverrides: {
                     snackbarStyle: { marginBottom: 40 },
                 },
