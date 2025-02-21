@@ -1239,32 +1239,34 @@ class AudioProcessor(private val filesDir: File) {
         return bytes.map { (it.toInt() - 128).toFloat() / 127f }.toFloatArray()
     }
 
-    fun loadAudioRange(
-        fileUri: String,
-        startTimeMs: Long? = null,
-        endTimeMs: Long? = null,
-        config: DecodingConfig
-    ): AudioData? {
+    fun loadAudioRange(fileUri: String, startTimeMs: Long, endTimeMs: Long, config: DecodingConfig? = null): AudioData? {
         try {
-            // Clean up the URI and get a proper File object
-            val cleanUri = fileUri.removePrefix("file://")
-            val file = File(cleanUri).takeIf { it.exists() } ?: File(filesDir, File(cleanUri).name).takeIf { it.exists() }
-                ?: run {
-                    Log.e(Constants.TAG, "File not found in any location: $cleanUri")
-                    return null
-                }
+            // Use default config if none provided
+            val effectiveConfig = config ?: DecodingConfig(
+                targetSampleRate = null,
+                targetChannels = null,
+                targetBitDepth = 16,
+                normalizeAudio = false
+            )
 
-            // Check if it's a WAV file by reading first 4 bytes
-            val isWav = FileInputStream(file).use { fis ->
-                val header = ByteArray(4)
-                fis.read(header)
-                String(header) == "RIFF"
-            }
-
-            return if (isWav) {
-                loadWavRange(file, startTimeMs, endTimeMs, config)
+            // First check if it's a WAV file by extension
+            val isWavByExtension = fileUri.lowercase().endsWith(".wav")
+            
+            // Then verify WAV header if needed
+            val headerSize = if (isWavByExtension) {
+                getWavHeaderSize(fileUri)
+            } else null
+            
+            // If it's a WAV file (by extension and header verification)
+            return if (isWavByExtension && headerSize != null) {
+                Log.d(Constants.TAG, "Loading WAV range with header size: $headerSize bytes")
+                loadWavRange(fileUri, startTimeMs, endTimeMs, effectiveConfig, headerSize)
             } else {
-                loadCompressedAudioRange(file, startTimeMs, endTimeMs, config)
+                if (isWavByExtension) {
+                    Log.w(Constants.TAG, "File has .wav extension but invalid header, falling back to compressed loader")
+                }
+                Log.d(Constants.TAG, "Loading compressed audio range")
+                loadCompressedAudioRange(fileUri, startTimeMs, endTimeMs, effectiveConfig)
             }
         } catch (e: Exception) {
             Log.e(Constants.TAG, "Failed to load audio range: ${e.message}", e)
@@ -1273,52 +1275,47 @@ class AudioProcessor(private val filesDir: File) {
     }
 
     private fun loadWavRange(
-        file: File,
-        startTimeMs: Long?,
-        endTimeMs: Long?,
-        config: DecodingConfig
+        fileUri: String,
+        startTimeMs: Long,
+        endTimeMs: Long,
+        config: DecodingConfig,
+        headerSize: Int
     ): AudioData? {
         try {
-            // Read WAV header to get format info
-            val fis = FileInputStream(file)
-            val headerBuffer = ByteArray(44)  // WAV header is 44 bytes
-            fis.read(headerBuffer)
+            val file = File(fileUri.removePrefix("file://")).takeIf { it.exists() }
+                ?: File(filesDir, File(fileUri).name).takeIf { it.exists() }
+                ?: throw IllegalArgumentException("File not found: $fileUri")
+
+            // Use existing method to get audio format
+            val format = getAudioFormat(fileUri) ?: throw IllegalArgumentException("Could not determine audio format")
             
-            // Parse WAV header
-            val sampleRate = ByteBuffer.wrap(headerBuffer, 24, 4).order(ByteOrder.LITTLE_ENDIAN).int
-            val channels = ByteBuffer.wrap(headerBuffer, 22, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-            val bitDepth = ByteBuffer.wrap(headerBuffer, 34, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+            val bytesPerSecond = format.sampleRate * format.channels * (format.bitDepth / 8)
+            val startByteOffset = ((startTimeMs * bytesPerSecond) / 1000).toInt()
+            val endByteOffset = ((endTimeMs * bytesPerSecond) / 1000).toInt()
             
-            // Calculate duration
-            val bytesPerFrame = channels * (bitDepth / 8)
-            val numFrames = (file.length() - 44) / bytesPerFrame  // Subtract header size
-            val durationMs = (numFrames * 1000L) / sampleRate
-            
-            // Calculate positions
-            val startByte = 44 + ((startTimeMs ?: 0) * sampleRate * bytesPerFrame / 1000)
-            val endByte = 44 + ((endTimeMs ?: (file.length() * 1000 / (sampleRate * bytesPerFrame))) * sampleRate * bytesPerFrame / 1000)
-            val length = (endByte - startByte).toInt()
-            
+            val startByte = headerSize + startByteOffset
+            val endByte = headerSize + endByteOffset
+
             Log.d(Constants.TAG, """
-                Loading WAV section:
-                - start: ${startTimeMs}ms (pos: $startByte)
-                - end: ${endTimeMs}ms (pos: $endByte)
-                - length: $length bytes
-                - format: ${sampleRate}Hz, $channels channels, $bitDepth-bit
+                Loading WAV range:
+                - headerSize: $headerSize
+                - startByte: $startByte
+                - endByte: $endByte
+                - bytesPerSecond: $bytesPerSecond
             """.trimIndent())
-            
-            // Read the requested section
-            val audioData = ByteArray(length)
-            fis.skip(startByte - 44)  // Skip to start position (accounting for header we already read)
-            fis.read(audioData)
-            fis.close()
-            
+
+            val audioData = ByteArray((endByte - startByte).coerceAtLeast(0))
+            FileInputStream(file).use { fis ->
+                fis.skip(startByte.toLong())
+                fis.read(audioData)
+            }
+
             return AudioData(
                 data = audioData,
-                sampleRate = config.targetSampleRate ?: sampleRate,
-                channels = config.targetChannels ?: channels,
-                bitDepth = config.targetBitDepth,
-                durationMs = durationMs  // Pass the duration
+                sampleRate = format.sampleRate,
+                channels = format.channels,
+                bitDepth = format.bitDepth,
+                durationMs = ((endByte - startByte).toLong() * 1000L) / bytesPerSecond
             )
         } catch (e: Exception) {
             Log.e(Constants.TAG, "Failed to load WAV range: ${e.message}", e)
@@ -1327,16 +1324,16 @@ class AudioProcessor(private val filesDir: File) {
     }
 
     private fun loadCompressedAudioRange(
-        file: File,
-        startTimeMs: Long?,
-        endTimeMs: Long?,
+        fileUri: String,
+        startTimeMs: Long,
+        endTimeMs: Long,
         config: DecodingConfig
     ): AudioData? {
         val extractor = MediaExtractor()
         var decoder: MediaCodec? = null
         
         try {
-            extractor.setDataSource(file.absolutePath)
+            extractor.setDataSource(fileUri.removePrefix("file://"))
             val format = extractor.getTrackFormat(0)
             extractor.selectTrack(0)
 
@@ -1370,7 +1367,7 @@ class AudioProcessor(private val filesDir: File) {
             // Calculate buffer sizes
             val targetSampleRate = config.targetSampleRate ?: originalSampleRate
             val targetChannels = config.targetChannels ?: originalChannels
-            val targetBitDepth = config.targetBitDepth
+            val targetBitDepth = config.targetBitDepth ?: 16
             val bytesPerSample = targetBitDepth / 8
             val samplesPerSecond = targetSampleRate * targetChannels
             val totalBytes = (effectiveDurationMs * samplesPerSecond * bytesPerSample) / 1000
@@ -1871,20 +1868,6 @@ class AudioProcessor(private val filesDir: File) {
             }
 
         try {
-            // First check if it's a WAV file using MediaExtractor
-            val extractor = MediaExtractor()
-            try {
-                extractor.setDataSource(file.absolutePath)
-                val format = extractor.getTrackFormat(0)
-                val mimeType = format.getString(MediaFormat.KEY_MIME)
-                if (mimeType?.startsWith("audio/x-wav") != true) {
-                    Log.d(Constants.TAG, "Not a WAV file (mime type: $mimeType), skipping header size calculation")
-                    return null
-                }
-            } finally {
-                extractor.release()
-            }
-
             val inputStream = FileInputStream(file)
             val buffer = ByteArray(12)  // Read RIFF header and chunk size
             
