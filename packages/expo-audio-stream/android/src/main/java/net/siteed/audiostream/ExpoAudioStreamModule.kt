@@ -124,7 +124,6 @@ class ExpoAudioStreamModule : Module(), EventSender {
                 } ?: throw IllegalStateException("Failed to load audio file")
 
                 val pointsPerSecond = (options["pointsPerSecond"] as? Double) ?: 20.0
-                val algorithm = options["algorithm"] as? String ?: "peak"
                 val featuresMap = options["features"] as? Map<*, *>
                 val features = Features.parseFeatureOptions(featuresMap)
 

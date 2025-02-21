@@ -27,7 +27,6 @@ import { baseLogger } from '../config'
 import { useAudio } from '../hooks/useAudio'
 import { isWeb } from '../utils/utils'
 import { SelectedAudioVisualizerProps } from './AudioRecordingConfigForm'
-import { DataPointViewer } from './DataViewer'
 import { SegmentAnalyzer } from './features/SegmentAnalyzer'
 import { FeatureSelection } from './FeatureSelection'
 import { HexDataViewer } from './HexDataViewer'
@@ -163,25 +162,6 @@ const getStyles = ({
     })
 }
 
-interface InfoRowProps {
-    readonly label: string
-    readonly value: string | number | React.ReactNode
-    readonly styles: ReturnType<typeof getStyles>
-}
-
-function InfoRow({ label, value, styles }: InfoRowProps) {
-    return (
-        <View style={styles.attributeContainer}>
-            <Text style={styles.label}>{label}:</Text>
-            {typeof value === 'string' || typeof value === 'number' ? (
-                <Text style={styles.value}>{value}</Text>
-            ) : (
-                value
-            )}
-        </View>
-    )
-}
-
 export interface AudioRecordingViewProps {
     recording: AudioRecording
     audioAnalysis?: AudioAnalysis
@@ -230,8 +210,8 @@ export const AudioRecordingView = ({
     // Create a memoized analysis config that includes both segment duration and features
     const analysisConfig = useMemo(() => ({
         pointsPerSecond: 1000 / segmentDuration,
-        features,
-    }), [segmentDuration, features])
+        features: {}, // Ignore features since we compute them on selection
+    }), [segmentDuration])
 
     const {
         isPlaying,
@@ -630,12 +610,14 @@ const newFeatures =                             await openDrawer<AudioFeaturesOp
                             }
                         }}
                     >
-                        <MaterialCommunityIcons
-                            name="tune-vertical"
-                            size={20}
-                            color={theme.colors.primary}
-                        />
-                        <Text>Configure Analysis</Text>
+                        <View style={styles.iconButton}>
+                            <MaterialCommunityIcons
+                                name="equalizer"
+                                size={20}
+                                color={theme.colors.primary}
+                            />
+                            <Text>Audio Features Extraction</Text>
+                        </View>
                     </Button>
                 </>
             )}
@@ -673,16 +655,6 @@ const newFeatures =                             await openDrawer<AudioFeaturesOp
                             pointsPerSecond: 1000 / segmentDuration,
                             features,
                         }}
-                    />
-                    <DataPointViewer dataPoint={selectedDataPoint} />
-                    <InfoRow 
-                        label="Byte Range" 
-                        value={
-                            <Text style={styles.value}>
-                                {`${selectedDataPoint.startPosition} to ${selectedDataPoint.endPosition}`}
-                            </Text>
-                        }
-                        styles={styles}
                     />
                     {hexByteArray && (
                         <HexDataViewer

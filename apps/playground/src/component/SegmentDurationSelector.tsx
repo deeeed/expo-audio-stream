@@ -1,6 +1,6 @@
 import { AppTheme, Button, useTheme } from '@siteed/design-system'
 import React, { useMemo, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet, View, ScrollView } from 'react-native'
 import { SegmentedButtons, Text } from 'react-native-paper'
 
 const getStyles = ({ theme }: { theme: AppTheme }) => 
@@ -24,10 +24,14 @@ const getStyles = ({ theme }: { theme: AppTheme }) =>
         },
         buttonContainer: {
             marginTop: theme.margin.s,
+        },
+        scrollContent: {
+            flexDirection: 'row',
+            gap: theme.margin.s,
         }
     })
 
-export type SegmentDuration = 10 | 100 | 1000 | 10000
+export type SegmentDuration = 10 | 100 | 1000 | 10000 | 30000 | 60000
 
 interface SegmentDurationSelectorProps {
     value: SegmentDuration
@@ -49,6 +53,8 @@ export function SegmentDurationSelector({
         { value: '100', label: '100ms' },
         { value: '1000', label: '1s' },
         { value: '10000', label: '10s' },
+        { value: '30000', label: '30s' },
+        { value: '60000', label: '1min' },
     ]
 
     const pointsPerSecond = (1000 / selectedDuration).toFixed(2)
@@ -64,11 +70,17 @@ export function SegmentDurationSelector({
                 <Text style={styles.title}>Segment Duration</Text>
                 <Text style={styles.subtitle}>({pointsPerSecond} points/sec)</Text>
             </View>
-            <SegmentedButtons
-                value={selectedDuration.toString()}
-                onValueChange={(value) => setSelectedDuration(parseInt(value) as SegmentDuration)}
-                buttons={buttons}
-            />
+            <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+            >
+                <SegmentedButtons
+                    value={selectedDuration.toString()}
+                    onValueChange={(value) => setSelectedDuration(parseInt(value) as SegmentDuration)}
+                    buttons={buttons}
+                />
+            </ScrollView>
             {selectedDuration !== value && (
                 <View style={styles.buttonContainer}>
                     <Button 
