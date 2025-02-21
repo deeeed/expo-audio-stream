@@ -40,6 +40,7 @@ export interface CanvasContainerProps {
     scaleToHumanVoice: boolean
     disableTapSelection?: boolean
     visualizationType?: 'candles' | 'waveform'
+    showSelectedCandle?: boolean
 }
 
 const CanvasContainer: React.FC<CanvasContainerProps> = ({
@@ -67,6 +68,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     maxAmplitude,
     scaleToHumanVoice,
     visualizationType = 'candles', // default to 'candles' for backward compatibility
+    showSelectedCandle = true,
 }) => {
     const candleColors = {
         ...defaultCandleColors,
@@ -157,13 +159,12 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
                 return (
                     <React.Fragment key={key}>
-                        {selectedCandle && selectedCandle.id === id && (
+                        {showSelectedCandle && selectedCandle && selectedCandle.id === id && (
                             <Path
                                 path={`M${x},0 L${x + candleWidth},0 L${x + candleWidth},${canvasHeight} L${x},${canvasHeight} Z`}
                                 color="red"
                                 style="stroke"
                                 strokeWidth={2}
-                                // strokeDash={[4, 4]}
                             />
                         )}
                         {(!silent || showSilence) && (
@@ -195,6 +196,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
         startIndex,
         selectedCandle,
         scaleToHumanVoice,
+        showSelectedCandle,
     ])
 
     // Conditionally render visualization based on 'visualizationType' prop

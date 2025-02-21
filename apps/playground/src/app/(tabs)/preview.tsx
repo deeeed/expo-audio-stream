@@ -1,7 +1,7 @@
 import { useFont } from '@shopify/react-native-skia'
 import { Notice, NumberAdjuster, Picker, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
 import { AudioPreview, extractPreview } from '@siteed/expo-audio-stream'
-import { AudioVisualizer } from '@siteed/expo-audio-ui'
+import { AudioVisualizer , AudioTimeRangeSelector } from '@siteed/expo-audio-ui'
 import * as DocumentPicker from 'expo-document-picker'
 import React, { useCallback, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
@@ -144,6 +144,12 @@ export default function PreviewScreen() {
         setSelectedQuickRange(undefined)
     }, [])
 
+    const handleRangeChange = useCallback((newStartTime: number, newEndTime: number) => {
+        setStartTime(newStartTime)
+        setEndTime(newEndTime)
+        setSelectedQuickRange(undefined)
+    }, [])
+
     return (
         <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container}>
             <View style={{ gap: 16 }}>
@@ -215,6 +221,30 @@ export default function PreviewScreen() {
                                 icon="refresh"
                             />
                         </View>
+
+                        <AudioTimeRangeSelector
+                            durationMs={previewData?.durationMs || 0}
+                            startTime={startTime}
+                            endTime={endTime}
+                            onRangeChange={handleRangeChange}
+                            disabled={isProcessing || !previewData}
+                            theme={{
+                                container: {
+                                    backgroundColor: colors.surfaceVariant,
+                                    height: 40,
+                                    borderRadius: 8,
+                                },
+                                selectedRange: {
+                                    backgroundColor: colors.primary,
+                                    opacity: 0.5,
+                                },
+                                handle: {
+                                    backgroundColor: colors.primary,
+                                    width: 12,
+                                },
+                            }}
+                        />
+
                         <NumberAdjuster
                             label="Start Time (ms)"
                             value={startTime}

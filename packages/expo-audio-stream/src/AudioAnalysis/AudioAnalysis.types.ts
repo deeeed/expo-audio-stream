@@ -27,6 +27,11 @@ export interface AudioFeatures {
     chromagram: number[] // Chromagram, representing the 12 different pitch classes of the audio.
     tempo: number // Estimated tempo of the audio signal, measured in beats per minute (BPM).
     hnr: number // Harmonics-to-noise ratio, indicating the proportion of harmonics to noise in the audio signal.
+    melSpectrogram: number[] // Mel-scaled spectrogram representation of the audio.
+    spectralContrast: number[] // Spectral contrast features representing the difference between peaks and valleys.
+    tonnetz: number[] // Tonal network features representing harmonic relationships.
+    pitch: number // Pitch of the audio signal, measured in Hertz (Hz).
+    dataChecksum: number // Checksum of the audio signal, used to verify the integrity of the audio.
 }
 
 /**
@@ -44,6 +49,10 @@ export interface AudioFeaturesOptions {
     chromagram?: boolean
     tempo?: boolean
     hnr?: boolean
+    melSpectrogram?: boolean
+    spectralContrast?: boolean
+    tonnetz?: boolean
+    pitch?: boolean
 }
 
 /**

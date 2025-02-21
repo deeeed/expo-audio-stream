@@ -1,3 +1,4 @@
+// packages/expo-audio-stream/android/src/main/java/net/siteed/audiostream/ExpoAudioStreamModule.kt
 package net.siteed.audiostream
 
 import android.Manifest
@@ -55,6 +56,17 @@ class ExpoAudioStreamModule : Module(), EventSender {
             try {
                 val fileUri = requireNotNull(options["fileUri"] as? String) { "fileUri is required" }
                 
+                // Get byte range options (optional)
+                val position = (options["position"] as? Number)?.toLong()
+                val length = (options["length"] as? Number)?.toLong()
+                
+                Log.d(Constants.TAG, """
+                    Extracting audio analysis:
+                    - fileUri: $fileUri
+                    - position: ${position ?: "start"}
+                    - length: ${length ?: "until end"}
+                """.trimIndent())
+                
                 // Get decoding options
                 val decodingOptionsMap = options["decodingOptions"] as? Map<String, Any>
                 val decodingConfig = if (decodingOptionsMap != null) {
@@ -63,20 +75,57 @@ class ExpoAudioStreamModule : Module(), EventSender {
                         targetChannels = decodingOptionsMap["targetChannels"] as? Int,
                         targetBitDepth = (decodingOptionsMap["targetBitDepth"] as? Int) ?: 16,
                         normalizeAudio = (decodingOptionsMap["normalizeAudio"] as? Boolean) ?: false
-                    )
+                    ).also {
+                        Log.d(Constants.TAG, """
+                            Using decoding config:
+                            - targetSampleRate: ${it.targetSampleRate ?: "original"}
+                            - targetChannels: ${it.targetChannels ?: "original"}
+                            - targetBitDepth: ${it.targetBitDepth}
+                            - normalizeAudio: ${it.normalizeAudio}
+                        """.trimIndent())
+                    }
                 } else null
 
-                val audioData = audioProcessor.loadAudioFromAnyFormat(fileUri, decodingConfig)
-                    ?: throw IllegalStateException("Failed to load audio file")
+                // Convert position/length to time if specified
+                val audioData = if (position != null && length != null) {
+                    // Get audio format to calculate time
+                    val format = audioProcessor.getAudioFormat(fileUri)
+                    if (format != null) {
+                        val bytesPerSecond = format.sampleRate * format.channels * (format.bitDepth / 8)
+                        val startTimeMs = (position * 1000L) / bytesPerSecond
+                        val durationMs = (length * 1000L) / bytesPerSecond
+                        
+                        Log.d(Constants.TAG, """
+                            Converting byte range to time:
+                            - bytesPerSecond: $bytesPerSecond
+                            - startTimeMs: $startTimeMs
+                            - durationMs: $durationMs
+                        """.trimIndent())
+                        
+                        audioProcessor.loadAudioRange(
+                            fileUri = fileUri,
+                            startTimeMs = startTimeMs,
+                            endTimeMs = startTimeMs + durationMs,
+                            config = decodingConfig ?: DecodingConfig(
+                                targetSampleRate = null,
+                                targetChannels = null,
+                                targetBitDepth = 16,
+                                normalizeAudio = false
+                            )
+                        )
+                    } else {
+                        Log.w(Constants.TAG, "Could not determine audio format, loading entire file")
+                        audioProcessor.loadAudioFromAnyFormat(fileUri, decodingConfig)
+                    }
+                } else {
+                    Log.d(Constants.TAG, "No range specified, loading entire file")
+                    audioProcessor.loadAudioFromAnyFormat(fileUri, decodingConfig)
+                } ?: throw IllegalStateException("Failed to load audio file")
 
                 val pointsPerSecond = (options["pointsPerSecond"] as? Double) ?: 20.0
                 val algorithm = options["algorithm"] as? String ?: "peak"
                 val featuresMap = options["features"] as? Map<*, *>
-                val features = featuresMap?.filterKeys { it is String }
-                    ?.filterValues { it is Boolean }
-                    ?.mapKeys { it.key as String }
-                    ?.mapValues { it.value as Boolean }
-                    ?: emptyMap()
+                val features = Features.parseFeatureOptions(featuresMap)
 
                 val recordingConfig = RecordingConfig(
                     sampleRate = audioData.sampleRate,
@@ -316,6 +365,31 @@ class ExpoAudioStreamModule : Module(), EventSender {
             } catch (e: Exception) {
                 Log.e(Constants.TAG, "Failed to trim audio: ${e.message}", e)
                 promise.reject("TRIM_ERROR", e.message ?: "Unknown error", e)
+            }
+        }
+
+        AsyncFunction("extractFullFileFeatures") { options: Map<String, Any>, promise: Promise ->
+            try {
+                val fileUri = requireNotNull(options["fileUri"] as? String) { "fileUri is required" }
+                
+                val decodingConfig = DecodingConfig(
+                    targetSampleRate = 16000,
+                    targetChannels = 1,        // Mono audio
+                    targetBitDepth = 16,       // 16-bit PCM
+                    normalizeAudio = false
+                )
+
+                val audioData = audioProcessor.loadAudioFromAnyFormat(fileUri, decodingConfig)
+                    ?: throw IllegalStateException("Failed to load audio file")
+
+                val features = audioProcessor.processEntireFile(audioData)
+                
+                // Use the existing toDictionary() method from Features class
+                promise.resolve(features.toDictionary())
+                
+            } catch (e: Exception) {
+                Log.e(Constants.TAG, "Failed to extract full file features", e)
+                promise.reject("PROCESSING_ERROR", e.message ?: "Unknown error", e)
             }
         }
 

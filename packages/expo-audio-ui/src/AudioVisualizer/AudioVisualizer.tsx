@@ -71,6 +71,8 @@ export interface AudioVisualizerProps {
     showYAxis?: boolean
     showSilence?: boolean
     showNavigation?: boolean
+    showSelectedCandle?: boolean
+    showReferenceLine?: boolean
     enableInertia?: GestureHandlerProps['enableInertia']
     font?: SkFont
     logger?: ConsoleLike
@@ -109,6 +111,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     showDottedLine = true,
     showSilence = false,
     showYAxis = false,
+    showSelectedCandle = true,
+    showReferenceLine = true,
     logger,
     onSeekEnd,
     onSelection,
@@ -557,6 +561,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                 showYAxis={showYAxis}
                                 showRuler={showRuler}
                                 showSilence={showSilence}
+                                showSelectedCandle={showSelectedCandle}
                                 mode={mode}
                                 visualizationType={activeVisualizationType}
                                 font={font}
@@ -582,7 +587,9 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                 theme={theme}
                                 scaleToHumanVoice
                             />
-                            <View style={theme.referenceLine} />
+                            {showReferenceLine && (
+                                <View style={theme.referenceLine} />
+                            )}
                         </>
                     )}
                 </View>
