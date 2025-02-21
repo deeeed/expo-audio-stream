@@ -37,25 +37,34 @@ interface SegmentDurationSelectorProps {
     value: SegmentDuration
     onChange: (duration: SegmentDuration) => void
     onConfirm?: () => void
+    maxDurationMs?: number
 }
 
 export function SegmentDurationSelector({ 
     value, 
     onChange,
-    onConfirm 
+    onConfirm,
+    maxDurationMs 
 }: SegmentDurationSelectorProps) {
     const theme = useTheme()
     const styles = useMemo(() => getStyles({ theme }), [theme])
     const [selectedDuration, setSelectedDuration] = useState<SegmentDuration>(value)
 
-    const buttons = [
-        { value: '10', label: '10ms' },
-        { value: '100', label: '100ms' },
-        { value: '1000', label: '1s' },
-        { value: '10000', label: '10s' },
-        { value: '30000', label: '30s' },
-        { value: '60000', label: '1min' },
-    ]
+    const buttons = useMemo(() => {
+        const allButtons = [
+            { value: '10', label: '10ms' },
+            { value: '100', label: '100ms' },
+            { value: '1000', label: '1s' },
+            { value: '10000', label: '10s' },
+            { value: '30000', label: '30s' },
+            { value: '60000', label: '1min' },
+        ]
+
+        // Filter buttons based on maxDurationMs if provided
+        return maxDurationMs 
+            ? allButtons.filter(button => parseInt(button.value) <= maxDurationMs)
+            : allButtons
+    }, [maxDurationMs])
 
     const pointsPerSecond = (1000 / selectedDuration).toFixed(2)
 

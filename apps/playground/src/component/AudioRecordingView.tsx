@@ -589,6 +589,7 @@ export const AudioRecordingView = ({
                         <SegmentDurationSelector
                             value={segmentDuration}
                             onChange={setSegmentDuration}
+                            maxDurationMs={recording.durationMs}
                         />
                     </View>
                     <Button
