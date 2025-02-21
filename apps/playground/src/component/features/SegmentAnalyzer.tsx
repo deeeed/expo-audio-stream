@@ -117,7 +117,6 @@ export function SegmentAnalyzer({
                 fileUri,
                 position: startPosition,
                 length,
-                skipWavHeader: true,
                 pointsPerSecond: analysisConfig.pointsPerSecond,
                 features: analysisConfig.features,
             })

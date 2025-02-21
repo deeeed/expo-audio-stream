@@ -101,7 +101,6 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
                         })
                         : await extractAudioAnalysis({
                             fileUri: actualAudioBuffer ? undefined : normalizedAudioUri,
-                            skipWavHeader: options.analysisOptions?.skipWavHeader,
                             arrayBuffer: actualAudioBuffer,
                             sampleRate: recording?.sampleRate,
                             bitDepth: recording?.bitDepth,

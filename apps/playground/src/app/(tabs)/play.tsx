@@ -200,7 +200,6 @@ export const PlayPage = () => {
             const { pcmValues: pcmAudio2 } = await convertPCMToFloat32({
                 buffer: arrayBuffer,
                 bitDepth: wavMetadata.bitDepth,
-                skipWavHeader: true,
             })
 
             // compare the two pcmAudio
@@ -305,7 +304,6 @@ export const PlayPage = () => {
             const { pcmValues } = await convertPCMToFloat32({
                 buffer: arrayBuffer,
                 bitDepth: wavMetadata.bitDepth,
-                skipWavHeader: false,
             })
 
             logger.log('pcmValues:', pcmValues.length)

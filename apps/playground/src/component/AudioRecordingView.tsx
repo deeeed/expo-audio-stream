@@ -209,7 +209,6 @@ export const AudioRecordingView = ({
     const [selectedAnalysisConfig, setSelectedAnalysisConfig] =
         useState<SelectedAnalysisConfig>({
             pointsPerSecond: 10,
-            skipWavHeader: true,
             features: {
                 energy: true,
                 spectralCentroid: true,

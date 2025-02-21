@@ -35,7 +35,6 @@ const getStyles = ({theme}: {theme: AppTheme}) => {
 
 export interface SelectedAnalysisConfig {
     pointsPerSecond: RecordingConfig['pointsPerSecond']
-    skipWavHeader: boolean
     features: AudioFeaturesOptions
 }
 
@@ -71,14 +70,6 @@ export const AudioRecordingAnalysisConfig = ({
     return (
         <View style={styles.container}>
             <View style={styles.topActionsContainer}>
-                <LabelSwitch
-                    label="Skip Wav Header"
-                    onValueChange={(value) => {
-                        handleChange('skipWavHeader', value)
-                    }}
-                    value={config.skipWavHeader ?? false}
-                    containerStyle={styles.labelContainerStyle}
-                />
                 <NumberAdjuster
                     label="Points Per Second"
                     value={config.pointsPerSecond ?? 20}

@@ -19,7 +19,6 @@ export interface ExtractAudioAnalysisProps {
     wavMetadata?: WavFileInfo
     arrayBuffer?: ArrayBuffer
     bitDepth?: number
-    skipWavHeader?: boolean
     durationMs?: number
     sampleRate?: number
     numberOfChannels?: number
@@ -180,7 +179,6 @@ export async function extractAudioFromAnyFormat({
             return await extractAudioAnalysis({
                 arrayBuffer: wavBuffer.buffer as ArrayBuffer,
                 bitDepth: decodingOptions?.targetBitDepth ?? 32,
-                skipWavHeader: true,
                 sampleRate: targetSampleRate,
                 numberOfChannels: targetChannels,
                 durationMs: effectiveDurationMs,
@@ -205,7 +203,6 @@ export const extractAudioAnalysis = async ({
     pointsPerSecond = 20,
     arrayBuffer,
     bitDepth,
-    skipWavHeader = true,
     durationMs,
     sampleRate,
     numberOfChannels,
@@ -237,7 +234,7 @@ export const extractAudioAnalysis = async ({
         // Create a new copy of the ArrayBuffer to avoid detachment issues
         const bufferCopy = arrayBuffer.slice(0)
         logger?.log(
-            `extractAudioAnalysis skipWavHeader=${skipWavHeader} bitDepth=${bitDepth} len=${bufferCopy.byteLength}`,
+            `extractAudioAnalysis bitDepth=${bitDepth} len=${bufferCopy.byteLength}`,
             bufferCopy.slice(0, 100)
         )
 
@@ -258,10 +255,9 @@ export const extractAudioAnalysis = async ({
         } = await convertPCMToFloat32({
             buffer: arrayBuffer,
             bitDepth: actualBitDepth,
-            skipWavHeader,
         })
         logger?.log(
-            `extractAudioAnalysis skipWaveHeader=${skipWavHeader} convertPCMToFloat32 length=${channelData.length} range: [ ${min} :: ${max} ]`
+            `extractAudioAnalysis convertPCMToFloat32 length=${channelData.length} range: [ ${min} :: ${max} ]`
         )
 
         // Apply position and length constraints to channelData if specified
@@ -312,7 +308,6 @@ export const extractAudioAnalysis = async ({
         const res = await ExpoAudioStreamModule.extractAudioAnalysis({
             fileUri,
             pointsPerSecond,
-            skipWavHeader,
             features,
             position,
             length,
