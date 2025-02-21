@@ -210,7 +210,6 @@ export const AudioRecordingView = ({
         useState<SelectedAnalysisConfig>({
             pointsPerSecond: 10,
             skipWavHeader: true,
-            algorithm: 'peak',
             features: {
                 energy: true,
                 spectralCentroid: true,
@@ -644,7 +643,6 @@ export const AudioRecordingView = ({
                         })}
                         analysisConfig={{
                             pointsPerSecond: selectedAnalysisConfig.pointsPerSecond ?? 10,
-                            algorithm: selectedAnalysisConfig.algorithm ?? 'rms',
                             features: selectedAnalysisConfig.features,
                         }}
                     />

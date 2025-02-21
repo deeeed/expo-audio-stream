@@ -111,7 +111,6 @@ export const PlayPage = () => {
                     const audioAnalysis = await extractAudioAnalysis({
                         fileUri: uri,
                         pointsPerSecond: 10,
-                        algorithm: 'rms',
                     })
                     logger.log(`AudioAnalysis:`, audioAnalysis)
                     setAudioAnalysis(audioAnalysis)

@@ -71,7 +71,7 @@ export const DataPointViewer = ({ dataPoint }: DataPointViewerProps) => {
                     <FontAwesome
                         name="check-circle"
                         size={16}
-                        color={dataPoint.activeSpeech ? 'green' : 'grey'}
+                        color={dataPoint.speech?.isActive ? 'green' : 'grey'}
                         style={styles.icon}
                     />
                 </View>

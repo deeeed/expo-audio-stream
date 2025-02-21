@@ -1,7 +1,7 @@
 import { useFont } from '@shopify/react-native-skia'
-import { Notice, NumberAdjuster, Picker, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
+import { Notice, NumberAdjuster, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
 import { AudioPreview, extractPreview } from '@siteed/expo-audio-stream'
-import { AudioVisualizer , AudioTimeRangeSelector } from '@siteed/expo-audio-ui'
+import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
 import * as DocumentPicker from 'expo-document-picker'
 import React, { useCallback, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
@@ -42,7 +42,6 @@ export default function PreviewScreen() {
     const [numberOfPoints, setNumberOfPoints] = useState('100')
     const [startTime, setStartTime] = useState<number>(0)
     const [endTime, setEndTime] = useState<number>(0)
-    const [algorithm, setAlgorithm] = useState<'peak' | 'rms'>('rms')
     const [selectedQuickRange, setSelectedQuickRange] = useState<string>()
 
     const { show } = useToast()
@@ -66,7 +65,6 @@ export default function PreviewScreen() {
             const preview = await extractPreview({
                 fileUri,
                 numberOfPoints: parseInt(numberOfPoints, 10),
-                algorithm,
                 startTime: startTime || undefined,
                 endTime: endTime || undefined,
             })
@@ -99,7 +97,7 @@ export default function PreviewScreen() {
         } finally {
             setIsProcessing(false)
         }
-    }, [algorithm, endTime, numberOfPoints, show, startTime])
+    }, [endTime, numberOfPoints, show, startTime])
 
     const pickAudioFile = useCallback(async () => {
         try {
@@ -265,22 +263,6 @@ export default function PreviewScreen() {
                             disabled={isProcessing}
                         />
 
-                        <Picker
-                            label="Algorithm"
-                            multi={false}
-                            options={[
-                                { label: 'RMS', value: 'rms', selected: algorithm === 'rms' },
-                                { label: 'Peak', value: 'peak', selected: algorithm === 'peak' },
-                            ]}
-                            onFinish={(options) => {
-                                const selected = options?.find((option) => option.selected)
-                                if (selected?.value === 'rms' || selected?.value === 'peak') {
-                                    setAlgorithm(selected.value)
-                                }
-                            }}
-                            disabled={isProcessing}
-                        />
-
                         <Button 
                             mode="contained" 
                             onPress={() => generatePreview(currentFile.fileUri)}
@@ -323,7 +305,7 @@ export default function PreviewScreen() {
                                 samples: 0,
                                 numberOfChannels: 1,
                                 sampleRate: 16000,
-                                amplitudeAlgorithm: algorithm,
+                                rmsRange: previewData.amplitudeRange,
                             }}
                             canvasHeight={200}
                             showRuler

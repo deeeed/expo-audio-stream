@@ -3,7 +3,6 @@ import { ConsoleLike } from '../ExpoAudioStream.types'
 import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
 import { isWeb } from '../constants'
 import {
-    AmplitudeAlgorithm,
     AudioAnalysis,
     AudioFeatures,
     AudioFeaturesOptions,
@@ -24,7 +23,6 @@ export interface ExtractAudioAnalysisProps {
     durationMs?: number
     sampleRate?: number
     numberOfChannels?: number
-    algorithm?: AmplitudeAlgorithm
     position?: number // Optional number of bytes to skip. Default is 0
     length?: number // Optional number of bytes to read.
     pointsPerSecond?: number // Optional number of points per second. Use to reduce the number of points and compute the number of datapoints to return.
@@ -211,7 +209,6 @@ export const extractAudioAnalysis = async ({
     durationMs,
     sampleRate,
     numberOfChannels,
-    algorithm = 'rms',
     features,
     featuresExtratorUrl,
     logger,
@@ -268,9 +265,9 @@ export const extractAudioAnalysis = async ({
         )
 
         // Apply position and length constraints to channelData if specified
-        const startIndex = position;
-        const endIndex = length ? startIndex + length : channelData.length;
-        const constrainedChannelData = channelData.slice(startIndex, endIndex);
+        const startIndex = position
+        const endIndex = length ? startIndex + length : channelData.length
+        const constrainedChannelData = channelData.slice(startIndex, endIndex)
 
         return new Promise((resolve, reject) => {
             let worker: Worker
@@ -299,7 +296,6 @@ export const extractAudioAnalysis = async ({
                 channelData: constrainedChannelData,
                 sampleRate,
                 pointsPerSecond,
-                algorithm,
                 bitDepth,
                 fullAudioDurationMs: durationMs,
                 numberOfChannels,
@@ -312,13 +308,11 @@ export const extractAudioAnalysis = async ({
         logger?.log(`extractAudioAnalysis`, {
             fileUri,
             pointsPerSecond,
-            algorithm,
         })
         const res = await ExpoAudioStreamModule.extractAudioAnalysis({
             fileUri,
             pointsPerSecond,
             skipWavHeader,
-            algorithm,
             features,
             position,
             length,
@@ -331,7 +325,6 @@ export const extractAudioAnalysis = async ({
 export async function extractPreview({
     fileUri,
     numberOfPoints,
-    algorithm = 'rms',
     startTime,
     endTime,
     decodingOptions,
@@ -340,7 +333,6 @@ export async function extractPreview({
         // For web, we can reuse the existing extractAudioFromAnyFormat with modified parameters
         const analysis = await extractAudioFromAnyFormat({
             fileUri,
-            algorithm,
             decodingOptions,
             startTime, // Pass startTime
             endTime, // Pass endTime
@@ -361,6 +353,8 @@ export async function extractPreview({
                 amplitude: point.amplitude,
                 startTime: point.startTime,
                 endTime: point.endTime,
+                dB: point.dB,
+                silent: point.silent,
             })),
         }
     }
@@ -368,7 +362,6 @@ export async function extractPreview({
     return await ExpoAudioStreamModule.extractPreview({
         fileUri,
         numberOfPoints,
-        algorithm,
         startTime,
         endTime,
         decodingOptions,
@@ -446,6 +439,9 @@ export async function extractFullFileFeatures({
                     audioAnalysis.dataPoints[0]?.features?.spectralContrast ??
                     [],
                 tonnetz: audioAnalysis.dataPoints[0]?.features?.tonnetz ?? [],
+                pitch: audioAnalysis.dataPoints[0]?.features?.pitch ?? 0,
+                dataChecksum:
+                    audioAnalysis.dataPoints[0]?.features?.dataChecksum ?? 0,
             }
         } catch (error) {
             console.error('Failed to extract full file features:', error)
