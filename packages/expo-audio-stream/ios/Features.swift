@@ -21,6 +21,11 @@ public struct Features {
     var chromagram: [Float]?
     var tempo: Float?
     var hnr: Float?
+    var melSpectrogram: [Float]?
+    var spectralContrast: [Float]?
+    var tonnetz: [Float]?
+    var pitch: Float?
+    var dataChecksum: Int32
     
     init(
         energy: Float = 0,
@@ -35,7 +40,12 @@ public struct Features {
         spectralBandwidth: Float? = nil,
         chromagram: [Float]? = nil,
         tempo: Float? = nil,
-        hnr: Float? = nil
+        hnr: Float? = nil,
+        melSpectrogram: [Float]? = nil,
+        spectralContrast: [Float]? = nil,
+        tonnetz: [Float]? = nil,
+        pitch: Float? = nil,
+        dataChecksum: Int32 = 0
     ) {
         self.energy = energy
         self.mfcc = mfcc
@@ -50,6 +60,11 @@ public struct Features {
         self.chromagram = chromagram
         self.tempo = tempo
         self.hnr = hnr
+        self.melSpectrogram = melSpectrogram
+        self.spectralContrast = spectralContrast
+        self.tonnetz = tonnetz
+        self.pitch = pitch
+        self.dataChecksum = dataChecksum
     }
 }
 
@@ -68,7 +83,12 @@ extension Features {
             "spectralBandwidth": spectralBandwidth ?? 0,
             "chromagram": chromagram ?? [],
             "tempo": tempo ?? 0,
-            "hnr": hnr ?? 0
+            "hnr": hnr ?? 0,
+            "melSpectrogram": melSpectrogram ?? [],
+            "spectralContrast": spectralContrast ?? [],
+            "tonnetz": tonnetz ?? [],
+            "pitch": pitch ?? 0,
+            "dataChecksum": dataChecksum
         ]
     }
 }

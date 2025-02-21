@@ -16,7 +16,6 @@ import {
     DataPoint,
 } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
-import { getLogger } from '@siteed/react-native-logger'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import React, { useEffect, useMemo, useState } from 'react'
@@ -24,6 +23,7 @@ import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
 
+import { baseLogger } from '../config'
 import { useAudio } from '../hooks/useAudio'
 import { isWeb } from '../utils/utils'
 import {
@@ -35,8 +35,9 @@ import { DataPointViewer } from './DataViewer'
 import { HexDataViewer } from './HexDataViewer'
 import { RecordingStats } from './RecordingStats'
 import Transcript from './Transcript'
+import { SegmentAnalyzer } from './features/SegmentAnalyzer'
 
-const logger = getLogger('AudioRecording')
+const logger = baseLogger.extend('AudioRecording')
 
 const getStyles = ({
     isPlaying,
@@ -47,11 +48,10 @@ const getStyles = ({
 }) => {
     return StyleSheet.create({
         container: {
-            padding: 16,
+            padding: theme.padding.m,
             backgroundColor: theme.colors.surface,
             borderRadius: 12,
-            marginHorizontal: 16,
-            marginVertical: 8,
+            marginHorizontal: theme.margin.s,
             elevation: 2,
             shadowColor: theme.colors.shadow,
             shadowOffset: { width: 0, height: 2 },
@@ -222,7 +222,11 @@ export const AudioRecordingView = ({
                 tempo: true,
                 zcr: true,
                 rms: true,
-                mfcc: false,
+                mfcc: true,
+                tonnetz: true,
+                melSpectrogram: true,
+                spectralContrast: true,
+                pitch: true,
             },
         })
 
@@ -238,7 +242,7 @@ export const AudioRecordingView = ({
         audioUri,
         recording,
         options: {
-            extractAnalysis: extractAnalysis && !_audioAnalysis,
+            extractAnalysis: extractAnalysis,
             analysisOptions: selectedAnalysisConfig,
         },
     })
@@ -253,7 +257,7 @@ export const AudioRecordingView = ({
         () => getStyles({ isPlaying, theme }),
         [isPlaying, theme]
     )
-    const { openDrawer, dismiss } = useModal()
+    const { openDrawer } = useModal()
 
     const handleShare = async (fileUri: string = audioUri) => {
         if (!fileUri) {
@@ -383,10 +387,10 @@ export const AudioRecordingView = ({
                 const position = selectedDataPoint.startPosition ?? 0
                 const length = (selectedDataPoint.endPosition ?? 0) - (selectedDataPoint.startPosition ?? 0)
                 let byteArray: Uint8Array = new Uint8Array()
-
+    
                 // Check if the file is compressed (opus or aac)
-                const isCompressedFormat = audioUri.toLowerCase().match(/\.(opus|aac)$/);
-
+                const isCompressedFormat = audioUri.toLowerCase().match(/\.(opus|aac)$/)
+    
                 if (isWeb) {
                     const response = await fetch(audioUri, {
                         headers: {
@@ -395,34 +399,40 @@ export const AudioRecordingView = ({
                     })
                     const step = await response.text()
                     byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
-                } else if (isCompressedFormat) {
-                    // For compressed formats, we need to read the whole file and slice it
-                    const fileUri = audioUri.startsWith('file://') ? audioUri : `file://${audioUri}`
-                    const response = await FileSystem.readAsStringAsync(fileUri, {
-                        encoding: FileSystem.EncodingType.Base64,
-                    })
-                    const fullArray = Uint8Array.from(atob(response), c => c.charCodeAt(0))
-                    byteArray = fullArray.slice(position, position + length)
                 } else {
-                    // For WAV files, we can read specific portions
-                    const fileData = await FileSystem.readAsStringAsync(
-                        audioUri,
-                        {
+                    // Ensure proper file:// prefix for native platforms
+                    const fileUri = audioUri.startsWith('file://') 
+                        ? audioUri 
+                        : `file://${audioUri}`
+    
+                    // For compressed formats, read the whole file and slice it
+                    if (isCompressedFormat) {
+                        const response = await FileSystem.readAsStringAsync(fileUri, {
                             encoding: FileSystem.EncodingType.Base64,
-                            position: selectedDataPoint.startPosition,
-                            length,
-                        }
-                    )
-                    const step = atob(fileData)
-                    byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
+                        })
+                        const fullArray = Uint8Array.from(atob(response), c => c.charCodeAt(0))
+                        byteArray = fullArray.slice(position, position + length)
+                    } else {
+                        // For WAV files, read specific portions
+                        const response = await FileSystem.readAsStringAsync(
+                            fileUri,
+                            {
+                                encoding: FileSystem.EncodingType.Base64,
+                                position: selectedDataPoint.startPosition,
+                                length,
+                            }
+                        )
+                        const step = atob(response)
+                        byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
+                    }
                 }
-
+    
                 setHexByteArray(byteArray)
             } catch (error) {
                 logger.error('Failed to load hex data', error)
                 show({ 
                     type: 'error', 
-                    message: 'Failed to load audio data segment' 
+                    message: `Failed to load audio data segment: ${error instanceof Error ? error.message : 'Unknown error'}` 
                 })
             }
         }
@@ -562,9 +572,9 @@ export const AudioRecordingView = ({
                 </View>
             </View>
 
-            {processing && <ActivityIndicator />}
+            {processing && <View style={{ justifyContent: 'center', alignItems: 'center', marginVertical: 20 }}><ActivityIndicator /></View>}
 
-            {audioAnalysis && (
+            {!processing && audioAnalysis && (
                 <View style={styles.infoSection}>
                     <EditableInfoCard
                         label="Analysis Config"
@@ -575,22 +585,24 @@ export const AudioRecordingView = ({
                         }}
                         editable
                         onEdit={async () => {
-                            logger.log('Edit analysis config')
-                            openDrawer({
+                            const newConfig = await openDrawer<SelectedAnalysisConfig>({
                                 bottomSheetProps: {
                                     enableDynamicSizing: true,
                                 },
-                                render: () => (
+                                initialData: selectedAnalysisConfig,
+                                containerType: 'scrollview',
+                                footerType: 'confirm_cancel',
+                                render: ({ state, onChange }) => (
                                     <AudioRecordingAnalysisConfig
-                                        config={selectedAnalysisConfig}
-                                        onChange={(newConfig) => {
-                                            dismiss()
-                                            setSelectedAnalysisConfig(newConfig)
-                                            setSelectedDataPoint(undefined)
-                                        }}
+                                        config={state.data}
+                                        onChange={onChange}
                                     />
                                 ),
                             })
+                            if (newConfig) {
+                                setSelectedAnalysisConfig(newConfig)
+                                setSelectedDataPoint(undefined)
+                            }
                         }}
                     />
                     <AudioVisualizer
@@ -622,6 +634,20 @@ export const AudioRecordingView = ({
 
             {selectedDataPoint && (
                 <View>
+                    <SegmentAnalyzer
+                        dataPoint={selectedDataPoint}
+                        fileUri={audioUri}
+                        sampleRate={recording.sampleRate}
+                        onError={(error) => show({ 
+                            type: 'error', 
+                            message: error.message 
+                        })}
+                        analysisConfig={{
+                            pointsPerSecond: selectedAnalysisConfig.pointsPerSecond ?? 10,
+                            algorithm: selectedAnalysisConfig.algorithm ?? 'rms',
+                            features: selectedAnalysisConfig.features,
+                        }}
+                    />
                     <DataPointViewer dataPoint={selectedDataPoint} />
                     <InfoRow 
                         label="Byte Range" 

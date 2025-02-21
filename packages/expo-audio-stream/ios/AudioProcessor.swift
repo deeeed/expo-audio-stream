@@ -1,4 +1,4 @@
-// AudioProcessor.swift
+// packages/expo-audio-stream/ios/AudioProcessor.swift
 
 import Foundation
 import Accelerate
@@ -219,7 +219,7 @@ public class AudioProcessor {
                 features.maxAmplitude = localMaxAmplitude
                 let rms = features.rms
                 let silent = rms < 0.01
-                let dB = featureOptions["dB"] == true ? 20 * log10(rms) : 0
+                let dB = Float(20 * log10(Double(rms)))
                 minAmplitude = min(minAmplitude, localMinAmplitude)
                 maxAmplitude = max(maxAmplitude, localMaxAmplitude)
                 
@@ -236,7 +236,7 @@ public class AudioProcessor {
                let endPosition = startPosition + (segmentSize * bytesPerSample * numberOfChannels)
                
                 dataPoints.append(DataPoint(
-                    id: uniqueIdCounter, // Assign unique ID
+                    id: uniqueIdCounter,
                     amplitude: algorithm == "peak" ? localMaxAmplitude : rms,
                     activeSpeech: nil,
                     dB: dB,
@@ -246,7 +246,8 @@ public class AudioProcessor {
                     endTime: segmentEndTime,
                     startPosition: startPosition,
                     endPosition: endPosition,
-                    speaker: 0
+                    speaker: 0,
+                    samples: segmentData.count
                 ))
                 uniqueIdCounter += 1 // Increment the unique ID counter
 
@@ -303,13 +304,24 @@ public class AudioProcessor {
         let chromagram = featureOptions["chromagram"] == true ? extractChromagram(from: segmentData, sampleRate: sampleRate) : []
         let tempo = featureOptions["tempo"] == true ? extractTempo(from: segmentData, sampleRate: sampleRate) : 0
         let hnr = featureOptions["hnr"] == true ? extractHNR(from: segmentData) : 0
+        let melSpectrogram = featureOptions["melSpectrogram"] == true ? computeMelSpectrogram(from: segmentData, sampleRate: sampleRate) : []
+        let spectralContrast = featureOptions["spectralContrast"] == true ? computeSpectralContrast(from: segmentData, sampleRate: sampleRate) : []
+        let tonnetz = featureOptions["tonnetz"] == true ? computeTonnetz(from: segmentData, sampleRate: sampleRate) : []
+        let pitch = featureOptions["pitch"] == true ? estimatePitch(from: segmentData, sampleRate: sampleRate) : 0
+        
+        // Calculate min and max amplitudes from the segment data
+        let minAmplitude = segmentData.map(abs).min() ?? 0
+        let maxAmplitude = segmentData.map(abs).max() ?? 0
+        
+        // Simple checksum computation
+        let checksum = segmentData.reduce(0) { ($0 &+ Int32(bitPattern: $1.bitPattern)) }
         
         return Features(
             energy: energy,
             mfcc: mfcc,
             rms: rms,
-            minAmplitude: 0, // computed before and will be overwritten
-            maxAmplitude: 0, // computed before and will be overwritten
+            minAmplitude: minAmplitude,
+            maxAmplitude: maxAmplitude,
             zcr: zcr,
             spectralCentroid: spectralCentroid,
             spectralFlatness: spectralFlatness,
@@ -317,7 +329,12 @@ public class AudioProcessor {
             spectralBandwidth: spectralBandwidth,
             chromagram: chromagram,
             tempo: tempo,
-            hnr: hnr
+            hnr: hnr,
+            melSpectrogram: melSpectrogram,
+            spectralContrast: spectralContrast,
+            tonnetz: tonnetz,
+            pitch: pitch,
+            dataChecksum: checksum
         )
     }
     
@@ -424,7 +441,8 @@ public class AudioProcessor {
                     startTime: startTime,
                     endTime: endTime,
                     startPosition: Int(currentFrame),
-                    endPosition: Int(currentFrame + Int64(framesToRead))
+                    endPosition: Int(currentFrame + Int64(framesToRead)),
+                    samples: Int(framesToRead)
                 )
                 
                 dataPoints.append(dataPoint)
@@ -451,22 +469,6 @@ public class AudioProcessor {
             amplitudeRange: (min: minAmplitude, max: maxAmplitude),
             extractionTimeMs: extractionTime
         )
-    }
-
-    private func calculateZeroCrossingRate(_ data: [Float]) -> Float {
-        var count: Float = 0
-        for i in 1..<data.count {
-            if (data[i] >= 0 && data[i-1] < 0) || (data[i] < 0 && data[i-1] >= 0) {
-                count += 1
-            }
-        }
-        return count / Float(data.count)
-    }
-
-    private func calculateEnergy(_ data: [Float]) -> Float {
-        var energy: Float = 0
-        vDSP_svesq(data, 1, &energy, vDSP_Length(data.count))
-        return energy / Float(data.count)
     }
 
     /// Trims audio file to specified range
@@ -637,12 +639,12 @@ public class AudioProcessor {
                 
                 let rms = features.rms
                 let silent = rms < 0.01
-                let dB = featureOptions["dB"] == true ? 20 * log10(rms) : 0
+                let dB = Float(20 * log10(Double(rms)))
                 
                 let segmentStartTime = Float(pointStartFrame) / sampleRate
                 let segmentEndTime = Float(pointEndFrame) / sampleRate
                 
-                dataPoints.append(DataPoint(
+                let dataPoint = DataPoint(
                     id: uniqueIdCounter,
                     amplitude: algorithm == "peak" ? localMaxAmplitude : rms,
                     activeSpeech: nil,
@@ -653,8 +655,10 @@ public class AudioProcessor {
                     endTime: segmentEndTime,
                     startPosition: Int(pointStartFrame),
                     endPosition: Int(pointEndFrame),
-                    speaker: 0
-                ))
+                    speaker: 0,
+                    samples: Int(framesToRead)
+                )
+                dataPoints.append(dataPoint)
                 uniqueIdCounter += 1
                 
                 minAmplitude = min(minAmplitude, localMinAmplitude)

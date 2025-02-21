@@ -13,7 +13,7 @@ import { AudioRecording } from '@siteed/expo-audio-stream'
 import { getLogger } from '@siteed/react-native-logger'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback, useMemo } from 'react'
-import { FlatList, StyleSheet } from 'react-native'
+import { FlatList, StyleSheet, View } from 'react-native'
 
 import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
@@ -33,6 +33,12 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
         recordingContainer: {
             gap: 10,
             borderWidth: 1,
+        },
+        headerContainer: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: 10,
         },
     })
 }
@@ -103,7 +109,6 @@ const FilesScreen = () => {
     }
 
     return (
-        <ScreenWrapper withScrollView={false} useInsets style={styles.container}>
             <FlatList
                 data={files}
                 keyExtractor={(item, index) => `${item.fileUri}_${index}`}
@@ -112,13 +117,15 @@ const FilesScreen = () => {
                     <RefreshControl refreshing={false} onRefresh={refreshFiles} />
                 }
                 ListHeaderComponent={
-                    <Button
-                        onPress={clearFiles}
-                        buttonColor="red"
-                        textColor="white"
+                    <View style={styles.headerContainer}>
+                        <Button
+                            onPress={clearFiles}
+                            buttonColor="red"
+                            textColor="white"
                     >
                         Clear Directory ({formatBytes(totalAudioStorageSize)})
                     </Button>
+                    </View>
                 }
                 renderItem={({ item }) => (
                     <AudioRecordingView
@@ -131,7 +138,6 @@ const FilesScreen = () => {
                     />
                 )}
             />
-        </ScreenWrapper>
     )
 }
 

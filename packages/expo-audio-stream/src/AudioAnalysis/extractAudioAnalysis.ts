@@ -5,6 +5,7 @@ import { isWeb } from '../constants'
 import {
     AmplitudeAlgorithm,
     AudioAnalysis,
+    AudioFeatures,
     AudioFeaturesOptions,
     AudioPreview,
     DecodingConfig,
@@ -214,6 +215,8 @@ export const extractAudioAnalysis = async ({
     features,
     featuresExtratorUrl,
     logger,
+    position = 0,
+    length,
 }: ExtractAudioAnalysisProps): Promise<AudioAnalysis> => {
     if (isWeb) {
         if (!arrayBuffer && !fileUri) {
@@ -264,6 +267,11 @@ export const extractAudioAnalysis = async ({
             `extractAudioAnalysis skipWaveHeader=${skipWavHeader} convertPCMToFloat32 length=${channelData.length} range: [ ${min} :: ${max} ]`
         )
 
+        // Apply position and length constraints to channelData if specified
+        const startIndex = position;
+        const endIndex = length ? startIndex + length : channelData.length;
+        const constrainedChannelData = channelData.slice(startIndex, endIndex);
+
         return new Promise((resolve, reject) => {
             let worker: Worker
             if (featuresExtratorUrl) {
@@ -288,7 +296,7 @@ export const extractAudioAnalysis = async ({
 
             worker.postMessage({
                 command: 'process',
-                channelData,
+                channelData: constrainedChannelData,
                 sampleRate,
                 pointsPerSecond,
                 algorithm,
@@ -312,6 +320,8 @@ export const extractAudioAnalysis = async ({
             skipWavHeader,
             algorithm,
             features,
+            position,
+            length,
         })
         logger?.log(`extractAudioAnalysis`, res)
         return res
@@ -363,4 +373,88 @@ export async function extractPreview({
         endTime,
         decodingOptions,
     })
+}
+
+export interface ExtractFullFileFeaturesProps {
+    fileUri: string
+    decodingOptions?: DecodingConfig
+}
+
+// Add new function
+export async function extractFullFileFeatures({
+    fileUri,
+    decodingOptions = {
+        targetSampleRate: 16000,
+        targetChannels: 1,
+        targetBitDepth: 16,
+        normalizeAudio: false,
+    },
+}: ExtractFullFileFeaturesProps): Promise<AudioFeatures> {
+    if (isWeb) {
+        try {
+            // For web, we'll use the existing extractAudioFromAnyFormat
+            // but process the entire file at once
+            const audioAnalysis = await extractAudioFromAnyFormat({
+                fileUri,
+                decodingOptions,
+                // Set specific options for full file processing
+                pointsPerSecond: 1, // We only need one point for the entire file
+                features: {
+                    energy: true,
+                    mfcc: true,
+                    rms: true,
+                    zcr: true,
+                    spectralCentroid: true,
+                    spectralFlatness: true,
+                    spectralRolloff: true,
+                    spectralBandwidth: true,
+                    chromagram: true,
+                    tempo: true,
+                    hnr: true,
+                    melSpectrogram: true,
+                    spectralContrast: true,
+                    tonnetz: true,
+                },
+            })
+
+            // Convert AudioAnalysis to AudioFeatures format
+            return {
+                energy: audioAnalysis.dataPoints[0]?.features?.energy ?? 0,
+                mfcc: audioAnalysis.dataPoints[0]?.features?.mfcc ?? [],
+                rms: audioAnalysis.dataPoints[0]?.features?.rms ?? 0,
+                minAmplitude: audioAnalysis.amplitudeRange.min,
+                maxAmplitude: audioAnalysis.amplitudeRange.max,
+                zcr: audioAnalysis.dataPoints[0]?.features?.zcr ?? 0,
+                spectralCentroid:
+                    audioAnalysis.dataPoints[0]?.features?.spectralCentroid ??
+                    0,
+                spectralFlatness:
+                    audioAnalysis.dataPoints[0]?.features?.spectralFlatness ??
+                    0,
+                spectralRolloff:
+                    audioAnalysis.dataPoints[0]?.features?.spectralRolloff ?? 0,
+                spectralBandwidth:
+                    audioAnalysis.dataPoints[0]?.features?.spectralBandwidth ??
+                    0,
+                chromagram:
+                    audioAnalysis.dataPoints[0]?.features?.chromagram ?? [],
+                tempo: audioAnalysis.dataPoints[0]?.features?.tempo ?? 0,
+                hnr: audioAnalysis.dataPoints[0]?.features?.hnr ?? 0,
+                melSpectrogram:
+                    audioAnalysis.dataPoints[0]?.features?.melSpectrogram ?? [],
+                spectralContrast:
+                    audioAnalysis.dataPoints[0]?.features?.spectralContrast ??
+                    [],
+                tonnetz: audioAnalysis.dataPoints[0]?.features?.tonnetz ?? [],
+            }
+        } catch (error) {
+            console.error('Failed to extract full file features:', error)
+            throw error
+        }
+    } else {
+        return await ExpoAudioStreamModule.extractFullFileFeatures({
+            fileUri,
+            decodingOptions,
+        })
+    }
 }

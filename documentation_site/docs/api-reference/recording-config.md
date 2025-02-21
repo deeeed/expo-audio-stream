@@ -27,7 +27,7 @@ export interface RecordingConfig {
 
     // Audio processing settings
     enableProcessing?: boolean // Enable audio processing (default is false)
-    pointsPerSecond?: number // Number of data points to extract per second of audio (default is 1000)
+    pointsPerSecond?: number // Number of data points to extract per second of audio (default is 10)
     algorithm?: AmplitudeAlgorithm // Algorithm to use for amplitude computation (default is "rms")
     features?: AudioFeaturesOptions // Feature options to extract (default is empty)
 

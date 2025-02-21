@@ -48,6 +48,11 @@ const Transcriber: React.FC<TranscriberProps> = ({
     >(fullAudio)
 
     useEffect(() => {
+        if(!isWeb) {
+            // TODO: activate on native
+            return;
+        }
+
         if (sampleRate !== WhisperSampleRate) {
             logger.warn(
                 `TODO: Resampling audio from ${sampleRate} to ${WhisperSampleRate}`
