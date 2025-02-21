@@ -478,7 +478,7 @@ export const AudioRecordingView = ({
                             color={theme.colors.onPrimary}
                         />
                         <Text>
-                            {isPlaying ? 'Pause' : `Play ${activeFormat === 'compressed' ? '(Compressed)' : '(WAV)'}`}
+                            {isPlaying ? 'Pause' : `Play ${activeFormat === 'compressed' ? '(Compressed)' : ''}`}
                         </Text>
                     </View>
                 </Button>

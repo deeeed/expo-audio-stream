@@ -184,7 +184,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             ...customTheme,
             container: {
                 ...defaultTheme.container,
-                marginTop: 20,
                 ...(customTheme?.container || {}),
             },
         }

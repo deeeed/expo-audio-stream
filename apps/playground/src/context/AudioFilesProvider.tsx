@@ -64,14 +64,14 @@ export const AudioFilesProvider = ({
                     );
                 } else {
                     const jsonPath = audioUriORfilename.replace(
-                        /\.(wav|opus|aac)$/,
+                        /\.(wav|mp3|opus|aac)$/,
                         '.json'
                     );
 
                     // Try to delete all possible audio files
-                    const possibleExtensions = ['.wav', '.opus', '.aac'];
+                    const possibleExtensions = ['.wav', '.mp3', '.opus', '.aac'];
                     for (const ext of possibleExtensions) {
-                        const audioPath = audioUriORfilename.replace(/\.(wav|opus|aac)$/, ext);
+                        const audioPath = audioUriORfilename.replace(/\.(wav|mp3|opus|aac)$/, ext);
                         const audioExists = await FileSystem.getInfoAsync(audioPath);
                         if (audioExists.exists) {
                             await FileSystem.deleteAsync(audioPath);
@@ -144,31 +144,38 @@ export const AudioFilesProvider = ({
 
                             processedFiles.add(baseName)
 
-                            const wavFile = `${baseName}.wav`
-                            // Use directoryUri for FileSystem operations
-                            const wavExists = await FileSystem.getInfoAsync(`${directoryUri}${wavFile}`)
-                            
+                            // Check for all supported audio formats
+                            const supportedExtensions = ['.wav', '.mp3', '.opus', '.aac']
+                            let audioExists = { exists: false }
+                            let audioFile = ''
+
+                            for (const ext of supportedExtensions) {
+                                audioFile = `${baseName}${ext}`
+                                audioExists = await FileSystem.getInfoAsync(`${directoryUri}${audioFile}`)
+                                if (audioExists.exists) break
+                            }
+                                
                             let compressedExists = { exists: false }
                             if (metadata.compression?.compressedFileUri) {
                                 const compressedFileName = metadata.compression.compressedFileUri.split('/').pop()
                                 if (compressedFileName) {
-                                    processedFiles.add(compressedFileName.replace(/\.(opus|aac)$/, ''))
+                                    processedFiles.add(compressedFileName.replace(/\.(opus|aac|mp3)$/, ''))
                                     // Store clean paths without file:// prefix
                                     metadata.compression.compressedFileUri = `${cleanDirectory}${compressedFileName}`
                                     compressedExists = await FileSystem.getInfoAsync(`${directoryUri}${compressedFileName}`)
                                 }
                             }
 
-                            if (!wavExists.exists && !compressedExists.exists) {
-                                logger.warn(`Neither WAV nor compressed file exists for ${baseName}`)
+                            if (!audioExists.exists && !compressedExists.exists) {
+                                logger.warn(`Neither original nor compressed file exists for ${baseName}`)
                                 return null
                             }
 
                             return {
                                 ...metadata,
                                 // Store clean paths without file:// prefix
-                                fileUri: `${cleanDirectory}${wavFile}`,
-                                size: wavExists.exists ? wavExists.size : metadata.size,
+                                fileUri: `${cleanDirectory}${audioFile}`,
+                                size: audioExists.exists && 'size' in audioExists ? audioExists.size : metadata.size,
                                 compression: metadata.compression ? {
                                     ...metadata.compression,
                                     size: compressedExists.exists && 'size' in compressedExists ? compressedExists.size : metadata.compression.size
@@ -183,8 +190,8 @@ export const AudioFilesProvider = ({
 
                 // Clean up orphaned audio files
                 for (const file of fileList) {
-                    if (file.match(/\.(wav|opus|aac)$/)) {
-                        const baseName = file.replace(/\.(wav|opus|aac)$/, '')
+                    if (file.match(/\.(wav|mp3|opus|aac)$/)) {
+                        const baseName = file.replace(/\.(wav|mp3|opus|aac)$/, '')
                         if (!processedFiles.has(baseName) && !file.includes('AV-Recording')) {
                             logger.warn(`Found orphaned audio file: ${file}, deleting`)
                             try {
