@@ -43,6 +43,8 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 return
             }
             
+            let position = options["position"] as? Int
+            let byteLength = options["length"] as? Int  // Note: 'length' in options maps to byteLength
             let features = options["features"] as? [String: Bool] ?? [:]
             let featureOptions = self.extractFeatureOptions(from: features)
             
@@ -63,7 +65,9 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                         pointsPerSecond: pointsPerSecond,
                         featureOptions: featureOptions,
                         bitDepth: bitDepth,
-                        numberOfChannels: numberOfChannels
+                        numberOfChannels: numberOfChannels,
+                        position: position,
+                        byteLength: byteLength
                     ) {
                         promise.resolve(result.toDictionary())
                     } else {
