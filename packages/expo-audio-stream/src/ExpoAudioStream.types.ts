@@ -1,6 +1,5 @@
 // packages/expo-audio-stream/src/ExpoAudioStream.types.ts
 import {
-    AmplitudeAlgorithm,
     AudioAnalysis,
     AudioFeaturesOptions,
 } from './AudioAnalysis/AudioAnalysis.types'
@@ -171,9 +170,6 @@ export interface RecordingConfig {
 
     // Number of data points to extract per second of audio (default is 10)
     pointsPerSecond?: number
-
-    // Algorithm to use for amplitude computation (default is "rms")
-    algorithm?: AmplitudeAlgorithm
 
     // Feature options to extract (default is empty)
     features?: AudioFeaturesOptions

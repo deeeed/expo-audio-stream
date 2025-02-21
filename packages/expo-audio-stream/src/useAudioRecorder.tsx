@@ -75,8 +75,10 @@ const defaultAnalysis: AudioAnalysis = {
     sampleRate: 44100,
     samples: 0,
     dataPoints: [],
-    amplitudeAlgorithm: 'rms',
-    speakerChanges: [],
+    rmsRange: {
+        min: Number.POSITIVE_INFINITY,
+        max: Number.NEGATIVE_INFINITY,
+    },
     amplitudeRange: {
         min: Number.POSITIVE_INFINITY,
         max: Number.NEGATIVE_INFINITY,

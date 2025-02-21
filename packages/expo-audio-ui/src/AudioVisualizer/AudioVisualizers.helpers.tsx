@@ -241,6 +241,9 @@ export const updateActivePoints = ({
                     amplitude: 0,
                     id: -1,
                     visible: false,
+                    dB: 0,
+                    silent: false,
+                    rms: 0,
                 }
             }
         }

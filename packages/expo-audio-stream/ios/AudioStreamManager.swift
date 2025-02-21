@@ -1589,7 +1589,6 @@ class AudioStreamManager: NSObject {
                             data: dataToProcess,
                             sampleRate: Float(settings.sampleRate),
                             pointsPerSecond: settings.pointsPerSecond ?? 10,
-                            algorithm: settings.algorithm ?? "rms",
                             featureOptions: settings.featureOptions ?? ["rms": true, "zcr": true],
                             bitDepth: settings.bitDepth,
                             numberOfChannels: settings.numberOfChannels
