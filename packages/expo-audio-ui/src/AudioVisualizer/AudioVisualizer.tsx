@@ -21,6 +21,8 @@ import {
     AudioVisualizerTheme,
     CandleData,
     UpdateActivePointsResult,
+    AmplitudeScalingMode,
+    DecibelVisualizationConfig,
 } from './AudioVisualiser.types'
 import {
     calculateReferenceLinePosition,
@@ -96,6 +98,11 @@ export interface AudioVisualizerProps {
     translateXPosition?: number
     /** Callback to notify parent of translateX changes */
     onTranslateXChange?: (translateX: number) => void
+    /** Whether to scale amplitudes to human voice range or use absolute values */
+    scaleToHumanVoice?: boolean
+    /** How to scale the amplitude values */
+    amplitudeScaling?: AmplitudeScalingMode
+    showDecibelVisualization?: DecibelVisualizationConfig
 }
 
 export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
@@ -124,6 +131,9 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     enableInertia = false,
     translateXPosition,
     onTranslateXChange,
+    scaleToHumanVoice = false,
+    amplitudeScaling = 'normalized', // default to normalized for backward compatibility
+    showDecibelVisualization,
 }) => {
     const translateX = useSharedValue(0)
     const [state, dispatch] = useReducer(reducer, initialState)
@@ -520,15 +530,47 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         }
     }, [translateXPosition])
 
+    // Get current amplitude from the active points
+    const getCurrentAmplitude = () => {
+        if (!updateActivePointsResult.current.activePoints.length) return 0
+        const referenceIndex =
+            mode === 'live'
+                ? updateActivePointsResult.current.activePoints.length - 1
+                : Math.floor(
+                      updateActivePointsResult.current.activePoints.length / 2
+                  )
+        return (
+            updateActivePointsResult.current.activePoints[referenceIndex]
+                ?.amplitude ?? 0
+        )
+    }
+
+    const mergedTheme = useMemo(
+        () => ({
+            ...theme,
+            decibelVisualization: showDecibelVisualization
+                ? {
+                      type: showDecibelVisualization.type,
+                      position: showDecibelVisualization.position,
+                      orientation: showDecibelVisualization.orientation,
+                      offset: showDecibelVisualization.offset,
+                      dimensions: showDecibelVisualization.dimensions,
+                      theme: showDecibelVisualization.theme ?? {},
+                  }
+                : undefined,
+        }),
+        [theme, showDecibelVisualization]
+    )
+
     return (
-        <View style={theme.container} onLayout={handleLayout}>
+        <View style={mergedTheme.container} onLayout={handleLayout}>
             {mode !== 'live' && showNavigation && (
                 <NavigationControlsComponent
                     selectedCandle={selectedCandle}
                     selectedIndex={selectedIndex}
                     audioData={audioData}
                     currentTime={currentTime}
-                    theme={theme}
+                    theme={mergedTheme}
                     onPrev={() => handlePrevNextSelection('prev')}
                     onNext={() => handlePrevNextSelection('next')}
                     onReset={handleReset}
@@ -583,11 +625,13 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                 durationMs={audioData.durationMs}
                                 minAmplitude={audioData.amplitudeRange.min}
                                 maxAmplitude={audioData.amplitudeRange.max}
-                                theme={theme}
-                                scaleToHumanVoice
+                                theme={mergedTheme}
+                                scaleToHumanVoice={scaleToHumanVoice}
+                                amplitudeScaling={amplitudeScaling}
+                                currentAmplitude={getCurrentAmplitude()}
                             />
                             {showReferenceLine && (
-                                <View style={theme.referenceLine} />
+                                <View style={mergedTheme.referenceLine} />
                             )}
                         </>
                     )}

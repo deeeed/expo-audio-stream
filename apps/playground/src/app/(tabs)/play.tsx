@@ -440,6 +440,7 @@ export const PlayPage = () => {
                                 playing={isPlaying}
                                 showSelectedCandle={false}
                                 showReferenceLine={true}
+                                amplitudeScaling='raw'
                                 candleWidth={5}
                                 enableInertia={false}
                                 NavigationControls={() => null}
