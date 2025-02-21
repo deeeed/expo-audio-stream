@@ -421,11 +421,14 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     )}
                 </Group>
                 {showDottedLine && (
-                    <Path
-                        path={drawDottedLine({ canvasWidth, canvasHeight })}
-                        color={theme.dottedLineColor || 'grey'}
-                        strokeWidth={1}
-                    />
+                    <>
+                        <Path
+                            path={drawDottedLine({ canvasWidth, canvasHeight })}
+                            color={theme.dottedLineColor || 'grey'}
+                            strokeWidth={1}
+                            style="stroke"
+                        />
+                    </>
                 )}
                 {showYAxis && (
                     <YAxis
