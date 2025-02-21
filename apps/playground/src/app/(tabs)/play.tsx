@@ -1,26 +1,29 @@
 // playground/src/app/(tabs)/play.tsx
 import { useFont } from '@shopify/react-native-skia'
 import {
-    Button,
-    LabelSwitch,
-    ScreenWrapper,
-    useToast,
-    Notice,
-    useTheme,
     AppTheme,
+    Button,
+    EditableInfoCard,
+    LabelSwitch,
+    Notice,
+    ScreenWrapper,
+    useTheme,
+    useToast
 } from '@siteed/design-system'
 import {
     AudioAnalysis,
+    AudioPreview,
     AudioRecording,
     BitDepth,
     Chunk,
     convertPCMToFloat32,
     extractAudioAnalysis,
+    extractPreview,
     getWavFileInfo,
     SampleRate,
     TranscriberData,
 } from '@siteed/expo-audio-stream'
-import { AudioVisualizer } from '@siteed/expo-audio-ui'
+import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
@@ -28,11 +31,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 
+import { RecordingStats } from '../../component/RecordingStats'
 import Transcriber from '../../component/Transcriber'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
-import { RecordingStats } from '../../component/RecordingStats'
 
 const logger = console
 const getStyles = (theme: AppTheme) => {
@@ -94,8 +97,28 @@ const getStyles = (theme: AppTheme) => {
         },
         saveContainer: {
             gap: theme.padding.s,
-        }
+        },
+        waveformContainer: {
+            margin: 0,
+            padding: 0,
+        },
     })
+}
+
+function formatDuration(seconds: number): string {
+    if (!seconds) return '0s'
+    
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const remainingSeconds = Math.floor(seconds % 60)
+    
+    const parts = []
+    
+    if (hours > 0) parts.push(`${hours}h`)
+    if (minutes > 0) parts.push(`${minutes}m`)
+    if (remainingSeconds > 0 || parts.length === 0) parts.push(`${remainingSeconds}s`)
+    
+    return parts.join(' ')
 }
 
 export const PlayPage = () => {
@@ -116,12 +139,127 @@ export const PlayPage = () => {
     const { show } = useToast()
     const [showVisualizer, setShowVisualizer] = useState<boolean>(true)
     const [isSaving, setIsSaving] = useState<boolean>(false)
+    const [previewData, setPreviewData] = useState<AudioPreview | null>(null)
+    const [startTime, setStartTime] = useState<number>(0)
+    const [endTime, setEndTime] = useState<number>(0)
+    const [customFileName, setCustomFileName] = useState<string>('')
+    const [enableTrim, setEnableTrim] = useState<boolean>(false)
+    const PREVIEW_POINTS = 100
+    const [fileSize, setFileSize] = useState<number>(0)
+    const [previewStats, setPreviewStats] = useState<{
+        durationMs: number;
+        size: number;
+    } | null>(null)
 
     const { files, removeFile, refreshFiles } = useAudioFiles()
+
+    const generatePreview = useCallback(async (fileUri: string) => {
+        try {
+            setProcessing(true)
+            show({
+                loading: true,
+                message: 'Generating preview...'
+            })
+
+            // First get the full preview to know the total duration
+            const fullPreview = await extractPreview({
+                fileUri,
+                numberOfPoints: PREVIEW_POINTS,
+            })
+
+            // Reset trim boundaries if not in trim mode
+            if (!enableTrim) {
+                setStartTime(0)
+                setEndTime(0)
+            }
+            
+            // Reset cursor position to start of trim range or 0
+            setCurrentTime(enableTrim ? startTime : 0)
+
+            // Get trimmed preview if trim is enabled
+            const preview = enableTrim ? await extractPreview({
+                fileUri,
+                numberOfPoints: PREVIEW_POINTS,
+                startTime: startTime > 0 ? startTime : undefined,
+                endTime: endTime > startTime ? endTime : undefined,
+            }) : fullPreview
+
+            // Ensure trim boundaries are within valid range
+            if (enableTrim) {
+                const durationSec = fullPreview.durationMs / 1000
+                if (startTime > durationSec || endTime > durationSec) {
+                    setStartTime(0)
+                    setEndTime(durationSec)
+                }
+            }
+
+            // Calculate preview stats using the full duration for the range selector
+            if (enableTrim && startTime !== undefined && endTime !== undefined) {
+                const trimDurationMs = (endTime - startTime) * 1000
+                const originalDuration = fullPreview.durationMs
+                const trimRatio = trimDurationMs / originalDuration
+                const estimatedSize = Math.floor(fileSize * trimRatio)
+                
+                setPreviewStats({
+                    durationMs: trimDurationMs,
+                    size: estimatedSize
+                })
+            } else {
+                setPreviewStats({
+                    durationMs: fullPreview.durationMs,
+                    size: fileSize
+                })
+            }
+
+            // Convert preview to AudioAnalysis format for visualizer
+            const audioAnalysis: AudioAnalysis = {
+                bitDepth: 16,
+                samples: 0,
+                numberOfChannels: 1,
+                sampleRate: 16000,
+                pointsPerSecond: PREVIEW_POINTS / (preview.durationMs / 1000),
+                durationMs: fullPreview.durationMs, // Use full duration for the range selector
+                dataPoints: preview.dataPoints,
+                amplitudeRange: preview.amplitudeRange || { min: -1, max: 1 },
+                rmsRange: preview.amplitudeRange || { min: -1, max: 1 },
+            }
+
+            setPreviewData(preview)
+            setAudioAnalysis(audioAnalysis)
+            
+            show({
+                type: 'success',
+                message: 'Preview generated successfully',
+                duration: 2000
+            })
+        } catch (error) {
+            logger.error('Error generating preview:', error)
+            show({
+                type: 'error',
+                message: 'Failed to generate preview',
+                duration: 3000
+            })
+        } finally {
+            setProcessing(false)
+        }
+    }, [endTime, show, startTime, enableTrim, fileSize, PREVIEW_POINTS])
 
     const pickAudioFile = async () => {
         try {
             setProcessing(true)
+            // Reset all values when loading new file
+            setStartTime(0)
+            setEndTime(0)
+            setEnableTrim(false)
+            setPreviewStats(null)
+            setCurrentTime(0)
+            setIsPlaying(false)
+            setAudioAnalysis(undefined)
+            setPreviewData(null)
+            setTranscript(undefined)
+            setCustomFileName('')
+            setAudioBuffer(undefined)
+
             const result = await DocumentPicker.getDocumentAsync({
                 type: ['audio/*'],
                 copyToCacheDirectory: true,
@@ -130,29 +268,30 @@ export const PlayPage = () => {
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 const uri = result.assets[0].uri
                 const name = result.assets[0].name
+                
+                // Get the actual file size using FileSystem
+                let size = result.assets[0].size || 0
+                if (!size && !isWeb) {
+                    const fileInfo = await FileSystem.getInfoAsync(uri, { size: true })
+                    size = (fileInfo as FileSystem.FileInfo & { size: number }).size || 0
+                } else if (!size && isWeb) {
+                    // For web, fetch the file and get its size
+                    const response = await fetch(uri)
+                    const blob = await response.blob()
+                    size = blob.size
+                }
 
-                // Unload any existing sound
                 if (sound) {
                     setSound(null)
                 }
 
                 setFileName(name)
-                if (isWeb) {
-                    await loadWebAudioFile({ audioUri: uri, filename: name })
-                } else {
-                    // Reset playback position and stop playback
-                    setAudioUri(uri)
-                    setIsPlaying(false)
-                    setCurrentTime(0)
+                setCustomFileName(name)
+                setAudioUri(uri)
+                setFileSize(size)
 
-                    const audioAnalysis = await extractAudioAnalysis({
-                        fileUri: uri,
-                        pointsPerSecond: 10,
-                    })
-                    logger.log(`AudioAnalysis:`, audioAnalysis)
-                    setAudioAnalysis(audioAnalysis)
-                    setAudioBuffer(uri)
-                }
+                // Generate preview for visualization
+                await generatePreview(uri)
             }
         } catch (error) {
             logger.error('Error picking audio file:', error)
@@ -165,6 +304,14 @@ export const PlayPage = () => {
             setProcessing(false)
         }
     }
+
+    const handleRangeChange = useCallback((newStartTimeMs: number, newEndTimeMs: number) => {
+        // Convert milliseconds to seconds since we work with seconds in the rest of the app
+        const newStartTimeSec = newStartTimeMs / 1000
+        const newEndTimeSec = newEndTimeMs / 1000
+        setStartTime(newStartTimeSec)
+        setEndTime(newEndTimeSec)
+    }, [])
 
     const loadWebAudioFile = async ({
         audioUri,
@@ -268,6 +415,10 @@ export const PlayPage = () => {
                     await sound.pauseAsync()
                     setIsPlaying(false)
                 } else {
+                    // If trim is enabled, ensure we start from the trim start position
+                    if (enableTrim && startTime > 0) {
+                        await sound.setPositionAsync(startTime * 1000)
+                    }
                     await sound.playAsync()
                     setIsPlaying(true)
                 }
@@ -277,18 +428,33 @@ export const PlayPage = () => {
                 uri: audioUri,
             })
             setSound(newSound)
+            
+            // If trim is enabled, set initial position to start time
+            if (enableTrim && startTime > 0) {
+                await newSound.setPositionAsync(startTime * 1000)
+            }
+            
             await newSound.playAsync()
             setIsPlaying(true)
 
-            // Track playback position
+            // Track playback position and handle trim boundaries
             newSound.setOnPlaybackStatusUpdate((status) => {
                 if (status.isLoaded) {
-                    setCurrentTime(status.positionMillis / 1000)
+                    const currentPositionSec = status.positionMillis / 1000
+                    setCurrentTime(currentPositionSec)
                     setIsPlaying(status.isPlaying)
+
+                    // Stop playback if we reach the end trim point
+                    if (enableTrim && endTime > 0 && currentPositionSec >= endTime) {
+                        newSound.pauseAsync()
+                        newSound.setPositionAsync(startTime * 1000)
+                        setIsPlaying(false)
+                        setCurrentTime(startTime)
+                    }
                 }
             })
         }
-    }, [audioUri, sound])
+    }, [audioUri, sound, enableTrim, startTime, endTime])
 
     const saveToFiles = useCallback(async () => {
         if (isSaving || !fileName || !audioUri) {
@@ -405,16 +571,29 @@ export const PlayPage = () => {
     }, [sound])
 
     return (
-        <ScreenWrapper 
-            withScrollView 
-            contentContainerStyle={styles.container}
-        >
+        <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container}>
             <Notice
                 type="info"
                 title="Audio Analysis"
                 message="Select an audio file to analyze its waveform. Save to Files to enable detailed segment analysis and feature extraction."
             />
-
+            {fileName && (
+                <EditableInfoCard
+                    label="File Name"
+                    value={customFileName}
+                    placeholder="pick a filename for your recording"
+                    inlineEditable
+                    editable
+                    containerStyle={{
+                        backgroundColor: theme.colors.secondaryContainer,
+                    }}
+                    onInlineEdit={(newFileName) => {
+                        if (typeof newFileName === 'string') {
+                            setCustomFileName(newFileName)
+                        }
+                    }}
+                />
+            )}
             <View 
                 style={[
                     styles.controlsContainer, 
@@ -468,6 +647,15 @@ export const PlayPage = () => {
                         containerStyle={styles.labelSwitchContainer}
                         onValueChange={setShowVisualizer}
                     />
+                    {__DEV__ && (
+                        <LabelSwitch
+                            disabled={processing || isSaving}
+                            label="Trim Audio (__DEV__)"
+                            value={enableTrim}
+                            containerStyle={styles.labelSwitchContainer}
+                            onValueChange={setEnableTrim}
+                        />
+                    )}
                 </View>
             </View>
 
@@ -483,53 +671,73 @@ export const PlayPage = () => {
                 </View>
             )}
 
-            {audioUri && audioAnalysis && (
-                <View style={[{gap: 10},processing || isSaving ? styles.disabledContainer : null]}>
+            {audioUri && (
+                <View style={[{gap: 10}, processing || isSaving ? styles.disabledContainer : null]}>
                     <RecordingStats
-                        duration={audioAnalysis.durationMs}
-                        size={audioAnalysis.samples * (audioAnalysis.bitDepth / 8)}
-                        sampleRate={audioAnalysis.sampleRate}
-                        bitDepth={audioAnalysis.bitDepth}
-                        channels={audioAnalysis.numberOfChannels}
+                        duration={previewStats?.durationMs ?? audioAnalysis?.durationMs ?? 0}
+                        size={previewStats?.size ?? fileSize}
+                        sampleRate={audioAnalysis?.sampleRate ?? 16000}
+                        bitDepth={audioAnalysis?.bitDepth ?? 16}
+                        channels={audioAnalysis?.numberOfChannels ?? 1}
                     />
 
-                    {showVisualizer && (
-                        <View style={styles.visualizerContainer}>
-                            <AudioVisualizer
-                                candleSpace={2}
-                                mode="static"
-                                showRuler
-                                showDottedLine
-                                font={font ?? undefined}
-                                playing={isPlaying}
-                                showSelectedCandle={false}
-                                showReferenceLine={true}
-                                amplitudeScaling='raw'
-                                candleWidth={5}
-                                enableInertia={false}
-                                NavigationControls={() => null}
-                                currentTime={currentTime}
-                                canvasHeight={150}
-                                audioData={audioAnalysis}
-                                onSeekEnd={handleSeekEnd}
+                    {enableTrim && (
+                        <View style={styles.controlsContainer}>
+                            {previewStats && (
+                                <Notice
+                                    type="info"
+                                    title="Trim Preview"
+                                    message={`New duration: ${formatDuration(previewStats.durationMs / 1000)}`}
+                                />
+                            )}
+                            <AudioTimeRangeSelector
+                                durationMs={previewData?.durationMs || 0}
+                                startTime={startTime * 1000}
+                                endTime={endTime * 1000}
+                                onRangeChange={handleRangeChange}
+                                disabled={processing || !previewData}
                                 theme={{
                                     container: {
-                                        margin: 0,
-                                        padding: 0,
-                                    },
-                                    canvasContainer: {
                                         backgroundColor: theme.colors.surfaceVariant,
-                                        margin: 0,
-                                        padding: 0,
+                                        height: 40,
+                                        borderRadius: theme.roundness,
                                     },
-                                    buttonText: {
-                                        color: theme.colors.primary,
+                                    selectedRange: {
+                                        backgroundColor: theme.colors.primary,
+                                        opacity: 0.5,
                                     },
-                                    timeRuler: {
-                                        labelColor: theme.colors.onSurface,
-                                        tickColor: theme.colors.onSurface,
+                                    handle: {
+                                        backgroundColor: theme.colors.primary,
+                                        width: 12,
                                     },
-                                    text: { color: theme.colors.onSurface },
+                                }}
+                            />
+
+                            <Button
+                                mode="contained"
+                                onPress={() => generatePreview(audioUri)}
+                                loading={processing}
+                                disabled={processing || !previewData}
+                            >
+                                {`Preview Trim (${formatDuration(Math.max(0, endTime - startTime))})`}
+                            </Button>
+                        </View>
+                    )}
+
+                    {showVisualizer && audioAnalysis && (
+                        <View style={styles.visualizerContainer}>
+                            <AudioVisualizer
+                                audioData={audioAnalysis}
+                                canvasHeight={200}
+                                showRuler
+                                enableInertia
+                                currentTime={currentTime}
+                                playing={isPlaying}
+                                onSeekEnd={handleSeekEnd}
+                                NavigationControls={() => null}
+                                font={font ?? undefined}
+                                theme={{
+                                    container: styles.waveformContainer,
                                 }}
                             />
                         </View>

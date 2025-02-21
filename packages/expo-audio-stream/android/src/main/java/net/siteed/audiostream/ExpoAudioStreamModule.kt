@@ -138,7 +138,6 @@ class ExpoAudioStreamModule : Module(), EventSender {
                         else -> throw IllegalArgumentException("Unsupported bit depth: ${audioData.bitDepth}")
                     },
                     pointsPerSecond = pointsPerSecond,
-                    algorithm = algorithm,
                     features = features
                 )
 
@@ -243,7 +242,6 @@ class ExpoAudioStreamModule : Module(), EventSender {
             try {
                 val fileUri = requireNotNull(options["fileUri"] as? String) { "fileUri is required" }
                 val numberOfPoints = (options["numberOfPoints"] as? Int) ?: 100
-                val algorithm = (options["algorithm"] as? String)?.lowercase() ?: "rms"
                 val startTime = (options["startTime"] as? Number)?.toLong()
                 val endTime = (options["endTime"] as? Number)?.toLong()
                 
@@ -251,7 +249,6 @@ class ExpoAudioStreamModule : Module(), EventSender {
                     Extracting preview with params:
                     - fileUri: $fileUri
                     - numberOfPoints: $numberOfPoints
-                    - algorithm: $algorithm
                     - startTime: ${startTime ?: "none"}
                     - endTime: ${endTime ?: "none"}
                 """.trimIndent())
@@ -280,11 +277,31 @@ class ExpoAudioStreamModule : Module(), EventSender {
                     - normalizeAudio: ${decodingConfig.normalizeAudio}
                 """.trimIndent())
 
-                // Use loadAudioRange when time range is specified, otherwise fall back to loadAudioFromAnyFormat
+                // Use loadAudioRange when time range is specified
                 val audioData = if (startTime != null && endTime != null) {
-                    audioProcessor.loadAudioRange(fileUri, startTime, endTime, decodingConfig)
+                    Log.d(Constants.TAG, "Loading audio range from ${startTime}ms to ${endTime}ms")
+                    audioProcessor.loadAudioRange(fileUri, startTime, endTime, decodingConfig)?.also {
+                        Log.d(Constants.TAG, """
+                            Loaded audio range:
+                            - data size: ${it.data.size} bytes
+                            - sampleRate: ${it.sampleRate}
+                            - channels: ${it.channels}
+                            - bitDepth: ${it.bitDepth}
+                            - durationMs: ${it.durationMs}
+                        """.trimIndent())
+                    }
                 } else {
-                    audioProcessor.loadAudioFromAnyFormat(fileUri, decodingConfig)
+                    Log.d(Constants.TAG, "Loading full audio file")
+                    audioProcessor.loadAudioFromAnyFormat(fileUri, decodingConfig)?.also {
+                        Log.d(Constants.TAG, """
+                            Loaded full audio:
+                            - data size: ${it.data.size} bytes
+                            - sampleRate: ${it.sampleRate}
+                            - channels: ${it.channels}
+                            - bitDepth: ${it.bitDepth}
+                            - durationMs: ${it.durationMs}
+                        """.trimIndent())
+                    }
                 } ?: throw IllegalStateException("Failed to load audio file")
 
                 val previewConfig = RecordingConfig(
@@ -296,10 +313,9 @@ class ExpoAudioStreamModule : Module(), EventSender {
                         32 -> "pcm_32bit"
                         else -> throw IllegalArgumentException("Unsupported bit depth: ${audioData.bitDepth}")
                     },
-                    pointsPerSecond = 0.0, // Will be overridden by numberOfPoints
-                    algorithm = algorithm,
-                    features = emptyMap() // No features needed for preview
                 )
+
+                Log.d(Constants.TAG, "Processing audio with config: $previewConfig")
 
                 val preview = audioProcessor.generatePreview(
                     audioData = audioData,
@@ -312,7 +328,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
                 Log.d(Constants.TAG, "Preview generated successfully with ${preview.dataPoints.size} points")
                 promise.resolve(preview.toDictionary())
             } catch (e: Exception) {
-                Log.e(Constants.TAG, "Preview generation failed: ${e.message}", e)
+                Log.e(Constants.TAG, "Preview generation failed: ${e.message}")
                 Log.e(Constants.TAG, "Stack trace: ${e.stackTraceToString()}")
                 promise.reject("PROCESSING_ERROR", e.message ?: "Unknown error", e)
             }
