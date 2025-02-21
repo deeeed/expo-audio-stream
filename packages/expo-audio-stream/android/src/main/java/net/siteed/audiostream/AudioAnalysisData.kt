@@ -4,34 +4,53 @@ package net.siteed.audiostream
 import android.os.Bundle
 import androidx.core.os.bundleOf
 
+data class SpeechFeatures(
+    val isActive: Boolean,
+    val speakerId: Int? = null
+) {
+    fun toDictionary(): Map<String, Any?> {
+        return mapOf(
+            "isActive" to isActive,
+            "speakerId" to speakerId
+        )
+    }
+
+    fun toBundle(): Bundle {
+        return bundleOf(
+            "isActive" to isActive,
+            "speakerId" to speakerId
+        )
+    }
+}
+
 data class DataPoint(
     val id: Long,
     val amplitude: Float,
-    val activeSpeech: Boolean? = null,
-    val dB: Float? = null,
-    val silent: Boolean? = null,
+    val rms: Float,
+    val dB: Float,
+    val silent: Boolean,
     val features: Features? = null,
+    val speech: SpeechFeatures? = null,
     val startTime: Float? = null,
     val endTime: Float? = null,
     val startPosition: Int? = null,
     val endPosition: Int? = null,
-    val samples: Int = 0,
-    val speaker: Int? = null
+    val samples: Int = 0
 ) {
     fun toDictionary(): Map<String, Any?> {
         return mapOf(
             "id" to id,
             "amplitude" to amplitude,
-            "activeSpeech" to activeSpeech,
+            "rms" to rms,
             "dB" to dB,
             "silent" to silent,
             "features" to features?.toDictionary(),
+            "speech" to speech?.toDictionary(),
             "startTime" to startTime,
             "endTime" to endTime,
             "startPosition" to startPosition,
             "endPosition" to endPosition,
-            "samples" to samples,
-            "speaker" to speaker
+            "samples" to samples
         )
     }
 
@@ -39,16 +58,16 @@ data class DataPoint(
         return bundleOf(
             "id" to id,
             "amplitude" to amplitude,
-            "activeSpeech" to activeSpeech,
+            "rms" to rms,
             "dB" to dB,
             "silent" to silent,
             "features" to features?.toBundle(),
+            "speech" to speech?.toBundle(),
             "startTime" to startTime,
             "endTime" to endTime,
             "startPosition" to startPosition,
             "endPosition" to endPosition,
-            "samples" to samples,
-            "speaker" to speaker
+            "samples" to samples
         )
     }
 }
@@ -62,7 +81,8 @@ data class AudioAnalysisData(
     val samples: Int,
     val dataPoints: List<DataPoint>,
     val amplitudeRange: AmplitudeRange,
-    val speakerChanges: List<SpeakerChange>,
+    val rmsRange: AmplitudeRange,
+    val speechAnalysis: SpeechAnalysis? = null,
     val extractionTimeMs: Float
 ) {
     data class AmplitudeRange(val min: Float, val max: Float) {
@@ -75,17 +95,42 @@ data class AudioAnalysisData(
         }
     }
 
-    data class SpeakerChange(val timestamp: Float, val speaker: Int) {
+    data class SpeechAnalysis(
+        val speakerChanges: List<SpeakerChange>
+    ) {
         fun toDictionary(): Map<String, Any> {
-            return mapOf("timestamp" to timestamp, "speaker" to speaker)
+            return mapOf(
+                "speakerChanges" to speakerChanges.map { it.toDictionary() }
+            )
         }
 
         fun toBundle(): Bundle {
-            return bundleOf("timestamp" to timestamp, "speaker" to speaker)
+            return bundleOf(
+                "speakerChanges" to speakerChanges.map { it.toBundle() }.toTypedArray()
+            )
         }
     }
 
-    fun toDictionary(): Map<String, Any> {
+    data class SpeakerChange(
+        val timestamp: Long,
+        val speakerId: Int
+    ) {
+        fun toDictionary(): Map<String, Any> {
+            return mapOf(
+                "timestamp" to timestamp,
+                "speakerId" to speakerId
+            )
+        }
+
+        fun toBundle(): Bundle {
+            return bundleOf(
+                "timestamp" to timestamp,
+                "speakerId" to speakerId
+            )
+        }
+    }
+
+    fun toDictionary(): Map<String, Any?> {
         return mapOf(
             "pointsPerSecond" to pointsPerSecond,
             "durationMs" to durationMs,
@@ -95,14 +140,14 @@ data class AudioAnalysisData(
             "samples" to samples,
             "dataPoints" to dataPoints.map { it.toDictionary() },
             "amplitudeRange" to amplitudeRange.toDictionary(),
-            "speakerChanges" to speakerChanges.map { it.toDictionary() },
+            "rmsRange" to rmsRange.toDictionary(),
+            "speechAnalysis" to speechAnalysis?.toDictionary(),
             "extractionTimeMs" to extractionTimeMs
         )
     }
 
     fun toBundle(): Bundle {
         val dataPointsBundleArray = dataPoints.map { it.toBundle() }.toTypedArray()
-        val speakerChangesBundleArray = speakerChanges.map { it.toBundle() }.toTypedArray()
 
         return bundleOf(
             "pointsPerSecond" to pointsPerSecond,
@@ -113,7 +158,8 @@ data class AudioAnalysisData(
             "samples" to samples,
             "dataPoints" to dataPointsBundleArray,
             "amplitudeRange" to amplitudeRange.toBundle(),
-            "speakerChanges" to speakerChangesBundleArray,
+            "rmsRange" to rmsRange.toBundle(),
+            "speechAnalysis" to speechAnalysis?.toBundle(),
             "extractionTimeMs" to extractionTimeMs
         )
     }

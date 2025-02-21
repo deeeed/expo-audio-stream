@@ -5,7 +5,6 @@ import {
 } from '@siteed/expo-audio-stream'
 import React, { useCallback, useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'
-import { SegmentedButtons } from 'react-native-paper'
 
 const getStyles = ({theme}: {theme: AppTheme}) => {
     return StyleSheet.create({
@@ -36,8 +35,6 @@ const getStyles = ({theme}: {theme: AppTheme}) => {
 
 export interface SelectedAnalysisConfig {
     pointsPerSecond: RecordingConfig['pointsPerSecond']
-    algorithm: RecordingConfig['algorithm']
-    skipWavHeader: boolean
     features: AudioFeaturesOptions
 }
 
@@ -73,14 +70,6 @@ export const AudioRecordingAnalysisConfig = ({
     return (
         <View style={styles.container}>
             <View style={styles.topActionsContainer}>
-                <LabelSwitch
-                    label="Skip Wav Header"
-                    onValueChange={(value) => {
-                        handleChange('skipWavHeader', value)
-                    }}
-                    value={config.skipWavHeader ?? false}
-                    containerStyle={styles.labelContainerStyle}
-                />
                 <NumberAdjuster
                     label="Points Per Second"
                     value={config.pointsPerSecond ?? 20}
@@ -88,21 +77,6 @@ export const AudioRecordingAnalysisConfig = ({
                     min={0.1}
                     max={1000}
                     step={1}
-                />
-                <SegmentedButtons
-                    value={config.algorithm ?? 'rms'}
-                    onValueChange={(value) => handleChange('algorithm', value)}
-                    buttons={[
-                        {
-                            value: 'peak',
-                            label: 'Peak',
-                        },
-                        {
-                            value: 'rms',
-                            label: 'RMS',
-                        },
-                    ]}
-                    style={styles.segmentedButton}
                 />
             </View>
             <LabelSwitch

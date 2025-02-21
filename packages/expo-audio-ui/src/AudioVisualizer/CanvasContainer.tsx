@@ -1,6 +1,6 @@
 // packages/expo-audio-ui/src/AudioVisualizer/CanvasContainer.tsx
 import { Canvas, Group, Path, SkFont } from '@shopify/react-native-skia'
-import { AmplitudeAlgorithm, DataPoint } from '@siteed/expo-audio-stream'
+import { DataPoint } from '@siteed/expo-audio-stream'
 import React, { useEffect, useMemo, useRef } from 'react'
 import { View } from 'react-native'
 import { SharedValue, useDerivedValue } from 'react-native-reanimated'
@@ -22,7 +22,6 @@ export interface CanvasContainerProps {
     showSilence: boolean
     showYAxis: boolean
     mode: 'static' | 'live' | 'scaled'
-    algorithm: AmplitudeAlgorithm
     translateX: SharedValue<number>
     activePoints: CandleData[]
     maxDisplayedItems: number
@@ -55,7 +54,6 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     activePoints,
     maxDisplayedItems,
     paddingLeft,
-    algorithm,
     totalCandleWidth,
     startIndex,
     canvasWidth,
@@ -99,67 +97,65 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     }, [maxAmplitude, canvasHeight])
 
     const memoizedCandles = useMemo(() => {
-        return activePoints.map(
-            ({ id, amplitude, visible, activeSpeech, silent }, index) => {
-                if (id === -1) return null
+        return activePoints.map(({ id, amplitude, visible, silent }, index) => {
+            if (id === -1) return null
 
-                const centerY = canvasHeight / 2
+            const centerY = canvasHeight / 2
 
-                let scaledAmplitude: number
-                if (scaleToHumanVoice) {
-                    if (amplitude <= humanVoiceMax) {
-                        // Scale normally within the human voice range
-                        scaledAmplitude =
-                            ((amplitude - humanVoiceMin) /
-                                (humanVoiceMax - humanVoiceMin)) *
-                            (canvasHeight * normalSpeechHeightProportion)
-                    } else {
-                        // For amplitudes above humanVoiceMax, use a logarithmic scale
-                        const baseHeight =
-                            canvasHeight * normalSpeechHeightProportion
-                        const extraHeight =
-                            canvasHeight * (1 - normalSpeechHeightProportion)
-                        const logFactor =
-                            Math.log(amplitude / humanVoiceMax) /
-                            Math.log(absoluteMax / humanVoiceMax)
-                        scaledAmplitude = baseHeight + extraHeight * logFactor
-                    }
+            let scaledAmplitude: number
+            if (scaleToHumanVoice) {
+                if (amplitude <= humanVoiceMax) {
+                    // Scale normally within the human voice range
+                    scaledAmplitude =
+                        ((amplitude - humanVoiceMin) /
+                            (humanVoiceMax - humanVoiceMin)) *
+                        (canvasHeight * normalSpeechHeightProportion)
                 } else {
-                    // Use the full amplitude range from 0 to absoluteMax when not scaling to human voice
-                    scaledAmplitude = (amplitude / absoluteMax) * canvasHeight
+                    // For amplitudes above humanVoiceMax, use a logarithmic scale
+                    const baseHeight =
+                        canvasHeight * normalSpeechHeightProportion
+                    const extraHeight =
+                        canvasHeight * (1 - normalSpeechHeightProportion)
+                    const logFactor =
+                        Math.log(amplitude / humanVoiceMax) /
+                        Math.log(absoluteMax / humanVoiceMax)
+                    scaledAmplitude = baseHeight + extraHeight * logFactor
                 }
+            } else {
+                // Use the full amplitude range from 0 to absoluteMax when not scaling to human voice
+                scaledAmplitude = (amplitude / absoluteMax) * canvasHeight
+            }
 
-                // Clamp the scaled amplitude to ensure it stays within the canvas
-                const clampedAmplitude = Math.max(
-                    0,
-                    Math.min(scaledAmplitude, canvasHeight)
-                )
+            // Clamp the scaled amplitude to ensure it stays within the canvas
+            const clampedAmplitude = Math.max(
+                0,
+                Math.min(scaledAmplitude, canvasHeight)
+            )
 
-                let delta =
-                    Math.ceil(maxDisplayedItems / 2) *
-                    (candleWidth + candleSpace)
-                if (mode === 'live') {
-                    delta = 0
-                }
-                const x =
-                    (candleWidth + candleSpace) * index +
-                    startIndex * (candleWidth + candleSpace) +
-                    delta
+            let delta =
+                Math.ceil(maxDisplayedItems / 2) * (candleWidth + candleSpace)
+            if (mode === 'live') {
+                delta = 0
+            }
+            const x =
+                (candleWidth + candleSpace) * index +
+                startIndex * (candleWidth + candleSpace) +
+                delta
 
-                let color = candleColors.activeAudioColor
-                if (!visible) {
-                    color = candleColors.offcanvasColor
-                } else if (selectedCandle && selectedCandle.id === id) {
-                    color = candleColors.selectedColor
-                } else if (activeSpeech) {
-                    color = candleColors.activeSpeechColor
-                }
+            let color = candleColors.activeAudioColor
+            if (!visible) {
+                color = candleColors.offcanvasColor
+            } else if (selectedCandle && selectedCandle.id === id) {
+                color = candleColors.selectedColor
+            }
 
-                const key = `${id}`
+            const key = `${id}`
 
-                return (
-                    <React.Fragment key={key}>
-                        {showSelectedCandle && selectedCandle && selectedCandle.id === id && (
+            return (
+                <React.Fragment key={key}>
+                    {showSelectedCandle &&
+                        selectedCandle &&
+                        selectedCandle.id === id && (
                             <Path
                                 path={`M${x},0 L${x + candleWidth},0 L${x + candleWidth},${canvasHeight} L${x},${canvasHeight} Z`}
                                 color="red"
@@ -167,21 +163,20 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                                 strokeWidth={2}
                             />
                         )}
-                        {(!silent || showSilence) && (
-                            <AnimatedCandle
-                                animated
-                                x={x}
-                                y={centerY - clampedAmplitude / 2}
-                                startY={centerY}
-                                width={candleWidth}
-                                height={clampedAmplitude}
-                                color={color}
-                            />
-                        )}
-                    </React.Fragment>
-                )
-            }
-        )
+                    {(!silent || showSilence) && (
+                        <AnimatedCandle
+                            animated
+                            x={x}
+                            y={centerY - clampedAmplitude / 2}
+                            startY={centerY}
+                            width={candleWidth}
+                            height={clampedAmplitude}
+                            color={color}
+                        />
+                    )}
+                </React.Fragment>
+            )
+        })
     }, [
         activePoints,
         canvasHeight,
@@ -257,7 +252,6 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         canvasWidth={canvasWidth}
                         minAmplitude={minAmplitude}
                         maxAmplitude={maxAmplitude}
-                        algorithm={algorithm}
                         font={font}
                         padding={10}
                         tickColor={theme.yAxis.tickColor}

@@ -112,16 +112,15 @@ export class WebRecorder {
 
         this.audioAnalysisData = {
             amplitudeRange: { min: 0, max: 0 },
+            rmsRange: { min: 0, max: 0 },
             dataPoints: [],
             durationMs: 0,
             samples: 0,
-            amplitudeAlgorithm: recordingConfig.algorithm || DEFAULT_ALGORITHM,
             bitDepth: this.bitDepth,
             numberOfChannels: this.numberOfChannels,
             sampleRate: this.config.sampleRate || this.audioContext.sampleRate,
             pointsPerSecond:
                 this.config.pointsPerSecond || DEFAULT_WEB_POINTS_PER_SECOND,
-            speakerChanges: [],
         }
 
         if (recordingConfig.enableProcessing) {
@@ -188,7 +187,6 @@ export class WebRecorder {
                                 pointsPerSecond:
                                     this.config.pointsPerSecond ||
                                     DEFAULT_WEB_POINTS_PER_SECOND,
-                                algorithm: this.config.algorithm || 'rms',
                                 bitDepth: this.bitDepth,
                                 fullAudioDurationMs: this.position * 1000,
                                 numberOfChannels: this.numberOfChannels,
@@ -302,9 +300,6 @@ export class WebRecorder {
 
             // Merge the segment result with the full audio analysis data
             this.audioAnalysisData.dataPoints.push(...segmentResult.dataPoints)
-            this.audioAnalysisData.speakerChanges?.push(
-                ...(segmentResult.speakerChanges ?? [])
-            )
             this.audioAnalysisData.durationMs = segmentResult.durationMs
             if (segmentResult.amplitudeRange) {
                 this.audioAnalysisData.amplitudeRange = {

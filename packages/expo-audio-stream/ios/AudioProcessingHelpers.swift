@@ -506,8 +506,6 @@ func computeFeatures(segmentData: [Float], sampleRate: Float, sumSquares: Float,
         energy: energy,
         mfcc: mfcc,
         rms: rms,
-        minAmplitude: minAmplitude,
-        maxAmplitude: maxAmplitude,
         zcr: zcr,
         spectralCentroid: extractSpectralCentroid(from: segmentData, sampleRate: sampleRate),
         spectralFlatness: extractSpectralFlatness(from: segmentData),
@@ -562,4 +560,14 @@ func estimatePitch(from segment: [Float], sampleRate: Float) -> Float {
     
     // Convert lag to frequency (sampleRate / lag)
     return pitchLag > 0 ? sampleRate / Float(pitchLag) : 0.0
+}
+
+// Add speech detection helper function
+func detectSpeech(from segment: [Float], rms: Float) -> (isActive: Bool, probability: Float) {
+    // Simple speech detection based on RMS and zero-crossing rate
+    let zcr = calculateZeroCrossingRate(segment)
+    let isSpeech = rms > 0.01 && zcr > 0.1 && zcr < 0.5
+    let probability = min(1.0, max(0.0, rms * 10)) // Simple probability estimation
+    
+    return (isActive: isSpeech, probability: probability)
 }
