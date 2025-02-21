@@ -78,6 +78,7 @@ export default function TabLayout() {
                 name="preview"
                 options={{
                     title: 'Preview',
+                    href: __DEV__ ? 'preview' : null,
                     tabBarIcon: ({ color }) => (
                         <MaterialCommunityIcons
                             name="waveform"

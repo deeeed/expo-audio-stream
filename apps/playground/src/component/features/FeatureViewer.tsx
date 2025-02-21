@@ -6,7 +6,6 @@ import { Text } from 'react-native-paper'
 import { SpectralFeatures } from './SpectralFeatures'
 import { TimeFeatures } from './TimeFeatures'
 import { TonalFeatures } from './TonalFeatures'
-import { DebugFeatures } from './DebugFeatures'
 
 const getStyles = () => StyleSheet.create({
     container: {
@@ -51,12 +50,6 @@ export function FeatureViewer({ features }: FeatureViewerProps) {
                 chromagram={features.chromagram}
                 pitch={features.pitch}
                 tonnetz={features.tonnetz}
-            />
-
-            <DebugFeatures 
-                minAmplitude={features.minAmplitude}
-                maxAmplitude={features.maxAmplitude}
-                dataChecksum={features.dataChecksum}
             />
         </View>
     )

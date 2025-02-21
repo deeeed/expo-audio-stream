@@ -8,7 +8,7 @@ import {
 
 import { isWeb } from '../constants'
 
-interface DecibelGaugeTheme {
+export interface DecibelGaugeTheme {
     minDb: number
     maxDb: number
     backgroundColor?: string
@@ -65,34 +65,46 @@ export function DecibelGauge({
     showValue = true,
     font,
 }: DecibelGaugeProps) {
-    const mergedTheme = useMemo(() => {
-        const defaulted = { ...DEFAULT_THEME, ...theme }
-        return {
-            ...defaulted,
-            size: defaulted.size ?? DEFAULT_THEME.size,
-        } satisfies DecibelGaugeTheme
-    }, [theme])
-    const { minDb, maxDb, size } = mergedTheme as Required<
-        Pick<DecibelGaugeTheme, 'size'>
-    > &
-        DecibelGaugeTheme
+    const mergedTheme = useMemo(() => ({ ...DEFAULT_THEME, ...theme }), [theme])
+    const { minDb, maxDb } = mergedTheme
 
     const animatedDb = useSharedValue(minDb)
+
+    // Mark as worklet
+    const getColor = useCallback(
+        (value: number) => {
+            'worklet'
+            if (value <= 0.6) return mergedTheme.colors.low
+            if (value <= 0.8) return mergedTheme.colors.mid
+            return mergedTheme.colors.high
+        },
+        [mergedTheme.colors]
+    )
+
+    // Convert to worklet
     const animatedProgress = useDerivedValue(() => {
+        'worklet'
         const normalizedValue = Math.max(
             minDb,
             Math.min(maxDb, animatedDb.value)
         )
         return (normalizedValue - minDb) / (maxDb - minDb)
-    })
+    }, [minDb, maxDb])
+
+    const animatedColor = useDerivedValue(() => {
+        'worklet'
+        return getColor(animatedProgress.value)
+    }, [getColor])
 
     useEffect(() => {
         animatedDb.value = withSpring(db)
-    }, [db])
+    }, [db, animatedDb])
 
-    const centerX = size.width / 2
-    const centerY = size.height / 2
-    const radius = size.radius ?? Math.min(size.width, size.height) / 4
+    const centerX = mergedTheme.size!.width / 2
+    const centerY = mergedTheme.size!.height / 2
+    const radius =
+        mergedTheme.size!.radius ??
+        Math.min(mergedTheme.size!.width, mergedTheme.size!.height) / 4
 
     const gradientPath = useMemo(() => {
         const startX = centerX - radius
@@ -101,31 +113,16 @@ export function DecibelGauge({
         return `M ${startX} ${centerY} A ${radius} ${radius} 0 0 1 ${endX} ${centerY}`
     }, [centerX, centerY, radius])
 
-    const getColor = useCallback(
-        (value: number) => {
-            if (value <= 0.6) return mergedTheme.colors.low
-            if (value <= 0.8) return mergedTheme.colors.mid
-            return mergedTheme.colors.high
-        },
-        [mergedTheme.colors]
-    )
-
-    const animatedColor = useDerivedValue(() => {
-        return getColor(animatedProgress.value)
-    })
-
     return (
         <>
             <Path
                 path={gradientPath}
                 strokeWidth={mergedTheme.strokeWidth}
-                style="stroke"
                 color={mergedTheme.backgroundColor}
             />
             <Path
                 path={gradientPath}
                 strokeWidth={mergedTheme.strokeWidth}
-                style="stroke"
                 color={animatedColor}
                 start={0}
                 end={animatedProgress}

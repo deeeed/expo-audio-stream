@@ -13,7 +13,6 @@ import android.media.MediaFormat
 import android.media.MediaCodec
 import java.io.FileInputStream
 import java.io.RandomAccessFile
-import android.net.Uri
 
 data class DecodingConfig(
     val targetSampleRate: Int? = null,     // Optional target sample rate
@@ -26,10 +25,7 @@ class AudioProcessor(private val filesDir: File) {
     companion object {
         const val DCT_SQRT_DIVISOR = 2.0
         private const val N_FFT = 1024
-        private const val N_MFCC = 40
-        private const val N_MELS = 128
         private const val N_CHROMA = 12
-        private const val N_BANDS = 7
 
         private val uniqueIdCounter = AtomicLong(0L) // Keep as companion object property to maintain during pause/resume cycles
 
@@ -206,7 +202,6 @@ class AudioProcessor(private val filesDir: File) {
         }
         val channelData = convertToFloatArray(data, bitDepth)
         val pointsPerSecond = config.pointsPerSecond
-        val algorithm = config.algorithm
         val featureOptions = config.features
 
         val totalSamples = channelData.size
@@ -298,7 +293,7 @@ class AudioProcessor(private val filesDir: File) {
 
         return AudioAnalysisData(
             pointsPerSecond = pointsPerSecond,
-            durationMs = durationMs.toInt(),
+            durationMs = durationMs,
             bitDepth = bitDepth,
             numberOfChannels = config.channels,
             sampleRate = config.sampleRate,  // Use config.sampleRate instead of sampleRate
@@ -537,9 +532,9 @@ class AudioProcessor(private val filesDir: File) {
         // Calculate magnitude spectrum (only need first half due to symmetry)
         // Add 1 to include both DC (0 Hz) and Nyquist frequency components
         val magnitudeSpectrum = FloatArray(N_FFT / 2 + 1)
-        for (i in 0 until N_FFT / 2) {  // Changed to avoid accessing beyond array bounds
+        for (i in 0 until N_FFT / 2) {  // Since we're only going up to N_FFT/2, the check is unnecessary
             val re = paddedSamples[2 * i]
-            val im = if (2 * i + 1 < N_FFT) paddedSamples[2 * i + 1] else 0f
+            val im = paddedSamples[2 * i + 1]  // This will always be within bounds
             magnitudeSpectrum[i] = sqrt(re * re + im * im)
         }
         // Handle Nyquist frequency component separately
@@ -575,7 +570,7 @@ class AudioProcessor(private val filesDir: File) {
 
     private fun computeSpectralFlatness(powerSpectrum: FloatArray): Float {
         // Calculate geometric mean using log-space to avoid numerical issues
-        var sumLogValues: Float = 0.0f
+        var sumLogValues = 0.0f
         for (value in powerSpectrum) {
             sumLogValues += ln(value + 1e-10f) // Add small epsilon to avoid log(0)
         }
@@ -1315,7 +1310,7 @@ class AudioProcessor(private val filesDir: File) {
                 sampleRate = format.sampleRate,
                 channels = format.channels,
                 bitDepth = format.bitDepth,
-                durationMs = ((endByte - startByte).toLong() * 1000L) / bytesPerSecond
+                durationMs = endTimeMs - startTimeMs  // Use the actual time range instead of calculating from bytes
             )
         } catch (e: Exception) {
             Log.e(Constants.TAG, "Failed to load WAV range: ${e.message}", e)
@@ -1350,8 +1345,8 @@ class AudioProcessor(private val filesDir: File) {
             Log.d("AudioProcessor", "Final duration: ${totalDurationMs}ms")
 
             // Calculate valid time range
-            val validStartMs = startTimeMs?.coerceIn(0, totalDurationMs) ?: 0
-            val validEndMs = endTimeMs?.coerceIn(validStartMs, totalDurationMs) ?: totalDurationMs
+            val validStartMs = startTimeMs.coerceIn(0, totalDurationMs) ?: 0
+            val validEndMs = endTimeMs.coerceIn(validStartMs, totalDurationMs) ?: totalDurationMs
             val effectiveDurationMs = validEndMs - validStartMs
 
             // Initialize decoder
@@ -1432,7 +1427,7 @@ class AudioProcessor(private val filesDir: File) {
                 sampleRate = targetSampleRate,
                 channels = targetChannels,
                 bitDepth = targetBitDepth,
-                durationMs = effectiveDurationMs  // Pass the duration
+                durationMs = endTimeMs - startTimeMs  // Use the actual time range
             ).also {
                 Log.d(Constants.TAG, "Loaded compressed audio with duration: ${effectiveDurationMs}ms")
             }

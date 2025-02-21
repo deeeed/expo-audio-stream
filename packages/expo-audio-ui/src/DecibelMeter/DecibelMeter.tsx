@@ -3,7 +3,7 @@ import React, { useMemo } from 'react'
 
 import { DEFAULT_LABEL_COLOR, DEFAULT_TICK_COLOR, isWeb } from '../constants'
 
-interface DecibelMeterTheme {
+export interface DecibelMeterTheme {
     backgroundColor?: string
     meterWidth?: number
     colors: {
@@ -43,6 +43,7 @@ interface DecibelMeterProps {
     db: number
     width: number
     height: number
+    length?: number
     minDb?: number
     maxDb?: number
     orientation?: 'vertical' | 'horizontal'

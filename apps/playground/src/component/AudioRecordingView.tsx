@@ -4,13 +4,13 @@ import { useFont } from '@shopify/react-native-skia'
 import {
     AppTheme,
     Button,
-    EditableInfoCard,
     useModal,
     useTheme,
-    useToast,
+    useToast
 } from '@siteed/design-system'
 import {
     AudioAnalysis,
+    AudioFeaturesOptions,
     AudioRecording,
     Chunk,
     DataPoint,
@@ -26,16 +26,13 @@ import { atob } from 'react-native-quick-base64'
 import { baseLogger } from '../config'
 import { useAudio } from '../hooks/useAudio'
 import { isWeb } from '../utils/utils'
-import {
-    AudioRecordingAnalysisConfig,
-    SelectedAnalysisConfig,
-} from './AudioRecordingAnalysisConfig'
 import { SelectedAudioVisualizerProps } from './AudioRecordingConfigForm'
-import { DataPointViewer } from './DataViewer'
+import { SegmentAnalyzer } from './features/SegmentAnalyzer'
+import { FeatureSelection } from './FeatureSelection'
 import { HexDataViewer } from './HexDataViewer'
 import { RecordingStats } from './RecordingStats'
+import { SegmentDuration, SegmentDurationSelector } from './SegmentDurationSelector'
 import Transcript from './Transcript'
-import { SegmentAnalyzer } from './features/SegmentAnalyzer'
 
 const logger = baseLogger.extend('AudioRecording')
 
@@ -159,26 +156,10 @@ const getStyles = ({
         buttonGroups: {
             marginTop: 16,
         },
+        segmentDurationContainer: {
+            marginBottom: 12,
+        },
     })
-}
-
-interface InfoRowProps {
-    readonly label: string
-    readonly value: string | number | React.ReactNode
-    readonly styles: ReturnType<typeof getStyles>
-}
-
-function InfoRow({ label, value, styles }: InfoRowProps) {
-    return (
-        <View style={styles.attributeContainer}>
-            <Text style={styles.label}>{label}:</Text>
-            {typeof value === 'string' || typeof value === 'number' ? (
-                <Text style={styles.value}>{value}</Text>
-            ) : (
-                value
-            )}
-        </View>
-    )
 }
 
 export interface AudioRecordingViewProps {
@@ -206,27 +187,31 @@ export const AudioRecordingView = ({
     const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
     const theme = useTheme()
     const [selectedDataPoint, setSelectedDataPoint] = useState<DataPoint>()
-    const [selectedAnalysisConfig, setSelectedAnalysisConfig] =
-        useState<SelectedAnalysisConfig>({
-            pointsPerSecond: 10,
-            features: {
-                energy: true,
-                spectralCentroid: true,
-                spectralFlatness: true,
-                chromagram: true,
-                hnr: true,
-                spectralBandwidth: true,
-                spectralRolloff: true,
-                tempo: true,
-                zcr: true,
-                rms: true,
-                mfcc: true,
-                tonnetz: true,
-                melSpectrogram: true,
-                spectralContrast: true,
-                pitch: true,
-            },
-        })
+    
+    // New state for analysis configuration
+    const [segmentDuration, setSegmentDuration] = useState<SegmentDuration>(100) // 100ms default
+    const [features, setFeatures] = useState<AudioFeaturesOptions>({
+        mfcc: false,
+        energy: false,
+        zcr: false,
+        spectralCentroid: false,
+        spectralFlatness: false,
+        spectralRolloff: false,
+        spectralBandwidth: false,
+        chromagram: false,
+        tempo: false,
+        hnr: false,
+        melSpectrogram: false,
+        spectralContrast: false,
+        tonnetz: false,
+        pitch: false,
+    })
+
+    // Create a memoized analysis config that includes both segment duration and features
+    const analysisConfig = useMemo(() => ({
+        pointsPerSecond: 1000 / segmentDuration,
+        features: {}, // Ignore features since we compute them on selection
+    }), [segmentDuration])
 
     const {
         isPlaying,
@@ -241,7 +226,7 @@ export const AudioRecordingView = ({
         recording,
         options: {
             extractAnalysis: extractAnalysis,
-            analysisOptions: selectedAnalysisConfig,
+            analysisOptions: analysisConfig, // Pass the memoized config
         },
     })
     const [hexByteArray, setHexByteArray] = useState<Uint8Array>()
@@ -256,6 +241,34 @@ export const AudioRecordingView = ({
         [isPlaying, theme]
     )
     const { openDrawer } = useModal()
+
+    // Add this theme configuration
+    const visualizerTheme = useMemo(() => ({
+        buttonText: {
+            color: theme.colors.primary,
+        },
+        timeRuler: {
+            labelColor: theme.colors.text,
+            tickColor: theme.colors.text,
+        },
+        dottedLineColor: theme.colors.outline,
+        yAxis: {
+            labelColor: theme.colors.text,
+            tickColor: theme.colors.text,
+        },
+        container: {
+            backgroundColor: theme.colors.surfaceVariant,
+            borderRadius: 20,
+            padding: 5,
+        },
+        text: { 
+            color: theme.colors.text 
+        },
+        canvasContainer: {
+            backgroundColor: theme.colors.surfaceVariant,
+            borderRadius: 20,
+        }
+    }), [theme])
 
     const handleShare = async (fileUri: string = audioUri) => {
         if (!fileUri) {
@@ -478,7 +491,7 @@ export const AudioRecordingView = ({
                             color={theme.colors.onPrimary}
                         />
                         <Text>
-                            {isPlaying ? 'Pause' : `Play ${activeFormat === 'compressed' ? '(Compressed)' : '(WAV)'}`}
+                            {isPlaying ? 'Pause' : `Play ${activeFormat === 'compressed' ? '(Compressed)' : ''}`}
                         </Text>
                     </View>
                 </Button>
@@ -570,39 +583,49 @@ export const AudioRecordingView = ({
                 </View>
             </View>
 
-            {processing && <View style={{ justifyContent: 'center', alignItems: 'center', marginVertical: 20 }}><ActivityIndicator /></View>}
-
-            {!processing && audioAnalysis && (
-                <View style={styles.infoSection}>
-                    <EditableInfoCard
-                        label="Analysis Config"
-                        value={JSON.stringify(selectedAnalysisConfig)}
-                        containerStyle={{
-                            margin: 0,
-                            backgroundColor: theme.colors.surface,
-                        }}
-                        editable
-                        onEdit={async () => {
-                            const newConfig = await openDrawer<SelectedAnalysisConfig>({
-                                bottomSheetProps: {
-                                    enableDynamicSizing: true,
-                                },
-                                initialData: selectedAnalysisConfig,
+            {extractAnalysis && (
+                <>
+                    <View style={styles.segmentDurationContainer}>
+                        <SegmentDurationSelector
+                            value={segmentDuration}
+                            onChange={setSegmentDuration}
+                        />
+                    </View>
+                    <Button
+                        mode="outlined"
+                        onPress={async () => {
+const newFeatures =                             await openDrawer<AudioFeaturesOptions>({
+                                initialData: features,
                                 containerType: 'scrollview',
                                 footerType: 'confirm_cancel',
-                                render: ({ state, onChange }) => (
-                                    <AudioRecordingAnalysisConfig
-                                        config={state.data}
+                                render: ({state, onChange }) => (
+                                    <FeatureSelection
+                                        features={state.data}
                                         onChange={onChange}
                                     />
                                 ),
                             })
-                            if (newConfig) {
-                                setSelectedAnalysisConfig(newConfig)
-                                setSelectedDataPoint(undefined)
+                            if(newFeatures) {
+                                setFeatures(newFeatures)
                             }
                         }}
-                    />
+                    >
+                        <View style={styles.iconButton}>
+                            <MaterialCommunityIcons
+                                name="equalizer"
+                                size={20}
+                                color={theme.colors.primary}
+                            />
+                            <Text>Audio Features Extraction</Text>
+                        </View>
+                    </Button>
+                </>
+            )}
+
+            {processing && <View style={{ justifyContent: 'center', alignItems: 'center', marginVertical: 20 }}><ActivityIndicator /></View>}
+
+            {!processing && audioAnalysis && (
+                <View style={styles.infoSection}>
                     <AudioVisualizer
                         {...visualConfig}
                         playing={isPlaying}
@@ -613,19 +636,7 @@ export const AudioRecordingView = ({
                         onSeekEnd={handleOnSeekEnd}
                         disableTapSelection={false}
                         enableInertia
-                        theme={{
-                            buttonText: {
-                                color: theme.colors.primary,
-                            },
-                            timeRuler: {
-                                labelColor: theme.colors.text,
-                                tickColor: theme.colors.text,
-                            },
-                            text: { color: theme.colors.text },
-                            canvasContainer: {
-                                backgroundColor: theme.colors.surface,
-                            },
-                        }}
+                        theme={visualizerTheme}
                     />
                 </View>
             )}
@@ -641,19 +652,9 @@ export const AudioRecordingView = ({
                             message: error.message 
                         })}
                         analysisConfig={{
-                            pointsPerSecond: selectedAnalysisConfig.pointsPerSecond ?? 10,
-                            features: selectedAnalysisConfig.features,
+                            pointsPerSecond: 1000 / segmentDuration,
+                            features,
                         }}
-                    />
-                    <DataPointViewer dataPoint={selectedDataPoint} />
-                    <InfoRow 
-                        label="Byte Range" 
-                        value={
-                            <Text style={styles.value}>
-                                {`${selectedDataPoint.startPosition} to ${selectedDataPoint.endPosition}`}
-                            </Text>
-                        }
-                        styles={styles}
                     />
                     {hexByteArray && (
                         <HexDataViewer
