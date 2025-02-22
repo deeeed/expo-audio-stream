@@ -623,14 +623,7 @@ export const AudioRecordingView = ({
             </View>
 
             {extractAnalysis && (
-                <>
-                    <View style={styles.segmentDurationContainer}>
-                        <SegmentDurationSelector
-                            value={segmentDuration}
-                            onChange={setSegmentDuration}
-                            maxDurationMs={recording.durationMs}
-                        />
-                    </View>
+                <View style={{marginTop: 20, gap: 10}}>
                     <Button
                         mode="outlined"
                         onPress={async () => {
@@ -659,7 +652,14 @@ export const AudioRecordingView = ({
                             <Text>Audio Features Extraction</Text>
                         </View>
                     </Button>
-                </>
+                    <View style={styles.segmentDurationContainer}>
+                        <SegmentDurationSelector
+                            value={segmentDuration}
+                            onChange={setSegmentDuration}
+                            maxDurationMs={recording.durationMs}
+                        />
+                    </View>
+                </View>
             )}
 
             {processing && <View style={{ justifyContent: 'center', alignItems: 'center', marginVertical: 20 }}><ActivityIndicator /></View>}
