@@ -408,13 +408,16 @@ export default function RecordScreen() {
             if (isWeb) {
                 try {
                     let arrayBuffer: ArrayBuffer = new ArrayBuffer(0)
+                    let filename = result.filename
                     if(result.compression?.compressedFileUri) {
                         const audioBuffer = result.compression.compressedFileUri
                         arrayBuffer = await fetch(audioBuffer).then(res => res.arrayBuffer())
+                        // replace filename wav extension (if exists) with matching format
+                        filename = filename.replace(/\.wav$/, `.${result.compression?.format}`)
                     }
 
                     await storeAudioFile({
-                        fileName: result.filename,
+                        fileName: filename,
                         arrayBuffer,
                         metadata: result,
                     })

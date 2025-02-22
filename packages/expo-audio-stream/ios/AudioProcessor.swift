@@ -600,17 +600,17 @@ public class AudioProcessor {
         endTimeMs: Double,
         outputFormat: [String: Any]?
     ) -> TrimResult? {
-        guard let audioFile = audioFile else {
+        guard let currentAudioFile = audioFile else {
             Logger.debug("No audio file loaded")
             return nil
         }
 
-        let sampleRate = audioFile.fileFormat.sampleRate
+        let sampleRate = currentAudioFile.fileFormat.sampleRate
         let startFrame = AVAudioFramePosition(startTimeMs * sampleRate / 1000.0)
         let endFrame = AVAudioFramePosition(endTimeMs * sampleRate / 1000.0)
         
         // Create output format
-        let outputSettings = createOutputSettings(from: outputFormat, originalFormat: audioFile.fileFormat)
+        let outputSettings = createOutputSettings(from: outputFormat, originalFormat: currentAudioFile.fileFormat)
         
         // Create temporary output file
         let outputURL = FileManager.default.temporaryDirectory
@@ -628,11 +628,11 @@ public class AudioProcessor {
             // Read and write in chunks
             let bufferSize = 32768
             let buffer = AVAudioPCMBuffer(
-                pcmFormat: audioFile.processingFormat,
+                pcmFormat: currentAudioFile.processingFormat,
                 frameCapacity: AVAudioFrameCount(bufferSize)
             )!
             
-            audioFile.framePosition = startFrame
+            currentAudioFile.framePosition = startFrame
             var currentFrame = startFrame
             
             while currentFrame < endFrame {
@@ -641,7 +641,7 @@ public class AudioProcessor {
                     AVAudioFrameCount(endFrame - currentFrame)
                 )
                 
-                try audioFile.read(into: buffer, frameCount: framesToRead)
+                try currentAudioFile.read(into: buffer, frameCount: framesToRead)
                 try outputFile.write(from: buffer)
                 
                 currentFrame += Int64(framesToRead)
@@ -651,12 +651,18 @@ public class AudioProcessor {
             let attributes = try FileManager.default.attributesOfItem(atPath: outputURL.path)
             let fileSize = attributes[.size] as! Int64
             
-            return TrimResult(
+            // After successful trim, update the class property
+            audioFile = try AVAudioFile(forReading: outputURL)
+            
+            // After successful trim, create the result
+            let trimmedDuration = (endTimeMs - startTimeMs) / 1000.0 // Convert to seconds
+            let result = TrimResult(
                 uri: outputURL.absoluteString,
-                duration: Double(endFrame - startFrame) / sampleRate,
+                duration: trimmedDuration, // Use actual trimmed duration
                 size: fileSize
             )
             
+            return result
         } catch {
             Logger.debug("Error trimming audio: \(error)")
             return nil
@@ -705,9 +711,9 @@ public class AudioProcessor {
         // Calculate effective time range
         let effectiveStartMs = startTimeMs ?? 0.0
         let effectiveEndMs = min(endTimeMs ?? totalDurationMs, totalDurationMs)
-        let durationMs = effectiveEndMs - effectiveStartMs
+        let durationMs = effectiveEndMs - effectiveStartMs // This is the actual duration we want to use
         
-        // Convert time to frames
+        // Convert time to frames with proper offset
         let startFrame = AVAudioFramePosition(effectiveStartMs * Double(sampleRate) / 1000.0)
         let endFrame = AVAudioFramePosition(effectiveEndMs * Double(sampleRate) / 1000.0)
         let samplesInRange = Int(endFrame - startFrame)
@@ -825,8 +831,8 @@ public class AudioProcessor {
         """)
         
         return AudioAnalysisData(
-            pointsPerSecond: Double(numberOfPoints),
-            durationMs: Int(durationMs),
+            pointsPerSecond: Double(numberOfPoints) / (durationMs / 1000.0), // Adjust points per second based on trimmed duration
+            durationMs: Int(durationMs), // Use actual duration of trimmed section
             bitDepth: bitDepth,
             numberOfChannels: numberOfChannels,
             sampleRate: Int(sampleRate),

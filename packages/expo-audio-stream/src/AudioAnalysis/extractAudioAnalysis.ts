@@ -7,6 +7,7 @@ import {
     AudioFeatures,
     AudioFeaturesOptions,
     AudioPreview,
+    DataPoint,
     DecodingConfig,
     PreviewOptions,
 } from './AudioAnalysis.types'
@@ -35,8 +36,8 @@ export interface ExtractAudioFromAnyFormatProps
     extends ExtractAudioAnalysisProps {
     mimeType?: string
     decodingOptions?: DecodingConfig
-    startTime?: number // Add start time in milliseconds
-    endTime?: number // Add end time in milliseconds
+    startTimeMs?: number
+    endTimeMs?: number
 }
 
 export async function extractAudioFromAnyFormat({
@@ -44,8 +45,9 @@ export async function extractAudioFromAnyFormat({
     arrayBuffer,
     mimeType,
     decodingOptions,
-    startTime,
-    endTime,
+    startTimeMs,
+    logger,
+    endTimeMs,
     ...restProps
 }: ExtractAudioFromAnyFormatProps): Promise<AudioAnalysis> {
     if (isWeb) {
@@ -71,119 +73,97 @@ export async function extractAudioFromAnyFormat({
             // Create audio context with target sample rate if specified
             const audioContext = new (window.AudioContext ||
                 (window as any).webkitAudioContext)({
-                sampleRate: decodingOptions?.targetSampleRate,
+                sampleRate: decodingOptions?.targetSampleRate ?? 16000,
             })
 
             // Decode the audio data
             const decodedAudioBuffer =
                 await audioContext.decodeAudioData(audioBuffer)
 
-            // Calculate the actual duration in milliseconds
-            const fullDurationMs = decodedAudioBuffer.duration * 1000
-            const effectiveDurationMs = endTime
-                ? endTime - (startTime || 0)
-                : fullDurationMs - (startTime || 0)
-
-            // Create a new buffer for the selected range
-            const rangeLength = decodedAudioBuffer.length
-            const rangeBuffer = new AudioBuffer({
-                length: rangeLength,
-                numberOfChannels: decodedAudioBuffer.numberOfChannels,
-                sampleRate: decodedAudioBuffer.sampleRate,
+            // Convert to mono and resample if needed
+            const processedBuffer = await processAudioBuffer({
+                buffer: decodedAudioBuffer,
+                targetSampleRate: decodingOptions?.targetSampleRate ?? 16000,
+                targetChannels: decodingOptions?.targetChannels ?? 1,
+                normalizeAudio: decodingOptions?.normalizeAudio ?? false,
             })
 
-            // Copy the selected range
-            for (
-                let channel = 0;
-                channel < decodedAudioBuffer.numberOfChannels;
-                channel++
-            ) {
-                const channelData = decodedAudioBuffer.getChannelData(channel)
-                const rangeData = channelData.slice(0, rangeLength)
-                rangeBuffer.copyToChannel(rangeData, channel)
+            // Convert to Float32Array for analysis
+            const channelData = processedBuffer.getChannelData(0)
+
+            // Calculate amplitude range
+            let min = Infinity
+            let max = -Infinity
+            for (let i = 0; i < channelData.length; i++) {
+                min = Math.min(min, channelData[i])
+                max = Math.max(max, channelData[i])
             }
 
-            // Use the range buffer instead of the full buffer
-            let processedBuffer = rangeBuffer
+            // Calculate points per second based on the number of points requested
+            const durationSec = processedBuffer.duration
+            const requestedPointsPerSecond = restProps.pointsPerSecond ?? 20
+            logger?.log('Audio analysis:', {
+                durationSec,
+                requestedPointsPerSecond,
+                expectedPoints: Math.floor(
+                    durationSec * requestedPointsPerSecond
+                ),
+            })
 
-            // Get original properties
-            const originalSampleRate = processedBuffer.sampleRate
-            const length = processedBuffer.length
+            // Generate data points
+            const numPoints = Math.floor(durationSec * requestedPointsPerSecond)
+            const samplesPerPoint = Math.floor(channelData.length / numPoints)
+            const dataPoints: DataPoint[] = []
 
-            // Determine target format
-            const targetChannels =
-                decodingOptions?.targetChannels ??
-                processedBuffer.numberOfChannels
-            const targetSampleRate =
-                decodingOptions?.targetSampleRate ?? processedBuffer.sampleRate
-
-            // Create offline context for resampling if needed
-            if (targetSampleRate !== originalSampleRate) {
-                const offlineCtx = new OfflineAudioContext(
-                    targetChannels,
-                    (length * targetSampleRate) / originalSampleRate,
-                    targetSampleRate
+            for (let i = 0; i < numPoints; i++) {
+                const startIdx = i * samplesPerPoint
+                const endIdx = Math.min(
+                    (i + 1) * samplesPerPoint,
+                    channelData.length
                 )
-                const source = offlineCtx.createBufferSource()
-                source.buffer = processedBuffer
-                source.connect(offlineCtx.destination)
-                source.start()
-                processedBuffer = await offlineCtx.startRendering()
-            }
 
-            // Convert to the desired format
-            const newLength = processedBuffer.length
-            let wavBuffer: Float32Array | Int16Array | Int8Array
-
-            // Create appropriate buffer based on target bit depth
-            switch (decodingOptions?.targetBitDepth) {
-                case 16:
-                    wavBuffer = new Int16Array(newLength * targetChannels)
-                    break
-                case 8:
-                    wavBuffer = new Int8Array(newLength * targetChannels)
-                    break
-                case 32:
-                default:
-                    wavBuffer = new Float32Array(newLength * targetChannels)
-                    break
-            }
-
-            // Interleave channels and handle bit depth conversion
-            const numChannels = Math.min(
-                processedBuffer.numberOfChannels,
-                targetChannels
-            )
-            for (let channel = 0; channel < numChannels; channel++) {
-                const channelData = processedBuffer.getChannelData(channel)
-                for (let i = 0; i < newLength; i++) {
-                    let sample = channelData[i]
-
-                    // Normalize if requested
-                    if (decodingOptions?.normalizeAudio) {
-                        sample = Math.max(-1, Math.min(1, sample))
-                    }
-
-                    // Convert sample based on target bit depth
-                    if (decodingOptions?.targetBitDepth === 16) {
-                        sample = sample * 32767 // Convert to 16-bit range
-                    } else if (decodingOptions?.targetBitDepth === 8) {
-                        sample = sample * 127 // Convert to 8-bit range
-                    }
-
-                    wavBuffer[i * targetChannels + channel] = sample
+                let sum = 0
+                let maxAmp = 0
+                for (let j = startIdx; j < endIdx; j++) {
+                    sum += Math.abs(channelData[j])
+                    maxAmp = Math.max(maxAmp, Math.abs(channelData[j]))
                 }
+
+                const rms = Math.sqrt(sum / samplesPerPoint)
+
+                dataPoints.push({
+                    id: i,
+                    amplitude: maxAmp,
+                    rms,
+                    startTime: (i / requestedPointsPerSecond) * 1000,
+                    endTime: ((i + 1) / requestedPointsPerSecond) * 1000,
+                    dB: 20 * Math.log10(rms + 1e-6),
+                    silent: rms < 0.01,
+                })
             }
 
-            // Pass the duration to extractAudioAnalysis
-            return await extractAudioAnalysis({
-                arrayBuffer: wavBuffer.buffer as ArrayBuffer,
-                bitDepth: decodingOptions?.targetBitDepth ?? 32,
-                sampleRate: targetSampleRate,
-                numberOfChannels: targetChannels,
-                durationMs: effectiveDurationMs,
-                ...restProps,
+            // After generating points
+            logger?.log('Generated points:', {
+                requestedPointsPerSecond,
+                actualPoints: dataPoints.length,
+                samplesPerPoint,
+                totalSamples: channelData.length,
             })
+
+            return {
+                bitDepth: decodingOptions?.targetBitDepth ?? 32,
+                samples: channelData.length,
+                numberOfChannels: processedBuffer.numberOfChannels,
+                sampleRate: processedBuffer.sampleRate,
+                pointsPerSecond: requestedPointsPerSecond,
+                durationMs: processedBuffer.duration * 1000,
+                dataPoints,
+                amplitudeRange: { min, max },
+                rmsRange: {
+                    min: 0,
+                    max: Math.max(Math.abs(min), Math.abs(max)),
+                },
+            }
         } catch (error) {
             console.error('Failed to process audio:', error)
             throw error
@@ -196,6 +176,65 @@ export async function extractAudioFromAnyFormat({
             ...restProps,
         })
     }
+}
+
+// Helper function to process audio buffer
+async function processAudioBuffer({
+    buffer,
+    targetSampleRate,
+    targetChannels,
+    normalizeAudio,
+}: {
+    buffer: AudioBuffer
+    targetSampleRate: number
+    targetChannels: number
+    normalizeAudio: boolean
+}): Promise<AudioBuffer> {
+    // If we need to resample or convert channels
+    if (
+        buffer.sampleRate !== targetSampleRate ||
+        buffer.numberOfChannels !== targetChannels
+    ) {
+        const offlineCtx = new OfflineAudioContext(
+            targetChannels,
+            (buffer.length * targetSampleRate) / buffer.sampleRate,
+            targetSampleRate
+        )
+
+        const source = offlineCtx.createBufferSource()
+        source.buffer = buffer
+
+        if (normalizeAudio) {
+            const gainNode = offlineCtx.createGain()
+            source.connect(gainNode)
+            gainNode.connect(offlineCtx.destination)
+
+            // Calculate normalization factor
+            let maxAmp = 0
+            for (
+                let channel = 0;
+                channel < buffer.numberOfChannels;
+                channel++
+            ) {
+                const channelData = buffer.getChannelData(channel)
+                for (let i = 0; i < channelData.length; i++) {
+                    maxAmp = Math.max(maxAmp, Math.abs(channelData[i]))
+                }
+            }
+
+            // Set gain to normalize
+            if (maxAmp > 0) {
+                gainNode.gain.value = 1 / maxAmp
+            }
+        } else {
+            source.connect(offlineCtx.destination)
+        }
+
+        source.start()
+        return await offlineCtx.startRendering()
+    }
+
+    return buffer
 }
 
 export const extractAudioAnalysis = async ({
@@ -320,25 +359,48 @@ export const extractAudioAnalysis = async ({
 export async function extractPreview({
     fileUri,
     numberOfPoints,
-    startTime,
-    endTime,
+    startTimeMs,
+    logger,
+    endTimeMs,
     decodingOptions,
 }: PreviewOptions): Promise<AudioPreview> {
     if (isWeb) {
-        // Calculate effective duration for proper points per second calculation
-        const effectiveDurationMs = endTime ? endTime - (startTime || 0) : 1000
+        // Get the actual duration first to calculate points per second correctly
+        const audioCTX = new AudioContext({ sampleRate: 16000 })
+        const response = await fetch(fileUri)
+        const arrayBuffer = await response.arrayBuffer()
+        const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
+
+        // Use actual duration instead of default 1000ms
+        const effectiveDurationMs = endTimeMs
+            ? endTimeMs - (startTimeMs || 0)
+            : decoded.duration * 1000 // Use full duration if no trim
+
+        const pointsPerSecond =
+            (numberOfPoints ?? 100) / (effectiveDurationMs / 1000)
+
+        logger?.log('Preview extraction:', {
+            effectiveDurationMs,
+            numberOfPoints,
+            calculatedPointsPerSecond: pointsPerSecond,
+        })
 
         const analysis = await extractAudioFromAnyFormat({
             fileUri,
             decodingOptions,
-            startTime,
-            endTime,
-            pointsPerSecond:
-                (numberOfPoints ?? 100) / (effectiveDurationMs / 1000),
+            startTimeMs,
+            endTimeMs,
+            logger,
+            pointsPerSecond,
+        })
+
+        logger?.log('Preview result:', {
+            requestedPoints: numberOfPoints,
+            actualPoints: analysis.dataPoints.length,
         })
 
         // Adjust timestamps relative to the trimmed range
-        const timeOffset = startTime || 0
+        const timeOffset = startTimeMs || 0
         return {
             pointsPerSecond: analysis.pointsPerSecond,
             durationMs: effectiveDurationMs,
@@ -357,15 +419,19 @@ export async function extractPreview({
         }
     }
 
-    // Convert seconds to milliseconds for native platforms
-    const startTimeMs = startTime ? Math.floor(startTime * 1000) : undefined
-    const endTimeMs = endTime ? Math.floor(endTime * 1000) : undefined
+    logger?.log('extractPreview', {
+        fileUri,
+        numberOfPoints,
+        startTimeMs,
+        endTimeMs,
+        decodingOptions,
+    })
 
     return await ExpoAudioStreamModule.extractPreview({
         fileUri,
         numberOfPoints,
-        startTime: startTimeMs,
-        endTime: endTimeMs,
+        startTimeMs,
+        endTimeMs,
         decodingOptions,
     })
 }

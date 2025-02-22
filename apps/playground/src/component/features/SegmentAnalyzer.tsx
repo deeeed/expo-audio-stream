@@ -1,10 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { AppTheme, useTheme } from '@siteed/design-system'
+import { AppTheme, useTheme, useToast } from '@siteed/design-system'
 import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-stream'
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { baseLogger } from '../../config'
+import { isWeb } from '../../utils/utils'
 import { FeatureViewer } from './FeatureViewer'
 import { SpeechAnalyzer } from './SpeechAnalyzer'
 
@@ -12,14 +13,15 @@ const logger = baseLogger.extend('SegmentAnalyzer')
 
 const getStyles = (theme: AppTheme) => StyleSheet.create({
     container: {
+        gap: theme.spacing.gap,
     },
     iconButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: theme.spacing.gap,
     },
     resultsContainer: {
-        marginTop: theme.margin.m,
+        gap: theme.spacing.gap,
     },
     resultRow: {
         flexDirection: 'row',
@@ -28,41 +30,72 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
     },
     label: {
         fontWeight: '500',
-        marginRight: theme.margin.s,
+        marginRight: theme.spacing.gap,
         color: theme.colors.onSurfaceVariant,
     },
     value: {
         color: theme.colors.onSurfaceVariant,
     },
     featuresSection: {
-        marginTop: theme.margin.s,
+        gap: theme.spacing.gap,
     },
     segmentInfo: {
-        marginTop: theme.margin.s,
-        marginBottom: theme.margin.m,
         padding: theme.padding.s,
         backgroundColor: theme.colors.secondaryContainer,
         borderRadius: theme.roundness,
+        gap: theme.spacing.gap,
     },
     attributeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 5,
+        gap: theme.spacing.gap,
     },
     detectionRow: {
         flexDirection: 'row',
-        gap: theme.margin.l,
+        gap: theme.spacing.gap,
         paddingVertical: theme.padding.s,
     },
     speechSection: {
-        marginTop: theme.margin.m,
         padding: theme.padding.m,
         backgroundColor: theme.colors.secondaryContainer,
         borderRadius: theme.roundness,
+        gap: theme.spacing.gap,
     },
     checksumValue: {
         fontFamily: 'monospace',
         color: theme.colors.onSurfaceVariant,
+    },
+    metricsContainer: {
+        padding: theme.padding.s,
+        backgroundColor: theme.colors.secondaryContainer,
+        borderRadius: theme.roundness,
+        gap: theme.spacing.gap,
+    },
+    metricRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: theme.padding.s,
+    },
+    metricLabel: {
+        fontWeight: '500',
+        color: theme.colors.onSecondaryContainer,
+    },
+    metricValue: {
+        color: theme.colors.onSecondaryContainer,
+        fontFamily: 'monospace',
+    },
+    amplitudeRange: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.gap,
+    },
+    rangeLabel: {
+        color: theme.colors.onSecondaryContainer,
+        fontSize: 12,
+    },
+    rangeValue: {
+        color: theme.colors.onSecondaryContainer,
+        fontFamily: 'monospace',
     },
 })
 
@@ -89,6 +122,7 @@ export function SegmentAnalyzer({
     const [isProcessing, setIsProcessing] = useState(false)
     const [segmentAnalysis, setSegmentAnalysis] = useState<AudioAnalysis>()
     const [processingTime, setProcessingTime] = useState<number>()
+    const { show } = useToast()
 
     // Calculate positions for display
     const startPosition = dataPoint.startPosition ?? (dataPoint.startTime ?? 0) * sampleRate * 2
@@ -96,7 +130,12 @@ export function SegmentAnalyzer({
     const length = endPosition - startPosition
     const durationMs = (length / (sampleRate * 2)) * 1000
 
-    const handleProcessSegment = async () => {
+    const handleProcessSegment = useCallback(async () => {
+        if(isWeb) {
+            show({type: 'warning', message: 'Segment analysis is not supported on web (yet)'})
+            return;
+        }
+        
         logger.info('Processing segment with config:', {
             startPosition: dataPoint.startPosition,
             endPosition: dataPoint.endPosition,
@@ -166,7 +205,7 @@ export function SegmentAnalyzer({
         } finally {
             setIsProcessing(false)
         }
-    }
+    }, [dataPoint, sampleRate, analysisConfig, startPosition, endPosition, length, durationMs, show, onError, fileUri])
 
     return (
         <View style={styles.container}>
@@ -186,6 +225,28 @@ export function SegmentAnalyzer({
                 <View style={styles.resultRow}>
                     <Text style={styles.label}>Duration:</Text>
                     <Text style={styles.value}>{(durationMs / 1000).toFixed(3)}s</Text>
+                </View>
+            </View>
+
+            <View style={styles.metricsContainer}>
+                <View style={styles.metricRow}>
+                    <Text style={styles.metricLabel}>Amplitude:</Text>
+                    <View style={styles.amplitudeRange}>
+                        <Text style={styles.metricValue}>{dataPoint.amplitude.toFixed(3)}</Text>
+                        {dataPoint.features?.maxAmplitude !== undefined && dataPoint.features?.minAmplitude !== undefined && (
+                            <Text style={styles.rangeLabel}>
+                                (range: {dataPoint.features.minAmplitude.toFixed(3)} to {dataPoint.features.maxAmplitude.toFixed(3)})
+                            </Text>
+                        )}
+                    </View>
+                </View>
+                <View style={styles.metricRow}>
+                    <Text style={styles.metricLabel}>RMS:</Text>
+                    <Text style={styles.metricValue}>{dataPoint.rms.toFixed(3)}</Text>
+                </View>
+                <View style={styles.metricRow}>
+                    <Text style={styles.metricLabel}>Decibels:</Text>
+                    <Text style={styles.metricValue}>{dataPoint.dB.toFixed(1)} dB</Text>
                 </View>
             </View>
 

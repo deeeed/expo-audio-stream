@@ -7,12 +7,11 @@ import Constants from 'expo-constants'
 import { Stack } from 'expo-router/stack'
 import { useEffect, useRef } from 'react'
 
-import { config } from '../config'
 import { ApplicationContextProvider } from '../context/ApplicationProvider'
 import { AudioFilesProvider } from '../context/AudioFilesProvider'
 import { TranscriptionProvider } from '../context/TranscriptionProvider'
-import { isWeb } from '../utils/utils'
 import { useAppUpdates } from '../hooks/useAppUpdates'
+import { isWeb } from '../utils/utils'
 const logger = getLogger('RootLayout')
 
 export default function RootLayout() {
@@ -41,8 +40,8 @@ export default function RootLayout() {
                 <AudioRecorderProvider
                     config={{
                         logger: getLogger('AudioRecorderProvider'),
-                        audioWorkletUrl: config.audioWorkletUrl,
-                        featuresExtratorUrl: config.featuresExtratorUrl,
+                        // audioWorkletUrl: config.audioWorkletUrl,
+                        // featuresExtratorUrl: config.featuresExtratorUrl,
                     }}
                 >
                     <AudioFilesProvider>

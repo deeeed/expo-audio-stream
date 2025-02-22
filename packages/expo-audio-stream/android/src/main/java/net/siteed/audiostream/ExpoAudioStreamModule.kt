@@ -241,15 +241,15 @@ class ExpoAudioStreamModule : Module(), EventSender {
             try {
                 val fileUri = requireNotNull(options["fileUri"] as? String) { "fileUri is required" }
                 val numberOfPoints = (options["numberOfPoints"] as? Int) ?: 100
-                val startTime = (options["startTime"] as? Number)?.toLong()
-                val endTime = (options["endTime"] as? Number)?.toLong()
+                val startTimeMs = (options["startTimeMs"] as? Number)?.toLong()
+                val endTimeMs = (options["endTimeMs"] as? Number)?.toLong()
                 
                 Log.d(Constants.TAG, """
                     Extracting preview with params:
                     - fileUri: $fileUri
                     - numberOfPoints: $numberOfPoints
-                    - startTime: ${startTime ?: "none"}
-                    - endTime: ${endTime ?: "none"}
+                    - startTimeMs: ${startTimeMs ?: "none"}
+                    - endTimeMs: ${endTimeMs ?: "none"}
                 """.trimIndent())
                 
                 // Get decoding options with defaults
@@ -277,9 +277,9 @@ class ExpoAudioStreamModule : Module(), EventSender {
                 """.trimIndent())
 
                 // Use loadAudioRange when time range is specified
-                val audioData = if (startTime != null && endTime != null) {
-                    Log.d(Constants.TAG, "Loading audio range from ${startTime}ms to ${endTime}ms")
-                    audioProcessor.loadAudioRange(fileUri, startTime, endTime, decodingConfig)?.also {
+                val audioData = if (startTimeMs != null && endTimeMs != null) {
+                    Log.d(Constants.TAG, "Loading audio range from ${startTimeMs}ms to ${endTimeMs}ms")
+                    audioProcessor.loadAudioRange(fileUri, startTimeMs, endTimeMs, decodingConfig)?.also {
                         Log.d(Constants.TAG, """
                             Loaded audio range:
                             - data size: ${it.data.size} bytes
@@ -319,8 +319,8 @@ class ExpoAudioStreamModule : Module(), EventSender {
                 val preview = audioProcessor.generatePreview(
                     audioData = audioData,
                     numberOfPoints = numberOfPoints,
-                    startTimeMs = startTime,
-                    endTimeMs = endTime,
+                    startTimeMs = startTimeMs,
+                    endTimeMs = endTimeMs,
                     config = previewConfig
                 )
                 
