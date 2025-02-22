@@ -16,6 +16,7 @@ import {
     AudioRecording,
     BitDepth,
     Chunk,
+    CompressionInfo,
     convertPCMToFloat32,
     extractPreview,
     getWavFileInfo,
@@ -32,10 +33,10 @@ import { ActivityIndicator, Text } from 'react-native-paper'
 
 import { RecordingStats } from '../../component/RecordingStats'
 import Transcriber from '../../component/Transcriber'
+import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
-import { baseLogger } from '../../config'
 
 const logger = console
 const getStyles = (theme: AppTheme) => {
@@ -146,9 +147,12 @@ export const PlayPage = () => {
     const [enableTrim, setEnableTrim] = useState<boolean>(false)
     const PREVIEW_POINTS = 100
     const [fileSize, setFileSize] = useState<number>(0)
+    const [originalDurationMs, setOriginalDurationMs] = useState<number>(0)
     const [previewStats, setPreviewStats] = useState<{
         durationMs: number;
         size: number;
+        originalDurationMs?: number;
+        originalSize?: number;
     } | null>(null)
 
     const { files, removeFile, refreshFiles } = useAudioFiles()
@@ -208,16 +212,20 @@ export const PlayPage = () => {
                 }
             }
 
-            // Only update preview stats when trimming
+            if (!originalDurationMs) {
+                setOriginalDurationMs(duration)
+            }
+
             if (enableTrim && startTimeMs !== undefined && endTimeMs !== undefined) {
                 const trimDurationMs = (endTimeMs - startTimeMs)
-                const originalDuration = duration
-                const trimRatio = trimDurationMs / originalDuration
+                const trimRatio = trimDurationMs / originalDurationMs
                 const estimatedSize = Math.floor(fileSize * trimRatio)
                 
                 setPreviewStats({
                     durationMs: trimDurationMs,
-                    size: estimatedSize
+                    size: estimatedSize,
+                    originalDurationMs: originalDurationMs,
+                    originalSize: fileSize
                 })
             } else {
                 setPreviewStats(null)
@@ -254,7 +262,7 @@ export const PlayPage = () => {
         } finally {
             setProcessing(false)
         }
-    }, [endTimeMs, show, startTimeMs, enableTrim, PREVIEW_POINTS, fileSize])
+    }, [endTimeMs, show, startTimeMs, enableTrim, PREVIEW_POINTS, fileSize, originalDurationMs])
 
     const pickAudioFile = async () => {
         try {
@@ -489,7 +497,6 @@ export const PlayPage = () => {
         }
 
         setIsSaving(true)
-        // where to save the file
         const destination = `${FileSystem.documentDirectory ?? ''}${fileName}`
         
         try {
@@ -504,8 +511,9 @@ export const PlayPage = () => {
                 return
             }
 
-            // Only try to get WAV metadata if it's a WAV file
             let wavMetadata
+            let compressionInfo: CompressionInfo | undefined
+
             if (fileName.toLowerCase().endsWith('.wav')) {
                 try {
                     wavMetadata = await getWavFileInfo(arrayBuffer)
@@ -517,13 +525,22 @@ export const PlayPage = () => {
                 } catch (_error) {
                     logger.warn('Not a valid WAV file, using audio analysis data instead')
                 }
+            } else if (fileName.match(/\.(mp3|opus|aac)$/i)) {
+                // Handle compressed audio formats
+                const format = fileName.split('.').pop()?.toLowerCase() || ''
+                compressionInfo = {
+                    size: arrayBuffer.byteLength,
+                    mimeType: `audio/${format}`,
+                    format,
+                    bitrate: audioAnalysis?.sampleRate ? audioAnalysis.sampleRate * audioAnalysis.bitDepth : 128000, // fallback to 128kbps
+                }
             }
 
             // Create audio recording metadata using either WAV metadata or audio analysis
             const audioResult: AudioRecording = {
                 fileUri: destination,
                 filename: fileName,
-                mimeType: 'audio/*',
+                mimeType: compressionInfo?.mimeType || 'audio/*',
                 size: arrayBuffer.byteLength,
                 // Use WAV metadata if available, otherwise fall back to audio analysis data
                 durationMs: wavMetadata?.durationMs ?? audioAnalysis?.durationMs ?? 0,
@@ -531,6 +548,10 @@ export const PlayPage = () => {
                 channels: wavMetadata?.numChannels ?? audioAnalysis?.numberOfChannels ?? 1,
                 bitDepth: (wavMetadata?.bitDepth ?? audioAnalysis?.bitDepth ?? 16) as BitDepth,
                 analysisData: audioAnalysis,
+                compression: compressionInfo ? {
+                    ...compressionInfo,
+                    compressedFileUri: destination
+                } : undefined,
             }
 
             if (transcript) {
@@ -586,6 +607,15 @@ export const PlayPage = () => {
             setCurrentTime(chunk.timestamp[0])
         }
     }
+
+    const handleRestoreOriginal = useCallback(async () => {
+        if (!audioUri) return
+        
+        setStartTimeMs(0)
+        setEndTimeMs(0)
+        setPreviewStats(null)
+        await generatePreview(audioUri)
+    }, [audioUri, generatePreview])
 
     useEffect(() => {
         return sound
@@ -717,7 +747,7 @@ export const PlayPage = () => {
                                 />
                             )}
                             <AudioTimeRangeSelector
-                                durationMs={previewData?.durationMs || 0}
+                                durationMs={originalDurationMs || (previewData?.durationMs || 0)}
                                 startTime={startTimeMs}
                                 endTime={endTimeMs}
                                 onRangeChange={handleRangeChange}
@@ -739,14 +769,27 @@ export const PlayPage = () => {
                                 }}
                             />
 
-                            <Button
-                                mode="contained"
-                                onPress={() => generatePreview(audioUri)}
-                                loading={processing}
-                                disabled={processing || !previewData}
-                            >
-                                {`Preview Trim (${formatDuration((endTimeMs - startTimeMs) / 1000)})`}
-                            </Button>
+                            <View style={styles.actionsContainer}>
+                                <Button
+                                    mode="contained"
+                                    onPress={() => generatePreview(audioUri)}
+                                    loading={processing}
+                                    disabled={processing || !previewData}
+                                >
+                                    Preview Trim
+                                </Button>
+                                
+                                {previewStats?.originalDurationMs && (
+                                    <Button
+                                        mode="outlined"
+                                        onPress={handleRestoreOriginal}
+                                        disabled={processing}
+                                        icon="restore"
+                                    >
+                                        Restore Original
+                                    </Button>
+                                )}
+                            </View>
                         </View>
                     )}
 
