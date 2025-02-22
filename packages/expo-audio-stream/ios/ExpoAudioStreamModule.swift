@@ -330,8 +330,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///     - `fileUri`: The URI of the audio file.
         ///     - `startTimeMs`: Optional start time in milliseconds.
         ///     - `endTimeMs`: Optional end time in milliseconds.
-        ///     - `pointsPerSecond`: Number of points per second for analysis.
-        ///     - `algorithm`: The algorithm to use for extraction.
+        ///     - `numberOfPoints`: Number of points to extract for the preview.
         ///     - `featureOptions`: Features to extract.
         AsyncFunction("extractPreview") { (options: [String: Any], promise: Promise) in
             guard let fileUri = options["fileUri"] as? String,
@@ -342,7 +341,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
 
             let startTimeMs = options["startTimeMs"] as? Double
             let endTimeMs = options["endTimeMs"] as? Double
-            let pointsPerSecond = options["pointsPerSecond"] as? Int ?? 20
+            let numberOfPoints = options["numberOfPoints"] as? Int ?? 100  // Default to 100 points
             let featureOptions = options["featureOptions"] as? [String: Bool] ?? [:]
 
             DispatchQueue.global().async {
@@ -356,16 +355,16 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                             promise.reject(code, message)
                         }
                     )
-                    
-                    if let result = audioProcessor.processAudioData(
+
+                    if let preview = audioProcessor.extractPreview(
+                        numberOfPoints: numberOfPoints,
                         startTimeMs: startTimeMs,
                         endTimeMs: endTimeMs,
-                        pointsPerSecond: pointsPerSecond,
                         featureOptions: featureOptions
                     ) {
-                        promise.resolve(result.toDictionary())
+                        promise.resolve(preview.toDictionary())
                     } else {
-                        promise.reject("PROCESSING_ERROR", "Failed to process audio data")
+                        promise.reject("PROCESSING_ERROR", "Failed to extract preview")
                     }
                 } catch {
                     promise.reject("PROCESSING_ERROR", "Failed to initialize audio processor: \(error.localizedDescription)")

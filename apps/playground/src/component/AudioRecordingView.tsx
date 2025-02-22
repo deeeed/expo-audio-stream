@@ -18,7 +18,7 @@ import {
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 import { atob } from 'react-native-quick-base64'
@@ -270,6 +270,106 @@ export const AudioRecordingView = ({
         }
     }), [theme])
 
+    // Add this near other state declarations
+    const [webAudioBuffer, setWebAudioBuffer] = useState<Uint8Array>()
+
+    // Add a separate effect to load the buffer once for web
+    useEffect(() => {
+        if (!isWeb || webAudioBuffer) return
+
+        const loadWebAudioBuffer = async () => {
+            try {
+                const response = await fetch(audioUri)
+                const arrayBuffer = await response.arrayBuffer()
+                const fullArray = new Uint8Array(arrayBuffer)
+                setWebAudioBuffer(fullArray)
+            } catch (error) {
+                logger.error('Failed to load web audio buffer:', error)
+                show({ 
+                    type: 'error', 
+                    message: `Failed to load audio file: ${error instanceof Error ? error.message : 'Unknown error'}` 
+                })
+            }
+        }
+
+        loadWebAudioBuffer()
+    }, [audioUri, show, webAudioBuffer])
+
+    const loadHexData = useCallback(async () => {
+        try {
+            if (!selectedDataPoint) return
+            const position = Math.floor(selectedDataPoint.startTime ?? 0)
+            const length = Math.floor((selectedDataPoint.endTime ?? 0) - (selectedDataPoint.startTime ?? 0))
+            
+            logger.debug('Loading hex data:', {
+                position,
+                length,
+                selectedDataPoint,
+                isCompressedFormat: audioUri.toLowerCase().match(/\.(opus|aac)$/)
+            })
+
+            let byteArray: Uint8Array = new Uint8Array()
+            const isCompressedFormat = audioUri.toLowerCase().match(/\.(opus|aac)$/)
+
+            if (isWeb) {
+                if (!webAudioBuffer) return
+                byteArray = webAudioBuffer.slice(position, position + length)
+                
+                logger.debug('Sliced buffer:', {
+                    originalSize: webAudioBuffer.length,
+                    sliceStart: position,
+                    sliceEnd: position + length,
+                    resultSize: byteArray.length,
+                    firstFewBytes: Array.from(byteArray.slice(0, 10)).map(b => b.toString(16)).join(' ')
+                })
+            } else {
+                // Native platform code
+                const fileUri = audioUri.startsWith('file://') 
+                    ? audioUri 
+                    : `file://${audioUri}`
+
+                if (isCompressedFormat) {
+                    // For compressed formats, read entire file
+                    const response = await FileSystem.readAsStringAsync(fileUri, {
+                        encoding: FileSystem.EncodingType.Base64,
+                    })
+                    const fullArray = Uint8Array.from(atob(response), c => c.charCodeAt(0))
+                    byteArray = fullArray.slice(position, position + length)
+                } else {
+                    // For WAV, we can read specific ranges
+                    const response = await FileSystem.readAsStringAsync(
+                        fileUri,
+                        {
+                            encoding: FileSystem.EncodingType.Base64,
+                            position: selectedDataPoint.startPosition,
+                            length,
+                        }
+                    )
+                    const step = atob(response)
+                    byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
+                }
+            }
+
+            // After setting byteArray, log its contents
+            logger.debug('Final byteArray:', {
+                size: byteArray.length,
+                firstFewBytes: Array.from(byteArray.slice(0, 10)).map(b => b.toString(16)).join(' '),
+                position,
+                length
+            })
+
+            setHexByteArray(byteArray)
+        } catch (error) {
+            logger.error('Failed to load hex data', error)
+            show({ type: 'error', message: `Failed to load audio data segment: ${error instanceof Error ? error.message : 'Unknown error'}` })
+        }
+    }, [selectedDataPoint, audioUri, show, webAudioBuffer])
+
+    useEffect(() => {
+        if (!selectedDataPoint) return
+        loadHexData()
+    }, [selectedDataPoint, loadHexData])
+
     const handleShare = async (fileUri: string = audioUri) => {
         if (!fileUri) {
             show({ type: 'error', message: 'No file to share' })
@@ -389,67 +489,6 @@ export const AudioRecordingView = ({
             show({ type: 'error', message: 'Failed to seek audio' })
         }
     }
-
-    useEffect(() => {
-        if (!selectedDataPoint) return
-
-        const loadHexData = async () => {
-            try {
-                const position = selectedDataPoint.startPosition ?? 0
-                const length = (selectedDataPoint.endPosition ?? 0) - (selectedDataPoint.startPosition ?? 0)
-                let byteArray: Uint8Array = new Uint8Array()
-    
-                // Check if the file is compressed (opus or aac)
-                const isCompressedFormat = audioUri.toLowerCase().match(/\.(opus|aac)$/)
-    
-                if (isWeb) {
-                    const response = await fetch(audioUri, {
-                        headers: {
-                            Range: `bytes=${position}-${position + length - 1}`,
-                        },
-                    })
-                    const step = await response.text()
-                    byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
-                } else {
-                    // Ensure proper file:// prefix for native platforms
-                    const fileUri = audioUri.startsWith('file://') 
-                        ? audioUri 
-                        : `file://${audioUri}`
-    
-                    // For compressed formats, read the whole file and slice it
-                    if (isCompressedFormat) {
-                        const response = await FileSystem.readAsStringAsync(fileUri, {
-                            encoding: FileSystem.EncodingType.Base64,
-                        })
-                        const fullArray = Uint8Array.from(atob(response), c => c.charCodeAt(0))
-                        byteArray = fullArray.slice(position, position + length)
-                    } else {
-                        // For WAV files, read specific portions
-                        const response = await FileSystem.readAsStringAsync(
-                            fileUri,
-                            {
-                                encoding: FileSystem.EncodingType.Base64,
-                                position: selectedDataPoint.startPosition,
-                                length,
-                            }
-                        )
-                        const step = atob(response)
-                        byteArray = Uint8Array.from(step, (c) => c.charCodeAt(0))
-                    }
-                }
-    
-                setHexByteArray(byteArray)
-            } catch (error) {
-                logger.error('Failed to load hex data', error)
-                show({ 
-                    type: 'error', 
-                    message: `Failed to load audio data segment: ${error instanceof Error ? error.message : 'Unknown error'}` 
-                })
-            }
-        }
-
-        loadHexData()
-    }, [recording, selectedDataPoint, audioAnalysis, audioUri, show])
 
     return (
         <View style={styles.container}>
@@ -584,18 +623,11 @@ export const AudioRecordingView = ({
             </View>
 
             {extractAnalysis && (
-                <>
-                    <View style={styles.segmentDurationContainer}>
-                        <SegmentDurationSelector
-                            value={segmentDuration}
-                            onChange={setSegmentDuration}
-                            maxDurationMs={recording.durationMs}
-                        />
-                    </View>
+                <View style={{marginTop: 20, gap: 10}}>
                     <Button
                         mode="outlined"
                         onPress={async () => {
-const newFeatures =                             await openDrawer<AudioFeaturesOptions>({
+                            const newFeatures = await openDrawer<AudioFeaturesOptions>({
                                 initialData: features,
                                 containerType: 'scrollview',
                                 footerType: 'confirm_cancel',
@@ -620,7 +652,14 @@ const newFeatures =                             await openDrawer<AudioFeaturesOp
                             <Text>Audio Features Extraction</Text>
                         </View>
                     </Button>
-                </>
+                    <View style={styles.segmentDurationContainer}>
+                        <SegmentDurationSelector
+                            value={segmentDuration}
+                            onChange={setSegmentDuration}
+                            maxDurationMs={recording.durationMs}
+                        />
+                    </View>
+                </View>
             )}
 
             {processing && <View style={{ justifyContent: 'center', alignItems: 'center', marginVertical: 20 }}><ActivityIndicator /></View>}

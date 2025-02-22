@@ -52,8 +52,8 @@ export function SegmentDurationSelector({
 
     const buttons = useMemo(() => {
         const allButtons = [
-            { value: '10', label: '10ms' },
-            { value: '100', label: '100ms' },
+            { value: '10', label: '0.01s' },
+            { value: '100', label: '0.1s' },
             { value: '1000', label: '1s' },
             { value: '10000', label: '10s' },
             { value: '30000', label: '30s' },

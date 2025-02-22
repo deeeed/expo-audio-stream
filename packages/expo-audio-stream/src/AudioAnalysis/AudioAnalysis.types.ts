@@ -1,5 +1,7 @@
 // packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts
 
+import { ConsoleLike } from "../ExpoAudioStream.types"
+
 /**
  * Represents the configuration for decoding audio data.
  */
@@ -125,9 +127,9 @@ export interface AudioAnalysis {
  */
 export interface AudioRangeOptions {
     /** Start time in milliseconds */
-    startTime?: number
+    startTimeMs?: number
     /** End time in milliseconds */
-    endTime?: number
+    endTimeMs?: number
 }
 
 /**
@@ -142,6 +144,10 @@ export interface PreviewOptions extends AudioRangeOptions {
      * @default 100
      */
     numberOfPoints?: number
+    /**
+     * Optional logger for debugging.
+     */
+    logger?: ConsoleLike
     /**
      * Optional configuration for decoding the audio file.
      * Defaults to:

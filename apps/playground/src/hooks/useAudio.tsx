@@ -62,6 +62,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         const processAudioData = async () => {
             try {
                 logger.debug(`useEffect Audio URI: ${audioUri} ${options.loadArrayBuffer} extractAnalysis: ${options.extractAnalysis} analysisOptions: `, options.analysisOptions)
+                logger.debug(`Recording compression format: ${recording?.compression?.format}`)
                 setProcessing(true)
                 let actualAudioBuffer: ArrayBuffer | undefined
 
@@ -77,7 +78,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
                 }
 
                 if (options.extractAnalysis) {
-                    const isCompressedFormat = audioUri?.toLowerCase().match(/\.(opus|aac)$/);
+                    const isCompressedFormat = audioUri?.toLowerCase().match(/\.(opus|aac)$/) || recording?.compression?.format !== undefined;
                     
                     // Ensure file:// protocol for native platforms
                     const normalizedAudioUri = audioUri && !isWeb && !audioUri.startsWith('file://')
@@ -122,7 +123,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         }
 
         processAudioData().catch(logger.error)
-    }, [audioUri, options.loadArrayBuffer, options.extractAnalysis, options.analysisOptions, show, recording?.sampleRate, recording?.bitDepth, recording?.durationMs, recording?.channels, recording?.mimeType])
+    }, [audioUri, options.loadArrayBuffer, options.extractAnalysis, options.analysisOptions, show, recording?.sampleRate, recording?.bitDepth, recording?.durationMs, recording?.channels, recording?.mimeType, recording?.compression?.format])
 
     const updatePlaybackStatus = useCallback((status: AVPlaybackStatus) => {
         if (!status.isLoaded) {
