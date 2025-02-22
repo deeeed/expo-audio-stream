@@ -119,18 +119,16 @@ self.onmessage = function (event) {
         channelData, // Float32Array
         sampleRate, // number
         pointsPerSecond, // number
-        algorithm // string
     ) => {
         const totalSamples = channelData.length
         const segmentDuration = totalSamples / sampleRate
-        const totalPoints = Math.max(
-            Math.ceil(segmentDuration * pointsPerSecond),
-            1
-        )
+        const totalPoints = Math.max(Math.ceil(segmentDuration * pointsPerSecond), 1)
         const pointInterval = Math.ceil(totalSamples / totalPoints)
         const dataPoints = []
         let minAmplitude = Infinity
         let maxAmplitude = -Infinity
+        let minRms = Infinity
+        let maxRms = -Infinity
         let silenceStart = null
         let lastSpeechEnd = -Infinity
         let isSpeech = false
@@ -158,7 +156,6 @@ self.onmessage = function (event) {
                 }
                 prevValue = value
 
-                // We need to keep absolute value otherwise we cannot visualize properly
                 const absValue = Math.abs(value)
                 localMinAmplitude = Math.min(localMinAmplitude, absValue)
                 localMaxAmplitude = Math.max(localMaxAmplitude, absValue)
@@ -170,7 +167,6 @@ self.onmessage = function (event) {
 
             // Post-processing checks
             if (!hasNonZeroValue) {
-                // All values are zero
                 localMinAmplitude = 0
                 localMaxAmplitude = 0
             }
@@ -178,35 +174,20 @@ self.onmessage = function (event) {
             const rms = Math.sqrt(sumSquares / (end - start))
             minAmplitude = Math.min(minAmplitude, localMinAmplitude)
             maxAmplitude = Math.max(maxAmplitude, localMaxAmplitude)
+            minRms = Math.min(minRms, rms)
+            maxRms = Math.max(maxRms, rms)
 
             const energy = sumSquares
             const zcr = zeroCrossings / (end - start)
-
             const silent = rms < SILENCE_THRESHOLD
             const dB = 20 * Math.log10(rms)
 
-            if (silent) {
-                if (silenceStart === null) {
-                    silenceStart = start
-                } else if (start - silenceStart > MIN_SILENCE_DURATION) {
-                    // Silence detected for longer than the threshold, set amplitude to 0
-                    localMaxAmplitude = 0
-                    localMinAmplitude = 0
-                    isSpeech = false
-                }
-            } else {
-                silenceStart = null
-                if (
-                    !isSpeech &&
-                    start - lastSpeechEnd < SPEECH_INERTIA_DURATION
-                ) {
-                    isSpeech = true
-                }
-                lastSpeechEnd = end
-            }
+            const bytesPerSample = bitDepth / 8
+            const startPosition = start * bytesPerSample * numberOfChannels
+            const endPosition = end * bytesPerSample * numberOfChannels
 
-            const activeSpeech =
-                (rms > RMS_THRESHOLD && zcr > ZCR_THRESHOLD) ||
+            // Compute speech features
+            const activeSpeech = (rms > RMS_THRESHOLD && zcr > ZCR_THRESHOLD) || 
                 (isSpeech && start - lastSpeechEnd < SPEECH_INERTIA_DURATION)
 
             if (activeSpeech) {
@@ -216,59 +197,47 @@ self.onmessage = function (event) {
                 isSpeech = false
             }
 
-            const bytesPerSample = bitDepth / 8
-            const startPosition = start * bytesPerSample * numberOfChannels // Calculate start position in bytes
-            const endPosition = end * bytesPerSample * numberOfChannels // Calculate end position in bytes
+            // Create features object matching the interface
+            const features = {
+                energy,
+                mfcc: [], // Placeholder
+                rms,
+                minAmplitude: localMinAmplitude,
+                maxAmplitude: localMaxAmplitude,
+                zcr,
+                spectralCentroid: 0, // Placeholder
+                spectralFlatness: 0, // Placeholder
+                spectralRolloff: 0, // Placeholder
+                spectralBandwidth: 0, // Placeholder
+                chromagram: [], // Placeholder
+                tempo: 0, // Placeholder
+                hnr: 0, // Placeholder
+                melSpectrogram: [], // Placeholder
+                spectralContrast: [], // Placeholder
+                tonnetz: [], // Placeholder
+                pitch: 0, // Placeholder
+                dataChecksum: 0 // Placeholder
+            }
 
-            // Compute features
-            const segmentData = channelData.slice(start, end)
-            const mfcc = features.mfcc
-                ? extractMFCC(segmentData, sampleRate)
-                : []
-            const spectralCentroid = features.spectralCentroid
-                ? extractSpectralCentroid(segmentData, sampleRate)
-                : 0
-            const spectralFlatness = features.spectralFlatness
-                ? extractSpectralFlatness(segmentData)
-                : 0
-            const spectralRollOff = features.spectralRollOff
-                ? extractSpectralRollOff(segmentData, sampleRate)
-                : 0
-            const spectralBandwidth = features.spectralBandwidth
-                ? extractSpectralBandwidth(segmentData, sampleRate)
-                : 0
-            const chromagram = features.chromagram
-                ? extractChromagram(segmentData, sampleRate)
-                : []
-            const hnr = features.hnr ? extractHNR(segmentData) : 0
+            const speech = {
+                isActive: activeSpeech,
+                speakerId: undefined
+            }
 
             const peakAmp = Math.max(Math.abs(localMaxAmplitude), Math.abs(localMinAmplitude))
             const newData = {
-                id: uniqueIdCounter++, // Assign unique ID and increment the counter
-                amplitude: algorithm === 'peak' ? peakAmp : rms,
-                activeSpeech,
+                id: uniqueIdCounter++,
+                amplitude: peakAmp, // Always use peak amplitude
+                rms, // Always include RMS
                 dB,
                 silent,
-                features: {
-                    energy,
-                    rms,
-                    minAmplitude: localMinAmplitude,
-                    maxAmplitude: localMaxAmplitude,
-                    zcr,
-                    mfcc: [], // Placeholder for MFCC features
-                    spectralCentroid, // Computed spectral centroid
-                    spectralFlatness, // Computed spectral flatness
-                    spectralRollOff, // Computed spectral roll-off
-                    spectralBandwidth, // Computed spectral bandwidth
-                    chromagram, // Computed chromagram
-                    hnr, // Computed HNR
-                },
+                features,
+                speech,
                 startTime: start / sampleRate,
                 endTime: end / sampleRate,
                 startPosition,
                 endPosition,
-                samples: end - start,
-                speaker: 0, // Assuming speaker detection is to be handled later
+                samples: end - start
             }
 
             dataPoints.push(newData)
@@ -276,7 +245,6 @@ self.onmessage = function (event) {
 
         return {
             pointsPerSecond,
-            amplitudeAlgorithm: algorithm,
             durationMs: fullAudioDurationMs,
             bitDepth,
             samples: totalSamples,
@@ -285,9 +253,16 @@ self.onmessage = function (event) {
             dataPoints,
             amplitudeRange: {
                 min: minAmplitude,
-                max: maxAmplitude,
+                max: maxAmplitude
             },
-            speakerChanges: [], // Placeholder for future speaker detection logic
+            rmsRange: {
+                min: minRms,
+                max: maxRms
+            },
+            speechAnalysis: {
+                speakerChanges: []
+            },
+            extractionTimeMs: Date.now() - lastEmitTime
         }
     }
 
