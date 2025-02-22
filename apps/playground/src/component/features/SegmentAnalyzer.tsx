@@ -2,11 +2,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { AppTheme, useTheme, useToast } from '@siteed/design-system'
 import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-stream'
 import React, { useCallback, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { baseLogger } from '../../config'
+import { useAudioSegmentData } from '../../hooks/useAudioSegmentData'
 import { isWeb } from '../../utils/utils'
 import { FeatureViewer } from './FeatureViewer'
+import { HexDataViewer } from '../HexDataViewer'
 import { SpeechAnalyzer } from './SpeechAnalyzer'
 
 const logger = baseLogger.extend('SegmentAnalyzer')
@@ -108,6 +110,7 @@ interface SegmentAnalyzerProps {
         pointsPerSecond: number
         features?: AudioFeaturesOptions
     }
+    bitDepth?: number
 }
 
 export function SegmentAnalyzer({ 
@@ -115,7 +118,8 @@ export function SegmentAnalyzer({
     fileUri, 
     sampleRate,
     onError,
-    analysisConfig 
+    analysisConfig,
+    bitDepth = 16
 }: SegmentAnalyzerProps) {
     const theme = useTheme()
     const styles = getStyles(theme)
@@ -123,6 +127,12 @@ export function SegmentAnalyzer({
     const [segmentAnalysis, setSegmentAnalysis] = useState<AudioAnalysis>()
     const [processingTime, setProcessingTime] = useState<number>()
     const { show } = useToast()
+
+    const { byteArray, isLoading } = useAudioSegmentData({
+        fileUri,
+        selectedDataPoint: dataPoint,
+        bitDepth
+    })
 
     // Calculate positions for display
     const startPosition = dataPoint.startPosition ?? (dataPoint.startTime ?? 0) * sampleRate * 2
@@ -299,6 +309,15 @@ export function SegmentAnalyzer({
                         </View>
                     )}
                 </View>
+            )}
+
+            {isLoading ? (
+                <ActivityIndicator />
+            ) : byteArray && (
+                <HexDataViewer
+                    byteArray={byteArray}
+                    bitDepth={bitDepth}
+                />
             )}
         </View>
     )
