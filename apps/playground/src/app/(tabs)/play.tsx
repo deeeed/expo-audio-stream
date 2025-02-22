@@ -760,7 +760,7 @@ export const PlayPage = () => {
                                 currentTime={currentTime}
                                 playing={isPlaying}
                                 onSeekEnd={handleSeekEnd}
-                                // NavigationControls={() => null}
+                                NavigationControls={() => null}
                                 font={font ?? undefined}
                                 theme={{
                                     container: styles.waveformContainer,
