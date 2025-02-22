@@ -38,6 +38,7 @@ export interface AudioDataEvent {
 export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'
 export type SampleRate = 16000 | 44100 | 48000
 export type BitDepth = 8 | 16 | 32
+export type PCMFormat = `pcm_${BitDepth}bit`
 
 export type ConsoleLike = {
     log: (message: string, ...args: unknown[]) => void
@@ -262,6 +263,32 @@ export interface WaveformConfig {
     style?: 'stroke' | 'fill' // Drawing style: "stroke" for outline, "fill" for solid
     mirror?: boolean // Whether to mirror the waveform (symmetrical display)
     height?: number // Height of the waveform view in dp (default: 64)
+}
+
+export interface ExtractAudioDataOptions {
+    fileUri: string
+    // Time-based range (mutually exclusive with byte-based range)
+    startTimeMs?: number
+    endTimeMs?: number
+    // Byte-based range (mutually exclusive with time-based range)
+    position?: number
+    length?: number
+    // Optional decoding configuration
+    decodingOptions?: {
+        targetSampleRate?: number
+        targetChannels?: number
+        targetBitDepth?: number
+        normalizeAudio?: boolean
+    }
+}
+
+export interface ExtractedAudioData {
+    data: Uint8Array
+    sampleRate: number
+    channels: number
+    bitDepth: BitDepth
+    durationMs: number
+    format: PCMFormat
 }
 
 export interface UseAudioRecorderState {

@@ -452,6 +452,122 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 promise.reject("PROCESSING_ERROR", error.localizedDescription)
             }
         }
+
+        /// Extracts raw PCM audio data from a file with time or byte range support
+        /// - Parameters:
+        ///   - options: A dictionary containing:
+        ///     - `fileUri`: The URI of the audio file
+        ///     - `startTimeMs`: Optional start time in milliseconds
+        ///     - `endTimeMs`: Optional end time in milliseconds
+        ///     - `position`: Optional byte position
+        ///     - `length`: Optional byte length
+        AsyncFunction("extractAudioData") { (options: [String: Any], promise: Promise) in
+            guard let fileUri = options["fileUri"] as? String,
+                  let url = URL(string: fileUri) else {
+                promise.reject("INVALID_ARGUMENTS", "Invalid file URI provided")
+                return
+            }
+
+            // Get time or byte range options
+            let startTimeMs = options["startTimeMs"] as? Double
+            let endTimeMs = options["endTimeMs"] as? Double
+            let position = options["position"] as? Int
+            let length = options["length"] as? Int
+
+            // Validate that we have either time range or byte range, but not both and not neither
+            let hasTimeRange = startTimeMs != nil && endTimeMs != nil
+            let hasByteRange = position != nil && length != nil
+
+            guard hasTimeRange || hasByteRange else {
+                promise.reject("INVALID_ARGUMENTS", "Must specify either time range (startTimeMs, endTimeMs) or byte range (position, length)")
+                return
+            }
+
+            guard !(hasTimeRange && hasByteRange) else {
+                promise.reject("INVALID_ARGUMENTS", "Cannot specify both time range and byte range")
+                return
+            }
+
+            do {
+                let audioFile = try AVAudioFile(forReading: url)
+                let format = audioFile.processingFormat
+                let sampleRate = format.sampleRate
+                let channels = Int(format.channelCount)
+                let bitDepth = audioFile.fileFormat.settings[AVLinearPCMBitDepthKey] as? Int ?? 16
+
+                // Calculate frame positions
+                let startFrame: AVAudioFramePosition
+                let endFrame: AVAudioFramePosition
+
+                if hasTimeRange {
+                    startFrame = AVAudioFramePosition(startTimeMs! * sampleRate / 1000.0)
+                    endFrame = AVAudioFramePosition(endTimeMs! * sampleRate / 1000.0)
+                } else {
+                    // Convert byte position to frame position
+                    let bytesPerFrame = Int64(channels * (bitDepth / 8))
+                    startFrame = AVAudioFramePosition(position!) / bytesPerFrame
+                    endFrame = startFrame + (AVAudioFramePosition(length!) / bytesPerFrame)
+                }
+
+                // Validate frame range
+                guard startFrame >= 0 && endFrame <= audioFile.length && startFrame < endFrame else {
+                    promise.reject("INVALID_RANGE", "Invalid range specified")
+                    return
+                }
+
+                let framesToRead = AVAudioFrameCount(endFrame - startFrame)
+                let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: framesToRead)!
+
+                // Read the audio data
+                audioFile.framePosition = startFrame
+                try audioFile.read(into: buffer, frameCount: framesToRead)
+
+                // Convert to raw PCM data
+                guard let floatData = buffer.floatChannelData else {
+                    promise.reject("CONVERSION_ERROR", "Failed to get float channel data")
+                    return
+                }
+
+                // Create byte array for PCM data
+                var pcmData = Data()
+                let bytesPerSample = bitDepth / 8
+                let totalFrames = Int(buffer.frameLength)
+
+                // Convert float samples to PCM format
+                for frame in 0..<totalFrames {
+                    for channel in 0..<channels {
+                        let sample = floatData[channel][frame]
+                        
+                        switch bitDepth {
+                        case 16:
+                            let intValue = Int16(sample * Float(Int16.max))
+                            pcmData.append(contentsOf: withUnsafeBytes(of: intValue) { Array($0) })
+                        case 32:
+                            let intValue = Int32(sample * Float(Int32.max))
+                            pcmData.append(contentsOf: withUnsafeBytes(of: intValue) { Array($0) })
+                        default:
+                            promise.reject("UNSUPPORTED_BIT_DEPTH", "Unsupported bit depth: \(bitDepth)")
+                            return
+                        }
+                    }
+                }
+
+                let durationMs = Double(framesToRead) * 1000.0 / sampleRate
+
+                // Return the result
+                promise.resolve([
+                    "data": pcmData,
+                    "sampleRate": Int(sampleRate),
+                    "channels": channels,
+                    "bitDepth": bitDepth,
+                    "durationMs": Int(durationMs),
+                    "format": "pcm_\(bitDepth)bit"
+                ])
+
+            } catch {
+                promise.reject("PROCESSING_ERROR", "Failed to process audio file: \(error.localizedDescription)")
+            }
+        }
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveInterruption info: [String: Any]) {
