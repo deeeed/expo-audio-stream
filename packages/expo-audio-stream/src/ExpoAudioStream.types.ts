@@ -43,6 +43,7 @@ export type PCMFormat = `pcm_${BitDepth}bit`
 export type ConsoleLike = {
     log: (message: string, ...args: unknown[]) => void
     debug: (message: string, ...args: unknown[]) => void
+    info: (message: string, ...args: unknown[]) => void
     warn: (message: string, ...args: unknown[]) => void
     error: (message: string, ...args: unknown[]) => void
 }
@@ -273,6 +274,7 @@ export interface ExtractAudioDataOptions {
     // Byte-based range (mutually exclusive with time-based range)
     position?: number
     length?: number
+    logger?: ConsoleLike
     // Optional decoding configuration
     decodingOptions?: {
         targetSampleRate?: number
