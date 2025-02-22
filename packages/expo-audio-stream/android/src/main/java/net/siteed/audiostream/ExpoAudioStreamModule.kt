@@ -431,6 +431,113 @@ class ExpoAudioStreamModule : Module(), EventSender {
             
             promise.resolve(status)
         }
+
+        AsyncFunction("extractAudioData") { options: Map<String, Any>, promise: Promise ->
+            try {
+                val fileUri = requireNotNull(options["fileUri"] as? String) { "fileUri is required" }
+                
+                // Get time or byte range options
+                val startTimeMs = options["startTimeMs"] as? Number
+                val endTimeMs = options["endTimeMs"] as? Number
+                val position = options["position"] as? Number
+                val length = options["length"] as? Number
+                
+                // Validate that we have either time range or byte range, but not both and not neither
+                val hasTimeRange = startTimeMs != null && endTimeMs != null
+                val hasByteRange = position != null && length != null
+                
+                if (!hasTimeRange && !hasByteRange) {
+                    throw IllegalArgumentException("Must specify either time range (startTimeMs, endTimeMs) or byte range (position, length)")
+                }
+                if (hasTimeRange && hasByteRange) {
+                    throw IllegalArgumentException("Cannot specify both time range and byte range")
+                }
+                
+                // Get decoding options
+                val decodingOptionsMap = options["decodingOptions"] as? Map<String, Any>
+                val decodingConfig = if (decodingOptionsMap != null) {
+                    DecodingConfig(
+                        targetSampleRate = decodingOptionsMap["targetSampleRate"] as? Int,
+                        targetChannels = decodingOptionsMap["targetChannels"] as? Int,
+                        targetBitDepth = (decodingOptionsMap["targetBitDepth"] as? Int) ?: 16,
+                        normalizeAudio = (decodingOptionsMap["normalizeAudio"] as? Boolean) ?: false
+                    ).also {
+                        Log.d(Constants.TAG, """
+                            Using decoding config:
+                            - targetSampleRate: ${it.targetSampleRate ?: "original"}
+                            - targetChannels: ${it.targetChannels ?: "original"}
+                            - targetBitDepth: ${it.targetBitDepth}
+                            - normalizeAudio: ${it.normalizeAudio}
+                        """.trimIndent())
+                    }
+                } else null
+
+                val audioData = if (hasByteRange) {
+                    val format = audioProcessor.getAudioFormat(fileUri) 
+                        ?: throw IllegalArgumentException("Could not determine audio format")
+                    
+                    // Calculate time range from byte position
+                    val bytesPerSecond = format.sampleRate * format.channels * (format.bitDepth / 8)
+                    val effectiveStartTimeMs = (position!!.toLong() * 1000) / bytesPerSecond
+                    val effectiveEndTimeMs = effectiveStartTimeMs + (length!!.toLong() * 1000) / bytesPerSecond
+                    
+                    Log.d(Constants.TAG, """
+                        Converting byte range to time range:
+                        - position: $position bytes
+                        - length: $length bytes
+                        - bytesPerSecond: $bytesPerSecond
+                        - effectiveStartTimeMs: $effectiveStartTimeMs
+                        - effectiveEndTimeMs: $effectiveEndTimeMs
+                    """.trimIndent())
+                    
+                    audioProcessor.loadAudioRange(
+                        fileUri = fileUri,
+                        startTimeMs = effectiveStartTimeMs,
+                        endTimeMs = effectiveEndTimeMs,
+                        config = decodingConfig
+                    )
+                } else {
+                    // Must be time range due to earlier validation
+                    Log.d(Constants.TAG, """
+                        Using time range:
+                        - startTimeMs: $startTimeMs
+                        - endTimeMs: $endTimeMs
+                    """.trimIndent())
+                    
+                    audioProcessor.loadAudioRange(
+                        fileUri = fileUri,
+                        startTimeMs = startTimeMs!!.toLong(),
+                        endTimeMs = endTimeMs!!.toLong(),
+                        config = decodingConfig
+                    )
+                } ?: throw IllegalStateException("Failed to load audio data")
+
+                Log.d(Constants.TAG, """
+                    Audio data loaded successfully:
+                    - data size: ${audioData.data.size} bytes
+                    - sampleRate: ${audioData.sampleRate}
+                    - channels: ${audioData.channels}
+                    - bitDepth: ${audioData.bitDepth}
+                    - durationMs: ${audioData.durationMs}
+                """.trimIndent())
+
+                // Create a typed array instead of base64 string
+                val resultMap = mapOf(
+                    "data" to audioData.data,  // Direct ByteArray transfer
+                    "sampleRate" to audioData.sampleRate,
+                    "channels" to audioData.channels,
+                    "bitDepth" to audioData.bitDepth,
+                    "durationMs" to audioData.durationMs,
+                    "format" to "pcm_${audioData.bitDepth}bit"
+                )
+
+                promise.resolve(resultMap)
+            } catch (e: Exception) {
+                Log.e(Constants.TAG, "Failed to extract audio data: ${e.message}")
+                Log.e(Constants.TAG, "Stack trace: ${e.stackTraceToString()}")
+                promise.reject("PROCESSING_ERROR", e.message ?: "Unknown error", e)
+            }
+        }
     }
 
     private fun initializeManager() {

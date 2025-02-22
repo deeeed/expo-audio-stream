@@ -11,6 +11,7 @@ import {
     DecodingConfig,
     PreviewOptions,
 } from './AudioAnalysis.types'
+import { processAudioBuffer } from '../utils/audioProcessing'
 import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
 import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
 import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
@@ -80,7 +81,7 @@ export async function extractAudioFromAnyFormat({
             const decodedAudioBuffer =
                 await audioContext.decodeAudioData(audioBuffer)
 
-            // Convert to mono and resample if needed
+            // Use shared processing function
             const processedBuffer = await processAudioBuffer({
                 buffer: decodedAudioBuffer,
                 targetSampleRate: decodingOptions?.targetSampleRate ?? 16000,
@@ -176,65 +177,6 @@ export async function extractAudioFromAnyFormat({
             ...restProps,
         })
     }
-}
-
-// Helper function to process audio buffer
-async function processAudioBuffer({
-    buffer,
-    targetSampleRate,
-    targetChannels,
-    normalizeAudio,
-}: {
-    buffer: AudioBuffer
-    targetSampleRate: number
-    targetChannels: number
-    normalizeAudio: boolean
-}): Promise<AudioBuffer> {
-    // If we need to resample or convert channels
-    if (
-        buffer.sampleRate !== targetSampleRate ||
-        buffer.numberOfChannels !== targetChannels
-    ) {
-        const offlineCtx = new OfflineAudioContext(
-            targetChannels,
-            (buffer.length * targetSampleRate) / buffer.sampleRate,
-            targetSampleRate
-        )
-
-        const source = offlineCtx.createBufferSource()
-        source.buffer = buffer
-
-        if (normalizeAudio) {
-            const gainNode = offlineCtx.createGain()
-            source.connect(gainNode)
-            gainNode.connect(offlineCtx.destination)
-
-            // Calculate normalization factor
-            let maxAmp = 0
-            for (
-                let channel = 0;
-                channel < buffer.numberOfChannels;
-                channel++
-            ) {
-                const channelData = buffer.getChannelData(channel)
-                for (let i = 0; i < channelData.length; i++) {
-                    maxAmp = Math.max(maxAmp, Math.abs(channelData[i]))
-                }
-            }
-
-            // Set gain to normalize
-            if (maxAmp > 0) {
-                gainNode.gain.value = 1 / maxAmp
-            }
-        } else {
-            source.connect(offlineCtx.destination)
-        }
-
-        source.start()
-        return await offlineCtx.startRendering()
-    }
-
-    return buffer
 }
 
 export const extractAudioAnalysis = async ({
