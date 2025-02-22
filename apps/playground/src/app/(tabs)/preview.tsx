@@ -65,8 +65,8 @@ export default function PreviewScreen() {
             const preview = await extractPreview({
                 fileUri,
                 numberOfPoints: parseInt(numberOfPoints, 10),
-                startTime: startTime || undefined,
-                endTime: endTime || undefined,
+                startTimeMs: startTime || undefined,
+                endTimeMs: endTime || undefined,
             })
 
             logger.info('Preview generated successfully', {

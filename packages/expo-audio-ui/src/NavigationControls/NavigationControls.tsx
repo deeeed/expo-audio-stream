@@ -81,7 +81,6 @@ const styles = StyleSheet.create({
     samplesInfoContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 8,
         gap: 6,
     },
     samplesInfo: {
@@ -100,12 +99,12 @@ const NavigationControls: React.FC<NavigationControlsProps> = ({
     onCenter,
     theme,
 }) => (
-    <View style={theme.navigationContainer}>
+    <View style={[{ paddingTop: 10 }, theme.navigationContainer]}>
         <View style={styles.samplesInfoContainer}>
-            <MaterialCommunityIcons 
-                name="waveform" 
-                size={16} 
-                color={theme.text.color} 
+            <MaterialCommunityIcons
+                name="waveform"
+                size={16}
+                color={theme.text.color}
                 style={{ opacity: 0.7 }}
             />
             <Text style={[styles.samplesInfo, theme.text]}>

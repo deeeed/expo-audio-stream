@@ -17,11 +17,10 @@ import {
     BitDepth,
     Chunk,
     convertPCMToFloat32,
-    extractAudioAnalysis,
     extractPreview,
     getWavFileInfo,
     SampleRate,
-    TranscriberData,
+    TranscriberData
 } from '@siteed/expo-audio-stream'
 import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
@@ -36,6 +35,7 @@ import Transcriber from '../../component/Transcriber'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
+import { baseLogger } from '../../config'
 
 const logger = console
 const getStyles = (theme: AppTheme) => {
@@ -140,8 +140,8 @@ export const PlayPage = () => {
     const [showVisualizer, setShowVisualizer] = useState<boolean>(true)
     const [isSaving, setIsSaving] = useState<boolean>(false)
     const [previewData, setPreviewData] = useState<AudioPreview | null>(null)
-    const [startTime, setStartTime] = useState<number>(0)
-    const [endTime, setEndTime] = useState<number>(0)
+    const [startTimeMs, setStartTimeMs] = useState<number>(0)
+    const [endTimeMs, setEndTimeMs] = useState<number>(0)
     const [customFileName, setCustomFileName] = useState<string>('')
     const [enableTrim, setEnableTrim] = useState<boolean>(false)
     const PREVIEW_POINTS = 100
@@ -161,42 +161,57 @@ export const PlayPage = () => {
                 message: 'Generating preview...'
             })
 
-            // First get the full preview to know the total duration
-            const fullPreview = await extractPreview({
+            // Generate preview only once if not trimming
+            const preview = await extractPreview({
                 fileUri,
+                logger: baseLogger.extend('generatePreview'),
                 numberOfPoints: PREVIEW_POINTS,
+                startTimeMs: enableTrim && startTimeMs > 0 ? startTimeMs : undefined,
+                endTimeMs: enableTrim && endTimeMs > startTimeMs ? endTimeMs : undefined,
+                decodingOptions: {
+                    targetSampleRate: 16000,
+                    targetChannels: 1,
+                    targetBitDepth: 32,
+                    normalizeAudio: true
+                }
             })
 
             // Reset trim boundaries if not in trim mode
             if (!enableTrim) {
-                setStartTime(0)
-                setEndTime(0)
+                setStartTimeMs(0)
+                setEndTimeMs(0)
             }
             
             // Reset cursor position to start of trim range or 0
-            setCurrentTime(enableTrim ? startTime : 0)
-
-            // Get trimmed preview if trim is enabled
-            const preview = enableTrim ? await extractPreview({
-                fileUri,
-                numberOfPoints: PREVIEW_POINTS,
-                startTime: startTime > 0 ? startTime : undefined,
-                endTime: endTime > startTime ? endTime : undefined,
-            }) : fullPreview
+            setCurrentTime(enableTrim ? startTimeMs : 0)
 
             // Ensure trim boundaries are within valid range
             if (enableTrim) {
-                const durationSec = fullPreview.durationMs / 1000
-                if (startTime > durationSec || endTime > durationSec) {
-                    setStartTime(0)
-                    setEndTime(durationSec)
+                const durationSec = preview.durationMs / 1000
+                if (startTimeMs > durationSec || endTimeMs > durationSec) {
+                    setStartTimeMs(0)
+                    setEndTimeMs(durationSec)
                 }
             }
 
-            // Calculate preview stats using the full duration for the range selector
-            if (enableTrim && startTime !== undefined && endTime !== undefined) {
-                const trimDurationMs = (endTime - startTime) * 1000
-                const originalDuration = fullPreview.durationMs
+            let duration = preview.durationMs
+            // On web, get more accurate duration from AudioContext
+            if (isWeb) {
+                try {
+                    const audioCTX = new AudioContext({ sampleRate: 16000 })
+                    const response = await fetch(fileUri)
+                    const arrayBuffer = await response.arrayBuffer()
+                    const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
+                    duration = decoded.duration * 1000
+                } catch (error) {
+                    logger.warn('Failed to get precise duration from AudioContext:', error)
+                }
+            }
+
+            // Only update preview stats when trimming
+            if (enableTrim && startTimeMs !== undefined && endTimeMs !== undefined) {
+                const trimDurationMs = (endTimeMs - startTimeMs)
+                const originalDuration = duration
                 const trimRatio = trimDurationMs / originalDuration
                 const estimatedSize = Math.floor(fileSize * trimRatio)
                 
@@ -205,20 +220,17 @@ export const PlayPage = () => {
                     size: estimatedSize
                 })
             } else {
-                setPreviewStats({
-                    durationMs: fullPreview.durationMs,
-                    size: fileSize
-                })
+                setPreviewStats(null)
             }
 
             // Convert preview to AudioAnalysis format for visualizer
             const audioAnalysis: AudioAnalysis = {
                 bitDepth: 16,
-                samples: 0,
+                samples: Math.floor(duration / 1000 * 16000),
                 numberOfChannels: 1,
                 sampleRate: 16000,
-                pointsPerSecond: PREVIEW_POINTS / (preview.durationMs / 1000),
-                durationMs: fullPreview.durationMs, // Use full duration for the range selector
+                pointsPerSecond: PREVIEW_POINTS / (duration / 1000),
+                durationMs: duration,
                 dataPoints: preview.dataPoints,
                 amplitudeRange: preview.amplitudeRange || { min: -1, max: 1 },
                 rmsRange: preview.amplitudeRange || { min: -1, max: 1 },
@@ -242,14 +254,14 @@ export const PlayPage = () => {
         } finally {
             setProcessing(false)
         }
-    }, [endTime, show, startTime, enableTrim, fileSize, PREVIEW_POINTS])
+    }, [endTimeMs, show, startTimeMs, enableTrim, PREVIEW_POINTS, fileSize])
 
     const pickAudioFile = async () => {
         try {
             setProcessing(true)
             // Reset all values when loading new file
-            setStartTime(0)
-            setEndTime(0)
+            setStartTimeMs(0)
+            setEndTimeMs(0)
             setEnableTrim(false)
             setPreviewStats(null)
             setCurrentTime(0)
@@ -266,19 +278,11 @@ export const PlayPage = () => {
             })
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
-                const uri = result.assets[0].uri
-                const name = result.assets[0].name
+                const asset = result.assets[0]
+                const { uri, name, size } = asset
                 
-                // Get the actual file size using FileSystem
-                let size = result.assets[0].size || 0
-                if (!size && !isWeb) {
-                    const fileInfo = await FileSystem.getInfoAsync(uri, { size: true })
-                    size = (fileInfo as FileSystem.FileInfo & { size: number }).size || 0
-                } else if (!size && isWeb) {
-                    // For web, fetch the file and get its size
-                    const response = await fetch(uri)
-                    const blob = await response.blob()
-                    size = blob.size
+                if (!size) {
+                    throw new Error('File size not available')
                 }
 
                 if (sound) {
@@ -306,11 +310,8 @@ export const PlayPage = () => {
     }
 
     const handleRangeChange = useCallback((newStartTimeMs: number, newEndTimeMs: number) => {
-        // Convert milliseconds to seconds since we work with seconds in the rest of the app
-        const newStartTimeSec = newStartTimeMs / 1000
-        const newEndTimeSec = newEndTimeMs / 1000
-        setStartTime(newStartTimeSec)
-        setEndTime(newEndTimeSec)
+        setStartTimeMs(newStartTimeMs)
+        setEndTimeMs(newEndTimeMs)
     }, [])
 
     const loadWebAudioFile = async ({
@@ -327,14 +328,12 @@ export const PlayPage = () => {
             const startOverall = performance.now()
 
             const startUnloadSound = performance.now()
-            // Unload any existing sound
             if (sound) {
                 setSound(null)
             }
             timings['Unload Sound'] = performance.now() - startUnloadSound
 
             const startResetPlayback = performance.now()
-            // Reset playback position and stop playback
             setCurrentTime(0)
             setIsPlaying(false)
             setTranscript(undefined)
@@ -345,10 +344,15 @@ export const PlayPage = () => {
             const arrayBuffer = await response.arrayBuffer()
             timings['Fetch and Convert Audio'] = performance.now() - startFetchAudio
 
+            // Get file size from response
+            const size = Number(response.headers.get('content-length')) || arrayBuffer.byteLength
+            setFileSize(size)
+
             const audioCTX = new AudioContext({
-                sampleRate: 16000, // Always resample to 16000
+                sampleRate: 16000,
             })
             const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
+            logger.log('Decoded audio:', decoded)
 
             // Convert to mono if stereo
             let pcmAudio: Float32Array
@@ -368,21 +372,45 @@ export const PlayPage = () => {
             setAudioBuffer(pcmAudio)
 
             const startAudioAnalysis = performance.now()
-            const audioAnalysis = await extractAudioAnalysis({
+            logger.log('Extracting audio preview...', audioUri)
+            const preview = await extractPreview({
                 fileUri: audioUri,
-                pointsPerSecond: 10,
-                arrayBuffer,
-                sampleRate: decoded.sampleRate,
-                numberOfChannels: decoded.numberOfChannels,
-                durationMs: (decoded.length / decoded.sampleRate) * 1000,
+                logger: baseLogger.extend('extractPreview'),
+                numberOfPoints: PREVIEW_POINTS,
+                decodingOptions: {
+                    targetSampleRate: 16000,
+                    targetChannels: 1,
+                    targetBitDepth: 32,
+                    normalizeAudio: true
+                }
             })
-            logger.info(`AudioAnalysis computed in ${performance.now() - startAudioAnalysis}ms`)
+
+            // Set preview stats immediately with the correct duration from decoded audio
+            setPreviewStats({
+                durationMs: decoded.duration * 1000, // Use decoded.duration instead of preview.durationMs
+                size: size
+            })
+
+            // Convert preview to AudioAnalysis format for visualizer
+            const audioAnalysis: AudioAnalysis = {
+                bitDepth: 16,
+                samples: decoded.length,
+                numberOfChannels: 1,
+                sampleRate: 16000,
+                pointsPerSecond: PREVIEW_POINTS / (decoded.duration), // Use decoded.duration
+                durationMs: decoded.duration * 1000, // Use decoded.duration
+                dataPoints: preview.dataPoints,
+                amplitudeRange: preview.amplitudeRange || { min: -1, max: 1 },
+                rmsRange: preview.amplitudeRange || { min: -1, max: 1 },
+            }
+            
+            logger.info(`Audio preview computed in ${performance.now() - startAudioAnalysis}ms`)
             setAudioAnalysis(audioAnalysis)
             timings['Audio Analysis'] = performance.now() - startAudioAnalysis
 
-            // extract filename from audioUri and remove any query params
             const actualFileName = filename ?? audioUri.split('/').pop()?.split('?')[0] ?? 'Unknown'
             setFileName(actualFileName)
+            setCustomFileName(actualFileName)
             setAudioUri(audioUri)
 
             timings['Total Time'] = performance.now() - startOverall
@@ -416,8 +444,8 @@ export const PlayPage = () => {
                     setIsPlaying(false)
                 } else {
                     // If trim is enabled, ensure we start from the trim start position
-                    if (enableTrim && startTime > 0) {
-                        await sound.setPositionAsync(startTime * 1000)
+                    if (enableTrim && startTimeMs > 0) {
+                        await sound.setPositionAsync(startTimeMs)
                     }
                     await sound.playAsync()
                     setIsPlaying(true)
@@ -430,8 +458,8 @@ export const PlayPage = () => {
             setSound(newSound)
             
             // If trim is enabled, set initial position to start time
-            if (enableTrim && startTime > 0) {
-                await newSound.setPositionAsync(startTime * 1000)
+            if (enableTrim && startTimeMs > 0) {
+                await newSound.setPositionAsync(startTimeMs)
             }
             
             await newSound.playAsync()
@@ -440,21 +468,19 @@ export const PlayPage = () => {
             // Track playback position and handle trim boundaries
             newSound.setOnPlaybackStatusUpdate((status) => {
                 if (status.isLoaded) {
-                    const currentPositionSec = status.positionMillis / 1000
-                    setCurrentTime(currentPositionSec)
+                    setCurrentTime(status.positionMillis)
                     setIsPlaying(status.isPlaying)
 
-                    // Stop playback if we reach the end trim point
-                    if (enableTrim && endTime > 0 && currentPositionSec >= endTime) {
+                    if (enableTrim && endTimeMs > 0 && status.positionMillis >= endTimeMs) {
                         newSound.pauseAsync()
-                        newSound.setPositionAsync(startTime * 1000)
+                        newSound.setPositionAsync(startTimeMs)
                         setIsPlaying(false)
-                        setCurrentTime(startTime)
+                        setCurrentTime(startTimeMs)
                     }
                 }
             })
         }
-    }, [audioUri, sound, enableTrim, startTime, endTime])
+    }, [audioUri, sound, enableTrim, startTimeMs, endTimeMs])
 
     const saveToFiles = useCallback(async () => {
         if (isSaving || !fileName || !audioUri) {
@@ -692,8 +718,8 @@ export const PlayPage = () => {
                             )}
                             <AudioTimeRangeSelector
                                 durationMs={previewData?.durationMs || 0}
-                                startTime={startTime * 1000}
-                                endTime={endTime * 1000}
+                                startTime={startTimeMs}
+                                endTime={endTimeMs}
                                 onRangeChange={handleRangeChange}
                                 disabled={processing || !previewData}
                                 theme={{
@@ -719,7 +745,7 @@ export const PlayPage = () => {
                                 loading={processing}
                                 disabled={processing || !previewData}
                             >
-                                {`Preview Trim (${formatDuration(Math.max(0, endTime - startTime))})`}
+                                {`Preview Trim (${formatDuration((endTimeMs - startTimeMs) / 1000)})`}
                             </Button>
                         </View>
                     )}
@@ -734,7 +760,7 @@ export const PlayPage = () => {
                                 currentTime={currentTime}
                                 playing={isPlaying}
                                 onSeekEnd={handleSeekEnd}
-                                NavigationControls={() => null}
+                                // NavigationControls={() => null}
                                 font={font ?? undefined}
                                 theme={{
                                     container: styles.waveformContainer,
