@@ -1,10 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { AppTheme, useTheme } from '@siteed/design-system'
+import { AppTheme, useTheme, useToast } from '@siteed/design-system'
 import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-stream'
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { baseLogger } from '../../config'
+import { isWeb } from '../../utils/utils'
 import { FeatureViewer } from './FeatureViewer'
 import { SpeechAnalyzer } from './SpeechAnalyzer'
 
@@ -89,6 +90,7 @@ export function SegmentAnalyzer({
     const [isProcessing, setIsProcessing] = useState(false)
     const [segmentAnalysis, setSegmentAnalysis] = useState<AudioAnalysis>()
     const [processingTime, setProcessingTime] = useState<number>()
+    const { show } = useToast()
 
     // Calculate positions for display
     const startPosition = dataPoint.startPosition ?? (dataPoint.startTime ?? 0) * sampleRate * 2
@@ -96,7 +98,12 @@ export function SegmentAnalyzer({
     const length = endPosition - startPosition
     const durationMs = (length / (sampleRate * 2)) * 1000
 
-    const handleProcessSegment = async () => {
+    const handleProcessSegment = useCallback(async () => {
+        if(isWeb) {
+            show({type: 'warning', message: 'Segment analysis is not supported on web (yet)'})
+            return;
+        }
+        
         logger.info('Processing segment with config:', {
             startPosition: dataPoint.startPosition,
             endPosition: dataPoint.endPosition,
@@ -166,7 +173,7 @@ export function SegmentAnalyzer({
         } finally {
             setIsProcessing(false)
         }
-    }
+    }, [dataPoint, sampleRate, analysisConfig, startPosition, endPosition, length, durationMs, show, onError, fileUri])
 
     return (
         <View style={styles.container}>
