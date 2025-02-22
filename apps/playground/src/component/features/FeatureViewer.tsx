@@ -1,7 +1,6 @@
 import { AudioFeatures } from '@siteed/expo-audio-stream'
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
-import { Text } from 'react-native-paper'
 
 import { SpectralFeatures } from './SpectralFeatures'
 import { TimeFeatures } from './TimeFeatures'
@@ -10,11 +9,6 @@ import { TonalFeatures } from './TonalFeatures'
 const getStyles = () => StyleSheet.create({
     container: {
         gap: 16,
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginBottom: 8,
     },
 })
 
@@ -28,9 +22,7 @@ export function FeatureViewer({ features }: FeatureViewerProps) {
     if (!features) return null
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.sectionTitle}>Audio Features Analysis</Text>
-            
+        <View style={styles.container}>          
             <TimeFeatures 
                 energy={features.energy}
                 rms={features.rms}
