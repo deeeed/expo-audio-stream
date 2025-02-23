@@ -18,7 +18,7 @@ import {
     Chunk,
     CompressionInfo,
     convertPCMToFloat32,
-    extractPreview,
+    extractAudioAnalysis,
     getWavFileInfo,
     SampleRate,
     TranscriberData
@@ -130,7 +130,7 @@ export const PlayPage = () => {
     const [fileName, setFileName] = useState<string | null>(null)
     const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysis>()
     const [isPlaying, setIsPlaying] = useState<boolean>(false)
-    const [currentTime, setCurrentTime] = useState<number>(0)
+    const [currentTimeMs, setCurrentTimeMs] = useState<number>(0)
     const [processing, setProcessing] = useState<boolean>(false)
     const [audioBuffer, setAudioBuffer] = useState<Float32Array | string>()
     const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
@@ -140,7 +140,7 @@ export const PlayPage = () => {
     const { show } = useToast()
     const [showVisualizer, setShowVisualizer] = useState<boolean>(true)
     const [isSaving, setIsSaving] = useState<boolean>(false)
-    const [previewData, setPreviewData] = useState<AudioPreview | null>(null)
+    const [previewData, setPreviewData] = useState<AudioAnalysis | null>(null)
     const [startTimeMs, setStartTimeMs] = useState<number>(0)
     const [endTimeMs, setEndTimeMs] = useState<number>(0)
     const [customFileName, setCustomFileName] = useState<string>('')
@@ -165,21 +165,33 @@ export const PlayPage = () => {
                 message: 'Generating preview...'
             })
 
-            // Generate preview only once if not trimming
-            const preview = await extractPreview({
+            const effectiveStartTimeMs = enableTrim && startTimeMs > 0 ? startTimeMs : undefined
+            const effectiveEndTimeMs = enableTrim && endTimeMs > startTimeMs ? endTimeMs : undefined
+
+            logger.debug(`generatePreview`, {
+                fileUri,
+                startTimeMs,
+                endTimeMs,
+                enableTrim,
+                effectiveStartTimeMs,
+                effectiveEndTimeMs,
+            })
+            // Use extractAudioAnalysis directly instead of preview wrapper
+            const audioAnalysis = await extractAudioAnalysis({
                 fileUri,
                 logger: baseLogger.extend('generatePreview'),
-                numberOfPoints: PREVIEW_POINTS,
-                startTimeMs: enableTrim && startTimeMs > 0 ? startTimeMs : undefined,
-                endTimeMs: enableTrim && endTimeMs > startTimeMs ? endTimeMs : undefined,
+                segmentDurationMs: 100,
+                startTimeMs: effectiveStartTimeMs,
+                endTimeMs: effectiveEndTimeMs,
                 decodingOptions: {
                     targetSampleRate: 16000,
                     targetChannels: 1,
                     targetBitDepth: 32,
-                    normalizeAudio: true
+                    normalizeAudio: false
                 }
             })
 
+            logger.debug(`generatePreview`, audioAnalysis.durationMs)
             // Reset trim boundaries if not in trim mode
             if (!enableTrim) {
                 setStartTimeMs(0)
@@ -187,30 +199,19 @@ export const PlayPage = () => {
             }
             
             // Reset cursor position to start of trim range or 0
-            setCurrentTime(enableTrim ? startTimeMs : 0)
+            setCurrentTimeMs(enableTrim ? startTimeMs : 0)
 
             // Ensure trim boundaries are within valid range
             if (enableTrim) {
-                const durationSec = preview.durationMs / 1000
+                const durationSec = audioAnalysis.durationMs / 1000
                 if (startTimeMs > durationSec || endTimeMs > durationSec) {
                     setStartTimeMs(0)
                     setEndTimeMs(durationSec)
                 }
             }
 
-            let duration = preview.durationMs
-            // On web, get more accurate duration from AudioContext
-            if (isWeb) {
-                try {
-                    const audioCTX = new AudioContext({ sampleRate: 16000 })
-                    const response = await fetch(fileUri)
-                    const arrayBuffer = await response.arrayBuffer()
-                    const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
-                    duration = decoded.duration * 1000
-                } catch (error) {
-                    logger.warn('Failed to get precise duration from AudioContext:', error)
-                }
-            }
+            // Use the duration directly from audioAnalysis
+            const duration = audioAnalysis.durationMs
 
             if (!originalDurationMs) {
                 setOriginalDurationMs(duration)
@@ -231,20 +232,7 @@ export const PlayPage = () => {
                 setPreviewStats(null)
             }
 
-            // Convert preview to AudioAnalysis format for visualizer
-            const audioAnalysis: AudioAnalysis = {
-                bitDepth: 16,
-                samples: Math.floor(duration / 1000 * 16000),
-                numberOfChannels: 1,
-                sampleRate: 16000,
-                pointsPerSecond: PREVIEW_POINTS / (duration / 1000),
-                durationMs: duration,
-                dataPoints: preview.dataPoints,
-                amplitudeRange: preview.amplitudeRange || { min: -1, max: 1 },
-                rmsRange: preview.amplitudeRange || { min: -1, max: 1 },
-            }
-
-            setPreviewData(preview)
+            setPreviewData(audioAnalysis)
             setAudioAnalysis(audioAnalysis)
             
             show({
@@ -272,7 +260,7 @@ export const PlayPage = () => {
             setEndTimeMs(0)
             setEnableTrim(false)
             setPreviewStats(null)
-            setCurrentTime(0)
+            setCurrentTimeMs(0)
             setIsPlaying(false)
             setAudioAnalysis(undefined)
             setPreviewData(null)
@@ -342,7 +330,7 @@ export const PlayPage = () => {
             timings['Unload Sound'] = performance.now() - startUnloadSound
 
             const startResetPlayback = performance.now()
-            setCurrentTime(0)
+            setCurrentTimeMs(0)
             setIsPlaying(false)
             setTranscript(undefined)
             timings['Reset Playback'] = performance.now() - startResetPlayback
@@ -381,16 +369,10 @@ export const PlayPage = () => {
 
             const startAudioAnalysis = performance.now()
             logger.log('Extracting audio preview...', audioUri)
-            const preview = await extractPreview({
+            const preview = await extractAudioAnalysis({
                 fileUri: audioUri,
-                logger: baseLogger.extend('extractPreview'),
-                numberOfPoints: PREVIEW_POINTS,
-                decodingOptions: {
-                    targetSampleRate: 16000,
-                    targetChannels: 1,
-                    targetBitDepth: 32,
-                    normalizeAudio: true
-                }
+                logger: baseLogger.extend('extractAudioAnalysis'),
+                segmentDurationMs: (PREVIEW_POINTS / 10), // Convert points to duration (10 sec default)
             })
 
             // Set preview stats immediately with the correct duration from decoded audio
@@ -405,7 +387,7 @@ export const PlayPage = () => {
                 samples: decoded.length,
                 numberOfChannels: 1,
                 sampleRate: 16000,
-                pointsPerSecond: PREVIEW_POINTS / (decoded.duration), // Use decoded.duration
+                segmentDurationMs: PREVIEW_POINTS / (decoded.duration), // Use decoded.duration
                 durationMs: decoded.duration * 1000, // Use decoded.duration
                 dataPoints: preview.dataPoints,
                 amplitudeRange: preview.amplitudeRange || { min: -1, max: 1 },
@@ -434,12 +416,13 @@ export const PlayPage = () => {
         }
     }
 
-    const handleSeekEnd = (newTime: number) => {
-        logger.debug('handleSeekEnd', newTime)
+    const handleSeekEnd = (timeSeconds: number) => {
+        logger.debug('handleSeekEnd', timeSeconds * 1000)
+        const timeMs = timeSeconds * 1000
         if (sound && sound._loaded) {
-            sound.setPositionAsync(newTime * 1000)
+            sound.setPositionAsync(timeMs)
         } else {
-            setCurrentTime(newTime)
+            setCurrentTimeMs(timeMs)
         }
     }
 
@@ -451,7 +434,6 @@ export const PlayPage = () => {
                     await sound.pauseAsync()
                     setIsPlaying(false)
                 } else {
-                    // If trim is enabled, ensure we start from the trim start position
                     if (enableTrim && startTimeMs > 0) {
                         await sound.setPositionAsync(startTimeMs)
                     }
@@ -465,7 +447,6 @@ export const PlayPage = () => {
             })
             setSound(newSound)
             
-            // If trim is enabled, set initial position to start time
             if (enableTrim && startTimeMs > 0) {
                 await newSound.setPositionAsync(startTimeMs)
             }
@@ -473,17 +454,16 @@ export const PlayPage = () => {
             await newSound.playAsync()
             setIsPlaying(true)
 
-            // Track playback position and handle trim boundaries
             newSound.setOnPlaybackStatusUpdate((status) => {
                 if (status.isLoaded) {
-                    setCurrentTime(status.positionMillis)
+                    setCurrentTimeMs(status.positionMillis)
                     setIsPlaying(status.isPlaying)
 
                     if (enableTrim && endTimeMs > 0 && status.positionMillis >= endTimeMs) {
                         newSound.pauseAsync()
                         newSound.setPositionAsync(startTimeMs)
                         setIsPlaying(false)
-                        setCurrentTime(startTimeMs)
+                        setCurrentTimeMs(startTimeMs)
                     }
                 }
             })
@@ -604,7 +584,7 @@ export const PlayPage = () => {
 
     const handleSelectChunk = ({ chunk }: { chunk: Chunk }) => {
         if (chunk.timestamp && chunk.timestamp.length > 0) {
-            setCurrentTime(chunk.timestamp[0])
+            setCurrentTimeMs(chunk.timestamp[0])
         }
     }
 
@@ -730,8 +710,8 @@ export const PlayPage = () => {
             {audioUri && (
                 <View style={[{gap: 10}, processing || isSaving ? styles.disabledContainer : null]}>
                     <RecordingStats
-                        duration={previewStats?.durationMs ?? audioAnalysis?.durationMs ?? 0}
-                        size={previewStats?.size ?? fileSize}
+                        duration={audioAnalysis?.durationMs ?? 0}
+                        size={fileSize}
                         sampleRate={audioAnalysis?.sampleRate ?? 16000}
                         bitDepth={audioAnalysis?.bitDepth ?? 16}
                         channels={audioAnalysis?.numberOfChannels ?? 1}
@@ -800,7 +780,7 @@ export const PlayPage = () => {
                                 canvasHeight={200}
                                 showRuler
                                 enableInertia
-                                currentTime={currentTime}
+                                currentTime={currentTimeMs / 1000}
                                 playing={isPlaying}
                                 onSeekEnd={handleSeekEnd}
                                 NavigationControls={() => null}
@@ -815,7 +795,7 @@ export const PlayPage = () => {
                     {enableTranscription && audioBuffer && isWeb && (
                         <Transcriber
                             fullAudio={audioBuffer}
-                            currentTimeMs={currentTime * 1000}
+                            currentTimeMs={currentTimeMs}
                             sampleRate={16000}
                             onSelectChunk={handleSelectChunk}
                             onTranscriptionComplete={setTranscript}

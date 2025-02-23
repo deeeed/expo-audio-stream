@@ -27,11 +27,11 @@ public struct DataPoint {
     public var silent: Bool
     public var features: Features?
     public var speech: SpeechFeatures?
-    public var startTime: Float?
-    public var endTime: Float?
-    public var startPosition: Int?
-    public var endPosition: Int?
-    public var samples: Int?
+    public let startTime: Float // in seconds
+    public let endTime: Float   // in seconds
+    public let startPosition: Int // byte position in audio file
+    public let endPosition: Int   // byte position in audio file
+    public let samples: Int       // number of samples in segment
 }
 
 extension DataPoint {
