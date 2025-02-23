@@ -55,6 +55,7 @@ export function SegmentDurationSelector({
             { value: '10', label: '0.01s' },
             { value: '100', label: '0.1s' },
             { value: '1000', label: '1s' },
+            { value: '3000', label: '3s' },
             { value: '10000', label: '10s' },
             { value: '30000', label: '30s' },
             { value: '60000', label: '1min' },

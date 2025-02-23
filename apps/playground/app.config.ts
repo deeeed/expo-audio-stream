@@ -162,6 +162,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 android: {},
             },
         ],
+        'onnxruntime-react-native',
         ['./plugins/withCustomGradleConfig', {}],
         'expo-localization',
         // [

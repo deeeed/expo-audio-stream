@@ -59,6 +59,7 @@
         "lodash": "^4.17.21",
         "lodash.throttle": "^4.1.1",
         "metro-react-native-babel-transformer": "^0.77.0",
+        "onnxruntime-react-native": "^1.20.1",
         "react": "18.3.1",
         "react-dom": "18.3.1",
         "react-native": "0.76.7",
