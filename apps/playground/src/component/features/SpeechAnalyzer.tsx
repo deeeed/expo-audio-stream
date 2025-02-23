@@ -1,21 +1,32 @@
 import { FontAwesome } from '@expo/vector-icons'
 import { AppTheme, useTheme } from '@siteed/design-system'
 import { AudioAnalysis } from '@siteed/expo-audio-stream'
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
+import { useSileroVAD } from '../../hooks/useSileroVAD'
 
 interface SpeechAnalyzerProps {
     analysis: AudioAnalysis
+    pcmData?: Uint8Array
+    sampleRate?: number
 }
 
-export function SpeechAnalyzer({ analysis }: SpeechAnalyzerProps) {
+export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzerProps) {
     const theme = useTheme()
     const styles = getStyles(theme)
     const [isDetectingLanguage, setIsDetectingLanguage] = useState(false)
     const [isTranscribing, setIsTranscribing] = useState(false)
     const [detectedLanguage, setDetectedLanguage] = useState<string>()
     const [transcription, setTranscription] = useState<string>()
+    const [vadResult, setVadResult] = useState<{ probability: number; isSpeech: boolean }>()
+
+    const { isModelLoading, isProcessing, processAudioSegment } = useSileroVAD({
+        onError: (error) => {
+            console.error('VAD Error:', error);
+            // You might want to add error handling UI here
+        }
+    });
 
     const handleDetectLanguage = async () => {
         setIsDetectingLanguage(true)
@@ -37,6 +48,26 @@ export function SpeechAnalyzer({ analysis }: SpeechAnalyzerProps) {
             setIsTranscribing(false)
         }
     }
+
+    const handleVAD = useCallback(async () => {
+        if (!pcmData || !sampleRate) {
+            console.error('No PCM data or sample rate available');
+            return;
+        }
+
+        const float32Data = new Float32Array(pcmData.length / 2);
+        const dataView = new DataView(pcmData.buffer);
+        
+        for (let i = 0; i < pcmData.length; i += 2) {
+            const int16Value = dataView.getInt16(i, true);
+            float32Data[i / 2] = int16Value / 32768.0;
+        }
+
+        const result = await processAudioSegment(float32Data, sampleRate);
+        if (result) {
+            setVadResult(result);
+        }
+    }, [pcmData, sampleRate, processAudioSegment]);
 
     const isSpeechActive = analysis.dataPoints[0]?.speech?.isActive
 
@@ -70,6 +101,16 @@ export function SpeechAnalyzer({ analysis }: SpeechAnalyzerProps) {
             <View style={styles.actions}>
                 <Button
                     mode="outlined"
+                    onPress={handleVAD}
+                    loading={isModelLoading || isProcessing}
+                    disabled={isModelLoading || isProcessing || !analysis.dataPoints[0]?.samples}
+                    style={styles.actionButton}
+                >
+                    Run VAD
+                </Button>
+
+                <Button
+                    mode="outlined"
                     onPress={handleDetectLanguage}
                     loading={isDetectingLanguage}
                     disabled={isDetectingLanguage || isTranscribing || !isSpeechActive}
@@ -88,6 +129,15 @@ export function SpeechAnalyzer({ analysis }: SpeechAnalyzerProps) {
                     Transcribe
                 </Button>
             </View>
+
+            {vadResult && (
+                <View style={styles.resultRow}>
+                    <Text style={styles.label}>VAD Result:</Text>
+                    <Text style={styles.value}>
+                        {vadResult.probability.toFixed(3)} ({vadResult.isSpeech ? 'Speech' : 'No Speech'})
+                    </Text>
+                </View>
+            )}
 
             {(detectedLanguage || transcription) && (
                 <View style={styles.results}>

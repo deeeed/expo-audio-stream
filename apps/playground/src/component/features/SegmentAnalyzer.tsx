@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { AppTheme, useTheme, useToast } from '@siteed/design-system'
+import { AppTheme, useTheme } from '@siteed/design-system'
 import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioFromAnyFormat } from '@siteed/expo-audio-stream'
 import React, { useCallback, useState } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
@@ -126,7 +126,6 @@ export function SegmentAnalyzer({
     const [isProcessing, setIsProcessing] = useState(false)
     const [segmentAnalysis, setSegmentAnalysis] = useState<AudioAnalysis>()
     const [processingTime, setProcessingTime] = useState<number>()
-    const { show } = useToast()
 
     const { byteArray, isLoading } = useAudioSegmentData({
         fileUri,
@@ -216,7 +215,7 @@ export function SegmentAnalyzer({
         } finally {
             setIsProcessing(false)
         }
-    }, [dataPoint, sampleRate, analysisConfig, startPosition, endPosition, length, durationMs, show, onError, fileUri, bitDepth])
+    }, [dataPoint, sampleRate, analysisConfig, startPosition, endPosition, length, durationMs, onError, fileUri, bitDepth])
 
     return (
         <View style={styles.container}>
