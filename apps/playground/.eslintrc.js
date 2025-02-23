@@ -73,11 +73,20 @@ module.exports = {
             allow: ['@assets/*']
         }],
         '@typescript-eslint/no-var-requires': 'off',
+        // TODO: Revisit these rules when onnxruntime-react-native provides better TypeScript support
+        // Currently ignoring ESLint checks for onnxruntime-react-native due to missing type definitions
         'import/no-unresolved': [
             'error',
             {
-                ignore: ['^@siteed/expo-audio-ui']
+                ignore: [
+                    '^@siteed/expo-audio-ui',
+                    '^onnxruntime-react-native'
+                ]
             }
         ],
+        'import/namespace': ['error', {
+            allowComputed: true,
+            ignore: ['onnxruntime-react-native']
+        }],
     },
 }
