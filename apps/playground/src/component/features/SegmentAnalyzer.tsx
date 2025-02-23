@@ -177,8 +177,15 @@ export function SegmentAnalyzer({
 
             const segmentResult = await extractAudioAnalysis({
                 fileUri,
-                startTimeMs: dataPoint.startTime,
-                endTimeMs: dataPoint.endTime,
+                ...(startPosition !== undefined && length !== undefined
+                    ? {
+                          position: startPosition,
+                          length: length,
+                      }
+                    : {
+                          startTimeMs: dataPoint.startTime ? dataPoint.startTime * 1000 : 0,
+                          endTimeMs: dataPoint.endTime ? dataPoint.endTime * 1000 : 0,
+                      }),
                 segmentDurationMs: analysisConfig.segmentDurationMs,
                 features: analysisConfig.features,
                 decodingOptions: {
@@ -190,18 +197,6 @@ export function SegmentAnalyzer({
             })
 
             const timeElapsed = performance.now() - startTime
-            
-            logger.info('Segment Analysis Complete:', {
-                processingTimeMs: timeElapsed.toFixed(2),
-                segmentDuration: segmentResult.durationMs,
-                dataPoints: segmentResult.dataPoints.length,
-                amplitudeRange: segmentResult.amplitudeRange,
-                firstDataPoint: segmentResult.dataPoints[0],
-                lastDataPoint: segmentResult.dataPoints[segmentResult.dataPoints.length - 1],
-                features: segmentResult.dataPoints[0]?.features 
-                    ? Object.keys(segmentResult.dataPoints[0].features)
-                    : 'No features computed'
-            })
 
             setProcessingTime(timeElapsed)
             setSegmentAnalysis(segmentResult)
