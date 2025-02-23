@@ -95,6 +95,8 @@ config.resolver = {
         'ogg',
         'flac',
         'aac',
+        'pte',
+        'onnx',
         'webm',
         'm4b',
     ],
