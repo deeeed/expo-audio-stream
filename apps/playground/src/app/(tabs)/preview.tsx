@@ -1,6 +1,6 @@
 import { useFont } from '@shopify/react-native-skia'
 import { Notice, NumberAdjuster, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
-import { AudioPreview, extractPreview } from '@siteed/expo-audio-stream'
+import { AudioAnalysis, extractPreview } from '@siteed/expo-audio-stream'
 import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
 import * as DocumentPicker from 'expo-document-picker'
 import React, { useCallback, useState } from 'react'
@@ -35,7 +35,7 @@ const QUICK_TIME_RANGES: QuickTimeRange[] = [
 export default function PreviewScreen() {
     const theme = useTheme()
     const colors = theme.colors
-    const [previewData, setPreviewData] = useState<AudioPreview | null>(null)
+    const [previewData, setPreviewData] = useState<AudioAnalysis | null>(null)
     const [currentFile, setCurrentFile] = useState<AudioFile | null>(null)
     const [error, setError] = useState<string>()
     const [isProcessing, setIsProcessing] = useState(false)
@@ -62,11 +62,14 @@ export default function PreviewScreen() {
                 message: 'Generating preview...'
             })
 
+            const effectiveStartTime = startTime || 0
+            const effectiveEndTime = endTime || 30000
+
             const preview = await extractPreview({
                 fileUri,
                 numberOfPoints: parseInt(numberOfPoints, 10),
-                startTimeMs: startTime || undefined,
-                endTimeMs: endTime || undefined,
+                startTimeMs: effectiveStartTime,
+                endTimeMs: effectiveEndTime,
             })
 
             logger.info('Preview generated successfully', {
@@ -289,7 +292,7 @@ export default function PreviewScreen() {
                             <Text variant="titleMedium">Preview Details</Text>
                             <Text>Duration: {(previewData.durationMs / 1000).toFixed(1)}s</Text>
                             <Text>Points: {previewData.dataPoints.length}</Text>
-                            <Text>Resolution: {(previewData.dataPoints.length / (previewData.durationMs / 1000)).toFixed(1)} points/sec</Text>
+                            <Text>Resolution: {(previewData.segmentDurationMs).toFixed(1)}ms per point</Text>
                             {previewData.amplitudeRange && (
                                 <Text>
                                     Amplitude Range: {previewData.amplitudeRange.min.toFixed(3)} to{' '}
@@ -299,15 +302,7 @@ export default function PreviewScreen() {
                         </View>
 
                         <AudioVisualizer 
-                            audioData={{
-                                ...previewData,
-                                bitDepth: 16,
-                                samples: 0,
-                                numberOfChannels: 1,
-                                sampleRate: 16000,
-                                rmsRange: previewData.amplitudeRange,
-                                segmentDurationMs: 100,
-                            }}
+                            audioData={previewData}
                             canvasHeight={200}
                             showRuler
                             enableInertia

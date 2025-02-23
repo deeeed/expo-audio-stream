@@ -18,7 +18,7 @@ import {
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 
@@ -167,6 +167,7 @@ export interface AudioRecordingViewProps {
     visualConfig?: SelectedAudioVisualizerProps
     showTranscript?: boolean
     extractAnalysis?: boolean
+    resetTrigger?: unknown
     onActionPress?: () => void
     onDelete?: () => Promise<void>
 }
@@ -177,6 +178,7 @@ export const AudioRecordingView = ({
     extractAnalysis,
     visualConfig,
     showTranscript,
+    resetTrigger,
     onActionPress,
     onDelete,
 }: AudioRecordingViewProps) => {
@@ -549,7 +551,10 @@ export const AudioRecordingView = ({
                     <View style={styles.segmentDurationContainer}>
                         <SegmentDurationSelector
                             value={segmentDuration}
-                            onChange={setSegmentDuration}
+                            onChange={(newDuration) => {
+                                setSegmentDuration(newDuration)
+                                setSelectedDataPoint(undefined)
+                            }}
                             maxDurationMs={recording.durationMs}
                         />
                     </View>
@@ -566,6 +571,7 @@ export const AudioRecordingView = ({
                         font={font ?? undefined}
                         onSelection={handleSelection}
                         currentTime={position / 1000}
+                        resetTrigger={audioAnalysis}
                         audioData={audioAnalysis}
                         onSeekEnd={handleOnSeekEnd}
                         disableTapSelection={false}

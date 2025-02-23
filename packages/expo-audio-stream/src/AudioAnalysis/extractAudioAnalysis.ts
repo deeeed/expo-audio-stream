@@ -1,20 +1,24 @@
 // packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts
+/**
+ * This module provides functions for extracting and analyzing audio data.
+ * - `extractAudioAnalysis`: For detailed analysis with customizable ranges and decoding options.
+ * - `extractWavAudioAnalysis`: For analyzing WAV files without decoding, preserving original PCM values.
+ * - `extractPreview`: For generating quick previews of audio waveforms, optimized for UI rendering.
+ */
 import { ConsoleLike } from '../ExpoAudioStream.types'
 import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
 import { isWeb } from '../constants'
-import { processAudioBuffer } from '../utils/audioProcessing'
-import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
-import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
-import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
 import {
     AudioAnalysis,
-    AudioFeatures,
     AudioFeaturesOptions,
-    AudioPreview,
     DataPoint,
     DecodingConfig,
     PreviewOptions,
 } from './AudioAnalysis.types'
+import { processAudioBuffer } from '../utils/audioProcessing'
+import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
+import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
+import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
 
 export interface ExtractWavAudioAnalysisProps {
     fileUri?: string // should provide either fileUri or arrayBuffer
@@ -33,13 +37,51 @@ export interface ExtractWavAudioAnalysisProps {
     decodingOptions?: DecodingConfig
 }
 
-export interface ExtractAudioAnalysisProps
-    extends ExtractWavAudioAnalysisProps {
-    mimeType?: string
-    startTimeMs?: number
-    endTimeMs?: number
+// Define base options interface with common properties
+interface BaseExtractOptions {
+    fileUri?: string
+    arrayBuffer?: ArrayBuffer
+    /**
+     * Duration of each analysis segment in milliseconds. Defaults to 100ms if not specified.
+     */
+    segmentDurationMs?: number
+    features?: AudioFeaturesOptions
+    decodingOptions?: DecodingConfig
+    logger?: ConsoleLike
 }
 
+// Time-based range options
+interface TimeRangeOptions extends BaseExtractOptions {
+    startTimeMs: number
+    endTimeMs: number
+    position?: never
+    length?: never
+}
+
+// Byte-based range options
+interface ByteRangeOptions extends BaseExtractOptions {
+    position: number
+    length: number
+    startTimeMs?: never
+    endTimeMs?: never
+}
+
+/**
+ * Options for extracting audio analysis.
+ * - For time-based analysis, provide `startTimeMs` and `endTimeMs`.
+ * - For byte-based analysis, provide `position` and `length`.
+ * - Do not mix time and byte ranges.
+ */
+export type ExtractAudioAnalysisProps = TimeRangeOptions | ByteRangeOptions
+
+/**
+ * Extracts detailed audio analysis from the specified audio file or buffer.
+ * Supports either time-based or byte-based ranges for flexibility in analysis.
+ *
+ * @param props - The options for extraction, including file URI, ranges, and decoding settings.
+ * @returns A promise that resolves to the audio analysis data.
+ * @throws {Error} If both time and byte ranges are provided or if required parameters are missing.
+ */
 export async function extractAudioAnalysis(
     props: ExtractAudioAnalysisProps
 ): Promise<AudioAnalysis> {
@@ -167,7 +209,14 @@ export async function extractAudioAnalysis(
     }
 }
 
-export const extractWavAudioAnalysis = async ({
+/**
+ * Analyzes WAV files without decoding, preserving original PCM values.
+ * Use this function when you need to ensure the analysis matches other software by avoiding any transformations.
+ *
+ * @param props - The options for WAV analysis, including file URI and range.
+ * @returns A promise that resolves to the audio analysis data.
+ */
+export const extractRawWavAnalysis = async ({
     fileUri,
     segmentDurationMs = 100, // Default to 100ms
     arrayBuffer,
@@ -176,7 +225,6 @@ export const extractWavAudioAnalysis = async ({
     sampleRate,
     numberOfChannels,
     features,
-    featuresExtratorUrl,
     logger,
     position = 0,
     length,
@@ -235,18 +283,11 @@ export const extractWavAudioAnalysis = async ({
         const constrainedChannelData = channelData.slice(startIndex, endIndex)
 
         return new Promise((resolve, reject) => {
-            let worker: Worker
-            if (featuresExtratorUrl) {
-                worker = new Worker(
-                    new URL(featuresExtratorUrl, window.location.href)
-                )
-            } else {
-                const blob = new Blob([InlineFeaturesExtractor], {
-                    type: 'application/javascript',
-                })
-                const url = URL.createObjectURL(blob)
-                worker = new Worker(url)
-            }
+            const blob = new Blob([InlineFeaturesExtractor], {
+                type: 'application/javascript',
+            })
+            const url = URL.createObjectURL(blob)
+            const worker = new Worker(url)
 
             worker.onmessage = (event) => {
                 resolve(event.data.result)
@@ -286,82 +327,34 @@ export const extractWavAudioAnalysis = async ({
     }
 }
 
+/**
+ * Generates a simplified preview of the audio waveform for quick visualization.
+ * Ideal for UI rendering with a specified number of points.
+ *
+ * @param options - The options for the preview, including file URI and time range.
+ * @returns A promise that resolves to the audio preview data.
+ */
 export async function extractPreview({
     fileUri,
-    numberOfPoints,
-    startTimeMs,
-    logger,
-    endTimeMs,
+    numberOfPoints = 100,
+    startTimeMs = 0,
+    endTimeMs = 30000, // First 30 seconds
     decodingOptions,
-}: PreviewOptions): Promise<AudioPreview> {
-    if (isWeb) {
-        // Get the actual duration first to calculate points per second correctly
-        const audioCTX = new AudioContext({ sampleRate: 16000 })
-        const response = await fetch(fileUri)
-        const arrayBuffer = await response.arrayBuffer()
-        const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
+    logger,
+}: PreviewOptions): Promise<AudioAnalysis> {
+    const durationMs = endTimeMs - startTimeMs
+    const segmentDurationMs = Math.floor(durationMs / numberOfPoints)
 
-        // Use actual duration instead of default 1000ms
-        const effectiveDurationMs = endTimeMs
-            ? endTimeMs - (startTimeMs || 0)
-            : decoded.duration * 1000 // Use full duration if no trim
-
-        const pointsPerSecond =
-            (numberOfPoints ?? 100) / (effectiveDurationMs / 1000)
-
-        logger?.log('Preview extraction:', {
-            effectiveDurationMs,
-            numberOfPoints,
-            calculatedPointsPerSecond: pointsPerSecond,
-        })
-
-        const analysis = await extractAudioAnalysis({
-            fileUri,
-            decodingOptions,
-            startTimeMs,
-            endTimeMs,
-            logger,
-            segmentDurationMs: pointsPerSecond,
-        })
-
-        logger?.log('Preview result:', {
-            requestedPoints: numberOfPoints,
-            actualPoints: analysis.dataPoints.length,
-        })
-
-        // Adjust timestamps relative to the trimmed range
-        const timeOffset = startTimeMs || 0
-        return {
-            pointsPerSecond: analysis.segmentDurationMs,
-            durationMs: effectiveDurationMs,
-            amplitudeRange: analysis.amplitudeRange,
-            dataPoints: analysis.dataPoints.map((point) => ({
-                id: point.id,
-                amplitude: point.amplitude,
-                rms: point.rms,
-                startTime: point.startTime
-                    ? point.startTime - timeOffset
-                    : undefined,
-                endTime: point.endTime ? point.endTime - timeOffset : undefined,
-                dB: point.dB,
-                silent: point.silent,
-            })),
-        }
-    }
-
-    logger?.log('extractPreview', {
+    // Call extractAudioAnalysis with calculated parameters
+    const analysis = await extractAudioAnalysis({
         fileUri,
-        numberOfPoints,
         startTimeMs,
         endTimeMs,
+        logger,
+        segmentDurationMs,
         decodingOptions,
     })
 
-    return await ExpoAudioStreamModule.extractPreview({
-        fileUri,
-        numberOfPoints,
-        startTimeMs,
-        endTimeMs,
-        decodingOptions,
-    })
+    // Transform the result into AudioPreview format
+    return analysis
 }

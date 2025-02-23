@@ -28,18 +28,44 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
         }
     })
 
+    // Add debug logging
+    useEffect(() => {
+        console.log('Speech Analyzer Analysis:', {
+            durationMs: analysis.durationMs,
+            dataPoints: analysis.dataPoints.length,
+            firstDataPoint: analysis.dataPoints[0],
+            pcmDataLength: pcmData?.length,
+            sampleRate
+        })
+    }, [analysis, pcmData, sampleRate])
+
+    // Calculate segment duration in milliseconds
+    const segmentDurationMs = analysis.durationMs ?? 0
+    const hasEnoughData = segmentDurationMs >= 1000
+
+    // If we're not getting durationMs directly, we can calculate it from PCM data
+    useEffect(() => {
+        if (!segmentDurationMs && pcmData && sampleRate) {
+            // PCM data is 16-bit (2 bytes per sample)
+            const numSamples = pcmData.length / 2
+            const calculatedDurationMs = (numSamples / sampleRate) * 1000
+            console.log('Calculated duration:', calculatedDurationMs, 'ms')
+        }
+    }, [segmentDurationMs, pcmData, sampleRate])
+
     useEffect(() => {
         if (!pcmData || !sampleRate || !isModelLoading) {
             return
         }
 
-        // Only process if we actually have data
-        if (pcmData.length > 0) {
+        // Only process if we have enough data and actually have data
+        if (pcmData.length > 0 && hasEnoughData) {
             handleVAD()
         } else {
-            console.warn('Waiting for PCM data to be loaded...')
+            // Clear previous VAD result if we don't have enough data
+            setVadResult(undefined)
         }
-    }, [pcmData, sampleRate, isModelLoading])
+    }, [pcmData, sampleRate, isModelLoading, hasEnoughData])
 
     const handleDetectLanguage = async () => {
         setIsDetectingLanguage(true)
@@ -98,12 +124,28 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
         <View style={styles.speechSection}>
             <Text variant="titleMedium" style={styles.sectionTitle}>Speech Analysis</Text>
 
+            {!hasEnoughData && (
+                <Text 
+                    variant="bodyMedium" 
+                    style={[styles.warningText, { color: theme.colors.error }]}
+                >
+                    At least 1 second of audio is required for speech analysis. Current segment: {(segmentDurationMs / 1000).toFixed(2)}s
+                </Text>
+            )}
+
             <View style={styles.buttonGroup}>
                 <Button
                     mode="contained-tonal"
                     onPress={handleVAD}
                     loading={isModelLoading || isProcessing}
-                    disabled={isModelLoading || isProcessing || !pcmData || !sampleRate || pcmData.length === 0}
+                    disabled={
+                        isModelLoading || 
+                        isProcessing || 
+                        !pcmData || 
+                        !sampleRate || 
+                        pcmData.length === 0 ||
+                        !hasEnoughData
+                    }
                     style={styles.actionButton}
                     icon={() => (
                         <MaterialCommunityIcons
@@ -120,7 +162,12 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
                     mode="contained-tonal"
                     onPress={handleDetectLanguage}
                     loading={isDetectingLanguage}
-                    disabled={isDetectingLanguage || !pcmData || !sampleRate}
+                    disabled={
+                        isDetectingLanguage || 
+                        !pcmData || 
+                        !sampleRate ||
+                        !hasEnoughData
+                    }
                     style={styles.actionButton}
                     icon={() => (
                         <MaterialCommunityIcons
@@ -137,7 +184,12 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
                     mode="contained-tonal"
                     onPress={handleTranscribe}
                     loading={isTranscribing}
-                    disabled={isTranscribing || !pcmData || !sampleRate}
+                    disabled={
+                        isTranscribing || 
+                        !pcmData || 
+                        !sampleRate ||
+                        !hasEnoughData
+                    }
                     style={styles.actionButton}
                     icon={() => (
                         <MaterialCommunityIcons
@@ -151,30 +203,35 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
                 </Button>
             </View>
 
-            {vadResult && (
-                <View style={styles.resultContainer}>
-                    <Text variant="bodyMedium" style={styles.label}>Speech Detection:</Text>
-                    <Text variant="bodyMedium" style={[
-                        styles.value,
-                        { color: vadResult.isSpeech ? theme.colors.success : theme.colors.error }
-                    ]}>
-                        {vadResult.isSpeech ? 'Speech Detected' : 'No Speech'} ({(vadResult.probability * 100).toFixed(1)}%)
-                    </Text>
-                </View>
-            )}
+            {/* Only show results if we have enough data */}
+            {hasEnoughData && (
+                <>
+                    {vadResult && (
+                        <View style={styles.resultContainer}>
+                            <Text variant="bodyMedium" style={styles.label}>Speech Detection:</Text>
+                            <Text variant="bodyMedium" style={[
+                                styles.value,
+                                { color: vadResult.isSpeech ? theme.colors.success : theme.colors.error }
+                            ]}>
+                                {vadResult.isSpeech ? 'Speech Detected' : 'No Speech'} ({(vadResult.probability * 100).toFixed(1)}%)
+                            </Text>
+                        </View>
+                    )}
 
-            {detectedLanguage && (
-                <View style={styles.resultContainer}>
-                    <Text variant="bodyMedium" style={styles.label}>Detected Language:</Text>
-                    <Text variant="bodyMedium" style={styles.value}>{detectedLanguage}</Text>
-                </View>
-            )}
+                    {detectedLanguage && (
+                        <View style={styles.resultContainer}>
+                            <Text variant="bodyMedium" style={styles.label}>Detected Language:</Text>
+                            <Text variant="bodyMedium" style={styles.value}>{detectedLanguage}</Text>
+                        </View>
+                    )}
 
-            {transcription && (
-                <View style={styles.resultContainer}>
-                    <Text variant="bodyMedium" style={styles.label}>Transcription:</Text>
-                    <Text variant="bodyMedium" style={styles.value}>{transcription}</Text>
-                </View>
+                    {transcription && (
+                        <View style={styles.resultContainer}>
+                            <Text variant="bodyMedium" style={styles.label}>Transcription:</Text>
+                            <Text variant="bodyMedium" style={styles.value}>{transcription}</Text>
+                        </View>
+                    )}
+                </>
             )}
         </View>
     )
@@ -214,5 +271,9 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
     },
     value: {
         color: theme.colors.onSecondaryContainer,
+    },
+    warningText: {
+        marginBottom: theme.margin.m,
+        textAlign: 'center',
     },
 })
