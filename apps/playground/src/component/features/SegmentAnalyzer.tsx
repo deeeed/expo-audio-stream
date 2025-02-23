@@ -137,7 +137,9 @@ export function SegmentAnalyzer({
     const startPosition = dataPoint.startPosition ?? (dataPoint.startTime ?? 0) * sampleRate * 2
     const endPosition = dataPoint.endPosition ?? (dataPoint.endTime ?? 0) * sampleRate * 2
     const length = endPosition - startPosition
-    const durationMs = (length / (sampleRate * 2)) * 1000
+    const durationMs = dataPoint.startTime !== undefined && dataPoint.endTime !== undefined
+        ? (dataPoint.endTime - dataPoint.startTime) * 1000
+        : (length / (sampleRate * 2)) * 1000
 
     const handleProcessSegment = useCallback(async () => {
         logger.info('Processing segment with config:', {
@@ -175,8 +177,8 @@ export function SegmentAnalyzer({
 
             const segmentResult = await extractAudioAnalysis({
                 fileUri,
-                position: startPosition,
-                length,
+                startTimeMs: dataPoint.startTime,
+                endTimeMs: dataPoint.endTime,
                 segmentDurationMs: analysisConfig.segmentDurationMs,
                 features: analysisConfig.features,
                 decodingOptions: {

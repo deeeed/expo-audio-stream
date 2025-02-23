@@ -37,22 +37,50 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         /// - Returns: Promise to be resolved with audio analysis data.
         AsyncFunction("extractAudioAnalysis") { (options: [String: Any], promise: Promise) in
             guard let fileUri = options["fileUri"] as? String,
-                  let url = URL(string: fileUri),
-                  let pointsPerSecond = options["pointsPerSecond"] as? Int else {
-                promise.reject("INVALID_ARGUMENTS", "Invalid arguments provided")
+                  let url = URL(string: fileUri) else {
+                promise.reject("INVALID_ARGUMENTS", "Invalid file URI provided")
                 return
             }
             
+            // Get time or byte range options
+            let startTimeMs = options["startTimeMs"] as? Double
+            let endTimeMs = options["endTimeMs"] as? Double
             let position = options["position"] as? Int
-            let byteLength = options["length"] as? Int  // Note: 'length' in options maps to byteLength
+            let byteLength = options["length"] as? Int
+            
+            // Validate ranges - can have time range OR byte range OR no range
+            let hasTimeRange = startTimeMs != nil && endTimeMs != nil
+            let hasByteRange = position != nil && byteLength != nil
+            
+            // Only throw if both ranges are provided
+            guard !(hasTimeRange && hasByteRange) else {
+                promise.reject("INVALID_ARGUMENTS", "Cannot specify both time range and byte range")
+                return
+            }
+            
             let features = options["features"] as? [String: Bool] ?? [:]
             let featureOptions = self.extractFeatureOptions(from: features)
+            let segmentDurationMs = options["segmentDurationMs"] as? Int ?? 100 // Default value of 100ms
             
-            DispatchQueue.global().async {
+            DispatchQueue.global().async(execute: {
                 do {
                     let audioFile = try AVAudioFile(forReading: url)
                     let bitDepth = audioFile.fileFormat.settings[AVLinearPCMBitDepthKey] as? Int ?? 16
                     let numberOfChannels = Int(audioFile.fileFormat.channelCount)
+                    let sampleRate = audioFile.fileFormat.sampleRate
+                    
+                    // Convert time range to byte range if needed
+                    let effectivePosition: Int?
+                    let effectiveLength: Int?
+                    
+                    if hasTimeRange {
+                        let bytesPerSecond = Int(sampleRate) * numberOfChannels * (bitDepth / 8)
+                        effectivePosition = Int(startTimeMs! * Double(bytesPerSecond) / 1000.0)
+                        effectiveLength = Int((endTimeMs! - startTimeMs!) * Double(bytesPerSecond) / 1000.0)
+                    } else {
+                        effectivePosition = position
+                        effectiveLength = byteLength
+                    }
                     
                     let audioProcessor = try AudioProcessor(url: url, resolve: { result in
                         promise.resolve(result)
@@ -62,12 +90,14 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     
                     if let result = audioProcessor.processAudioData(
                         numberOfSamples: nil,
-                        pointsPerSecond: pointsPerSecond,
+                        offset: 0,
+                        length: nil,
+                        segmentDurationMs: segmentDurationMs,
                         featureOptions: featureOptions,
                         bitDepth: bitDepth,
                         numberOfChannels: numberOfChannels,
-                        position: position,
-                        byteLength: byteLength
+                        position: effectivePosition,
+                        byteLength: effectiveLength
                     ) {
                         promise.resolve(result.toDictionary())
                     } else {
@@ -76,52 +106,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 } catch {
                     promise.reject("PROCESSING_ERROR", "Failed to initialize audio processor: \(error.localizedDescription)")
                 }
-            }
-        }
-        
-        /// Extracts waveform data from an audio file.
-        ///
-        /// - Parameters:
-        ///   - options: A dictionary containing:
-        ///     - `fileUri`: The URI of the audio file.
-        ///     - `numberOfSamples`: The number of samples to extract for the waveform.
-        ///     - `offset`: The optional offset to start reading from. Defaults to 0 if not provided.
-        ///     - `length`: The optional length of the audio to read. Defaults to the entire file if not provided.
-        ///   - promise: A promise to resolve with the extracted waveform data or reject with an error.
-        /// - Returns: Promise to be resolved with waveform data.
-        AsyncFunction("extractWaveform") { (options: [String: Any], promise: Promise) in
-            guard let fileUri = options["fileUri"] as? String,
-                  let url = URL(string: fileUri),
-                  let numberOfSamples = options["numberOfSamples"] as? Int else {
-                promise.reject("INVALID_ARGUMENTS", "Invalid arguments provided")
-                return
-            }
-            
-            let offset = options["offset"] as? Int ?? 0
-            DispatchQueue.global().async {
-                do {
-                    let audioFile = try AVAudioFile(forReading: url)
-                    let bitDepth = audioFile.fileFormat.settings[AVLinearPCMBitDepthKey] as? Int ?? 16
-                    let numberOfChannels = Int(audioFile.fileFormat.channelCount)
-                    
-                    // If length is not provided, default to the entire file length
-                    let length = options["length"] as? UInt ?? UInt(audioFile.length - AVAudioFramePosition(offset))
-                    
-                    let audioProcessor = try AudioProcessor(url: url, resolve: { result in
-                        promise.resolve(result)
-                    }, reject: { code, message in
-                        promise.reject(code, message)
-                    })
-                    
-                    if let result = audioProcessor.processAudioData(numberOfSamples: numberOfSamples, offset: offset, length: length, pointsPerSecond: nil, featureOptions: [:], bitDepth: bitDepth, numberOfChannels: numberOfChannels) {
-                        promise.resolve(result.toDictionary())
-                    } else {
-                        promise.reject("EXTRACTION_ERROR", "Failed to extract waveform")
-                    }
-                } catch {
-                    promise.reject("EXTRACTION_ERROR", "Failed to initialize waveform extractor: \(error.localizedDescription)")
-                }
-            }
+            })
         }
         
         
@@ -324,54 +309,6 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             }
         }
 
-        /// Extracts audio features from an audio file.
-        /// - Parameters:
-        ///   - options: A dictionary containing:
-        ///     - `fileUri`: The URI of the audio file.
-        ///     - `startTimeMs`: Optional start time in milliseconds.
-        ///     - `endTimeMs`: Optional end time in milliseconds.
-        ///     - `numberOfPoints`: Number of points to extract for the preview.
-        ///     - `featureOptions`: Features to extract.
-        AsyncFunction("extractPreview") { (options: [String: Any], promise: Promise) in
-            guard let fileUri = options["fileUri"] as? String,
-                  let url = URL(string: fileUri) else {
-                promise.reject("INVALID_ARGUMENTS", "Invalid file URI provided")
-                return
-            }
-
-            let startTimeMs = options["startTimeMs"] as? Double
-            let endTimeMs = options["endTimeMs"] as? Double
-            let numberOfPoints = options["numberOfPoints"] as? Int ?? 100  // Default to 100 points
-            let featureOptions = options["featureOptions"] as? [String: Bool] ?? [:]
-
-            DispatchQueue.global().async {
-                do {
-                    let audioProcessor = try AudioProcessor(
-                        url: url,
-                        resolve: { result in
-                            promise.resolve(result)
-                        },
-                        reject: { code, message in
-                            promise.reject(code, message)
-                        }
-                    )
-
-                    if let preview = audioProcessor.extractPreview(
-                        numberOfPoints: numberOfPoints,
-                        startTimeMs: startTimeMs,
-                        endTimeMs: endTimeMs,
-                        featureOptions: featureOptions
-                    ) {
-                        promise.resolve(preview.toDictionary())
-                    } else {
-                        promise.reject("PROCESSING_ERROR", "Failed to extract preview")
-                    }
-                } catch {
-                    promise.reject("PROCESSING_ERROR", "Failed to initialize audio processor: \(error.localizedDescription)")
-                }
-            }
-        }
-
         /// Trims an audio file to specified start and end times.
         /// - Parameters:
         ///   - options: A dictionary containing:
@@ -420,39 +357,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 }
             }
         }
-
-        AsyncFunction("extractFullFileFeatures") { (options: [String: Any], promise: Promise) in
-            guard let fileUri = options["fileUri"] as? String else {
-                promise.reject("INVALID_ARGUMENT", "fileUri is required")
-                return
-            }
-            
-            do {
-                let audioData = try loadAudioFile(fileUri)
-                let features = Features(
-                    energy: computeEnergy(from: audioData.samples),
-                    mfcc: extractMFCC(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
-                    rms: computeRMS(from: audioData.samples),
-                    minAmplitude: audioData.samples.min() ?? 0,
-                    maxAmplitude: audioData.samples.max() ?? 0,
-                    zcr: computeZCR(from: audioData.samples),
-                    spectralCentroid: extractSpectralCentroid(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
-                    spectralFlatness: extractSpectralFlatness(from: audioData.samples),
-                    spectralRollOff: extractSpectralRollOff(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
-                    spectralBandwidth: extractSpectralBandwidth(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
-                    chromagram: extractChromagram(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
-                    tempo: extractTempo(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
-                    hnr: extractHNR(from: audioData.samples),
-                    melSpectrogram: computeMelSpectrogram(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
-                    spectralContrast: computeSpectralContrast(from: audioData.samples, sampleRate: Float(audioData.sampleRate)),
-                    tonnetz: computeTonnetz(from: audioData.samples, sampleRate: Float(audioData.sampleRate))
-                )
-                promise.resolve(features.toDictionary())
-            } catch {
-                promise.reject("PROCESSING_ERROR", error.localizedDescription)
-            }
-        }
-
+        
         /// Extracts raw PCM audio data from a file with time or byte range support
         /// - Parameters:
         ///   - options: A dictionary containing:

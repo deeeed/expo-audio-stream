@@ -67,7 +67,7 @@ public class AudioProcessor {
     ///   - numberOfSamples: The number of samples to extract (for waveform).
     ///   - offset: The offset to start reading from (in samples).
     ///   - length: The length of the audio to read (in samples).
-    ///   - pointsPerSecond: The number of data points to extract per second (for features).
+    ///   - segmentDurationMs: The duration of each segment in milliseconds.
     ///   - featureOptions: The features to extract.
     ///   - bitDepth: The bit depth of the audio data.
     ///   - numberOfChannels: The number of channels in the audio data.
@@ -78,7 +78,7 @@ public class AudioProcessor {
         numberOfSamples: Int?, 
         offset: Int? = 0, 
         length: UInt? = nil, 
-        pointsPerSecond: Int?,
+        segmentDurationMs: Int = 100, // Default 100ms
         featureOptions: [String: Bool],
         bitDepth: Int,
         numberOfChannels: Int,
@@ -150,15 +150,13 @@ public class AudioProcessor {
         var startFrame: AVAudioFramePosition = effectiveOffset
         let endFrame: AVAudioFramePosition = effectiveOffset + effectiveLength
         
+        // Calculate frames per segment based on segment duration
+        let framesPerSegment = AVAudioFrameCount(Float(audioFile.fileFormat.sampleRate) * Float(segmentDurationMs) / 1000.0)
+        
         if let numberOfSamples = numberOfSamples {
             framesPerBuffer = AVAudioFrameCount(max(1, effectiveLength / Int64(numberOfSamples)))
-            actualPointsPerSecond = Int(Double(effectiveLength) / audioFile.fileFormat.sampleRate)
-        } else if let pointsPerSecond = pointsPerSecond {
-            actualPointsPerSecond = pointsPerSecond
-            framesPerBuffer = AVAudioFrameCount(max(1, effectiveLength / Int64(actualPointsPerSecond)))
         } else {
-            actualPointsPerSecond = 1000
-            framesPerBuffer = AVAudioFrameCount(max(1, effectiveLength / 1000))
+            framesPerBuffer = framesPerSegment
         }
         
         guard let buffer = AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat, frameCapacity: framesPerBuffer) else {
@@ -207,14 +205,13 @@ public class AudioProcessor {
         NSLog("""
             [AudioProcessor] Audio processing completed:
             - processedFrames: \(endFrame - startFrame)
-            - actualPointsPerSecond: \(actualPointsPerSecond)
             - framesPerBuffer: \(framesPerBuffer)
         """)
         
         return processChannelData(
             channelData: channelData,
             sampleRate: Float(audioFile.fileFormat.sampleRate),
-            pointsPerSecond: actualPointsPerSecond,
+            segmentDurationMs: segmentDurationMs,
             featureOptions: featureOptions,
             bitDepth: bitDepth,
             numberOfChannels: numberOfChannels
@@ -225,7 +222,7 @@ public class AudioProcessor {
     /// - Parameters:
     ///   - data: The audio data buffer.
     ///   - sampleRate: The sample rate of the audio data.
-    ///   - pointsPerSecond: The number of data points to extract per second (for features).
+    ///   - segmentDurationMs: The duration of each segment in milliseconds.
     ///   - featureOptions: The features to extract.
     ///   - bitDepth: The bit depth of the audio data.
     ///   - numberOfChannels: The number of channels in the audio data.
@@ -233,7 +230,7 @@ public class AudioProcessor {
     public func processAudioBuffer(
         data: Data,
         sampleRate: Float,
-        pointsPerSecond: Int,
+        segmentDurationMs: Int,
         featureOptions: [String: Bool],
         bitDepth: Int,
         numberOfChannels: Int
@@ -266,7 +263,7 @@ public class AudioProcessor {
         return processChannelData(
             channelData: floatData,
             sampleRate: sampleRate,
-            pointsPerSecond: pointsPerSecond,
+            segmentDurationMs: segmentDurationMs,
             featureOptions: featureOptions,
             bitDepth: bitDepth,
             numberOfChannels: numberOfChannels
@@ -277,7 +274,7 @@ public class AudioProcessor {
     /// - Parameters:
     ///   - channelData: The audio channel data to process.
     ///   - sampleRate: The sample rate of the audio data.
-    ///   - pointsPerSecond: The number of data points to extract per second (for features).
+    ///   - segmentDurationMs: The duration of each segment in milliseconds.
     ///   - featureOptions: The features to extract.
     ///   - bitDepth: The bit depth of the audio data.
     ///   - numberOfChannels: The number of channels in the audio data.
@@ -285,76 +282,54 @@ public class AudioProcessor {
     private func processChannelData(
         channelData: [Float],
         sampleRate: Float,
-        pointsPerSecond: Int,
+        segmentDurationMs: Int,
         featureOptions: [String: Bool],
         bitDepth: Int,
         numberOfChannels: Int
     ) -> AudioAnalysisData? {
-        Logger.debug("Processing audio data with sample rate: \(sampleRate), points per second: \(pointsPerSecond), bitDepth: \(bitDepth), numberOfChannels: \(numberOfChannels)")
+        Logger.debug("Processing audio data with sample rate: \(sampleRate), segmentDurationMs: \(segmentDurationMs), bitDepth: \(bitDepth), numberOfChannels: \(numberOfChannels)")
         
-        let startTime = CACurrentMediaTime() // Start the timer with high precision
+        let startTime = CACurrentMediaTime()
 
         let length = channelData.count
-        let pointInterval = Int(sampleRate) / pointsPerSecond
+        // Calculate points per segment based on segment duration
+        let samplesPerSegment = Int(Float(segmentDurationMs) * sampleRate / 1000.0)
         var dataPoints = [DataPoint]()
         var minAmplitude: Float = .greatestFiniteMagnitude
         var maxAmplitude: Float = -.greatestFiniteMagnitude
-        let durationMs = Float(length) / sampleRate * 1000
         
-        var sumSquares: Float = 0
-        var zeroCrossings = 0
-        var prevValue: Float = 0
-        var localMinAmplitude: Float = .greatestFiniteMagnitude
-        var localMaxAmplitude: Float = -.greatestFiniteMagnitude
-        var segmentData = [Float]()
-        var currentPosition = 0 // Track the current byte position
-
-        for i in 0..<length {
-            updateSegmentData(channelData: channelData, index: i, sumSquares: &sumSquares, zeroCrossings: &zeroCrossings, prevValue: &prevValue, localMinAmplitude: &localMinAmplitude, localMaxAmplitude: &localMaxAmplitude, segmentData: &segmentData)
+        // Calculate bytes per sample
+        let bytesPerSample = bitDepth / 8
+        
+        // Process data in segments
+        var i = 0
+        while i < length {
+            let segmentEnd = min(i + samplesPerSegment, length)
+            let segment = Array(channelData[i..<segmentEnd])
             
-            if (i + 1) % pointInterval == 0 || i == length - 1 {
-                var features = computeFeatures(segmentData: segmentData, sampleRate: sampleRate, sumSquares: sumSquares, zeroCrossings: zeroCrossings, segmentLength: (i % pointInterval) + 1, featureOptions: featureOptions)
-                features.minAmplitude = localMinAmplitude
-                features.maxAmplitude = localMaxAmplitude
-                let rms = features.rms
-                let silent = rms < 0.01
-                let dB = Float(20 * log10(Double(rms)))
-                minAmplitude = min(minAmplitude, localMinAmplitude)
-                maxAmplitude = max(maxAmplitude, localMaxAmplitude)
-                
-                let segmentSize = segmentData.count
-                let segmentDuration = Float(segmentSize) / sampleRate
-                
-                // Calculate start time and end time
-                let segmentStartTime = Float(i - segmentSize + 1) / sampleRate
-                let segmentEndTime = Float(i + 1) / sampleRate
-               
-                // Calculate start position and end position in bytes
-               let bytesPerSample = bitDepth / 8
-               let startPosition = currentPosition
-               let endPosition = startPosition + (segmentSize * bytesPerSample * numberOfChannels)
-               
-                dataPoints.append(DataPoint(
-                    id: Int(uniqueIdCounter),
-                    amplitude: localMaxAmplitude,
-                    rms: rms,
-                    dB: dB,
-                    silent: silent,
-                    features: features,
-                    speech: SpeechFeatures(isActive: !silent),
-                    startTime: segmentStartTime,
-                    endTime: segmentEndTime,
-                    startPosition: startPosition,
-                    endPosition: endPosition,
-                    samples: segmentData.count
-                ))
-                uniqueIdCounter += 1 // Increment the unique ID counter
-
-                resetSegmentData(&sumSquares, &zeroCrossings, &localMinAmplitude, &localMaxAmplitude, &segmentData)
-                
-                // Update the current byte position
-                currentPosition = endPosition
-            }
+            // Calculate byte positions and timing
+            let startPosition = i * bytesPerSample * numberOfChannels
+            let endPosition = segmentEnd * bytesPerSample * numberOfChannels
+            let startTime = Float(i) / sampleRate
+            let endTime = Float(segmentEnd) / sampleRate
+            
+            // Process segment and create data point
+            let dataPoint = processSegment(
+                segment,
+                sampleRate: sampleRate,
+                featureOptions: featureOptions,
+                startTime: startTime,
+                endTime: endTime,
+                startPosition: startPosition,
+                endPosition: endPosition
+            )
+            dataPoints.append(dataPoint)
+            
+            // Update min/max amplitudes
+            minAmplitude = min(minAmplitude, segment.min() ?? minAmplitude)
+            maxAmplitude = max(maxAmplitude, segment.max() ?? maxAmplitude)
+            
+            i += samplesPerSegment
         }
         
         let endTime = CACurrentMediaTime()
@@ -363,12 +338,12 @@ public class AudioProcessor {
         Logger.debug("Processed \(dataPoints.count) data points in \(processingTimeMs) ms")
 
         return AudioAnalysisData(
-            pointsPerSecond: Double(pointsPerSecond),
-            durationMs: Int(durationMs),
+            segmentDurationMs: segmentDurationMs,
+            durationMs: Int(Float(length) / sampleRate * 1000),
             bitDepth: bitDepth,
             numberOfChannels: numberOfChannels,
             sampleRate: Int(sampleRate),
-            samples: channelData.count,
+            samples: length,
             dataPoints: dataPoints,
             amplitudeRange: AudioAnalysisData.AmplitudeRange(
                 min: minAmplitude,
@@ -383,19 +358,45 @@ public class AudioProcessor {
         )
     }
     
-    private func updateSegmentData(channelData: [Float], index: Int, sumSquares: inout Float, zeroCrossings: inout Int, prevValue: inout Float, localMinAmplitude: inout Float, localMaxAmplitude: inout Float, segmentData: inout [Float]) {
-        let value = channelData[index]
-        sumSquares += value * value
-        if index > 0 && value * prevValue < 0 {
-            zeroCrossings += 1
-        }
-        prevValue = value
+    private func processSegment(
+        _ segment: [Float],
+        sampleRate: Float,
+        featureOptions: [String: Bool],
+        startTime: Float,
+        endTime: Float,
+        startPosition: Int,
+        endPosition: Int
+    ) -> DataPoint {
+        let sumSquares: Float = segment.reduce(0) { $0 + $1 * $1 }
+        let rms = sqrt(sumSquares / Float(segment.count))
+        let silent = rms < 0.01
+        let dB = Float(20 * log10(Double(rms)))
         
-        let absValue = abs(value)
-        localMinAmplitude = min(localMinAmplitude, absValue)
-        localMaxAmplitude = max(localMaxAmplitude, absValue)
+        let features = computeFeatures(
+            segmentData: segment,
+            sampleRate: sampleRate,
+            sumSquares: sumSquares,
+            zeroCrossings: 0,
+            segmentLength: segment.count,
+            featureOptions: featureOptions
+        )
         
-        segmentData.append(value)
+        let dataPoint = DataPoint(
+            id: Int(uniqueIdCounter),
+            amplitude: segment.max() ?? 0,
+            rms: rms,
+            dB: dB,
+            silent: silent,
+            features: features,
+            speech: SpeechFeatures(isActive: !silent),
+            startTime: startTime,
+            endTime: endTime,
+            startPosition: startPosition,
+            endPosition: endPosition,
+            samples: segment.count
+        )
+        uniqueIdCounter += 1
+        return dataPoint
     }
     
     private func computeFeatures(segmentData: [Float], sampleRate: Float, sumSquares: Float, zeroCrossings: Int, segmentLength: Int, featureOptions: [String: Bool]) -> Features {
@@ -444,19 +445,11 @@ public class AudioProcessor {
         )
     }
     
-    private func resetSegmentData(_ sumSquares: inout Float, _ zeroCrossings: inout Int, _ localMinAmplitude: inout Float, _ localMaxAmplitude: inout Float, _ segmentData: inout [Float]) {
-        sumSquares = 0
-        zeroCrossings = 0
-        localMinAmplitude = .greatestFiniteMagnitude
-        localMaxAmplitude = -.greatestFiniteMagnitude
-        segmentData.removeAll()
-    }
-
     /// Processes audio data with time range support
     public func processAudioData(
         startTimeMs: Double? = nil,
         endTimeMs: Double? = nil,
-        pointsPerSecond: Int? = nil,
+        segmentDurationMs: Int = 100, // Default 100ms
         featureOptions: [String: Bool]
     ) -> AudioAnalysisData? {
         guard let audioFile = audioFile else {
@@ -480,9 +473,8 @@ public class AudioProcessor {
             return nil
         }
 
-        // Calculate frames per buffer based on points per second
-        let actualPointsPerSecond = pointsPerSecond ?? 20
-        let framesPerBuffer = AVAudioFrameCount((endFrame - startFrame) / Int64(actualPointsPerSecond))
+        // Calculate frames per buffer based on segment duration
+        let framesPerBuffer = AVAudioFrameCount(Float(sampleRate) * Float(segmentDurationMs) / 1000.0)
         
         guard let buffer = AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat, frameCapacity: framesPerBuffer) else {
             Logger.debug("Failed to create buffer")
@@ -574,7 +566,7 @@ public class AudioProcessor {
         let extractionTime = Float(endTime - startTime) * 1000 // Convert to milliseconds
         
         return AudioAnalysisData(
-            pointsPerSecond: Double(pointsPerSecond ?? 20),
+            segmentDurationMs: segmentDurationMs,
             durationMs: Int(Float(endFrame - startFrame) * 1000 / sampleRate),
             bitDepth: bitDepth,
             numberOfChannels: numberOfChannels,
@@ -731,10 +723,18 @@ public class AudioProcessor {
         var minAmplitude: Float = .greatestFiniteMagnitude
         var maxAmplitude: Float = -.greatestFiniteMagnitude
         
+        let bytesPerSample = audioFile.fileFormat.settings[AVLinearPCMBitDepthKey] as? Int ?? 16 / 8
+        
         for i in 0..<numberOfPoints {
             let pointStartFrame = startFrame + Int64(i * samplesPerPoint)
             let pointEndFrame = startFrame + Int64((i + 1) * samplesPerPoint)
             let framesToRead = AVAudioFrameCount(pointEndFrame - pointStartFrame)
+            
+            // Calculate byte positions
+            let startPosition = Int(pointStartFrame) * bytesPerSample * Int(audioFile.fileFormat.channelCount)
+            let endPosition = Int(pointEndFrame) * bytesPerSample * Int(audioFile.fileFormat.channelCount)
+            let segmentStartTime = Float(pointStartFrame) / sampleRate
+            let segmentEndTime = Float(pointEndFrame) / sampleRate
             
             do {
                 audioFile.framePosition = pointStartFrame
@@ -774,9 +774,6 @@ public class AudioProcessor {
                 let silent = rms < 0.01
                 let dB = Float(20 * log10(Double(rms)))
                 
-                let segmentStartTime = Float(pointStartFrame) / sampleRate
-                let segmentEndTime = Float(pointEndFrame) / sampleRate
-                
                 let dataPoint = DataPoint(
                     id: Int(uniqueIdCounter),
                     amplitude: localMaxAmplitude,
@@ -787,8 +784,8 @@ public class AudioProcessor {
                     speech: SpeechFeatures(isActive: !silent),
                     startTime: segmentStartTime,
                     endTime: segmentEndTime,
-                    startPosition: Int(pointStartFrame),
-                    endPosition: Int(pointEndFrame),
+                    startPosition: startPosition,
+                    endPosition: endPosition,
                     samples: Int(framesToRead)
                 )
                 dataPoints.append(dataPoint)
@@ -831,7 +828,7 @@ public class AudioProcessor {
         """)
         
         return AudioAnalysisData(
-            pointsPerSecond: Double(numberOfPoints) / (durationMs / 1000.0), // Adjust points per second based on trimmed duration
+            segmentDurationMs: 100, // Default 100ms
             durationMs: Int(durationMs), // Use actual duration of trimmed section
             bitDepth: bitDepth,
             numberOfChannels: numberOfChannels,

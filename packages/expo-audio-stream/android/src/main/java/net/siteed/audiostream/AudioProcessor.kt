@@ -219,7 +219,8 @@ class AudioProcessor(private val filesDir: File) {
         var maxAmplitude = Float.NEGATIVE_INFINITY
         var minRms = Float.MAX_VALUE
         var maxRms = Float.NEGATIVE_INFINITY
-        val durationMs = config.segmentDurationMs.toInt()
+         // Calculate total duration in milliseconds based on sample rate and total samples
+        val durationMs = (totalSamples.toFloat() / sampleRate * 1000).toInt()
 
         // Measure the time taken for audio processing
         val extractionTimeMs = measureTimeMillis {

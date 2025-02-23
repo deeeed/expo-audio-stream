@@ -88,9 +88,7 @@ struct RecordingSettings {
     var showNotification: Bool = false
     var enableProcessing: Bool = false
     
-    // Analysis settings
-    var pointsPerSecond: Int? = 1000
-    var algorithm: String? = "rms"
+    // Remove pointsPerSecond and algorithm
     var featureOptions: [String: Bool]? = ["rms": true, "zcr": true]
     
     // iOS-specific configuration
@@ -105,9 +103,11 @@ struct RecordingSettings {
     
     let autoResumeAfterInterruption: Bool
     
-    // Make these optional with nil default values
     var outputDirectory: String? = nil
     var filename: String? = nil
+    
+    // Update default to 100ms
+    var segmentDurationMs: Int = 100  // Default 100ms segments
     
     static func fromDictionary(_ dict: [String: Any]) -> Result<RecordingSettings, Error> {
         // Extract compression settings
@@ -148,10 +148,10 @@ struct RecordingSettings {
         settings.showNotification = dict["showNotification"] as? Bool ?? false
         settings.enableProcessing = dict["enableProcessing"] as? Bool ?? false
         
-        // Parse analysis settings
-        settings.pointsPerSecond = dict["pointsPerSecond"] as? Int
-        settings.algorithm = dict["algorithm"] as? String
         settings.featureOptions = dict["features"] as? [String: Bool]
+        
+        // Update segmentDurationMs parsing
+        settings.segmentDurationMs = dict["segmentDurationMs"] as? Int ?? 100
         
         // Parse iOS-specific config
         if let iosDict = dict["ios"] as? [String: Any],
