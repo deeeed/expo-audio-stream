@@ -40,6 +40,7 @@ import { useTranscription } from '../../context/TranscriptionProvider'
 import { useLiveTranscriber } from '../../hooks/useLiveTranscriber'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
+import { SegmentDuration, SegmentDurationSelector } from '../../component/SegmentDurationSelector'
 
 const CHUNK_DURATION_MS = 500 // 500 ms chunks
 const MAX_AUDIO_BUFFER_LENGTH = 48000 * 5; // 5 seconds of audio at 48kHz
@@ -54,7 +55,7 @@ const baseRecordingConfig: RecordingConfig = {
     showNotification: true,
     showWaveformInNotification: true,
     encoding: 'pcm_32bit',
-    pointsPerSecond: 10,
+    segmentDurationMs: 100,
     enableProcessing: true,
     compression: {
         enabled: true,
@@ -633,34 +634,16 @@ export default function RecordScreen() {
                     }))
                 }}
             />
-            <Picker
-                label="Points Per Second"
-                multi={false}
-                options={[
-                    {
-                        label: '20',
-                        value: '20',
-                        selected: startRecordingConfig.pointsPerSecond === 20,
-                    },
-                    {
-                        label: '10',
-                        value: '10',
-                        selected: startRecordingConfig.pointsPerSecond === 10,
-                    },
-                    {
-                        label: '1',
-                        value: '1',
-                        selected: startRecordingConfig.pointsPerSecond === 1,
-                    },
-                ]}
-                onFinish={(options) => {
-                    const selected = options?.find((option) => option.selected)
-                    if (!selected) return
+            <SegmentDurationSelector
+                value={(startRecordingConfig.segmentDurationMs ?? 100) as SegmentDuration}
+                onChange={(duration) => {
                     setStartRecordingConfig((prev) => ({
                         ...prev,
-                        pointsPerSecond: parseInt(selected.value, 10),
+                        segmentDurationMs: duration,
                     }))
                 }}
+                maxDurationMs={1000}
+                skipConfirmation
             />
             {!result && !isRecording && !isPaused && (
                 <>

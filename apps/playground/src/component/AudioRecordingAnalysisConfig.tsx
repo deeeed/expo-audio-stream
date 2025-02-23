@@ -1,4 +1,4 @@
-import { AppTheme, LabelSwitch, NumberAdjuster, useTheme } from '@siteed/design-system'
+import { AppTheme, LabelSwitch, useTheme } from '@siteed/design-system'
 import {
     AudioFeaturesOptions,
     RecordingConfig,
@@ -34,7 +34,7 @@ const getStyles = ({theme}: {theme: AppTheme}) => {
 }
 
 export interface SelectedAnalysisConfig {
-    pointsPerSecond: RecordingConfig['pointsPerSecond']
+    segmentDurationMs: number
     features: AudioFeaturesOptions
 }
 
@@ -69,16 +69,6 @@ export const AudioRecordingAnalysisConfig = ({
 
     return (
         <View style={styles.container}>
-            <View style={styles.topActionsContainer}>
-                <NumberAdjuster
-                    label="Points Per Second"
-                    value={config.pointsPerSecond ?? 20}
-                    onChange={(value) => handleChange('pointsPerSecond', value)}
-                    min={0.1}
-                    max={1000}
-                    step={1}
-                />
-            </View>
             <LabelSwitch
                 label="mfcc"
                 onValueChange={(value) => {

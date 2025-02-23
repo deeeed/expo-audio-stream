@@ -1588,8 +1588,8 @@ class AudioStreamManager: NSObject {
                         let processingResult = processor.processAudioBuffer(
                             data: dataToProcess,
                             sampleRate: Float(settings.sampleRate),
-                            pointsPerSecond: settings.pointsPerSecond ?? 10,
-                            featureOptions: settings.featureOptions ?? ["rms": true, "zcr": true],
+                            segmentDurationMs: settings.segmentDurationMs,
+                            featureOptions: settings.featureOptions ?? [:],
                             bitDepth: settings.bitDepth,
                             numberOfChannels: settings.numberOfChannels
                         )

@@ -2,6 +2,10 @@
 import { ConsoleLike } from '../ExpoAudioStream.types'
 import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
 import { isWeb } from '../constants'
+import { processAudioBuffer } from '../utils/audioProcessing'
+import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
+import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
+import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
 import {
     AudioAnalysis,
     AudioFeatures,
@@ -11,12 +15,8 @@ import {
     DecodingConfig,
     PreviewOptions,
 } from './AudioAnalysis.types'
-import { processAudioBuffer } from '../utils/audioProcessing'
-import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
-import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
-import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
 
-export interface ExtractAudioAnalysisProps {
+export interface ExtractWavAudioAnalysisProps {
     fileUri?: string // should provide either fileUri or arrayBuffer
     wavMetadata?: WavFileInfo
     arrayBuffer?: ArrayBuffer
@@ -26,31 +26,30 @@ export interface ExtractAudioAnalysisProps {
     numberOfChannels?: number
     position?: number // Optional number of bytes to skip. Default is 0
     length?: number // Optional number of bytes to read.
-    pointsPerSecond?: number // Optional number of points per second. Use to reduce the number of points and compute the number of datapoints to return.
+    segmentDurationMs?: number // Optional number of points per second. Use to reduce the number of points and compute the number of datapoints to return.
     features?: AudioFeaturesOptions
     featuresExtratorUrl?: string
     logger?: ConsoleLike
     decodingOptions?: DecodingConfig
 }
 
-export interface ExtractAudioFromAnyFormatProps
-    extends ExtractAudioAnalysisProps {
+export interface ExtractAudioAnalysisProps
+    extends ExtractWavAudioAnalysisProps {
     mimeType?: string
-    decodingOptions?: DecodingConfig
     startTimeMs?: number
     endTimeMs?: number
 }
 
-export async function extractAudioFromAnyFormat({
-    fileUri,
-    arrayBuffer,
-    mimeType,
-    decodingOptions,
-    startTimeMs,
-    logger,
-    endTimeMs,
-    ...restProps
-}: ExtractAudioFromAnyFormatProps): Promise<AudioAnalysis> {
+export async function extractAudioAnalysis(
+    props: ExtractAudioAnalysisProps
+): Promise<AudioAnalysis> {
+    const {
+        fileUri,
+        arrayBuffer,
+        decodingOptions,
+        logger,
+        segmentDurationMs = 100, // Default to 100ms
+    } = props
     if (isWeb) {
         try {
             // Get the audio data
@@ -100,19 +99,12 @@ export async function extractAudioFromAnyFormat({
                 max = Math.max(max, channelData[i])
             }
 
-            // Calculate points per second based on the number of points requested
+            // Calculate points per second based on the segment duration in milliseconds
             const durationSec = processedBuffer.duration
-            const requestedPointsPerSecond = restProps.pointsPerSecond ?? 20
-            logger?.log('Audio analysis:', {
-                durationSec,
-                requestedPointsPerSecond,
-                expectedPoints: Math.floor(
-                    durationSec * requestedPointsPerSecond
-                ),
-            })
+            const durationMs = durationSec * 1000
 
-            // Generate data points
-            const numPoints = Math.floor(durationSec * requestedPointsPerSecond)
+            // Generate data points - divide total duration in ms by segment duration in ms
+            const numPoints = Math.floor(durationMs / segmentDurationMs)
             const samplesPerPoint = Math.floor(channelData.length / numPoints)
             const dataPoints: DataPoint[] = []
 
@@ -136,8 +128,8 @@ export async function extractAudioFromAnyFormat({
                     id: i,
                     amplitude: maxAmp,
                     rms,
-                    startTime: (i / requestedPointsPerSecond) * 1000,
-                    endTime: ((i + 1) / requestedPointsPerSecond) * 1000,
+                    startTime: i * segmentDurationMs,
+                    endTime: (i + 1) * segmentDurationMs,
                     dB: 20 * Math.log10(rms + 1e-6),
                     silent: rms < 0.01,
                 })
@@ -145,7 +137,7 @@ export async function extractAudioFromAnyFormat({
 
             // After generating points
             logger?.log('Generated points:', {
-                requestedPointsPerSecond,
+                segmentDurationMs,
                 actualPoints: dataPoints.length,
                 samplesPerPoint,
                 totalSamples: channelData.length,
@@ -156,8 +148,8 @@ export async function extractAudioFromAnyFormat({
                 samples: channelData.length,
                 numberOfChannels: processedBuffer.numberOfChannels,
                 sampleRate: processedBuffer.sampleRate,
-                pointsPerSecond: requestedPointsPerSecond,
-                durationMs: processedBuffer.duration * 1000,
+                segmentDurationMs,
+                durationMs,
                 dataPoints,
                 amplitudeRange: { min, max },
                 rmsRange: {
@@ -171,17 +163,13 @@ export async function extractAudioFromAnyFormat({
         }
     } else {
         // For native platforms, pass through all options
-        return await extractAudioAnalysis({
-            fileUri,
-            decodingOptions,
-            ...restProps,
-        })
+        return await ExpoAudioStreamModule.extractAudioAnalysis(props)
     }
 }
 
-export const extractAudioAnalysis = async ({
+export const extractWavAudioAnalysis = async ({
     fileUri,
-    pointsPerSecond = 20,
+    segmentDurationMs = 100, // Default to 100ms
     arrayBuffer,
     bitDepth,
     durationMs,
@@ -192,7 +180,7 @@ export const extractAudioAnalysis = async ({
     logger,
     position = 0,
     length,
-}: ExtractAudioAnalysisProps): Promise<AudioAnalysis> => {
+}: ExtractWavAudioAnalysisProps): Promise<AudioAnalysis> => {
     if (isWeb) {
         if (!arrayBuffer && !fileUri) {
             throw new Error('Either arrayBuffer or fileUri must be provided')
@@ -272,7 +260,7 @@ export const extractAudioAnalysis = async ({
                 command: 'process',
                 channelData: constrainedChannelData,
                 sampleRate,
-                pointsPerSecond,
+                segmentDurationMs,
                 bitDepth,
                 fullAudioDurationMs: durationMs,
                 numberOfChannels,
@@ -284,11 +272,11 @@ export const extractAudioAnalysis = async ({
         }
         logger?.log(`extractAudioAnalysis`, {
             fileUri,
-            pointsPerSecond,
+            segmentDurationMs,
         })
         const res = await ExpoAudioStreamModule.extractAudioAnalysis({
             fileUri,
-            pointsPerSecond,
+            segmentDurationMs,
             features,
             position,
             length,
@@ -327,13 +315,13 @@ export async function extractPreview({
             calculatedPointsPerSecond: pointsPerSecond,
         })
 
-        const analysis = await extractAudioFromAnyFormat({
+        const analysis = await extractAudioAnalysis({
             fileUri,
             decodingOptions,
             startTimeMs,
             endTimeMs,
             logger,
-            pointsPerSecond,
+            segmentDurationMs: pointsPerSecond,
         })
 
         logger?.log('Preview result:', {
@@ -344,7 +332,7 @@ export async function extractPreview({
         // Adjust timestamps relative to the trimmed range
         const timeOffset = startTimeMs || 0
         return {
-            pointsPerSecond: analysis.pointsPerSecond,
+            pointsPerSecond: analysis.segmentDurationMs,
             durationMs: effectiveDurationMs,
             amplitudeRange: analysis.amplitudeRange,
             dataPoints: analysis.dataPoints.map((point) => ({
@@ -376,91 +364,4 @@ export async function extractPreview({
         endTimeMs,
         decodingOptions,
     })
-}
-
-export interface ExtractFullFileFeaturesProps {
-    fileUri: string
-    decodingOptions?: DecodingConfig
-}
-
-// Add new function
-export async function extractFullFileFeatures({
-    fileUri,
-    decodingOptions = {
-        targetSampleRate: 16000,
-        targetChannels: 1,
-        targetBitDepth: 16,
-        normalizeAudio: false,
-    },
-}: ExtractFullFileFeaturesProps): Promise<AudioFeatures> {
-    if (isWeb) {
-        try {
-            // For web, we'll use the existing extractAudioFromAnyFormat
-            // but process the entire file at once
-            const audioAnalysis = await extractAudioFromAnyFormat({
-                fileUri,
-                decodingOptions,
-                // Set specific options for full file processing
-                pointsPerSecond: 1, // We only need one point for the entire file
-                features: {
-                    energy: true,
-                    mfcc: true,
-                    rms: true,
-                    zcr: true,
-                    spectralCentroid: true,
-                    spectralFlatness: true,
-                    spectralRolloff: true,
-                    spectralBandwidth: true,
-                    chromagram: true,
-                    tempo: true,
-                    hnr: true,
-                    melSpectrogram: true,
-                    spectralContrast: true,
-                    tonnetz: true,
-                },
-            })
-
-            // Convert AudioAnalysis to AudioFeatures format
-            return {
-                energy: audioAnalysis.dataPoints[0]?.features?.energy ?? 0,
-                mfcc: audioAnalysis.dataPoints[0]?.features?.mfcc ?? [],
-                rms: audioAnalysis.dataPoints[0]?.features?.rms ?? 0,
-                minAmplitude: audioAnalysis.amplitudeRange.min,
-                maxAmplitude: audioAnalysis.amplitudeRange.max,
-                zcr: audioAnalysis.dataPoints[0]?.features?.zcr ?? 0,
-                spectralCentroid:
-                    audioAnalysis.dataPoints[0]?.features?.spectralCentroid ??
-                    0,
-                spectralFlatness:
-                    audioAnalysis.dataPoints[0]?.features?.spectralFlatness ??
-                    0,
-                spectralRolloff:
-                    audioAnalysis.dataPoints[0]?.features?.spectralRolloff ?? 0,
-                spectralBandwidth:
-                    audioAnalysis.dataPoints[0]?.features?.spectralBandwidth ??
-                    0,
-                chromagram:
-                    audioAnalysis.dataPoints[0]?.features?.chromagram ?? [],
-                tempo: audioAnalysis.dataPoints[0]?.features?.tempo ?? 0,
-                hnr: audioAnalysis.dataPoints[0]?.features?.hnr ?? 0,
-                melSpectrogram:
-                    audioAnalysis.dataPoints[0]?.features?.melSpectrogram ?? [],
-                spectralContrast:
-                    audioAnalysis.dataPoints[0]?.features?.spectralContrast ??
-                    [],
-                tonnetz: audioAnalysis.dataPoints[0]?.features?.tonnetz ?? [],
-                pitch: audioAnalysis.dataPoints[0]?.features?.pitch ?? 0,
-                dataChecksum:
-                    audioAnalysis.dataPoints[0]?.features?.dataChecksum ?? 0,
-            }
-        } catch (error) {
-            console.error('Failed to extract full file features:', error)
-            throw error
-        }
-    } else {
-        return await ExpoAudioStreamModule.extractFullFileFeatures({
-            fileUri,
-            decodingOptions,
-        })
-    }
 }

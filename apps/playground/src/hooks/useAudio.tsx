@@ -4,7 +4,6 @@ import {
     AudioAnalysis,
     AudioRecording,
     extractAudioAnalysis,
-    extractAudioFromAnyFormat,
 } from '@siteed/expo-audio-stream'
 import { Audio, AVPlaybackStatus } from 'expo-av'
 import { useCallback, useEffect, useState } from 'react'
@@ -78,41 +77,27 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
                 }
 
                 if (options.extractAnalysis) {
-                    const isCompressedFormat = audioUri?.toLowerCase().match(/\.(opus|aac)$/) || recording?.compression?.format !== undefined;
-                    
-                    // Ensure file:// protocol for native platforms
                     const normalizedAudioUri = audioUri && !isWeb && !audioUri.startsWith('file://')
                         ? `file://${audioUri}`
-                        : audioUri;
+                        : audioUri
 
-                    const analysis = isCompressedFormat 
-                        ? await extractAudioFromAnyFormat({
+                    const analysis =  await extractAudioAnalysis({
                             fileUri: actualAudioBuffer ? undefined : normalizedAudioUri,
                             arrayBuffer: actualAudioBuffer,
                             mimeType: recording?.mimeType,
+                            logger: baseLogger.extend('extractAudioAnalysis'),
                             sampleRate: recording?.sampleRate,
-                            pointsPerSecond: options.analysisOptions?.pointsPerSecond,
+                            segmentDurationMs: options.analysisOptions?.segmentDurationMs,
                             features: options.analysisOptions?.features,
-                            featuresExtratorUrl: config.featuresExtratorUrl,
                             decodingOptions: {
                                 targetSampleRate: recording?.sampleRate,
                                 targetBitDepth: recording?.bitDepth,
                                 targetChannels: recording?.channels,
                             },
                         })
-                        : await extractAudioAnalysis({
-                            fileUri: actualAudioBuffer ? undefined : normalizedAudioUri,
-                            arrayBuffer: actualAudioBuffer,
-                            sampleRate: recording?.sampleRate,
-                            bitDepth: recording?.bitDepth,
-                            durationMs: recording?.durationMs,
-                            numberOfChannels: recording?.channels,
-                            pointsPerSecond: options.analysisOptions?.pointsPerSecond,
-                            features: options.analysisOptions?.features,
-                            featuresExtratorUrl: config.featuresExtratorUrl,
-                        });
+
                     
-                    setAudioAnalysis(analysis);
+                    setAudioAnalysis(analysis)
                 }
             } catch (error) {
                 logger.error(`Failed to process audio ${audioUri}:`, error)
@@ -123,7 +108,23 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         }
 
         processAudioData().catch(logger.error)
-    }, [audioUri, options.loadArrayBuffer, options.extractAnalysis, options.analysisOptions, show, recording?.sampleRate, recording?.bitDepth, recording?.durationMs, recording?.channels, recording?.mimeType, recording?.compression?.format])
+    }, [
+        audioUri,
+        // Memoize options to prevent infinite loops
+        JSON.stringify({
+            loadArrayBuffer: options.loadArrayBuffer,
+            extractAnalysis: options.extractAnalysis,
+            analysisOptions: options.analysisOptions,
+        }),
+        // Include only necessary recording properties
+        recording?.sampleRate,
+        recording?.bitDepth,
+        recording?.durationMs,
+        recording?.channels,
+        recording?.mimeType,
+        recording?.compression?.format,
+        show
+    ])
 
     const updatePlaybackStatus = useCallback((status: AVPlaybackStatus) => {
         if (!status.isLoaded) {

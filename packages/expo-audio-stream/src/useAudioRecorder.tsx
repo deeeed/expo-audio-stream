@@ -68,7 +68,7 @@ type RecorderAction =
     | { type: 'UPDATE_ANALYSIS'; payload: AudioAnalysis }
 
 const defaultAnalysis: AudioAnalysis = {
-    pointsPerSecond: 10,
+    segmentDurationMs: 100,
     bitDepth: 32,
     numberOfChannels: 1,
     durationMs: 0,
@@ -227,13 +227,13 @@ export function useAudioRecorder({
             ]
 
             // Calculate the new duration
-            const pointsPerSecond =
-                analysis.pointsPerSecond || savedAnalysisData.pointsPerSecond
-            const maxDataPoints =
-                (pointsPerSecond * visualizationDuration) / 1000
+            const numberOfSegments = Math.ceil(
+                visualizationDuration / analysis.segmentDurationMs
+            )
+            const maxDataPoints = numberOfSegments * analysis.segmentDurationMs
 
             logger?.debug(
-                `[handleAudioAnalysis] Combined data points before trimming: pointsPerSecond=${pointsPerSecond} visualizationDuration=${visualizationDuration} combinedDataPointsLength=${combinedDataPoints.length} vs maxDataPoints=${maxDataPoints}`
+                `[handleAudioAnalysis] Combined data points before trimming: numberOfSegments=${numberOfSegments} visualizationDuration=${visualizationDuration} combinedDataPointsLength=${combinedDataPoints.length} vs maxDataPoints=${maxDataPoints}`
             )
 
             // Trim data points to keep within the maximum number of data points
@@ -250,12 +250,13 @@ export function useAudioRecorder({
                 dataPoints: fullCombinedDataPoints,
             }
             fullAnalysisRef.current.durationMs =
-                fullCombinedDataPoints.length * (1000 / pointsPerSecond)
+                fullCombinedDataPoints.length *
+                (1000 / analysis.segmentDurationMs)
             savedAnalysisData.dataPoints = combinedDataPoints
             savedAnalysisData.bitDepth =
                 analysis.bitDepth || savedAnalysisData.bitDepth
             savedAnalysisData.durationMs =
-                combinedDataPoints.length * (1000 / pointsPerSecond)
+                combinedDataPoints.length * (1000 / analysis.segmentDurationMs)
 
             // Update amplitude range
             const newMin = Math.min(

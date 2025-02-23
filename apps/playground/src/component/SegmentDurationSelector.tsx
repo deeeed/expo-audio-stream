@@ -38,13 +38,15 @@ interface SegmentDurationSelectorProps {
     onChange: (duration: SegmentDuration) => void
     onConfirm?: () => void
     maxDurationMs?: number
+    skipConfirmation?: boolean
 }
 
 export function SegmentDurationSelector({ 
     value, 
     onChange,
     onConfirm,
-    maxDurationMs 
+    maxDurationMs,
+    skipConfirmation = false
 }: SegmentDurationSelectorProps) {
     const theme = useTheme()
     const styles = useMemo(() => getStyles({ theme }), [theme])
@@ -69,6 +71,15 @@ export function SegmentDurationSelector({
 
     const pointsPerSecond = (1000 / selectedDuration).toFixed(2)
 
+    const handleValueChange = (newValue: string) => {
+        const duration = parseInt(newValue) as SegmentDuration
+        setSelectedDuration(duration)
+        if (skipConfirmation) {
+            onChange(duration)
+            onConfirm?.()
+        }
+    }
+
     const handleConfirm = () => {
         onChange(selectedDuration)
         onConfirm?.()
@@ -87,11 +98,11 @@ export function SegmentDurationSelector({
             >
                 <SegmentedButtons
                     value={selectedDuration.toString()}
-                    onValueChange={(value) => setSelectedDuration(parseInt(value) as SegmentDuration)}
+                    onValueChange={handleValueChange}
                     buttons={buttons}
                 />
             </ScrollView>
-            {selectedDuration !== value && (
+            {!skipConfirmation && selectedDuration !== value && (
                 <View style={styles.buttonContainer}>
                     <Button 
                         mode="contained"

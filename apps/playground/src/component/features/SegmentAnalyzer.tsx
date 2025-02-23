@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { AppTheme, useTheme } from '@siteed/design-system'
-import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioFromAnyFormat } from '@siteed/expo-audio-stream'
+import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-stream'
 import React, { useCallback, useState, useEffect } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
@@ -107,7 +107,7 @@ interface SegmentAnalyzerProps {
     sampleRate: number
     onError?: (error: Error) => void
     analysisConfig: {
-        pointsPerSecond: number
+        segmentDurationMs: number
         features?: AudioFeaturesOptions
     }
     bitDepth?: number
@@ -137,7 +137,9 @@ export function SegmentAnalyzer({
     const startPosition = dataPoint.startPosition ?? (dataPoint.startTime ?? 0) * sampleRate * 2
     const endPosition = dataPoint.endPosition ?? (dataPoint.endTime ?? 0) * sampleRate * 2
     const length = endPosition - startPosition
-    const durationMs = (length / (sampleRate * 2)) * 1000
+    const durationMs = dataPoint.startTime !== undefined && dataPoint.endTime !== undefined
+        ? (dataPoint.endTime - dataPoint.startTime) * 1000
+        : (length / (sampleRate * 2)) * 1000
 
     const handleProcessSegment = useCallback(async () => {
         logger.info('Processing segment with config:', {
@@ -173,11 +175,11 @@ export function SegmentAnalyzer({
             setIsProcessing(true)
             const startTime = performance.now()
 
-            const segmentResult = await extractAudioFromAnyFormat({
+            const segmentResult = await extractAudioAnalysis({
                 fileUri,
-                position: startPosition,
-                length,
-                pointsPerSecond: analysisConfig.pointsPerSecond,
+                startTimeMs: dataPoint.startTime,
+                endTimeMs: dataPoint.endTime,
+                segmentDurationMs: analysisConfig.segmentDurationMs,
                 features: analysisConfig.features,
                 decodingOptions: {
                     targetSampleRate: sampleRate,

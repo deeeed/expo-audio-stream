@@ -205,12 +205,6 @@ export const AudioRecordingView = ({
         pitch: false,
     })
 
-    // Create a memoized analysis config that includes both segment duration and features
-    const analysisConfig = useMemo(() => ({
-        pointsPerSecond: 1000 / segmentDuration,
-        features: {}, // Ignore features since we compute them on selection
-    }), [segmentDuration])
-
     const {
         isPlaying,
         audioAnalysis: actualAnalysis,
@@ -224,7 +218,10 @@ export const AudioRecordingView = ({
         recording,
         options: {
             extractAnalysis: extractAnalysis,
-            analysisOptions: analysisConfig, // Pass the memoized config
+            analysisOptions: {
+                segmentDurationMs: segmentDuration,
+                features: features,
+            },
         },
     })
     const [activeFormat, setActiveFormat] = useState<'wav' | 'compressed'>(
@@ -589,7 +586,7 @@ export const AudioRecordingView = ({
                             message: error.message 
                         })}
                         analysisConfig={{
-                            pointsPerSecond: 1000 / segmentDuration,
+                            segmentDurationMs: segmentDuration,
                             features,
                         }}
                     />
