@@ -1,10 +1,11 @@
 import { FontAwesome } from '@expo/vector-icons'
 import { AppTheme, useTheme } from '@siteed/design-system'
 import { AudioAnalysis } from '@siteed/expo-audio-stream'
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { useSileroVAD } from '../../hooks/useSileroVAD'
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 
 interface SpeechAnalyzerProps {
     analysis: AudioAnalysis
@@ -23,10 +24,15 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
 
     const { isModelLoading, isProcessing, processAudioSegment } = useSileroVAD({
         onError: (error) => {
-            console.error('VAD Error:', error);
-            // You might want to add error handling UI here
+            console.error('VAD Error:', error)
         }
-    });
+    })
+
+    useEffect(() => {
+        if (pcmData && sampleRate && !isModelLoading) {
+            handleVAD()
+        }
+    }, [pcmData, sampleRate, isModelLoading])
 
     const handleDetectLanguage = async () => {
         setIsDetectingLanguage(true)
@@ -51,108 +57,106 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
 
     const handleVAD = useCallback(async () => {
         if (!pcmData || !sampleRate) {
-            console.error('No PCM data or sample rate available');
-            return;
+            console.error('No PCM data or sample rate available')
+            return
         }
 
-        const float32Data = new Float32Array(pcmData.length / 2);
-        const dataView = new DataView(pcmData.buffer);
+        const float32Data = new Float32Array(pcmData.length / 2)
+        const dataView = new DataView(pcmData.buffer)
         
         for (let i = 0; i < pcmData.length; i += 2) {
-            const int16Value = dataView.getInt16(i, true);
-            float32Data[i / 2] = int16Value / 32768.0;
+            const int16Value = dataView.getInt16(i, true)
+            float32Data[i / 2] = int16Value / 32768.0
         }
 
-        const result = await processAudioSegment(float32Data, sampleRate);
+        const result = await processAudioSegment(float32Data, sampleRate)
         if (result) {
-            setVadResult(result);
+            setVadResult(result)
         }
-    }, [pcmData, sampleRate, processAudioSegment]);
+    }, [pcmData, sampleRate, processAudioSegment])
 
     const isSpeechActive = analysis.dataPoints[0]?.speech?.isActive
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Speech Analysis</Text>
-            
-            <View style={styles.indicators}>
-                <View style={styles.indicator}>
-                    <Text style={styles.label}>Silent</Text>
-                    <FontAwesome
-                        name="check-circle"
-                        size={16}
-                        color={analysis.dataPoints[0]?.silent 
-                            ? theme.colors.primary 
-                            : theme.colors.outline}
-                    />
-                </View>
-                <View style={styles.indicator}>
-                    <Text style={styles.label}>Speech</Text>
-                    <FontAwesome
-                        name="check-circle"
-                        size={16}
-                        color={isSpeechActive 
-                            ? theme.colors.primary 
-                            : theme.colors.outline}
-                    />
-                </View>
-            </View>
+        <View style={styles.speechSection}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>Speech Analysis</Text>
 
-            <View style={styles.actions}>
+            <View style={styles.buttonGroup}>
                 <Button
-                    mode="outlined"
+                    mode="contained-tonal"
                     onPress={handleVAD}
                     loading={isModelLoading || isProcessing}
-                    disabled={isModelLoading || isProcessing || !analysis.dataPoints[0]?.samples}
+                    disabled={isModelLoading || isProcessing || !pcmData || !sampleRate}
                     style={styles.actionButton}
+                    icon={() => (
+                        <MaterialCommunityIcons
+                            name="waveform"
+                            size={20}
+                            color={theme.colors.onSecondaryContainer}
+                        />
+                    )}
                 >
-                    Run VAD
+                    Refresh VAD
                 </Button>
 
                 <Button
-                    mode="outlined"
+                    mode="contained-tonal"
                     onPress={handleDetectLanguage}
                     loading={isDetectingLanguage}
-                    disabled={isDetectingLanguage || isTranscribing || !isSpeechActive}
+                    disabled={isDetectingLanguage || !pcmData || !sampleRate}
                     style={styles.actionButton}
+                    icon={() => (
+                        <MaterialCommunityIcons
+                            name="translate"
+                            size={20}
+                            color={theme.colors.onSecondaryContainer}
+                        />
+                    )}
                 >
                     Detect Language
                 </Button>
 
                 <Button
-                    mode="outlined"
+                    mode="contained-tonal"
                     onPress={handleTranscribe}
                     loading={isTranscribing}
-                    disabled={isDetectingLanguage || isTranscribing || !isSpeechActive}
+                    disabled={isTranscribing || !pcmData || !sampleRate}
                     style={styles.actionButton}
+                    icon={() => (
+                        <MaterialCommunityIcons
+                            name="text-recognition"
+                            size={20}
+                            color={theme.colors.onSecondaryContainer}
+                        />
+                    )}
                 >
                     Transcribe
                 </Button>
             </View>
 
             {vadResult && (
-                <View style={styles.resultRow}>
-                    <Text style={styles.label}>VAD Result:</Text>
-                    <Text style={styles.value}>
-                        {vadResult.probability.toFixed(3)} ({vadResult.isSpeech ? 'Speech' : 'No Speech'})
+                <View style={styles.resultContainer}>
+                    <Text variant="bodyMedium" style={styles.label}>Speech Detection:</Text>
+                    <Text variant="bodyMedium" style={[
+                        styles.value,
+                        { color: vadResult.isSpeech ? theme.colors.success : theme.colors.error }
+                    ]}>
+                        {vadResult.isSpeech ? 'Speech Detected' : 'No Speech'} ({(vadResult.probability * 100).toFixed(1)}%)
                     </Text>
                 </View>
             )}
 
-            {(detectedLanguage || transcription) && (
-                <View style={styles.results}>
-                    {detectedLanguage && (
-                        <View style={styles.resultRow}>
-                            <Text style={styles.label}>Language:</Text>
-                            <Text style={styles.value}>{detectedLanguage}</Text>
-                        </View>
-                    )}
-                    {transcription && (
-                        <View style={styles.resultRow}>
-                            <Text style={styles.label}>Transcription:</Text>
-                            <Text style={styles.value}>{transcription}</Text>
-                        </View>
-                    )}
+            {detectedLanguage && (
+                <View style={styles.resultContainer}>
+                    <Text variant="bodyMedium" style={styles.label}>Detected Language:</Text>
+                    <Text variant="bodyMedium" style={styles.value}>{detectedLanguage}</Text>
+                </View>
+            )}
+
+            {transcription && (
+                <View style={styles.resultContainer}>
+                    <Text variant="bodyMedium" style={styles.label}>Transcription:</Text>
+                    <Text variant="bodyMedium" style={styles.value}>{transcription}</Text>
                 </View>
             )}
         </View>
@@ -160,54 +164,38 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
 }
 
 const getStyles = (theme: AppTheme) => StyleSheet.create({
-    container: {
-        marginTop: theme.margin.m,
+    speechSection: {
         padding: theme.padding.m,
         backgroundColor: theme.colors.secondaryContainer,
         borderRadius: theme.roundness,
+        gap: theme.spacing.gap,
     },
-    title: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: theme.margin.m,
-        color: theme.colors.onSurfaceVariant,
+    sectionTitle: {
+        color: theme.colors.onSecondaryContainer,
+        marginBottom: theme.margin.s,
     },
-    indicators: {
+    buttonGroup: {
         flexDirection: 'row',
-        gap: theme.margin.l,
-        marginBottom: theme.margin.m,
-    },
-    indicator: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 5,
-    },
-    actions: {
-        flexDirection: 'row',
-        gap: theme.margin.m,
         flexWrap: 'wrap',
+        gap: theme.spacing.gap,
+        marginBottom: theme.margin.m,
     },
     actionButton: {
-        flex: 1,
-        minWidth: 150,
+        flexGrow: 1,
+        flexBasis: '45%',
+        height: 40,
     },
-    results: {
-        marginTop: theme.margin.m,
-        gap: theme.margin.s,
-    },
-    resultRow: {
+    resultContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        paddingVertical: theme.padding.s,
     },
     label: {
+        color: theme.colors.onSecondaryContainer,
         fontWeight: '500',
-        color: theme.colors.onSurfaceVariant,
     },
     value: {
-        color: theme.colors.onSurfaceVariant,
-        flex: 1,
-        textAlign: 'right',
-        marginLeft: theme.margin.m,
+        color: theme.colors.onSecondaryContainer,
     },
-}) 
+})

@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { AppTheme, useTheme } from '@siteed/design-system'
 import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioFromAnyFormat } from '@siteed/expo-audio-stream'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useEffect } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { baseLogger } from '../../config'
@@ -217,6 +217,11 @@ export function SegmentAnalyzer({
         }
     }, [dataPoint, sampleRate, analysisConfig, startPosition, endPosition, length, durationMs, onError, fileUri, bitDepth])
 
+    // Add useEffect to automatically process segment when dataPoint changes
+    useEffect(() => {
+        handleProcessSegment()
+    }, [dataPoint, handleProcessSegment])
+
     return (
         <View style={styles.container}>
             <View style={styles.segmentInfo}>
@@ -273,7 +278,7 @@ export function SegmentAnalyzer({
                         color={theme.colors.onSecondaryContainer}
                     />
                     <Text style={{ color: theme.colors.onSecondaryContainer }}>
-                        Analyze Segment
+                        Refresh Analysis
                     </Text>
                 </View>
             </Button>
@@ -301,7 +306,11 @@ export function SegmentAnalyzer({
                         </View>
                     )}
                     
-                    <SpeechAnalyzer analysis={segmentAnalysis} />
+                    <SpeechAnalyzer 
+                        analysis={segmentAnalysis}
+                        pcmData={byteArray}
+                        sampleRate={sampleRate}
+                    />
 
                     {segmentAnalysis.dataPoints[0]?.features && (
                         <View style={styles.featuresSection}>
