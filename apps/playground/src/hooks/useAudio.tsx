@@ -4,7 +4,6 @@ import {
     AudioAnalysis,
     AudioRecording,
     extractAudioAnalysis,
-    extractAudioFromAnyFormat,
 } from '@siteed/expo-audio-stream'
 import { Audio, AVPlaybackStatus } from 'expo-av'
 import { useCallback, useEffect, useState } from 'react'
@@ -82,11 +81,11 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
                         ? `file://${audioUri}`
                         : audioUri
 
-                    const analysis =  await extractAudioFromAnyFormat({
+                    const analysis =  await extractAudioAnalysis({
                             fileUri: actualAudioBuffer ? undefined : normalizedAudioUri,
                             arrayBuffer: actualAudioBuffer,
                             mimeType: recording?.mimeType,
-                            logger: baseLogger.extend('extractAudioFromAnyFormat'),
+                            logger: baseLogger.extend('extractAudioAnalysis'),
                             sampleRate: recording?.sampleRate,
                             segmentDurationMs: options.analysisOptions?.segmentDurationMs,
                             features: options.analysisOptions?.features,

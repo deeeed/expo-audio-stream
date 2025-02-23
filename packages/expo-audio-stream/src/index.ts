@@ -19,8 +19,8 @@ export * from './utils/writeWavHeader'
 export {
     AudioRecorderProvider,
     ExpoAudioStreamModule,
-    extractWavAudioAnalysis as extractAudioAnalysis,
-    extractAudioAnalysis as extractAudioFromAnyFormat,
+    extractWavAudioAnalysis,
+    extractAudioAnalysis,
     extractPreview,
     useAudioRecorder,
     useSharedAudioRecorder,
@@ -30,6 +30,6 @@ export type * from './AudioAnalysis/AudioAnalysis.types'
 
 export type * from './ExpoAudioStream.types'
 export type {
-    ExtractWavAudioAnalysisProps as ExtractAudioAnalysisProps,
-    ExtractAudioAnalysisProps as ExtractAudioFromAnyFormatProps,
+    ExtractWavAudioAnalysisProps,
+    ExtractAudioAnalysisProps,
 } from './AudioAnalysis/extractAudioAnalysis'

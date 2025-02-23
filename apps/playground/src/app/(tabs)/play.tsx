@@ -18,7 +18,7 @@ import {
     Chunk,
     CompressionInfo,
     convertPCMToFloat32,
-    extractPreview,
+    extractAudioAnalysis,
     getWavFileInfo,
     SampleRate,
     TranscriberData
@@ -140,7 +140,7 @@ export const PlayPage = () => {
     const { show } = useToast()
     const [showVisualizer, setShowVisualizer] = useState<boolean>(true)
     const [isSaving, setIsSaving] = useState<boolean>(false)
-    const [previewData, setPreviewData] = useState<AudioPreview | null>(null)
+    const [previewData, setPreviewData] = useState<AudioAnalysis | null>(null)
     const [startTimeMs, setStartTimeMs] = useState<number>(0)
     const [endTimeMs, setEndTimeMs] = useState<number>(0)
     const [customFileName, setCustomFileName] = useState<string>('')
@@ -165,11 +165,11 @@ export const PlayPage = () => {
                 message: 'Generating preview...'
             })
 
-            // Generate preview only once if not trimming
-            const preview = await extractPreview({
+            // Use extractAudioAnalysis directly instead of preview wrapper
+            const audioAnalysis = await extractAudioAnalysis({
                 fileUri,
                 logger: baseLogger.extend('generatePreview'),
-                numberOfPoints: PREVIEW_POINTS,
+                segmentDurationMs: 100,
                 startTimeMs: enableTrim && startTimeMs > 0 ? startTimeMs : undefined,
                 endTimeMs: enableTrim && endTimeMs > startTimeMs ? endTimeMs : undefined,
                 decodingOptions: {
@@ -191,26 +191,15 @@ export const PlayPage = () => {
 
             // Ensure trim boundaries are within valid range
             if (enableTrim) {
-                const durationSec = preview.durationMs / 1000
+                const durationSec = audioAnalysis.durationMs / 1000
                 if (startTimeMs > durationSec || endTimeMs > durationSec) {
                     setStartTimeMs(0)
                     setEndTimeMs(durationSec)
                 }
             }
 
-            let duration = preview.durationMs
-            // On web, get more accurate duration from AudioContext
-            if (isWeb) {
-                try {
-                    const audioCTX = new AudioContext({ sampleRate: 16000 })
-                    const response = await fetch(fileUri)
-                    const arrayBuffer = await response.arrayBuffer()
-                    const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
-                    duration = decoded.duration * 1000
-                } catch (error) {
-                    logger.warn('Failed to get precise duration from AudioContext:', error)
-                }
-            }
+            // Use the duration directly from audioAnalysis
+            const duration = audioAnalysis.durationMs
 
             if (!originalDurationMs) {
                 setOriginalDurationMs(duration)
@@ -231,20 +220,7 @@ export const PlayPage = () => {
                 setPreviewStats(null)
             }
 
-            // Convert preview to AudioAnalysis format for visualizer
-            const audioAnalysis: AudioAnalysis = {
-                bitDepth: 16,
-                samples: Math.floor(duration / 1000 * 16000),
-                numberOfChannels: 1,
-                sampleRate: 16000,
-                segmentDurationMs: PREVIEW_POINTS / (duration / 1000),
-                durationMs: duration,
-                dataPoints: preview.dataPoints,
-                amplitudeRange: preview.amplitudeRange || { min: -1, max: 1 },
-                rmsRange: preview.amplitudeRange || { min: -1, max: 1 },
-            }
-
-            setPreviewData(preview)
+            setPreviewData(audioAnalysis)
             setAudioAnalysis(audioAnalysis)
             
             show({
@@ -381,10 +357,10 @@ export const PlayPage = () => {
 
             const startAudioAnalysis = performance.now()
             logger.log('Extracting audio preview...', audioUri)
-            const preview = await extractPreview({
+            const preview = await extractAudioAnalysis({
                 fileUri: audioUri,
-                logger: baseLogger.extend('extractPreview'),
-                numberOfPoints: PREVIEW_POINTS,
+                logger: baseLogger.extend('extractAudioAnalysis'),
+                segmentDurationMs: (PREVIEW_POINTS / 10), // Convert points to duration (10 sec default)
                 decodingOptions: {
                     targetSampleRate: 16000,
                     targetChannels: 1,

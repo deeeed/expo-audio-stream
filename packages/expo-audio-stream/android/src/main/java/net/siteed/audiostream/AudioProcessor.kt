@@ -180,7 +180,7 @@ class AudioProcessor(private val filesDir: File) {
         if (data.isEmpty()) {
             Log.e("AudioProcessor", "Received empty audio data")
             return AudioAnalysisData(
-                pointsPerSecond = config.pointsPerSecond,
+                segmentDurationMs = config.segmentDurationMs,
                 durationMs = 0,
                 bitDepth = 16,
                 numberOfChannels = config.channels,
@@ -201,27 +201,25 @@ class AudioProcessor(private val filesDir: File) {
             else -> throw IllegalArgumentException("Unsupported encoding: ${config.encoding}")
         }
         val channelData = convertToFloatArray(data, bitDepth)
-        val pointsPerSecond = config.pointsPerSecond
         val featureOptions = config.features
 
         val totalSamples = channelData.size
-        val segmentDurationSeconds = totalSamples.toDouble() / sampleRate
-        val totalPoints = max((segmentDurationSeconds * pointsPerSecond).toInt(), 1)
-        val pointInterval = ceil(totalSamples / totalPoints.toDouble()).toInt()
+        val samplesPerSegment = (config.segmentDurationMs * sampleRate / 1000).toInt()
+        val totalPoints = ceil(totalSamples.toDouble() / samplesPerSegment).toInt()
+        
+        Log.d("AudioProcessor", "Extracting waveform totalSize=${data.size} with $totalSamples samples --> $totalPoints points per segment")
+        Log.d("AudioProcessor", "segmentDuration: ${config.segmentDurationMs}ms")
 
-        Log.d("AudioProcessor", "Extracting waveform totalSize=${data.size} with $totalSamples samples and $pointsPerSecond points per second --> $pointInterval samples per point")
-        Log.d("AudioProcessor", "segmentDuration: $segmentDurationSeconds seconds")
-
-        val expectedPoints = segmentDurationSeconds * pointsPerSecond
-        val samplesPerPoint = ceil(channelData.size / expectedPoints).toInt()
-        Log.d("AudioProcessor", "Extracting waveform with expectedPoints=$expectedPoints , samplesPerPoints=$samplesPerPoint")
+        // Remove expectedPoints calculation since it used pointsPerSecond
+        val samplesPerPoint = ceil(channelData.size / totalPoints.toDouble()).toInt()
+        Log.d("AudioProcessor", "Extracting waveform with samplesPerPoints=$samplesPerPoint")
 
         val dataPoints = mutableListOf<DataPoint>()
         var minAmplitude = Float.MAX_VALUE
         var maxAmplitude = Float.NEGATIVE_INFINITY
         var minRms = Float.MAX_VALUE
         var maxRms = Float.NEGATIVE_INFINITY
-        val durationMs = (segmentDurationSeconds * 1000).toInt()
+        val durationMs = config.segmentDurationMs.toInt()
 
         // Measure the time taken for audio processing
         val extractionTimeMs = measureTimeMillis {
@@ -292,7 +290,7 @@ class AudioProcessor(private val filesDir: File) {
         }
 
         return AudioAnalysisData(
-            pointsPerSecond = pointsPerSecond,
+            segmentDurationMs = config.segmentDurationMs,
             durationMs = durationMs,
             bitDepth = bitDepth,
             numberOfChannels = config.channels,
@@ -1204,7 +1202,7 @@ class AudioProcessor(private val filesDir: File) {
         }
         
         return AudioAnalysisData(
-            pointsPerSecond = pointsPerSecond,
+            segmentDurationMs = config.segmentDurationMs,
             durationMs = durationMs.toInt(),
             bitDepth = audioData.bitDepth,
             numberOfChannels = audioData.channels,
@@ -1376,7 +1374,7 @@ class AudioProcessor(private val filesDir: File) {
                 - format: ${targetSampleRate}Hz, $targetChannels channels, $targetBitDepth-bit
             """.trimIndent())
 
-            val outputBuffer = ByteBuffer.allocateDirect(totalBytes.toInt())
+            val outputBuffer = ByteBuffer.allocate(totalBytes.toInt())
             val bufferInfo = MediaCodec.BufferInfo()
             var isEOS = false
             
@@ -1406,18 +1404,25 @@ class AudioProcessor(private val filesDir: File) {
                 // Handle output
                 val outputBufferId = decoder.dequeueOutputBuffer(bufferInfo, 10000)
                 if (outputBufferId >= 0) {
-                    val outputBuffer = decoder.getOutputBuffer(outputBufferId)!!
+                    val decodedBuffer = decoder.getOutputBuffer(outputBufferId)!!
                     if (bufferInfo.size > 0) {
-                        outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
-                        outputBuffer.position(bufferInfo.offset)
-                        if (outputBuffer.remaining() <= totalBytes - outputBuffer.position()) {
-                            outputBuffer.get(ByteArray(outputBuffer.remaining()))
-                        }
+                        // Set buffer position and limit based on the decoded data
+                        decodedBuffer.position(bufferInfo.offset)
+                        decodedBuffer.limit(bufferInfo.offset + bufferInfo.size)
+                        
+                        // Copy decoded data to our output buffer
+                        outputBuffer.put(decodedBuffer)
                     }
                     decoder.releaseOutputBuffer(outputBufferId, false)
+                    
+                    // Check if we've reached the end
+                    if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                        isEOS = true
+                    }
                 }
             }
 
+            // Prepare the final byte array
             outputBuffer.flip()
             val audioData = ByteArray(outputBuffer.remaining())
             outputBuffer.get(audioData)

@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { AppTheme, useTheme } from '@siteed/design-system'
-import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioFromAnyFormat } from '@siteed/expo-audio-stream'
+import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-stream'
 import React, { useCallback, useState, useEffect } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
@@ -173,7 +173,7 @@ export function SegmentAnalyzer({
             setIsProcessing(true)
             const startTime = performance.now()
 
-            const segmentResult = await extractAudioFromAnyFormat({
+            const segmentResult = await extractAudioAnalysis({
                 fileUri,
                 position: startPosition,
                 length,

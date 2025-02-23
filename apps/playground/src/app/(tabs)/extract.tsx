@@ -1,5 +1,5 @@
 import { EditableInfoCard, LabelSwitch, Notice, Picker, ScreenWrapper, useToast } from '@siteed/design-system'
-import { AudioAnalysis, DecodingConfig, extractAudioFromAnyFormat } from '@siteed/expo-audio-stream'
+import { AudioAnalysis, DecodingConfig, extractAudioAnalysis  } from '@siteed/expo-audio-stream'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import * as DocumentPicker from 'expo-document-picker'
 import React, { useCallback, useState } from 'react'
@@ -47,7 +47,7 @@ export default function ExtractScreen() {
             })
 
             if (isWeb) {
-                const analysis = await extractAudioFromAnyFormat({
+                const analysis = await extractAudioAnalysis({
                     fileUri,
                     mimeType: 'audio/mp3',
                     decodingOptions: isDecodingEnabled ? decodingConfig : undefined,
@@ -105,7 +105,7 @@ export default function ExtractScreen() {
                 message: 'Loading audio file...'
             })
 
-            const analysis = await extractAudioFromAnyFormat({
+            const analysis = await extractAudioAnalysis({
                 fileUri: result.assets[0].uri,
                 mimeType: result.assets[0].mimeType ?? 'audio/*',
                 decodingOptions: isDecodingEnabled ? decodingConfig : undefined,
@@ -170,7 +170,7 @@ export default function ExtractScreen() {
                 message: 'Reprocessing audio...'
             })
 
-            const analysis = await extractAudioFromAnyFormat({
+            const analysis = await extractAudioAnalysis({
                 fileUri: currentFile.fileUri,
                 mimeType: currentFile.mimeType,
                 decodingOptions: isDecodingEnabled ? decodingConfig : undefined,
