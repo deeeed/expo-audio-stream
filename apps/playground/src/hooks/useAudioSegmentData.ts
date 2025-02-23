@@ -20,7 +20,22 @@ export function useAudioSegmentData({
     const [error, setError] = useState<Error>()
 
     const loadData = useCallback(async () => {
-        if (!selectedDataPoint) return
+        if (!selectedDataPoint) {
+            logger.warn('No data point selected')
+            return
+        }
+
+        logger.info('Loading audio segment data:', {
+            fileUri,
+            selectedDataPoint: {
+                startPosition: selectedDataPoint.startPosition,
+                endPosition: selectedDataPoint.endPosition,
+                startTime: selectedDataPoint.startTime,
+                endTime: selectedDataPoint.endTime,
+                samples: selectedDataPoint.samples
+            },
+            bitDepth
+        })
 
         try {
             setIsLoading(true)
@@ -39,6 +54,12 @@ export function useAudioSegmentData({
                     endTimeMs: selectedDataPoint.endTime
                 }
 
+            logger.info('Calling extractAudioData with options:', {
+                fileUri,
+                extractionOptions,
+                bitDepth
+            })
+
             const result = await ExpoAudioStreamModule.extractAudioData({
                 fileUri,
                 ...extractionOptions,
@@ -48,9 +69,27 @@ export function useAudioSegmentData({
                 }
             })
 
+            logger.info('Raw extraction result:', {
+                hasResult: !!result,
+                resultKeys: result ? Object.keys(result) : [],
+                dataLength: result?.data?.length,
+                dataType: result?.data ? result.data.constructor.name : 'no data',
+                hasData: !!result?.data
+            })
+
+            if (!result?.data) {
+                logger.error('No data returned from extractAudioData')
+                setError(new Error('No data returned from audio extraction'))
+                return
+            }
+
             setByteArray(result.data)
         } catch (err) {
-            logger.error('Failed to load audio segment data:', err)
+            logger.error('Failed to load audio segment data:', {
+                error: err,
+                fileUri,
+                selectedDataPoint
+            })
             setError(err instanceof Error ? err : new Error('Unknown error'))
         } finally {
             setIsLoading(false)

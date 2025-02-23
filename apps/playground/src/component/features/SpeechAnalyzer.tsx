@@ -29,8 +29,15 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
     })
 
     useEffect(() => {
-        if (pcmData && sampleRate && !isModelLoading) {
+        if (!pcmData || !sampleRate || !isModelLoading) {
+            return
+        }
+
+        // Only process if we actually have data
+        if (pcmData.length > 0) {
             handleVAD()
+        } else {
+            console.warn('Waiting for PCM data to be loaded...')
         }
     }, [pcmData, sampleRate, isModelLoading])
 
@@ -61,15 +68,25 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
             return
         }
 
+        // Ensure we have enough data (at least 512 samples)
+        if (pcmData.length < 1024) { // 512 * 2 because it's 16-bit (2 bytes per sample)
+            console.warn(`Audio segment too short for VAD processing. Got ${pcmData.length} bytes, need at least 1024 bytes (512 samples)`)
+            return
+        }
+
+        // Convert Int16 PCM to Float32 (normalized between -1 and 1)
         const float32Data = new Float32Array(pcmData.length / 2)
-        const dataView = new DataView(pcmData.buffer)
+        const dataView = new DataView(pcmData.buffer, pcmData.byteOffset, pcmData.length)
         
         for (let i = 0; i < pcmData.length; i += 2) {
             const int16Value = dataView.getInt16(i, true)
             float32Data[i / 2] = int16Value / 32768.0
         }
 
-        const result = await processAudioSegment(float32Data, sampleRate)
+        // Take the first 512 samples for VAD processing
+        const vadSegment = float32Data.slice(0, 512)
+        
+        const result = await processAudioSegment(vadSegment, sampleRate)
         if (result) {
             setVadResult(result)
         }
@@ -86,7 +103,7 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
                     mode="contained-tonal"
                     onPress={handleVAD}
                     loading={isModelLoading || isProcessing}
-                    disabled={isModelLoading || isProcessing || !pcmData || !sampleRate}
+                    disabled={isModelLoading || isProcessing || !pcmData || !sampleRate || pcmData.length === 0}
                     style={styles.actionButton}
                     icon={() => (
                         <MaterialCommunityIcons
