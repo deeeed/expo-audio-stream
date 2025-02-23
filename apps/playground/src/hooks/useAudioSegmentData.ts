@@ -26,12 +26,23 @@ export function useAudioSegmentData({
             setIsLoading(true)
             setError(undefined)
 
+            // Determine whether to use position-based or time-based extraction
+            const extractionOptions = selectedDataPoint.startPosition !== undefined
+                ? {
+                    position: selectedDataPoint.startPosition,
+                    length: selectedDataPoint.endPosition 
+                        ? selectedDataPoint.endPosition - selectedDataPoint.startPosition
+                        : undefined
+                }
+                : {
+                    startTimeMs: selectedDataPoint.startTime,
+                    endTimeMs: selectedDataPoint.endTime
+                }
+
             const result = await ExpoAudioStreamModule.extractAudioData({
                 fileUri,
-                position: selectedDataPoint.startPosition,
-                length: selectedDataPoint.endPosition 
-                    ? selectedDataPoint.endPosition - (selectedDataPoint.startPosition ?? 0)
-                    : undefined,
+                ...extractionOptions,
+                logger: baseLogger.extend('extractAudioData'),
                 decodingOptions: {
                     targetBitDepth: bitDepth
                 }
