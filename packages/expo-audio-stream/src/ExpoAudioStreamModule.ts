@@ -82,12 +82,31 @@ if (Platform.OS === 'web') {
         options: ExtractAudioDataOptions
     ): Promise<ExtractedAudioData> => {
         try {
+            const {
+                fileUri,
+                position,
+                length,
+                startTimeMs,
+                endTimeMs,
+                decodingOptions,
+                logger,
+            } = options
+
+            logger?.info('Web Audio Extraction - Starting:', {
+                fileUri,
+                position,
+                length,
+                startTimeMs,
+                endTimeMs,
+                decodingOptions,
+            })
+
             // Get the audio data
-            if (!options.fileUri) {
+            if (!fileUri) {
                 throw new Error('fileUri is required')
             }
 
-            const response = await fetch(options.fileUri)
+            const response = await fetch(fileUri)
             if (!response.ok) {
                 throw new Error(
                     `Failed to fetch fileUri: ${response.statusText}`
@@ -98,68 +117,87 @@ if (Platform.OS === 'web') {
             // Create audio context with target sample rate if specified
             const audioContext = new (window.AudioContext ||
                 (window as any).webkitAudioContext)({
-                sampleRate: options.decodingOptions?.targetSampleRate ?? 16000,
+                sampleRate: decodingOptions?.targetSampleRate ?? 16000,
             })
 
             // Decode the audio data
             const decodedAudioBuffer =
                 await audioContext.decodeAudioData(audioBuffer)
 
+            logger?.debug('Audio Buffer Details:', {
+                originalLength: decodedAudioBuffer.length,
+                sampleRate: decodedAudioBuffer.sampleRate,
+                duration: decodedAudioBuffer.duration,
+                channels: decodedAudioBuffer.numberOfChannels,
+            })
+
             // Process the audio buffer using shared helper function
             const processedBuffer = await processAudioBuffer({
                 buffer: decodedAudioBuffer,
-                targetSampleRate:
-                    options.decodingOptions?.targetSampleRate ?? 16000,
-                targetChannels: options.decodingOptions?.targetChannels ?? 1,
-                normalizeAudio:
-                    options.decodingOptions?.normalizeAudio ?? false,
+                targetSampleRate: decodingOptions?.targetSampleRate ?? 16000,
+                targetChannels: decodingOptions?.targetChannels ?? 1,
+                normalizeAudio: decodingOptions?.normalizeAudio ?? false,
             })
 
-            // Convert to PCM data
             const channelData = processedBuffer.getChannelData(0)
-            const bitDepth = (options.decodingOptions?.targetBitDepth ?? 16) as BitDepth
+            const bitDepth = (decodingOptions?.targetBitDepth ?? 16) as BitDepth
             const bytesPerSample = bitDepth / 8
 
-            // Calculate effective range
-            let startSample = 0
-            let endSample = channelData.length
+            // Calculate sample positions from either byte positions or time
+            let startSample: number
+            let endSample: number
 
-            if (options.startTimeMs != null && options.endTimeMs != null) {
+            if (position != null && length != null) {
+                // Use byte positions if provided
+                startSample = Math.floor(position / bytesPerSample)
+                endSample = Math.floor((position + length) / bytesPerSample)
+            } else if (startTimeMs != null && endTimeMs != null) {
+                // Fall back to time-based calculation
                 startSample = Math.floor(
-                    (options.startTimeMs / 1000) * processedBuffer.sampleRate
+                    (startTimeMs / 1000) * processedBuffer.sampleRate
                 )
                 endSample = Math.floor(
-                    (options.endTimeMs / 1000) * processedBuffer.sampleRate
+                    (endTimeMs / 1000) * processedBuffer.sampleRate
                 )
-            } else if (options.position != null && options.length != null) {
-                startSample = Math.floor(options.position / bytesPerSample)
-                endSample =
-                    startSample + Math.floor(options.length / bytesPerSample)
+            } else {
+                // If neither is provided, use the entire buffer
+                startSample = 0
+                endSample = channelData.length
             }
 
-            // Validate range
-            if (
-                startSample < 0 ||
-                endSample > channelData.length ||
-                startSample >= endSample
-            ) {
-                throw new Error('Invalid range specified')
-            }
+            logger?.debug('Segment Calculation:', {
+                position,
+                length,
+                startTimeMs,
+                endTimeMs,
+                bytesPerSample,
+                startSample,
+                endSample,
+                channelDataLength: channelData.length,
+                requestedSegmentLength: endSample - startSample,
+            })
 
-            // Create PCM data array
+            // Ensure we don't exceed buffer bounds
+            startSample = Math.max(0, Math.min(startSample, channelData.length))
+            endSample = Math.max(
+                startSample,
+                Math.min(endSample, channelData.length)
+            )
+
+            // Create PCM data array for just the segment
             const pcmData = new Uint8Array(
                 (endSample - startSample) * bytesPerSample
             )
             let offset = 0
 
+            // Only process the samples within our segment
             for (let i = startSample; i < endSample; i++) {
                 const sample = channelData[i]
-
                 if (bitDepth === 16) {
-                    const value = Math.max(-1, Math.min(1, sample)) // Clamp between -1 and 1
-                    const intValue = Math.round(value * 32767) // Convert to 16-bit
-                    pcmData[offset++] = intValue & 255 // Low byte
-                    pcmData[offset++] = (intValue >> 8) & 255 // High byte
+                    const value = Math.max(-1, Math.min(1, sample))
+                    const intValue = Math.round(value * 32767)
+                    pcmData[offset++] = intValue & 255
+                    pcmData[offset++] = (intValue >> 8) & 255
                 } else if (bitDepth === 32) {
                     const value = Math.max(-1, Math.min(1, sample))
                     const intValue = Math.round(value * 2147483647)
@@ -167,12 +205,10 @@ if (Platform.OS === 'web') {
                     pcmData[offset++] = (intValue >> 8) & 255
                     pcmData[offset++] = (intValue >> 16) & 255
                     pcmData[offset++] = (intValue >> 24) & 255
-                } else {
-                    throw new Error(`Unsupported bit depth: ${bitDepth}`)
                 }
             }
 
-            return {
+            const result = {
                 data: pcmData,
                 sampleRate: processedBuffer.sampleRate,
                 channels: processedBuffer.numberOfChannels,
@@ -182,6 +218,8 @@ if (Platform.OS === 'web') {
                     1000,
                 format: `pcm_${bitDepth}bit` as const,
             }
+
+            return result
         } catch (error) {
             console.error('Failed to extract audio data:', error)
             throw error

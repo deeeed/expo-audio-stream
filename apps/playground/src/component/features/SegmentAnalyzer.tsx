@@ -1,14 +1,14 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { AppTheme, useTheme, useToast } from '@siteed/design-system'
-import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-stream'
+import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioFromAnyFormat } from '@siteed/expo-audio-stream'
 import React, { useCallback, useState } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { baseLogger } from '../../config'
 import { useAudioSegmentData } from '../../hooks/useAudioSegmentData'
-import { isWeb } from '../../utils/utils'
-import { FeatureViewer } from './FeatureViewer'
 import { HexDataViewer } from '../HexDataViewer'
+import { PCMPlayer } from '../PCMPlayer'
+import { FeatureViewer } from './FeatureViewer'
 import { SpeechAnalyzer } from './SpeechAnalyzer'
 
 const logger = baseLogger.extend('SegmentAnalyzer')
@@ -141,11 +141,6 @@ export function SegmentAnalyzer({
     const durationMs = (length / (sampleRate * 2)) * 1000
 
     const handleProcessSegment = useCallback(async () => {
-        if(isWeb) {
-            show({type: 'warning', message: 'Segment analysis is not supported on web (yet)'})
-            return;
-        }
-        
         logger.info('Processing segment with config:', {
             startPosition: dataPoint.startPosition,
             endPosition: dataPoint.endPosition,
@@ -179,12 +174,18 @@ export function SegmentAnalyzer({
             setIsProcessing(true)
             const startTime = performance.now()
 
-            const segmentResult = await extractAudioAnalysis({
+            const segmentResult = await extractAudioFromAnyFormat({
                 fileUri,
                 position: startPosition,
                 length,
                 pointsPerSecond: analysisConfig.pointsPerSecond,
                 features: analysisConfig.features,
+                decodingOptions: {
+                    targetSampleRate: sampleRate,
+                    targetChannels: 1,
+                    targetBitDepth: bitDepth,
+                    normalizeAudio: false
+                }
             })
 
             const timeElapsed = performance.now() - startTime
@@ -215,7 +216,7 @@ export function SegmentAnalyzer({
         } finally {
             setIsProcessing(false)
         }
-    }, [dataPoint, sampleRate, analysisConfig, startPosition, endPosition, length, durationMs, show, onError, fileUri])
+    }, [dataPoint, sampleRate, analysisConfig, startPosition, endPosition, length, durationMs, show, onError, fileUri, bitDepth])
 
     return (
         <View style={styles.container}>
@@ -314,10 +315,17 @@ export function SegmentAnalyzer({
             {isLoading ? (
                 <ActivityIndicator />
             ) : byteArray && (
-                <HexDataViewer
-                    byteArray={byteArray}
-                    bitDepth={bitDepth}
-                />
+                <>
+                    <PCMPlayer
+                        data={byteArray}
+                        sampleRate={sampleRate}
+                        bitDepth={bitDepth}
+                    />
+                    <HexDataViewer
+                        byteArray={byteArray}
+                        bitDepth={bitDepth}
+                    />
+                </>
             )}
         </View>
     )

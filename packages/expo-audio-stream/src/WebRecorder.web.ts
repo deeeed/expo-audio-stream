@@ -31,7 +31,6 @@ const DEFAULT_WEB_BITDEPTH = 32
 const DEFAULT_WEB_POINTS_PER_SECOND = 10
 const DEFAULT_WEB_INTERVAL = 500
 const DEFAULT_WEB_NUMBER_OF_CHANNELS = 1
-const DEFAULT_ALGORITHM = 'rms'
 
 const TAG = 'WebRecorder'
 
@@ -169,10 +168,20 @@ export class WebRecorder {
                     event.data.sampleRate ?? this.audioContext.sampleRate
                 const duration = pcmBufferFloat.length / sampleRate
 
+                // Calculate bytes per sample based on bit depth
+                const bytesPerSample = this.bitDepth / 8
+
                 // Emit chunks without storing them
                 for (let i = 0; i < pcmBufferFloat.length; i += chunkSize) {
                     const chunk = pcmBufferFloat.slice(i, i + chunkSize)
                     const chunkPosition = this.position + i / sampleRate
+
+                    // Calculate byte positions and samples
+                    const startPosition = Math.floor(i * bytesPerSample)
+                    const endPosition = Math.floor(
+                        (i + chunk.length) * bytesPerSample
+                    )
+                    const samples = chunk.length // Number of samples in this chunk
 
                     // Process features if enabled
                     if (
@@ -192,6 +201,9 @@ export class WebRecorder {
                                 numberOfChannels: this.numberOfChannels,
                                 features: this.config.features,
                                 intervalAnalysis: this.config.intervalAnalysis,
+                                startPosition,
+                                endPosition,
+                                samples,
                             },
                             []
                         )
