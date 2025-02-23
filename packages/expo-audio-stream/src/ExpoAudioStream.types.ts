@@ -170,8 +170,8 @@ export interface RecordingConfig {
     // iOS-specific configuration
     ios?: IOSConfig
 
-    // Number of data points to extract per second of audio (default is 10)
-    pointsPerSecond?: number
+    // Duration of each segment in milliseconds (default: 100)
+    segmentDurationMs?: number
 
     // Feature options to extract (default is empty)
     features?: AudioFeaturesOptions

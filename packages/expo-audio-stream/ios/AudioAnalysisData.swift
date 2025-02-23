@@ -8,7 +8,7 @@
 import Foundation
 
 public struct AudioAnalysisData {
-    public let pointsPerSecond: Double
+    public let segmentDurationMs: Int
     public let durationMs: Int
     public let bitDepth: Int
     public let numberOfChannels: Int
@@ -58,7 +58,7 @@ public struct AudioAnalysisData {
 extension AudioAnalysisData {
     func toDictionary() -> [String: Any?] {
         return [
-            "pointsPerSecond": pointsPerSecond,
+            "segmentDurationMs": segmentDurationMs,
             "durationMs": durationMs,
             "bitDepth": bitDepth,
             "numberOfChannels": numberOfChannels,

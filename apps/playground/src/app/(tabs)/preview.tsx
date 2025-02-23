@@ -306,6 +306,7 @@ export default function PreviewScreen() {
                                 numberOfChannels: 1,
                                 sampleRate: 16000,
                                 rmsRange: previewData.amplitudeRange,
+                                segmentDurationMs: 100,
                             }}
                             canvasHeight={200}
                             showRuler

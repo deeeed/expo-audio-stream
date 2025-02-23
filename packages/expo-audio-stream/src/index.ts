@@ -1,8 +1,8 @@
 // src/index.ts
 
 import {
+    extractWavAudioAnalysis,
     extractAudioAnalysis,
-    extractAudioFromAnyFormat,
     extractPreview,
 } from './AudioAnalysis/extractAudioAnalysis'
 import {
@@ -19,8 +19,8 @@ export * from './utils/writeWavHeader'
 export {
     AudioRecorderProvider,
     ExpoAudioStreamModule,
+    extractWavAudioAnalysis,
     extractAudioAnalysis,
-    extractAudioFromAnyFormat,
     extractPreview,
     useAudioRecorder,
     useSharedAudioRecorder,
@@ -30,6 +30,6 @@ export type * from './AudioAnalysis/AudioAnalysis.types'
 
 export type * from './ExpoAudioStream.types'
 export type {
+    ExtractWavAudioAnalysisProps,
     ExtractAudioAnalysisProps,
-    ExtractAudioFromAnyFormatProps,
 } from './AudioAnalysis/extractAudioAnalysis'

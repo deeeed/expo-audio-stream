@@ -118,8 +118,7 @@ export class WebRecorder {
             bitDepth: this.bitDepth,
             numberOfChannels: this.numberOfChannels,
             sampleRate: this.config.sampleRate || this.audioContext.sampleRate,
-            pointsPerSecond:
-                this.config.pointsPerSecond || DEFAULT_WEB_POINTS_PER_SECOND,
+            segmentDurationMs: this.config.segmentDurationMs ?? 100, // Default to 100ms segments
         }
 
         if (recordingConfig.enableProcessing) {
@@ -188,25 +187,20 @@ export class WebRecorder {
                         this.config.enableProcessing &&
                         this.featureExtractorWorker
                     ) {
-                        this.featureExtractorWorker.postMessage(
-                            {
-                                command: 'process',
-                                channelData: chunk,
-                                sampleRate,
-                                pointsPerSecond:
-                                    this.config.pointsPerSecond ||
-                                    DEFAULT_WEB_POINTS_PER_SECOND,
-                                bitDepth: this.bitDepth,
-                                fullAudioDurationMs: this.position * 1000,
-                                numberOfChannels: this.numberOfChannels,
-                                features: this.config.features,
-                                intervalAnalysis: this.config.intervalAnalysis,
-                                startPosition,
-                                endPosition,
-                                samples,
-                            },
-                            []
-                        )
+                        this.featureExtractorWorker.postMessage({
+                            command: 'process',
+                            channelData: chunk,
+                            sampleRate,
+                            segmentDurationMs: this.config.segmentDurationMs ?? 100, // Default to 100ms
+                            bitDepth: this.bitDepth,
+                            fullAudioDurationMs: this.position * 1000,
+                            numberOfChannels: this.numberOfChannels,
+                            features: this.config.features,
+                            intervalAnalysis: this.config.intervalAnalysis,
+                            startPosition,
+                            endPosition,
+                            samples,
+                        })
                     }
 
                     // Emit chunk immediately

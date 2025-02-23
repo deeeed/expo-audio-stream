@@ -73,7 +73,7 @@ data class DataPoint(
 }
 
 data class AudioAnalysisData(
-    val pointsPerSecond: Double,
+    val segmentDurationMs: Int,
     val durationMs: Int,
     val bitDepth: Int,
     val numberOfChannels: Int,
@@ -132,7 +132,7 @@ data class AudioAnalysisData(
 
     fun toDictionary(): Map<String, Any?> {
         return mapOf(
-            "pointsPerSecond" to pointsPerSecond,
+            "segmentDurationMs" to segmentDurationMs,
             "durationMs" to durationMs,
             "bitDepth" to bitDepth,
             "numberOfChannels" to numberOfChannels,
@@ -150,7 +150,7 @@ data class AudioAnalysisData(
         val dataPointsBundleArray = dataPoints.map { it.toBundle() }.toTypedArray()
 
         return bundleOf(
-            "pointsPerSecond" to pointsPerSecond,
+            "segmentDurationMs" to segmentDurationMs,
             "durationMs" to durationMs,
             "bitDepth" to bitDepth,
             "numberOfChannels" to numberOfChannels,
