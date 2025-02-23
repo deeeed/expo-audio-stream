@@ -103,6 +103,7 @@ export interface AudioVisualizerProps {
     /** How to scale the amplitude values */
     amplitudeScaling?: AmplitudeScalingMode
     showDecibelVisualization?: DecibelVisualizationConfig
+    resetTrigger?: unknown
 }
 
 export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
@@ -134,6 +135,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     scaleToHumanVoice = false,
     amplitudeScaling = 'normalized', // default to normalized for backward compatibility
     showDecibelVisualization,
+    resetTrigger,
 }) => {
     const translateX = useSharedValue(0)
     const [state, dispatch] = useReducer(reducer, initialState)
@@ -560,6 +562,13 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         }),
         [theme, showDecibelVisualization]
     )
+
+    // Add this useEffect to reset position when resetTrigger changes
+    useEffect(() => {
+        if (resetTrigger !== undefined) {
+            handleReset()
+        }
+    }, [resetTrigger, handleReset])
 
     return (
         <View style={mergedTheme.container} onLayout={handleLayout}>

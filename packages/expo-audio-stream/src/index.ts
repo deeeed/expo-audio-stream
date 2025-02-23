@@ -1,7 +1,7 @@
 // src/index.ts
 
 import {
-    extractWavAudioAnalysis,
+    extractRawWavAnalysis,
     extractAudioAnalysis,
     extractPreview,
 } from './AudioAnalysis/extractAudioAnalysis'
@@ -19,7 +19,7 @@ export * from './utils/writeWavHeader'
 export {
     AudioRecorderProvider,
     ExpoAudioStreamModule,
-    extractWavAudioAnalysis,
+    extractRawWavAnalysis as extractWavAudioAnalysis,
     extractAudioAnalysis,
     extractPreview,
     useAudioRecorder,

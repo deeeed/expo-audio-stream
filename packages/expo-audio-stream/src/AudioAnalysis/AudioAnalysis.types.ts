@@ -158,21 +158,3 @@ export interface PreviewOptions extends AudioRangeOptions {
      */
     decodingOptions?: DecodingConfig
 }
-
-/**
- * Represents a simplified preview of audio waveform,
- * optimized for quick visualization.
- */
-export interface AudioPreview {
-    /** Number of data points per second */
-    pointsPerSecond: number
-    /** Duration of the audio in milliseconds */
-    durationMs: number
-    /** Range of amplitude values in the preview */
-    amplitudeRange: {
-        min: number
-        max: number
-    }
-    /** Array of data points representing the waveform */
-    dataPoints: DataPoint[]
-}
