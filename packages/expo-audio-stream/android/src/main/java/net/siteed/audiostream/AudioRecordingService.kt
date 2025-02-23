@@ -32,39 +32,45 @@ class AudioRecordingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(Constants.TAG, "AudioRecordingService onStartCommand")
 
+        // Check if service is being started from BOOT_COMPLETED
+        val isFromBoot = intent?.action == Intent.ACTION_BOOT_COMPLETED
+
         if (!isRunning) {
             isRunning = true
             
-            // Start as foreground service if keepAwake is true, regardless of notification settings
-            val keepAwake = AudioRecorderManager.getInstance()?.getKeepAwakeStatus() ?: true
-            if (keepAwake) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    // Create a minimal notification channel if needed
-                    val channel = NotificationChannel(
-                        "recording_service",
-                        "Recording Service",
-                        NotificationManager.IMPORTANCE_LOW
-                    ).apply {
-                        setSound(null, null)
-                        enableLights(false)
-                        enableVibration(false)
+            // Don't start foreground service if coming from BOOT_COMPLETED on Android 15+
+            if (!isFromBoot || Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // Start as foreground service if keepAwake is true, regardless of notification settings
+                val keepAwake = AudioRecorderManager.getInstance()?.getKeepAwakeStatus() ?: true
+                if (keepAwake) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        // Create a minimal notification channel if needed
+                        val channel = NotificationChannel(
+                            "recording_service",
+                            "Recording Service",
+                            NotificationManager.IMPORTANCE_LOW
+                        ).apply {
+                            setSound(null, null)
+                            enableLights(false)
+                            enableVibration(false)
+                        }
+                        val notificationManager = getSystemService(NotificationManager::class.java)
+                        notificationManager.createNotificationChannel(channel)
+                        
+                        // Create minimal silent notification
+                        val notification = NotificationCompat.Builder(this, "recording_service")
+                            .setContentTitle("")
+                            .setContentText("")
+                            .setSmallIcon(R.drawable.ic_microphone)
+                            .setOngoing(true)
+                            .setSound(null)
+                            .setVibrate(null)
+                            .setDefaults(0)
+                            .setPriority(NotificationCompat.PRIORITY_LOW)
+                            .build()
+                        
+                        startForeground(1, notification)
                     }
-                    val notificationManager = getSystemService(NotificationManager::class.java)
-                    notificationManager.createNotificationChannel(channel)
-                    
-                    // Create minimal silent notification
-                    val notification = NotificationCompat.Builder(this, "recording_service")
-                        .setContentTitle("")
-                        .setContentText("")
-                        .setSmallIcon(R.drawable.ic_microphone)
-                        .setOngoing(true)
-                        .setSound(null)
-                        .setVibrate(null)
-                        .setDefaults(0)
-                        .setPriority(NotificationCompat.PRIORITY_LOW)
-                        .build()
-                    
-                    startForeground(1, notification)
                 }
             }
         }
