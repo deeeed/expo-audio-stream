@@ -107,7 +107,7 @@ interface SegmentAnalyzerProps {
     sampleRate: number
     onError?: (error: Error) => void
     analysisConfig: {
-        pointsPerSecond: number
+        segmentDurationMs: number
         features?: AudioFeaturesOptions
     }
     bitDepth?: number
@@ -177,7 +177,7 @@ export function SegmentAnalyzer({
                 fileUri,
                 position: startPosition,
                 length,
-                pointsPerSecond: analysisConfig.pointsPerSecond,
+                segmentDurationMs: analysisConfig.segmentDurationMs,
                 features: analysisConfig.features,
                 decodingOptions: {
                     targetSampleRate: sampleRate,

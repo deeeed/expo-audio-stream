@@ -237,7 +237,7 @@ export const PlayPage = () => {
                 samples: Math.floor(duration / 1000 * 16000),
                 numberOfChannels: 1,
                 sampleRate: 16000,
-                pointsPerSecond: PREVIEW_POINTS / (duration / 1000),
+                segmentDurationMs: PREVIEW_POINTS / (duration / 1000),
                 durationMs: duration,
                 dataPoints: preview.dataPoints,
                 amplitudeRange: preview.amplitudeRange || { min: -1, max: 1 },
@@ -405,7 +405,7 @@ export const PlayPage = () => {
                 samples: decoded.length,
                 numberOfChannels: 1,
                 sampleRate: 16000,
-                pointsPerSecond: PREVIEW_POINTS / (decoded.duration), // Use decoded.duration
+                segmentDurationMs: PREVIEW_POINTS / (decoded.duration), // Use decoded.duration
                 durationMs: decoded.duration * 1000, // Use decoded.duration
                 dataPoints: preview.dataPoints,
                 amplitudeRange: preview.amplitudeRange || { min: -1, max: 1 },

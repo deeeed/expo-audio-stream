@@ -8,7 +8,7 @@ self.onmessage = function (event) {
     const {
         channelData, // this is only the newly recorded data when live recording.
         sampleRate,
-        pointsPerSecond,
+        segmentDurationMs, // Keep this as is
         algorithm,
         bitDepth,
         fullAudioDurationMs,
@@ -118,12 +118,11 @@ self.onmessage = function (event) {
     const extractWaveform = (
         channelData, // Float32Array
         sampleRate, // number
-        pointsPerSecond, // number
+        segmentDurationMs, // number
     ) => {
         const totalSamples = channelData.length
-        const segmentDuration = totalSamples / sampleRate
-        const totalPoints = Math.max(Math.ceil(segmentDuration * pointsPerSecond), 1)
-        const pointInterval = Math.ceil(totalSamples / totalPoints)
+        const samplesPerSegment = Math.ceil((sampleRate * segmentDurationMs) / 1000)
+        const numberOfSegments = Math.ceil(totalSamples / samplesPerSegment)
         const dataPoints = []
         let minAmplitude = Infinity
         let maxAmplitude = -Infinity
@@ -133,8 +132,9 @@ self.onmessage = function (event) {
         let lastSpeechEnd = -Infinity
         let isSpeech = false
 
-        const expectedPoints = segmentDuration * pointsPerSecond
-        const samplesPerPoint = Math.ceil(channelData.length / expectedPoints)
+        // Calculate points based on segment duration
+        const expectedPoints = Math.ceil(fullAudioDurationMs / segmentDurationMs)
+        const samplesPerPoint = Math.ceil(totalSamples / expectedPoints)
 
         for (let i = 0; i < expectedPoints; i++) {
             const start = i * samplesPerPoint
@@ -244,7 +244,7 @@ self.onmessage = function (event) {
         }
 
         return {
-            pointsPerSecond,
+            segmentDurationMs,
             durationMs: fullAudioDurationMs,
             bitDepth,
             samples: totalSamples,
@@ -270,8 +270,7 @@ self.onmessage = function (event) {
         const result = extractWaveform(
             channelData,
             sampleRate,
-            pointsPerSecond,
-            algorithm
+            segmentDurationMs
         )
 
         // Accumulate data points
