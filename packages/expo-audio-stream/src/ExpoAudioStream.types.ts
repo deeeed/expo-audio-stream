@@ -2,6 +2,7 @@
 import {
     AudioAnalysis,
     AudioFeaturesOptions,
+    DecodingConfig,
 } from './AudioAnalysis/AudioAnalysis.types'
 import { AudioAnalysisEvent } from './events'
 
@@ -274,23 +275,34 @@ export interface ExtractAudioDataOptions {
     // Byte-based range (mutually exclusive with time-based range)
     position?: number
     length?: number
+    /** Include normalized audio data in [-1, 1] range */
+    includeNormalizedData?: boolean
     logger?: ConsoleLike
-    // Optional decoding configuration
-    decodingOptions?: {
-        targetSampleRate?: number
-        targetChannels?: number
-        targetBitDepth?: number
-        normalizeAudio?: boolean
-    }
+    /** Compute the checksum of the pcm data */
+    computeChecksum?: boolean
+    /** Target config for the normalized audio (Android and Web) */
+    decodingOptions?: DecodingConfig
 }
 
 export interface ExtractedAudioData {
-    data: Uint8Array
+    /** Raw PCM audio data */
+    pcmData: Uint8Array
+    /** Normalized audio data in [-1, 1] range (when includeNormalizedData is true) */
+    normalizedData?: Float32Array
+    /** Sample rate in Hz (e.g., 44100, 48000) */
     sampleRate: number
+    /** Number of audio channels (1 for mono, 2 for stereo) */
     channels: number
+    /** Bits per sample (8, 16, or 32) */
     bitDepth: BitDepth
+    /** Duration of the audio in milliseconds */
     durationMs: number
+    /** PCM format identifier (e.g., "pcm_16bit") */
     format: PCMFormat
+    /** Total number of audio samples per channel */
+    samples: number
+    /** CRC32 Checksum of pcm data */
+    checksum?: number
 }
 
 export interface UseAudioRecorderState {

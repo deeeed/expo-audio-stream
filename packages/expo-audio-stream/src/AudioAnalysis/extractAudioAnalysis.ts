@@ -5,6 +5,8 @@
  * - `extractWavAudioAnalysis`: For analyzing WAV files without decoding, preserving original PCM values.
  * - `extractPreview`: For generating quick previews of audio waveforms, optimized for UI rendering.
  */
+import crc32 from 'crc-32'
+
 import { ConsoleLike } from '../ExpoAudioStream.types'
 import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
 import { isWeb } from '../constants'
@@ -19,6 +21,18 @@ import { processAudioBuffer } from '../utils/audioProcessing'
 import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
 import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
 import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
+
+function calculateCRC32ForDataPoint(data: Float32Array): number {
+    // Convert float array to byte array for CRC32
+    const byteArray = new Uint8Array(data.length * 4)
+    const dataView = new DataView(byteArray.buffer)
+
+    for (let i = 0; i < data.length; i++) {
+        dataView.setFloat32(i * 4, data[i], true)
+    }
+
+    return crc32.buf(byteArray)
+}
 
 export interface ExtractWavAudioAnalysisProps {
     fileUri?: string // should provide either fileUri or arrayBuffer
@@ -90,121 +104,112 @@ export async function extractAudioAnalysis(
         arrayBuffer,
         decodingOptions,
         logger,
-        segmentDurationMs = 100, // Default to 100ms
+        segmentDurationMs = 100,
+        features,
     } = props
+
     if (isWeb) {
         try {
-            // Get the audio data
-            let audioBuffer: ArrayBuffer
-            if (arrayBuffer) {
-                audioBuffer = arrayBuffer
-            } else if (fileUri) {
-                const response = await fetch(fileUri)
-                if (!response.ok) {
-                    throw new Error(
-                        `Failed to fetch fileUri: ${response.statusText}`
-                    )
-                }
-                audioBuffer = await response.arrayBuffer()
-            } else {
-                throw new Error(
-                    'Either arrayBuffer or fileUri must be provided'
-                )
-            }
-
-            // Create audio context with target sample rate if specified
+            // Create AudioContext here
             const audioContext = new (window.AudioContext ||
                 (window as any).webkitAudioContext)({
                 sampleRate: decodingOptions?.targetSampleRate ?? 16000,
             })
 
-            // Decode the audio data
-            const decodedAudioBuffer =
-                await audioContext.decodeAudioData(audioBuffer)
-
-            // Use shared processing function
-            const processedBuffer = await processAudioBuffer({
-                buffer: decodedAudioBuffer,
-                targetSampleRate: decodingOptions?.targetSampleRate ?? 16000,
-                targetChannels: decodingOptions?.targetChannels ?? 1,
-                normalizeAudio: decodingOptions?.normalizeAudio ?? false,
-            })
-
-            // Convert to Float32Array for analysis
-            const channelData = processedBuffer.getChannelData(0)
-
-            // Calculate amplitude range
-            let min = Infinity
-            let max = -Infinity
-            for (let i = 0; i < channelData.length; i++) {
-                min = Math.min(min, channelData[i])
-                max = Math.max(max, channelData[i])
-            }
-
-            // Calculate points per second based on the segment duration in milliseconds
-            const durationSec = processedBuffer.duration
-            const durationMs = durationSec * 1000
-
-            // Generate data points - divide total duration in ms by segment duration in ms
-            const numPoints = Math.floor(durationMs / segmentDurationMs)
-            const samplesPerPoint = Math.floor(channelData.length / numPoints)
-            const dataPoints: DataPoint[] = []
-
-            for (let i = 0; i < numPoints; i++) {
-                const startIdx = i * samplesPerPoint
-                const endIdx = Math.min(
-                    (i + 1) * samplesPerPoint,
-                    channelData.length
-                )
-
-                let sum = 0
-                let maxAmp = 0
-                for (let j = startIdx; j < endIdx; j++) {
-                    sum += Math.abs(channelData[j])
-                    maxAmp = Math.max(maxAmp, Math.abs(channelData[j]))
-                }
-
-                const rms = Math.sqrt(sum / samplesPerPoint)
-
-                dataPoints.push({
-                    id: i,
-                    amplitude: maxAmp,
-                    rms,
-                    startTime: i * segmentDurationMs,
-                    endTime: (i + 1) * segmentDurationMs,
-                    dB: 20 * Math.log10(rms + 1e-6),
-                    silent: rms < 0.01,
+            try {
+                const processedBuffer = await processAudioBuffer({
+                    arrayBuffer,
+                    fileUri,
+                    targetSampleRate:
+                        decodingOptions?.targetSampleRate ?? 16000,
+                    targetChannels: decodingOptions?.targetChannels ?? 1,
+                    normalizeAudio: decodingOptions?.normalizeAudio ?? false,
+                    startTimeMs:
+                        'startTimeMs' in props ? props.startTimeMs : undefined,
+                    endTimeMs:
+                        'endTimeMs' in props ? props.endTimeMs : undefined,
+                    position: 'position' in props ? props.position : undefined,
+                    length: 'length' in props ? props.length : undefined,
+                    audioContext, // Pass the context we created
+                    logger,
                 })
-            }
 
-            // After generating points
-            logger?.log('Generated points:', {
-                segmentDurationMs,
-                actualPoints: dataPoints.length,
-                samplesPerPoint,
-                totalSamples: channelData.length,
-            })
+                const channelData = processedBuffer.buffer.getChannelData(0)
 
-            return {
-                bitDepth: decodingOptions?.targetBitDepth ?? 32,
-                samples: channelData.length,
-                numberOfChannels: processedBuffer.numberOfChannels,
-                sampleRate: processedBuffer.sampleRate,
-                segmentDurationMs,
-                durationMs,
-                dataPoints,
-                amplitudeRange: { min, max },
-                rmsRange: {
-                    min: 0,
-                    max: Math.max(Math.abs(min), Math.abs(max)),
-                },
+                // Create and initialize the worker
+                const blob = new Blob([InlineFeaturesExtractor], {
+                    type: 'application/javascript',
+                })
+                const workerUrl = URL.createObjectURL(blob)
+                const worker = new Worker(workerUrl)
+
+                return new Promise((resolve, reject) => {
+                    worker.onmessage = (event) => {
+                        if (event.data.error) {
+                            reject(new Error(event.data.error))
+                            return
+                        }
+
+                        const result: AudioAnalysis = event.data.result
+                        // Calculate CRC32 after worker completes if requested
+                        if (features?.crc32) {
+                            const samplesPerSegment = Math.floor(
+                                (processedBuffer.sampleRate *
+                                    segmentDurationMs) /
+                                    1000
+                            )
+
+                            result.dataPoints = result.dataPoints.map(
+                                (point: DataPoint, index: number) => {
+                                    const startSample =
+                                        index * samplesPerSegment
+                                    const segmentData = channelData.slice(
+                                        startSample,
+                                        startSample + samplesPerSegment
+                                    )
+
+                                    return {
+                                        ...point,
+                                        features: {
+                                            ...point.features,
+                                            crc32: calculateCRC32ForDataPoint(
+                                                segmentData
+                                            ),
+                                        },
+                                    }
+                                }
+                            )
+                        }
+
+                        URL.revokeObjectURL(workerUrl)
+                        worker.terminate()
+                        resolve(result)
+                    }
+
+                    worker.onerror = (error) => {
+                        URL.revokeObjectURL(workerUrl)
+                        worker.terminate()
+                        reject(error)
+                    }
+
+                    worker.postMessage({
+                        channelData,
+                        sampleRate: processedBuffer.sampleRate,
+                        segmentDurationMs,
+                        bitDepth: decodingOptions?.targetBitDepth ?? 32,
+                        numberOfChannels: processedBuffer.channels,
+                        enableLogging: !!logger,
+                        features,
+                    })
+                })
+            } finally {
+                await audioContext.close()
             }
         } catch (error) {
-            console.error('Failed to process audio:', error)
+            logger?.error('Failed to process audio:', error)
             throw error
         }
     } else {
-        // For native platforms, pass through all options
         return await ExpoAudioStreamModule.extractAudioAnalysis(props)
     }
 }
@@ -302,6 +307,7 @@ export const extractRawWavAnalysis = async ({
                 channelData: constrainedChannelData,
                 sampleRate,
                 segmentDurationMs,
+                logger,
                 bitDepth,
                 fullAudioDurationMs: durationMs,
                 numberOfChannels,

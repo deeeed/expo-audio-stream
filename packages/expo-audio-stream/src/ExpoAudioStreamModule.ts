@@ -1,3 +1,4 @@
+import crc32 from 'crc-32'
 import { requireNativeModule } from 'expo-modules-core'
 import { Platform } from 'react-native'
 
@@ -92,136 +93,125 @@ if (Platform.OS === 'web') {
                 logger,
             } = options
 
-            logger?.info('Web Audio Extraction - Starting:', {
-                fileUri,
-                position,
-                length,
-                startTimeMs,
-                endTimeMs,
-                decodingOptions,
+            logger?.debug('EXTRACT AUDIO - Step 1: Initial params', {
+                input: {
+                    position,
+                    length,
+                    startTimeMs,
+                    endTimeMs,
+                    sampleRate: decodingOptions?.targetSampleRate ?? 16000,
+                    bitDepth: decodingOptions?.targetBitDepth ?? 16,
+                },
+                expected: {
+                    samplesFor3Sec:
+                        (decodingOptions?.targetSampleRate ?? 16000) * 3,
+                    bytesFor3Sec:
+                        (decodingOptions?.targetSampleRate ?? 16000) * 3 * 2,
+                },
             })
 
-            // Get the audio data
-            if (!fileUri) {
-                throw new Error('fileUri is required')
-            }
-
-            const response = await fetch(fileUri)
-            if (!response.ok) {
-                throw new Error(
-                    `Failed to fetch fileUri: ${response.statusText}`
-                )
-            }
-            const audioBuffer = await response.arrayBuffer()
-
-            // Create audio context with target sample rate if specified
-            const audioContext = new (window.AudioContext ||
-                (window as any).webkitAudioContext)({
-                sampleRate: decodingOptions?.targetSampleRate ?? 16000,
-            })
-
-            // Decode the audio data
-            const decodedAudioBuffer =
-                await audioContext.decodeAudioData(audioBuffer)
-
-            logger?.debug('Audio Buffer Details:', {
-                originalLength: decodedAudioBuffer.length,
-                sampleRate: decodedAudioBuffer.sampleRate,
-                duration: decodedAudioBuffer.duration,
-                channels: decodedAudioBuffer.numberOfChannels,
-            })
-
-            // Process the audio buffer using shared helper function
+            // Process the audio using shared helper function
             const processedBuffer = await processAudioBuffer({
-                buffer: decodedAudioBuffer,
+                fileUri,
                 targetSampleRate: decodingOptions?.targetSampleRate ?? 16000,
                 targetChannels: decodingOptions?.targetChannels ?? 1,
                 normalizeAudio: decodingOptions?.normalizeAudio ?? false,
-            })
-
-            const channelData = processedBuffer.getChannelData(0)
-            const bitDepth = (decodingOptions?.targetBitDepth ?? 16) as BitDepth
-            const bytesPerSample = bitDepth / 8
-
-            // Calculate sample positions from either byte positions or time
-            let startSample: number
-            let endSample: number
-
-            if (position != null && length != null) {
-                // Use byte positions if provided
-                startSample = Math.floor(position / bytesPerSample)
-                endSample = Math.floor((position + length) / bytesPerSample)
-            } else if (startTimeMs != null && endTimeMs != null) {
-                // Fall back to time-based calculation
-                startSample = Math.floor(
-                    (startTimeMs / 1000) * processedBuffer.sampleRate
-                )
-                endSample = Math.floor(
-                    (endTimeMs / 1000) * processedBuffer.sampleRate
-                )
-            } else {
-                // If neither is provided, use the entire buffer
-                startSample = 0
-                endSample = channelData.length
-            }
-
-            logger?.debug('Segment Calculation:', {
                 position,
                 length,
                 startTimeMs,
                 endTimeMs,
-                bytesPerSample,
-                startSample,
-                endSample,
-                channelDataLength: channelData.length,
-                requestedSegmentLength: endSample - startSample,
+                logger,
             })
 
-            // Ensure we don't exceed buffer bounds
-            startSample = Math.max(0, Math.min(startSample, channelData.length))
-            endSample = Math.max(
-                startSample,
-                Math.min(endSample, channelData.length)
-            )
+            logger?.debug('EXTRACT AUDIO - Step 2: After processing', {
+                processed: {
+                    samples: processedBuffer.samples,
+                    durationMs: processedBuffer.durationMs,
+                    pcmDataLength: processedBuffer.pcmData.length,
+                },
+                shouldBe: {
+                    samples: length ? length / 2 : undefined,
+                    durationMs: endTimeMs
+                        ? endTimeMs - (startTimeMs ?? 0)
+                        : undefined,
+                },
+            })
 
-            // Create PCM data array for just the segment
-            const pcmData = new Uint8Array(
-                (endSample - startSample) * bytesPerSample
-            )
+            const channelData = processedBuffer.pcmData
+            const bitDepth = (decodingOptions?.targetBitDepth ?? 16) as BitDepth
+            const bytesPerSample = bitDepth / 8
+            const numSamples = processedBuffer.samples
+
+            logger?.debug('EXTRACT AUDIO - Step 3: PCM conversion setup', {
+                channelData: {
+                    length: channelData.length,
+                    first: channelData[0],
+                    last: channelData[channelData.length - 1],
+                },
+                calculation: {
+                    bitDepth,
+                    bytesPerSample,
+                    numSamples,
+                    expectedBytes: numSamples * bytesPerSample,
+                },
+            })
+
+            // Create PCM data with correct length based on original byte length
+            const pcmData = new Uint8Array(numSamples * bytesPerSample)
             let offset = 0
 
-            // Only process the samples within our segment
-            for (let i = startSample; i < endSample; i++) {
+            // Convert Float32 samples to PCM format
+            for (let i = 0; i < numSamples; i++) {
                 const sample = channelData[i]
-                if (bitDepth === 16) {
-                    const value = Math.max(-1, Math.min(1, sample))
-                    const intValue = Math.round(value * 32767)
-                    pcmData[offset++] = intValue & 255
-                    pcmData[offset++] = (intValue >> 8) & 255
-                } else if (bitDepth === 32) {
-                    const value = Math.max(-1, Math.min(1, sample))
-                    const intValue = Math.round(value * 2147483647)
-                    pcmData[offset++] = intValue & 255
-                    pcmData[offset++] = (intValue >> 8) & 255
-                    pcmData[offset++] = (intValue >> 16) & 255
-                    pcmData[offset++] = (intValue >> 24) & 255
-                }
+                const value = Math.max(-1, Math.min(1, sample))
+                const intValue = Math.round(value * 32767)
+                pcmData[offset++] = intValue & 255
+                pcmData[offset++] = (intValue >> 8) & 255
             }
 
-            const result = {
-                data: pcmData,
+            const durationMs = Math.round(
+                (numSamples / processedBuffer.sampleRate) * 1000
+            )
+
+            logger?.debug('EXTRACT AUDIO - Step 4: Final output', {
+                pcmData: {
+                    length: pcmData.length,
+                    first: pcmData[0],
+                    last: pcmData[pcmData.length - 1],
+                },
+                timing: {
+                    numSamples,
+                    sampleRate: processedBuffer.sampleRate,
+                    durationMs,
+                    shouldBe3000ms: endTimeMs
+                        ? endTimeMs - (startTimeMs ?? 0) === 3000
+                        : undefined,
+                },
+            })
+
+            const result: ExtractedAudioData = {
+                pcmData: new Uint8Array(pcmData.buffer),
                 sampleRate: processedBuffer.sampleRate,
-                channels: processedBuffer.numberOfChannels,
+                channels: processedBuffer.channels,
                 bitDepth,
-                durationMs:
-                    ((endSample - startSample) / processedBuffer.sampleRate) *
-                    1000,
+                durationMs,
                 format: `pcm_${bitDepth}bit` as const,
+                samples: numSamples,
+            }
+
+            if (options.includeNormalizedData) {
+                result.normalizedData = channelData
+            }
+
+            if (options.computeChecksum) {
+                result.checksum = crc32.buf(pcmData)
             }
 
             return result
         } catch (error) {
-            console.error('Failed to extract audio data:', error)
+            options.logger?.error('EXTRACT AUDIO - Error:', {
+                error,
+            })
             throw error
         }
     }

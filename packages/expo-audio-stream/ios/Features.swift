@@ -25,7 +25,7 @@ public struct Features {
     var spectralContrast: [Float]?
     var tonnetz: [Float]?
     var pitch: Float?
-    var dataChecksum: Int32
+    var crc32: UInt32?
     
     init(
         energy: Float = 0,
@@ -45,7 +45,7 @@ public struct Features {
         spectralContrast: [Float]? = nil,
         tonnetz: [Float]? = nil,
         pitch: Float? = nil,
-        dataChecksum: Int32 = 0
+        crc32: UInt32? = nil
     ) {
         self.energy = energy
         self.mfcc = mfcc
@@ -64,13 +64,13 @@ public struct Features {
         self.spectralContrast = spectralContrast
         self.tonnetz = tonnetz
         self.pitch = pitch
-        self.dataChecksum = dataChecksum
+        self.crc32 = crc32
     }
 }
 
 extension Features {
     func toDictionary() -> [String: Any] {
-        return [
+        var dict: [String: Any] = [
             "energy": energy,
             "mfcc": mfcc,
             "rms": rms,
@@ -88,7 +88,8 @@ extension Features {
             "spectralContrast": spectralContrast ?? [],
             "tonnetz": tonnetz ?? [],
             "pitch": pitch ?? 0,
-            "dataChecksum": dataChecksum
+            "crc32": crc32 ?? 0
         ]
+        return dict
     }
 }
