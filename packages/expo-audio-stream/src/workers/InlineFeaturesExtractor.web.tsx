@@ -1,10 +1,105 @@
 export const InlineFeaturesExtractor = `
+// Constants
+const N_FFT = 1024;
+
+// FFT Implementation
+function FFT(n) {
+    this.n = n;
+    this.cosTable = new Float32Array(n / 2);
+    this.sinTable = new Float32Array(n / 2);
+    
+    for (var i = 0; i < n / 2; i++) {
+        this.cosTable[i] = Math.cos(2.0 * Math.PI * i / n);
+        this.sinTable[i] = Math.sin(2.0 * Math.PI * i / n);
+    }
+}
+
+FFT.prototype.transform = function(data) {
+    var n = data.length;
+    if (n <= 1) return;
+
+    var half = Math.floor(n / 2);
+    var even = new Float32Array(half);
+    var odd = new Float32Array(half);
+
+    for (var i = 0; i < half; i++) {
+        even[i] = data[2 * i];
+        odd[i] = data[2 * i + 1];
+    }
+
+    this.transform(even);
+    this.transform(odd);
+
+    for (var k = 0; k < half; k++) {
+        var t = odd[k] * this.cosTable[k] - even[k] * this.sinTable[k];
+        data[k] = even[k] + t;
+        data[k + half] = even[k] - t;
+    }
+};
+
+function computeSpectralFeatures(segment, sampleRate) {
+    try {
+        // Create padded segment with proper size
+        var paddedSegment = new Float32Array(N_FFT);
+        
+        // Only copy what fits
+        var copyLength = Math.min(segment.length, N_FFT);
+        for (var i = 0; i < copyLength; i++) {
+            paddedSegment[i] = segment[i];
+        }
+        
+        // Apply Hann window only to the actual data
+        for (var i = 0; i < copyLength; i++) {
+            paddedSegment[i] *= 0.5 * (1 - Math.cos(2 * Math.PI * i / (copyLength - 1)));
+        }
+
+        // Simple DFT implementation
+        var magnitudeSpectrum = new Float32Array(N_FFT / 2);
+        for (var k = 0; k < N_FFT / 2; k++) {
+            var real = 0;
+            var imag = 0;
+            for (var n = 0; n < copyLength; n++) {
+                var phi = (2 * Math.PI * k * n) / N_FFT;
+                real += paddedSegment[n] * Math.cos(phi);
+                imag -= paddedSegment[n] * Math.sin(phi);
+            }
+            magnitudeSpectrum[k] = Math.sqrt(real * real + imag * imag) / N_FFT;
+        }
+
+        // Compute spectral centroid
+        var numerator = 0;
+        var denominator = 0;
+        for (var i = 0; i < magnitudeSpectrum.length; i++) {
+            var frequency = i * sampleRate / N_FFT;
+            numerator += frequency * magnitudeSpectrum[i];
+            denominator += magnitudeSpectrum[i];
+        }
+        var centroid = denominator === 0 ? 0 : numerator / denominator;
+
+        return {
+            centroid: centroid,
+            magnitudeSpectrum: Array.from(magnitudeSpectrum)
+        };
+    } catch (error) {
+        console.error('[Worker] Spectral feature computation error:', error);
+        return {
+            centroid: 0,
+            magnitudeSpectrum: new Array(N_FFT / 2).fill(0)
+        };
+    }
+}
+
 // Unique ID counter
 let uniqueIdCounter = 0
 let accumulatedDataPoints = [] // Move outside message handler
 let lastEmitTime = Date.now() // Move outside message handler
 
 self.onmessage = function (event) {
+    console.log('[Worker] START', {
+        hasData: event.data ? true : false,
+        dataKeys: event.data ? Object.keys(event.data) : null
+    });
+
     const {
         channelData, // this is only the newly recorded data when live recording.
         sampleRate,
@@ -182,17 +277,23 @@ self.onmessage = function (event) {
             
             let sumSquares = 0
             let maxAmp = 0
+            let zeroCrossings = 0
 
             // Calculate segment features
             for (let j = startIdx; j < endIdx; j++) {
                 const value = channelData[j]
                 sumSquares += value * value
                 maxAmp = Math.max(maxAmp, Math.abs(value))
+                if (j > 0 && value * channelData[j - 1] < 0) {
+                    zeroCrossings++
+                }
             }
 
             const rms = Math.sqrt(sumSquares / (endIdx - startIdx))
             const startPosition = startIdx * 2
             const endPosition = endIdx * 2
+
+            var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate);
 
             dataPoints.push({
                 id: i,
@@ -211,8 +312,8 @@ self.onmessage = function (event) {
                     minAmplitude: -maxAmp,
                     maxAmplitude: maxAmp,
                     mfcc: [],
-                    zcr: 0,
-                    spectralCentroid: 0,
+                    zcr: zeroCrossings / (endIdx - startIdx),
+                    spectralCentroid: spectralFeatures.centroid,
                     spectralFlatness: 0,
                     spectralRolloff: 0,
                     spectralBandwidth: 0,
@@ -223,6 +324,7 @@ self.onmessage = function (event) {
                     spectralContrast: [],
                     tonnetz: [],
                     pitch: 0,
+                    magnitudeSpectrum: spectralFeatures.magnitudeSpectrum
                 }
             })
         }
@@ -262,8 +364,18 @@ self.onmessage = function (event) {
             }
         })
     } catch (error) {
-        console.error('[InlineFeaturesExtractor] Error in processing:', error)
-        self.postMessage({ error: error.message })
+        console.error('[Worker] Error', {
+            message: error.message,
+            stack: error.stack
+        });
+        
+        self.postMessage({ 
+            error: {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            }
+        });
     }
 }
 `
