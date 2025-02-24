@@ -84,9 +84,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
                     const analysis =  await extractAudioAnalysis({
                             fileUri: actualAudioBuffer ? undefined : normalizedAudioUri,
                             arrayBuffer: actualAudioBuffer,
-                            mimeType: recording?.mimeType,
                             logger: baseLogger.extend('extractAudioAnalysis'),
-                            sampleRate: recording?.sampleRate,
                             segmentDurationMs: options.analysisOptions?.segmentDurationMs,
                             features: options.analysisOptions?.features,
                             decodingOptions: {
