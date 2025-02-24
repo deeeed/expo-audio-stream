@@ -3,7 +3,6 @@ export const InlineFeaturesExtractor = `
 let uniqueIdCounter = 0
 let accumulatedDataPoints = [] // Move outside message handler
 let lastEmitTime = Date.now() // Move outside message handler
-let logger
 
 self.onmessage = function (event) {
     const {
@@ -16,11 +15,19 @@ self.onmessage = function (event) {
         numberOfChannels,
         features: _features,
         intervalAnalysis = 500, // Use intervalAnalysis instead of interval
-        logger: _logger, // Add logger to the message data
+        enableLogging, // Replace logger with enableLogging flag
     } = event.data
     
-    // Set logger if provided
-    logger = _logger
+    // Create a simple logger that only logs when enabled
+    const logger = enableLogging ? {
+        debug: (...args) => console.debug('[Worker]', ...args),
+        log: (...args) => console.log('[Worker]', ...args),
+        error: (...args) => console.error('[Worker]', ...args)
+    } : {
+        debug: () => {},
+        log: () => {},
+        error: () => {}
+    }
     
     const features = _features || {}
 
@@ -122,168 +129,99 @@ self.onmessage = function (event) {
     }
 
     const extractWaveform = (
-        channelData, // Float32Array
-        sampleRate, // number
-        segmentDurationMs, // number
+        channelData,
+        sampleRate,
+        segmentDurationMs,
     ) => {
-        logger?.debug('[InlineFeaturesExtractor] Processing waveform:', {
-            totalSamples: channelData.length,
-            sampleRate,
-            segmentDurationMs,
-            bitDepth,
-            numberOfChannels
-        })
+        const logger = enableLogging ? {
+            debug: (...args) => console.debug('[Worker]', ...args),
+            log: (...args) => console.log('[Worker]', ...args),
+            error: (...args) => console.error('[Worker]', ...args)
+        } : {
+            debug: () => {},
+            log: () => {},
+            error: () => {}
+        }
+
+        // Calculate amplitude range
+        let min = Infinity
+        let max = -Infinity
+        for (let i = 0; i < channelData.length; i++) {
+            min = Math.min(min, channelData[i])
+            max = Math.max(max, channelData[i])
+        }
 
         const totalSamples = channelData.length
-        const samplesPerSegment = Math.floor((sampleRate * segmentDurationMs) / 1000)
-        const bytesPerSample = bitDepth / 8 * numberOfChannels
-
-        // Calculate points based on segment duration
-        const expectedPoints = Math.ceil(segmentDurationMs / 1000) // Convert to seconds
-        const samplesPerPoint = Math.ceil(totalSamples / expectedPoints)
-
-        logger?.debug('[InlineFeaturesExtractor] Segment calculations:', {
-            samplesPerSegment,
-            bytesPerSample,
-            expectedPoints,
-            samplesPerPoint
-        })
+        const durationMs = (totalSamples / sampleRate) * 1000
+        
+        // Match the original point and sample calculations exactly
+        const numPoints = Math.max(
+            1,
+            Math.ceil(durationMs / (segmentDurationMs || 100))
+        )
+        // Calculate samplesPerPoint based on total samples and number of points
+        const samplesPerPoint = Math.floor(totalSamples / numPoints)
 
         const dataPoints = []
-        let minAmplitude = Infinity
-        let maxAmplitude = -Infinity
-        let minRms = Infinity
-        let maxRms = -Infinity
-        let silenceStart = null
-        let lastSpeechEnd = -Infinity
-        let isSpeech = false
 
-        for (let i = 0; i < expectedPoints; i++) {
-            const start = i * samplesPerPoint
-            const end = Math.min(start + samplesPerPoint, totalSamples)
+        for (let i = 0; i < numPoints; i++) {
+            const startIdx = i * samplesPerPoint
+            const endIdx = Math.min((i + 1) * samplesPerPoint, channelData.length)
+            
+            let sum = 0
+            let maxAmp = 0
 
-            let sumSquares = 0
-            let zeroCrossings = 0
-            let prevValue = channelData[start]
-            let localMinAmplitude = Infinity
-            let localMaxAmplitude = -Infinity
-            let hasNonZeroValue = false
-
-            // compute values for the segment
-            for (let j = start; j < end; j++) {
+            // Calculate segment features
+            for (let j = startIdx; j < endIdx; j++) {
                 const value = channelData[j]
-                sumSquares += value * value
-                if (j > start && value * prevValue < 0) {
-                    zeroCrossings++
-                }
-                prevValue = value
-
-                const absValue = Math.abs(value)
-                localMinAmplitude = Math.min(localMinAmplitude, absValue)
-                localMaxAmplitude = Math.max(localMaxAmplitude, absValue)
-
-                if (value !== 0) {
-                    hasNonZeroValue = true
-                }
+                sum += Math.abs(value)
+                maxAmp = Math.max(maxAmp, Math.abs(value))
             }
 
-            // Post-processing checks
-            if (!hasNonZeroValue) {
-                localMinAmplitude = 0
-                localMaxAmplitude = 0
-            }
+            const rms = Math.sqrt(sum / (endIdx - startIdx))
+            const startPosition = startIdx * 2 // Use fixed 2 bytes per sample for Float32
+            const endPosition = endIdx * 2
 
-            const rms = Math.sqrt(sumSquares / (end - start))
-            minAmplitude = Math.min(minAmplitude, localMinAmplitude)
-            maxAmplitude = Math.max(maxAmplitude, localMaxAmplitude)
-            minRms = Math.min(minRms, rms)
-            maxRms = Math.max(maxRms, rms)
-
-            const energy = sumSquares
-            const zcr = zeroCrossings / (end - start)
-            const silent = rms < SILENCE_THRESHOLD
-            const dB = 20 * Math.log10(rms)
-
-            // Compute speech features
-            const activeSpeech = (rms > RMS_THRESHOLD && zcr > ZCR_THRESHOLD) || 
-                (isSpeech && start - lastSpeechEnd < SPEECH_INERTIA_DURATION)
-
-            if (activeSpeech) {
-                isSpeech = true
-                lastSpeechEnd = end
-            } else {
-                isSpeech = false
-            }
-
-            // Create features object matching the interface
-            const features = {
-                energy,
-                mfcc: [], // Placeholder
+            dataPoints.push({
+                id: i,
+                amplitude: maxAmp,
                 rms,
-                minAmplitude: localMinAmplitude,
-                maxAmplitude: localMaxAmplitude,
-                zcr,
-                spectralCentroid: 0, // Placeholder
-                spectralFlatness: 0, // Placeholder
-                spectralRolloff: 0, // Placeholder
-                spectralBandwidth: 0, // Placeholder
-                chromagram: [], // Placeholder
-                tempo: 0, // Placeholder
-                hnr: 0, // Placeholder
-                melSpectrogram: [], // Placeholder
-                spectralContrast: [], // Placeholder
-                tonnetz: [], // Placeholder
-                pitch: 0, // Placeholder
-                dataChecksum: 0 // Placeholder
-            }
-
-            const speech = {
-                isActive: activeSpeech,
-                speakerId: undefined
-            }
-
-            const peakAmp = Math.max(Math.abs(localMaxAmplitude), Math.abs(localMinAmplitude))
-            const startTimeMs = (start / sampleRate) * 1000
-            const endTimeMs = (end / sampleRate) * 1000
-            const startPosition = Math.floor(start * bytesPerSample)
-            const endPosition = Math.floor(end * bytesPerSample)
-
-            const newData = {
-                id: uniqueIdCounter++,
-                amplitude: peakAmp,
-                rms,
-                dB,
-                silent,
-                features,
-                speech,
-                startTime: startTimeMs,
-                endTime: endTimeMs,
+                startTime: (i * segmentDurationMs) / 1000,
+                endTime: ((i + 1) * segmentDurationMs) / 1000,
+                dB: 20 * Math.log10(rms + 1e-6),
+                silent: rms < 0.01,
                 startPosition,
                 endPosition,
-                samples: end - start
-            }
-
-            dataPoints.push(newData)
+                samples: endIdx - startIdx,
+                features: {
+                    energy: sum,
+                    rms,
+                    minAmplitude: -maxAmp,
+                    maxAmplitude: maxAmp,
+                    mfcc: [],
+                    zcr: 0,
+                    spectralCentroid: 0,
+                    spectralFlatness: 0,
+                    spectralRolloff: 0,
+                    spectralBandwidth: 0,
+                    chromagram: [],
+                    tempo: 0,
+                    hnr: 0,
+                    melSpectrogram: [],
+                    spectralContrast: [],
+                    tonnetz: [],
+                    pitch: 0,
+                }
+            })
         }
 
         return {
-            segmentDurationMs,
-            durationMs: (totalSamples / sampleRate) * 1000,
-            bitDepth,
-            samples: totalSamples,
-            numberOfChannels,
-            sampleRate,
+            durationMs,
             dataPoints,
-            amplitudeRange: {
-                min: minAmplitude,
-                max: maxAmplitude
-            },
+            amplitudeRange: { min, max },
             rmsRange: {
-                min: minRms,
-                max: maxRms
-            },
-            speechAnalysis: {
-                speakerChanges: []
+                min: 0,
+                max: Math.max(Math.abs(min), Math.abs(max))
             },
             extractionTimeMs: Date.now() - lastEmitTime
         }
@@ -296,35 +234,24 @@ self.onmessage = function (event) {
             segmentDurationMs
         )
 
-        logger?.debug('[InlineFeaturesExtractor] Extraction result:', {
-            durationMs: result.durationMs,
-            dataPoints: result.dataPoints.length,
-            extractionTimeMs: result.extractionTimeMs
+        // Send complete result immediately
+        self.postMessage({
+            command: 'features',
+            result: {
+                bitDepth,
+                samples: channelData.length,
+                numberOfChannels,
+                sampleRate,
+                segmentDurationMs,
+                durationMs: result.durationMs,
+                dataPoints: result.dataPoints,
+                amplitudeRange: result.amplitudeRange,
+                rmsRange: result.rmsRange,
+            }
         })
-
-        // Accumulate data points
-        accumulatedDataPoints = accumulatedDataPoints.concat(result.dataPoints)
-        
-        const currentTime = Date.now()
-        const shouldEmitAccumulated = currentTime - lastEmitTime >= intervalAnalysis
-
-        if (shouldEmitAccumulated) {
-            self.postMessage({
-                command: 'features',
-                result: {
-                    ...result,
-                    dataPoints: accumulatedDataPoints
-                }
-            })
-            accumulatedDataPoints = [] // Reset accumulator
-            lastEmitTime = currentTime
-        }
     } catch (error) {
-        logger?.error('[InlineFeaturesExtractor] Error in processing:', error)
+        console.error('[InlineFeaturesExtractor] Error in processing:', error)
         self.postMessage({ error: error.message })
-    } finally {
-        // Do not close the worker so it can be re-used for subsequent messages
-        // self.close();
     }
 }
 `

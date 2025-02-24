@@ -102,45 +102,26 @@ if (Platform.OS === 'web') {
                 decodingOptions,
             })
 
-            // Get the audio data
-            if (!fileUri) {
-                throw new Error('fileUri is required')
-            }
-
-            const response = await fetch(fileUri)
-            if (!response.ok) {
-                throw new Error(
-                    `Failed to fetch fileUri: ${response.statusText}`
-                )
-            }
-            const audioBuffer = await response.arrayBuffer()
-
-            // Create audio context with target sample rate if specified
-            const audioContext = new (window.AudioContext ||
-                (window as any).webkitAudioContext)({
-                sampleRate: decodingOptions?.targetSampleRate ?? 16000,
-            })
-
-            // Decode the audio data
-            const decodedAudioBuffer =
-                await audioContext.decodeAudioData(audioBuffer)
-
-            logger?.debug('Audio Buffer Details:', {
-                originalLength: decodedAudioBuffer.length,
-                sampleRate: decodedAudioBuffer.sampleRate,
-                duration: decodedAudioBuffer.duration,
-                channels: decodedAudioBuffer.numberOfChannels,
-            })
-
-            // Process the audio buffer using shared helper function
+            // Process the audio using shared helper function
             const processedBuffer = await processAudioBuffer({
-                buffer: decodedAudioBuffer,
+                fileUri,
                 targetSampleRate: decodingOptions?.targetSampleRate ?? 16000,
                 targetChannels: decodingOptions?.targetChannels ?? 1,
                 normalizeAudio: decodingOptions?.normalizeAudio ?? false,
+                position,
+                length,
+                startTimeMs,
+                endTimeMs,
             })
 
-            const channelData = processedBuffer.getChannelData(0)
+            logger?.debug('Audio Buffer Details:', {
+                originalLength: processedBuffer.samples,
+                sampleRate: processedBuffer.sampleRate,
+                duration: processedBuffer.durationMs,
+                channels: processedBuffer.channels,
+            })
+
+            const channelData = processedBuffer.buffer.getChannelData(0)
             const bitDepth = (decodingOptions?.targetBitDepth ?? 16) as BitDepth
             const bytesPerSample = bitDepth / 8
 
@@ -218,15 +199,13 @@ if (Platform.OS === 'web') {
             }
 
             const result: ExtractedAudioData = {
-                pcmData,
+                pcmData: new Uint8Array(pcmData.buffer),
                 sampleRate: processedBuffer.sampleRate,
-                channels: processedBuffer.numberOfChannels,
+                channels: processedBuffer.channels,
                 bitDepth,
-                durationMs:
-                    ((endSample - startSample) / processedBuffer.sampleRate) *
-                    1000,
+                durationMs: processedBuffer.durationMs,
                 format: `pcm_${bitDepth}bit` as const,
-                samples: endSample - startSample,
+                samples: processedBuffer.samples,
             }
 
             // Add normalized data if requested

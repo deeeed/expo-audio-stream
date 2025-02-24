@@ -92,249 +92,113 @@ export async function extractAudioAnalysis(
         arrayBuffer,
         decodingOptions,
         logger,
-        segmentDurationMs = 100, // Default to 100ms
+        segmentDurationMs = 100,
+        features,
     } = props
+
     if (isWeb) {
         try {
-            // Get the audio data
-            let audioBuffer: ArrayBuffer
-            if (arrayBuffer) {
-                audioBuffer = arrayBuffer
-            } else if (fileUri) {
-                const response = await fetch(fileUri)
-                if (!response.ok) {
-                    throw new Error(
-                        `Failed to fetch fileUri: ${response.statusText}`
-                    )
-                }
-                audioBuffer = await response.arrayBuffer()
-            } else {
-                throw new Error(
-                    'Either arrayBuffer or fileUri must be provided'
-                )
-            }
-
-            // Create audio context with target sample rate if specified
-            const audioContext = new (window.AudioContext ||
-                (window as any).webkitAudioContext)({
-                sampleRate: decodingOptions?.targetSampleRate ?? 16000,
-            })
-
-            // Decode the audio data
-            const decodedAudioBuffer =
-                await audioContext.decodeAudioData(audioBuffer)
-
-            // Use shared processing function
             const processedBuffer = await processAudioBuffer({
-                buffer: decodedAudioBuffer,
+                arrayBuffer,
+                fileUri,
                 targetSampleRate: decodingOptions?.targetSampleRate ?? 16000,
                 targetChannels: decodingOptions?.targetChannels ?? 1,
                 normalizeAudio: decodingOptions?.normalizeAudio ?? false,
+                startTimeMs:
+                    'startTimeMs' in props ? props.startTimeMs : undefined,
+                endTimeMs: 'endTimeMs' in props ? props.endTimeMs : undefined,
+                position: 'position' in props ? props.position : undefined,
+                length: 'length' in props ? props.length : undefined,
             })
 
-            // Convert to Float32Array for analysis
-            const channelData = processedBuffer.getChannelData(0)
+            const channelData = processedBuffer.buffer.getChannelData(0)
 
-            // Calculate amplitude range
-            let min = Infinity
-            let max = -Infinity
-            for (let i = 0; i < channelData.length; i++) {
-                min = Math.min(min, channelData[i])
-                max = Math.max(max, channelData[i])
-            }
-
-            // Add debug logs for input parameters and calculations
-            logger?.log('Input parameters:', {
-                position: props.position,
-                length: props.length,
-                startTimeMs: props.startTimeMs,
-                endTimeMs: props.endTimeMs,
-                sampleRate: processedBuffer.sampleRate,
-                numberOfChannels: processedBuffer.numberOfChannels,
+            // Create and initialize the worker
+            const blob = new Blob([InlineFeaturesExtractor], {
+                type: 'application/javascript',
             })
+            const workerUrl = URL.createObjectURL(blob)
+            const worker = new Worker(workerUrl)
 
-            // Calculate start and end indices based on position/length or time
-            const startIdx =
-                props.position !== undefined
-                    ? Math.floor(
-                          props.position /
-                              (2 * processedBuffer.numberOfChannels)
-                      )
-                    : props.startTimeMs
-                      ? Math.floor(
-                            (props.startTimeMs * processedBuffer.sampleRate) /
-                                1000
+            return new Promise((resolve, reject) => {
+                worker.onmessage = (event) => {
+                    if (event.data.error) {
+                        reject(new Error(event.data.error))
+                        return
+                    }
+
+                    const result: AudioAnalysis = event.data.result
+                    if (features?.crc32) {
+                        result.dataPoints = result.dataPoints.map(
+                            (point: DataPoint, index) => {
+                                const segmentData = new Float32Array(
+                                    point.samples || 0
+                                )
+                                const startPosition = point.startPosition || 0
+
+                                console.log(
+                                    `TS ${index}: Processing segment: samples=${point.samples}, startPosition=${startPosition}`
+                                )
+
+                                // Fill segmentData with samples
+                                for (let i = 0; i < segmentData.length; i++) {
+                                    segmentData[i] =
+                                        channelData[startPosition + i]
+                                }
+
+                                // Convert float array to byte array for CRC32
+                                const byteArray = new Uint8Array(
+                                    segmentData.length * 4
+                                )
+                                const dataView = new DataView(byteArray.buffer)
+
+                                for (let i = 0; i < segmentData.length; i++) {
+                                    dataView.setFloat32(
+                                        i * 4,
+                                        segmentData[i],
+                                        true
+                                    )
+                                }
+
+                                const crc = crc32.buf(byteArray)
+
+                                return {
+                                    ...point,
+                                    features: {
+                                        ...point.features,
+                                        crc32: crc,
+                                    },
+                                }
+                            }
                         )
-                      : 0
+                    }
 
-            const endIdx =
-                props.position !== undefined && props.length !== undefined
-                    ? startIdx +
-                      Math.floor(
-                          props.length / (2 * processedBuffer.numberOfChannels)
-                      )
-                    : props.endTimeMs
-                      ? Math.floor(
-                            (props.endTimeMs * processedBuffer.sampleRate) /
-                                1000
-                        )
-                      : channelData.length
-
-            logger?.log('Index calculations:', {
-                startIdx,
-                endIdx,
-                channelDataLength: channelData.length,
-                samplesInRange: endIdx - startIdx,
-            })
-
-            // Simplify duration calculation - no need for multiple conversions
-            const durationMs =
-                props.position !== undefined && props.length !== undefined
-                    ? (props.length /
-                          (2 *
-                              processedBuffer.numberOfChannels *
-                              processedBuffer.sampleRate)) *
-                      1000
-                    : props.endTimeMs && props.startTimeMs
-                      ? props.endTimeMs - props.startTimeMs // Already in ms, keep as is
-                      : ((endIdx - startIdx) * 1000) /
-                        processedBuffer.sampleRate
-
-            logger?.log('Duration calculation:', {
-                durationMs,
-                calculationMethod:
-                    props.position !== undefined
-                        ? 'position-based'
-                        : 'time-based',
-                bytesToSamples: props.length
-                    ? props.length / (2 * processedBuffer.numberOfChannels)
-                    : null,
-                samplesToDuration: props.length
-                    ? (props.length /
-                          (2 *
-                              processedBuffer.numberOfChannels *
-                              processedBuffer.sampleRate)) *
-                      1000 // Corrected calculation
-                    : null,
-                startTimeMs: props.startTimeMs,
-                endTimeMs: props.endTimeMs,
-                position: props.position,
-                length: props.length,
-                sampleRate: processedBuffer.sampleRate,
-            })
-
-            // Generate data points based on the actual duration
-            const numPoints = Math.max(
-                1,
-                Math.ceil(durationMs / (segmentDurationMs || 100))
-            )
-            const samplesPerPoint = Math.floor((endIdx - startIdx) / numPoints)
-
-            const dataPoints: DataPoint[] = []
-
-            for (let i = 0; i < numPoints; i++) {
-                const startIdx = i * samplesPerPoint
-                const endIdx = Math.min(
-                    (i + 1) * samplesPerPoint,
-                    channelData.length
-                )
-
-                // Create a buffer for this segment
-                const segmentData = new Float32Array(endIdx - startIdx)
-                let sum = 0
-                let maxAmp = 0
-
-                // First pass to collect data and calculate sum/maxAmp
-                for (let j = startIdx; j < endIdx; j++) {
-                    const value = channelData[j]
-                    segmentData[j - startIdx] = value
-                    sum += Math.abs(value)
-                    maxAmp = Math.max(maxAmp, Math.abs(value))
+                    URL.revokeObjectURL(workerUrl)
+                    worker.terminate()
+                    resolve(result)
                 }
 
-                // Convert float array to byte array for consistent CRC32
-                const byteArray = new Uint8Array(segmentData.length * 4)
-                const dataView = new DataView(byteArray.buffer)
+                worker.onerror = (error) => {
+                    URL.revokeObjectURL(workerUrl)
+                    worker.terminate()
+                    reject(error)
+                }
 
-                segmentData.forEach((float, index) => {
-                    dataView.setFloat32(index * 4, float, true) // true for little-endian
+                worker.postMessage({
+                    channelData,
+                    sampleRate: processedBuffer.sampleRate,
+                    segmentDurationMs,
+                    bitDepth: decodingOptions?.targetBitDepth ?? 32,
+                    numberOfChannels: processedBuffer.channels,
+                    enableLogging: !!logger,
+                    features,
                 })
-
-                const checksum = crc32.buf(byteArray)
-
-                const rms = Math.sqrt(sum / samplesPerPoint)
-
-                // Calculate byte positions based on samples
-                const bytesPerSample = Math.ceil(
-                    (decodingOptions?.targetBitDepth ?? 16) / 8
-                )
-                const startPosition = startIdx * bytesPerSample
-                const endPosition = endIdx * bytesPerSample
-
-                dataPoints.push({
-                    id: i,
-                    amplitude: maxAmp,
-                    rms,
-                    startTime: (i * segmentDurationMs) / 1000,
-                    endTime: ((i + 1) * segmentDurationMs) / 1000,
-                    dB: 20 * Math.log10(rms + 1e-6),
-                    silent: rms < 0.01,
-                    startPosition,
-                    endPosition,
-                    samples: endIdx - startIdx,
-                    features: {
-                        crc32: checksum,
-                        // Other features would go here when implemented
-                        energy: sum,
-                        rms,
-                        minAmplitude: -maxAmp,
-                        maxAmplitude: maxAmp,
-                        // Placeholder values for required properties
-                        mfcc: [],
-                        zcr: 0,
-                        spectralCentroid: 0,
-                        spectralFlatness: 0,
-                        spectralRolloff: 0,
-                        spectralBandwidth: 0,
-                        chromagram: [],
-                        tempo: 0,
-                        hnr: 0,
-                        melSpectrogram: [],
-                        spectralContrast: [],
-                        tonnetz: [],
-                        pitch: 0,
-                    },
-                })
-            }
-
-            logger?.log('Generated points:', {
-                segmentDurationMs,
-                actualPoints: numPoints,
-                samplesPerPoint,
-                totalSamples: channelData.length,
-                durationMs,
             })
-
-            return {
-                bitDepth: decodingOptions?.targetBitDepth ?? 32,
-                samples: channelData.length,
-                numberOfChannels: processedBuffer.numberOfChannels,
-                sampleRate: processedBuffer.sampleRate,
-                segmentDurationMs,
-                durationMs,
-                dataPoints,
-                amplitudeRange: { min, max },
-                rmsRange: {
-                    min: 0,
-                    max: Math.max(Math.abs(min), Math.abs(max)),
-                },
-            }
         } catch (error) {
-            console.error('Failed to process audio:', error)
+            logger?.error('Failed to process audio:', error)
             throw error
         }
     } else {
-        // For native platforms, pass through all options
         return await ExpoAudioStreamModule.extractAudioAnalysis(props)
     }
 }
