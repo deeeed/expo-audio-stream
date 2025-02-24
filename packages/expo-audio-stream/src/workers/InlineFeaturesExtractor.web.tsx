@@ -1,6 +1,7 @@
 export const InlineFeaturesExtractor = `
 // Constants
-const N_FFT = 1024;
+const N_FFT = 1024;  // Default FFT size
+const MAX_FFT_SIZE = 8192;  // Maximum FFT size to prevent memory issues
 const N_CHROMA = 12;
 
 // FFT Implementation with normalized Hann window
@@ -24,29 +25,62 @@ function FFT(n) {
 }
 
 FFT.prototype.transform = function(data) {
-    var n = data.length;
-    if (n <= 1) return;
-
-    var half = Math.floor(n / 2);
-    var even = new Float32Array(half);
-    var odd = new Float32Array(half);
-
-    for (var i = 0; i < half; i++) {
-        even[i] = data[2 * i];
-        odd[i] = data[2 * i + 1];
+    const n = data.length;
+    
+    // Validate input length is power of 2
+    if ((n & (n - 1)) !== 0) {
+        throw new Error('FFT length must be power of 2');
     }
 
-    this.transform(even);
-    this.transform(odd);
+    // Use iterative bit reversal instead of recursive
+    const bitReversedIndices = new Uint32Array(n);
+    for (let i = 0; i < n; i++) {
+        let reversed = 0;
+        let j = i;
+        let bits = Math.log2(n);
+        while (bits--) {
+            reversed = (reversed << 1) | (j & 1);
+            j >>= 1;
+        }
+        bitReversedIndices[i] = reversed;
+    }
 
-    for (var k = 0; k < half; k++) {
-        var t = odd[k] * this.cosTable[k] - even[k] * this.sinTable[k];
-        data[k] = even[k] + t;
-        data[k + half] = even[k] - t;
+    // Apply bit reversal
+    for (let i = 0; i < n; i++) {
+        const j = bitReversedIndices[i];
+        if (i < j) {
+            const temp = data[i];
+            data[i] = data[j];
+            data[j] = temp;
+        }
+    }
+
+    // Iterative FFT computation with optimized memory usage
+    for (let step = 1; step < n; step <<= 1) {
+        const jump = step << 1;
+        const angleStep = Math.PI / step;
+
+        for (let group = 0; group < n; group += jump) {
+            for (let pair = group; pair < group + step; pair++) {
+                const match = pair + step;
+                const angle = angleStep * (pair - group);
+                
+                const currentCos = Math.cos(angle);
+                const currentSin = Math.sin(angle);
+
+                const real = currentCos * data[match] - currentSin * data[match + 1];
+                const imag = currentCos * data[match + 1] + currentSin * data[match];
+
+                data[match] = data[pair] - real;
+                data[match + 1] = data[pair + 1] - imag;
+                data[pair] += real;
+                data[pair + 1] += imag;
+            }
+        }
     }
 };
 
-// Add realInverse method to match Android
+// Add realInverse method
 FFT.prototype.realInverse = function(powerSpectrum, output) {
     const n = powerSpectrum.length;
     const complexData = new Float32Array(n * 2);
@@ -93,44 +127,115 @@ function applyHannWindow(samples) {
 }
 
 // Update spectral feature computation to match Android
-function computeSpectralFeatures(segment, sampleRate) {
+function computeSpectralFeatures(segment, sampleRate, featureOptions = {}) {
     try {
-        // Ensure segment size matches FFT size
-        const fftLength = nextPowerOfTwo(Math.max(segment.length, N_FFT));
-        const windowed = applyHannWindow(segment);
-        const padded = new Float32Array(fftLength);
-        
-        // Copy windowed data into padded array
-        padded.set(windowed.slice(0, Math.min(windowed.length, fftLength)));
-
-        const fft = new FFT(fftLength);
-        fft.transform(padded);
-
-        // Calculate magnitude spectrum
-        const magnitudeSpectrum = new Float32Array(fftLength / 2 + 1);
-        for (let i = 0; i < fftLength / 2; i++) {
-            const re = padded[2 * i];
-            const im = padded[2 * i + 1];
-            magnitudeSpectrum[i] = Math.sqrt(re * re + im * im);
+        // Early return if no spectral features are requested
+        if (!featureOptions.spectralCentroid && 
+            !featureOptions.spectralFlatness && 
+            !featureOptions.spectralRollOff && 
+            !featureOptions.spectralBandwidth &&
+            !featureOptions.magnitudeSpectrum) {
+            return {
+                centroid: 0,
+                flatness: 0,
+                rollOff: 0,
+                bandwidth: 0,
+                magnitudeSpectrum: []
+            };
         }
-        magnitudeSpectrum[fftLength / 2] = Math.abs(padded[1]);
 
-        // Compute power spectrum
-        const powerSpectrum = magnitudeSpectrum.map(x => x * x);
+        // Ensure we have valid data
+        if (!segment || segment.length === 0) {
+            throw new Error('Invalid segment data');
+        }
 
-        // Calculate spectral features
-        const centroid = computeSpectralCentroid(magnitudeSpectrum, sampleRate);
-        const flatness = computeSpectralFlatness(powerSpectrum);
-        const rollOff = computeSpectralRollOff(magnitudeSpectrum, sampleRate);
-        const bandwidth = computeSpectralBandwidth(magnitudeSpectrum, sampleRate, centroid);
-
-        return {
-            centroid,
-            flatness,
-            rollOff,
-            bandwidth,
-            magnitudeSpectrum: Array.from(magnitudeSpectrum)
+        // Process in fixed-size chunks
+        const chunkSize = N_FFT;
+        const numChunks = Math.ceil(segment.length / chunkSize);
+        
+        let results = {
+            centroid: 0,
+            flatness: 0,
+            rollOff: 0,
+            bandwidth: 0,
+            magnitudeSpectrum: new Float32Array(N_FFT / 2 + 1).fill(0)
         };
+        
+        let validChunks = 0;
+        
+        // Iterate through chunks
+        for (let i = 0; i < numChunks; i++) {
+            const start = i * chunkSize;
+            const end = Math.min(start + chunkSize, segment.length);
+            const chunk = segment.slice(start, end);
+            
+            if (chunk.length < N_FFT / 4) continue; // Skip very small chunks
+
+            // Process the chunk
+            const paddedChunk = new Float32Array(N_FFT);
+            paddedChunk.set(applyHannWindow(chunk));
+
+            const fft = new FFT(N_FFT);
+            fft.transform(paddedChunk);
+
+            // Calculate magnitude spectrum
+            const chunkMagnitudeSpectrum = new Float32Array(N_FFT / 2 + 1);
+            let hasSignal = false;
+            
+            for (let j = 0; j < N_FFT / 2; j++) {
+                const re = paddedChunk[2 * j];
+                const im = paddedChunk[2 * j + 1];
+                const magnitude = Math.sqrt(re * re + im * im);
+                chunkMagnitudeSpectrum[j] = magnitude;
+                if (magnitude > Number.EPSILON) hasSignal = true;
+            }
+            
+            if (!hasSignal) continue;
+            validChunks++;
+
+            // Accumulate results
+            if (featureOptions.spectralCentroid) {
+                const centroid = computeSpectralCentroid(chunkMagnitudeSpectrum, sampleRate);
+                if (!isNaN(centroid)) results.centroid += centroid;
+            }
+            
+            if (featureOptions.spectralFlatness) {
+                const flatness = computeSpectralFlatness(chunkMagnitudeSpectrum);
+                if (!isNaN(flatness)) results.flatness += flatness;
+            }
+            
+            if (featureOptions.spectralRollOff) {
+                const rolloff = computeSpectralRollOff(chunkMagnitudeSpectrum, sampleRate);
+                if (!isNaN(rolloff)) results.rollOff += rolloff;
+            }
+            
+            if (featureOptions.spectralBandwidth && !isNaN(results.centroid)) {
+                const bandwidth = computeSpectralBandwidth(chunkMagnitudeSpectrum, sampleRate, results.centroid);
+                if (!isNaN(bandwidth)) results.bandwidth += bandwidth;
+            }
+            
+            if (featureOptions.magnitudeSpectrum) {
+                for (let j = 0; j < results.magnitudeSpectrum.length; j++) {
+                    results.magnitudeSpectrum[j] += chunkMagnitudeSpectrum[j];
+                }
+            }
+        }
+
+        // Average the accumulated results
+        if (validChunks > 0) {
+            results.centroid /= validChunks;
+            results.flatness /= validChunks;
+            results.rollOff /= validChunks;
+            results.bandwidth /= validChunks;
+            
+            if (featureOptions.magnitudeSpectrum) {
+                for (let i = 0; i < results.magnitudeSpectrum.length; i++) {
+                    results.magnitudeSpectrum[i] /= validChunks;
+                }
+            }
+        }
+
+        return results;
     } catch (error) {
         console.error('[Worker] Spectral feature computation error:', error);
         return {
@@ -138,31 +243,36 @@ function computeSpectralFeatures(segment, sampleRate) {
             flatness: 0,
             rollOff: 0,
             bandwidth: 0,
-            magnitudeSpectrum: new Array(N_FFT / 2 + 1).fill(0)
+            magnitudeSpectrum: []
         };
     }
 }
 
-// Add matching helper functions for spectral features
 function computeSpectralCentroid(magnitudeSpectrum, sampleRate) {
-    const sum = magnitudeSpectrum.reduce((a, b) => a + b, 0);
-    if (sum === 0) return 0;
+    const sum = magnitudeSpectrum.reduce((a, b) => a + (b || 0), 0);
+    if (sum <= Number.EPSILON) return 0;
     
     const weightedSum = magnitudeSpectrum.reduce((acc, value, index) => 
-        acc + index * (sampleRate / N_FFT) * value, 0);
+        acc + (index * (sampleRate / N_FFT) * (value || 0)), 0);
     
     return weightedSum / sum;
 }
 
 function computeSpectralFlatness(powerSpectrum) {
+    // Add small epsilon to avoid log(0)
+    const epsilon = Number.EPSILON;
+    const validSpectrum = powerSpectrum.map(v => Math.max(v, epsilon));
+    
     const geometricMean = Math.exp(
-        powerSpectrum
-            .map((v) => Math.log(v + Number.MIN_VALUE))
-            .reduce((a, b) => a + b) / powerSpectrum.length
+        validSpectrum
+            .map(v => Math.log(v))
+            .reduce((a, b) => a + b) / validSpectrum.length
     );
+    
     const arithmeticMean =
-        powerSpectrum.reduce((a, b) => a + b) / powerSpectrum.length
-    return arithmeticMean === 0 ? 0 : geometricMean / arithmeticMean;
+        validSpectrum.reduce((a, b) => a + b) / validSpectrum.length;
+        
+    return geometricMean / arithmeticMean;
 }
 
 function computeSpectralRollOff(magnitudeSpectrum, sampleRate) {
@@ -181,14 +291,152 @@ function computeSpectralRollOff(magnitudeSpectrum, sampleRate) {
 }
 
 function computeSpectralBandwidth(magnitudeSpectrum, sampleRate, centroid) {
-    const sum = magnitudeSpectrum.reduce((a, b) => a + b, 0);
-    if (sum === 0) return 0;
+    const sum = magnitudeSpectrum.reduce((a, b) => a + (b || 0), 0);
+    if (sum <= Number.EPSILON) return 0;
 
     const weightedSum = magnitudeSpectrum.reduce(
-        (acc, value, index) => acc + value * Math.pow(index - centroid, 2),
-        0
+        (acc, value, index) => {
+            const freq = index * sampleRate / (2 * magnitudeSpectrum.length);
+            return acc + (value || 0) * Math.pow(freq - centroid, 2);
+        }, 0
     );
+
     return Math.sqrt(weightedSum / sum);
+}
+
+function computeChroma(segmentData, sampleRate) {
+    // Ensure we have valid input data
+    if (!segmentData || segmentData.length === 0) {
+        return new Array(N_CHROMA).fill(0);
+    }
+
+    const fftLength = nextPowerOfTwo(Math.max(segmentData.length, N_FFT));
+    const windowed = applyHannWindow(segmentData);
+    const padded = new Float32Array(fftLength);
+    padded.set(windowed.slice(0, Math.min(windowed.length, fftLength)));
+
+    const fft = new FFT(fftLength);
+    try {
+        fft.transform(padded);
+    } catch (e) {
+        console.error('[Worker] FFT transform failed in chromagram:', e);
+        return new Array(N_CHROMA).fill(0);
+    }
+
+    const chroma = new Float32Array(N_CHROMA).fill(0);
+    const freqsPerBin = sampleRate / fftLength;
+    let totalEnergy = 0;
+
+    // First pass: compute magnitudes and total energy
+    for (let i = 0; i < fftLength / 2; i++) {
+        const freq = i * freqsPerBin;
+        if (freq > 20) { // Only consider frequencies above 20 Hz
+            const re = padded[2 * i];
+            const im = padded[2 * i + 1] || 0;
+            const magnitude = Math.sqrt(re * re + im * im);
+            
+            if (magnitude > Number.EPSILON) {
+                // Use a more stable pitch class calculation
+                const midiNote = 69 + 12 * Math.log2(freq / 440.0);
+                const pitchClass = Math.round(midiNote) % 12;
+                
+                if (pitchClass >= 0 && pitchClass < 12) {
+                    chroma[pitchClass] += magnitude;
+                    totalEnergy += magnitude;
+                }
+            }
+        }
+    }
+
+    // Normalize chroma values only if we have energy
+    if (totalEnergy > Number.EPSILON) {
+        for (let i = 0; i < N_CHROMA; i++) {
+            chroma[i] = chroma[i] / totalEnergy;
+        }
+    }
+
+    // Convert to regular array and ensure no NaN values
+    return Array.from(chroma, v => isNaN(v) ? 0 : v);
+}
+
+function extractHNR(segmentData) {
+    const frameSize = segmentData.length;
+    const autocorrelation = new Float32Array(frameSize);
+
+    // Compute the autocorrelation iteratively
+    for (let i = 0; i < frameSize; i++) {
+        let sum = 0;
+        for (let j = 0; j < frameSize - i; j++) {
+            sum += segmentData[j] * segmentData[j + i];
+        }
+        autocorrelation[i] = sum;
+    }
+
+    // Find the maximum autocorrelation value iteratively
+    let maxAutocorrelation = -Infinity;
+    for (let i = 1; i < autocorrelation.length; i++) {
+        if (autocorrelation[i] > maxAutocorrelation) {
+            maxAutocorrelation = autocorrelation[i];
+        }
+    }
+
+    // Compute the HNR
+    return autocorrelation[0] !== 0
+        ? 10 * Math.log10(maxAutocorrelation / (autocorrelation[0] - maxAutocorrelation))
+        : 0;
+}
+
+function estimatePitch(segment, sampleRate) {
+    // Early validation
+    if (!segment || segment.length < 2 || !sampleRate) return 0;
+
+    try {
+        // Apply Hann window
+        const windowed = applyHannWindow(segment);
+
+        // Pad for FFT
+        const fftLength = nextPowerOfTwo(segment.length * 2);
+        const padded = new Float32Array(fftLength);
+        padded.set(windowed);
+
+        // Perform FFT
+        const fft = new FFT(fftLength);
+        fft.transform(padded);
+
+        // Compute power spectrum
+        const powerSpectrum = new Float32Array(fftLength / 2 + 1);
+        for (let i = 0; i <= fftLength / 2; i++) {
+            const re = padded[2 * i];
+            const im = padded[2 * i + 1] || 0;
+            powerSpectrum[i] = re * re + im * im;
+        }
+
+        // Find peak frequency
+        let maxPower = 0;
+        let peakIndex = 0;
+        const minFreq = 50;  // Minimum frequency to consider (Hz)
+        const maxFreq = 1000; // Maximum frequency to consider (Hz)
+        const minBin = Math.floor(minFreq * fftLength / sampleRate);
+        const maxBin = Math.ceil(maxFreq * fftLength / sampleRate);
+
+        for (let i = minBin; i <= maxBin; i++) {
+            if (powerSpectrum[i] > maxPower) {
+                maxPower = powerSpectrum[i];
+                peakIndex = i;
+            }
+        }
+
+        // Convert peak index to frequency
+        const fundamentalFreq = peakIndex * sampleRate / fftLength;
+
+        // Return 0 if the detected frequency is outside reasonable bounds
+        return (fundamentalFreq >= minFreq && fundamentalFreq <= maxFreq) ? 
+            fundamentalFreq : 0;
+
+    } catch (error) {
+        console.error('[Worker] Pitch estimation error:', error);
+        return 0;
+    }
 }
 
 // Unique ID counter
@@ -299,32 +547,6 @@ self.onmessage = function (event) {
         return [] // TODO implement
     }
 
-    const extractHNR = (segmentData) => {
-        const frameSize = segmentData.length
-        const autocorrelation = new Float32Array(frameSize)
-
-        // Compute the autocorrelation of the segment data
-        for (let i = 0; i < frameSize; i++) {
-            let sum = 0
-            for (let j = 0; j < frameSize - i; j++) {
-                sum += segmentData[j] * segmentData[j + i]
-            }
-            autocorrelation[i] = sum
-        }
-
-        // Find the maximum autocorrelation value (excluding the zero lag)
-        const maxAutocorrelation = Math.max(...autocorrelation.subarray(1))
-
-        // Compute the HNR
-        return autocorrelation[0] !== 0
-            ? 10 *
-                  Math.log10(
-                      maxAutocorrelation /
-                          (autocorrelation[0] - maxAutocorrelation)
-                  )
-            : 0
-    }
-
     const extractWaveform = (
         channelData,
         sampleRate,
@@ -395,7 +617,7 @@ self.onmessage = function (event) {
             const startPosition = startIdx * 2
             const endPosition = endIdx * 2
 
-            var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate);
+            var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate, features);
 
             dataPoints.push({
                 id: i,
@@ -409,23 +631,26 @@ self.onmessage = function (event) {
                 endPosition,
                 samples: endIdx - startIdx,
                 features: {
-                    energy: sumSquares,
-                    rms,
+                    energy: features.energy ? sumSquares : 0,
+                    rms: features.rms ? Math.sqrt(sumSquares / (endIdx - startIdx)) : 0,
                     minAmplitude: -maxAmp,
                     maxAmplitude: maxAmp,
                     mfcc: [],
-                    zcr: zeroCrossings / (endIdx - startIdx),
+                    zcr: features.zcr ? zeroCrossings / (endIdx - startIdx) : 0,
                     spectralCentroid: spectralFeatures.centroid,
                     spectralFlatness: spectralFeatures.flatness,
                     spectralRolloff: spectralFeatures.rollOff,
                     spectralBandwidth: spectralFeatures.bandwidth,
-                    chromagram: [],
+                    chromagram: features.chromagram ? 
+                        computeChroma(channelData.slice(startPosition, endPosition), sampleRate) : [],
                     tempo: 0,
-                    hnr: 0,
+                    hnr: features.hnr ? 
+                        extractHNR(channelData.slice(startPosition, endPosition)) : 0,
                     melSpectrogram: [],
                     spectralContrast: [],
                     tonnetz: [],
-                    pitch: 0,
+                    pitch: features.pitch ? 
+                        estimatePitch(channelData.slice(startPosition, endPosition), sampleRate) : 0,
                     magnitudeSpectrum: spectralFeatures.magnitudeSpectrum
                 }
             })
@@ -460,7 +685,15 @@ self.onmessage = function (event) {
                 sampleRate,
                 segmentDurationMs,
                 durationMs: result.durationMs,
-                dataPoints: result.dataPoints,
+                dataPoints: result.dataPoints.map(point => ({
+                    ...point,
+                    features: {
+                        ...point.features,
+                        chromagram: point.features.chromagram,
+                        hnr: point.features.hnr,
+                        pitch: point.features.pitch
+                    }
+                })),
                 amplitudeRange: result.amplitudeRange,
                 rmsRange: result.rmsRange,
             }
