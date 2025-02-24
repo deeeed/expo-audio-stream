@@ -166,7 +166,8 @@ export function SegmentAnalyzer({
     const { audioData, isLoading } = useAudioSegmentData({
         fileUri,
         selectedDataPoint: dataPoint,
-        bitDepth
+        bitDepth,
+        includeNormalizedData: true
     })
 
     // Calculate positions for display
@@ -352,7 +353,7 @@ export function SegmentAnalyzer({
                     
                     <SpeechAnalyzer 
                         analysis={segmentAnalysis}
-                        pcmData={audioData?.pcmData}
+                        audioData={audioData}
                         sampleRate={sampleRate}
                     />
 
