@@ -98,117 +98,146 @@ export async function extractAudioAnalysis(
 
     if (isWeb) {
         try {
-            const processedBuffer = await processAudioBuffer({
-                arrayBuffer,
-                fileUri,
-                targetSampleRate: decodingOptions?.targetSampleRate ?? 16000,
-                targetChannels: decodingOptions?.targetChannels ?? 1,
-                normalizeAudio: decodingOptions?.normalizeAudio ?? false,
-                startTimeMs:
-                    'startTimeMs' in props ? props.startTimeMs : undefined,
-                endTimeMs: 'endTimeMs' in props ? props.endTimeMs : undefined,
-                position: 'position' in props ? props.position : undefined,
-                length: 'length' in props ? props.length : undefined,
+            // Create AudioContext here
+            const audioContext = new (window.AudioContext ||
+                (window as any).webkitAudioContext)({
+                sampleRate: decodingOptions?.targetSampleRate ?? 16000,
             })
 
-            const channelData = processedBuffer.buffer.getChannelData(0)
-
-            // Create and initialize the worker
-            const blob = new Blob([InlineFeaturesExtractor], {
-                type: 'application/javascript',
-            })
-            const workerUrl = URL.createObjectURL(blob)
-            const worker = new Worker(workerUrl)
-
-            return new Promise((resolve, reject) => {
-                worker.onmessage = (event) => {
-                    if (event.data.error) {
-                        reject(new Error(event.data.error))
-                        return
-                    }
-
-                    const result: AudioAnalysis = event.data.result
-                    if (features?.crc32) {
-                        result.dataPoints = result.dataPoints.map(
-                            (point: DataPoint, index) => {
-                                // Convert byte positions to sample positions
-                                const bytesPerSample = 2 // 16-bit audio = 2 bytes per sample
-                                const startSamplePosition = Math.floor(
-                                    (point.startPosition || 0) / bytesPerSample
-                                )
-                                const samples =
-                                    point.samples ||
-                                    Math.floor(
-                                        (point.endPosition || 0) /
-                                            bytesPerSample
-                                    ) - startSamplePosition
-
-                                const segmentData = new Float32Array(samples)
-
-                                console.log(
-                                    `TS ${index}: Processing segment:`,
-                                    {
-                                        byteSamplePosition: point.startPosition,
-                                        startSamplePosition,
-                                        samples,
-                                        channelDataLength: channelData.length,
-                                    }
-                                )
-
-                                // Fill segmentData with samples
-                                for (let i = 0; i < segmentData.length; i++) {
-                                    segmentData[i] =
-                                        channelData[startSamplePosition + i]
-                                }
-
-                                // Convert float array to byte array for CRC32
-                                const byteArray = new Uint8Array(
-                                    segmentData.length * 4
-                                )
-                                const dataView = new DataView(byteArray.buffer)
-
-                                for (let i = 0; i < segmentData.length; i++) {
-                                    dataView.setFloat32(
-                                        i * 4,
-                                        segmentData[i],
-                                        true
-                                    )
-                                }
-
-                                const crc = crc32.buf(byteArray)
-
-                                return {
-                                    ...point,
-                                    features: {
-                                        ...point.features,
-                                        crc32: crc,
-                                    },
-                                }
-                            }
-                        )
-                    }
-
-                    URL.revokeObjectURL(workerUrl)
-                    worker.terminate()
-                    resolve(result)
-                }
-
-                worker.onerror = (error) => {
-                    URL.revokeObjectURL(workerUrl)
-                    worker.terminate()
-                    reject(error)
-                }
-
-                worker.postMessage({
-                    channelData,
-                    sampleRate: processedBuffer.sampleRate,
-                    segmentDurationMs,
-                    bitDepth: decodingOptions?.targetBitDepth ?? 32,
-                    numberOfChannels: processedBuffer.channels,
-                    enableLogging: !!logger,
-                    features,
+            try {
+                const processedBuffer = await processAudioBuffer({
+                    arrayBuffer,
+                    fileUri,
+                    targetSampleRate:
+                        decodingOptions?.targetSampleRate ?? 16000,
+                    targetChannels: decodingOptions?.targetChannels ?? 1,
+                    normalizeAudio: decodingOptions?.normalizeAudio ?? false,
+                    startTimeMs:
+                        'startTimeMs' in props ? props.startTimeMs : undefined,
+                    endTimeMs:
+                        'endTimeMs' in props ? props.endTimeMs : undefined,
+                    position: 'position' in props ? props.position : undefined,
+                    length: 'length' in props ? props.length : undefined,
+                    audioContext, // Pass the context we created
+                    logger,
                 })
-            })
+
+                const channelData = processedBuffer.buffer.getChannelData(0)
+
+                // Create and initialize the worker
+                const blob = new Blob([InlineFeaturesExtractor], {
+                    type: 'application/javascript',
+                })
+                const workerUrl = URL.createObjectURL(blob)
+                const worker = new Worker(workerUrl)
+
+                return new Promise((resolve, reject) => {
+                    worker.onmessage = (event) => {
+                        if (event.data.error) {
+                            reject(new Error(event.data.error))
+                            return
+                        }
+
+                        const result: AudioAnalysis = event.data.result
+                        if (features?.crc32) {
+                            result.dataPoints = result.dataPoints.map(
+                                (point: DataPoint, index) => {
+                                    // Convert byte positions to sample positions
+                                    const bytesPerSample = 2 // 16-bit audio = 2 bytes per sample
+                                    const startSamplePosition = Math.floor(
+                                        (point.startPosition || 0) /
+                                            bytesPerSample
+                                    )
+                                    const samples =
+                                        point.samples ||
+                                        Math.floor(
+                                            (point.endPosition || 0) /
+                                                bytesPerSample
+                                        ) - startSamplePosition
+
+                                    const segmentData = new Float32Array(
+                                        samples
+                                    )
+
+                                    console.log(
+                                        `TS ${index}: Processing segment:`,
+                                        {
+                                            byteSamplePosition:
+                                                point.startPosition,
+                                            startSamplePosition,
+                                            samples,
+                                            channelDataLength:
+                                                channelData.length,
+                                        }
+                                    )
+
+                                    // Fill segmentData with samples
+                                    for (
+                                        let i = 0;
+                                        i < segmentData.length;
+                                        i++
+                                    ) {
+                                        segmentData[i] =
+                                            channelData[startSamplePosition + i]
+                                    }
+
+                                    // Convert float array to byte array for CRC32
+                                    const byteArray = new Uint8Array(
+                                        segmentData.length * 4
+                                    )
+                                    const dataView = new DataView(
+                                        byteArray.buffer
+                                    )
+
+                                    for (
+                                        let i = 0;
+                                        i < segmentData.length;
+                                        i++
+                                    ) {
+                                        dataView.setFloat32(
+                                            i * 4,
+                                            segmentData[i],
+                                            true
+                                        )
+                                    }
+
+                                    const crc = crc32.buf(byteArray)
+
+                                    return {
+                                        ...point,
+                                        features: {
+                                            ...point.features,
+                                            crc32: crc,
+                                        },
+                                    }
+                                }
+                            )
+                        }
+
+                        URL.revokeObjectURL(workerUrl)
+                        worker.terminate()
+                        resolve(result)
+                    }
+
+                    worker.onerror = (error) => {
+                        URL.revokeObjectURL(workerUrl)
+                        worker.terminate()
+                        reject(error)
+                    }
+
+                    worker.postMessage({
+                        channelData,
+                        sampleRate: processedBuffer.sampleRate,
+                        segmentDurationMs,
+                        bitDepth: decodingOptions?.targetBitDepth ?? 32,
+                        numberOfChannels: processedBuffer.channels,
+                        enableLogging: !!logger,
+                        features,
+                    })
+                })
+            } finally {
+                await audioContext.close()
+            }
         } catch (error) {
             logger?.error('Failed to process audio:', error)
             throw error

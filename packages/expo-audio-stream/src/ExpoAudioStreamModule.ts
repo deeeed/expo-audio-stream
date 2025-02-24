@@ -102,101 +102,113 @@ if (Platform.OS === 'web') {
                 decodingOptions,
             })
 
-            // Process the audio using shared helper function
-            const processedBuffer = await processAudioBuffer({
-                fileUri,
-                targetSampleRate: decodingOptions?.targetSampleRate ?? 16000,
-                targetChannels: decodingOptions?.targetChannels ?? 1,
-                normalizeAudio: decodingOptions?.normalizeAudio ?? false,
-                position,
-                length,
-                startTimeMs,
-                endTimeMs,
+            // Create AudioContext with the correct sample rate
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+                sampleRate: decodingOptions?.targetSampleRate ?? 16000,
             })
 
-            logger?.debug('Audio Buffer Details:', {
-                originalLength: processedBuffer.samples,
-                sampleRate: processedBuffer.sampleRate,
-                duration: processedBuffer.durationMs,
-                channels: processedBuffer.channels,
-            })
+            try {
+                // Process the audio using shared helper function
+                const processedBuffer = await processAudioBuffer({
+                    fileUri,
+                    targetSampleRate: decodingOptions?.targetSampleRate ?? 16000,
+                    targetChannels: decodingOptions?.targetChannels ?? 1,
+                    normalizeAudio: decodingOptions?.normalizeAudio ?? false,
+                    position,
+                    length,
+                    startTimeMs,
+                    endTimeMs,
+                    audioContext,
+                    logger,
+                })
 
-            const channelData = processedBuffer.pcmData
-            const bitDepth = (decodingOptions?.targetBitDepth ?? 16) as BitDepth
-            const bytesPerSample = bitDepth / 8
+                logger?.debug('Audio Buffer Details:', {
+                    originalLength: processedBuffer.samples,
+                    sampleRate: processedBuffer.sampleRate,
+                    duration: processedBuffer.durationMs,
+                    channels: processedBuffer.channels,
+                })
 
-            // Calculate sample positions from byte positions
-            const startSample = Math.floor((position ?? 0) / bytesPerSample)
-            const endSample = Math.floor(
-                ((position ?? 0) + (length ?? 0)) / bytesPerSample
-            )
-            const numSamples = endSample - startSample
+                const channelData = processedBuffer.pcmData
+                const bitDepth = (decodingOptions?.targetBitDepth ?? 16) as BitDepth
+                const bytesPerSample = bitDepth / 8
 
-            logger?.debug('PCM conversion details:', {
-                startSample,
-                endSample,
-                numSamples,
-                bytesPerSample,
-                channelDataLength: channelData.length,
-                position,
-                length,
-            })
-
-            // Create PCM data array for the segment
-            const pcmData = new Uint8Array(numSamples * bytesPerSample)
-            let offset = 0
-
-            // Process samples for just our segment
-            for (let i = startSample; i < endSample; i++) {
-                const sample = channelData[i]
-                if (bitDepth === 16) {
-                    const value = Math.max(-1, Math.min(1, sample))
-                    const intValue = Math.round(value * 32767)
-                    pcmData[offset++] = intValue & 255
-                    pcmData[offset++] = (intValue >> 8) & 255
-                } else if (bitDepth === 32) {
-                    const value = Math.max(-1, Math.min(1, sample))
-                    const intValue = Math.round(value * 2147483647)
-                    pcmData[offset++] = intValue & 255
-                    pcmData[offset++] = (intValue >> 8) & 255
-                    pcmData[offset++] = (intValue >> 16) & 255
-                    pcmData[offset++] = (intValue >> 24) & 255
-                }
-            }
-
-            const result: ExtractedAudioData = {
-                pcmData: new Uint8Array(pcmData.buffer),
-                sampleRate: processedBuffer.sampleRate,
-                channels: processedBuffer.channels,
-                bitDepth,
-                durationMs: (numSamples / processedBuffer.sampleRate) * 1000,
-                format: `pcm_${bitDepth}bit` as const,
-                samples: numSamples,
-            }
-
-            // Add normalized data if requested
-            if (options.includeNormalizedData) {
-                result.normalizedData = channelData.slice(
-                    0,
-                    processedBuffer.samples
+                // Calculate sample positions from byte positions
+                const startSample = Math.floor((position ?? 0) / bytesPerSample)
+                const endSample = Math.floor(
+                    ((position ?? 0) + (length ?? 0)) / bytesPerSample
                 )
+                const numSamples = endSample - startSample
+
+                logger?.debug('PCM conversion details:', {
+                    startSample,
+                    endSample,
+                    numSamples,
+                    bytesPerSample,
+                    channelDataLength: channelData.length,
+                    position,
+                    length,
+                })
+
+                // Create PCM data array for the segment
+                const pcmData = new Uint8Array(numSamples * bytesPerSample)
+                let offset = 0
+
+                // Process samples for just our segment
+                for (let i = startSample; i < endSample; i++) {
+                    const sample = channelData[i]
+                    if (bitDepth === 16) {
+                        const value = Math.max(-1, Math.min(1, sample))
+                        const intValue = Math.round(value * 32767)
+                        pcmData[offset++] = intValue & 255
+                        pcmData[offset++] = (intValue >> 8) & 255
+                    } else if (bitDepth === 32) {
+                        const value = Math.max(-1, Math.min(1, sample))
+                        const intValue = Math.round(value * 2147483647)
+                        pcmData[offset++] = intValue & 255
+                        pcmData[offset++] = (intValue >> 8) & 255
+                        pcmData[offset++] = (intValue >> 16) & 255
+                        pcmData[offset++] = (intValue >> 24) & 255
+                    }
+                }
+
+                const result: ExtractedAudioData = {
+                    pcmData: new Uint8Array(pcmData.buffer),
+                    sampleRate: processedBuffer.sampleRate,
+                    channels: processedBuffer.channels,
+                    bitDepth,
+                    durationMs: (numSamples / processedBuffer.sampleRate) * 1000,
+                    format: `pcm_${bitDepth}bit` as const,
+                    samples: numSamples,
+                }
+
+                // Add normalized data if requested
+                if (options.includeNormalizedData) {
+                    result.normalizedData = channelData.slice(
+                        0,
+                        processedBuffer.samples
+                    )
+                }
+
+                if (options.computeChecksum) {
+                    result.checksum = crc32.buf(pcmData)
+                }
+
+                // Log result for debugging
+                logger?.info('Extraction result:', {
+                    sampleRate: result.sampleRate,
+                    channels: result.channels,
+                    samples: result.samples,
+                    durationMs: result.durationMs,
+                    pcmDataLength: result.pcmData.length,
+                    checksum: result.checksum,
+                })
+
+                return result
+            } finally {
+                // Ensure AudioContext is closed
+                await audioContext.close()
             }
-
-            if (options.computeChecksum) {
-                result.checksum = crc32.buf(pcmData)
-            }
-
-            // Log result for debugging
-            logger?.info('Extraction result:', {
-                sampleRate: result.sampleRate,
-                channels: result.channels,
-                samples: result.samples,
-                durationMs: result.durationMs,
-                pcmDataLength: result.pcmData.length,
-                checksum: result.checksum,
-            })
-
-            return result
         } catch (error) {
             console.error('Failed to extract audio data:', error)
             throw error
