@@ -376,6 +376,7 @@ export function SegmentAnalyzer({
                     <HexDataViewer
                         byteArray={audioData?.pcmData}
                         bitDepth={bitDepth}
+                        shouldComputeChecksum={true}
                     />
                 </>
             )}

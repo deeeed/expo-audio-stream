@@ -83,15 +83,25 @@ export async function processAudioBuffer({
         channels: buffer.numberOfChannels,
     })
 
-    // Calculate start and end samples based on position/length
+    // Calculate start and end samples based on position/length or time
     let startSample = 0
     let endSample = buffer.length
     let rangeLength = buffer.length
 
     if (position !== undefined && length !== undefined) {
-        const bytesPerSample = 2 // 16-bit audio
+        const bytesPerSample = 2 // Assuming 16-bit audio
         startSample = Math.floor(position / bytesPerSample)
-        endSample = Math.floor((position + length) / bytesPerSample)
+        endSample = Math.min(
+            buffer.length,
+            Math.floor((position + length) / bytesPerSample)
+        )
+        rangeLength = endSample - startSample
+    } else if (startTimeMs !== undefined && endTimeMs !== undefined) {
+        startSample = Math.floor((startTimeMs / 1000) * buffer.sampleRate)
+        endSample = Math.min(
+            buffer.length,
+            Math.floor((endTimeMs / 1000) * buffer.sampleRate)
+        )
         rangeLength = endSample - startSample
     }
 
@@ -102,6 +112,8 @@ export async function processAudioBuffer({
         bufferLength: buffer.length,
         position,
         length,
+        startTimeMs,
+        endTimeMs,
     })
 
     // Create offline context with the correct length
@@ -113,6 +125,8 @@ export async function processAudioBuffer({
 
     const source = offlineCtx.createBufferSource()
     source.buffer = buffer
+
+    // Ensure proper timing when starting the source
     source.start(
         0,
         startSample / buffer.sampleRate,
