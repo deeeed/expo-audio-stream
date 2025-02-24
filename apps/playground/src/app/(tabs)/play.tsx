@@ -12,7 +12,6 @@ import {
 } from '@siteed/design-system'
 import {
     AudioAnalysis,
-    AudioPreview,
     AudioRecording,
     BitDepth,
     Chunk,
@@ -183,12 +182,6 @@ export const PlayPage = () => {
                 segmentDurationMs: 100,
                 startTimeMs: effectiveStartTimeMs,
                 endTimeMs: effectiveEndTimeMs,
-                decodingOptions: {
-                    targetSampleRate: 16000,
-                    targetChannels: 1,
-                    targetBitDepth: 32,
-                    normalizeAudio: false
-                }
             })
 
             logger.debug(`generatePreview`, audioAnalysis.durationMs)
@@ -197,7 +190,7 @@ export const PlayPage = () => {
                 setStartTimeMs(0)
                 setEndTimeMs(0)
             }
-            
+
             // Reset cursor position to start of trim range or 0
             setCurrentTimeMs(enableTrim ? startTimeMs : 0)
 
@@ -373,6 +366,8 @@ export const PlayPage = () => {
                 fileUri: audioUri,
                 logger: baseLogger.extend('extractAudioAnalysis'),
                 segmentDurationMs: (PREVIEW_POINTS / 10), // Convert points to duration (10 sec default)
+                position: 0,
+                length: decoded.length,
             })
 
             // Set preview stats immediately with the correct duration from decoded audio
