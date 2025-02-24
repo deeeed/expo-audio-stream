@@ -144,28 +144,36 @@ export async function extractAudioAnalysis(
                                 (point: DataPoint, index) => {
                                     // Convert byte positions to sample positions
                                     const bytesPerSample = 2 // 16-bit audio = 2 bytes per sample
-                                    const startSamplePosition = Math.floor(
-                                        (point.startPosition || 0) /
-                                            bytesPerSample
+                                    const samplesPerSecond =
+                                        processedBuffer.sampleRate // 16000
+                                    const bytesPerSecond =
+                                        samplesPerSecond * bytesPerSample // 32000
+
+                                    // Convert milliseconds to bytes
+                                    const startPosition = Math.floor(
+                                        (props.startTimeMs ?? 0) *
+                                            (bytesPerSecond / 1000)
                                     )
-                                    const samples =
-                                        point.samples ||
-                                        Math.floor(
-                                            (point.endPosition || 0) /
-                                                bytesPerSample
-                                        ) - startSamplePosition
+                                    const endPosition = Math.floor(
+                                        (props.endTimeMs ?? 0) *
+                                            (bytesPerSecond / 1000)
+                                    )
 
                                     const segmentData = new Float32Array(
-                                        samples
+                                        Math.floor(
+                                            (endPosition - startPosition) /
+                                                bytesPerSample
+                                        )
                                     )
 
                                     console.log(
                                         `TS ${index}: Processing segment:`,
                                         {
-                                            byteSamplePosition:
-                                                point.startPosition,
-                                            startSamplePosition,
-                                            samples,
+                                            byteSamplePosition: startPosition,
+                                            startSamplePosition: Math.floor(
+                                                startPosition / bytesPerSample
+                                            ),
+                                            samples: segmentData.length,
                                             channelDataLength:
                                                 channelData.length,
                                         }
@@ -178,7 +186,12 @@ export async function extractAudioAnalysis(
                                         i++
                                     ) {
                                         segmentData[i] =
-                                            channelData[startSamplePosition + i]
+                                            channelData[
+                                                Math.floor(
+                                                    startPosition /
+                                                        bytesPerSample
+                                                ) + i
+                                            ]
                                     }
 
                                     // Convert float array to byte array for CRC32

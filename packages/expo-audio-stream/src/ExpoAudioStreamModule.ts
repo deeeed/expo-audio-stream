@@ -93,13 +93,21 @@ if (Platform.OS === 'web') {
                 logger,
             } = options
 
-            logger?.info('Web Audio Extraction - Starting:', {
-                fileUri,
-                position,
-                length,
-                startTimeMs,
-                endTimeMs,
-                decodingOptions,
+            logger?.debug('EXTRACT AUDIO - Step 1: Initial params', {
+                input: {
+                    position,
+                    length,
+                    startTimeMs,
+                    endTimeMs,
+                    sampleRate: decodingOptions?.targetSampleRate ?? 16000,
+                    bitDepth: decodingOptions?.targetBitDepth ?? 16,
+                },
+                expected: {
+                    samplesFor3Sec:
+                        (decodingOptions?.targetSampleRate ?? 16000) * 3,
+                    bytesFor3Sec:
+                        (decodingOptions?.targetSampleRate ?? 16000) * 3 * 2,
+                },
             })
 
             // Process the audio using shared helper function
@@ -108,11 +116,25 @@ if (Platform.OS === 'web') {
                 targetSampleRate: decodingOptions?.targetSampleRate ?? 16000,
                 targetChannels: decodingOptions?.targetChannels ?? 1,
                 normalizeAudio: decodingOptions?.normalizeAudio ?? false,
-                position: position ? position / 2 : undefined,
-                length: length ? length / 2 : undefined,
+                position,
+                length,
                 startTimeMs,
                 endTimeMs,
                 logger,
+            })
+
+            logger?.debug('EXTRACT AUDIO - Step 2: After processing', {
+                processed: {
+                    samples: processedBuffer.samples,
+                    durationMs: processedBuffer.durationMs,
+                    pcmDataLength: processedBuffer.pcmData.length,
+                },
+                shouldBe: {
+                    samples: length ? length / 2 : undefined,
+                    durationMs: endTimeMs
+                        ? endTimeMs - (startTimeMs ?? 0)
+                        : undefined,
+                },
             })
 
             const channelData = processedBuffer.pcmData
@@ -120,43 +142,59 @@ if (Platform.OS === 'web') {
             const bytesPerSample = bitDepth / 8
             const numSamples = processedBuffer.samples
 
-            logger?.debug('PCM conversion details:', {
-                numSamples,
-                bytesPerSample,
-                channelDataLength: channelData.length,
-                requestedPosition: position,
-                requestedLength: length,
-                actualSamples: processedBuffer.samples
+            logger?.debug('EXTRACT AUDIO - Step 3: PCM conversion setup', {
+                channelData: {
+                    length: channelData.length,
+                    first: channelData[0],
+                    last: channelData[channelData.length - 1],
+                },
+                calculation: {
+                    bitDepth,
+                    bytesPerSample,
+                    numSamples,
+                    expectedBytes: numSamples * bytesPerSample,
+                },
             })
 
-            // Only get the requested segment
-            const pcmData = new Uint8Array(length ?? processedBuffer.pcmData.length * 2)
+            // Create PCM data with correct length based on original byte length
+            const pcmData = new Uint8Array(numSamples * bytesPerSample)
             let offset = 0
 
             // Convert Float32 samples to PCM format
             for (let i = 0; i < numSamples; i++) {
                 const sample = channelData[i]
-                if (bitDepth === 16) {
-                    const value = Math.max(-1, Math.min(1, sample))
-                    const intValue = Math.round(value * 32767)
-                    pcmData[offset++] = intValue & 255
-                    pcmData[offset++] = (intValue >> 8) & 255
-                } else if (bitDepth === 32) {
-                    const value = Math.max(-1, Math.min(1, sample))
-                    const intValue = Math.round(value * 2147483647)
-                    pcmData[offset++] = intValue & 255
-                    pcmData[offset++] = (intValue >> 8) & 255
-                    pcmData[offset++] = (intValue >> 16) & 255
-                    pcmData[offset++] = (intValue >> 24) & 255
-                }
+                const value = Math.max(-1, Math.min(1, sample))
+                const intValue = Math.round(value * 32767)
+                pcmData[offset++] = intValue & 255
+                pcmData[offset++] = (intValue >> 8) & 255
             }
+
+            const durationMs = Math.round(
+                (numSamples / processedBuffer.sampleRate) * 1000
+            )
+
+            logger?.debug('EXTRACT AUDIO - Step 4: Final output', {
+                pcmData: {
+                    length: pcmData.length,
+                    first: pcmData[0],
+                    last: pcmData[pcmData.length - 1],
+                },
+                timing: {
+                    numSamples,
+                    sampleRate: processedBuffer.sampleRate,
+                    durationMs,
+                    shouldBe3000ms: endTimeMs
+                        ? endTimeMs - (startTimeMs ?? 0) === 3000
+                        : undefined,
+                },
+            })
 
             const result: ExtractedAudioData = {
                 pcmData: new Uint8Array(pcmData.buffer),
                 sampleRate: processedBuffer.sampleRate,
                 channels: processedBuffer.channels,
                 bitDepth,
-                durationMs: processedBuffer.durationMs,
+                durationMs,
                 format: `pcm_${bitDepth}bit` as const,
                 samples: numSamples,
             }
@@ -171,7 +209,9 @@ if (Platform.OS === 'web') {
 
             return result
         } catch (error) {
-            console.error('Failed to extract audio data:', error)
+            options.logger?.error('EXTRACT AUDIO - Error:', {
+                error,
+            })
             throw error
         }
     }

@@ -73,55 +73,101 @@ export async function processAudioBuffer({
         // Decode the audio data
         buffer = await ctx.decodeAudioData(audioData)
 
-        logger?.debug('Original audio buffer details:', {
-            length: buffer.length,
-            sampleRate: buffer.sampleRate,
-            duration: buffer.duration,
-            channels: buffer.numberOfChannels,
+        logger?.debug('Input parameters:', {
+            position,
+            length,
+            startTimeMs,
+            endTimeMs,
+            targetSampleRate,
+            targetChannels,
+            bufferInfo: {
+                length: buffer.length,
+                sampleRate: buffer.sampleRate,
+                duration: buffer.duration,
+                channels: buffer.numberOfChannels,
+            },
         })
 
-        // Convert byte positions to sample positions if position/length are provided
-        const bytesPerSample = 2 // Assuming 16-bit audio = 2 bytes per sample
-        const startSample =
-            position !== undefined ? Math.floor(position / bytesPerSample) : 0
-        const endSample =
-            position !== undefined && length !== undefined
-                ? Math.min(
-                      buffer.length,
-                      Math.floor((position + length) / bytesPerSample)
-                  )
-                : buffer.length
+        const bytesPerSample = 2 // 16-bit audio = 2 bytes per sample
 
-        const rangeLength = endSample - startSample
+        logger?.debug('RAW INPUT:', {
+            position,
+            length,
+            startTimeMs,
+            endTimeMs,
+        })
 
-        // Ensure we have a valid range with minimum size
-        if (rangeLength <= 0) {
-            throw new Error(
-                `Invalid sample range: got length ${rangeLength} (start: ${startSample}, end: ${endSample}, buffer length: ${buffer.length})`
-            )
-        }
-
-        logger?.debug('Sample range calculation:', {
-            originalPosition: position,
-            originalLength: length,
+        // Log every step of the calculation
+        logger?.debug('STEP 1 - Position calculation:', {
+            position,
             bytesPerSample,
+            wouldBe: position ? position / bytesPerSample : null,
+            orFromTime: startTimeMs
+                ? Math.floor((startTimeMs / 1000) * buffer.sampleRate)
+                : null,
+        })
+
+        const startSample =
+            position !== undefined
+                ? Math.floor(position / bytesPerSample)
+                : startTimeMs !== undefined
+                  ? Math.floor((startTimeMs / 1000) * buffer.sampleRate)
+                  : 0
+
+        logger?.debug('STEP 2 - Length calculation:', {
+            length,
+            bytesPerSample,
+            wouldBe: length ? length / bytesPerSample : null,
+            orFromTime:
+                endTimeMs && startTimeMs
+                    ? Math.floor(
+                          ((endTimeMs - startTimeMs) / 1000) * buffer.sampleRate
+                      )
+                    : null,
+        })
+
+        const samplesNeeded =
+            length !== undefined
+                ? Math.floor(length / bytesPerSample)
+                : endTimeMs !== undefined && startTimeMs !== undefined
+                  ? Math.floor(
+                        ((endTimeMs - startTimeMs) / 1000) * buffer.sampleRate
+                    )
+                  : buffer.length - startSample
+
+        logger?.debug('STEP 3 - Final numbers:', {
+            startSample,
+            samplesNeeded,
+            expectedDurationMs: (samplesNeeded / buffer.sampleRate) * 1000,
+            shouldBe: {
+                samplesFor3Seconds: buffer.sampleRate * 3,
+                bytesFor3Seconds: buffer.sampleRate * 3 * bytesPerSample,
+            },
+        })
+
+        // Ensure we don't exceed buffer bounds
+        const endSample = Math.min(buffer.length, startSample + samplesNeeded)
+        const actualSamples = endSample - startSample
+
+        logger?.debug('STEP 4 - Final check:', {
             startSample,
             endSample,
-            rangeLength,
-            totalBufferLength: buffer.length,
+            actualSamples,
+            durationMs: (actualSamples / buffer.sampleRate) * 1000,
+            shouldBe3000ms: true,
         })
 
         // Create offline context for processing
         const offlineCtx = new OfflineAudioContext(
             targetChannels,
-            rangeLength,
+            actualSamples,
             targetSampleRate
         )
 
         // Create source buffer with the exact segment we want
         const segmentBuffer = ctx.createBuffer(
             buffer.numberOfChannels,
-            rangeLength,
+            actualSamples,
             buffer.sampleRate
         )
 
@@ -129,7 +175,7 @@ export async function processAudioBuffer({
         for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
             const channelData = buffer.getChannelData(channel)
             const segmentChannelData = segmentBuffer.getChannelData(channel)
-            for (let i = 0; i < rangeLength; i++) {
+            for (let i = 0; i < actualSamples; i++) {
                 segmentChannelData[i] = channelData[startSample + i]
             }
         }
@@ -169,32 +215,29 @@ export async function processAudioBuffer({
         // Get the processed audio data
         const pcmData = processedBuffer.getChannelData(0)
 
+        // Update duration calculation to be based on the requested samples
+        const durationMs = Math.round(
+            (actualSamples / buffer.sampleRate) * 1000
+        )
+
         logger?.debug('Processed buffer details:', {
             startSample,
-            endSample,
-            rangeLength,
-            processedLength: processedBuffer.length,
+            endSample: startSample + actualSamples,
+            rangeLength: actualSamples,
+            processedLength: pcmData.length,
             pcmDataLength: pcmData.length,
-            firstFewSamples: Array.from(pcmData.slice(0, 5)),
-            lastFewSamples: Array.from(pcmData.slice(-5)),
-            hasNonZeroData: pcmData.some((v) => v !== 0),
-            requestedByteRange: {
-                start: position,
-                length,
-            },
-            actualSampleRange: {
-                start: startSample,
-                length: rangeLength,
-            },
+            durationMs,
+            sampleRate: buffer.sampleRate,
+            channels: buffer.numberOfChannels,
         })
 
         return {
+            buffer,
             pcmData,
-            samples: rangeLength,
-            durationMs: (rangeLength / targetSampleRate) * 1000,
-            sampleRate: targetSampleRate,
-            channels: targetChannels,
-            buffer: processedBuffer,
+            samples: actualSamples,
+            durationMs,
+            sampleRate: buffer.sampleRate,
+            channels: buffer.numberOfChannels,
         }
     } catch (error) {
         logger?.error('Failed to process audio buffer:', {

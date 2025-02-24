@@ -562,18 +562,6 @@ self.onmessage = function (event) {
             error: () => {}
         }
 
-        // Add hex value logging for first and last 10 samples
-        if (enableLogging) {
-            const firstHexValues = Array.from(channelData.slice(0, 10)).map(value => 
-                '0x' + Math.round(value * 32768).toString(16).padStart(4, '0')
-            );
-            const lastHexValues = Array.from(channelData.slice(-10)).map(value => 
-                '0x' + Math.round(value * 32768).toString(16).padStart(4, '0')
-            );
-            logger.debug('First 10 audio samples as hex:', firstHexValues);
-            logger.debug('Last 10 audio samples as hex:', lastHexValues);
-        }
-
         // Calculate amplitude range
         let min = Infinity
         let max = -Infinity
@@ -585,19 +573,17 @@ self.onmessage = function (event) {
         const totalSamples = channelData.length
         const durationMs = (totalSamples / sampleRate) * 1000
         
-        // Match the original point and sample calculations exactly
-        const numPoints = Math.max(
-            1,
-            Math.ceil(durationMs / (segmentDurationMs || 100))
-        )
-        // Calculate samplesPerPoint based on total samples and number of points
-        const samplesPerPoint = Math.floor(totalSamples / numPoints)
+        // Calculate fixed segment sizes
+        const samplesPerSegment = Math.floor(sampleRate * (segmentDurationMs / 1000));
+        const numPoints = Math.floor(totalSamples / samplesPerSegment);
+        const remainingSamples = totalSamples % samplesPerSegment;
 
         const dataPoints = []
 
+        // Process full segments
         for (let i = 0; i < numPoints; i++) {
-            const startIdx = i * samplesPerPoint
-            const endIdx = Math.min((i + 1) * samplesPerPoint, channelData.length)
+            const startIdx = i * samplesPerSegment
+            const endIdx = startIdx + samplesPerSegment
             
             let sumSquares = 0
             let maxAmp = 0
@@ -613,9 +599,9 @@ self.onmessage = function (event) {
                 }
             }
 
-            const rms = Math.sqrt(sumSquares / (endIdx - startIdx))
-            const startPosition = startIdx * 2
-            const endPosition = endIdx * 2
+            const rms = Math.sqrt(sumSquares / samplesPerSegment)
+            const startTime = startIdx / sampleRate;
+            const endTime = endIdx / sampleRate;
 
             var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate, features);
 
@@ -623,34 +609,95 @@ self.onmessage = function (event) {
                 id: i,
                 amplitude: maxAmp,
                 rms,
-                startTime: (i * segmentDurationMs) / 1000,
-                endTime: ((i + 1) * segmentDurationMs) / 1000,
+                startTime,
+                endTime,
                 dB: 20 * Math.log10(rms + 1e-6),
                 silent: rms < 0.01,
-                startPosition,
-                endPosition,
-                samples: endIdx - startIdx,
+                startPosition: startIdx * 2,
+                endPosition: endIdx * 2,
+                samples: samplesPerSegment,
                 features: {
                     energy: features.energy ? sumSquares : 0,
-                    rms: features.rms ? Math.sqrt(sumSquares / (endIdx - startIdx)) : 0,
+                    rms: features.rms ? rms : 0,
                     minAmplitude: -maxAmp,
                     maxAmplitude: maxAmp,
                     mfcc: [],
-                    zcr: features.zcr ? zeroCrossings / (endIdx - startIdx) : 0,
+                    zcr: features.zcr ? zeroCrossings / samplesPerSegment : 0,
                     spectralCentroid: spectralFeatures.centroid,
                     spectralFlatness: spectralFeatures.flatness,
                     spectralRolloff: spectralFeatures.rollOff,
                     spectralBandwidth: spectralFeatures.bandwidth,
                     chromagram: features.chromagram ? 
-                        computeChroma(channelData.slice(startPosition, endPosition), sampleRate) : [],
+                        computeChroma(channelData.slice(startIdx, endIdx), sampleRate) : [],
                     tempo: 0,
                     hnr: features.hnr ? 
-                        extractHNR(channelData.slice(startPosition, endPosition)) : 0,
+                        extractHNR(channelData.slice(startIdx, endIdx)) : 0,
                     melSpectrogram: [],
                     spectralContrast: [],
                     tonnetz: [],
                     pitch: features.pitch ? 
-                        estimatePitch(channelData.slice(startPosition, endPosition), sampleRate) : 0,
+                        estimatePitch(channelData.slice(startIdx, endIdx), sampleRate) : 0,
+                    magnitudeSpectrum: spectralFeatures.magnitudeSpectrum
+                }
+            })
+        }
+
+        // Handle remaining samples if they exist and are enough to process
+        if (remainingSamples > samplesPerSegment / 4) { // Only process if we have at least 1/4 of a segment
+            const startIdx = numPoints * samplesPerSegment
+            const endIdx = totalSamples
+            
+            let sumSquares = 0
+            let maxAmp = 0
+            let zeroCrossings = 0
+
+            for (let j = startIdx; j < endIdx; j++) {
+                const value = channelData[j]
+                sumSquares += value * value
+                maxAmp = Math.max(maxAmp, Math.abs(value))
+                if (j > 0 && value * channelData[j - 1] < 0) {
+                    zeroCrossings++
+                }
+            }
+
+            const rms = Math.sqrt(sumSquares / remainingSamples)
+            const startTime = startIdx / sampleRate;
+            const endTime = endIdx / sampleRate;
+
+            var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate, features);
+
+            dataPoints.push({
+                id: numPoints,
+                amplitude: maxAmp,
+                rms,
+                startTime,
+                endTime,
+                dB: 20 * Math.log10(rms + 1e-6),
+                silent: rms < 0.01,
+                startPosition: startIdx * 2,
+                endPosition: endIdx * 2,
+                samples: remainingSamples,
+                features: {
+                    energy: features.energy ? sumSquares : 0,
+                    rms: features.rms ? rms : 0,
+                    minAmplitude: -maxAmp,
+                    maxAmplitude: maxAmp,
+                    mfcc: [],
+                    zcr: features.zcr ? zeroCrossings / remainingSamples : 0,
+                    spectralCentroid: spectralFeatures.centroid,
+                    spectralFlatness: spectralFeatures.flatness,
+                    spectralRolloff: spectralFeatures.rollOff,
+                    spectralBandwidth: spectralFeatures.bandwidth,
+                    chromagram: features.chromagram ? 
+                        computeChroma(channelData.slice(startIdx, endIdx), sampleRate) : [],
+                    tempo: 0,
+                    hnr: features.hnr ? 
+                        extractHNR(channelData.slice(startIdx, endIdx)) : 0,
+                    melSpectrogram: [],
+                    spectralContrast: [],
+                    tonnetz: [],
+                    pitch: features.pitch ? 
+                        estimatePitch(channelData.slice(startIdx, endIdx), sampleRate) : 0,
                     magnitudeSpectrum: spectralFeatures.magnitudeSpectrum
                 }
             })
