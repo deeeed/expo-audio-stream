@@ -59,48 +59,59 @@ export const AudioFilesProvider = ({
             try {
                 if (isWeb) {
                     await deleteAudioFile({ fileName: audioUriORfilename });
-                    logger.debug(
-                        `Deleted audio and metadata for ${audioUriORfilename}`
-                    );
+                    logger.debug(`Deleted audio and metadata for ${audioUriORfilename}`);
                 } else {
-                    const jsonPath = audioUriORfilename.replace(
-                        /\.(wav|mp3|opus|aac)$/,
-                        '.json'
-                    );
+                    const directoryUri = FileSystem.documentDirectory;
+                    const fullPath = audioUriORfilename.startsWith('file://')
+                        ? audioUriORfilename
+                        : `file://${audioUriORfilename}`;
+                    
+                    logger.debug(`Attempting to delete files for ${fullPath}`);
+                    const jsonPath = fullPath.replace(/\.(wav|mp3|opus|aac)$/, '.json');
 
                     // Try to delete all possible audio files
                     const possibleExtensions = ['.wav', '.mp3', '.opus', '.aac'];
                     for (const ext of possibleExtensions) {
-                        const audioPath = audioUriORfilename.replace(/\.(wav|mp3|opus|aac)$/, ext);
-                        const audioExists = await FileSystem.getInfoAsync(audioPath);
-                        if (audioExists.exists) {
-                            await FileSystem.deleteAsync(audioPath);
-                            logger.debug(`Deleted audio file at ${audioPath}`);
+                        const audioPath = fullPath.replace(/\.(wav|mp3|opus|aac)$/, ext);
+                        const audioInfo = await FileSystem.getInfoAsync(audioPath);
+                        
+                        if (audioInfo.exists) {
+                            try {
+                                await FileSystem.deleteAsync(audioPath, { idempotent: true });
+                                logger.debug(`Successfully deleted audio file at ${audioPath}`);
+                            } catch (deleteError) {
+                                logger.error(`Failed to delete audio file at ${audioPath}`, deleteError);
+                            }
                         }
                     }
 
-                    const jsonExists = await FileSystem.getInfoAsync(jsonPath)
-                    if (jsonExists.exists) {
-                        await FileSystem.deleteAsync(jsonPath)
-                    } else {
-                        logger.info(
-                            `Metadata file does not exist at ${jsonPath}`
-                        )
+                    // Also try without file:// prefix as fallback
+                    if (audioUriORfilename.includes(directoryUri || '')) {
+                        const localPath = audioUriORfilename.replace(directoryUri || '', '');
+                        await FileSystem.deleteAsync(`${directoryUri}${localPath}`, { idempotent: true });
                     }
 
-                    logger.debug(
-                        `Deleted audio and metadata for ${audioUriORfilename}`
-                    )
+                    const jsonInfo = await FileSystem.getInfoAsync(jsonPath);
+                    if (jsonInfo.exists) {
+                        try {
+                            await FileSystem.deleteAsync(jsonPath, { idempotent: true });
+                            logger.debug(`Successfully deleted metadata file at ${jsonPath}`);
+                        } catch (deleteError) {
+                            logger.error(`Failed to delete metadata file at ${jsonPath}`, deleteError);
+                        }
+                    }
+
+                    logger.debug(`Deletion process completed for ${fullPath}`);
                 }
             } catch (error) {
                 logger.error(
                     `Failed to delete audio and metadata for ${audioUriORfilename}`,
                     error
-                )
+                );
             }
         },
         []
-    )
+    );
 
     const listAudioFiles = useCallback(async () => {
         try {

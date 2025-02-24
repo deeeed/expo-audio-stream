@@ -52,16 +52,16 @@ interface BaseExtractOptions {
 
 // Time-based range options
 interface TimeRangeOptions extends BaseExtractOptions {
-    startTimeMs: number
-    endTimeMs: number
+    startTimeMs?: number
+    endTimeMs?: number
     position?: never
     length?: never
 }
 
 // Byte-based range options
 interface ByteRangeOptions extends BaseExtractOptions {
-    position: number
-    length: number
+    position?: number
+    length?: number
     startTimeMs?: never
     endTimeMs?: never
 }
