@@ -205,6 +205,7 @@ export const AudioRecordingView = ({
         spectralContrast: false,
         tonnetz: false,
         pitch: false,
+        crc32: true,
     })
 
     const {

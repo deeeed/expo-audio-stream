@@ -1,14 +1,18 @@
 // packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts
 
-import { ConsoleLike } from '../ExpoAudioStream.types'
+import { BitDepth, ConsoleLike } from '../ExpoAudioStream.types'
 
 /**
  * Represents the configuration for decoding audio data.
  */
 export interface DecodingConfig {
+    /** Target sample rate for decoded audio (Android and Web) */
     targetSampleRate?: number
+    /** Target number of channels (Android and Web) */
     targetChannels?: number
-    targetBitDepth?: number
+    /** Target bit depth (Android and Web) */
+    targetBitDepth?: BitDepth
+    /** Whether to normalize audio levels (Android and Web) */
     normalizeAudio?: boolean
 }
 
@@ -29,24 +33,24 @@ export interface SpeechFeatures {
  * Represents various audio features extracted from an audio signal.
  */
 export interface AudioFeatures {
-    energy: number // The infinite integral of the squared signal, representing the overall energy of the audio.
-    mfcc: number[] // Mel-frequency cepstral coefficients, describing the short-term power spectrum of a sound.
-    rms: number // Root mean square value, indicating the amplitude of the audio signal.
-    minAmplitude: number // Minimum amplitude value in the audio signal.
-    maxAmplitude: number // Maximum amplitude value in the audio signal.
-    zcr: number // Zero-crossing rate, indicating the rate at which the signal changes sign.
-    spectralCentroid: number // The center of mass of the spectrum, indicating the brightness of the sound.
-    spectralFlatness: number // Measure of the flatness of the spectrum, indicating how noise-like the signal is.
-    spectralRolloff: number // The frequency below which a specified percentage (usually 85%) of the total spectral energy lies.
-    spectralBandwidth: number // The width of the spectrum, indicating the range of frequencies present.
-    chromagram: number[] // Chromagram, representing the 12 different pitch classes of the audio.
-    tempo: number // Estimated tempo of the audio signal, measured in beats per minute (BPM).
-    hnr: number // Harmonics-to-noise ratio, indicating the proportion of harmonics to noise in the audio signal.
-    melSpectrogram: number[] // Mel-scaled spectrogram representation of the audio.
-    spectralContrast: number[] // Spectral contrast features representing the difference between peaks and valleys.
-    tonnetz: number[] // Tonal network features representing harmonic relationships.
-    pitch: number // Pitch of the audio signal, measured in Hertz (Hz).
-    dataChecksum: number // Checksum of the audio signal, used to verify the integrity of the audio.
+    energy?: number // The infinite integral of the squared signal, representing the overall energy of the audio.
+    mfcc?: number[] // Mel-frequency cepstral coefficients, describing the short-term power spectrum of a sound.
+    rms?: number // Root mean square value, indicating the amplitude of the audio signal.
+    minAmplitude?: number // Minimum amplitude value in the audio signal.
+    maxAmplitude?: number // Maximum amplitude value in the audio signal.
+    zcr?: number // Zero-crossing rate, indicating the rate at which the signal changes sign.
+    spectralCentroid?: number // The center of mass of the spectrum, indicating the brightness of the sound.
+    spectralFlatness?: number // Measure of the flatness of the spectrum, indicating how noise-like the signal is.
+    spectralRolloff?: number // The frequency below which a specified percentage (usually 85%) of the total spectral energy lies.
+    spectralBandwidth?: number // The width of the spectrum, indicating the range of frequencies present.
+    chromagram?: number[] // Chromagram, representing the 12 different pitch classes of the audio.
+    tempo?: number // Estimated tempo of the audio signal, measured in beats per minute (BPM).
+    hnr?: number // Harmonics-to-noise ratio, indicating the proportion of harmonics to noise in the audio signal.
+    melSpectrogram?: number[] // Mel-scaled spectrogram representation of the audio.
+    spectralContrast?: number[] // Spectral contrast features representing the difference between peaks and valleys.
+    tonnetz?: number[] // Tonal network features representing harmonic relationships.
+    pitch?: number // Pitch of the audio signal, measured in Hertz (Hz).
+    crc32?: number // crc32 checksum of the audio signal, used to verify the integrity of the audio.
 }
 
 /**
@@ -68,6 +72,7 @@ export interface AudioFeaturesOptions {
     spectralContrast?: boolean
     tonnetz?: boolean
     pitch?: boolean
+    crc32?: boolean
 }
 
 /**

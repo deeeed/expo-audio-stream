@@ -76,4 +76,28 @@ object AudioFormatUtils {
             else -> AudioFormat.ENCODING_PCM_16BIT // Default to 16-bit PCM
         }
     }
+
+    /**
+     * Converts audio data between different bit depths
+     * @param audioData The raw audio data
+     * @param sourceBitDepth The original bit depth
+     * @param targetBitDepth The desired bit depth
+     * @return The converted audio data
+     */
+    fun convertBitDepth(audioData: ByteArray, sourceBitDepth: Int, targetBitDepth: Int): ByteArray {
+        // First convert to float array for normalization
+        val floatArray = convertByteArrayToFloatArray(audioData, "pcm_${sourceBitDepth}bit")
+        
+        // Convert back to bytes with new bit depth
+        return when (targetBitDepth) {
+            8 -> floatArray.map { ((it + 1.0f) * 127.5f).toInt().toByte() }.toByteArray()
+            16 -> ByteBuffer.allocate(floatArray.size * 2).order(ByteOrder.LITTLE_ENDIAN).apply {
+                floatArray.forEach { asShortBuffer().put((it * 32767f).toInt().toShort()) }
+            }.array()
+            32 -> ByteBuffer.allocate(floatArray.size * 4).order(ByteOrder.LITTLE_ENDIAN).apply {
+                floatArray.forEach { putFloat(it) }
+            }.array()
+            else -> throw IllegalArgumentException("Unsupported target bit depth: $targetBitDepth")
+        }
+    }
 }

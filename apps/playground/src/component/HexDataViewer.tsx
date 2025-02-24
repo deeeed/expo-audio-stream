@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { SegmentedButtons } from 'react-native-paper'
 import { convertPCMToFloat32 } from '@siteed/expo-audio-stream/src'
+import crc32 from 'crc-32'
 
 interface HexDataViewerProps {
     byteArray: Uint8Array
@@ -34,24 +35,31 @@ const bytesToString = (bytes: Uint8Array) => {
 }
 
 const computeChecksum = (bytes: Uint8Array): number => {
-    let sum = 0
-    for (let i = 0; i < bytes.length; i++) {
-        sum += bytes[i]
-    }
-    return sum
+    return crc32.buf(bytes)
 }
 
 const computeFloat32Checksum = (float32Data: string): number => {
-    return Math.round(
-        float32Data.split(' ')
-            .map(val => parseFloat(val))
-            .reduce((acc, value) => acc + Math.abs(value), 0)
-    )
+    const values = float32Data.split(' ')
+        .map(val => parseFloat(val))
+        .filter(val => !isNaN(val))
+    
+    if (values.length === 0) return 0
+
+    // Convert float32 values to ArrayBuffer
+    const buffer = new ArrayBuffer(values.length * 4)
+    const view = new DataView(buffer)
+    values.forEach((val, index) => {
+        view.setFloat32(index * 4, val, true) // true for little-endian
+    })
+    
+    return crc32.buf(new Uint8Array(buffer))
 }
 
 const formatChecksum = (value: number): string => {
     if (isNaN(value) || value === undefined) return 'N/A'
-    return `0x${value.toString(16).padStart(8, '0')}`
+    // Convert negative values to unsigned 32-bit hex and format in uppercase
+    const unsignedValue = value >>> 0
+    return `0x${unsignedValue.toString(16).toUpperCase().padStart(8, '0')}`
 }
 
 export const HexDataViewer = ({ 
@@ -112,17 +120,21 @@ export const HexDataViewer = ({
     }, [convertToFloat32])
 
     useEffect(() => {
-        if (shouldComputeChecksum) {
-            setChecksum(computeChecksum(byteArray))
+        if (shouldComputeChecksum && byteArray.length > 0) {
+            const sum = viewMode === 'float32' && float32Data
+                ? computeFloat32Checksum(float32Data)
+                : computeChecksum(byteArray)
+            
+            logger.debug('Computing checksum:', {
+                mode: viewMode,
+                dataLength: byteArray.length,
+                float32Length: float32Data.length,
+                checksum: sum
+            })
+            
+            setChecksum(sum)
         }
-    }, [byteArray, shouldComputeChecksum])
-
-    useEffect(() => {
-        if (float32Data) {
-            const float32Sum = computeFloat32Checksum(float32Data)
-            setChecksum(float32Sum)
-        }
-    }, [float32Data])
+    }, [byteArray, float32Data, viewMode, shouldComputeChecksum])
 
     return (
         <View style={styles.container}>
@@ -146,7 +158,7 @@ export const HexDataViewer = ({
                 ]}
                 style={styles.segmentedButton}
             />
-            {shouldComputeChecksum && (
+            {shouldComputeChecksum && viewMode === 'float32' && (
                 <View style={styles.checksumContainer}>
                     <Text style={[styles.checksumText, { color: theme.colors.text }]}>
                         Checksum: {formatChecksum(checksum)}
@@ -203,9 +215,12 @@ const styles = StyleSheet.create({
     },
     checksumContainer: {
         marginVertical: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     checksumText: {
         fontSize: 14,
+        fontFamily: 'monospace',
     },
     checksumValue: {
         fontFamily: 'monospace',

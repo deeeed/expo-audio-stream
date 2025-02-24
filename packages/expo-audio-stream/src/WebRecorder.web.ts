@@ -191,7 +191,9 @@ export class WebRecorder {
                             command: 'process',
                             channelData: chunk,
                             sampleRate,
-                            segmentDurationMs: this.config.segmentDurationMs ?? 100, // Default to 100ms
+                            logger: this.logger,
+                            segmentDurationMs:
+                                this.config.segmentDurationMs ?? 100, // Default to 100ms
                             bitDepth: this.bitDepth,
                             fullAudioDurationMs: this.position * 1000,
                             numberOfChannels: this.numberOfChannels,

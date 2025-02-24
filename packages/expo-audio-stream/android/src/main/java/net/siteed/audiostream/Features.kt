@@ -21,10 +21,10 @@ data class Features(
     val spectralContrast: List<Float> = emptyList(),
     val tonnetz: List<Float> = emptyList(),
     val pitch: Float = 0f,
-    val dataChecksum: Int = 0
+    val crc32: Long? = null
 ) {
     fun toDictionary(): Map<String, Any> {
-        return mapOf(
+        val baseMap = mapOf(
             "energy" to energy,
             "mfcc" to mfcc,
             "rms" to rms,
@@ -42,8 +42,9 @@ data class Features(
             "spectralContrast" to spectralContrast,
             "tonnetz" to tonnetz,
             "pitch" to pitch,
-            "dataChecksum" to dataChecksum
+            "crc32" to (crc32 ?: 0)
         )
+        return baseMap.filterValues { it != null }
     }
 
     fun toBundle(): Bundle {
@@ -65,7 +66,7 @@ data class Features(
             "spectralContrast" to spectralContrast,
             "tonnetz" to tonnetz,
             "pitch" to pitch,
-            "dataChecksum" to dataChecksum
+            "crc32" to (crc32 ?: 0)
         )
     }
 
@@ -88,7 +89,8 @@ data class Features(
                     "melSpectrogram" to (map["melSpectrogram"] as? Boolean ?: false),
                     "spectralContrast" to (map["spectralContrast"] as? Boolean ?: false),
                     "tonnetz" to (map["tonnetz"] as? Boolean ?: false),
-                    "pitch" to (map["pitch"] as? Boolean ?: false)
+                    "pitch" to (map["pitch"] as? Boolean ?: false),
+                    "crc32" to (map["crc32"] as? Boolean ?: false)
                 )
             } ?: emptyMap()
         }
