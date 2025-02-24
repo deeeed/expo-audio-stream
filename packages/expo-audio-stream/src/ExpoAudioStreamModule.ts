@@ -1,3 +1,4 @@
+import crc32 from 'crc-32'
 import { requireNativeModule } from 'expo-modules-core'
 import { Platform } from 'react-native'
 
@@ -151,6 +152,14 @@ if (Platform.OS === 'web') {
                 // Use byte positions if provided
                 startSample = Math.floor(position / bytesPerSample)
                 endSample = Math.floor((position + length) / bytesPerSample)
+
+                // Log for debugging
+                logger?.info('Sample positions calculated from bytes:', {
+                    startSample,
+                    endSample,
+                    bytesPerSample,
+                    requestedSegmentLength: endSample - startSample,
+                })
             } else if (startTimeMs != null && endTimeMs != null) {
                 // Fall back to time-based calculation
                 startSample = Math.floor(
@@ -208,8 +217,8 @@ if (Platform.OS === 'web') {
                 }
             }
 
-            const result = {
-                data: pcmData,
+            const result: ExtractedAudioData = {
+                pcmData,
                 sampleRate: processedBuffer.sampleRate,
                 channels: processedBuffer.numberOfChannels,
                 bitDepth,
@@ -217,7 +226,30 @@ if (Platform.OS === 'web') {
                     ((endSample - startSample) / processedBuffer.sampleRate) *
                     1000,
                 format: `pcm_${bitDepth}bit` as const,
+                samples: endSample - startSample,
             }
+
+            // Add normalized data if requested
+            if (options.includeNormalizedData) {
+                result.normalizedData = channelData.slice(
+                    startSample,
+                    endSample
+                )
+            }
+
+            if (options.computeChecksum) {
+                result.checksum = crc32.buf(pcmData)
+            }
+
+            // Log result for debugging
+            logger?.info('Extraction result:', {
+                sampleRate: result.sampleRate,
+                channels: result.channels,
+                samples: result.samples,
+                durationMs: result.durationMs,
+                pcmDataLength: result.pcmData.length,
+                checksum: result.checksum,
+            })
 
             return result
         } catch (error) {

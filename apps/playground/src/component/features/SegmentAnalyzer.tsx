@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { AppTheme, useTheme } from '@siteed/design-system'
-import { AudioAnalysis, AudioFeaturesOptions, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-stream'
-import React, { useCallback, useState, useEffect } from 'react'
+import { AudioAnalysis, AudioFeaturesOptions, BitDepth, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-stream'
+import React, { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { baseLogger } from '../../config'
@@ -42,10 +42,45 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
         gap: theme.spacing.gap,
     },
     segmentInfo: {
-        padding: theme.padding.s,
+        padding: theme.spacing.gap,
         backgroundColor: theme.colors.secondaryContainer,
         borderRadius: theme.roundness,
+    },
+    byteRangeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
         gap: theme.spacing.gap,
+    },
+    byteRangeLabel: {
+        color: theme.colors.onSecondaryContainer,
+        fontWeight: '500',
+    },
+    byteRangeValue: {
+        color: theme.colors.onSecondaryContainer,
+        fontFamily: 'monospace',
+    },
+    byteRangeBracket: {
+        color: theme.colors.onSecondaryContainer,
+        opacity: 0.7,
+    },
+    lengthInfo: {
+        color: theme.colors.onSecondaryContainer,
+        opacity: 0.7,
+    },
+    infoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    infoItem: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.gap,
+    },
+    separator: {
+        color: theme.colors.onSurfaceVariant,
+        marginHorizontal: theme.spacing.gap,
     },
     attributeContainer: {
         flexDirection: 'row',
@@ -110,7 +145,7 @@ interface SegmentAnalyzerProps {
         segmentDurationMs: number
         features?: AudioFeaturesOptions
     }
-    bitDepth?: number
+    bitDepth?: BitDepth
 }
 
 export function SegmentAnalyzer({ 
@@ -127,19 +162,28 @@ export function SegmentAnalyzer({
     const [segmentAnalysis, setSegmentAnalysis] = useState<AudioAnalysis>()
     const [processingTime, setProcessingTime] = useState<number>()
 
-    const { byteArray, isLoading } = useAudioSegmentData({
+    const { audioData, isLoading } = useAudioSegmentData({
         fileUri,
         selectedDataPoint: dataPoint,
         bitDepth
     })
 
     // Calculate positions for display
-    const startPosition = dataPoint.startPosition ?? (dataPoint.startTime ?? 0) * sampleRate * 2
-    const endPosition = dataPoint.endPosition ?? (dataPoint.endTime ?? 0) * sampleRate * 2
+    const startPosition = dataPoint.startPosition ?? (dataPoint.startTime ?? 0) * sampleRate * 2  // startTime is in seconds
+    const endPosition = dataPoint.endPosition ?? (dataPoint.endTime ?? 0) * sampleRate * 2  // endTime is in seconds
     const length = endPosition - startPosition
     const durationMs = dataPoint.startTime !== undefined && dataPoint.endTime !== undefined
-        ? (dataPoint.endTime - dataPoint.startTime) * 1000
-        : (length / (sampleRate * 2)) * 1000
+        ? (dataPoint.endTime - dataPoint.startTime) * 1000  // Convert seconds to ms
+        : (length / (sampleRate * 2)) * 1000  // Position-based duration
+
+    logger.info('Duration calculation:', {
+        startTime: dataPoint.startTime,
+        endTime: dataPoint.endTime,
+        startPosition,
+        endPosition,
+        length,
+        durationMs
+    })
 
     const handleProcessSegment = useCallback(async () => {
         logger.info('Processing segment with config:', {
@@ -167,6 +211,8 @@ export function SegmentAnalyzer({
         logger.info('Calculated segment positions:', {
             startPosition,
             endPosition,
+            startTime: dataPoint.startTime,
+            endTime: dataPoint.endTime,
             length,
             durationMs
         })
@@ -183,11 +229,12 @@ export function SegmentAnalyzer({
                           length: length,
                       }
                     : {
-                          startTimeMs: dataPoint.startTime ? dataPoint.startTime * 1000 : 0,
-                          endTimeMs: dataPoint.endTime ? dataPoint.endTime * 1000 : 0,
+                          startTimeMs: dataPoint.startTime ? dataPoint.startTime * 1000 : 0,  // Convert seconds to ms
+                          endTimeMs: dataPoint.endTime ? dataPoint.endTime * 1000 : 0,  // Convert seconds to ms
                       }),
                 segmentDurationMs: analysisConfig.segmentDurationMs,
                 features: analysisConfig.features,
+                logger: baseLogger.extend('SegmentAnalyzer'),
                 decodingOptions: {
                     targetSampleRate: sampleRate,
                     targetChannels: 1,
@@ -221,22 +268,33 @@ export function SegmentAnalyzer({
 
     return (
         <View style={styles.container}>
+            <Button
+                mode="contained-tonal"
+                onPress={handleProcessSegment}
+                loading={isProcessing}
+                disabled={isProcessing}
+            >
+                <View style={styles.iconButton}>
+                    <MaterialCommunityIcons
+                        name="waveform"
+                        size={20}
+                        color={theme.colors.onSecondaryContainer}
+                    />
+                    <Text style={{ color: theme.colors.onSecondaryContainer }}>
+                        Refresh Analysis
+                    </Text>
+                </View>
+            </Button>
+
             <View style={styles.segmentInfo}>
-                <View style={styles.resultRow}>
-                    <Text style={styles.label}>Start Position:</Text>
-                    <Text style={styles.value}>{startPosition} bytes</Text>
-                </View>
-                <View style={styles.resultRow}>
-                    <Text style={styles.label}>End Position:</Text>
-                    <Text style={styles.value}>{endPosition} bytes</Text>
-                </View>
-                <View style={styles.resultRow}>
-                    <Text style={styles.label}>Length:</Text>
-                    <Text style={styles.value}>{length} bytes</Text>
-                </View>
-                <View style={styles.resultRow}>
-                    <Text style={styles.label}>Duration:</Text>
-                    <Text style={styles.value}>{(durationMs / 1000).toFixed(3)}s</Text>
+                <View style={styles.byteRangeContainer}>
+                    <Text style={styles.byteRangeLabel}>ByteRange:</Text>
+                    <Text style={styles.byteRangeBracket}>[</Text>
+                    <Text style={styles.byteRangeValue}>{startPosition}</Text>
+                    <Text style={styles.byteRangeBracket}>..</Text>
+                    <Text style={styles.byteRangeValue}>{endPosition}</Text>
+                    <Text style={styles.byteRangeBracket}>]</Text>
+                    <Text style={styles.lengthInfo}>({length}b) {(durationMs / 1000).toFixed(3)}s</Text>
                 </View>
             </View>
 
@@ -262,24 +320,6 @@ export function SegmentAnalyzer({
                 </View>
             </View>
 
-            <Button
-                mode="contained-tonal"
-                onPress={handleProcessSegment}
-                loading={isProcessing}
-                disabled={isProcessing}
-            >
-                <View style={styles.iconButton}>
-                    <MaterialCommunityIcons
-                        name="waveform"
-                        size={20}
-                        color={theme.colors.onSecondaryContainer}
-                    />
-                    <Text style={{ color: theme.colors.onSecondaryContainer }}>
-                        Refresh Analysis
-                    </Text>
-                </View>
-            </Button>
-
             {segmentAnalysis && (
                 <View style={styles.resultsContainer}>
                     <View style={styles.resultRow}>
@@ -298,14 +338,16 @@ export function SegmentAnalyzer({
                         <View style={styles.resultRow}>
                             <Text style={styles.label}>Checksum:</Text>
                             <Text style={styles.checksumValue}>
-                                {`0x${dataPoint.features?.dataChecksum.toString(16).padStart(8, '0')}`}
+                                0x{dataPoint.features?.dataChecksum.toString(16).toUpperCase().padStart(8, '0')}
+                                {' '}
+                                ({dataPoint.features?.dataChecksum.toLocaleString()})
                             </Text>
                         </View>
                     )}
                     
                     <SpeechAnalyzer 
                         analysis={segmentAnalysis}
-                        pcmData={byteArray}
+                        pcmData={audioData?.pcmData}
                         sampleRate={sampleRate}
                     />
 
@@ -319,15 +361,15 @@ export function SegmentAnalyzer({
 
             {isLoading ? (
                 <ActivityIndicator />
-            ) : byteArray && (
+            ) : audioData?.pcmData && (
                 <>
                     <PCMPlayer
-                        data={byteArray}
+                        data={audioData?.pcmData}
                         sampleRate={sampleRate}
                         bitDepth={bitDepth}
                     />
                     <HexDataViewer
-                        byteArray={byteArray}
+                        byteArray={audioData?.pcmData}
                         bitDepth={bitDepth}
                     />
                 </>

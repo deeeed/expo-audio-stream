@@ -1,14 +1,18 @@
 // packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts
 
-import { ConsoleLike } from '../ExpoAudioStream.types'
+import { BitDepth, ConsoleLike } from '../ExpoAudioStream.types'
 
 /**
  * Represents the configuration for decoding audio data.
  */
 export interface DecodingConfig {
+    /** Target sample rate for decoded audio (Android and Web) */
     targetSampleRate?: number
+    /** Target number of channels (Android and Web) */
     targetChannels?: number
-    targetBitDepth?: number
+    /** Target bit depth (Android and Web) */
+    targetBitDepth?: BitDepth
+    /** Whether to normalize audio levels (Android and Web) */
     normalizeAudio?: boolean
 }
 

@@ -3,6 +3,7 @@
 import Accelerate
 import AVFoundation
 import QuartzCore
+import zlib
 
 // Constants
 private let FFT_LENGTH = 1024
@@ -570,4 +571,87 @@ func detectSpeech(from segment: [Float], rms: Float) -> (isActive: Bool, probabi
     let probability = min(1.0, max(0.0, rms * 10)) // Simple probability estimation
     
     return (isActive: isSpeech, probability: probability)
+}
+
+func extractRawAudioData(
+    from url: URL,
+    startFrame: AVAudioFramePosition,
+    frameCount: AVAudioFrameCount,
+    format: AVAudioFormat,
+    decodingConfig: DecodingConfig,
+    includeNormalizedData: Bool
+) throws -> (pcmData: Data, floatData: [Float]?) {
+    // Apply decoding configuration
+    let targetFormat = decodingConfig.toAudioFormat(baseFormat: format)
+    
+    let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount)!
+    let audioFile = try AVAudioFile(forReading: url)
+    
+    audioFile.framePosition = startFrame
+    try audioFile.read(into: buffer, frameCount: frameCount)
+    
+    // Convert to target format if different from source
+    let finalBuffer: AVAudioPCMBuffer
+    if targetFormat != format {
+        let converter = AVAudioConverter(from: format, to: targetFormat)!
+        finalBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: frameCount)!
+        
+        var error: NSError?
+        let status = converter.convert(to: finalBuffer, error: &error) { inNumPackets, outStatus in
+            outStatus.pointee = .haveData
+            return buffer
+        }
+        
+        if let error = error {
+            throw error
+        }
+    } else {
+        finalBuffer = buffer
+    }
+    
+    guard let floatData = finalBuffer.floatChannelData else {
+        throw NSError(domain: "AudioProcessing", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to get float channel data"])
+    }
+    
+    let channels = Int(targetFormat.channelCount)
+    let totalSamples = Int(finalBuffer.frameLength) * channels
+    let bytesPerSample = targetFormat.streamDescription.pointee.mBitsPerChannel / 8
+    var pcmData = Data(capacity: totalSamples * Int(bytesPerSample))
+    
+    // Convert float samples to PCM format
+    for frame in 0..<Int(finalBuffer.frameLength) {
+        for channel in 0..<channels {
+            let sample = floatData[channel][frame]
+            
+            // Only normalize if configured in decodingConfig
+            let normalizedSample = decodingConfig.normalizeAudio ? 
+                max(-1.0, min(1.0, sample)) : sample
+            
+            switch bytesPerSample {
+            case 2: // 16-bit
+                let intValue = Int16(normalizedSample * Float(Int16.max))
+                pcmData.append(contentsOf: withUnsafeBytes(of: intValue) { Array($0) })
+            case 4: // 32-bit
+                let intValue = Int32(normalizedSample * Float(Int32.max))
+                pcmData.append(contentsOf: withUnsafeBytes(of: intValue) { Array($0) })
+            default:
+                throw NSError(domain: "AudioProcessing", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unsupported bit depth"])
+            }
+        }
+    }
+    
+    // Only process normalized data if requested
+    let normalizedData: [Float]? = includeNormalizedData ? 
+        Array(UnsafeBufferPointer(start: floatData[0], count: Int(finalBuffer.frameLength))) :
+        nil
+    
+    return (pcmData: pcmData, floatData: normalizedData)
+}
+
+// Update the CRC32 function to use zlib's implementation
+func calculateCRC32(data: Data) -> UInt32 {
+    data.withUnsafeBytes { buffer in
+        let ptr = buffer.baseAddress?.assumingMemoryBound(to: UInt8.self)
+        return UInt32(crc32(0, ptr, UInt32(buffer.count)))
+    }
 }

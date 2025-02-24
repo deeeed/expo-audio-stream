@@ -1,4 +1,4 @@
-import { DataPoint, ExpoAudioStreamModule } from '@siteed/expo-audio-stream'
+import { BitDepth, DataPoint, ExpoAudioStreamModule, ExtractedAudioData } from '@siteed/expo-audio-stream'
 import { useCallback, useEffect, useState } from 'react'
 import { baseLogger } from '../config'
 
@@ -7,15 +7,17 @@ const logger = baseLogger.extend("useAudioSegmentData")
 interface UseAudioSegmentDataProps {
     fileUri: string
     selectedDataPoint?: DataPoint
-    bitDepth?: number
+    bitDepth?: BitDepth
+    includeNormalizedData?: boolean
 }
 
 export function useAudioSegmentData({ 
     fileUri, 
     selectedDataPoint,
-    bitDepth = 16
+    bitDepth = 16,
+    includeNormalizedData = false
 }: UseAudioSegmentDataProps) {
-    const [byteArray, setByteArray] = useState<Uint8Array>()
+    const [audioData, setAudioData] = useState<ExtractedAudioData>()
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<Error>()
 
@@ -34,14 +36,14 @@ export function useAudioSegmentData({
                 endTime: selectedDataPoint.endTime,
                 samples: selectedDataPoint.samples
             },
-            bitDepth
+            bitDepth,
+            includeNormalizedData
         })
 
         try {
             setIsLoading(true)
             setError(undefined)
 
-            // Determine whether to use position-based or time-based extraction
             const extractionOptions = selectedDataPoint.startPosition !== undefined
                 ? {
                     position: selectedDataPoint.startPosition,
@@ -57,33 +59,37 @@ export function useAudioSegmentData({
             logger.info('Calling extractAudioData with options:', {
                 fileUri,
                 extractionOptions,
-                bitDepth
+                bitDepth,
+                includeNormalizedData
             })
 
             const result = await ExpoAudioStreamModule.extractAudioData({
                 fileUri,
                 ...extractionOptions,
+                includeNormalizedData,
                 logger: baseLogger.extend('extractAudioData'),
                 decodingOptions: {
-                    targetBitDepth: bitDepth
+                    targetBitDepth: bitDepth,
+                    normalizeAudio: includeNormalizedData
                 }
             })
 
-            logger.info('Raw extraction result:', {
-                hasResult: !!result,
-                resultKeys: result ? Object.keys(result) : [],
-                dataLength: result?.data?.length,
-                dataType: result?.data ? result.data.constructor.name : 'no data',
-                hasData: !!result?.data
-            })
-
-            if (!result?.data) {
-                logger.error('No data returned from extractAudioData')
+            if (!result?.pcmData) {
+                logger.error('No PCM data returned from extractAudioData')
                 setError(new Error('No data returned from audio extraction'))
                 return
             }
 
-            setByteArray(result.data)
+            // Log the result for debugging
+            logger.info('Audio data extracted:', {
+                pcmDataLength: result.pcmData.length,
+                samples: result.samples,
+                durationMs: result.durationMs,
+                sampleRate: result.sampleRate,
+                channels: result.channels
+            })
+
+            setAudioData(result)
         } catch (err) {
             logger.error('Failed to load audio segment data:', {
                 error: err,
@@ -94,14 +100,14 @@ export function useAudioSegmentData({
         } finally {
             setIsLoading(false)
         }
-    }, [fileUri, selectedDataPoint, bitDepth])
+    }, [fileUri, selectedDataPoint, bitDepth, includeNormalizedData])
 
     useEffect(() => {
         loadData()
     }, [loadData])
 
     return {
-        byteArray,
+        audioData,
         isLoading,
         error,
         reload: loadData

@@ -3,6 +3,7 @@ export const InlineFeaturesExtractor = `
 let uniqueIdCounter = 0
 let accumulatedDataPoints = [] // Move outside message handler
 let lastEmitTime = Date.now() // Move outside message handler
+let logger
 
 self.onmessage = function (event) {
     const {
@@ -15,7 +16,12 @@ self.onmessage = function (event) {
         numberOfChannels,
         features: _features,
         intervalAnalysis = 500, // Use intervalAnalysis instead of interval
+        logger: _logger, // Add logger to the message data
     } = event.data
+    
+    // Set logger if provided
+    logger = _logger
+    
     const features = _features || {}
 
     const SILENCE_THRESHOLD = 0.01
@@ -120,9 +126,29 @@ self.onmessage = function (event) {
         sampleRate, // number
         segmentDurationMs, // number
     ) => {
+        logger?.debug('[InlineFeaturesExtractor] Processing waveform:', {
+            totalSamples: channelData.length,
+            sampleRate,
+            segmentDurationMs,
+            bitDepth,
+            numberOfChannels
+        })
+
         const totalSamples = channelData.length
-        const samplesPerSegment = Math.ceil((sampleRate * segmentDurationMs) / 1000)
-        const numberOfSegments = Math.ceil(totalSamples / samplesPerSegment)
+        const samplesPerSegment = Math.floor((sampleRate * segmentDurationMs) / 1000)
+        const bytesPerSample = bitDepth / 8 * numberOfChannels
+
+        // Calculate points based on segment duration
+        const expectedPoints = Math.ceil(segmentDurationMs / 1000) // Convert to seconds
+        const samplesPerPoint = Math.ceil(totalSamples / expectedPoints)
+
+        logger?.debug('[InlineFeaturesExtractor] Segment calculations:', {
+            samplesPerSegment,
+            bytesPerSample,
+            expectedPoints,
+            samplesPerPoint
+        })
+
         const dataPoints = []
         let minAmplitude = Infinity
         let maxAmplitude = -Infinity
@@ -131,10 +157,6 @@ self.onmessage = function (event) {
         let silenceStart = null
         let lastSpeechEnd = -Infinity
         let isSpeech = false
-
-        // Calculate points based on segment duration
-        const expectedPoints = Math.ceil(fullAudioDurationMs / segmentDurationMs)
-        const samplesPerPoint = Math.ceil(totalSamples / expectedPoints)
 
         for (let i = 0; i < expectedPoints; i++) {
             const start = i * samplesPerPoint
@@ -182,10 +204,6 @@ self.onmessage = function (event) {
             const silent = rms < SILENCE_THRESHOLD
             const dB = 20 * Math.log10(rms)
 
-            const bytesPerSample = bitDepth / 8
-            const startPosition = start * bytesPerSample * numberOfChannels
-            const endPosition = end * bytesPerSample * numberOfChannels
-
             // Compute speech features
             const activeSpeech = (rms > RMS_THRESHOLD && zcr > ZCR_THRESHOLD) || 
                 (isSpeech && start - lastSpeechEnd < SPEECH_INERTIA_DURATION)
@@ -225,16 +243,21 @@ self.onmessage = function (event) {
             }
 
             const peakAmp = Math.max(Math.abs(localMaxAmplitude), Math.abs(localMinAmplitude))
+            const startTimeMs = (start / sampleRate) * 1000
+            const endTimeMs = (end / sampleRate) * 1000
+            const startPosition = Math.floor(start * bytesPerSample)
+            const endPosition = Math.floor(end * bytesPerSample)
+
             const newData = {
                 id: uniqueIdCounter++,
-                amplitude: peakAmp, // Always use peak amplitude
-                rms, // Always include RMS
+                amplitude: peakAmp,
+                rms,
                 dB,
                 silent,
                 features,
                 speech,
-                startTime: start / sampleRate,
-                endTime: end / sampleRate,
+                startTime: startTimeMs,
+                endTime: endTimeMs,
                 startPosition,
                 endPosition,
                 samples: end - start
@@ -245,7 +268,7 @@ self.onmessage = function (event) {
 
         return {
             segmentDurationMs,
-            durationMs: fullAudioDurationMs,
+            durationMs: (totalSamples / sampleRate) * 1000,
             bitDepth,
             samples: totalSamples,
             numberOfChannels,
@@ -273,6 +296,12 @@ self.onmessage = function (event) {
             segmentDurationMs
         )
 
+        logger?.debug('[InlineFeaturesExtractor] Extraction result:', {
+            durationMs: result.durationMs,
+            dataPoints: result.dataPoints.length,
+            extractionTimeMs: result.extractionTimeMs
+        })
+
         // Accumulate data points
         accumulatedDataPoints = accumulatedDataPoints.concat(result.dataPoints)
         
@@ -291,7 +320,7 @@ self.onmessage = function (event) {
             lastEmitTime = currentTime
         }
     } catch (error) {
-        console.error('[AudioFeaturesExtractor] Error in processing', error)
+        logger?.error('[InlineFeaturesExtractor] Error in processing:', error)
         self.postMessage({ error: error.message })
     } finally {
         // Do not close the worker so it can be re-used for subsequent messages

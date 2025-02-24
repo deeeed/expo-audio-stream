@@ -141,13 +141,97 @@ export async function extractAudioAnalysis(
                 max = Math.max(max, channelData[i])
             }
 
-            // Calculate points per second based on the segment duration in milliseconds
-            const durationSec = processedBuffer.duration
-            const durationMs = durationSec * 1000
+            // Add debug logs for input parameters and calculations
+            logger?.log('Input parameters:', {
+                position: props.position,
+                length: props.length,
+                startTimeMs: props.startTimeMs,
+                endTimeMs: props.endTimeMs,
+                sampleRate: processedBuffer.sampleRate,
+                numberOfChannels: processedBuffer.numberOfChannels,
+            })
 
-            // Generate data points - divide total duration in ms by segment duration in ms
-            const numPoints = Math.floor(durationMs / segmentDurationMs)
-            const samplesPerPoint = Math.floor(channelData.length / numPoints)
+            // Calculate start and end indices based on position/length or time
+            const startIdx =
+                props.position !== undefined
+                    ? Math.floor(
+                          props.position /
+                              (2 * processedBuffer.numberOfChannels)
+                      ) // Convert bytes to samples
+                    : props.startTimeMs
+                      ? Math.floor(
+                            (props.startTimeMs * // Already in ms
+                                processedBuffer.sampleRate) /
+                                1000
+                        )
+                      : 0
+
+            const endIdx =
+                props.position !== undefined && props.length !== undefined
+                    ? startIdx +
+                      Math.floor(
+                          props.length / (2 * processedBuffer.numberOfChannels)
+                      ) // Convert bytes to samples, relative to start
+                    : props.endTimeMs
+                      ? Math.floor(
+                            (props.endTimeMs * // Already in ms
+                                processedBuffer.sampleRate) /
+                                1000
+                        )
+                      : channelData.length
+
+            logger?.log('Index calculations:', {
+                startIdx,
+                endIdx,
+                channelDataLength: channelData.length,
+                samplesInRange: endIdx - startIdx,
+            })
+
+            // Calculate duration based on the actual segment we're processing
+            const durationMs =
+                props.position !== undefined && props.length !== undefined
+                    ? (props.length /
+                          (2 *
+                              processedBuffer.numberOfChannels *
+                              processedBuffer.sampleRate)) *
+                      1000 // Convert samples to seconds, then to ms
+                    : props.endTimeMs && props.startTimeMs
+                      ? props.endTimeMs - props.startTimeMs // Already in ms
+                      : Math.round(
+                            (endIdx - startIdx) *
+                                (1000 / processedBuffer.sampleRate)
+                        )
+
+            logger?.log('Duration calculation:', {
+                durationMs,
+                calculationMethod:
+                    props.position !== undefined
+                        ? 'position-based'
+                        : 'time-based',
+                bytesToSamples: props.length
+                    ? props.length / (2 * processedBuffer.numberOfChannels)
+                    : null,
+                samplesToDuration: props.length
+                    ? (props.length /
+                          (2 *
+                              processedBuffer.numberOfChannels *
+                              processedBuffer.sampleRate)) *
+                      1000 // Corrected calculation
+                    : null,
+                startTimeMs: props.startTimeMs,
+                endTimeMs: props.endTimeMs,
+                position: props.position,
+                length: props.length,
+                sampleRate: processedBuffer.sampleRate,
+            })
+
+            // Generate data points based on the actual duration
+            const numPoints = Math.max(
+                1,
+                Math.ceil(durationMs / (segmentDurationMs || 100))
+            )
+            const samplesPerPoint = Math.floor((endIdx - startIdx) / numPoints)
+
             const dataPoints: DataPoint[] = []
 
             for (let i = 0; i < numPoints; i++) {
@@ -159,30 +243,66 @@ export async function extractAudioAnalysis(
 
                 let sum = 0
                 let maxAmp = 0
+                let checksum = 0
                 for (let j = startIdx; j < endIdx; j++) {
-                    sum += Math.abs(channelData[j])
-                    maxAmp = Math.max(maxAmp, Math.abs(channelData[j]))
+                    const value = channelData[j]
+                    sum += Math.abs(value)
+                    maxAmp = Math.max(maxAmp, Math.abs(value))
+                    // Simple checksum calculation: sum of absolute values multiplied by position
+                    checksum += Math.abs(value) * (j - startIdx + 1)
                 }
 
                 const rms = Math.sqrt(sum / samplesPerPoint)
+
+                // Calculate byte positions based on samples
+                const bytesPerSample = Math.ceil(
+                    (decodingOptions?.targetBitDepth ?? 16) / 8
+                )
+                const startPosition = startIdx * bytesPerSample
+                const endPosition = endIdx * bytesPerSample
 
                 dataPoints.push({
                     id: i,
                     amplitude: maxAmp,
                     rms,
-                    startTime: i * segmentDurationMs,
-                    endTime: (i + 1) * segmentDurationMs,
+                    startTime: (i * segmentDurationMs) / 1000,
+                    endTime: ((i + 1) * segmentDurationMs) / 1000,
                     dB: 20 * Math.log10(rms + 1e-6),
                     silent: rms < 0.01,
+                    startPosition,
+                    endPosition,
+                    samples: endIdx - startIdx,
+                    features: {
+                        dataChecksum: checksum,
+                        // Other features would go here when implemented
+                        energy: sum,
+                        rms,
+                        minAmplitude: -maxAmp,
+                        maxAmplitude: maxAmp,
+                        // Placeholder values for required properties
+                        mfcc: [],
+                        zcr: 0,
+                        spectralCentroid: 0,
+                        spectralFlatness: 0,
+                        spectralRolloff: 0,
+                        spectralBandwidth: 0,
+                        chromagram: [],
+                        tempo: 0,
+                        hnr: 0,
+                        melSpectrogram: [],
+                        spectralContrast: [],
+                        tonnetz: [],
+                        pitch: 0,
+                    },
                 })
             }
 
-            // After generating points
             logger?.log('Generated points:', {
                 segmentDurationMs,
-                actualPoints: dataPoints.length,
+                actualPoints: numPoints,
                 samplesPerPoint,
                 totalSamples: channelData.length,
+                durationMs,
             })
 
             return {
@@ -302,6 +422,7 @@ export const extractRawWavAnalysis = async ({
                 channelData: constrainedChannelData,
                 sampleRate,
                 segmentDurationMs,
+                logger,
                 bitDepth,
                 fullAudioDurationMs: durationMs,
                 numberOfChannels,

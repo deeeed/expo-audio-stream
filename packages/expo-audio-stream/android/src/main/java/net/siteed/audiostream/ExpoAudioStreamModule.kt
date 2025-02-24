@@ -13,6 +13,7 @@ import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.interfaces.permissions.Permissions
+import java.util.zip.CRC32
 
 class ExpoAudioStreamModule : Module(), EventSender {
     private lateinit var audioRecorderManager: AudioRecorderManager
@@ -399,16 +400,37 @@ class ExpoAudioStreamModule : Module(), EventSender {
                     - durationMs: ${audioData.durationMs}
                 """.trimIndent())
 
-                // Create a typed array instead of base64 string
-                val resultMap = mapOf(
-                    "data" to audioData.data,  // Direct ByteArray transfer
+                val includeNormalizedData = options["includeNormalizedData"] as? Boolean ?: false
+                val bytesPerSample = audioData.bitDepth / 8
+                val samples = audioData.data.size / (bytesPerSample * audioData.channels)
+                
+                val resultMap = mutableMapOf(
+                    "pcmData" to audioData.data,
                     "sampleRate" to audioData.sampleRate,
                     "channels" to audioData.channels,
                     "bitDepth" to audioData.bitDepth,
                     "durationMs" to audioData.durationMs,
-                    "format" to "pcm_${audioData.bitDepth}bit"
+                    "format" to "pcm_${audioData.bitDepth}bit",
+                    "samples" to samples
                 )
-
+                
+                // Add checksum if requested
+                if (options["computeChecksum"] == true) {
+                    val crc32 = CRC32()
+                    crc32.update(audioData.data)
+                    resultMap["checksum"] = crc32.value.toInt()
+                    
+                    Log.d(Constants.TAG, "Computed CRC32 checksum: ${crc32.value}")
+                }
+                
+                if (includeNormalizedData) {
+                    val float32Data = AudioFormatUtils.convertByteArrayToFloatArray(
+                        audioData.data,
+                        "pcm_${audioData.bitDepth}bit"
+                    )
+                    resultMap["normalizedData"] = float32Data
+                }
+                
                 promise.resolve(resultMap)
             } catch (e: Exception) {
                 Log.e(Constants.TAG, "Failed to extract audio data: ${e.message}")
