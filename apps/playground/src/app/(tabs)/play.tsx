@@ -375,22 +375,9 @@ export const PlayPage = () => {
                 durationMs: decoded.duration * 1000, // Use decoded.duration instead of preview.durationMs
                 size: size
             })
-
-            // Convert preview to AudioAnalysis format for visualizer
-            const audioAnalysis: AudioAnalysis = {
-                bitDepth: 16,
-                samples: decoded.length,
-                numberOfChannels: 1,
-                sampleRate: 16000,
-                segmentDurationMs: PREVIEW_POINTS / (decoded.duration), // Use decoded.duration
-                durationMs: decoded.duration * 1000, // Use decoded.duration
-                dataPoints: preview.dataPoints,
-                amplitudeRange: preview.amplitudeRange || { min: -1, max: 1 },
-                rmsRange: preview.amplitudeRange || { min: -1, max: 1 },
-            }
             
             logger.info(`Audio preview computed in ${performance.now() - startAudioAnalysis}ms`)
-            setAudioAnalysis(audioAnalysis)
+            setAudioAnalysis(preview)
             timings['Audio Analysis'] = performance.now() - startAudioAnalysis
 
             const actualFileName = filename ?? audioUri.split('/').pop()?.split('?')[0] ?? 'Unknown'

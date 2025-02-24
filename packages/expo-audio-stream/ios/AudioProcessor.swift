@@ -381,6 +381,7 @@ public class AudioProcessor {
             featureOptions: featureOptions
         )
         
+        
         let dataPoint = DataPoint(
             id: Int(uniqueIdCounter),
             amplitude: segment.max() ?? 0,
@@ -399,7 +400,14 @@ public class AudioProcessor {
         return dataPoint
     }
     
-    private func computeFeatures(segmentData: [Float], sampleRate: Float, sumSquares: Float, zeroCrossings: Int, segmentLength: Int, featureOptions: [String: Bool]) -> Features {
+    private func computeFeatures(
+        segmentData: [Float], 
+        sampleRate: Float,
+        sumSquares: Float,
+        zeroCrossings: Int,
+        segmentLength: Int,
+        featureOptions: [String: Bool]
+    ) -> Features {
         let rms = sqrt(sumSquares / Float(segmentLength))
         let energy = featureOptions["energy"] == true ? sumSquares : 0
         let zcr = featureOptions["zcr"] == true ? Float(zeroCrossings) / Float(segmentLength) : 0
@@ -420,8 +428,8 @@ public class AudioProcessor {
         let minAmplitude = segmentData.map(abs).min() ?? 0
         let maxAmplitude = segmentData.map(abs).max() ?? 0
         
-        // Simple checksum computation
-        let checksum = segmentData.reduce(0) { ($0 &+ Int32(bitPattern: $1.bitPattern)) }
+        let crc32Value = featureOptions["crc32"] == true ? 
+            calculateCRC32(from: segmentData, count: segmentData.count) : nil
         
         return Features(
             energy: energy,
@@ -441,7 +449,7 @@ public class AudioProcessor {
             spectralContrast: spectralContrast,
             tonnetz: tonnetz,
             pitch: pitch,
-            dataChecksum: checksum
+            crc32: crc32Value
         )
     }
     

@@ -68,8 +68,19 @@ export function PCMPlayer({
     const [position, setPosition] = useState(0)
     const { show } = useToast()
 
-    // Calculate total duration in milliseconds
-    const totalDurationMs = (data.length / (sampleRate * channels * (bitDepth / 8))) * 1000
+    // Update duration calculation to match the segment length
+    const bytesPerSample = bitDepth / 8
+    const totalSamples = data.length / bytesPerSample
+    const totalDurationMs = (totalSamples / (sampleRate * channels)) * 1000
+
+    logger?.debug('PCM Player duration calculation:', {
+        dataLength: data.length,
+        bytesPerSample,
+        totalSamples,
+        sampleRate,
+        channels,
+        totalDurationMs
+    })
 
     const handlePlayPause = useCallback(async () => {
         try {

@@ -13,6 +13,7 @@ import android.media.MediaFormat
 import android.media.MediaCodec
 import java.io.FileInputStream
 import java.io.RandomAccessFile
+import java.util.zip.CRC32
 
 data class DecodingConfig(
     val targetSampleRate: Int? = null,     // Optional target sample rate
@@ -420,19 +421,17 @@ class AudioProcessor(private val filesDir: File) {
 
         val pitch = if (featureOptions["pitch"] == true) estimatePitch(segmentData, sampleRate) else 0.0f
 
-        // Enhanced checksum computation with logging
-        val checksum = segmentData.fold(0) { acc, value -> 
-            val bits = value.toBits()
-            acc + bits
-        }
-        
-        Log.d("AudioProcessor", """
-            Checksum calculation details:
-            - Segment length: ${segmentData.size}
-            - First few samples: ${segmentData.take(5)}
-            - Last few samples: ${segmentData.takeLast(5)}
-            - Final checksum: $checksum
-        """.trimIndent())
+        val crc32Value = if (featureOptions["crc32"] == true) {
+            val byteBuffer = ByteBuffer.allocate(segmentData.size * 4)
+                .order(ByteOrder.LITTLE_ENDIAN)
+            segmentData.forEach { value ->
+                byteBuffer.putFloat(value)
+            }
+            
+            val crc32 = CRC32()
+            crc32.update(byteBuffer.array())
+            crc32.value
+        } else null
         
         return Features(
             energy = energy,
@@ -452,7 +451,7 @@ class AudioProcessor(private val filesDir: File) {
             spectralContrast = spectralContrast,
             tonnetz = tonnetz,
             pitch = pitch,
-            dataChecksum = checksum
+            crc32 = crc32Value
         )
     }
 
@@ -1298,18 +1297,30 @@ class AudioProcessor(private val filesDir: File) {
                 - bytesPerSecond: $bytesPerSecond
             """.trimIndent())
 
-            val audioData = ByteArray((endByte - startByte).coerceAtLeast(0))
+            var audioDataBytes = ByteArray((endByte - startByte).coerceAtLeast(0))
             FileInputStream(file).use { fis ->
                 fis.skip(startByte.toLong())
-                fis.read(audioData)
+                fis.read(audioDataBytes)
+            }
+
+            // Apply bit depth conversion if needed
+            var effectiveBitDepth = format.bitDepth
+            if (config.targetBitDepth != format.bitDepth) {
+                audioDataBytes = AudioFormatUtils.convertBitDepth(
+                    audioDataBytes,
+                    format.bitDepth,
+                    config.targetBitDepth
+                )
+                effectiveBitDepth = config.targetBitDepth
+                Log.d(Constants.TAG, "Converted bit depth from ${format.bitDepth} to ${config.targetBitDepth}")
             }
 
             return AudioData(
-                data = audioData,
+                data = audioDataBytes,
                 sampleRate = format.sampleRate,
                 channels = format.channels,
-                bitDepth = format.bitDepth,
-                durationMs = endTimeMs - startTimeMs  // Use the actual time range instead of calculating from bytes
+                bitDepth = effectiveBitDepth,
+                durationMs = endTimeMs - startTimeMs
             )
         } catch (e: Exception) {
             Log.e(Constants.TAG, "Failed to load WAV range: ${e.message}", e)

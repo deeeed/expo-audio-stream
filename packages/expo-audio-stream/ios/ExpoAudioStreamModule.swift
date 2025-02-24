@@ -366,6 +366,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///     - `endTimeMs`: Optional end time in milliseconds
         ///     - `position`: Optional byte position
         ///     - `length`: Optional byte length
+        ///     - `includeNormalizedData`: Boolean to include normalized audio data in [-1, 1] range
         AsyncFunction("extractAudioData") { (options: [String: Any], promise: Promise) in
             guard let fileUri = options["fileUri"] as? String,
                   let url = URL(string: fileUri) else {
@@ -420,54 +421,48 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     return
                 }
 
-                let framesToRead = AVAudioFrameCount(endFrame - startFrame)
-                let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: framesToRead)!
+                let frameCount = AVAudioFrameCount(endFrame - startFrame)
+                
+                // Create decoding config that includes normalization preference
+                var decodingOptions = options["decodingOptions"] as? [String: Any] ?? [:]
+                let includeNormalizedData = options["includeNormalizedData"] as? Bool ?? false
+                
+                // Pass both options separately - normalizeAudio from decodingOptions, and includeNormalizedData as is
+                let decodingConfig = DecodingConfig.fromDictionary(decodingOptions)
+                
+                let (pcmData, normalizedData) = try extractRawAudioData(
+                    from: url,
+                    startFrame: startFrame,
+                    frameCount: frameCount,
+                    format: format,
+                    decodingConfig: decodingConfig,
+                    includeNormalizedData: includeNormalizedData
+                )
 
-                // Read the audio data
-                audioFile.framePosition = startFrame
-                try audioFile.read(into: buffer, frameCount: framesToRead)
-
-                // Convert to raw PCM data
-                guard let floatData = buffer.floatChannelData else {
-                    promise.reject("CONVERSION_ERROR", "Failed to get float channel data")
-                    return
-                }
-
-                // Create byte array for PCM data
-                var pcmData = Data()
-                let bytesPerSample = bitDepth / 8
-                let totalFrames = Int(buffer.frameLength)
-
-                // Convert float samples to PCM format
-                for frame in 0..<totalFrames {
-                    for channel in 0..<channels {
-                        let sample = floatData[channel][frame]
-                        
-                        switch bitDepth {
-                        case 16:
-                            let intValue = Int16(sample * Float(Int16.max))
-                            pcmData.append(contentsOf: withUnsafeBytes(of: intValue) { Array($0) })
-                        case 32:
-                            let intValue = Int32(sample * Float(Int32.max))
-                            pcmData.append(contentsOf: withUnsafeBytes(of: intValue) { Array($0) })
-                        default:
-                            promise.reject("UNSUPPORTED_BIT_DEPTH", "Unsupported bit depth: \(bitDepth)")
-                            return
-                        }
-                    }
-                }
-
-                let durationMs = Double(framesToRead) * 1000.0 / sampleRate
-
-                // Return the result
-                promise.resolve([
-                    "data": pcmData,
+                var resultDict: [String: Any] = [
+                    "pcmData": pcmData,
                     "sampleRate": Int(sampleRate),
                     "channels": channels,
                     "bitDepth": bitDepth,
-                    "durationMs": Int(durationMs),
-                    "format": "pcm_\(bitDepth)bit"
-                ])
+                    "durationMs": Int(Double(frameCount) * 1000.0 / sampleRate),
+                    "format": "pcm_\(bitDepth)bit",
+                    "samples": Int(frameCount) * channels
+                ]
+                
+                // Add normalized data if requested, regardless of normalization setting
+                if includeNormalizedData {
+                    resultDict["normalizedData"] = normalizedData
+                }
+                
+                // Add checksum if requested
+                if options["computeChecksum"] as? Bool == true {
+                    let checksum = calculateCRC32(data: pcmData)
+                    resultDict["checksum"] = Int(checksum)
+                    
+                    Logger.debug("Computed CRC32 checksum: \(checksum)")
+                }
+                
+                promise.resolve(resultDict)
 
             } catch {
                 promise.reject("PROCESSING_ERROR", "Failed to process audio file: \(error.localizedDescription)")
@@ -645,7 +640,8 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             "melSpectrogram": options["melSpectrogram"] as? Bool ?? false,
             "spectralContrast": options["spectralContrast"] as? Bool ?? false,
             "tonnetz": options["tonnetz"] as? Bool ?? false,
-            "pitch": options["pitch"] as? Bool ?? false
+            "pitch": options["pitch"] as? Bool ?? false,
+            "crc32": options["crc32"] as? Bool ?? false
         ]
     }
     
