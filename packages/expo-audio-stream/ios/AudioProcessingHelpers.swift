@@ -615,27 +615,29 @@ func extractRawAudioData(
     
     let channels = Int(targetFormat.channelCount)
     let totalSamples = Int(finalBuffer.frameLength) * channels
-    let bytesPerSample = targetFormat.streamDescription.pointee.mBitsPerChannel / 8
-    var pcmData = Data(capacity: totalSamples * Int(bytesPerSample))
     
-    // Convert float samples to PCM format
+    // Use targetBitDepth from decodingConfig instead of format's bit depth
+    let targetBitDepth = decodingConfig.targetBitDepth ?? 16
+    let bytesPerSample = targetBitDepth / 8
+    var pcmData = Data(capacity: totalSamples * bytesPerSample)
+    
+    // Convert float samples to PCM format with specified bit depth
     for frame in 0..<Int(finalBuffer.frameLength) {
         for channel in 0..<channels {
             let sample = floatData[channel][frame]
             
-            // Only normalize if configured in decodingConfig
             let normalizedSample = decodingConfig.normalizeAudio ? 
                 max(-1.0, min(1.0, sample)) : sample
             
-            switch bytesPerSample {
-            case 2: // 16-bit
+            switch targetBitDepth {
+            case 16:
                 let intValue = Int16(normalizedSample * Float(Int16.max))
                 pcmData.append(contentsOf: withUnsafeBytes(of: intValue) { Array($0) })
-            case 4: // 32-bit
+            case 32:
                 let intValue = Int32(normalizedSample * Float(Int32.max))
                 pcmData.append(contentsOf: withUnsafeBytes(of: intValue) { Array($0) })
             default:
-                throw NSError(domain: "AudioProcessing", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unsupported bit depth"])
+                throw NSError(domain: "AudioProcessing", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unsupported bit depth \(targetBitDepth)"])
             }
         }
     }
