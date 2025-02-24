@@ -341,13 +341,11 @@ export function SegmentAnalyzer({
                         <Text style={styles.label}>Samples:</Text>
                         <Text style={styles.value}>{dataPoint.samples}</Text>
                     </View>
-                    {dataPoint.features?.dataChecksum !== undefined && (
+                    {dataPoint.features?.crc32 !== undefined && (
                         <View style={styles.resultRow}>
                             <Text style={styles.label}>Checksum:</Text>
                             <Text style={styles.checksumValue}>
-                                0x{dataPoint.features?.dataChecksum.toString(16).toUpperCase().padStart(8, '0')}
-                                {' '}
-                                ({dataPoint.features?.dataChecksum.toLocaleString()})
+                                0x{dataPoint.features?.crc32.toString(16).toUpperCase().padStart(8, '0')}
                             </Text>
                         </View>
                     )}

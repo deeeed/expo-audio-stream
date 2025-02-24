@@ -13,6 +13,7 @@ import android.media.MediaFormat
 import android.media.MediaCodec
 import java.io.FileInputStream
 import java.io.RandomAccessFile
+import java.util.zip.CRC32
 
 data class DecodingConfig(
     val targetSampleRate: Int? = null,     // Optional target sample rate
@@ -420,19 +421,17 @@ class AudioProcessor(private val filesDir: File) {
 
         val pitch = if (featureOptions["pitch"] == true) estimatePitch(segmentData, sampleRate) else 0.0f
 
-        // Enhanced checksum computation with logging
-        val checksum = segmentData.fold(0) { acc, value -> 
-            val bits = value.toBits()
-            acc + bits
-        }
-        
-        Log.d("AudioProcessor", """
-            Checksum calculation details:
-            - Segment length: ${segmentData.size}
-            - First few samples: ${segmentData.take(5)}
-            - Last few samples: ${segmentData.takeLast(5)}
-            - Final checksum: $checksum
-        """.trimIndent())
+        val crc32Value = if (featureOptions["crc32"] == true) {
+            val byteBuffer = ByteBuffer.allocate(segmentData.size * 4)
+                .order(ByteOrder.LITTLE_ENDIAN)
+            segmentData.forEach { value ->
+                byteBuffer.putFloat(value)
+            }
+            
+            val crc32 = CRC32()
+            crc32.update(byteBuffer.array())
+            crc32.value
+        } else null
         
         return Features(
             energy = energy,
@@ -452,7 +451,7 @@ class AudioProcessor(private val filesDir: File) {
             spectralContrast = spectralContrast,
             tonnetz = tonnetz,
             pitch = pitch,
-            dataChecksum = checksum
+            crc32 = crc32Value
         )
     }
 

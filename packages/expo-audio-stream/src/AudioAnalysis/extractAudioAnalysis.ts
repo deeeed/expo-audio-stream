@@ -5,6 +5,8 @@
  * - `extractWavAudioAnalysis`: For analyzing WAV files without decoding, preserving original PCM values.
  * - `extractPreview`: For generating quick previews of audio waveforms, optimized for UI rendering.
  */
+import crc32 from 'crc-32'
+
 import { ConsoleLike } from '../ExpoAudioStream.types'
 import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
 import { isWeb } from '../constants'
@@ -157,11 +159,10 @@ export async function extractAudioAnalysis(
                     ? Math.floor(
                           props.position /
                               (2 * processedBuffer.numberOfChannels)
-                      ) // Convert bytes to samples
+                      )
                     : props.startTimeMs
                       ? Math.floor(
-                            (props.startTimeMs * // Already in ms
-                                processedBuffer.sampleRate) /
+                            (props.startTimeMs * processedBuffer.sampleRate) /
                                 1000
                         )
                       : 0
@@ -171,11 +172,10 @@ export async function extractAudioAnalysis(
                     ? startIdx +
                       Math.floor(
                           props.length / (2 * processedBuffer.numberOfChannels)
-                      ) // Convert bytes to samples, relative to start
+                      )
                     : props.endTimeMs
                       ? Math.floor(
-                            (props.endTimeMs * // Already in ms
-                                processedBuffer.sampleRate) /
+                            (props.endTimeMs * processedBuffer.sampleRate) /
                                 1000
                         )
                       : channelData.length
@@ -187,20 +187,18 @@ export async function extractAudioAnalysis(
                 samplesInRange: endIdx - startIdx,
             })
 
-            // Calculate duration based on the actual segment we're processing
+            // Simplify duration calculation - no need for multiple conversions
             const durationMs =
                 props.position !== undefined && props.length !== undefined
                     ? (props.length /
                           (2 *
                               processedBuffer.numberOfChannels *
                               processedBuffer.sampleRate)) *
-                      1000 // Convert samples to seconds, then to ms
+                      1000
                     : props.endTimeMs && props.startTimeMs
-                      ? props.endTimeMs - props.startTimeMs // Already in ms
-                      : Math.round(
-                            (endIdx - startIdx) *
-                                (1000 / processedBuffer.sampleRate)
-                        )
+                      ? props.endTimeMs - props.startTimeMs // Already in ms, keep as is
+                      : ((endIdx - startIdx) * 1000) /
+                        processedBuffer.sampleRate
 
             logger?.log('Duration calculation:', {
                 durationMs,
@@ -241,16 +239,28 @@ export async function extractAudioAnalysis(
                     channelData.length
                 )
 
+                // Create a buffer for this segment
+                const segmentData = new Float32Array(endIdx - startIdx)
                 let sum = 0
                 let maxAmp = 0
-                let checksum = 0
+
+                // First pass to collect data and calculate sum/maxAmp
                 for (let j = startIdx; j < endIdx; j++) {
                     const value = channelData[j]
+                    segmentData[j - startIdx] = value
                     sum += Math.abs(value)
                     maxAmp = Math.max(maxAmp, Math.abs(value))
-                    // Simple checksum calculation: sum of absolute values multiplied by position
-                    checksum += Math.abs(value) * (j - startIdx + 1)
                 }
+
+                // Convert float array to byte array for consistent CRC32
+                const byteArray = new Uint8Array(segmentData.length * 4)
+                const dataView = new DataView(byteArray.buffer)
+
+                segmentData.forEach((float, index) => {
+                    dataView.setFloat32(index * 4, float, true) // true for little-endian
+                })
+
+                const checksum = crc32.buf(byteArray)
 
                 const rms = Math.sqrt(sum / samplesPerPoint)
 
@@ -273,7 +283,7 @@ export async function extractAudioAnalysis(
                     endPosition,
                     samples: endIdx - startIdx,
                     features: {
-                        dataChecksum: checksum,
+                        crc32: checksum,
                         // Other features would go here when implemented
                         energy: sum,
                         rms,

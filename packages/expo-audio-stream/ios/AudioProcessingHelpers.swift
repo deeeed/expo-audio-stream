@@ -655,3 +655,11 @@ func calculateCRC32(data: Data) -> UInt32 {
         return UInt32(crc32(0, ptr, UInt32(buffer.count)))
     }
 }
+
+func calculateCRC32(from floatArray: [Float], count: Int) -> UInt32 {
+    return floatArray.withUnsafeBytes { floatBytes -> UInt32 in
+        // Get raw pointer to the bytes with proper alignment
+        let byteCount = count * MemoryLayout<Float>.size
+        return UInt32(crc32(0, floatBytes.baseAddress, UInt32(byteCount)))
+    }
+}

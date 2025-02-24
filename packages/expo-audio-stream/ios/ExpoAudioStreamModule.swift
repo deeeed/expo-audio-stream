@@ -640,7 +640,8 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             "melSpectrogram": options["melSpectrogram"] as? Bool ?? false,
             "spectralContrast": options["spectralContrast"] as? Bool ?? false,
             "tonnetz": options["tonnetz"] as? Bool ?? false,
-            "pitch": options["pitch"] as? Bool ?? false
+            "pitch": options["pitch"] as? Bool ?? false,
+            "crc32": options["crc32"] as? Bool ?? false
         ]
     }
     
