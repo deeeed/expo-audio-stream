@@ -1,6 +1,6 @@
 import { FontAwesome } from '@expo/vector-icons'
 import { AppTheme, useTheme } from '@siteed/design-system'
-import { AudioAnalysis } from '@siteed/expo-audio-stream'
+import { AudioAnalysis, ExtractedAudioData } from '@siteed/expo-audio-stream'
 import React, { useState, useCallback, useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
@@ -9,11 +9,15 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 
 interface SpeechAnalyzerProps {
     analysis: AudioAnalysis
-    pcmData?: Uint8Array
+    audioData?: ExtractedAudioData
     sampleRate?: number
 }
 
-export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzerProps) {
+export function SpeechAnalyzer({ 
+    analysis, 
+    audioData,
+    sampleRate 
+}: SpeechAnalyzerProps) {
     const theme = useTheme()
     const styles = getStyles(theme)
     const [isDetectingLanguage, setIsDetectingLanguage] = useState(false)
@@ -34,10 +38,10 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
             durationMs: analysis.durationMs,
             dataPoints: analysis.dataPoints.length,
             firstDataPoint: analysis.dataPoints[0],
-            pcmDataLength: pcmData?.length,
+            pcmDataLength: audioData?.normalizedData?.length,
             sampleRate
         })
-    }, [analysis, pcmData, sampleRate])
+    }, [analysis, audioData, sampleRate])
 
     // Calculate segment duration in milliseconds
     const segmentDurationMs = analysis.durationMs ?? 0
@@ -45,27 +49,27 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
 
     // If we're not getting durationMs directly, we can calculate it from PCM data
     useEffect(() => {
-        if (!segmentDurationMs && pcmData && sampleRate) {
+        if (!segmentDurationMs && audioData?.normalizedData && sampleRate) {
             // PCM data is 16-bit (2 bytes per sample)
-            const numSamples = pcmData.length / 2
+            const numSamples = audioData.normalizedData.length / 2
             const calculatedDurationMs = (numSamples / sampleRate) * 1000
             console.log('Calculated duration:', calculatedDurationMs, 'ms')
         }
-    }, [segmentDurationMs, pcmData, sampleRate])
+    }, [segmentDurationMs, audioData, sampleRate])
 
     useEffect(() => {
-        if (!pcmData || !sampleRate || !isModelLoading) {
+        if (!audioData?.normalizedData || !sampleRate || !isModelLoading) {
             return
         }
 
         // Only process if we have enough data and actually have data
-        if (pcmData.length > 0 && hasEnoughData) {
+        if (audioData.normalizedData.length > 0 && hasEnoughData) {
             handleVAD()
         } else {
             // Clear previous VAD result if we don't have enough data
             setVadResult(undefined)
         }
-    }, [pcmData, sampleRate, isModelLoading, hasEnoughData])
+    }, [audioData, sampleRate, isModelLoading, hasEnoughData])
 
     const handleDetectLanguage = async () => {
         setIsDetectingLanguage(true)
@@ -89,34 +93,17 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
     }
 
     const handleVAD = useCallback(async () => {
-        if (!pcmData || !sampleRate) {
-            console.error('No PCM data or sample rate available')
+        if (!audioData?.normalizedData || !sampleRate) {
+            console.error('No audio data or sample rate available')
             return
         }
 
-        // Ensure we have enough data (at least 512 samples)
-        if (pcmData.length < 1024) { // 512 * 2 because it's 16-bit (2 bytes per sample)
-            console.warn(`Audio segment too short for VAD processing. Got ${pcmData.length} bytes, need at least 1024 bytes (512 samples)`)
-            return
-        }
-
-        // Convert Int16 PCM to Float32 (normalized between -1 and 1)
-        const float32Data = new Float32Array(pcmData.length / 2)
-        const dataView = new DataView(pcmData.buffer, pcmData.byteOffset, pcmData.length)
-        
-        for (let i = 0; i < pcmData.length; i += 2) {
-            const int16Value = dataView.getInt16(i, true)
-            float32Data[i / 2] = int16Value / 32768.0
-        }
-
-        // Take the first 512 samples for VAD processing
-        const vadSegment = float32Data.slice(0, 512)
-        
-        const result = await processAudioSegment(vadSegment, sampleRate)
+        // Use normalized data directly from audioData
+        const result = await processAudioSegment(audioData.normalizedData, sampleRate)
         if (result) {
             setVadResult(result)
         }
-    }, [pcmData, sampleRate, processAudioSegment])
+    }, [audioData, sampleRate, processAudioSegment])
 
     const isSpeechActive = analysis.dataPoints[0]?.speech?.isActive
 
@@ -141,9 +128,9 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
                     disabled={
                         isModelLoading || 
                         isProcessing || 
-                        !pcmData || 
+                        !audioData || 
                         !sampleRate || 
-                        pcmData.length === 0 ||
+                        audioData.normalizedData?.length === 0 ||
                         !hasEnoughData
                     }
                     style={styles.actionButton}
@@ -164,7 +151,7 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
                     loading={isDetectingLanguage}
                     disabled={
                         isDetectingLanguage || 
-                        !pcmData || 
+                        !audioData || 
                         !sampleRate ||
                         !hasEnoughData
                     }
@@ -186,7 +173,7 @@ export function SpeechAnalyzer({ analysis, pcmData, sampleRate }: SpeechAnalyzer
                     loading={isTranscribing}
                     disabled={
                         isTranscribing || 
-                        !pcmData || 
+                        !audioData || 
                         !sampleRate ||
                         !hasEnoughData
                     }
