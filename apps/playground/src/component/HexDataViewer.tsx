@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { SegmentedButtons } from 'react-native-paper'
 import { convertPCMToFloat32 } from '@siteed/expo-audio-stream/src'
+import crc32 from 'crc-32'
 
 interface HexDataViewerProps {
     byteArray: Uint8Array
@@ -34,14 +35,7 @@ const bytesToString = (bytes: Uint8Array) => {
 }
 
 const computeChecksum = (bytes: Uint8Array): number => {
-    let checksum = 0
-    // Use CRC32 or similar hash function for better checksum
-    for (let i = 0; i < bytes.length; i++) {
-        // Simple but more effective checksum algorithm
-        checksum = ((checksum << 5) - checksum) + bytes[i]
-        checksum = checksum & checksum // Convert to 32bit integer
-    }
-    return Math.abs(checksum)
+    return crc32.buf(bytes)
 }
 
 const computeFloat32Checksum = (float32Data: string): number => {
@@ -51,19 +45,21 @@ const computeFloat32Checksum = (float32Data: string): number => {
     
     if (values.length === 0) return 0
 
-    let checksum = 0
-    for (let i = 0; i < values.length; i++) {
-        // Convert float to integer representation for checksum
-        const intVal = Math.round(values[i] * 32768) // Scale to 16-bit range
-        checksum = ((checksum << 5) - checksum) + intVal
-        checksum = checksum & checksum
-    }
-    return Math.abs(checksum)
+    // Convert float32 values to ArrayBuffer
+    const buffer = new ArrayBuffer(values.length * 4)
+    const view = new DataView(buffer)
+    values.forEach((val, index) => {
+        view.setFloat32(index * 4, val, true) // true for little-endian
+    })
+    
+    return crc32.buf(new Uint8Array(buffer))
 }
 
 const formatChecksum = (value: number): string => {
     if (isNaN(value) || value === undefined) return 'N/A'
-    return `0x${value.toString(16).padStart(8, '0')}`
+    // Convert negative values to unsigned 32-bit hex and format in uppercase
+    const unsignedValue = value >>> 0
+    return `0x${unsignedValue.toString(16).toUpperCase().padStart(8, '0')}`
 }
 
 export const HexDataViewer = ({ 
@@ -162,7 +158,7 @@ export const HexDataViewer = ({
                 ]}
                 style={styles.segmentedButton}
             />
-            {shouldComputeChecksum && (
+            {shouldComputeChecksum && viewMode === 'float32' && (
                 <View style={styles.checksumContainer}>
                     <Text style={[styles.checksumText, { color: theme.colors.text }]}>
                         Checksum: {formatChecksum(checksum)}
@@ -219,9 +215,12 @@ const styles = StyleSheet.create({
     },
     checksumContainer: {
         marginVertical: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     checksumText: {
         fontSize: 14,
+        fontFamily: 'monospace',
     },
     checksumValue: {
         fontFamily: 'monospace',

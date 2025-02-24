@@ -80,27 +80,35 @@ export async function processAudioBuffer({
             channels: buffer.numberOfChannels,
         })
 
-        // Calculate start and end samples with improved bounds checking
-        let startSample = position ?? 0
-        let endSample = position !== undefined && length !== undefined 
-            ? Math.min(buffer.length, position + length)
-            : buffer.length
+        // Convert byte positions to sample positions if position/length are provided
+        const bytesPerSample = 2 // Assuming 16-bit audio = 2 bytes per sample
+        const startSample =
+            position !== undefined ? Math.floor(position / bytesPerSample) : 0
+        const endSample =
+            position !== undefined && length !== undefined
+                ? Math.min(
+                      buffer.length,
+                      Math.floor((position + length) / bytesPerSample)
+                  )
+                : buffer.length
 
         const rangeLength = endSample - startSample
 
         // Ensure we have a valid range with minimum size
         if (rangeLength <= 0) {
             throw new Error(
-                `Invalid sample range: got length ${rangeLength} (start: ${startSample}, end: ${endSample})`
+                `Invalid sample range: got length ${rangeLength} (start: ${startSample}, end: ${endSample}, buffer length: ${buffer.length})`
             )
         }
 
-        logger?.debug('Final sample range:', {
+        logger?.debug('Sample range calculation:', {
+            originalPosition: position,
+            originalLength: length,
+            bytesPerSample,
             startSample,
             endSample,
             rangeLength,
             totalBufferLength: buffer.length,
-            isAdjusted: position !== undefined && position >= buffer.length,
         })
 
         // Create offline context for processing

@@ -10647,6 +10647,7 @@ __metadata:
     babel-plugin-transform-import-meta: "npm:^2.2.1"
     buffer: "npm:^6.0.3"
     canvaskit-wasm: "npm:^0.39.1"
+    crc-32: "npm:^1.2.2"
     debug: "npm:^4.3.4"
     dotenv-flow: "npm:^4.1.0"
     env-cmd: "npm:^10.1.0"
