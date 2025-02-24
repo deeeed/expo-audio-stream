@@ -340,7 +340,7 @@ export const extractRawWavAnalysis = async ({
                 channelData: constrainedChannelData,
                 sampleRate,
                 segmentDurationMs,
-                logger,
+                // logger,
                 bitDepth,
                 fullAudioDurationMs: durationMs,
                 numberOfChannels,

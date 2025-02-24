@@ -34,19 +34,31 @@ const bytesToString = (bytes: Uint8Array) => {
 }
 
 const computeChecksum = (bytes: Uint8Array): number => {
-    let sum = 0
+    let checksum = 0
+    // Use CRC32 or similar hash function for better checksum
     for (let i = 0; i < bytes.length; i++) {
-        sum += bytes[i]
+        // Simple but more effective checksum algorithm
+        checksum = ((checksum << 5) - checksum) + bytes[i]
+        checksum = checksum & checksum // Convert to 32bit integer
     }
-    return sum
+    return Math.abs(checksum)
 }
 
 const computeFloat32Checksum = (float32Data: string): number => {
-    return Math.round(
-        float32Data.split(' ')
-            .map(val => parseFloat(val))
-            .reduce((acc, value) => acc + Math.abs(value), 0)
-    )
+    const values = float32Data.split(' ')
+        .map(val => parseFloat(val))
+        .filter(val => !isNaN(val))
+    
+    if (values.length === 0) return 0
+
+    let checksum = 0
+    for (let i = 0; i < values.length; i++) {
+        // Convert float to integer representation for checksum
+        const intVal = Math.round(values[i] * 32768) // Scale to 16-bit range
+        checksum = ((checksum << 5) - checksum) + intVal
+        checksum = checksum & checksum
+    }
+    return Math.abs(checksum)
 }
 
 const formatChecksum = (value: number): string => {
@@ -112,17 +124,21 @@ export const HexDataViewer = ({
     }, [convertToFloat32])
 
     useEffect(() => {
-        if (shouldComputeChecksum) {
-            setChecksum(computeChecksum(byteArray))
+        if (shouldComputeChecksum && byteArray.length > 0) {
+            const sum = viewMode === 'float32' && float32Data
+                ? computeFloat32Checksum(float32Data)
+                : computeChecksum(byteArray)
+            
+            logger.debug('Computing checksum:', {
+                mode: viewMode,
+                dataLength: byteArray.length,
+                float32Length: float32Data.length,
+                checksum: sum
+            })
+            
+            setChecksum(sum)
         }
-    }, [byteArray, shouldComputeChecksum])
-
-    useEffect(() => {
-        if (float32Data) {
-            const float32Sum = computeFloat32Checksum(float32Data)
-            setChecksum(float32Sum)
-        }
-    }, [float32Data])
+    }, [byteArray, float32Data, viewMode, shouldComputeChecksum])
 
     return (
         <View style={styles.container}>

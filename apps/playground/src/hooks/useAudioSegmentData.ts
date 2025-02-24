@@ -27,22 +27,12 @@ export function useAudioSegmentData({
             return
         }
 
-        logger.info('Loading audio segment data:', {
-            fileUri,
-            selectedDataPoint: {
-                startPosition: selectedDataPoint.startPosition,
-                endPosition: selectedDataPoint.endPosition,
-                startTime: selectedDataPoint.startTime,
-                endTime: selectedDataPoint.endTime,
-                samples: selectedDataPoint.samples
-            },
-            bitDepth,
-            includeNormalizedData
-        })
-
         try {
             setIsLoading(true)
             setError(undefined)
+
+            // Clear previous audio data before loading new data
+            setAudioData(undefined)
 
             const extractionOptions = selectedDataPoint.startPosition !== undefined
                 ? {
@@ -67,10 +57,13 @@ export function useAudioSegmentData({
                 fileUri,
                 ...extractionOptions,
                 includeNormalizedData,
+                computeChecksum: true,
                 logger: baseLogger.extend('extractAudioData'),
                 decodingOptions: {
                     targetBitDepth: bitDepth,
-                    normalizeAudio: includeNormalizedData
+                    normalizeAudio: includeNormalizedData,
+                    targetSampleRate: 16000,
+                    targetChannels: 1
                 }
             })
 
@@ -102,9 +95,12 @@ export function useAudioSegmentData({
         }
     }, [fileUri, selectedDataPoint, bitDepth, includeNormalizedData])
 
+    // Force reload when selectedDataPoint changes
     useEffect(() => {
-        loadData()
-    }, [loadData])
+        if (selectedDataPoint) {
+            loadData()
+        }
+    }, [selectedDataPoint, loadData])
 
     return {
         audioData,

@@ -40,10 +40,11 @@ export async function processAudioBuffer({
     logger,
 }: ProcessAudioBufferOptions): Promise<ProcessedAudioData> {
     if (Platform.OS !== 'web') {
-        throw new Error('processAudioBuffer is not supported on web')
+        throw new Error('processAudioBuffer is only supported on web')
     }
 
     let ctx: AudioContext | undefined
+    let buffer: AudioBuffer | undefined
 
     try {
         // Get the audio data
@@ -70,7 +71,7 @@ export async function processAudioBuffer({
             })
 
         // Decode the audio data
-        const buffer = await ctx.decodeAudioData(audioData)
+        buffer = await ctx.decodeAudioData(audioData)
 
         logger?.debug('Original audio buffer details:', {
             length: buffer.length,
@@ -79,36 +80,27 @@ export async function processAudioBuffer({
             channels: buffer.numberOfChannels,
         })
 
-        // Calculate start and end samples
-        let startSample = 0
-        let endSample = buffer.length
-
-        if (position !== undefined && length !== undefined) {
-            const bytesPerSample = 2 // 16-bit audio
-            startSample = Math.floor(position / bytesPerSample)
-            endSample = Math.min(
-                buffer.length,
-                startSample + Math.floor(length / bytesPerSample)
-            )
-        } else if (startTimeMs !== undefined && endTimeMs !== undefined) {
-            startSample = Math.floor((startTimeMs / 1000) * buffer.sampleRate)
-            endSample = Math.min(
-                buffer.length,
-                Math.floor((endTimeMs / 1000) * buffer.sampleRate)
-            )
-        }
+        // Calculate start and end samples with improved bounds checking
+        let startSample = position ?? 0
+        let endSample = position !== undefined && length !== undefined 
+            ? Math.min(buffer.length, position + length)
+            : buffer.length
 
         const rangeLength = endSample - startSample
 
-        logger?.debug('Audio processing range:', {
+        // Ensure we have a valid range with minimum size
+        if (rangeLength <= 0) {
+            throw new Error(
+                `Invalid sample range: got length ${rangeLength} (start: ${startSample}, end: ${endSample})`
+            )
+        }
+
+        logger?.debug('Final sample range:', {
             startSample,
             endSample,
             rangeLength,
-            bufferLength: buffer.length,
-            position,
-            length,
-            startTimeMs,
-            endTimeMs,
+            totalBufferLength: buffer.length,
+            isAdjusted: position !== undefined && position >= buffer.length,
         })
 
         // Create offline context for processing
@@ -129,7 +121,9 @@ export async function processAudioBuffer({
         for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
             const channelData = buffer.getChannelData(channel)
             const segmentChannelData = segmentBuffer.getChannelData(channel)
-            segmentChannelData.set(channelData.subarray(startSample, endSample))
+            for (let i = 0; i < rangeLength; i++) {
+                segmentChannelData[i] = channelData[startSample + i]
+            }
         }
 
         // Create source and connect
@@ -155,32 +149,35 @@ export async function processAudioBuffer({
             }
 
             // Set gain to normalize
-            if (maxAmp > 0) {
-                gainNode.gain.value = 1 / maxAmp
-            }
+            gainNode.gain.value = maxAmp > 0 ? 1 / maxAmp : 1
         } else {
             source.connect(offlineCtx.destination)
         }
 
-        // Start the source
+        // Start the source and render
         source.start()
-
-        // Render the segment
         const processedBuffer = await offlineCtx.startRendering()
-        const pcmData = new Float32Array(rangeLength)
-        const channelData = processedBuffer.getChannelData(0)
-        pcmData.set(channelData)
+
+        // Get the processed audio data
+        const pcmData = processedBuffer.getChannelData(0)
 
         logger?.debug('Processed buffer details:', {
             startSample,
             endSample,
             rangeLength,
             processedLength: processedBuffer.length,
-            channelDataLength: channelData.length,
             pcmDataLength: pcmData.length,
             firstFewSamples: Array.from(pcmData.slice(0, 5)),
             lastFewSamples: Array.from(pcmData.slice(-5)),
             hasNonZeroData: pcmData.some((v) => v !== 0),
+            requestedByteRange: {
+                start: position,
+                length,
+            },
+            actualSampleRange: {
+                start: startSample,
+                length: rangeLength,
+            },
         })
 
         return {
@@ -191,6 +188,16 @@ export async function processAudioBuffer({
             channels: targetChannels,
             buffer: processedBuffer,
         }
+    } catch (error) {
+        logger?.error('Failed to process audio buffer:', {
+            error,
+            position,
+            length,
+            startTimeMs,
+            endTimeMs,
+            bufferLength: buffer?.length,
+        })
+        throw error
     } finally {
         if (!audioContext && ctx) {
             await ctx.close()
