@@ -89,7 +89,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         backgroundColor:
             validatedEnv.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
     },
-    assetBundlePatterns: ['**/*', 'assets/audio_samples/*', 'public/audioStorage.worker.js'],
+    assetBundlePatterns: ['**/*', 'assets/audio_samples/*', 'public/audioStorage.worker.js', 'assets/silero_vad.onnx'],
     ios: {
         newArchEnabled: true,
         supportsTablet: true,

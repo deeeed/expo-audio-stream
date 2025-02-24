@@ -60,21 +60,6 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
-                name="extract"
-                options={{
-                    title: 'Extract',
-                    // href: 'extract',
-                    href: null, // hide it for now
-                    tabBarIcon: ({ color }) => (
-                        <MaterialCommunityIcons
-                            name="file-music"
-                            size={24}
-                            color={color}
-                        />
-                    ),
-                }}
-            />
-            <Tabs.Screen
                 name="preview"
                 options={{
                     title: 'Preview',
