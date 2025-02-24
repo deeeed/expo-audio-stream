@@ -1297,18 +1297,30 @@ class AudioProcessor(private val filesDir: File) {
                 - bytesPerSecond: $bytesPerSecond
             """.trimIndent())
 
-            val audioData = ByteArray((endByte - startByte).coerceAtLeast(0))
+            var audioDataBytes = ByteArray((endByte - startByte).coerceAtLeast(0))
             FileInputStream(file).use { fis ->
                 fis.skip(startByte.toLong())
-                fis.read(audioData)
+                fis.read(audioDataBytes)
+            }
+
+            // Apply bit depth conversion if needed
+            var effectiveBitDepth = format.bitDepth
+            if (config.targetBitDepth != format.bitDepth) {
+                audioDataBytes = AudioFormatUtils.convertBitDepth(
+                    audioDataBytes,
+                    format.bitDepth,
+                    config.targetBitDepth
+                )
+                effectiveBitDepth = config.targetBitDepth
+                Log.d(Constants.TAG, "Converted bit depth from ${format.bitDepth} to ${config.targetBitDepth}")
             }
 
             return AudioData(
-                data = audioData,
+                data = audioDataBytes,
                 sampleRate = format.sampleRate,
                 channels = format.channels,
-                bitDepth = format.bitDepth,
-                durationMs = endTimeMs - startTimeMs  // Use the actual time range instead of calculating from bytes
+                bitDepth = effectiveBitDepth,
+                durationMs = endTimeMs - startTimeMs
             )
         } catch (e: Exception) {
             Log.e(Constants.TAG, "Failed to load WAV range: ${e.message}", e)
