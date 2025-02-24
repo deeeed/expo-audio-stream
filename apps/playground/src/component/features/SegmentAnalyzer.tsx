@@ -45,6 +45,7 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
         padding: theme.spacing.gap,
         backgroundColor: theme.colors.secondaryContainer,
         borderRadius: theme.roundness,
+        gap: theme.spacing.gap,
     },
     byteRangeContainer: {
         flexDirection: 'row',
@@ -287,14 +288,20 @@ export function SegmentAnalyzer({
             </Button>
 
             <View style={styles.segmentInfo}>
-                <View style={styles.byteRangeContainer}>
+                <View style={styles.metricRow}>
                     <Text style={styles.byteRangeLabel}>ByteRange:</Text>
-                    <Text style={styles.byteRangeBracket}>[</Text>
-                    <Text style={styles.byteRangeValue}>{startPosition}</Text>
-                    <Text style={styles.byteRangeBracket}>..</Text>
-                    <Text style={styles.byteRangeValue}>{endPosition}</Text>
-                    <Text style={styles.byteRangeBracket}>]</Text>
-                    <Text style={styles.lengthInfo}>({length}b) {(durationMs / 1000).toFixed(3)}s</Text>
+                    <View style={styles.byteRangeContainer}>
+                        <Text style={styles.byteRangeBracket}>[</Text>
+                        <Text style={styles.byteRangeValue}>{startPosition}</Text>
+                        <Text style={styles.byteRangeBracket}>..</Text>
+                        <Text style={styles.byteRangeValue}>{endPosition}</Text>
+                        <Text style={styles.byteRangeBracket}>]</Text>
+                        <Text style={styles.lengthInfo}>({length}b)</Text>
+                    </View>
+                </View>
+                <View style={styles.metricRow}>
+                    <Text style={styles.byteRangeLabel}>Duration:</Text>
+                    <Text style={styles.byteRangeValue}>{(durationMs / 1000).toFixed(3)}s</Text>
                 </View>
             </View>
 
