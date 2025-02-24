@@ -121,66 +121,32 @@ if (Platform.OS === 'web') {
                 channels: processedBuffer.channels,
             })
 
-            const channelData = processedBuffer.buffer.getChannelData(0)
+            const channelData = processedBuffer.pcmData
             const bitDepth = (decodingOptions?.targetBitDepth ?? 16) as BitDepth
             const bytesPerSample = bitDepth / 8
 
-            // Calculate sample positions from either byte positions or time
-            let startSample: number
-            let endSample: number
+            // Calculate sample positions from byte positions
+            const startSample = Math.floor((position ?? 0) / bytesPerSample)
+            const endSample = Math.floor(
+                ((position ?? 0) + (length ?? 0)) / bytesPerSample
+            )
+            const numSamples = endSample - startSample
 
-            if (position != null && length != null) {
-                // Use byte positions if provided
-                startSample = Math.floor(position / bytesPerSample)
-                endSample = Math.floor((position + length) / bytesPerSample)
-
-                // Log for debugging
-                logger?.info('Sample positions calculated from bytes:', {
-                    startSample,
-                    endSample,
-                    bytesPerSample,
-                    requestedSegmentLength: endSample - startSample,
-                })
-            } else if (startTimeMs != null && endTimeMs != null) {
-                // Fall back to time-based calculation
-                startSample = Math.floor(
-                    (startTimeMs / 1000) * processedBuffer.sampleRate
-                )
-                endSample = Math.floor(
-                    (endTimeMs / 1000) * processedBuffer.sampleRate
-                )
-            } else {
-                // If neither is provided, use the entire buffer
-                startSample = 0
-                endSample = channelData.length
-            }
-
-            logger?.debug('Segment Calculation:', {
-                position,
-                length,
-                startTimeMs,
-                endTimeMs,
-                bytesPerSample,
+            logger?.debug('PCM conversion details:', {
                 startSample,
                 endSample,
+                numSamples,
+                bytesPerSample,
                 channelDataLength: channelData.length,
-                requestedSegmentLength: endSample - startSample,
+                position,
+                length,
             })
 
-            // Ensure we don't exceed buffer bounds
-            startSample = Math.max(0, Math.min(startSample, channelData.length))
-            endSample = Math.max(
-                startSample,
-                Math.min(endSample, channelData.length)
-            )
-
-            // Create PCM data array for just the segment
-            const pcmData = new Uint8Array(
-                (endSample - startSample) * bytesPerSample
-            )
+            // Create PCM data array for the segment
+            const pcmData = new Uint8Array(numSamples * bytesPerSample)
             let offset = 0
 
-            // Only process the samples within our segment
+            // Process samples for just our segment
             for (let i = startSample; i < endSample; i++) {
                 const sample = channelData[i]
                 if (bitDepth === 16) {
@@ -203,16 +169,16 @@ if (Platform.OS === 'web') {
                 sampleRate: processedBuffer.sampleRate,
                 channels: processedBuffer.channels,
                 bitDepth,
-                durationMs: processedBuffer.durationMs,
+                durationMs: (numSamples / processedBuffer.sampleRate) * 1000,
                 format: `pcm_${bitDepth}bit` as const,
-                samples: processedBuffer.samples,
+                samples: numSamples,
             }
 
             // Add normalized data if requested
             if (options.includeNormalizedData) {
                 result.normalizedData = channelData.slice(
-                    startSample,
-                    endSample
+                    0,
+                    processedBuffer.samples
                 )
             }
 

@@ -83,33 +83,31 @@ export async function processAudioBuffer({
         channels: buffer.numberOfChannels,
     })
 
-    // Calculate start and end samples
+    // Calculate start and end samples based on position/length
     let startSample = 0
     let endSample = buffer.length
+    let rangeLength = buffer.length
 
-    if (startTimeMs !== undefined) {
-        startSample = Math.floor((startTimeMs / 1000) * buffer.sampleRate)
-        if (endTimeMs !== undefined) {
-            endSample = Math.floor((endTimeMs / 1000) * buffer.sampleRate)
-        }
-    } else if (position !== undefined) {
-        startSample = Math.floor(position / 2) // Convert bytes to samples (16-bit)
-        if (length !== undefined) {
-            endSample = startSample + Math.floor(length / 2)
-        }
+    if (position !== undefined && length !== undefined) {
+        const bytesPerSample = 2 // 16-bit audio
+        startSample = Math.floor(position / bytesPerSample)
+        endSample = Math.floor((position + length) / bytesPerSample)
+        rangeLength = endSample - startSample
     }
 
-    logger?.debug('Sample range:', {
+    logger?.debug('Audio processing range:', {
         startSample,
         endSample,
-        rangeLength: endSample - startSample,
+        rangeLength,
+        bufferLength: buffer.length,
+        position,
+        length,
     })
 
-    // Create offline context with the correct length for the selected range
-    const rangeLength = endSample - startSample
+    // Create offline context with the correct length
     const offlineCtx = new OfflineAudioContext(
         targetChannels,
-        (rangeLength * targetSampleRate) / buffer.sampleRate,
+        rangeLength,
         targetSampleRate
     )
 
@@ -149,28 +147,30 @@ export async function processAudioBuffer({
 
     const processedBuffer = await offlineCtx.startRendering()
 
-    logger?.debug('Processed audio buffer details:', {
-        length: processedBuffer.length,
-        sampleRate: processedBuffer.sampleRate,
-        duration: processedBuffer.duration,
-        channels: processedBuffer.numberOfChannels,
-    })
-
     // Convert to PCM data with proper byte handling
     const channelData = processedBuffer.getChannelData(0)
-    const pcmData = new Float32Array(processedBuffer.length)
-    
+    const pcmData = new Float32Array(rangeLength) // Use rangeLength
+
     // Copy the channel data for the selected range
-    for (let i = 0; i < processedBuffer.length; i++) {
+    for (let i = 0; i < rangeLength; i++) {
         pcmData[i] = channelData[i]
     }
 
+    logger?.debug('Processed buffer details:', {
+        startSample,
+        endSample,
+        rangeLength,
+        processedLength: processedBuffer.length,
+        channelDataLength: channelData.length,
+        pcmDataLength: pcmData.length,
+    })
+
     return {
         pcmData,
-        samples: processedBuffer.length,
-        durationMs: processedBuffer.duration * 1000,
-        sampleRate: processedBuffer.sampleRate,
-        channels: processedBuffer.numberOfChannels,
+        samples: rangeLength, // Use actual range length
+        durationMs: (rangeLength / targetSampleRate) * 1000,
+        sampleRate: targetSampleRate,
+        channels: targetChannels,
         buffer: processedBuffer,
     }
 }

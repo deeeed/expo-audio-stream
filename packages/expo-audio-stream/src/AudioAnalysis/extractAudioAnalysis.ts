@@ -131,19 +131,34 @@ export async function extractAudioAnalysis(
                     if (features?.crc32) {
                         result.dataPoints = result.dataPoints.map(
                             (point: DataPoint, index) => {
-                                const segmentData = new Float32Array(
-                                    point.samples || 0
+                                // Convert byte positions to sample positions
+                                const bytesPerSample = 2 // 16-bit audio = 2 bytes per sample
+                                const startSamplePosition = Math.floor(
+                                    (point.startPosition || 0) / bytesPerSample
                                 )
-                                const startPosition = point.startPosition || 0
+                                const samples =
+                                    point.samples ||
+                                    Math.floor(
+                                        (point.endPosition || 0) /
+                                            bytesPerSample
+                                    ) - startSamplePosition
+
+                                const segmentData = new Float32Array(samples)
 
                                 console.log(
-                                    `TS ${index}: Processing segment: samples=${point.samples}, startPosition=${startPosition}`
+                                    `TS ${index}: Processing segment:`,
+                                    {
+                                        byteSamplePosition: point.startPosition,
+                                        startSamplePosition,
+                                        samples,
+                                        channelDataLength: channelData.length,
+                                    }
                                 )
 
                                 // Fill segmentData with samples
                                 for (let i = 0; i < segmentData.length; i++) {
                                     segmentData[i] =
-                                        channelData[startPosition + i]
+                                        channelData[startSamplePosition + i]
                                 }
 
                                 // Convert float array to byte array for CRC32
