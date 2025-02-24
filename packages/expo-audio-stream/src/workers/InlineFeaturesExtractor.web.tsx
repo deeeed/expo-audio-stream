@@ -143,6 +143,18 @@ self.onmessage = function (event) {
             error: () => {}
         }
 
+        // Add hex value logging for first and last 10 samples
+        if (enableLogging) {
+            const firstHexValues = Array.from(channelData.slice(0, 10)).map(value => 
+                '0x' + Math.round(value * 32768).toString(16).padStart(4, '0')
+            );
+            const lastHexValues = Array.from(channelData.slice(-10)).map(value => 
+                '0x' + Math.round(value * 32768).toString(16).padStart(4, '0')
+            );
+            logger.debug('First 10 audio samples as hex:', firstHexValues);
+            logger.debug('Last 10 audio samples as hex:', lastHexValues);
+        }
+
         // Calculate amplitude range
         let min = Infinity
         let max = -Infinity
@@ -168,18 +180,18 @@ self.onmessage = function (event) {
             const startIdx = i * samplesPerPoint
             const endIdx = Math.min((i + 1) * samplesPerPoint, channelData.length)
             
-            let sum = 0
+            let sumSquares = 0
             let maxAmp = 0
 
             // Calculate segment features
             for (let j = startIdx; j < endIdx; j++) {
                 const value = channelData[j]
-                sum += Math.abs(value)
+                sumSquares += value * value
                 maxAmp = Math.max(maxAmp, Math.abs(value))
             }
 
-            const rms = Math.sqrt(sum / (endIdx - startIdx))
-            const startPosition = startIdx * 2 // Use fixed 2 bytes per sample for Float32
+            const rms = Math.sqrt(sumSquares / (endIdx - startIdx))
+            const startPosition = startIdx * 2
             const endPosition = endIdx * 2
 
             dataPoints.push({
@@ -194,7 +206,7 @@ self.onmessage = function (event) {
                 endPosition,
                 samples: endIdx - startIdx,
                 features: {
-                    energy: sum,
+                    energy: sumSquares,
                     rms,
                     minAmplitude: -maxAmp,
                     maxAmplitude: maxAmp,

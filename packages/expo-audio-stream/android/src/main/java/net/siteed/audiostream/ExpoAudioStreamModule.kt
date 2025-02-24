@@ -76,7 +76,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
                 // Get decoding options with default configuration
                 val defaultConfig = DecodingConfig(
                     targetSampleRate = null,
-                    targetChannels = null,
+                    targetChannels = 1, // Default to mono
                     targetBitDepth = 16,
                     normalizeAudio = false
                 )
