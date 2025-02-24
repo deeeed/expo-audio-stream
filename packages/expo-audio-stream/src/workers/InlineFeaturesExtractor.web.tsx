@@ -1,16 +1,25 @@
 export const InlineFeaturesExtractor = `
 // Constants
 const N_FFT = 1024;
+const N_CHROMA = 12;
 
-// FFT Implementation
+// FFT Implementation with normalized Hann window
 function FFT(n) {
     this.n = n;
     this.cosTable = new Float32Array(n / 2);
     this.sinTable = new Float32Array(n / 2);
+    this.hannWindow = new Float32Array(n);
     
+    // Match Android implementation with precomputed tables
+    const normalizationFactor = Math.sqrt(2.0 / n);
     for (var i = 0; i < n / 2; i++) {
         this.cosTable[i] = Math.cos(2.0 * Math.PI * i / n);
         this.sinTable[i] = Math.sin(2.0 * Math.PI * i / n);
+    }
+    
+    // Precompute normalized Hann window to match Android
+    for (var i = 0; i < n; i++) {
+        this.hannWindow[i] = normalizationFactor * 0.5 * (1 - Math.cos(2.0 * Math.PI * i / (n - 1)));
     }
 }
 
@@ -37,56 +46,149 @@ FFT.prototype.transform = function(data) {
     }
 };
 
+// Add realInverse method to match Android
+FFT.prototype.realInverse = function(powerSpectrum, output) {
+    const n = powerSpectrum.length;
+    const complexData = new Float32Array(n * 2);
+    
+    // Copy power spectrum to complex format
+    for (let i = 0; i < n/2 + 1; i++) {
+        complexData[2 * i] = powerSpectrum[i];
+        if (2 * i + 1 < complexData.length) {
+            complexData[2 * i + 1] = 0;
+        }
+    }
+    
+    // Conjugate for inverse FFT
+    for (let i = 0; i < n; i++) {
+        if (2 * i + 1 < complexData.length) {
+            complexData[2 * i + 1] = -complexData[2 * i + 1];
+        }
+    }
+    
+    this.transform(complexData);
+    
+    // Copy real part to output and scale
+    for (let i = 0; i < n; i++) {
+        output[i] = complexData[2 * i] / n;
+    }
+};
+
+// Add helper functions to match Android
+function nextPowerOfTwo(n) {
+    let value = 1;
+    while (value < n) {
+        value *= 2;
+    }
+    return value;
+}
+
+function applyHannWindow(samples) {
+    const output = new Float32Array(samples.length);
+    for (let i = 0; i < samples.length; i++) {
+        const multiplier = 0.5 * (1 - Math.cos(2 * Math.PI * i / (samples.length - 1)));
+        output[i] = samples[i] * multiplier;
+    }
+    return output;
+}
+
+// Update spectral feature computation to match Android
 function computeSpectralFeatures(segment, sampleRate) {
     try {
-        // Create padded segment with proper size
-        var paddedSegment = new Float32Array(N_FFT);
+        // Ensure segment size matches FFT size
+        const fftLength = nextPowerOfTwo(Math.max(segment.length, N_FFT));
+        const windowed = applyHannWindow(segment);
+        const padded = new Float32Array(fftLength);
         
-        // Only copy what fits
-        var copyLength = Math.min(segment.length, N_FFT);
-        for (var i = 0; i < copyLength; i++) {
-            paddedSegment[i] = segment[i];
-        }
-        
-        // Apply Hann window only to the actual data
-        for (var i = 0; i < copyLength; i++) {
-            paddedSegment[i] *= 0.5 * (1 - Math.cos(2 * Math.PI * i / (copyLength - 1)));
-        }
+        // Copy windowed data into padded array
+        padded.set(windowed.slice(0, Math.min(windowed.length, fftLength)));
 
-        // Simple DFT implementation
-        var magnitudeSpectrum = new Float32Array(N_FFT / 2);
-        for (var k = 0; k < N_FFT / 2; k++) {
-            var real = 0;
-            var imag = 0;
-            for (var n = 0; n < copyLength; n++) {
-                var phi = (2 * Math.PI * k * n) / N_FFT;
-                real += paddedSegment[n] * Math.cos(phi);
-                imag -= paddedSegment[n] * Math.sin(phi);
-            }
-            magnitudeSpectrum[k] = Math.sqrt(real * real + imag * imag) / N_FFT;
-        }
+        const fft = new FFT(fftLength);
+        fft.transform(padded);
 
-        // Compute spectral centroid
-        var numerator = 0;
-        var denominator = 0;
-        for (var i = 0; i < magnitudeSpectrum.length; i++) {
-            var frequency = i * sampleRate / N_FFT;
-            numerator += frequency * magnitudeSpectrum[i];
-            denominator += magnitudeSpectrum[i];
+        // Calculate magnitude spectrum
+        const magnitudeSpectrum = new Float32Array(fftLength / 2 + 1);
+        for (let i = 0; i < fftLength / 2; i++) {
+            const re = padded[2 * i];
+            const im = padded[2 * i + 1];
+            magnitudeSpectrum[i] = Math.sqrt(re * re + im * im);
         }
-        var centroid = denominator === 0 ? 0 : numerator / denominator;
+        magnitudeSpectrum[fftLength / 2] = Math.abs(padded[1]);
+
+        // Compute power spectrum
+        const powerSpectrum = magnitudeSpectrum.map(x => x * x);
+
+        // Calculate spectral features
+        const centroid = computeSpectralCentroid(magnitudeSpectrum, sampleRate);
+        const flatness = computeSpectralFlatness(powerSpectrum);
+        const rollOff = computeSpectralRollOff(magnitudeSpectrum, sampleRate);
+        const bandwidth = computeSpectralBandwidth(magnitudeSpectrum, sampleRate, centroid);
 
         return {
-            centroid: centroid,
+            centroid,
+            flatness,
+            rollOff,
+            bandwidth,
             magnitudeSpectrum: Array.from(magnitudeSpectrum)
         };
     } catch (error) {
         console.error('[Worker] Spectral feature computation error:', error);
         return {
             centroid: 0,
-            magnitudeSpectrum: new Array(N_FFT / 2).fill(0)
+            flatness: 0,
+            rollOff: 0,
+            bandwidth: 0,
+            magnitudeSpectrum: new Array(N_FFT / 2 + 1).fill(0)
         };
     }
+}
+
+// Add matching helper functions for spectral features
+function computeSpectralCentroid(magnitudeSpectrum, sampleRate) {
+    const sum = magnitudeSpectrum.reduce((a, b) => a + b, 0);
+    if (sum === 0) return 0;
+    
+    const weightedSum = magnitudeSpectrum.reduce((acc, value, index) => 
+        acc + index * (sampleRate / N_FFT) * value, 0);
+    
+    return weightedSum / sum;
+}
+
+function computeSpectralFlatness(powerSpectrum) {
+    const geometricMean = Math.exp(
+        powerSpectrum
+            .map((v) => Math.log(v + Number.MIN_VALUE))
+            .reduce((a, b) => a + b) / powerSpectrum.length
+    );
+    const arithmeticMean =
+        powerSpectrum.reduce((a, b) => a + b) / powerSpectrum.length
+    return arithmeticMean === 0 ? 0 : geometricMean / arithmeticMean;
+}
+
+function computeSpectralRollOff(magnitudeSpectrum, sampleRate) {
+    const totalEnergy = magnitudeSpectrum.reduce((a, b) => a + b, 0);
+    const rollOffThreshold = totalEnergy * 0.85;
+    let cumulativeEnergy = 0;
+
+    for (let i = 0; i < magnitudeSpectrum.length; i++) {
+        cumulativeEnergy += magnitudeSpectrum[i];
+        if (cumulativeEnergy >= rollOffThreshold) {
+            return (i / magnitudeSpectrum.length) * (sampleRate / 2);
+        }
+    }
+
+    return 0;
+}
+
+function computeSpectralBandwidth(magnitudeSpectrum, sampleRate, centroid) {
+    const sum = magnitudeSpectrum.reduce((a, b) => a + b, 0);
+    if (sum === 0) return 0;
+
+    const weightedSum = magnitudeSpectrum.reduce(
+        (acc, value, index) => acc + value * Math.pow(index - centroid, 2),
+        0
+    );
+    return Math.sqrt(weightedSum / sum);
 }
 
 // Unique ID counter
@@ -314,9 +416,9 @@ self.onmessage = function (event) {
                     mfcc: [],
                     zcr: zeroCrossings / (endIdx - startIdx),
                     spectralCentroid: spectralFeatures.centroid,
-                    spectralFlatness: 0,
-                    spectralRolloff: 0,
-                    spectralBandwidth: 0,
+                    spectralFlatness: spectralFeatures.flatness,
+                    spectralRolloff: spectralFeatures.rollOff,
+                    spectralBandwidth: spectralFeatures.bandwidth,
                     chromagram: [],
                     tempo: 0,
                     hnr: 0,
