@@ -22,6 +22,18 @@ import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
 import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
 import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
 
+function calculateCRC32ForDataPoint(data: Float32Array): number {
+    // Convert float array to byte array for CRC32
+    const byteArray = new Uint8Array(data.length * 4)
+    const dataView = new DataView(byteArray.buffer)
+
+    for (let i = 0; i < data.length; i++) {
+        dataView.setFloat32(i * 4, data[i], true)
+    }
+
+    return crc32.buf(byteArray)
+}
+
 export interface ExtractWavAudioAnalysisProps {
     fileUri?: string // should provide either fileUri or arrayBuffer
     wavMetadata?: WavFileInfo
@@ -139,88 +151,30 @@ export async function extractAudioAnalysis(
                         }
 
                         const result: AudioAnalysis = event.data.result
+                        // Calculate CRC32 after worker completes if requested
                         if (features?.crc32) {
+                            const samplesPerSegment = Math.floor(
+                                (processedBuffer.sampleRate *
+                                    segmentDurationMs) /
+                                    1000
+                            )
+
                             result.dataPoints = result.dataPoints.map(
-                                (point: DataPoint, index) => {
-                                    // Convert byte positions to sample positions
-                                    const bytesPerSample = 2 // 16-bit audio = 2 bytes per sample
-                                    const samplesPerSecond =
-                                        processedBuffer.sampleRate // 16000
-                                    const bytesPerSecond =
-                                        samplesPerSecond * bytesPerSample // 32000
-
-                                    // Convert milliseconds to bytes
-                                    const startPosition = Math.floor(
-                                        (props.startTimeMs ?? 0) *
-                                            (bytesPerSecond / 1000)
+                                (point: DataPoint, index: number) => {
+                                    const startSample =
+                                        index * samplesPerSegment
+                                    const segmentData = channelData.slice(
+                                        startSample,
+                                        startSample + samplesPerSegment
                                     )
-                                    const endPosition = Math.floor(
-                                        (props.endTimeMs ?? 0) *
-                                            (bytesPerSecond / 1000)
-                                    )
-
-                                    const segmentData = new Float32Array(
-                                        Math.floor(
-                                            (endPosition - startPosition) /
-                                                bytesPerSample
-                                        )
-                                    )
-
-                                    console.log(
-                                        `TS ${index}: Processing segment:`,
-                                        {
-                                            byteSamplePosition: startPosition,
-                                            startSamplePosition: Math.floor(
-                                                startPosition / bytesPerSample
-                                            ),
-                                            samples: segmentData.length,
-                                            channelDataLength:
-                                                channelData.length,
-                                        }
-                                    )
-
-                                    // Fill segmentData with samples
-                                    for (
-                                        let i = 0;
-                                        i < segmentData.length;
-                                        i++
-                                    ) {
-                                        segmentData[i] =
-                                            channelData[
-                                                Math.floor(
-                                                    startPosition /
-                                                        bytesPerSample
-                                                ) + i
-                                            ]
-                                    }
-
-                                    // Convert float array to byte array for CRC32
-                                    const byteArray = new Uint8Array(
-                                        segmentData.length * 4
-                                    )
-                                    const dataView = new DataView(
-                                        byteArray.buffer
-                                    )
-
-                                    for (
-                                        let i = 0;
-                                        i < segmentData.length;
-                                        i++
-                                    ) {
-                                        dataView.setFloat32(
-                                            i * 4,
-                                            segmentData[i],
-                                            true
-                                        )
-                                    }
-
-                                    const crc = crc32.buf(byteArray)
 
                                     return {
                                         ...point,
                                         features: {
                                             ...point.features,
-                                            crc32: crc,
+                                            crc32: calculateCRC32ForDataPoint(
+                                                segmentData
+                                            ),
                                         },
                                     }
                                 }
