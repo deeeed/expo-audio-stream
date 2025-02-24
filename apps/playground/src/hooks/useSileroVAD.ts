@@ -7,6 +7,7 @@ const logger = baseLogger.extend('useSileroVAD');
 export interface UseSileroVADProps {
     onError?: (error: Error) => void;
     minSpeechDuration?: number; // in seconds
+    maxSpeechDuration?: number; // in seconds
     minSilenceDuration?: number; // in seconds
     speechPadding?: number; // in seconds
 }
@@ -25,11 +26,12 @@ export interface SpeechTimestamp {
     probability: number;
 }
 
-export function useSileroVAD({ 
+export function useSileroVAD({
     onError,
     minSpeechDuration = 0.25,
+    maxSpeechDuration = Infinity,
     minSilenceDuration = 0.1,
-    speechPadding = 0.2
+    speechPadding = 0.03 // Adjusted to match Silero's 30ms default
 }: UseSileroVADProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [speechTimestamps, setSpeechTimestamps] = useState<SpeechTimestamp[]>([]);
@@ -49,48 +51,61 @@ export function useSileroVAD({
             setIsProcessing(true);
             const model = await initModel();
 
-            if (sampleRate !== 16000) {
-                throw new Error(`Invalid sample rate: ${sampleRate}Hz. Must be 16kHz`);
+            // Validate and adjust sample rate
+            if (![8000, 16000].includes(sampleRate)) {
+                throw new Error(`Invalid sample rate: ${sampleRate}Hz. Must be 8kHz or 16kHz`);
             }
 
-            // Processing parameters (matching Python implementation)
             const params = {
-                threshold: 0.46,
-                windowSize: 512, // Samples per inference (32ms at 16kHz)
+                threshold: 0.5, // Silero default
+                negThreshold: 0.35, // threshold - 0.15, per Silero
+                windowSize: sampleRate === 16000 ? 512 : 256,
+                contextSize: sampleRate === 16000 ? 64 : 32,
+                minSpeechSamples: Math.floor(sampleRate * minSpeechDuration),
+                maxSpeechSamples: Math.floor(sampleRate * maxSpeechDuration),
+                minSilenceSamples: Math.floor(sampleRate * minSilenceDuration),
+                speechPadSamples: Math.floor(sampleRate * speechPadding)
             };
 
-            // Reshape audio data to match model's expected input shape
-            const windowSize = 512; // 32ms at 16kHz
-            const numWindows = Math.floor(audioData.length / windowSize);
-            const reshapedAudio = audioData.slice(0, numWindows * windowSize);
+            // Split audio into windows
+            const numWindows = Math.floor(audioData.length / params.windowSize);
+            const reshapedAudio = audioData.slice(0, numWindows * params.windowSize);
 
-            // Process audio in windows and flatten to 2D
-            const processedAudio = new Float32Array(numWindows * windowSize);
+            // Initialize state and context
+            let state = new Float32Array(2 * 1 * 128).fill(0);
+            let context = new Float32Array(params.contextSize).fill(0);
+            const probabilities: number[] = [];
+
+            // Process each window sequentially with context
             for (let i = 0; i < numWindows; i++) {
-                const window = reshapedAudio.slice(i * windowSize, (i + 1) * windowSize);
-                processedAudio.set(window, i * windowSize);
+                const windowStart = i * params.windowSize;
+                const window = reshapedAudio.slice(windowStart, windowStart + params.windowSize);
+
+                // Concatenate context and current window
+                const inputAudio = new Float32Array(params.contextSize + params.windowSize);
+                inputAudio.set(context);
+                inputAudio.set(window, params.contextSize);
+
+                const inputs = {
+                    'input': createTensor('float32', inputAudio, [1, inputAudio.length]),
+                    'sr': createTensor('int64', new BigInt64Array([BigInt(sampleRate)]), [1]),
+                    'state': createTensor('float32', state, [2, 1, 128])
+                };
+
+                const results = await model.run(inputs);
+                probabilities.push((results['output'].data as Float32Array)[0]);
+
+                // Update state and context
+                if (results['state']) {
+                    state = new Float32Array(results['state'].data as Float32Array);
+                }
+                context = window.slice(-params.contextSize);
             }
 
-            // Prepare model inputs with correct tensor shapes
-            const inputs = {
-                // Shape the input as [batch_size, sequence_length]
-                'input': createTensor('float32', processedAudio, [1, processedAudio.length]),
-                'sr': createTensor('int64', new BigInt64Array([16000n]), [1]),
-                'state': createTensor('float32', new Float32Array(2 * 1 * 128).fill(0), [2, 1, 128])
-            };
+            // Consider speech present if any probability exceeds threshold
+            const maxProbability = Math.max(...probabilities);
+            const isSpeech = maxProbability > params.threshold;
 
-            logger.debug('Created input tensors', {
-                inputTensorShape: inputs.input.dims,
-                srTensorShape: inputs.sr.dims,
-                stateTensorShape: inputs.state.dims,
-                numWindows,
-                windowSize,
-                audioLength: processedAudio.length
-            });
-
-            const results = await model.run(inputs);
-            const probabilities = Array.from(results['output'].data as Float32Array);
-            
             // Enhanced probability logging
             logger.debug('VAD probabilities analysis', {
                 totalProbabilities: probabilities.length,
@@ -103,48 +118,29 @@ export function useSileroVAD({
                 probsAboveThreshold: probabilities.filter(p => p > params.threshold).length
             });
 
-            // Find continuous speech segments
-            let inSpeech = false;
-            let currentSegment: Partial<SpeechTimestamp> | null = null;
-            const timestamps: SpeechTimestamp[] = [];
-
-            probabilities.forEach((probability, index) => {
-                const isSpeech = probability > params.threshold;
-                const timeInSeconds = index / sampleRate;
-
-                if (isSpeech && !inSpeech) {
-                    inSpeech = true;
-                    currentSegment = {
-                        start: index,
-                        startTime: Math.max(0, timeInSeconds - speechPadding),
-                        probability
-                    };
-                } else if (!isSpeech && inSpeech && currentSegment) {
-                    inSpeech = false;
-                    const duration = timeInSeconds - (currentSegment.startTime || 0);
-                    
-                    if (duration >= minSpeechDuration) {
-                        timestamps.push({
-                            ...currentSegment as SpeechTimestamp,
-                            end: index,
-                            endTime: timeInSeconds + speechPadding
-                        });
-                    }
-                    currentSegment = null;
-                }
-            });
-
             logger.debug('Speech segments found', {
-                segmentsCount: timestamps.length,
-                segments: timestamps
+                segmentsCount: probabilities.length,
+                segments: probabilities
             });
 
-            setSpeechTimestamps(timestamps);
-            setCurrentSegment(timestamps[timestamps.length - 1] || null);
+            setSpeechTimestamps(probabilities.map((probability, index) => ({
+                start: index * params.windowSize,
+                end: (index + 1) * params.windowSize,
+                startTime: index * params.windowSize / sampleRate,
+                endTime: (index + 1) * params.windowSize / sampleRate,
+                probability
+            })));
+            setCurrentSegment(probabilities.length > 0 ? {
+                start: 0,
+                end: audioData.length,
+                startTime: 0,
+                endTime: audioData.length / sampleRate,
+                probability: maxProbability
+            } : null);
 
             return {
-                probability: probabilities[probabilities.length - 1],
-                isSpeech: probabilities[probabilities.length - 1] > 0.46,
+                probability: maxProbability,
+                isSpeech,
                 timestamp
             };
         } catch (error) {
@@ -163,7 +159,7 @@ export function useSileroVAD({
         } finally {
             setIsProcessing(false);
         }
-    }, [initModel, createTensor, onError, speechPadding, minSpeechDuration]);
+    }, [initModel, createTensor, onError, minSpeechDuration, maxSpeechDuration, minSilenceDuration, speechPadding]);
 
     const reset = useCallback(() => {
         setSpeechTimestamps([]);
