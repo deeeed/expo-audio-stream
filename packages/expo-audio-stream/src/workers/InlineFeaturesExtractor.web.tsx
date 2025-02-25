@@ -1,3 +1,4 @@
+// packages/expo-audio-stream/src/workers/InlineFeaturesExtractor.web.tsx
 export const InlineFeaturesExtractor = `
 // Constants
 const N_FFT = 1024;  // Default FFT size
@@ -441,27 +442,40 @@ function estimatePitch(segment, sampleRate) {
 
 // Unique ID counter
 let uniqueIdCounter = 0
-let accumulatedDataPoints = [] // Move outside message handler
-let lastEmitTime = Date.now() // Move outside message handler
+let accumulatedDataPoints = []
+let lastEmitTime = Date.now()
 
 self.onmessage = function (event) {
-    console.log('[Worker] START', {
-        hasData: event.data ? true : false,
-        dataKeys: event.data ? Object.keys(event.data) : null
-    });
+    // Check if this is a reset command
+    if (event.data.command === 'resetCounter') {
+        uniqueIdCounter = event.data.startCounterFrom || 0;
+        console.log('[Worker] Reset counter to', uniqueIdCounter);
+        return; // Exit early, don't process audio
+    }
 
+    // Regular audio processing
     const {
-        channelData, // this is only the newly recorded data when live recording.
+        channelData,
         sampleRate,
-        segmentDurationMs, // Keep this as is
+        segmentDurationMs,
         algorithm,
         bitDepth,
         fullAudioDurationMs,
         numberOfChannels,
         features: _features,
-        intervalAnalysis = 500, // Use intervalAnalysis instead of interval
-        enableLogging, // Replace logger with enableLogging flag
+        intervalAnalysis = 500,
+        enableLogging,
+        resetCounter,
+        startCounterFrom,
     } = event.data
+
+    // Also handle reset as part of regular message
+    if (resetCounter) {
+        uniqueIdCounter = startCounterFrom || 0;
+    }
+
+    const subChunkStartTime = fullAudioDurationMs / 1000
+
     
     // Create a simple logger that only logs when enabled
     const logger = enableLogging ? {
@@ -473,6 +487,7 @@ self.onmessage = function (event) {
         log: () => {},
         error: () => {}
     }
+    console.log('[Worker] START Feature Extractor - hasData: ' + (event.data ? true : false) + ', channelData: ' + (event.data.channelData ? event.data.channelData.length : 0) + ', fullAudioDurationMs: ' + (event.data.fullAudioDurationMs || 0) + ', sampleRate: ' + (event.data.sampleRate || 0) + ', segmentDurationMs: ' + (event.data.segmentDurationMs || 0) + ', algorithm: ' + (event.data.algorithm || 'none') + ', bitDepth: ' + (event.data.bitDepth || 0) + ', numberOfChannels: ' + (event.data.numberOfChannels || 0) + ', features: ' + (event.data.features ? Object.keys(event.data.features).length : 0) + ', intervalAnalysis: ' + (event.data.intervalAnalysis || 0) + ', dataKeys: ' + (event.data ? Object.keys(event.data).join(',') : ''));
     
     const features = _features || {}
 
@@ -547,11 +562,72 @@ self.onmessage = function (event) {
         return [] // TODO implement
     }
 
-    const extractWaveform = (
+    /**
+     * Creates a features object based on requested features
+     */
+    function createFeaturesObject(
+        features,
+        maxAmp,
+        rms,
+        sumSquares,
+        zeroCrossings,
+        remainingSamples,
+        spectralFeatures,
+        channelData,
+        startIdx,
+        endIdx,
+        sampleRate
+    ) {
+        // If no features are requested, return undefined
+        if (!Object.values(features).some(function(v) { return v; })) {
+            return undefined;
+        }
+
+        const result = {};
+        
+        if (features.energy) {
+            result.energy = sumSquares;
+        }
+        if (features.rms) {
+            result.rms = rms;
+        }
+        // Always include min/max amplitude if any features are requested
+        result.minAmplitude = -maxAmp;
+        result.maxAmplitude = maxAmp;
+        
+        if (features.zcr) {
+            result.zcr = zeroCrossings / remainingSamples;
+        }
+        if (features.spectralCentroid) {
+            result.spectralCentroid = spectralFeatures.centroid;
+        }
+        if (features.spectralFlatness) {
+            result.spectralFlatness = spectralFeatures.flatness;
+        }
+        if (features.spectralRolloff) {
+            result.spectralRolloff = spectralFeatures.rollOff;
+        }
+        if (features.spectralBandwidth) {
+            result.spectralBandwidth = spectralFeatures.bandwidth;
+        }
+        if (features.chromagram) {
+            result.chromagram = computeChroma(channelData.slice(startIdx, endIdx), sampleRate);
+        }
+        if (features.hnr) {
+            result.hnr = extractHNR(channelData.slice(startIdx, endIdx));
+        }
+        if (features.pitch) {
+            result.pitch = estimatePitch(channelData.slice(startIdx, endIdx), sampleRate);
+        }
+        
+        return result;
+    }
+
+    function extractWaveform(
         channelData,
         sampleRate,
-        segmentDurationMs,
-    ) => {
+        segmentDurationMs
+    ) {
         const logger = enableLogging ? {
             debug: (...args) => console.debug('[Worker]', ...args),
             log: (...args) => console.log('[Worker]', ...args),
@@ -600,13 +676,13 @@ self.onmessage = function (event) {
             }
 
             const rms = Math.sqrt(sumSquares / samplesPerSegment)
-            const startTime = startIdx / sampleRate;
-            const endTime = endIdx / sampleRate;
+            const startTime = subChunkStartTime + (startIdx / sampleRate)
+            const endTime = subChunkStartTime + (endIdx / sampleRate)
 
             var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate, features);
 
-            dataPoints.push({
-                id: i,
+            const dataPoint = {
+                id: uniqueIdCounter++,
                 amplitude: maxAmp,
                 rms,
                 startTime,
@@ -616,30 +692,28 @@ self.onmessage = function (event) {
                 startPosition: startIdx * 2,
                 endPosition: endIdx * 2,
                 samples: samplesPerSegment,
-                features: {
-                    energy: features.energy ? sumSquares : 0,
-                    rms: features.rms ? rms : 0,
-                    minAmplitude: -maxAmp,
-                    maxAmplitude: maxAmp,
-                    mfcc: [],
-                    zcr: features.zcr ? zeroCrossings / samplesPerSegment : 0,
-                    spectralCentroid: spectralFeatures.centroid,
-                    spectralFlatness: spectralFeatures.flatness,
-                    spectralRolloff: spectralFeatures.rollOff,
-                    spectralBandwidth: spectralFeatures.bandwidth,
-                    chromagram: features.chromagram ? 
-                        computeChroma(channelData.slice(startIdx, endIdx), sampleRate) : [],
-                    tempo: 0,
-                    hnr: features.hnr ? 
-                        extractHNR(channelData.slice(startIdx, endIdx)) : 0,
-                    melSpectrogram: [],
-                    spectralContrast: [],
-                    tonnetz: [],
-                    pitch: features.pitch ? 
-                        estimatePitch(channelData.slice(startIdx, endIdx), sampleRate) : 0,
-                    magnitudeSpectrum: spectralFeatures.magnitudeSpectrum
-                }
-            })
+            }
+
+            // Extract features if any are requested
+            const extractedFeatures = createFeaturesObject(
+                features,
+                maxAmp,
+                rms,
+                sumSquares,
+                zeroCrossings,
+                samplesPerSegment,
+                spectralFeatures,
+                channelData,
+                startIdx,
+                endIdx,
+                sampleRate
+            );
+            
+            if (extractedFeatures) {
+                dataPoint.features = extractedFeatures;
+            }
+
+            dataPoints.push(dataPoint)
         }
 
         // Handle remaining samples if they exist and are enough to process
@@ -666,8 +740,8 @@ self.onmessage = function (event) {
 
             var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate, features);
 
-            dataPoints.push({
-                id: numPoints,
+            const dataPoint = {
+                id: uniqueIdCounter++,
                 amplitude: maxAmp,
                 rms,
                 startTime,
@@ -677,30 +751,28 @@ self.onmessage = function (event) {
                 startPosition: startIdx * 2,
                 endPosition: endIdx * 2,
                 samples: remainingSamples,
-                features: {
-                    energy: features.energy ? sumSquares : 0,
-                    rms: features.rms ? rms : 0,
-                    minAmplitude: -maxAmp,
-                    maxAmplitude: maxAmp,
-                    mfcc: [],
-                    zcr: features.zcr ? zeroCrossings / remainingSamples : 0,
-                    spectralCentroid: spectralFeatures.centroid,
-                    spectralFlatness: spectralFeatures.flatness,
-                    spectralRolloff: spectralFeatures.rollOff,
-                    spectralBandwidth: spectralFeatures.bandwidth,
-                    chromagram: features.chromagram ? 
-                        computeChroma(channelData.slice(startIdx, endIdx), sampleRate) : [],
-                    tempo: 0,
-                    hnr: features.hnr ? 
-                        extractHNR(channelData.slice(startIdx, endIdx)) : 0,
-                    melSpectrogram: [],
-                    spectralContrast: [],
-                    tonnetz: [],
-                    pitch: features.pitch ? 
-                        estimatePitch(channelData.slice(startIdx, endIdx), sampleRate) : 0,
-                    magnitudeSpectrum: spectralFeatures.magnitudeSpectrum
-                }
-            })
+            }
+
+            // Extract features if any are requested
+            const extractedFeatures = createFeaturesObject(
+                features,
+                maxAmp,
+                rms,
+                sumSquares,
+                zeroCrossings,
+                remainingSamples,
+                spectralFeatures,
+                channelData,
+                startIdx,
+                endIdx,
+                sampleRate
+            );
+            
+            if (extractedFeatures) {
+                dataPoint.features = extractedFeatures;
+            }
+
+            dataPoints.push(dataPoint)
         }
 
         return {
@@ -732,15 +804,7 @@ self.onmessage = function (event) {
                 sampleRate,
                 segmentDurationMs,
                 durationMs: result.durationMs,
-                dataPoints: result.dataPoints.map(point => ({
-                    ...point,
-                    features: {
-                        ...point.features,
-                        chromagram: point.features.chromagram,
-                        hnr: point.features.hnr,
-                        pitch: point.features.pitch
-                    }
-                })),
+                dataPoints: result.dataPoints,
                 amplitudeRange: result.amplitudeRange,
                 rmsRange: result.rmsRange,
             }

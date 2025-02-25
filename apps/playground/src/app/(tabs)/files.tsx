@@ -60,7 +60,21 @@ const FilesScreen = () => {
 
     useFocusEffect(
         useCallback(() => {
-            refreshFiles()
+            // Only refresh files when the screen is focused
+            let isActive = true;
+            
+            const loadFiles = async () => {
+                if (isActive) {
+                    logger.debug('Screen focused, refreshing files');
+                    await refreshFiles();
+                }
+            };
+            
+            loadFiles();
+            
+            return () => {
+                isActive = false;
+            };
         }, [refreshFiles])
     )
 
