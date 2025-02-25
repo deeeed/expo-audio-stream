@@ -401,6 +401,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
                 """.trimIndent())
 
                 val includeNormalizedData = options["includeNormalizedData"] as? Boolean ?: false
+                val includeBase64Data = options["includeBase64Data"] as? Boolean ?: false
                 val bytesPerSample = audioData.bitDepth / 8
                 val samples = audioData.data.size / (bytesPerSample * audioData.channels)
                 
@@ -429,6 +430,15 @@ class ExpoAudioStreamModule : Module(), EventSender {
                         "pcm_${audioData.bitDepth}bit"
                     )
                     resultMap["normalizedData"] = float32Data
+                }
+                
+                if (includeBase64Data) {
+                    // Convert the PCM data to a base64 string
+                    val base64Data = android.util.Base64.encodeToString(
+                        audioData.data, 
+                        android.util.Base64.NO_WRAP
+                    )
+                    resultMap["base64Data"] = base64Data
                 }
                 
                 promise.resolve(resultMap)

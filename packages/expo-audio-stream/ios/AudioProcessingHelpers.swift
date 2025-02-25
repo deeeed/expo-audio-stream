@@ -579,8 +579,9 @@ func extractRawAudioData(
     frameCount: AVAudioFrameCount,
     format: AVAudioFormat,
     decodingConfig: DecodingConfig,
-    includeNormalizedData: Bool
-) throws -> (pcmData: Data, floatData: [Float]?) {
+    includeNormalizedData: Bool,
+    includeBase64Data: Bool
+) throws -> (pcmData: Data, floatData: [Float]?, base64Data: String?) {
     // Apply decoding configuration
     let targetFormat = decodingConfig.toAudioFormat(baseFormat: format)
     
@@ -647,7 +648,12 @@ func extractRawAudioData(
         Array(UnsafeBufferPointer(start: floatData[0], count: Int(finalBuffer.frameLength))) :
         nil
     
-    return (pcmData: pcmData, floatData: normalizedData)
+    // Convert to base64 if requested
+    let base64Data: String? = includeBase64Data ?
+        pcmData.base64EncodedString() :
+        nil
+    
+    return (pcmData: pcmData, floatData: normalizedData, base64Data: base64Data)
 }
 
 // Update the CRC32 function to use zlib's implementation

@@ -209,16 +209,16 @@ export const MoreScreen = () => {
                     router.navigate('/permissions')
                 }}
             />
-            {!isWeb && __DEV__ && (
+            {__DEV__ && (
                 <ListItem
                     contentContainerStyle={{
                         backgroundColor: theme.colors.surface,
                         margin: 0,
                     }}
-                    label="Native Whisper"
-                    subLabel="Native Whisper (Dev Only)"
+                    label="Whisper"
+                    subLabel="Whisper (Dev Only)"
                     onPress={() => {
-                        router.navigate('/nativewhisper')
+                        router.navigate('/whisper')
                     }}
                 />
             )}

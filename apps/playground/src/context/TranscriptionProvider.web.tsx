@@ -19,6 +19,7 @@ import {
     transcriptionReducer,
 } from './TranscriptionProvider.reducer'
 import {
+    AudioInputData,
     TranscribeParams,
     TranscriberCompleteData,
     TranscriberUpdateData,
@@ -51,7 +52,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         initialProviderState
     )
 
-    const audioDataRef = useRef<Float32Array | null>(null)
+    const audioDataRef = useRef<AudioInputData | null>(null)
     const resolveUpdateConfigRef = useRef<(() => void) | null>(null)
     const initializeAfterUpdateRef = useRef<boolean>(false)
 
@@ -230,19 +231,31 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         state.language,
     ])
 
-    const initialize = useCallback(() => {
+    const initialize = useCallback(async () => {
         dispatch({
             type: 'UPDATE_STATE',
             payload: { isModelLoading: true, ready: false },
         })
+        
+        // Get the current model from the ref
+        const currentModel = modelRef.current;
+        
+        // Format the model name for web if needed
+        // If it already starts with 'Xenova/whisper-', use it as is
+        // Otherwise, check if it's a short name that needs the prefix
+        const formattedModel = currentModel.startsWith('Xenova/whisper-') 
+            ? currentModel 
+            : `Xenova/whisper-${currentModel}`;
+        
         logger.debug(
-            'Initializing transcription...',
-            modelRef.current,
-            quantizedRef.current
+            'Initializing transcription with model:',
+            formattedModel
         )
+        
+
         webWorker.postMessage({
             type: 'initialize',
-            model: modelRef.current,
+            model: formattedModel,
             quantized: quantizedRef.current,
             multilingual: multilingualRef.current,
             subtask: multilingualRef.current ? subtaskRef.current : null,
@@ -251,11 +264,14 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     ? languageRef.current
                     : null,
         })
+        
+        return Promise.resolve()
     }, [dispatch, webWorker])
 
     const transcribe = useCallback(
         async ({
             audioData,
+            audioUri,
             position = 0,
             jobId: providedJobId,
             options,
@@ -268,8 +284,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         }> => {
             const jobId = providedJobId || `transcribe_${Date.now()}_${Math.random().toString(36).slice(2)}`
             
-            // Store the legacy onChunkUpdate functionality for backward compatibility
-            // We'll map onNewSegments to this functionality
+            // Store callbacks
             onChunkUpdateRef.current = onNewSegments ? 
                 (data) => {
                     // Map the data format from web to match TranscribeNewSegmentsResult
@@ -296,11 +311,11 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             progressCallbackRef.current = onProgress || null;
 
             console.debug(
-                `transcribe, audioData: ${typeof audioData}, jobId: ${jobId}, position: ${position}`
+                `transcribe, audioData: ${typeof audioData}, audioUri: ${audioUri ? 'provided' : 'not provided'}, jobId: ${jobId}, position: ${position}`
             )
 
-            // First check if audioData exists
-            if (!audioData) {
+            // First check if we have either audioData or audioUri
+            if (!audioData && !audioUri) {
                 return {
                     promise: Promise.resolve({
                         id: jobId,
@@ -315,8 +330,9 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 };
             }
 
-            // Then check the type
+            // Handle audioData as object (Float32Array, etc.)
             if (
+                audioData && 
                 typeof audioData === 'object' &&
                 (!audioDataRef.current || audioData !== audioDataRef.current)
             ) {
@@ -325,7 +341,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     type: 'TRANSCRIPTION_START',
                 })
 
-                // If we have a progress callback, simulate progress updates
+                // Progress simulation code
                 let progressInterval: NodeJS.Timeout | null = null;
                 if (progressCallbackRef.current) {
                     // Start with 0% progress
@@ -405,17 +421,107 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     },
                     jobId
                 };
-            } else if (typeof audioData === 'string') {
-                // Handle string input (base64 or file path) by rejecting
+            } 
+            // Handle audioUri (for web, we need to fetch the file and convert to ArrayBuffer)
+            else if (audioUri) {
+                dispatch({
+                    type: 'TRANSCRIPTION_START',
+                })
+
+                // Progress simulation
+                let progressInterval: NodeJS.Timeout | null = null;
+                if (progressCallbackRef.current) {
+                    // Start with 0% progress
+                    progressCallbackRef.current(0);
+                    
+                    // Simulate progress updates
+                    progressInterval = setInterval(() => {
+                        if (!progressCallbackRef.current) {
+                            if (progressInterval) clearInterval(progressInterval);
+                            return;
+                        }
+                        
+                        const currentProgress = lastProgressUpdate.current || 0;
+                        const newProgress = Math.min(currentProgress + 5, 95);
+                        
+                        lastProgressUpdate.current = newProgress;
+                        progressCallbackRef.current(newProgress);
+                    }, 500);
+                }
+
+                const transcriptionPromise = new Promise<TranscriberData>((resolve, reject) => {
+                    transcribeResolveMapRef.current[jobId] = (transcript) => {
+                        if (progressInterval) {
+                            clearInterval(progressInterval);
+                            if (progressCallbackRef.current) {
+                                progressCallbackRef.current(100);
+                            }
+                        }
+                        resolve(transcript);
+                    };
+                    transcribeRejectMapRef.current[jobId] = reject;
+
+                    // Fetch the audio file and convert to ArrayBuffer
+                    fetch(audioUri)
+                        .then(response => response.arrayBuffer())
+                        .then(buffer => {
+                            webWorker.postMessage({
+                                type: 'transcribe',
+                                audio: buffer,
+                                position,
+                                jobId,
+                                model: modelRef.current,
+                                multilingual: multilingualRef.current,
+                                quantized: quantizedRef.current,
+                                subtask: multilingualRef.current ? subtaskRef.current : null,
+                                language: multilingualRef.current && languageRef.current !== 'auto'
+                                    ? languageRef.current 
+                                    : null,
+                                ...options
+                            });
+                            return buffer;
+                        })
+                        .catch(error => {
+                            if (progressInterval) clearInterval(progressInterval);
+                            reject(new Error(`Failed to fetch audio file: ${error.message}`));
+                        });
+                });
+
+                return {
+                    promise: transcriptionPromise,
+                    stop: async () => {
+                        if (progressInterval) {
+                            clearInterval(progressInterval);
+                        }
+                        
+                        webWorker.postMessage({
+                            type: 'abort',
+                            jobId
+                        });
+                        
+                        dispatch({
+                            type: 'UPDATE_STATE',
+                            payload: { isBusy: false }
+                        });
+                        
+                        delete transcribeResolveMapRef.current[jobId];
+                        delete transcribeRejectMapRef.current[jobId];
+                    },
+                    jobId
+                };
+            } 
+            // Handle string audioData (base64 or file path)
+            else if (typeof audioData === 'string') {
                 return {
                     promise: Promise.reject(
-                        new Error('String audio data is not supported in web version')
+                        new Error('String audio data is not directly supported in web version. Please provide a URL or ArrayBuffer.')
                     ),
                     stop: async () => {},
                     jobId
                 };
             }
             
+            // Fallback return
             return {
                 promise: Promise.resolve({
                     id: jobId,
@@ -433,21 +539,27 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
     )
 
     const updateConfig = useCallback(
-        (
+        async (
             config: Partial<TranscriptionState>,
             shouldInitialize: boolean = false
         ): Promise<void> => {
             logger.debug('Updating config', config)
-            return new Promise<void>((resolve) => {
-                resolveUpdateConfigRef.current = resolve
-                initializeAfterUpdateRef.current = shouldInitialize
-                dispatch({
-                    type: 'UPDATE_STATE',
-                    payload: config,
-                })
+            dispatch({
+                type: 'UPDATE_STATE',
+                payload: config,
             })
+
+            // Important: If shouldInitialize is true, call initialize immediately
+            if (shouldInitialize) {
+                // Small delay to ensure state is updated before initialization
+                setTimeout(() => {
+                    initialize();
+                }, 0);
+            }
+
+            return Promise.resolve()
         },
-        []
+        [initialize]
     )
 
     useEffect(() => {

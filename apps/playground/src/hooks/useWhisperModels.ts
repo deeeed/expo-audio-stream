@@ -9,6 +9,11 @@ export interface WhisperModel {
     filename: string
 }
 
+export interface WebWhisperModel {
+    id: string
+    label: string
+}
+
 export const WHISPER_MODELS: WhisperModel[] = [
     {
         id: 'tiny',
@@ -28,6 +33,12 @@ export const WHISPER_MODELS: WhisperModel[] = [
         url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en-tdrz.bin',
         filename: 'ggml-small.en-tdrz.bin',
     },
+]
+
+export const WEB_WHISPER_MODELS: WebWhisperModel[] = [
+    { id: 'Xenova/whisper-tiny', label: 'Tiny' },
+    { id: 'Xenova/whisper-base', label: 'Base' },
+    { id: 'Xenova/whisper-small', label: 'Small' },
 ]
 
 export function useWhisperModels() {

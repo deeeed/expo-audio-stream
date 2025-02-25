@@ -70,8 +70,12 @@ const Transcriber: React.FC<TranscriberProps> = ({
             logger.debug('Start new transcription...', currentAudio)
             transcribe({
                 audioData: currentAudio,
-                position: 0,
                 jobId: Date.now().toString(),
+                options: {
+                    language: 'en',
+                    tokenTimestamps: true,
+                    tdrzEnable: true,
+                },
             })
                 .then((result) => {
                     console.debug('Transcriber result', JSON.stringify(result))

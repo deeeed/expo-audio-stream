@@ -430,13 +430,14 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 // Pass both options separately - normalizeAudio from decodingOptions, and includeNormalizedData as is
                 let decodingConfig = DecodingConfig.fromDictionary(decodingOptions)
                 
-                let (pcmData, normalizedData) = try extractRawAudioData(
+                let (pcmData, normalizedData, base64Data) = try extractRawAudioData(
                     from: url,
                     startFrame: startFrame,
                     frameCount: frameCount,
                     format: format,
                     decodingConfig: decodingConfig,
-                    includeNormalizedData: includeNormalizedData
+                    includeNormalizedData: includeNormalizedData,
+                    includeBase64Data: options["includeBase64Data"] as? Bool ?? false
                 )
 
                 var resultDict: [String: Any] = [
@@ -460,6 +461,10 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     resultDict["checksum"] = Int(checksum)
                     
                     Logger.debug("Computed CRC32 checksum: \(checksum)")
+                }
+                
+                if let includeBase64Data = options["includeBase64Data"] as? Bool, includeBase64Data {
+                    resultDict["base64Data"] = base64Data
                 }
                 
                 promise.resolve(resultDict)

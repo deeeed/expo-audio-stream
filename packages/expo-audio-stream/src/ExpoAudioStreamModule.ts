@@ -90,6 +90,8 @@ if (Platform.OS === 'web') {
                 startTimeMs,
                 endTimeMs,
                 decodingOptions,
+                includeNormalizedData,
+                includeBase64Data,
                 logger,
             } = options
 
@@ -199,8 +201,16 @@ if (Platform.OS === 'web') {
                 samples: numSamples,
             }
 
-            if (options.includeNormalizedData) {
+            if (includeNormalizedData) {
                 result.normalizedData = channelData
+            }
+            
+            if (includeBase64Data) {
+                // Convert the PCM data to a base64 string
+                const binary = Array.from(new Uint8Array(pcmData.buffer))
+                    .map(b => String.fromCharCode(b))
+                    .join('')
+                result.base64Data = btoa(binary)
             }
 
             if (options.computeChecksum) {

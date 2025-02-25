@@ -50,18 +50,33 @@ export interface TranscriberCompleteData {
 }
 
 /**
- * Either base64 encoded string or Float32Array
+ * Either base64 encoded string or ArrayBuffer or Float32Array or Uint8Array (PCM data)
  */
-export type AudioInputData = string | Float32Array
+export type AudioInputData = string | ArrayBuffer | Float32Array | Uint8Array
 
-export interface TranscribeParams {
-    audioData: AudioInputData | undefined
+// Base interface with common properties
+interface BaseTranscribeParams {
     position?: number
     jobId?: string
-    options: Partial<TranscribeFileOptions>
+    options?: Partial<TranscribeFileOptions>
     onProgress?: (progress: number) => void
     onNewSegments?: (result: TranscribeNewSegmentsResult) => void
 }
+
+// Interface for using audioData
+interface AudioDataParams extends BaseTranscribeParams {
+    audioData: AudioInputData
+    audioUri?: never // Cannot be used with audioData
+}
+
+// Interface for using audioUri
+interface AudioUriParams extends BaseTranscribeParams {
+    audioData?: never // Cannot be used with audioUri
+    audioUri: string
+}
+
+// Union type that requires either audioData or audioUri, but not both
+export type TranscribeParams = AudioDataParams | AudioUriParams
 
 export interface TranscribeResult {
     promise: Promise<TranscriberData>
@@ -70,7 +85,7 @@ export interface TranscribeResult {
 }
 
 export interface TranscriptionContextProps extends TranscriptionState {
-    initialize: () => void
+    initialize: () => Promise<void>
     transcribe: (_: TranscribeParams) => Promise<TranscribeResult>
     updateConfig: (
         config: Partial<TranscriptionState>,

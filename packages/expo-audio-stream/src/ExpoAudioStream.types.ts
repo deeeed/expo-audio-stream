@@ -277,6 +277,8 @@ export interface ExtractAudioDataOptions {
     length?: number
     /** Include normalized audio data in [-1, 1] range */
     includeNormalizedData?: boolean
+    /** Include base64 encoded string representation of the audio data */
+    includeBase64Data?: boolean
     logger?: ConsoleLike
     /** Compute the checksum of the pcm data */
     computeChecksum?: boolean
@@ -289,6 +291,8 @@ export interface ExtractedAudioData {
     pcmData: Uint8Array
     /** Normalized audio data in [-1, 1] range (when includeNormalizedData is true) */
     normalizedData?: Float32Array
+    /** Base64 encoded string representation of the audio data (when includeBase64Data is true) */
+    base64Data?: string
     /** Sample rate in Hz (e.g., 44100, 48000) */
     sampleRate: number
     /** Number of audio channels (1 for mono, 2 for stereo) */
