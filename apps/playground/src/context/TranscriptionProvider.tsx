@@ -146,7 +146,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                             })
                         },
                         onNewSegments(result) {
-                            console.debug('onNewSegments', result)
+                            console.debug('onNewSegments called with:', result)
                             const chunks = result.segments.map((segment) => {
                                 return {
                                     text: segment.text.trim(),

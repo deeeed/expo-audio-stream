@@ -6,6 +6,9 @@ import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { useSileroVAD } from '../../hooks/useSileroVAD'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
+import { useTranscriptionAnalyzer } from '../../hooks/useTranscriptionAnalyzer'
+import { isWeb } from '../../utils/utils'
+import { TranscriptionResults } from '../../components/TranscriptionResults'
 
 interface SpeechAnalyzerProps {
     analysis: AudioAnalysis
@@ -25,10 +28,28 @@ export function SpeechAnalyzer({
     const [detectedLanguage, setDetectedLanguage] = useState<string>()
     const [transcription, setTranscription] = useState<string>()
     const [vadResult, setVadResult] = useState<{ probability: number; isSpeech: boolean }>()
+    const [showTranscriptionResults, setShowTranscriptionResults] = useState(false)
+    const [transcriptionData, setTranscriptionData] = useState<any>(null)
+    const [transcriptionError, setTranscriptionError] = useState<string | null>(null)
 
     const { isModelLoading, isProcessing, processAudioSegment } = useSileroVAD({
         onError: (error) => {
             console.error('VAD Error:', error)
+        }
+    })
+
+    const { 
+        isModelLoading: isTranscriptionModelLoading, 
+        isProcessing: isTranscriptionProcessing, 
+        processAudioSegment: processTranscription,
+    } = useTranscriptionAnalyzer({
+        onError: (error: Error) => {
+            console.error('Transcription Error:', error)
+            setTranscriptionError(error.message)
+        },
+        onTranscriptionUpdate: (data) => {
+            setTranscription(data.text)
+            setTranscriptionData(data)
         }
     })
 
@@ -82,15 +103,20 @@ export function SpeechAnalyzer({
         }
     }
 
-    const handleTranscribe = async () => {
+    const handleTranscribe = useCallback(async () => {
+        if (!audioData?.normalizedData || !sampleRate || isProcessing) return
+        
         setIsTranscribing(true)
+        setShowTranscriptionResults(true)
         try {
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            setTranscription('Not implemented')
+            await processTranscription(
+                isWeb ? audioData.normalizedData : audioData.pcmData,
+                sampleRate
+            )
         } finally {
             setIsTranscribing(false)
         }
-    }
+    }, [audioData, sampleRate, isProcessing, processTranscription])
 
     const handleVAD = useCallback(async () => {
         if (!audioData?.normalizedData || !sampleRate) {
@@ -211,14 +237,17 @@ export function SpeechAnalyzer({
                             <Text variant="bodyMedium" style={styles.value}>{detectedLanguage}</Text>
                         </View>
                     )}
-
-                    {transcription && (
-                        <View style={styles.resultContainer}>
-                            <Text variant="bodyMedium" style={styles.label}>Transcription:</Text>
-                            <Text variant="bodyMedium" style={styles.value}>{transcription}</Text>
-                        </View>
-                    )}
                 </>
+            )}
+
+            {/* Only show TranscriptionResults if showTranscriptionResults is true */}
+            {showTranscriptionResults && (
+                <TranscriptionResults
+                    transcriptionData={transcriptionData}
+                    isLoading={isTranscriptionModelLoading}
+                    isProcessing={isTranscriptionProcessing}
+                    error={transcriptionError || undefined}
+                />
             )}
         </View>
     )
