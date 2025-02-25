@@ -1,11 +1,14 @@
-import { FontAwesome } from '@expo/vector-icons'
+// import { FontAwesome } from '@expo/vector-icons'
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { AppTheme, useTheme } from '@siteed/design-system'
-import { AudioAnalysis, ExtractedAudioData } from '@siteed/expo-audio-stream'
-import React, { useState, useCallback, useEffect } from 'react'
+import { AudioAnalysis, ExtractedAudioData, TranscriberData } from '@siteed/expo-audio-stream'
+import React, { useCallback, useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
+import { TranscriptionResults } from '../../components/TranscriptionResults'
 import { useSileroVAD } from '../../hooks/useSileroVAD'
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
+import { useTranscriptionAnalyzer } from '../../hooks/useTranscriptionAnalyzer'
+import { isWeb } from '../../utils/utils'
 
 interface SpeechAnalyzerProps {
     analysis: AudioAnalysis
@@ -23,12 +26,28 @@ export function SpeechAnalyzer({
     const [isDetectingLanguage, setIsDetectingLanguage] = useState(false)
     const [isTranscribing, setIsTranscribing] = useState(false)
     const [detectedLanguage, setDetectedLanguage] = useState<string>()
-    const [transcription, setTranscription] = useState<string>()
     const [vadResult, setVadResult] = useState<{ probability: number; isSpeech: boolean }>()
+    const [showTranscriptionResults, setShowTranscriptionResults] = useState(false)
+    const [transcriptionData, setTranscriptionData] = useState<TranscriberData>()
+    const [transcriptionError, setTranscriptionError] = useState<string | null>(null)
 
     const { isModelLoading, isProcessing, processAudioSegment } = useSileroVAD({
         onError: (error) => {
             console.error('VAD Error:', error)
+        }
+    })
+
+    const { 
+        isModelLoading: isTranscriptionModelLoading, 
+        isProcessing: isTranscriptionProcessing, 
+        processAudioSegment: processTranscription,
+    } = useTranscriptionAnalyzer({
+        onError: (error: Error) => {
+            console.error('Transcription Error:', error)
+            setTranscriptionError(error.message)
+        },
+        onTranscriptionUpdate: (data) => {
+            setTranscriptionData(data)
         }
     })
 
@@ -47,6 +66,35 @@ export function SpeechAnalyzer({
     const segmentDurationMs = analysis.durationMs ?? 0
     const hasEnoughData = segmentDurationMs >= 1000
 
+
+    const handleTranscribe = useCallback(async () => {
+        if (!audioData?.normalizedData || !sampleRate || isProcessing) return
+        
+        setIsTranscribing(true)
+        setShowTranscriptionResults(true)
+        try {
+            await processTranscription(
+                isWeb ? audioData.normalizedData : audioData.pcmData,
+                sampleRate
+            )
+        } finally {
+            setIsTranscribing(false)
+        }
+    }, [audioData, sampleRate, isProcessing, processTranscription])
+
+    const handleVAD = useCallback(async () => {
+        if (!audioData?.normalizedData || !sampleRate) {
+            console.error('No audio data or sample rate available')
+            return
+        }
+
+        // Use normalized data directly from audioData
+        const result = await processAudioSegment(audioData.normalizedData, sampleRate)
+        if (result) {
+            setVadResult(result)
+        }
+    }, [audioData, sampleRate, processAudioSegment])
+    
     // If we're not getting durationMs directly, we can calculate it from PCM data
     useEffect(() => {
         if (!segmentDurationMs && audioData?.normalizedData && sampleRate) {
@@ -69,7 +117,7 @@ export function SpeechAnalyzer({
             // Clear previous VAD result if we don't have enough data
             setVadResult(undefined)
         }
-    }, [audioData, sampleRate, isModelLoading, hasEnoughData])
+    }, [audioData, sampleRate, isModelLoading, hasEnoughData, handleVAD])
 
     const handleDetectLanguage = async () => {
         setIsDetectingLanguage(true)
@@ -82,30 +130,6 @@ export function SpeechAnalyzer({
         }
     }
 
-    const handleTranscribe = async () => {
-        setIsTranscribing(true)
-        try {
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            setTranscription('Not implemented')
-        } finally {
-            setIsTranscribing(false)
-        }
-    }
-
-    const handleVAD = useCallback(async () => {
-        if (!audioData?.normalizedData || !sampleRate) {
-            console.error('No audio data or sample rate available')
-            return
-        }
-
-        // Use normalized data directly from audioData
-        const result = await processAudioSegment(audioData.normalizedData, sampleRate)
-        if (result) {
-            setVadResult(result)
-        }
-    }, [audioData, sampleRate, processAudioSegment])
-
-    const isSpeechActive = analysis.dataPoints[0]?.speech?.isActive
 
     return (
         <View style={styles.speechSection}>
@@ -211,14 +235,17 @@ export function SpeechAnalyzer({
                             <Text variant="bodyMedium" style={styles.value}>{detectedLanguage}</Text>
                         </View>
                     )}
-
-                    {transcription && (
-                        <View style={styles.resultContainer}>
-                            <Text variant="bodyMedium" style={styles.label}>Transcription:</Text>
-                            <Text variant="bodyMedium" style={styles.value}>{transcription}</Text>
-                        </View>
-                    )}
                 </>
+            )}
+
+            {/* Only show TranscriptionResults if showTranscriptionResults is true */}
+            {showTranscriptionResults && (
+                <TranscriptionResults
+                    transcriptionData={transcriptionData}
+                    isLoading={isTranscriptionModelLoading}
+                    isProcessing={isTranscriptionProcessing}
+                    error={transcriptionError || undefined}
+                />
             )}
         </View>
     )

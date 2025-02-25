@@ -1,7 +1,9 @@
 import { getLogger } from '@siteed/react-native-logger'
 import Constants from 'expo-constants'
+import { Platform } from 'react-native'
 
 import { mobileTabletCheck } from './utils/utils'
+import { WHISPER_MODELS } from './hooks/useWhisperModels'
 
 const baseUrl =
     Constants.expoConfig?.experiments?.baseUrl?.replace(/\/$/, '') ?? ''
@@ -9,17 +11,30 @@ const baseUrl =
 const isMobileOrTablet = mobileTabletCheck()
 export const WhisperSampleRate = 16000
 
+// Web-specific model configuration
+const webConfig = {
+    DEFAULT_MODEL: 'Xenova/whisper-tiny',
+    DEFAULT_QUANTIZED: isMobileOrTablet,
+    DEFAULT_MULTILINGUAL: false,
+}
+
+// Native-specific model configuration
+const nativeConfig = {
+    DEFAULT_MODEL: WHISPER_MODELS[0].id, // 'tiny' model
+    DEFAULT_QUANTIZED: true,
+    DEFAULT_MULTILINGUAL: false,
+}
+
 export const config = {
     baseUrl,
     audioWorkletUrl: `${baseUrl}/audioworklet.js`,
     featuresExtratorUrl: `${baseUrl}/audio-features-extractor.js`,
     whisperWorkerUrl: `${baseUrl}/whisperWorker.js`,
-    DEFAULT_MODEL: 'Xenova/whisper-tiny',
-    // DEFAULT_MODEL: 'Xenova/whisper-medium',
+    DEFAULT_MODEL: Platform.OS === 'web' ? webConfig.DEFAULT_MODEL : nativeConfig.DEFAULT_MODEL,
     DEFAULT_SUBTASK: 'transcribe',
     DEFAULT_LANGUAGE: 'english',
-    DEFAULT_QUANTIZED: isMobileOrTablet,
-    DEFAULT_MULTILINGUAL: false,
+    DEFAULT_QUANTIZED: Platform.OS === 'web' ? webConfig.DEFAULT_QUANTIZED : nativeConfig.DEFAULT_QUANTIZED,
+    DEFAULT_MULTILINGUAL: Platform.OS === 'web' ? webConfig.DEFAULT_MULTILINGUAL : nativeConfig.DEFAULT_MULTILINGUAL,
 }
 
 export const baseLogger = getLogger('audio-playground')
