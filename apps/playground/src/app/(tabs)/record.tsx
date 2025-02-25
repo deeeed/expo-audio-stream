@@ -473,9 +473,6 @@ export default function RecordScreen() {
         }
     }, [stopRecording, enableLiveTranscription, router, show, hide, transcripts, refreshFiles, transcribeLive, startRecordingConfig.sampleRate])
 
-
-    console.log(`analysisData`, JSON.stringify(analysisData))
-
     const renderRecording = () => (
         <View style={{ gap: 10, display: 'flex' }}>
             {analysisData && (

@@ -52,6 +52,7 @@ export class WebRecorder {
     private compressedSize: number = 0
     private pendingCompressedChunk: Blob | null = null
     private readonly wavMimeType = 'audio/wav'
+    private dataPointIdCounter: number = 0 // Add this property to track the counter
 
     /**
      * Initializes a new WebRecorder instance for audio recording and processing
@@ -284,6 +285,23 @@ export class WebRecorder {
         if (event.data.command === 'features') {
             const segmentResult = event.data.result
 
+            // Update the dataPointIdCounter based on the last ID received
+            if (
+                segmentResult.dataPoints &&
+                segmentResult.dataPoints.length > 0
+            ) {
+                const lastDataPoint =
+                    segmentResult.dataPoints[
+                        segmentResult.dataPoints.length - 1
+                    ]
+                if (lastDataPoint && typeof lastDataPoint.id === 'number') {
+                    this.dataPointIdCounter = Math.max(
+                        this.dataPointIdCounter,
+                        lastDataPoint.id + 1
+                    )
+                }
+            }
+
             console.debug('[WebRecorder] Raw segment result:', {
                 dataPointsLength: segmentResult.dataPoints.length,
                 durationMs: segmentResult.durationMs,
@@ -359,6 +377,22 @@ export class WebRecorder {
     }
 
     /**
+     * Resets the data point ID counter
+     * Used when starting a new recording
+     */
+    resetDataPointCounter() {
+        this.dataPointIdCounter = 0
+
+        // Reset the counter in the worker
+        if (this.featureExtractorWorker) {
+            this.featureExtractorWorker.postMessage({
+                command: 'resetCounter',
+                startCounterFrom: 0,
+            })
+        }
+    }
+
+    /**
      * Starts the audio recording process
      * Connects the audio nodes and begins capturing audio data
      */
@@ -366,6 +400,9 @@ export class WebRecorder {
         this.source.connect(this.audioWorkletNode)
         this.audioWorkletNode.connect(this.audioContext.destination)
         this.packetCount = 0
+
+        // Reset the counter when starting a new recording
+        this.resetDataPointCounter()
 
         if (this.compressedMediaRecorder) {
             this.compressedMediaRecorder.start(this.config.interval ?? 1000)
@@ -506,6 +543,38 @@ export class WebRecorder {
                 'Failed to initialize compressed recorder:',
                 error
             )
+        }
+    }
+
+    /**
+     * Processes features if enabled
+     */
+    processFeatures(
+        chunk: Float32Array,
+        sampleRate: number,
+        chunkPosition: number,
+        startPosition: number,
+        endPosition: number,
+        samples: number
+    ) {
+        if (this.config.enableProcessing && this.featureExtractorWorker) {
+            this.featureExtractorWorker.postMessage({
+                command: 'process',
+                channelData: chunk,
+                sampleRate,
+                segmentDurationMs:
+                    this.config.segmentDurationMs ??
+                    DEFAULT_SEGMENT_DURATION_MS, // Default to 100ms
+                bitDepth: this.bitDepth,
+                fullAudioDurationMs: chunkPosition * 1000,
+                numberOfChannels: this.numberOfChannels,
+                features: this.config.features,
+                intervalAnalysis: this.config.intervalAnalysis,
+                startPosition,
+                endPosition,
+                samples,
+                startCounterFrom: this.dataPointIdCounter, // Pass the current counter value
+            })
         }
     }
 }

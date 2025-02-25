@@ -446,8 +446,16 @@ let accumulatedDataPoints = []
 let lastEmitTime = Date.now()
 
 self.onmessage = function (event) {
+    // Check if this is a reset command
+    if (event.data.command === 'resetCounter') {
+        uniqueIdCounter = event.data.startCounterFrom || 0;
+        console.log('[Worker] Reset counter to', uniqueIdCounter);
+        return; // Exit early, don't process audio
+    }
+
+    // Regular audio processing
     const {
-        channelData, // this is only the newly recorded data when live recording.
+        channelData,
         sampleRate,
         segmentDurationMs,
         algorithm,
@@ -457,7 +465,14 @@ self.onmessage = function (event) {
         features: _features,
         intervalAnalysis = 500,
         enableLogging,
+        resetCounter,
+        startCounterFrom,
     } = event.data
+
+    // Also handle reset as part of regular message
+    if (resetCounter) {
+        uniqueIdCounter = startCounterFrom || 0;
+    }
 
     const subChunkStartTime = fullAudioDurationMs / 1000
 
@@ -667,7 +682,7 @@ self.onmessage = function (event) {
             var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate, features);
 
             const dataPoint = {
-                id: i,
+                id: uniqueIdCounter++,
                 amplitude: maxAmp,
                 rms,
                 startTime,
@@ -726,7 +741,7 @@ self.onmessage = function (event) {
             var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate, features);
 
             const dataPoint = {
-                id: numPoints,
+                id: uniqueIdCounter++,
                 amplitude: maxAmp,
                 rms,
                 startTime,
