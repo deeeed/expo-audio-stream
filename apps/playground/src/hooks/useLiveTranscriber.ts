@@ -28,6 +28,7 @@ const CHECKPOINT_INTERVAL = 15
 
 export function useLiveTranscriber({
     audioBuffer,
+    sampleRate,
     stopping,
     enabled,
     quickUpdateInterval = QUICK_UPDATE_INTERVAL,
@@ -64,7 +65,7 @@ export function useLiveTranscriber({
     }: {
         interval: number
         jobId: string
-        fetchDuration?: number // how much buffer to fetch in the past for better precision
+        fetchDuration?: number
         lastIndexRef: React.MutableRefObject<number>
         processingRef: React.MutableRefObject<boolean>
     }) => {
@@ -73,9 +74,7 @@ export function useLiveTranscriber({
         const remaining = threshold - accumulated
 
         let transcript: TranscriberData | undefined
-        // logger.log(
-        //     `[${jobId}] Remaining=${remaining} Accumulated=${accumulated}`
-        // )
+        
         if (stopping || remaining <= 0) {
             activeJobId.current = jobId
             processingRef.current = true
@@ -91,9 +90,6 @@ export function useLiveTranscriber({
                 const adjustedPosition =
                     (audioBuffer.length - audioData.length) / WhisperSampleRate
 
-                // logger.info(
-                //     `[${jobId}] adjustedPosition: ${adjustedPosition} audioBuffer.length: ${audioBuffer.length} audioData.length: ${audioData.length}`
-                // )
                 const from = formatDuration(adjustedPosition * 1000)
                 const to = formatDuration(
                     (audioBuffer.length / WhisperSampleRate) * 1000
@@ -109,6 +105,11 @@ export function useLiveTranscriber({
                     audioData,
                     jobId,
                     position: adjustedPosition,
+                    onChunkUpdate: (data) => {
+                        // Handle live updates if needed
+                        const [text, { chunks }] = data;
+                        setActiveTranscript(text);
+                    }
                 })
                 const time = performance.now() - startTime
                 const transcriptionSpeed = time / segmentDuration

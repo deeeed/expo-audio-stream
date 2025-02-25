@@ -2,13 +2,13 @@ import { Button, ScreenWrapper } from '@siteed/design-system'
 import { TranscriberData } from '@siteed/expo-audio-stream'
 import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { ProgressBar, SegmentedButtons } from 'react-native-paper'
-import { TranscribeNewSegmentsResult } from 'whisper.rn'
 
 import Transcript from '../component/Transcript'
-import { useWhisperModels, WHISPER_MODELS } from '../hooks/useWhisperModels'
+import { useTranscription } from '../context/TranscriptionProvider'
+import { WHISPER_MODELS } from '../hooks/useWhisperModels'
 import { isWeb } from '../utils/utils'
 
 interface TranscriptionLog {
@@ -115,29 +115,29 @@ export function NativeWhisperScreen() {
         TranscriptionLog[]
     >([])
 
-    const {
-        downloadProgress,
-        isDownloading,
-        isInitializingModel,
-        whisperContext,
-        initializeWhisperModel,
-        resetWhisperContext,
-    } = useWhisperModels()
-
     const [selectedModel, setSelectedModel] = useState<string>('tiny')
 
-    const convertWhisperSegmentsToChunks = useCallback(
-        (result: TranscribeNewSegmentsResult) => {
-            return result.segments.map((segment) => ({
-                text: segment.text.trim(),
-                timestamp: [
-                    segment.t0 / 100,
-                    segment.t1 ? segment.t1 / 100 : null,
-                ] as [number, number | null],
-            }))
-        },
-        []
-    )
+    const {
+        isModelLoading: isInitializingModel,
+        ready: whisperContextReady,
+        resetWhisperContext,
+        transcribe,
+        updateConfig,
+        progressItems,
+    } = useTranscription()
+
+    const downloadProgress = useMemo(() => {
+        const modelItem = progressItems.find(
+            item => item.name === selectedModel && item.status === 'downloading'
+        )
+        return { [selectedModel]: modelItem ? modelItem.progress / 100 : 0 }
+    }, [progressItems, selectedModel])
+
+    const isDownloading = useMemo(() => {
+        return progressItems.some(
+            item => item.status === 'downloading'
+        )
+    }, [progressItems])
 
     const handleFileSelection = useCallback(async () => {
         const result = await DocumentPicker.getDocumentAsync({
@@ -159,11 +159,11 @@ export function NativeWhisperScreen() {
     )
 
     const handleInitialize = useCallback(async () => {
-        await initializeWhisperModel(selectedModel)
-    }, [selectedModel, initializeWhisperModel])
+        await updateConfig({ model: selectedModel }, true)
+    }, [selectedModel, updateConfig])
 
     const startTranscription = useCallback(async () => {
-        if (!selectedFile || !whisperContext) return
+        if (!selectedFile || !whisperContextReady) return
 
         try {
             setIsTranscribing(true)
@@ -194,48 +194,56 @@ export function NativeWhisperScreen() {
                     : 0
             sound.sound.unloadAsync()
 
-            const { promise, stop } = whisperContext.transcribe(
-                selectedFile.uri,
-                {
+            const { promise, stop } = await transcribe({
+                audioData: selectedFile.uri,
+                jobId: '1',
+                options: {
                     language: 'en',
                     tokenTimestamps: true,
                     tdrzEnable: true,
-                    onProgress(progress: number) {
-                        setProgress(progress)
-                    },
-                    onNewSegments(result) {
-                        const newChunks = convertWhisperSegmentsToChunks(result)
-                        setTranscriptionData((prev) => {
-                            const existingChunks = prev.chunks || []
-                            const updatedChunks = [...existingChunks]
+                },
+                onProgress(progress: number) {
+                    setProgress(progress)
+                },
+                onNewSegments(result) {
+                    setTranscriptionData((prev) => {
+                        const existingChunks = prev.chunks || []
+                        const updatedChunks = [...existingChunks]
+                        
+                        // Convert segments to the format we need
+                        const newChunks = result.segments.map(segment => ({
+                            text: segment.text.trim(),
+                            timestamp: [
+                                segment.t0 / 100,
+                                segment.t1 ? segment.t1 / 100 : null,
+                            ] as [number, number | null],
+                        }))
 
-                            newChunks.forEach((newChunk) => {
-                                const isDuplicate = existingChunks.some(
-                                    (existing) =>
-                                        existing.text === newChunk.text &&
-                                        existing.timestamp[0] ===
-                                            newChunk.timestamp[0]
-                                )
-                                if (!isDuplicate) {
-                                    updatedChunks.push(newChunk)
-                                }
-                            })
-
-                            return {
-                                ...prev,
-                                text: updatedChunks
-                                    .map((chunk) => chunk.text)
-                                    .join(' '),
-                                chunks: updatedChunks,
+                        newChunks.forEach((newChunk) => {
+                            const isDuplicate = existingChunks.some(
+                                (existing) =>
+                                    existing.text === newChunk.text &&
+                                    existing.timestamp[0] === newChunk.timestamp[0]
+                            )
+                            if (!isDuplicate) {
+                                updatedChunks.push(newChunk)
                             }
                         })
-                    },
+
+                        return {
+                            ...prev,
+                            text: updatedChunks
+                                .map((chunk) => chunk.text)
+                                .join(' '),
+                            chunks: updatedChunks,
+                        }
+                    })
                 }
-            )
+            })
 
             setStopTranscription(() => stop)
 
-            const { result: transcription } = await promise
+            const transcription = await promise
             const endTime = Date.now()
             const processingDuration = (endTime - startTime) / 1000
 
@@ -252,12 +260,7 @@ export function NativeWhisperScreen() {
             ])
 
             console.log('Final transcription:', transcription)
-            setTranscriptionData((prev) => ({
-                ...prev,
-                isBusy: false,
-                text: transcription.trim(),
-                endTime: Date.now(),
-            }))
+            setTranscriptionData(transcription)
         } catch (error) {
             console.error('Transcription error:', error)
             setTranscriptionData((prev) => ({
@@ -273,7 +276,7 @@ export function NativeWhisperScreen() {
             setIsTranscribing(false)
             setStopTranscription(null)
         }
-    }, [convertWhisperSegmentsToChunks, selectedFile, selectedModel, whisperContext])
+    }, [selectedFile, selectedModel, whisperContextReady, transcribe])
 
     const handleStop = useCallback(async () => {
         if (stopTranscription) {
@@ -332,7 +335,7 @@ export function NativeWhisperScreen() {
                     disabled={
                         isInitializingModel ||
                         isDownloading ||
-                        whisperContext !== null
+                        whisperContextReady
                     }
                 >
                     {isDownloading
@@ -345,7 +348,7 @@ export function NativeWhisperScreen() {
                     onPress={startTranscription}
                     loading={isTranscribing}
                     disabled={
-                        isTranscribing || !selectedFile || !whisperContext
+                        isTranscribing || !selectedFile || !whisperContextReady
                     }
                 >
                     Start Transcription
