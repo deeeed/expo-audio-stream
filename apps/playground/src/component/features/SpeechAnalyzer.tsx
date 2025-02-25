@@ -1,14 +1,14 @@
-import { FontAwesome } from '@expo/vector-icons'
+// import { FontAwesome } from '@expo/vector-icons'
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { AppTheme, useTheme } from '@siteed/design-system'
-import { AudioAnalysis, ExtractedAudioData } from '@siteed/expo-audio-stream'
-import React, { useState, useCallback, useEffect } from 'react'
+import { AudioAnalysis, ExtractedAudioData, TranscriberData } from '@siteed/expo-audio-stream'
+import React, { useCallback, useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
+import { TranscriptionResults } from '../../components/TranscriptionResults'
 import { useSileroVAD } from '../../hooks/useSileroVAD'
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { useTranscriptionAnalyzer } from '../../hooks/useTranscriptionAnalyzer'
 import { isWeb } from '../../utils/utils'
-import { TranscriptionResults } from '../../components/TranscriptionResults'
 
 interface SpeechAnalyzerProps {
     analysis: AudioAnalysis
@@ -26,10 +26,9 @@ export function SpeechAnalyzer({
     const [isDetectingLanguage, setIsDetectingLanguage] = useState(false)
     const [isTranscribing, setIsTranscribing] = useState(false)
     const [detectedLanguage, setDetectedLanguage] = useState<string>()
-    const [transcription, setTranscription] = useState<string>()
     const [vadResult, setVadResult] = useState<{ probability: number; isSpeech: boolean }>()
     const [showTranscriptionResults, setShowTranscriptionResults] = useState(false)
-    const [transcriptionData, setTranscriptionData] = useState<any>(null)
+    const [transcriptionData, setTranscriptionData] = useState<TranscriberData>()
     const [transcriptionError, setTranscriptionError] = useState<string | null>(null)
 
     const { isModelLoading, isProcessing, processAudioSegment } = useSileroVAD({
@@ -48,7 +47,6 @@ export function SpeechAnalyzer({
             setTranscriptionError(error.message)
         },
         onTranscriptionUpdate: (data) => {
-            setTranscription(data.text)
             setTranscriptionData(data)
         }
     })
@@ -68,40 +66,6 @@ export function SpeechAnalyzer({
     const segmentDurationMs = analysis.durationMs ?? 0
     const hasEnoughData = segmentDurationMs >= 1000
 
-    // If we're not getting durationMs directly, we can calculate it from PCM data
-    useEffect(() => {
-        if (!segmentDurationMs && audioData?.normalizedData && sampleRate) {
-            // PCM data is 16-bit (2 bytes per sample)
-            const numSamples = audioData.normalizedData.length / 2
-            const calculatedDurationMs = (numSamples / sampleRate) * 1000
-            console.log('Calculated duration:', calculatedDurationMs, 'ms')
-        }
-    }, [segmentDurationMs, audioData, sampleRate])
-
-    useEffect(() => {
-        if (!audioData?.normalizedData || !sampleRate || !isModelLoading) {
-            return
-        }
-
-        // Only process if we have enough data and actually have data
-        if (audioData.normalizedData.length > 0 && hasEnoughData) {
-            handleVAD()
-        } else {
-            // Clear previous VAD result if we don't have enough data
-            setVadResult(undefined)
-        }
-    }, [audioData, sampleRate, isModelLoading, hasEnoughData])
-
-    const handleDetectLanguage = async () => {
-        setIsDetectingLanguage(true)
-        try {
-            // TODO: Implement language detection using a speech-to-text service
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            setDetectedLanguage('en-US')
-        } finally {
-            setIsDetectingLanguage(false)
-        }
-    }
 
     const handleTranscribe = useCallback(async () => {
         if (!audioData?.normalizedData || !sampleRate || isProcessing) return
@@ -130,8 +94,42 @@ export function SpeechAnalyzer({
             setVadResult(result)
         }
     }, [audioData, sampleRate, processAudioSegment])
+    
+    // If we're not getting durationMs directly, we can calculate it from PCM data
+    useEffect(() => {
+        if (!segmentDurationMs && audioData?.normalizedData && sampleRate) {
+            // PCM data is 16-bit (2 bytes per sample)
+            const numSamples = audioData.normalizedData.length / 2
+            const calculatedDurationMs = (numSamples / sampleRate) * 1000
+            console.log('Calculated duration:', calculatedDurationMs, 'ms')
+        }
+    }, [segmentDurationMs, audioData, sampleRate])
 
-    const isSpeechActive = analysis.dataPoints[0]?.speech?.isActive
+    useEffect(() => {
+        if (!audioData?.normalizedData || !sampleRate || !isModelLoading) {
+            return
+        }
+
+        // Only process if we have enough data and actually have data
+        if (audioData.normalizedData.length > 0 && hasEnoughData) {
+            handleVAD()
+        } else {
+            // Clear previous VAD result if we don't have enough data
+            setVadResult(undefined)
+        }
+    }, [audioData, sampleRate, isModelLoading, hasEnoughData, handleVAD])
+
+    const handleDetectLanguage = async () => {
+        setIsDetectingLanguage(true)
+        try {
+            // TODO: Implement language detection using a speech-to-text service
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            setDetectedLanguage('en-US')
+        } finally {
+            setIsDetectingLanguage(false)
+        }
+    }
+
 
     return (
         <View style={styles.speechSection}>

@@ -36,7 +36,7 @@ export function useUnifiedTranscription({
     
     // For live transcription
     const lastCheckpointBufferIndex = useRef(0)
-    const lastUpdateBufferIndex = useRef(0)
+    const _lastUpdateBufferIndex = useRef(0)
     
     const initialize = useCallback(async () => {
         try {
@@ -65,13 +65,13 @@ export function useUnifiedTranscription({
     // One-time transcription of audio data
     const transcribe = useCallback(async (
         audioData: Float32Array | Uint8Array,
-        sampleRate: number,
+        _sampleRate: number,
         position: number = 0
     ): Promise<TranscriberData | null> => {
         if (!audioData || audioData.length === 0) return null;
         
         if (isProcessing || activeJobRef.current || transcriptionContext.isBusy) {
-            logger.debug('Skipping transcription - another one is in progress');
+            logger.debug('Skipping transcription - another one in progress');
             return null;
         }
 
@@ -80,7 +80,6 @@ export function useUnifiedTranscription({
         activeJobRef.current = jobId;
 
         try {
-            // Initial notification with busy state
             const initialData: TranscriberData = {
                 id: jobId,
                 text: '',
@@ -91,17 +90,28 @@ export function useUnifiedTranscription({
             };
             onTranscriptionUpdate?.(initialData);
 
-            // Process audio data based on platform
             const processedAudioData = isWeb && audioData instanceof Uint8Array
                 ? new Float32Array(audioData.buffer)
                 : audioData;
 
-            const result = await transcriptionContext.transcribe({
+            const { promise } = await transcriptionContext.transcribe({
                 audioData: processedAudioData as Float32Array,
                 jobId,
                 position,
-                onChunkUpdate: ([text, { chunks }]) => {
+                options: {
+                    language: language === 'auto' ? undefined : language,
+                },
+                onNewSegments: (result) => {
                     if (jobId === activeJobRef.current) {
+                        const chunks = result.segments.map((segment) => ({
+                            text: segment.text.trim(),
+                            timestamp: [
+                                segment.t0 / 100,
+                                segment.t1 ? segment.t1 / 100 : null,
+                            ] as [number, number | null],
+                        }));
+
+                        const text = chunks.map((c) => c.text).join(' ');
                         const updateData: TranscriberData = {
                             id: jobId,
                             text,
@@ -114,15 +124,12 @@ export function useUnifiedTranscription({
                     }
                 }
             });
+
+            const transcription = await promise;
             
-            if (result && jobId === activeJobRef.current) {
-                const finalResult = {
-                    ...result,
-                    isBusy: false,
-                    id: jobId
-                };
-                onTranscriptionUpdate?.(finalResult);
-                return finalResult;
+            if (transcription && jobId === activeJobRef.current) {
+                onTranscriptionUpdate?.(transcription);
+                return transcription;
             }
             
             return null;
@@ -131,13 +138,12 @@ export function useUnifiedTranscription({
             onError?.(error instanceof Error ? error : new Error('Transcription failed'));
             return null;
         } finally {
-            // Only clear states if this is still the active job
             if (activeJobRef.current === jobId) {
                 activeJobRef.current = null;
                 setIsProcessing(false);
             }
         }
-    }, [transcriptionContext, onError, onTranscriptionUpdate, isProcessing]);
+    }, [transcriptionContext, onError, onTranscriptionUpdate, isProcessing, language]);
 
     // Live transcription with continuous audio buffer
     const transcribeLive = useCallback(async (
@@ -162,21 +168,31 @@ export function useUnifiedTranscription({
         activeJobRef.current = jobId;
 
         try {
-            // Calculate how much audio to process
             const threshold = checkpointInterval * WhisperSampleRate;
             const accumulated = audioBuffer.length - lastCheckpointBufferIndex.current;
             
-            // Only process if we have enough new audio or we're stopping
             if (stopping || accumulated >= threshold) {
                 const audioData = audioBuffer.slice(lastCheckpointBufferIndex.current);
                 const adjustedPosition = (audioBuffer.length - audioData.length) / WhisperSampleRate;
                 
-                const result = await transcriptionContext.transcribe({
+                const { promise, stop } = await transcriptionContext.transcribe({
                     audioData,
                     jobId,
                     position: adjustedPosition,
-                    onChunkUpdate: ([text, { chunks }]) => {
+                    options: {
+                        language: language === 'auto' ? undefined : language,
+                    },
+                    onNewSegments: (result) => {
                         if (jobId === activeJobRef.current) {
+                            const chunks = result.segments.map((segment) => ({
+                                text: segment.text.trim(),
+                                timestamp: [
+                                    segment.t0 / 100,
+                                    segment.t1 ? segment.t1 / 100 : null,
+                                ] as [number, number | null],
+                            }));
+
+                            const text = chunks.map((c) => c.text).join(' ');
                             const updateData: TranscriberData = {
                                 id: jobId,
                                 text,
@@ -189,23 +205,21 @@ export function useUnifiedTranscription({
                         }
                     }
                 });
+
+                stopTranscriptionRef.current = stop;
+                const transcription = await promise;
                 
-                if (result) {
-                    // Update the checkpoint index for next time
-                    if (result.chunks.length > 0) {
-                        const lastChunk = result.chunks[result.chunks.length - 1];
-                        if (lastChunk.timestamp[1] === null) {
-                            // Incomplete chunk, don't include it in the checkpoint
-                            lastCheckpointBufferIndex.current = 
-                                lastChunk.timestamp[0] * WhisperSampleRate;
-                        } else {
-                            lastCheckpointBufferIndex.current = audioBuffer.length;
-                        }
+                if (transcription && jobId === activeJobRef.current) {
+                    if (transcription.chunks.length > 0) {
+                        const lastChunk = transcription.chunks[transcription.chunks.length - 1];
+                        lastCheckpointBufferIndex.current = lastChunk.timestamp[1] !== null
+                            ? audioBuffer.length
+                            : lastChunk.timestamp[0] * WhisperSampleRate;
                     } else {
                         lastCheckpointBufferIndex.current = audioBuffer.length;
                     }
                     
-                    return result;
+                    return transcription;
                 }
             }
             
@@ -220,7 +234,7 @@ export function useUnifiedTranscription({
                 setIsProcessing(false);
             }
         }
-    }, [transcriptionContext, onError, onTranscriptionUpdate, isProcessing]);
+    }, [transcriptionContext, onError, onTranscriptionUpdate, isProcessing, language]);
 
     // Cleanup on unmount
     useEffect(() => {

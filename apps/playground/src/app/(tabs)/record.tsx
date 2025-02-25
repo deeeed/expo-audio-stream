@@ -37,10 +37,10 @@ import { RecordingStats } from '../../component/RecordingStats'
 import { baseLogger, WhisperSampleRate } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { useTranscription } from '../../context/TranscriptionProvider'
-import { useLiveTranscriber } from '../../hooks/useLiveTranscriber'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
 import { SegmentDuration, SegmentDurationSelector } from '../../component/SegmentDurationSelector'
+import { useUnifiedTranscription } from '../../hooks/useUnifiedTranscription'
 
 const CHUNK_DURATION_MS = 500 // 500 ms chunks
 const MAX_AUDIO_BUFFER_LENGTH = 48000 * 5; // 5 seconds of audio at 48kHz
@@ -168,7 +168,7 @@ export default function RecordScreen() {
             ...baseRecordingConfig,
             onAudioStream: (a) => onAudioData(a),
         })
-    const { initialize, ready, isModelLoading, progressItems } =
+    const { ready, isModelLoading, progressItems } =
         useTranscription()
     const [result, setResult] = useState<AudioRecording | null>(null)
     const [processing, setProcessing] = useState(false)
@@ -185,14 +185,37 @@ export default function RecordScreen() {
     const [customFileName, setCustomFileName] = useState<string>('')
     const [defaultDirectory, setDefaultDirectory] = useState<string>('')
 
-    const { transcripts, activeTranscript } = useLiveTranscriber({
-        stopping,
-        audioBuffer: webAudioChunks.current,
-        sampleRate: startRecordingConfig.sampleRate ?? WhisperSampleRate,
-        enabled: enableLiveTranscription && validSRTranscription,
+    const {
+        transcribeLive,
+        initialize: initializeTranscription,
+        isModelLoading: unifiedIsModelLoading,
+    } = useUnifiedTranscription({
+        onError: (error) => {
+            logger.error('Transcription error:', error)
+            show({
+                type: 'error',
+                message: `Transcription error: ${error.message}`,
+                duration: 3000,
+            })
+        },
+        onTranscriptionUpdate: (data) => {
+            // Update transcripts state with new data
+            setTranscripts(prev => {
+                const existingIndex = prev.findIndex(t => t.id === data.id)
+                if (existingIndex >= 0) {
+                    const updated = [...prev]
+                    updated[existingIndex] = data
+                    return updated
+                }
+                return [...prev, data]
+            })
+            setActiveTranscript(data)
+        }
     })
-    const transcriptionResolveRef =
-        useRef<(transcriptions: TranscriberData[]) => void>()
+
+    const [transcripts, setTranscripts] = useState<TranscriberData[]>([])
+    const [activeTranscript, setActiveTranscript] = useState<TranscriberData | null>(null)
+
     const { show, hide } = useToast()
 
     const showPermissionError = (permission: string) => {
@@ -314,10 +337,9 @@ export default function RecordScreen() {
             const permissionsGranted = await requestPermissions()
             if (!permissionsGranted) return
 
-            // Restore web-specific initialization
-            if (!ready && isWeb) {
-                logger.info(`Initializing transcription...`)
-                initialize()
+            // Initialize transcription if needed
+            if (!ready && enableLiveTranscription) {
+                await initializeTranscription()
             }
 
             // Clear previous audio chunks
@@ -363,9 +385,15 @@ export default function RecordScreen() {
             setStopping(true)
             setProcessing(true)
 
-            // Defer the stop operation to the next tick to let UI update
-            await new Promise(resolve => setTimeout(resolve, 0))
-            
+            // Process final transcription if enabled
+            if (enableLiveTranscription && webAudioChunks.current) {
+                await transcribeLive(
+                    webAudioChunks.current,
+                    startRecordingConfig.sampleRate ?? WhisperSampleRate,
+                    { stopping: true }
+                )
+            }
+
             const result = await stopRecording()
             logger.debug(`Recording stopped. `, result)
 
@@ -377,28 +405,9 @@ export default function RecordScreen() {
             // Defer post-processing to let UI breathe
             await new Promise(resolve => requestAnimationFrame(resolve))
 
-            // Handle live transcription if enabled
+            // Add transcripts to the result
             if (enableLiveTranscription) {
-                show({
-                    loading: true,
-                    message: 'Waiting for transcription to complete',
-                })
-
-                let timeout: NodeJS.Timeout
-                const transcriptions = await Promise.race([
-                    new Promise<TranscriberData[]>((resolve) => {
-                        timeout = setTimeout(() => {
-                            logger.warn(`Timeout waiting for transcriptions`)
-                            resolve(transcripts)
-                        }, 15000)
-                    }),
-                    new Promise<TranscriberData[]>((resolve) => {
-                        transcriptionResolveRef.current = resolve
-                    }),
-                ])
-                clearTimeout(timeout!)
-                hide()
-                result.transcripts = transcriptions
+                result.transcripts = transcripts
             }
 
             // Defer file storage operations
@@ -456,8 +465,11 @@ export default function RecordScreen() {
             setStopping(false)
             setProcessing(false)
             setCustomFileName('')
+            // Reset transcripts
+            setTranscripts([])
+            setActiveTranscript(null)
         }
-    }, [stopRecording, enableLiveTranscription, router, show, hide, transcripts, refreshFiles])
+    }, [stopRecording, enableLiveTranscription, router, show, hide, transcripts, refreshFiles, transcribeLive, startRecordingConfig.sampleRate])
 
     const renderRecording = () => (
         <View style={{ gap: 10, display: 'flex' }}>
@@ -481,14 +493,14 @@ export default function RecordScreen() {
 
             {isModelLoading && <ProgressItems items={progressItems} />}
 
-            {!isModelLoading &&
+            {!unifiedIsModelLoading &&
                 isWeb &&
                 enableLiveTranscription &&
                 liveWebAudio && (
                     <LiveTranscriber
                         transcripts={transcripts}
                         duration={duration}
-                        activeTranscript={activeTranscript}
+                        activeTranscript={activeTranscript?.text ?? ''}
                         sampleRate={
                             startRecordingConfig.sampleRate ?? WhisperSampleRate
                         }
@@ -782,12 +794,41 @@ export default function RecordScreen() {
     )
 
     useEffect(() => {
-        // Watch for new transcripts and resolve the promise
-        if (transcriptionResolveRef.current) {
-            transcriptionResolveRef.current(transcripts)
-            transcriptionResolveRef.current = undefined
+        let timeoutId: NodeJS.Timeout
+
+        async function processLiveTranscription() {
+            if (!enableLiveTranscription || !validSRTranscription || !isRecording || !webAudioChunks.current) {
+                return
+            }
+
+            try {
+                await transcribeLive(
+                    webAudioChunks.current,
+                    startRecordingConfig.sampleRate ?? WhisperSampleRate,
+                    {
+                        stopping: stopping,
+                        checkpointInterval: 15 // or whatever interval you prefer
+                    }
+                )
+            } catch (error) {
+                logger.error('Live transcription error:', error)
+            }
+
+            if (isRecording && !stopping) {
+                timeoutId = setTimeout(processLiveTranscription, 1000)
+            }
         }
-    }, [transcripts])
+
+        if (enableLiveTranscription && validSRTranscription && isRecording) {
+            processLiveTranscription()
+        }
+
+        return () => {
+            if (timeoutId) {
+                clearTimeout(timeoutId)
+            }
+        }
+    }, [enableLiveTranscription, validSRTranscription, isRecording, stopping, transcribeLive, startRecordingConfig.sampleRate])
 
     useEffect(() => {
         setStartRecordingConfig((prev) => ({
