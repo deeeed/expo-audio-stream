@@ -58,8 +58,31 @@ export const AudioFilesProvider = ({
         async (audioUriORfilename: string) => {
             try {
                 if (isWeb) {
+                    logger.debug(`Attempting to delete web audio file: ${audioUriORfilename}`);
+                    
+                    // Try to delete with the exact filename first
                     await deleteAudioFile({ fileName: audioUriORfilename });
                     logger.debug(`Deleted audio and metadata for ${audioUriORfilename}`);
+                    
+                    // If the filename has an extension, also try without the extension
+                    // This helps with cases where the file might be stored with a different key
+                    if (audioUriORfilename.match(/\.(wav|mp3|opus|aac)$/)) {
+                        const baseFilename = audioUriORfilename.replace(/\.(wav|mp3|opus|aac)$/, '');
+                        
+                        // Try all possible extensions as fallback
+                        const possibleExtensions = ['wav', 'mp3', 'opus', 'aac'];
+                        for (const ext of possibleExtensions) {
+                            const alternateFilename = `${baseFilename}.${ext}`;
+                            if (alternateFilename !== audioUriORfilename) {
+                                try {
+                                    await deleteAudioFile({ fileName: alternateFilename });
+                                    logger.debug(`Also deleted alternate file: ${alternateFilename}`);
+                                } catch (_error) {
+                                    // Ignore errors for alternate filenames
+                                }
+                            }
+                        }
+                    }
                 } else {
                     const directoryUri = FileSystem.documentDirectory;
                     const fullPath = audioUriORfilename.startsWith('file://')
@@ -117,14 +140,25 @@ export const AudioFilesProvider = ({
         try {
             if (isWeb) {
                 const records = await listIndexedDBAudioFiles()
-                logger.debug(`Found records in indexedDB`, records)
-                return records.map((record) => {
-                    const blob = new Blob([record.arrayBuffer], {
-                        type: record.metadata.mimeType,
-                    })
-                    const webAudioUri = URL.createObjectURL(blob)
-                    return { ...record.metadata, fileUri: webAudioUri }
-                })
+                const recordCount = records.length
+                logger.debug(`Found records in indexedDB (${recordCount})`, records)
+                
+                // Map records to audio recordings
+                const mappedRecords = records.map((record) => {
+                    try {
+                        const blob = new Blob([record.arrayBuffer], {
+                            type: record.metadata.mimeType,
+                        })
+                        const webAudioUri = URL.createObjectURL(blob)
+                        return { ...record.metadata, fileUri: webAudioUri }
+                    } catch (error) {
+                        logger.error(`Failed to create blob for record: ${record.fileName}`, error)
+                        return null
+                    }
+                }).filter((record): record is AudioRecording => record !== null)
+                
+                logger.debug(`Mapped ${mappedRecords.length} of ${recordCount} records to audio recordings`)
+                return mappedRecords
             } else {
                 const directoryUri = FileSystem.documentDirectory
                 if (!directoryUri) {
@@ -238,12 +272,60 @@ export const AudioFilesProvider = ({
 
     const removeFile = useCallback(
         async (audioRecording: AudioRecording) => {
-            if (isWeb) {
-                await deleteAudioAndMetadata(audioRecording.filename);
-            } else {
-                await deleteAudioAndMetadata(audioRecording.fileUri);
+            try {
+                if (isWeb) {
+                    // First, revoke any blob URL to prevent memory leaks
+                    if (audioRecording.fileUri && audioRecording.fileUri.startsWith('blob:')) {
+                        try {
+                            URL.revokeObjectURL(audioRecording.fileUri);
+                            logger.debug(`Revoked blob URL for ${audioRecording.filename}`);
+                        } catch (error) {
+                            logger.warn(`Failed to revoke blob URL for ${audioRecording.filename}`, error);
+                        }
+                    }
+                    
+                    // Determine the correct file extension based on compression
+                    const fileExtension = audioRecording.compression?.format || 'wav';
+                    const baseFilename = audioRecording.filename.replace(/\.(wav|mp3|opus|aac)$/, '');
+                    const fullFilename = `${baseFilename}.${fileExtension}`;
+                    
+                    logger.debug(`Using filename ${fullFilename} for deletion based on compression format: ${fileExtension}`);
+                    
+                    // Then delete the file from IndexedDB
+                    await deleteAudioAndMetadata(fullFilename);
+                    
+                    // Verify the file was actually deleted by checking IndexedDB directly
+                    const records = await listIndexedDBAudioFiles();
+                    const fileStillExists = records.some(record => 
+                        record.metadata.filename === audioRecording.filename || 
+                        record.fileName === fullFilename
+                    );
+                    
+                    if (fileStillExists) {
+                        logger.warn(`File ${fullFilename} still exists in IndexedDB after deletion attempt`);
+                        // Try one more direct deletion
+                        await deleteAudioFile({ fileName: fullFilename });
+                        
+                        // Also try with the original filename as fallback
+                        if (fullFilename !== audioRecording.filename) {
+                            await deleteAudioFile({ fileName: audioRecording.filename });
+                        }
+                    }
+                    
+                    // Finally update the UI regardless of verification result
+                    setFiles(prevFiles => prevFiles.filter(file => file.filename !== audioRecording.filename));
+                    
+                    // Show success message
+                    logger.debug(`Successfully removed file ${audioRecording.filename} from UI`);
+                } else {
+                    await deleteAudioAndMetadata(audioRecording.fileUri);
+                    // For native platforms, we still need to refresh files
+                    await refreshFiles();
+                }
+            } catch (error) {
+                logger.error(`Failed to remove file: ${audioRecording.filename || audioRecording.fileUri}`, error);
+                throw error; // Re-throw to allow proper error handling in UI
             }
-            await refreshFiles();
         },
         [deleteAudioAndMetadata, refreshFiles]
     )
@@ -251,23 +333,40 @@ export const AudioFilesProvider = ({
     const clearFiles = useCallback(async () => {
         try {
             if (isWeb) {
+                // First revoke all blob URLs to prevent memory leaks
+                files.forEach(file => {
+                    if (file.fileUri && file.fileUri.startsWith('blob:')) {
+                        try {
+                            URL.revokeObjectURL(file.fileUri);
+                            logger.debug(`Revoked blob URL for ${file.filename}`);
+                        } catch (error) {
+                            logger.warn(`Failed to revoke blob URL for ${file.filename}`, error);
+                        }
+                    }
+                });
+                
+                // Then delete all files from IndexedDB
                 await listIndexedDBAudioFiles().then((records) => {
                     return Promise.all(
                         records.map(async (record) => {
                             try {
+                                // Use the actual fileName from the record which has the correct extension
                                 await deleteAudioFile({
-                                    fileName: record.metadata.filename,
-                                })
+                                    fileName: record.fileName,
+                                });
+                                logger.debug(`Deleted file with key: ${record.fileName}`);
                             } catch (error) {
                                 logger.error(
-                                    `Failed to delete file: ${record.metadata.fileUri}`,
+                                    `Failed to delete file: ${record.fileName}`,
                                     error
-                                )
+                                );
                             }
                         })
-                    )
-                })
-                setFiles([])
+                    );
+                });
+                
+                // Finally update the UI
+                setFiles([]);
             } else {
                 const directoryUri = FileSystem.documentDirectory
                 if (!directoryUri) {
