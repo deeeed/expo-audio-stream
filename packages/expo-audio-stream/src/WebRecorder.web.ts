@@ -1,4 +1,4 @@
-// src/WebRecorder.ts
+// packages/expo-audio-stream/src/WebRecorder.web.ts
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import { ConsoleLike, RecordingConfig } from './ExpoAudioStream.types'
@@ -6,9 +6,7 @@ import {
     EmitAudioAnalysisFunction,
     EmitAudioEventFunction,
 } from './ExpoAudioStream.web'
-import { convertPCMToFloat32 } from './utils/convertPCMToFloat32'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
-import { writeWavHeader } from './utils/writeWavHeader'
 import { InlineFeaturesExtractor } from './workers/InlineFeaturesExtractor.web'
 import { InlineAudioWebWorker } from './workers/inlineAudioWebWorker.web'
 
@@ -28,26 +26,17 @@ interface AudioFeaturesEvent {
 }
 
 const DEFAULT_WEB_BITDEPTH = 32
-const DEFAULT_WEB_POINTS_PER_SECOND = 10
+const DEFAULT_SEGMENT_DURATION_MS = 100
 const DEFAULT_WEB_INTERVAL = 500
 const DEFAULT_WEB_NUMBER_OF_CHANNELS = 1
 
 const TAG = 'WebRecorder'
-
-const STOP_PERFORMANCE_MARKS = {
-    STOP_INITIATED: 'stopInitiated',
-    COMPRESSED_RECORDING_STOP: 'compressedRecordingStop',
-    AUDIO_WORKLET_STOP: 'audioWorkletStop',
-    CLEANUP: 'cleanup',
-    TOTAL_STOP_TIME: 'totalStopTime',
-} as const
 
 export class WebRecorder {
     private audioContext: AudioContext
     private audioWorkletNode!: AudioWorkletNode
     private featureExtractorWorker?: Worker
     private source: MediaStreamAudioSourceNode
-    private audioWorkletUrl: string
     private emitAudioEventCallback: EmitAudioEventFunction
     private emitAudioAnalysisCallback: EmitAudioAnalysisFunction
     private config: RecordingConfig
@@ -63,12 +52,21 @@ export class WebRecorder {
     private compressedSize: number = 0
     private pendingCompressedChunk: Blob | null = null
     private readonly wavMimeType = 'audio/wav'
+    private dataPointIdCounter: number = 0 // Add this property to track the counter
 
+    /**
+     * Initializes a new WebRecorder instance for audio recording and processing
+     * @param audioContext - The AudioContext to use for recording
+     * @param source - The MediaStreamAudioSourceNode providing the audio input
+     * @param recordingConfig - Configuration options for the recording
+     * @param emitAudioEventCallback - Callback function for audio data events
+     * @param emitAudioAnalysisCallback - Callback function for audio analysis events
+     * @param logger - Optional logger for debugging information
+     */
     constructor({
         audioContext,
         source,
         recordingConfig,
-        audioWorkletUrl,
         emitAudioEventCallback,
         emitAudioAnalysisCallback,
         logger,
@@ -76,14 +74,12 @@ export class WebRecorder {
         audioContext: AudioContext
         source: MediaStreamAudioSourceNode
         recordingConfig: RecordingConfig
-        audioWorkletUrl: string
         emitAudioEventCallback: EmitAudioEventFunction
         emitAudioAnalysisCallback: EmitAudioAnalysisFunction
         logger?: ConsoleLike
     }) {
         this.audioContext = audioContext
         this.source = source
-        this.audioWorkletUrl = audioWorkletUrl
         this.emitAudioEventCallback = emitAudioEventCallback
         this.emitAudioAnalysisCallback = emitAudioAnalysisCallback
         this.config = recordingConfig
@@ -118,7 +114,8 @@ export class WebRecorder {
             bitDepth: this.bitDepth,
             numberOfChannels: this.numberOfChannels,
             sampleRate: this.config.sampleRate || this.audioContext.sampleRate,
-            segmentDurationMs: this.config.segmentDurationMs ?? 100, // Default to 100ms segments
+            segmentDurationMs:
+                this.config.segmentDurationMs ?? DEFAULT_SEGMENT_DURATION_MS, // Default to 100ms segments
         }
 
         if (recordingConfig.enableProcessing) {
@@ -131,19 +128,19 @@ export class WebRecorder {
         }
     }
 
+    /**
+     * Initializes the audio worklet using an inline script
+     * Creates and connects the audio processing pipeline
+     */
     async init() {
         try {
-            if (!this.audioWorkletUrl) {
-                const blob = new Blob([InlineAudioWebWorker], {
-                    type: 'application/javascript',
-                })
-                const url = URL.createObjectURL(blob)
-                await this.audioContext.audioWorklet.addModule(url)
-            } else {
-                await this.audioContext.audioWorklet.addModule(
-                    this.audioWorkletUrl
-                )
-            }
+            // Create and use inline audio worklet
+            const blob = new Blob([InlineAudioWebWorker], {
+                type: 'application/javascript',
+            })
+            const url = URL.createObjectURL(blob)
+            await this.audioContext.audioWorklet.addModule(url)
+
             this.audioWorkletNode = new AudioWorkletNode(
                 this.audioContext,
                 'recorder-processor'
@@ -192,9 +189,10 @@ export class WebRecorder {
                             channelData: chunk,
                             sampleRate,
                             segmentDurationMs:
-                                this.config.segmentDurationMs ?? 100, // Default to 100ms
+                                this.config.segmentDurationMs ??
+                                DEFAULT_SEGMENT_DURATION_MS, // Default to 100ms
                             bitDepth: this.bitDepth,
-                            fullAudioDurationMs: this.position * 1000,
+                            fullAudioDurationMs: chunkPosition * 1000,
                             numberOfChannels: this.numberOfChannels,
                             features: this.config.features,
                             intervalAnalysis: this.config.intervalAnalysis,
@@ -240,6 +238,7 @@ export class WebRecorder {
                 exportBitDepth: this.exportBitDepth,
                 channels: this.numberOfChannels,
                 interval: this.config.interval ?? DEFAULT_WEB_INTERVAL,
+                // enableLogging: !!this.logger,
             })
 
             // Connect the source to the AudioWorkletNode and start recording
@@ -250,33 +249,11 @@ export class WebRecorder {
         }
     }
 
-    initFeatureExtractorWorker(featuresExtratorUrl?: string) {
-        try {
-            if (featuresExtratorUrl) {
-                // Initialize the feature extractor worker
-                //TODO: create audio feature extractor from a Blob instead of url since we cannot include the url directly in the library
-                // We keep the url during dev and use the blob in production.
-                this.featureExtractorWorker = new Worker(
-                    new URL(featuresExtratorUrl, window.location.href)
-                )
-                this.featureExtractorWorker.onmessage =
-                    this.handleFeatureExtractorMessage.bind(this)
-                this.featureExtractorWorker.onerror =
-                    this.handleWorkerError.bind(this)
-            } else {
-                // Fallback to the inline worker if the URL is not provided
-                this.initFallbackWorker()
-            }
-        } catch (error) {
-            console.error(
-                `[${TAG}] Failed to initialize feature extractor worker`,
-                error
-            )
-            this.initFallbackWorker()
-        }
-    }
-
-    initFallbackWorker() {
+    /**
+     * Initializes the feature extractor worker for audio analysis
+     * Creates an inline worker from a blob for audio feature extraction
+     */
+    initFeatureExtractorWorker() {
         try {
             const blob = new Blob([InlineFeaturesExtractor], {
                 type: 'application/javascript',
@@ -286,60 +263,156 @@ export class WebRecorder {
             this.featureExtractorWorker.onmessage =
                 this.handleFeatureExtractorMessage.bind(this)
             this.featureExtractorWorker.onerror = (error) => {
-                console.error(`[${TAG}] Default Inline worker failed`, error)
+                console.error(`[${TAG}] Feature extractor worker error:`, error)
             }
-            this.logger?.log('Inline worker initialized successfully')
+            this.logger?.log(
+                'Feature extractor worker initialized successfully'
+            )
         } catch (error) {
             console.error(
-                `[${TAG}] Failed to initialize Inline Feature Extractor worker`,
+                `[${TAG}] Failed to initialize feature extractor worker`,
                 error
             )
         }
     }
 
-    handleWorkerError(error: ErrorEvent) {
-        console.error(`[${TAG}] Feature extractor worker error:`, error)
-    }
-
+    /**
+     * Processes audio analysis results from the feature extractor worker
+     * Updates the audio analysis data and emits events
+     * @param event - The event containing audio analysis results
+     */
     handleFeatureExtractorMessage(event: AudioFeaturesEvent) {
         if (event.data.command === 'features') {
             const segmentResult = event.data.result
 
-            // Merge the segment result with the full audio analysis data
-            this.audioAnalysisData.dataPoints.push(...segmentResult.dataPoints)
-            this.audioAnalysisData.durationMs = segmentResult.durationMs
-            if (segmentResult.amplitudeRange) {
-                this.audioAnalysisData.amplitudeRange = {
-                    min: Math.min(
-                        this.audioAnalysisData.amplitudeRange.min,
-                        segmentResult.amplitudeRange.min
-                    ),
-                    max: Math.max(
-                        this.audioAnalysisData.amplitudeRange.max,
-                        segmentResult.amplitudeRange.max
-                    ),
+            // Update the dataPointIdCounter based on the last ID received
+            if (
+                segmentResult.dataPoints &&
+                segmentResult.dataPoints.length > 0
+            ) {
+                const lastDataPoint =
+                    segmentResult.dataPoints[
+                        segmentResult.dataPoints.length - 1
+                    ]
+                if (lastDataPoint && typeof lastDataPoint.id === 'number') {
+                    this.dataPointIdCounter = Math.max(
+                        this.dataPointIdCounter,
+                        lastDataPoint.id + 1
+                    )
                 }
             }
-            // Handle the extracted features (e.g., emit an event or log them)
+
+            console.debug('[WebRecorder] Raw segment result:', {
+                dataPointsLength: segmentResult.dataPoints.length,
+                durationMs: segmentResult.durationMs,
+                sampleRate: segmentResult.sampleRate,
+                amplitudeRange: segmentResult.amplitudeRange,
+            })
+
+            // Ensure consistent sample rate in the result
+            segmentResult.sampleRate =
+                this.config.sampleRate || this.audioContext.sampleRate
+
+            // Update the full audio analysis data with proper range merging
+            this.audioAnalysisData.dataPoints.push(...segmentResult.dataPoints)
+            this.audioAnalysisData.durationMs += segmentResult.durationMs
+
+            // Make sure the sample rate is consistent
+            this.audioAnalysisData.sampleRate = segmentResult.sampleRate
+
+            // Properly merge amplitude ranges
+            if (segmentResult.amplitudeRange) {
+                if (!this.audioAnalysisData.amplitudeRange) {
+                    this.audioAnalysisData.amplitudeRange = {
+                        ...segmentResult.amplitudeRange,
+                    }
+                } else {
+                    this.audioAnalysisData.amplitudeRange = {
+                        min: Math.min(
+                            this.audioAnalysisData.amplitudeRange.min,
+                            segmentResult.amplitudeRange.min
+                        ),
+                        max: Math.max(
+                            this.audioAnalysisData.amplitudeRange.max,
+                            segmentResult.amplitudeRange.max
+                        ),
+                    }
+                }
+            }
+
+            // Properly merge RMS ranges
+            if (segmentResult.rmsRange) {
+                if (!this.audioAnalysisData.rmsRange) {
+                    this.audioAnalysisData.rmsRange = {
+                        ...segmentResult.rmsRange,
+                    }
+                } else {
+                    this.audioAnalysisData.rmsRange = {
+                        min: Math.min(
+                            this.audioAnalysisData.rmsRange.min,
+                            segmentResult.rmsRange.min
+                        ),
+                        max: Math.max(
+                            this.audioAnalysisData.rmsRange.max,
+                            segmentResult.rmsRange.max
+                        ),
+                    }
+                }
+            }
+
             this.logger?.debug('features event segmentResult', segmentResult)
             this.logger?.debug(
                 `features event audioAnalysisData duration=${this.audioAnalysisData.durationMs}`,
                 this.audioAnalysisData
             )
             this.emitAudioAnalysisCallback(segmentResult)
+
+            console.debug('[WebRecorder] Updated audioAnalysisData:', {
+                dataPointsLength: this.audioAnalysisData.dataPoints.length,
+                durationMs: this.audioAnalysisData.durationMs,
+                sampleRate: this.audioAnalysisData.sampleRate,
+                amplitudeRange: this.audioAnalysisData.amplitudeRange,
+            })
         }
     }
 
+    /**
+     * Resets the data point ID counter
+     * Used when starting a new recording
+     */
+    resetDataPointCounter() {
+        this.dataPointIdCounter = 0
+
+        // Reset the counter in the worker
+        if (this.featureExtractorWorker) {
+            this.featureExtractorWorker.postMessage({
+                command: 'resetCounter',
+                startCounterFrom: 0,
+            })
+        }
+    }
+
+    /**
+     * Starts the audio recording process
+     * Connects the audio nodes and begins capturing audio data
+     */
     start() {
         this.source.connect(this.audioWorkletNode)
         this.audioWorkletNode.connect(this.audioContext.destination)
         this.packetCount = 0
+
+        // Reset the counter when starting a new recording
+        this.resetDataPointCounter()
 
         if (this.compressedMediaRecorder) {
             this.compressedMediaRecorder.start(this.config.interval ?? 1000)
         }
     }
 
+    /**
+     * Stops the audio recording process and returns the recorded data
+     * @returns Promise resolving to an object containing PCM data and optional compressed blob
+     */
     async stop(): Promise<{ pcmData: Float32Array; compressedBlob?: Blob }> {
         try {
             if (this.compressedMediaRecorder) {
@@ -361,6 +434,10 @@ export class WebRecorder {
         }
     }
 
+    /**
+     * Cleans up resources when recording is stopped
+     * Closes audio context and disconnects nodes
+     */
     private cleanup() {
         if (this.audioContext) {
             this.audioContext.close()
@@ -374,113 +451,10 @@ export class WebRecorder {
         this.stopMediaStreamTracks()
     }
 
-    // Helper method to process recording stop
-    private async processRecordingStop(): Promise<{
-        pcmData: Float32Array
-        compressedBlob?: Blob
-    }> {
-        const processStartTime = performance.now()
-        this.logger?.debug('[Performance] Starting recording stop process')
-
-        const [compressedData, workletData] = await Promise.all([
-            this.stopCompressedRecording(),
-            this.stopAudioWorklet(),
-        ])
-
-        this.logger?.debug(
-            `[Performance] Recording stop process completed in ${performance.now() - processStartTime}ms`
-        )
-        return {
-            pcmData:
-                workletData ??
-                new Float32Array(this.audioAnalysisData.dataPoints.length),
-            compressedBlob: compressedData,
-        }
-    }
-
-    // Helper method to stop compressed recording
-    private stopCompressedRecording(): Promise<Blob | undefined> {
-        const startTime = performance.now()
-        this.logger?.debug(
-            `[Performance][${STOP_PERFORMANCE_MARKS.COMPRESSED_RECORDING_STOP}] Starting compressed recording stop`
-        )
-
-        if (!this.compressedMediaRecorder) {
-            this.logger?.debug('[Performance] No compressed recorder to stop')
-            return Promise.resolve(undefined)
-        }
-
-        return new Promise((resolve) => {
-            this.compressedMediaRecorder!.onstop = () => {
-                const blob = new Blob(this.compressedChunks, {
-                    type: 'audio/webm;codecs=opus',
-                })
-                this.logger?.debug(
-                    `[Performance][${STOP_PERFORMANCE_MARKS.COMPRESSED_RECORDING_STOP}] Compressed recording stopped in ${performance.now() - startTime}ms, size: ${blob.size}`
-                )
-                resolve(blob)
-            }
-            this.compressedMediaRecorder!.stop()
-        })
-    }
-
-    // Helper method to stop audio worklet
-    private stopAudioWorklet(): Promise<Float32Array | undefined> {
-        const startTime = performance.now()
-        this.logger?.debug(
-            `[Performance][${STOP_PERFORMANCE_MARKS.AUDIO_WORKLET_STOP}] Starting audio worklet stop`
-        )
-
-        if (!this.audioWorkletNode) {
-            this.logger?.debug('[Performance] No audio worklet to stop')
-            return Promise.resolve(undefined)
-        }
-
-        return new Promise((resolve) => {
-            const onMessage = (event: AudioWorkletEvent) => {
-                if (event.data.command === 'recordedData') {
-                    this.audioWorkletNode?.port.removeEventListener(
-                        'message',
-                        onMessage
-                    )
-                    const rawPCMDataFull = event.data.recordedData?.slice(0)
-
-                    if (!rawPCMDataFull) {
-                        this.logger?.debug('[Performance] No PCM data received')
-                        resolve(undefined)
-                        return
-                    }
-
-                    if (this.exportBitDepth !== this.bitDepth) {
-                        const conversionStart = performance.now()
-                        convertPCMToFloat32({
-                            buffer: rawPCMDataFull.buffer,
-                            bitDepth: this.exportBitDepth,
-                            skipWavHeader: true,
-                            logger: this.logger,
-                        }).then(({ pcmValues }) => {
-                            this.logger?.debug(
-                                `[Performance] PCM conversion completed in ${performance.now() - conversionStart}ms`
-                            )
-                            this.logger?.debug(
-                                `[Performance][${STOP_PERFORMANCE_MARKS.AUDIO_WORKLET_STOP}] Audio worklet stopped in ${performance.now() - startTime}ms`
-                            )
-                            resolve(pcmValues)
-                        })
-                    } else {
-                        this.logger?.debug(
-                            `[Performance][${STOP_PERFORMANCE_MARKS.AUDIO_WORKLET_STOP}] Audio worklet stopped in ${performance.now() - startTime}ms`
-                        )
-                        resolve(rawPCMDataFull)
-                    }
-                }
-            }
-
-            this.audioWorkletNode.port.addEventListener('message', onMessage)
-            this.audioWorkletNode.port.postMessage({ command: 'stop' })
-        })
-    }
-
+    /**
+     * Pauses the audio recording process
+     * Disconnects audio nodes and pauses the media recorder
+     */
     pause() {
         this.source.disconnect(this.audioWorkletNode) // Disconnect the source from the AudioWorkletNode
         this.audioWorkletNode.disconnect(this.audioContext.destination) // Disconnect the AudioWorkletNode from the destination
@@ -488,50 +462,21 @@ export class WebRecorder {
         this.compressedMediaRecorder?.pause()
     }
 
+    /**
+     * Stops all media stream tracks to release hardware resources
+     * Ensures recording indicators (like microphone icon) are turned off
+     */
     stopMediaStreamTracks() {
         // Stop all audio tracks to stop the recording icon
         const tracks = this.source.mediaStream.getTracks()
         tracks.forEach((track) => track.stop())
     }
 
-    async playRecordedData({
-        recordedData,
-    }: {
-        recordedData: ArrayBuffer
-        mimeType?: string
-    }) {
-        try {
-            // Create a WAV blob with proper headers
-            const wavHeaderBuffer = writeWavHeader({
-                buffer: recordedData,
-                sampleRate: this.audioContext.sampleRate,
-                numChannels: this.numberOfChannels,
-                bitDepth: this.exportBitDepth,
-            })
-
-            const blob = new Blob([wavHeaderBuffer], { type: 'audio/wav' })
-            const url = URL.createObjectURL(blob)
-            const response = await fetch(url)
-            const arrayBuffer = await response.arrayBuffer()
-
-            // Decode the audio data
-            const audioBuffer =
-                await this.audioContext.decodeAudioData(arrayBuffer)
-
-            // Create a buffer source node and play the audio
-            const bufferSource = this.audioContext.createBufferSource()
-            bufferSource.buffer = audioBuffer
-            bufferSource.connect(this.audioContext.destination)
-            bufferSource.start()
-            this.logger?.debug('Playing recorded data', recordedData)
-
-            // Clean up
-            URL.revokeObjectURL(url)
-        } catch (error) {
-            console.error(`[${TAG}] Failed to play recorded data:`, error)
-        }
-    }
-
+    /**
+     * Determines the audio format capabilities of the current audio context
+     * @param sampleRate - The sample rate to check
+     * @returns Object containing format information (sample rate, bit depth, channels)
+     */
     private checkAudioContextFormat({ sampleRate }: { sampleRate: number }) {
         // Create a silent AudioBuffer
         const frameCount = sampleRate * 1.0 // 1 second buffer
@@ -552,6 +497,10 @@ export class WebRecorder {
         }
     }
 
+    /**
+     * Resumes a paused recording
+     * Reconnects audio nodes and resumes the media recorder
+     */
     resume() {
         this.source.connect(this.audioWorkletNode)
         this.audioWorkletNode.connect(this.audioContext.destination)
@@ -559,6 +508,10 @@ export class WebRecorder {
         this.compressedMediaRecorder?.resume()
     }
 
+    /**
+     * Initializes the compressed media recorder if compression is enabled
+     * Sets up event handlers for compressed audio data
+     */
     private initializeCompressedRecorder() {
         try {
             const mimeType = 'audio/webm;codecs=opus'
@@ -590,6 +543,38 @@ export class WebRecorder {
                 'Failed to initialize compressed recorder:',
                 error
             )
+        }
+    }
+
+    /**
+     * Processes features if enabled
+     */
+    processFeatures(
+        chunk: Float32Array,
+        sampleRate: number,
+        chunkPosition: number,
+        startPosition: number,
+        endPosition: number,
+        samples: number
+    ) {
+        if (this.config.enableProcessing && this.featureExtractorWorker) {
+            this.featureExtractorWorker.postMessage({
+                command: 'process',
+                channelData: chunk,
+                sampleRate,
+                segmentDurationMs:
+                    this.config.segmentDurationMs ??
+                    DEFAULT_SEGMENT_DURATION_MS, // Default to 100ms
+                bitDepth: this.bitDepth,
+                fullAudioDurationMs: chunkPosition * 1000,
+                numberOfChannels: this.numberOfChannels,
+                features: this.config.features,
+                intervalAnalysis: this.config.intervalAnalysis,
+                startPosition,
+                endPosition,
+                samples,
+                startCounterFrom: this.dataPointIdCounter, // Pass the current counter value
+            })
         }
     }
 }

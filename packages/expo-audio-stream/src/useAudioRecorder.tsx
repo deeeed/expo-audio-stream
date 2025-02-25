@@ -227,10 +227,12 @@ export function useAudioRecorder({
             ]
 
             // Calculate the new duration
+            // The number of segments is based on how many segments of segmentDurationMs can fit in visualizationDuration
             const numberOfSegments = Math.ceil(
                 visualizationDuration / analysis.segmentDurationMs
             )
-            const maxDataPoints = numberOfSegments * analysis.segmentDurationMs
+            // maxDataPoints should be the number of data points, not milliseconds
+            const maxDataPoints = numberOfSegments
 
             logger?.debug(
                 `[handleAudioAnalysis] Combined data points before trimming: numberOfSegments=${numberOfSegments} visualizationDuration=${visualizationDuration} combinedDataPointsLength=${combinedDataPoints.length} vs maxDataPoints=${maxDataPoints}`
@@ -250,13 +252,12 @@ export function useAudioRecorder({
                 dataPoints: fullCombinedDataPoints,
             }
             fullAnalysisRef.current.durationMs =
-                fullCombinedDataPoints.length *
-                (1000 / analysis.segmentDurationMs)
+                fullCombinedDataPoints.length * analysis.segmentDurationMs
             savedAnalysisData.dataPoints = combinedDataPoints
             savedAnalysisData.bitDepth =
                 analysis.bitDepth || savedAnalysisData.bitDepth
             savedAnalysisData.durationMs =
-                combinedDataPoints.length * (1000 / analysis.segmentDurationMs)
+                combinedDataPoints.length * analysis.segmentDurationMs
 
             // Update amplitude range
             const newMin = Math.min(

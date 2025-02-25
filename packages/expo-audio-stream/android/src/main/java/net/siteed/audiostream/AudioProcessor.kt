@@ -205,11 +205,12 @@ class AudioProcessor(private val filesDir: File) {
         val featureOptions = config.features
 
         val totalSamples = channelData.size
-        val samplesPerSegment = (config.segmentDurationMs * sampleRate / 1000).toInt()
+        // Update samplesPerSegment calculation to use proper formula
+        val samplesPerSegment = ((config.segmentDurationMs / 1000.0) * sampleRate).toInt()
         val totalPoints = ceil(totalSamples.toDouble() / samplesPerSegment).toInt()
         
-        Log.d("AudioProcessor", "Extracting waveform totalSize=${data.size} with $totalSamples samples --> $totalPoints points per segment")
-        Log.d("AudioProcessor", "segmentDuration: ${config.segmentDurationMs}ms")
+        Log.d("AudioProcessor", "Extracting waveform totalSize=${data.size} with $totalSamples samples --> $totalPoints points")
+        Log.d("AudioProcessor", "segmentDuration: ${config.segmentDurationMs}ms, samplesPerSegment: $samplesPerSegment")
 
         // Remove expectedPoints calculation since it used pointsPerSecond
         val samplesPerPoint = ceil(channelData.size / totalPoints.toDouble()).toInt()
@@ -226,8 +227,8 @@ class AudioProcessor(private val filesDir: File) {
         // Measure the time taken for audio processing
         val extractionTimeMs = measureTimeMillis {
             for (i in 0 until totalPoints) {
-                val start = i * samplesPerPoint
-                val end = min(start + samplesPerPoint, totalSamples)
+                val start = i * samplesPerSegment
+                val end = min(start + samplesPerSegment, totalSamples)
                 val segmentData = channelData.sliceArray(start until end)
 
                 var sumSquares = 0f
