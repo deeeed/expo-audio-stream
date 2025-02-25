@@ -480,8 +480,6 @@ export default function RecordScreen() {
                     candleSpace={2}
                     candleWidth={5}
                     canvasHeight={200}
-                    showSilence={true}
-                    amplitudeScaling='humanVoice'
                     mode="live"
                     audioData={analysisData}
                 />
@@ -549,7 +547,6 @@ export default function RecordScreen() {
                     candleSpace={2}
                     candleWidth={5}
                     canvasHeight={200}
-                    showSilence={true}
                     mode="live"
                     audioData={analysisData}
                 />
