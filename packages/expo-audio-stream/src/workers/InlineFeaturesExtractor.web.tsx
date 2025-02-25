@@ -441,8 +441,8 @@ function estimatePitch(segment, sampleRate) {
 
 // Unique ID counter
 let uniqueIdCounter = 0
-let accumulatedDataPoints = [] // Move outside message handler
-let lastEmitTime = Date.now() // Move outside message handler
+let accumulatedDataPoints = []
+let lastEmitTime = Date.now()
 
 self.onmessage = function (event) {
     console.log('[Worker] START', {
@@ -453,14 +453,14 @@ self.onmessage = function (event) {
     const {
         channelData, // this is only the newly recorded data when live recording.
         sampleRate,
-        segmentDurationMs, // Keep this as is
+        segmentDurationMs,
         algorithm,
         bitDepth,
         fullAudioDurationMs,
         numberOfChannels,
         features: _features,
-        intervalAnalysis = 500, // Use intervalAnalysis instead of interval
-        enableLogging, // Replace logger with enableLogging flag
+        intervalAnalysis = 500,
+        enableLogging,
     } = event.data
     
     // Create a simple logger that only logs when enabled

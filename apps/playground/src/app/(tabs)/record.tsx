@@ -58,6 +58,7 @@ const baseRecordingConfig: RecordingConfig = {
     encoding: 'pcm_32bit',
     segmentDurationMs: 100,
     enableProcessing: true,
+    features: undefined,
     compression: {
         enabled: true,
         format: Platform.OS === 'ios' ? 'aac' : 'opus',
