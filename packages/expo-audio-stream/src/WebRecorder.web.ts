@@ -242,6 +242,7 @@ export class WebRecorder {
                 exportBitDepth: this.exportBitDepth,
                 channels: this.numberOfChannels,
                 interval: this.config.interval ?? DEFAULT_WEB_INTERVAL,
+                enableLogging: !!this.logger
             })
 
             // Connect the source to the AudioWorkletNode and start recording

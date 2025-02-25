@@ -14,14 +14,14 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.numberOfChannels = 1
         this.isRecording = true
         this.port.onmessage = this.handleMessage.bind(this)
-        this.logger = undefined
+        this.enableLogging = false
         this.exportIntervalSamples = 0
     }
 
     handleMessage(event) {
         switch (event.data.command) {
             case 'init':
-                this.logger = event.data.logger
+                this.enableLogging = event.data.enableLogging || false
                 this.recordSampleRate = event.data.recordSampleRate
                 this.exportSampleRate =
                     event.data.exportSampleRate || event.data.recordSampleRate
