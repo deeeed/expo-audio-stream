@@ -97,6 +97,8 @@ export default function Transcript({
                             )
                         })}
                     </View>
+                ) : isBusy ? (
+                    <Text style={styles.emptyText}>Transcribing...</Text>
                 ) : (
                     <Text style={styles.emptyText}>No transcription yet</Text>
                 )}

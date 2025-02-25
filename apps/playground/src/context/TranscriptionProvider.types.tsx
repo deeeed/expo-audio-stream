@@ -1,4 +1,6 @@
 import { Chunk, TranscriberData } from '@siteed/expo-audio-stream'
+import { ReactNode } from 'react'
+import { TranscribeFileOptions, TranscribeNewSegmentsResult } from 'whisper.rn'
 
 export interface ProgressItem {
     file: string
@@ -47,11 +49,41 @@ export interface TranscriberCompleteData {
     }
 }
 
+/**
+ * Either base64 encoded string or Float32Array
+ */
+export type AudioInputData = string | Float32Array
+
 export interface TranscribeParams {
-    audioData: string | Float32Array | undefined // Allow both string (for native) and Float32Array (for web)
+    audioData: AudioInputData | undefined
     position?: number
-    jobId: string
-    onChunkUpdate?: (_: TranscriberUpdateData['data']) => void
+    jobId?: string
+    options: Partial<TranscribeFileOptions>
+    onProgress?: (progress: number) => void
+    onNewSegments?: (result: TranscribeNewSegmentsResult) => void
 }
 
-export type AudioInputData = string | Float32Array
+export interface TranscribeResult {
+    promise: Promise<TranscriberData>
+    stop: () => Promise<void>
+    jobId: string
+}
+
+export interface TranscriptionContextProps extends TranscriptionState {
+    initialize: () => void
+    transcribe: (_: TranscribeParams) => Promise<TranscribeResult>
+    updateConfig: (
+        config: Partial<TranscriptionState>,
+        shouldInitialize?: boolean
+    ) => Promise<void>
+    resetWhisperContext: () => void
+}
+
+export interface TranscriptionProviderProps {
+    children: ReactNode
+    initialModel?: string
+    initialQuantized?: boolean
+    initialMultilingual?: boolean
+    initialLanguage?: string
+}
+
