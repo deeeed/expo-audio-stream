@@ -46,6 +46,7 @@ const CHUNK_DURATION_MS = 500 // 500 ms chunks
 const MAX_AUDIO_BUFFER_LENGTH = 48000 * 5; // 5 seconds of audio at 48kHz
 
 const logger = baseLogger.extend('RecordScreen')
+const DEFAULT_BITRATE = Platform.OS === 'ios' ? 32000 : 24000
 
 const baseRecordingConfig: RecordingConfig = {
     interval: CHUNK_DURATION_MS,
@@ -60,7 +61,7 @@ const baseRecordingConfig: RecordingConfig = {
     compression: {
         enabled: true,
         format: Platform.OS === 'ios' ? 'aac' : 'opus',
-        bitrate: Platform.OS === 'ios' ? 32000 : 24000,
+        bitrate: DEFAULT_BITRATE,
     },
     autoResumeAfterInterruption: true,
     ios: {
@@ -666,7 +667,7 @@ export default function RecordScreen() {
                             setStartRecordingConfig((prev) => ({
                                 ...prev,
                                 compression: {
-                                    ...(prev.compression ?? { format: 'opus', bitrate: 128000 }),
+                                    ...(prev.compression ?? { format: 'opus', bitrate: DEFAULT_BITRATE }),
                                     enabled,
                                 },
                             }))
@@ -697,7 +698,7 @@ export default function RecordScreen() {
                                     setStartRecordingConfig((prev) => ({
                                         ...prev,
                                         compression: {
-                                            ...(prev.compression ?? { enabled: true, bitrate: 128000 }),
+                                            ...(prev.compression ?? { enabled: true, bitrate: DEFAULT_BITRATE }),
                                             format: selected.value as 'aac' | 'opus',
                                         },
                                     }))

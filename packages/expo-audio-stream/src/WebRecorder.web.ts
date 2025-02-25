@@ -28,7 +28,7 @@ interface AudioFeaturesEvent {
 }
 
 const DEFAULT_WEB_BITDEPTH = 32
-const DEFAULT_WEB_POINTS_PER_SECOND = 10
+const DEFAULT_SEGMENT_DURATION_MS = 100
 const DEFAULT_WEB_INTERVAL = 500
 const DEFAULT_WEB_NUMBER_OF_CHANNELS = 1
 
@@ -118,7 +118,8 @@ export class WebRecorder {
             bitDepth: this.bitDepth,
             numberOfChannels: this.numberOfChannels,
             sampleRate: this.config.sampleRate || this.audioContext.sampleRate,
-            segmentDurationMs: this.config.segmentDurationMs ?? 100, // Default to 100ms segments
+            segmentDurationMs:
+                this.config.segmentDurationMs ?? DEFAULT_SEGMENT_DURATION_MS, // Default to 100ms segments
         }
 
         if (recordingConfig.enableProcessing) {
@@ -192,7 +193,8 @@ export class WebRecorder {
                             channelData: chunk,
                             sampleRate,
                             segmentDurationMs:
-                                this.config.segmentDurationMs ?? 100, // Default to 100ms
+                                this.config.segmentDurationMs ??
+                                DEFAULT_SEGMENT_DURATION_MS, // Default to 100ms
                             bitDepth: this.bitDepth,
                             fullAudioDurationMs: this.position * 1000,
                             numberOfChannels: this.numberOfChannels,
@@ -305,22 +307,50 @@ export class WebRecorder {
         if (event.data.command === 'features') {
             const segmentResult = event.data.result
 
-            // Merge the segment result with the full audio analysis data
+            // Update the full audio analysis data with proper range merging
             this.audioAnalysisData.dataPoints.push(...segmentResult.dataPoints)
             this.audioAnalysisData.durationMs = segmentResult.durationMs
+
+            // Properly merge amplitude ranges
             if (segmentResult.amplitudeRange) {
-                this.audioAnalysisData.amplitudeRange = {
-                    min: Math.min(
-                        this.audioAnalysisData.amplitudeRange.min,
-                        segmentResult.amplitudeRange.min
-                    ),
-                    max: Math.max(
-                        this.audioAnalysisData.amplitudeRange.max,
-                        segmentResult.amplitudeRange.max
-                    ),
+                if (!this.audioAnalysisData.amplitudeRange) {
+                    this.audioAnalysisData.amplitudeRange = {
+                        ...segmentResult.amplitudeRange,
+                    }
+                } else {
+                    this.audioAnalysisData.amplitudeRange = {
+                        min: Math.min(
+                            this.audioAnalysisData.amplitudeRange.min,
+                            segmentResult.amplitudeRange.min
+                        ),
+                        max: Math.max(
+                            this.audioAnalysisData.amplitudeRange.max,
+                            segmentResult.amplitudeRange.max
+                        ),
+                    }
                 }
             }
-            // Handle the extracted features (e.g., emit an event or log them)
+
+            // Properly merge RMS ranges
+            if (segmentResult.rmsRange) {
+                if (!this.audioAnalysisData.rmsRange) {
+                    this.audioAnalysisData.rmsRange = {
+                        ...segmentResult.rmsRange,
+                    }
+                } else {
+                    this.audioAnalysisData.rmsRange = {
+                        min: Math.min(
+                            this.audioAnalysisData.rmsRange.min,
+                            segmentResult.rmsRange.min
+                        ),
+                        max: Math.max(
+                            this.audioAnalysisData.rmsRange.max,
+                            segmentResult.rmsRange.max
+                        ),
+                    }
+                }
+            }
+
             this.logger?.debug('features event segmentResult', segmentResult)
             this.logger?.debug(
                 `features event audioAnalysisData duration=${this.audioAnalysisData.durationMs}`,
