@@ -84,9 +84,6 @@ module.exports = {
                 ]
             }
         ],
-        'import/namespace': ['error', {
-            allowComputed: true,
-            ignore: ['onnxruntime-react-native']
-        }],
+        'import/namespace': 'error',
     },
 }

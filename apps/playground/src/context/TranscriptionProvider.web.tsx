@@ -3,50 +3,33 @@ import { TranscriberData } from '@siteed/expo-audio-stream'
 import throttle from 'lodash.throttle'
 import React, {
     createContext,
-    ReactNode,
     useCallback,
     useContext,
     useEffect,
     useMemo,
     useReducer,
-    useRef,
+    useRef
 } from 'react'
 
+import { TranscribeNewSegmentsResult } from 'whisper.rn'
+import { baseLogger, config } from '../config'
+import { useWorker } from '../hooks/useWorker.web'
 import {
     initialState,
     transcriptionReducer,
 } from './TranscriptionProvider.reducer'
 import {
+    TranscribeParams,
     TranscriberCompleteData,
     TranscriberUpdateData,
-    TranscriptionState,
+    TranscriptionContextProps,
+    TranscriptionProviderProps,
+    TranscriptionState
 } from './TranscriptionProvider.types'
-import { baseLogger, config } from '../config'
-import { TranscribeParams } from './TranscriptionProvider'
-import { useWorker } from '../hooks/useWorker.web'
 
 const logger = baseLogger.extend('TranscriptionProvider')
 
-export interface TranscriptionContextProps extends TranscriptionState {
-    initialize: () => void
-    transcribe: (_: TranscribeParams) => Promise<TranscriberData | undefined>
-    updateConfig: (
-        config: Partial<TranscriptionState>,
-        shouldInitialize?: boolean
-    ) => Promise<void>
-}
-
-interface TranscriptionProviderProps {
-    children: ReactNode
-    initialModel?: string
-    initialQuantized?: boolean
-    initialMultilingual?: boolean
-    initialLanguage?: string
-}
-
-const TranscriptionContext = createContext<
-    TranscriptionContextProps | undefined
->(undefined)
+const TranscriptionContext = createContext<TranscriptionContextProps | undefined>(undefined)
 
 export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
     children,
@@ -83,6 +66,10 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
     const lastProgressUpdate = useRef<number>(0)
     const lastTranscriptRef = useRef<TranscriberData | null>(null)
 
+    // Add at component level with other refs
+    const onChunkUpdateRef = useRef<((_: TranscriberUpdateData['data']) => void) | null>(null);
+    const progressCallbackRef = useRef<((progress: number) => void) | null>(null);
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const messageEventHandler = useCallback(
         throttle((event: MessageEvent) => {
@@ -114,6 +101,16 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         chunks,
                         startTime: updateMessage.startTime,
                         endTime: updateMessage.endTime,
+                    }
+
+                    console.log('Web worker update received:', { 
+                        jobId, 
+                        text
+                    });
+
+                    // In the message handler
+                    if (onChunkUpdateRef.current) {
+                        onChunkUpdateRef.current(data)
                     }
 
                     const lastTranscript = lastTranscriptRef.current
@@ -205,7 +202,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     break
             }
         }, 100), // Throttle to run at most once every 100ms
-        [dispatch]
+        []
     )
 
     const webWorker = useWorker({
@@ -257,13 +254,66 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
     }, [dispatch, webWorker])
 
     const transcribe = useCallback(
-        async ({ audioData, jobId, position = 0 }: TranscribeParams) => {
+        async ({
+            audioData,
+            position = 0,
+            jobId: providedJobId,
+            options,
+            onProgress,
+            onNewSegments,
+        }: TranscribeParams): Promise<{
+            promise: Promise<TranscriberData>;
+            stop: () => Promise<void>;
+            jobId: string;
+        }> => {
+            const jobId = providedJobId || `transcribe_${Date.now()}_${Math.random().toString(36).slice(2)}`
+            
+            // Store the legacy onChunkUpdate functionality for backward compatibility
+            // We'll map onNewSegments to this functionality
+            onChunkUpdateRef.current = onNewSegments ? 
+                (data) => {
+                    // Map the data format from web to match TranscribeNewSegmentsResult
+                    const text = data[0];
+                    const { chunks } = data[1];
+                    
+                    // Create a compatible result object
+                    const result: TranscribeNewSegmentsResult = {
+                        nNew: chunks.length, // This is an approximation
+                        totalNNew: chunks.length,
+                        result: text,
+                        segments: chunks.map((chunk, index) => ({
+                            id: index,
+                            text: chunk.text,
+                            t0: chunk.timestamp[0],
+                            t1: chunk.timestamp[1] ?? chunk.timestamp[0],
+                        }))
+                    };
+                    
+                    onNewSegments(result);
+                } : null;
+
+            // Update progress callback ref
+            progressCallbackRef.current = onProgress || null;
+
             console.debug(
                 `transcribe, audioData: ${typeof audioData}, jobId: ${jobId}, position: ${position}`
             )
 
             // First check if audioData exists
-            if (!audioData) return Promise.resolve(undefined)
+            if (!audioData) {
+                return {
+                    promise: Promise.resolve({
+                        id: jobId,
+                        isBusy: false,
+                        text: '',
+                        chunks: [],
+                        startTime: 0,
+                        endTime: 0,
+                    }),
+                    stop: async () => {},
+                    jobId
+                };
+            }
 
             // Then check the type
             if (
@@ -275,13 +325,45 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     type: 'TRANSCRIPTION_START',
                 })
 
-                return new Promise<TranscriberData>((resolve, reject) => {
-                    transcribeResolveMapRef.current[jobId] = resolve
-                    transcribeRejectMapRef.current[jobId] = reject
+                // If we have a progress callback, simulate progress updates
+                let progressInterval: NodeJS.Timeout | null = null;
+                if (progressCallbackRef.current) {
+                    // Start with 0% progress
+                    progressCallbackRef.current(0);
+                    
+                    // Simulate progress updates (since web may not provide actual progress)
+                    progressInterval = setInterval(() => {
+                        if (!progressCallbackRef.current) {
+                            if (progressInterval) clearInterval(progressInterval);
+                            return;
+                        }
+                        
+                        // Get current progress from state if available, or simulate incremental progress
+                        const currentProgress = lastProgressUpdate.current || 0;
+                        const newProgress = Math.min(currentProgress + 5, 95); // Cap at 95% until complete
+                        
+                        lastProgressUpdate.current = newProgress;
+                        progressCallbackRef.current(newProgress);
+                    }, 500);
+                }
+
+                const transcriptionPromise = new Promise<TranscriberData>((resolve, reject) => {
+                    transcribeResolveMapRef.current[jobId] = (transcript) => {
+                        if (progressInterval) {
+                            clearInterval(progressInterval);
+                            // Final 100% progress
+                            if (progressCallbackRef.current) {
+                                progressCallbackRef.current(100);
+                            }
+                        }
+                        resolve(transcript);
+                    };
+                    transcribeRejectMapRef.current[jobId] = reject;
 
                     logger.debug(
                         `Transcribing position=${position} jobId=${jobId}...`
-                    )
+                    );
+                    
                     webWorker.postMessage({
                         type: 'transcribe',
                         audio: audioData,
@@ -290,25 +372,62 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         model: modelRef.current,
                         multilingual: multilingualRef.current,
                         quantized: quantizedRef.current,
-                        subtask: multilingualRef.current
-                            ? subtaskRef.current
+                        subtask: multilingualRef.current ? subtaskRef.current : null,
+                        language: multilingualRef.current && languageRef.current !== 'auto'
+                            ? languageRef.current 
                             : null,
-                        language:
-                            multilingualRef.current &&
-                            languageRef.current !== 'auto'
-                                ? languageRef.current
-                                : null,
-                    })
-                })
+                        ...options
+                    });
+                });
+
+                return {
+                    promise: transcriptionPromise,
+                    stop: async () => {
+                        if (progressInterval) {
+                            clearInterval(progressInterval);
+                        }
+                        
+                        // Send abort message to web worker
+                        webWorker.postMessage({
+                            type: 'abort',
+                            jobId
+                        });
+                        
+                        // Update state to indicate transcription is no longer busy
+                        dispatch({
+                            type: 'UPDATE_STATE',
+                            payload: { isBusy: false }
+                        });
+                        
+                        // Remove callbacks
+                        delete transcribeResolveMapRef.current[jobId];
+                        delete transcribeRejectMapRef.current[jobId];
+                    },
+                    jobId
+                };
             } else if (typeof audioData === 'string') {
                 // Handle string input (base64 or file path) by rejecting
-                return Promise.reject(
-                    new Error(
-                        'String audio data is not supported in web version'
-                    )
-                )
+                return {
+                    promise: Promise.reject(
+                        new Error('String audio data is not supported in web version')
+                    ),
+                    stop: async () => {},
+                    jobId
+                };
             }
-            return Promise.resolve(undefined)
+            
+            return {
+                promise: Promise.resolve({
+                    id: jobId,
+                    isBusy: false,
+                    text: '',
+                    chunks: [],
+                    startTime: 0,
+                    endTime: 0,
+                }),
+                stop: async () => {},
+                jobId
+            };
         },
         [webWorker]
     )
@@ -343,14 +462,20 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         }
     }, [initialize])
 
+    const resetWhisperContext = useCallback(() => {
+        // No-op in web version
+        logger.debug('resetWhisperContext called (no-op in web version)')
+    }, [])
+
     const contextValue = useMemo(
         () => ({
             ...state,
             initialize,
             transcribe,
             updateConfig,
+            resetWhisperContext,
         }),
-        [state, initialize, transcribe, updateConfig]
+        [state, initialize, transcribe, updateConfig, resetWhisperContext]
     )
 
     return (
