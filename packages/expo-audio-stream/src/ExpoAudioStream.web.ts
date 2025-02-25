@@ -136,7 +136,6 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             audioContext,
             source,
             recordingConfig,
-            audioWorkletUrl: this.audioWorkletUrl,
             emitAudioEventCallback: ({
                 data,
                 position,

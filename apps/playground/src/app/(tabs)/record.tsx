@@ -473,6 +473,9 @@ export default function RecordScreen() {
         }
     }, [stopRecording, enableLiveTranscription, router, show, hide, transcripts, refreshFiles, transcribeLive, startRecordingConfig.sampleRate])
 
+
+    console.log(`analysisData`, JSON.stringify(analysisData))
+
     const renderRecording = () => (
         <View style={{ gap: 10, display: 'flex' }}>
             {analysisData && (
@@ -480,6 +483,8 @@ export default function RecordScreen() {
                     candleSpace={2}
                     candleWidth={5}
                     canvasHeight={200}
+                    showSilence={true}
+                    amplitudeScaling='humanVoice'
                     mode="live"
                     audioData={analysisData}
                 />
@@ -547,6 +552,7 @@ export default function RecordScreen() {
                     candleSpace={2}
                     candleWidth={5}
                     canvasHeight={200}
+                    showSilence={true}
                     mode="live"
                     audioData={analysisData}
                 />

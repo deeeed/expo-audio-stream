@@ -1,4 +1,4 @@
-// src/WebRecorder.ts
+// packages/expo-audio-stream/src/WebRecorder.web.ts
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import { ConsoleLike, RecordingConfig } from './ExpoAudioStream.types'
@@ -191,7 +191,7 @@ export class WebRecorder {
                                 this.config.segmentDurationMs ??
                                 DEFAULT_SEGMENT_DURATION_MS, // Default to 100ms
                             bitDepth: this.bitDepth,
-                            fullAudioDurationMs: this.position * 1000,
+                            fullAudioDurationMs: chunkPosition * 1000,
                             numberOfChannels: this.numberOfChannels,
                             features: this.config.features,
                             intervalAnalysis: this.config.intervalAnalysis,
@@ -284,9 +284,23 @@ export class WebRecorder {
         if (event.data.command === 'features') {
             const segmentResult = event.data.result
 
+            console.debug('[WebRecorder] Raw segment result:', {
+                dataPointsLength: segmentResult.dataPoints.length,
+                durationMs: segmentResult.durationMs,
+                sampleRate: segmentResult.sampleRate,
+                amplitudeRange: segmentResult.amplitudeRange,
+            })
+
+            // Ensure consistent sample rate in the result
+            segmentResult.sampleRate =
+                this.config.sampleRate || this.audioContext.sampleRate
+
             // Update the full audio analysis data with proper range merging
             this.audioAnalysisData.dataPoints.push(...segmentResult.dataPoints)
             this.audioAnalysisData.durationMs += segmentResult.durationMs
+
+            // Make sure the sample rate is consistent
+            this.audioAnalysisData.sampleRate = segmentResult.sampleRate
 
             // Properly merge amplitude ranges
             if (segmentResult.amplitudeRange) {
@@ -334,6 +348,13 @@ export class WebRecorder {
                 this.audioAnalysisData
             )
             this.emitAudioAnalysisCallback(segmentResult)
+
+            console.debug('[WebRecorder] Updated audioAnalysisData:', {
+                dataPointsLength: this.audioAnalysisData.dataPoints.length,
+                durationMs: this.audioAnalysisData.durationMs,
+                sampleRate: this.audioAnalysisData.sampleRate,
+                amplitudeRange: this.audioAnalysisData.amplitudeRange,
+            })
         }
     }
 

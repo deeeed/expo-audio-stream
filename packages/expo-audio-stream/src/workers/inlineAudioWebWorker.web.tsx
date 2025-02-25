@@ -1,3 +1,4 @@
+// packages/expo-audio-stream/src/workers/inlineAudioWebWorker.web.tsx
 export const InlineAudioWebWorker = `
 const DEFAULT_BIT_DEPTH = 32
 const DEFAULT_SAMPLE_RATE = 44100
