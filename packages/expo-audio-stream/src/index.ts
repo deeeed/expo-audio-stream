@@ -4,6 +4,7 @@ import {
     extractRawWavAnalysis,
     extractAudioAnalysis,
     extractPreview,
+    extractAudioData,
 } from './AudioAnalysis/extractAudioAnalysis'
 import {
     AudioRecorderProvider,
@@ -22,6 +23,7 @@ export {
     extractRawWavAnalysis as extractWavAudioAnalysis,
     extractAudioAnalysis,
     extractPreview,
+    extractAudioData,
     useAudioRecorder,
     useSharedAudioRecorder,
 }
