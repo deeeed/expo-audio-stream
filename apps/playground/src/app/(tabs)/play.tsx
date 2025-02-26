@@ -18,6 +18,7 @@ import {
     CompressionInfo,
     convertPCMToFloat32,
     extractAudioAnalysis,
+    extractAudioData,
     getWavFileInfo,
     SampleRate,
     TranscriberData
@@ -36,6 +37,7 @@ import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
+import { validateExtractedAudio } from '../../utils/audioValidation'
 
 const logger = console
 const getStyles = (theme: AppTheme) => {
@@ -328,52 +330,43 @@ export const PlayPage = () => {
             setTranscript(undefined)
             timings['Reset Playback'] = performance.now() - startResetPlayback
 
-            const startFetchAudio = performance.now()
-            const response = await fetch(audioUri)
-            const arrayBuffer = await response.arrayBuffer()
-            timings['Fetch and Convert Audio'] = performance.now() - startFetchAudio
-
-            // Get file size from response
-            const size = Number(response.headers.get('content-length')) || arrayBuffer.byteLength
-            setFileSize(size)
-
-            const audioCTX = new AudioContext({
-                sampleRate: 16000,
+            // Extract audio data with proper options like in whisper.tsx
+            const extractedData = await extractAudioData({
+                fileUri: audioUri,
+                includeBase64Data: true,
+                includeNormalizedData: true,
+                includeWavHeader: isWeb,
+                startTimeMs: 0,
+                endTimeMs: 10000,
+                logger: baseLogger.extend('extractAudioData'),
+                decodingOptions: {
+                    targetSampleRate: 16000,
+                    targetChannels: 1,
+                    targetBitDepth: 16,
+                    normalizeAudio: true,
+                },
             })
-            const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
-            logger.log('Decoded audio:', decoded)
 
-            // Convert to mono if stereo
-            let pcmAudio: Float32Array
-            if (decoded.numberOfChannels === 2) {
-                const SCALING_FACTOR = Math.sqrt(2)
-                const left = decoded.getChannelData(0)
-                const right = decoded.getChannelData(1)
+            // Add validation
+            validateExtractedAudio(extractedData, filename ?? 'Unknown')
 
-                pcmAudio = new Float32Array(left.length)
-                for (let i = 0; i < decoded.length; ++i) {
-                    pcmAudio[i] = (SCALING_FACTOR * (left[i] + right[i])) / 2
-                }
-            } else {
-                pcmAudio = decoded.getChannelData(0)
-            }
-
-            setAudioBuffer(pcmAudio)
+            // Use the normalized data instead of raw PCM data
+            setAudioBuffer(extractedData.normalizedData)
 
             const startAudioAnalysis = performance.now()
             logger.log('Extracting audio preview...', audioUri)
             const preview = await extractAudioAnalysis({
                 fileUri: audioUri,
                 logger: baseLogger.extend('extractAudioAnalysis'),
-                segmentDurationMs: (PREVIEW_POINTS / 10), // Convert points to duration (10 sec default)
+                segmentDurationMs: (PREVIEW_POINTS / 10),
                 position: 0,
-                length: decoded.length,
+                length: extractedData.samples,
             })
 
-            // Set preview stats immediately with the correct duration from decoded audio
+            // Set preview stats with the correct duration
             setPreviewStats({
-                durationMs: decoded.duration * 1000, // Use decoded.duration instead of preview.durationMs
-                size: size
+                durationMs: extractedData.durationMs,
+                size: extractedData.pcmData?.byteLength ?? 0
             })
             
             logger.info(`Audio preview computed in ${performance.now() - startAudioAnalysis}ms`)

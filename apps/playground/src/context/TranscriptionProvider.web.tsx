@@ -1,6 +1,5 @@
 // apps/playground/src/context/TranscriptionProvider.tsx
 import { TranscriberData } from '@siteed/expo-audio-stream'
-import throttle from 'lodash.throttle'
 import React, {
     createContext,
     useCallback,
@@ -73,7 +72,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const messageEventHandler = useCallback(
-        throttle((event: MessageEvent) => {
+        (event: MessageEvent) => {
             const message = event.data
             const jobId = message.jobId
             switch (message.status) {
@@ -203,8 +202,8 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 default:
                     break
             }
-        }, 100), // Throttle to run at most once every 100ms
-        []
+        },
+        [state.progressItems]
     )
 
     const webWorker = useWorker({
@@ -477,29 +476,50 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     });
                 });
 
+                const stop = async () => {
+                    logger.debug(`Aborting transcription for jobId: ${jobId}`);
+                    
+                    if (progressInterval) {
+                        clearInterval(progressInterval);
+                    }
+                    
+                    // Send abort message to web worker
+                    webWorker.postMessage({
+                        type: 'abort',
+                        jobId
+                    });
+                    
+                    // Use the new TRANSCRIPTION_ABORT action
+                    dispatch({
+                        type: 'TRANSCRIPTION_ABORT',
+                        jobId
+                    });
+                    
+                    // Reset progress tracking
+                    lastProgressUpdate.current = 0;
+                    
+                    // Clean up callbacks and references
+                    onChunkUpdateRef.current = null;
+                    progressCallbackRef.current = null;
+                    
+                    // Clean up promise resolvers
+                    if (transcribeResolveMapRef.current[jobId]) {
+                        transcribeResolveMapRef.current[jobId]({
+                            id: jobId,
+                            isBusy: false,
+                            text: 'Transcription aborted by user',
+                            chunks: [],
+                            startTime: Date.now(),
+                            endTime: Date.now(),
+                        });
+                    }
+                    delete transcribeResolveMapRef.current[jobId];
+                    delete transcribeRejectMapRef.current[jobId];
+                };
+
                 return {
                     promise: transcriptionPromise,
-                    stop: async () => {
-                        if (progressInterval) {
-                            clearInterval(progressInterval);
-                        }
-                        
-                        // Send abort message to web worker
-                        webWorker.postMessage({
-                            type: 'abort',
-                            jobId
-                        });
-                        
-                        // Update state to indicate transcription is no longer busy
-                        dispatch({
-                            type: 'UPDATE_STATE',
-                            payload: { isBusy: false }
-                        });
-                        
-                        // Remove callbacks
-                        delete transcribeResolveMapRef.current[jobId];
-                        delete transcribeRejectMapRef.current[jobId];
-                    },
+                    stop,
                     jobId
                 };
             } 
@@ -583,26 +603,49 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         });
                 });
 
+                const stop = async () => {
+                    logger.debug(`Aborting transcription for jobId: ${jobId}`);
+                    
+                    if (progressInterval) {
+                        clearInterval(progressInterval);
+                    }
+                    
+                    // Send abort message to web worker
+                    webWorker.postMessage({
+                        type: 'abort',
+                        jobId
+                    });
+                    
+                    dispatch({
+                        type: 'TRANSCRIPTION_ABORT',
+                        jobId
+                    });
+                    
+                    // Reset progress tracking
+                    lastProgressUpdate.current = 0;
+                    
+                    // Clean up callbacks and references
+                    onChunkUpdateRef.current = null;
+                    progressCallbackRef.current = null;
+                    
+                    // Clean up promise resolvers
+                    if (transcribeResolveMapRef.current[jobId]) {
+                        transcribeResolveMapRef.current[jobId]({
+                            id: jobId,
+                            isBusy: false,
+                            text: 'Transcription aborted by user',
+                            chunks: [],
+                            startTime: Date.now(),
+                            endTime: Date.now(),
+                        });
+                    }
+                    delete transcribeResolveMapRef.current[jobId];
+                    delete transcribeRejectMapRef.current[jobId];
+                };
+
                 return {
                     promise: transcriptionPromise,
-                    stop: async () => {
-                        if (progressInterval) {
-                            clearInterval(progressInterval);
-                        }
-                        
-                        webWorker.postMessage({
-                            type: 'abort',
-                            jobId
-                        });
-                        
-                        dispatch({
-                            type: 'UPDATE_STATE',
-                            payload: { isBusy: false }
-                        });
-                        
-                        delete transcribeResolveMapRef.current[jobId];
-                        delete transcribeRejectMapRef.current[jobId];
-                    },
+                    stop,
                     jobId
                 };
             } 

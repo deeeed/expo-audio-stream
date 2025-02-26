@@ -45,7 +45,8 @@ const EXTRACT_DURATION_OPTIONS: ExtractDurationOption[] = [
     { label: '5 sec', value: 5000 },
     { label: '10 sec', value: 10000 },
     { label: '30 sec', value: 30000 },
-    { label: '1 min', value: 60000 }
+    { label: '1 min', value: 60000 },
+    { label: 'Full', value: -1 }  // Special value for full file
 ]
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
@@ -182,26 +183,54 @@ export function WhisperScreen() {
 
         if (!result.canceled && result.assets?.[0]) {
             const { uri, size = 0, name } = result.assets[0]
-            
-            // Add file type detection
             const fileExtension = name.split('.').pop()?.toLowerCase()
-            logger.debug('Selected file details:', {
-                name,
-                size,
-                extension: fileExtension,
-                uri
-            })
             
-            // Get audio duration and metadata for the selected file
             try {
-                const sound = await Audio.Sound.createAsync({ uri })
-                const status = await sound.sound.getStatusAsync()
+                let audioUri = uri;
                 
-                const fileDuration = status.isLoaded && status.durationMillis 
-                    ? status.durationMillis / 1000 
-                    : 0
-
-                sound.sound.unloadAsync()
+                // For base64 data URIs on web, convert to blob URL
+                if (isWeb && uri.startsWith('data:')) {
+                    const response = await fetch(uri);
+                    const blob = await response.blob();
+                    audioUri = URL.createObjectURL(blob);
+                }
+                
+                // Load the audio file
+                const { sound } = await Audio.Sound.createAsync(
+                    { uri: audioUri },
+                    { shouldPlay: false },
+                    (status) => {
+                        logger.debug('Audio status update:', status);
+                    }
+                );
+                
+                // Play and immediately stop to get accurate duration
+                await sound.playAsync();
+                await sound.stopAsync();
+                
+                // Get the status after playing
+                const status = await sound.getStatusAsync();
+                
+                // Get duration and unload
+                let fileDuration = 0;
+                if (status.isLoaded && status.durationMillis) {
+                    fileDuration = status.durationMillis / 1000;
+                }
+                await sound.unloadAsync();
+                
+                // Clean up blob URL if we created one
+                if (isWeb && audioUri !== uri) {
+                    URL.revokeObjectURL(audioUri);
+                }
+                
+                logger.debug('Selected file details:', {
+                    name,
+                    size,
+                    extension: fileExtension,
+                    uri,
+                    durationSeconds: fileDuration,
+                    status: status.isLoaded ? status : 'not loaded'
+                });
                 
                 setSelectedFile({ 
                     uri, 
@@ -209,17 +238,18 @@ export function WhisperScreen() {
                     name, 
                     duration: fileDuration,
                     fileType: fileExtension
-                })
+                });
+                
             } catch (error) {
-                console.error('Error loading audio file:', error)
-                alert(`Warning: Could not load audio metadata. The file may not be in a supported format. Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+                console.error('Error loading audio file:', error);
+                alert(`Warning: Could not load audio metadata. The file may not be in a supported format. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 setSelectedFile({ 
                     uri, 
                     size, 
                     name, 
                     duration: 0,
                     fileType: fileExtension
-                })
+                });
             }
             
             // Reset state for new file
@@ -230,11 +260,11 @@ export function WhisperScreen() {
                 startTime: 0,
                 endTime: 0,
                 chunks: [],
-            })
-            setProgress(0)
-            setCurrentProcessingTime(0)
-            setAudioExtracted(false)
-            setExtractedAudioData(null)
+            });
+            setProgress(0);
+            setCurrentProcessingTime(0);
+            setAudioExtracted(false);
+            setExtractedAudioData(null);
         }
     }, [])
 
@@ -248,40 +278,24 @@ export function WhisperScreen() {
             setIsExtracting(true)
             setProgress(0)
             
-            const durationToExtract = isCustomDuration ? customDuration : extractDuration
-            
-            // Log extraction attempt details
-            logger.debug('Starting audio extraction:', {
-                fileName: selectedFile.name,
-                fileSize: selectedFile.size,
-                fileType: selectedFile.fileType,
-                duration: selectedFile.duration,
-                requestedDuration: durationToExtract,
-                uri: selectedFile.uri
-            })
-
             const options: ExtractAudioDataOptions = {
                 fileUri: selectedFile.uri,
                 includeBase64Data: true,
                 includeNormalizedData: true,
                 includeWavHeader: isWeb,
                 startTimeMs: 0,
-                endTimeMs: durationToExtract,
                 logger,
                 decodingOptions: {
                     targetSampleRate: 16000,
                     targetChannels: 1,
                     targetBitDepth: 16,
                     normalizeAudio: true,
-                    // Add format-specific options based on file type
-                    ...(selectedFile.fileType === 'mp3' && {
-                        preferredCodec: 'mp3',
-                        maintainPitch: true,
-                    }),
-                    ...(selectedFile.fileType === 'wav' && {
-                        preferredCodec: 'wav',
-                    }),
                 },
+            }
+
+            // Only add endTimeMs if we're not extracting the full file
+            if (extractDuration !== -1) {
+                options.endTimeMs = isCustomDuration ? customDuration : extractDuration
             }
 
             logger.debug('Extract audio options:', options)
@@ -499,6 +513,10 @@ export function WhisperScreen() {
                     </Text>
                 )}
 
+                {selectedFile?.duration ? (
+                    <Text>Duration: {selectedFile.duration.toFixed(1)}s</Text>
+                ) : null}
+
                 {selectedFile && whisperContextReady && (
                     <>
                         <View style={styles.extractionSection}>
@@ -517,10 +535,15 @@ export function WhisperScreen() {
                                     }
                                 }}
                                 buttons={[
-                                    ...EXTRACT_DURATION_OPTIONS.map((option) => ({
-                                        value: option.value.toString(),
-                                        label: option.label,
-                                    })),
+                                    ...EXTRACT_DURATION_OPTIONS
+                                        .filter(option => 
+                                            option.value === -1 || // Always include 'Full' option
+                                            (selectedFile.duration && option.value <= selectedFile.duration * 1000) // Convert duration to ms
+                                        )
+                                        .map((option) => ({
+                                            value: option.value.toString(),
+                                            label: option.label,
+                                        })),
                                     { value: 'custom', label: 'Custom' }
                                 ]}
                             />

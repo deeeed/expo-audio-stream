@@ -173,10 +173,13 @@ class AutomaticSpeechRecognitionPipelineFactory extends PipelineFactory {
 // Add a map to track active transcription jobs
 const activeJobs = new Map()
 
+// Add at the top level with other global variables
+let currentTranscriptionTask = null;
+
 const transcribe = async ({
     audio,
     model,
-    jobId, // string | undefined
+    jobId,
     position = 0,
     quantized,
     subtask,
@@ -278,15 +281,21 @@ const transcribe = async ({
         }
         console.log(`${TAG} jobId=${jobId} Transcribing with options:`, options)
 
-        const output = await transcriber(audio, options).catch((error) => {
+        // Store the current transcription task promise
+        currentTranscriptionTask = transcriber(audio, options);
+        const output = await currentTranscriptionTask.catch((error) => {
             if (error.name === 'AbortError') {
-                console.log(`${TAG} jobId=${jobId} Transcription aborted`)
+                console.log(`${TAG} jobId=${jobId} Transcription aborted`);
+                // Clean up resources
+                currentTranscriptionTask = null;
+                chunks_to_process.length = 0;
+                
                 self.postMessage({
                     status: 'aborted',
                     task: 'automatic-speech-recognition',
                     jobId,
-                })
-                return null
+                });
+                return null;
             }
 
             self.postMessage({
@@ -294,10 +303,13 @@ const transcribe = async ({
                 task: 'automatic-speech-recognition',
                 jobId,
                 data: error,
-            })
-            return null
-        })
+            });
+            return null;
+        });
 
+        // Clear the current task
+        currentTranscriptionTask = null;
+        
         // Remove job from active jobs
         activeJobs.delete(jobId)
 
@@ -322,9 +334,10 @@ const transcribe = async ({
 
         return output
     } catch (error) {
-        // Remove job from active jobs
-        activeJobs.delete(jobId)
-        throw error
+        // Clear the current task
+        currentTranscriptionTask = null;
+        activeJobs.delete(jobId);
+        throw error;
     }
 }
 
@@ -353,14 +366,38 @@ self.addEventListener('message', async (event) => {
 
         if (activeJobs.has(jobId)) {
             const { abortController } = activeJobs.get(jobId)
+            
+            // Force abort the current transcription
             abortController.abort()
+            
+            // If there's an active transcription task, try to cancel it
+            if (currentTranscriptionTask && currentTranscriptionTask.cancel) {
+                try {
+                    await currentTranscriptionTask.cancel()
+                } catch (error) {
+                    console.warn(`${TAG} Error cancelling transcription:`, error)
+                }
+            }
+            
+            // Clean up
+            currentTranscriptionTask = null
             activeJobs.delete(jobId)
 
+            // Notify main thread
             self.postMessage({
                 status: 'aborted',
                 task: 'automatic-speech-recognition',
                 jobId,
             })
+            
+            // Force garbage collection if possible
+            if (global.gc) {
+                try {
+                    global.gc()
+                } catch (_error) {
+                    console.warn('Failed to force garbage collection')
+                }
+            }
         } else {
             console.log(`${TAG} Job ${jobId} not found for aborting`)
         }
