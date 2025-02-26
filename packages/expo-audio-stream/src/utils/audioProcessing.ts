@@ -108,10 +108,10 @@ export async function processAudioBuffer({
         })
 
         const startSample =
-            position !== undefined
-                ? Math.floor(position / bytesPerSample)
-                : startTimeMs !== undefined
-                  ? Math.floor((startTimeMs / 1000) * buffer.sampleRate)
+            startTimeMs !== undefined
+                ? Math.floor((startTimeMs / 1000) * buffer.sampleRate)
+                : position !== undefined
+                  ? Math.floor(position / bytesPerSample)
                   : 0
 
         logger?.debug('STEP 2 - Length calculation:', {
@@ -184,12 +184,32 @@ export async function processAudioBuffer({
             buffer.sampleRate
         )
 
-        // Copy the segment data
-        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-            const channelData = buffer.getChannelData(channel)
-            const segmentChannelData = segmentBuffer.getChannelData(channel)
+        // Copy the segment data with proper channel mixing if stereo
+        if (buffer.numberOfChannels === 2 && targetChannels === 1) {
+            // Proper stereo to mono mixing with scaling factor
+            const SCALING_FACTOR = Math.sqrt(2)
+            const left = buffer.getChannelData(0)
+            const right = buffer.getChannelData(1)
+            const monoChannel = segmentBuffer.getChannelData(0)
+
             for (let i = 0; i < actualSamples; i++) {
-                segmentChannelData[i] = channelData[startSample + i]
+                monoChannel[i] =
+                    (SCALING_FACTOR *
+                        (left[startSample + i] + right[startSample + i])) /
+                    2
+            }
+        } else {
+            // Standard channel copy
+            for (
+                let channel = 0;
+                channel < buffer.numberOfChannels;
+                channel++
+            ) {
+                const channelData = buffer.getChannelData(channel)
+                const segmentChannelData = segmentBuffer.getChannelData(channel)
+                for (let i = 0; i < actualSamples; i++) {
+                    segmentChannelData[i] = channelData[startSample + i]
+                }
             }
         }
 

@@ -68,7 +68,7 @@ const AppInfoBanner = memo(function AppInfoBanner({
             })
             return newIsExpanded
         })
-    }, [])
+    }, [animatedHeight])
 
     return (
         <Pressable onPress={toggleExpanded}>
@@ -197,17 +197,31 @@ export const MoreScreen = () => {
                 }}
             />
             {__DEV__ && (
-                <ListItem
-                    contentContainerStyle={{
-                        backgroundColor: theme.colors.surface,
-                        margin: 0,
-                    }}
-                    label="Whisper"
-                    subLabel="Whisper (Dev Only)"
-                    onPress={() => {
-                        router.navigate('/whisper')
-                    }}
-                />
+                <>
+                    <ListItem
+                        contentContainerStyle={{
+                            backgroundColor: theme.colors.surface,
+                            margin: 0,
+                        }}
+                        label="Whisper"
+                        subLabel="Whisper (Dev Only)"
+                        onPress={() => {
+                            router.navigate('/whisper')
+                        }}
+                    />
+                    <ListItem
+                        contentContainerStyle={{
+                            backgroundColor: theme.colors.surface,
+                            margin: 0,
+                        }}
+                        label="Whisper Debug"
+                        subLabel="Whisper Debug (Dev Only)"
+                        onPress={() => {
+                            router.navigate('/whisper-debug')
+                        }}
+                    />
+                </>
+                
             )}
             {/* <ListItem
                 contentContainerStyle={{
