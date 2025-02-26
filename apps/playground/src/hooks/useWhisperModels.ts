@@ -7,38 +7,81 @@ export interface WhisperModel {
     label: string
     url: string
     filename: string
+    capabilities: {
+        multilingual: boolean
+        quantizable: boolean
+        tdrz?: boolean  // Optional TDRZ capability for native models
+    }
 }
 
 export interface WebWhisperModel {
     id: string
     label: string
+    capabilities: {
+        multilingual: boolean
+        quantizable: boolean
+    }
 }
 
 export const WHISPER_MODELS: WhisperModel[] = [
     {
         id: 'tiny',
-        label: 'Tiny Model',
+        label: 'Tiny (en)',
         url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin',
         filename: 'ggml-tiny.en.bin',
+        capabilities: {
+            multilingual: false,
+            quantizable: false,
+        },
     },
     {
         id: 'base',
         label: 'Base Model',
         url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin',
         filename: 'ggml-base.bin',
+        capabilities: {
+            multilingual: false,
+            quantizable: false,
+        },
     },
     {
         id: 'small',
         label: 'Small (tdrz)',
         url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en-tdrz.bin',
         filename: 'ggml-small.en-tdrz.bin',
+        capabilities: {
+            multilingual: false,
+            quantizable: false,
+            tdrz: true,
+        },
     },
 ]
 
 export const WEB_WHISPER_MODELS: WebWhisperModel[] = [
-    { id: 'Xenova/whisper-tiny', label: 'Tiny' },
-    { id: 'Xenova/whisper-base', label: 'Base' },
-    { id: 'Xenova/whisper-small', label: 'Small' },
+    { 
+        id: 'Xenova/whisper-tiny', 
+        label: 'Tiny',
+        capabilities: {
+            multilingual: false,
+            quantizable: false,
+        },
+    },
+    { 
+        id: 'Xenova/whisper-base', 
+        label: 'Base',
+        capabilities: {
+            multilingual: true,
+            quantizable: true,
+        },
+    },
+    { 
+        id: 'Xenova/whisper-small', 
+        label: 'Small',
+        capabilities: {
+            multilingual: true,
+            quantizable: true,
+        },
+    },
 ]
 
 export function useWhisperModels() {

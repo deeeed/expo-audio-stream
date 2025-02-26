@@ -22,6 +22,7 @@ export interface TranscriptionState {
     multilingual: boolean
     language?: string
     ready: boolean
+    tdrz?: boolean // Add TDRZ option for native
 }
 
 export type TranscriptionAction =

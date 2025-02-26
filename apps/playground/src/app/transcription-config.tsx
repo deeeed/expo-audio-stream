@@ -12,7 +12,7 @@ import { Text } from 'react-native-paper'
 
 import { ProgressItems } from '../component/ProgressItems'
 import {
-    SelectedTranscriptionProps,
+    TranscriptionConfigFormState,
     TranscriptionConfigForm,
 } from '../component/TranscriptionConfigForm'
 import { baseLogger } from '../config'
@@ -41,11 +41,13 @@ const TranscriptionScreen = () => {
         updateConfig,
     } = useTranscription()
     const [selectedAnalysisConfig, setSelectedAnalysisConfig] =
-        useState<SelectedTranscriptionProps>({
+        useState<TranscriptionConfigFormState>({
             model,
             multilingual,
             quantized,
             language,
+            subtask: 'transcribe',
+            tdrz: false,
         })
     const { openDrawer, dismiss } = useModal()
     const { show } = useToast()

@@ -6,12 +6,12 @@ import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { ProgressBar, SegmentedButtons } from 'react-native-paper'
 
+import { isWeb } from '../../../../packages/expo-audio-ui/src/constants'
 import { PCMPlayer } from '../component/PCMPlayer'
+import { TranscriberConfig } from '../component/TranscriberConfig'
 import Transcript from '../component/Transcript'
-import { config } from '../config'
 import { useTranscription } from '../context/TranscriptionProvider'
 import { TranscribeParams } from '../context/TranscriptionProvider.types'
-import { isWeb } from '../../../../packages/expo-audio-ui/src/constants'
 
 interface TranscriptionLog {
     modelId: string
@@ -44,7 +44,6 @@ const EXTRACT_DURATION_OPTIONS: ExtractDurationOption[] = [
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
         container: {
-            padding: theme.padding.m,
             gap: theme.spacing.gap,
         },
         progressContainer: {
@@ -163,29 +162,10 @@ export function WhisperScreen() {
         useState<number>(0)
     const [lastTranscriptionLog, setLastTranscriptionLog] = useState<TranscriptionLog | null>(null)
 
-    const [selectedModel, setSelectedModel] = useState<string>('tiny')
-
     const {
-        isModelLoading: isInitializingModel,
         ready: whisperContextReady,
-        resetWhisperContext,
         transcribe,
-        updateConfig,
-        progressItems,
     } = useTranscription()
-
-    const downloadProgress = useMemo(() => {
-        const modelItem = progressItems.find(
-            item => item.name === selectedModel && item.status === 'downloading'
-        )
-        return { [selectedModel]: modelItem ? modelItem.progress / 100 : 0 }
-    }, [progressItems, selectedModel])
-
-    const isDownloading = useMemo(() => {
-        return progressItems.some(
-            item => item.status === 'downloading'
-        )
-    }, [progressItems])
 
     const handleFileSelection = useCallback(async () => {
         const result = await DocumentPicker.getDocumentAsync({
@@ -225,19 +205,6 @@ export function WhisperScreen() {
             setExtractedAudioData(null);
         }
     }, [])
-
-    const handleModelSelection = useCallback(
-        (model: string) => {
-            setSelectedModel(model)
-            resetWhisperContext()
-        },
-        [resetWhisperContext]
-    )
-
-    const handleInitialize = useCallback(async () => {
-        // Pass the model ID directly - the platform-specific provider will handle the formatting
-        await updateConfig({ model: selectedModel }, true);
-    }, [selectedModel, updateConfig]);
 
     const handleExtractAudio = useCallback(async () => {
         if (!selectedFile) return
@@ -392,7 +359,7 @@ export function WhisperScreen() {
 
             // Store only the last transcription log
             setLastTranscriptionLog({
-                modelId: selectedModel,
+                modelId: 'tiny',
                 fileName: selectedFile.name ?? 'Unknown file',
                 processingDuration,
                 fileDuration,
@@ -417,7 +384,7 @@ export function WhisperScreen() {
             setIsTranscribing(false)
             setStopTranscription(null)
         }
-    }, [selectedFile, selectedModel, whisperContextReady, transcribe, extractedAudioData])
+    }, [selectedFile, whisperContextReady, extractedAudioData, transcribe, isCustomDuration, customDuration, extractDuration])
 
     const handleStop = useCallback(async () => {
         if (stopTranscription) {
@@ -434,15 +401,14 @@ export function WhisperScreen() {
     return (
         <ScreenWrapper withScrollView useInsets contentContainerStyle={styles.container}>
 
-                <SegmentedButtons
-                    value={selectedModel}
-                    onValueChange={handleModelSelection}
-                    buttons={config.WHISPER_MODELS.map((model) => ({
-                        value: model.id,
-                        label: model.label,
-                        disabled: isInitializingModel,
-                    }))}
-                />
+                <TranscriberConfig 
+                                    compact={true}
+                                    onConfigChange={() => {
+                                        // Reset any state that depends on the model when config changes
+                                        setAudioExtracted(false);
+                                        setExtractedAudioData(null);
+                                    }}
+                                />
 
                 <Button
                     mode="contained"
@@ -459,23 +425,6 @@ export function WhisperScreen() {
                         {selectedFile.duration ? ` | ${selectedFile.duration.toFixed(1)}s` : ''})
                     </Text>
                 )}
-
-                <Button
-                    mode="contained"
-                    onPress={handleInitialize}
-                    loading={isInitializingModel || isDownloading}
-                    disabled={
-                        isInitializingModel ||
-                        isDownloading ||
-                        whisperContextReady
-                    }
-                >
-                    {isDownloading
-                        ? `Downloading... ${Math.round(downloadProgress[selectedModel] * 100)}%`
-                        : whisperContextReady 
-                          ? `${selectedModel} Model Ready`
-                          : `Initialize ${selectedModel} Model`}
-                </Button>
 
                 {selectedFile && whisperContextReady && (
                     <>
@@ -592,7 +541,7 @@ export function WhisperScreen() {
                     </View>
                 )}
 
-                {transcriptionData  && (
+                {audioExtracted &&transcriptionData  && (
                         <Transcript
                             transcribedData={transcriptionData}
                             isBusy={isTranscribing}
