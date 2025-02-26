@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Text, View } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
 
 // Minimal debug page for audio extraction and transcription
 export default function WhisperDebugPage() {
@@ -55,22 +56,34 @@ export default function WhisperDebugPage() {
   }, []);
   
   // File selection handler
-  const handleFileSelection = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'audio/*';
-    
-    input.onchange = (e) => {
-      const target = e.target as HTMLInputElement;
-      const file = target.files?.[0];
-      if (!file) return;
-      
-      setSelectedFile(file);
-      setExtractedAudio(null);
-      setTranscript('');
-    };
-    
-    input.click();
+  const handleFileSelection = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+      });
+
+      if (!result.canceled && result.assets?.[0]) {
+        const { uri, name } = result.assets[0];
+        
+        // Log the URI for comparison
+        console.log('Selected file URI:', uri);
+        
+        // Fetch the file and log its first few bytes
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        const buffer = await blob.arrayBuffer();
+        const firstBytes = new Uint8Array(buffer.slice(0, 32));
+        console.log('First 32 bytes:', Array.from(firstBytes));
+        
+        setSelectedFile(new File([blob], name, {
+          type: 'audio/*',
+        }));
+        setExtractedAudio(null);
+        setTranscript('');
+      }
+    } catch (error) {
+      console.error('File selection error:', error);
+    }
   }, []);
   
   // Extract first 10 seconds of audio
@@ -81,6 +94,13 @@ export default function WhisperDebugPage() {
     }
     
     try {
+      // Log the input file details
+      console.log('Input file:', {
+        name: selectedFile.name,
+        size: selectedFile.size,
+        type: selectedFile.type,
+      });
+
       // Create AudioContext if not exists
       if (!audioContextRef.current) {
         const AudioContextClass = window.AudioContext || 
@@ -89,11 +109,12 @@ export default function WhisperDebugPage() {
         audioContextRef.current = new AudioContextClass();
       }
       
-      // Read file as ArrayBuffer
+      // Read file as ArrayBuffer and log its size
       const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
           if (reader.result instanceof ArrayBuffer) {
+            console.log('Raw buffer size:', reader.result.byteLength);
             resolve(reader.result);
           } else {
             reject(new Error('Expected ArrayBuffer from FileReader'));
@@ -147,9 +168,26 @@ export default function WhisperDebugPage() {
         
         // Create a buffer with the mixed audio
         const segmentBuffer = ctx.createBuffer(1, audio.length, audioBuffer.sampleRate);
-
-        console.log(`Segment buffer: samples=${segmentBuffer.length}`)
-        segmentBuffer.getChannelData(0).set(audio);
+        console.log(`Segment buffer: samples=${segmentBuffer.length}`);
+        
+        // For stereo to mono conversion, use the same scaling factor as ExpoAudioStreamModule
+        const SCALING_FACTOR = Math.sqrt(2);
+        const channelData = segmentBuffer.getChannelData(0);
+        
+        if (audioBuffer.numberOfChannels === 2) {
+          // Apply the same stereo to mono mixing with scaling factor
+          const left = audioBuffer.getChannelData(0);
+          const right = audioBuffer.getChannelData(1);
+          for (let i = 0; i < audio.length; i++) {
+            channelData[i] = (SCALING_FACTOR * (left[i] + right[i])) / 2;
+          }
+        } else {
+          // For mono, just copy with scaling
+          const sourceData = audioBuffer.getChannelData(0);
+          for (let i = 0; i < audio.length; i++) {
+            channelData[i] = sourceData[i];
+          }
+        }
         
         // Create source and connect
         const source = offlineCtx.createBufferSource();
@@ -162,17 +200,96 @@ export default function WhisperDebugPage() {
         
         // Get the resampled audio data
         finalAudio = resampledBuffer.getChannelData(0) as Float32Array<ArrayBuffer>;
-
-                
+        
+        // Calculate amplitude statistics to match whisper.tsx logs
         let maxAmplitude = 0;
-        for (const sample of finalAudio) {
-            const absSample = Math.abs(sample);
-            if (absSample > maxAmplitude) {
-                maxAmplitude = absSample;
-            }
-                }
-        console.log('Max amplitude in WhisperDebugPage:', maxAmplitude)
+        let sumAmplitude = 0;
+        let samplesAbove50Percent = 0;
+        
+        for (let i = 0; i < finalAudio.length; i++) {
+          const absValue = Math.abs(finalAudio[i]);
+          maxAmplitude = Math.max(maxAmplitude, absValue);
+          sumAmplitude += absValue;
+          if (absValue > 0.5) samplesAbove50Percent++;
+        }
+        
+        const avgAmplitude = sumAmplitude / finalAudio.length;
+        
+        console.log('[audio-playground:whisper] Audio amplitude validation:', {
+          maxAmplitude,
+          avgAmplitude,
+          hasSignal: maxAmplitude > 0,
+          isAmplified: maxAmplitude >= 0.5,
+          samplesAbove50Percent,
+          totalSamples: finalAudio.length
+        });
       }
+
+      // Add detailed analysis of the audio data
+      const stats = {
+        min: Number.POSITIVE_INFINITY,
+        max: Number.NEGATIVE_INFINITY,
+        absMax: 0,
+        rms: 0,
+        samples: finalAudio.length,
+        sampleRate: 16000,
+        duration: finalAudio.length / 16000,
+        firstSamples: Array.from(finalAudio.slice(0, 10)), // First 10 samples
+        lastSamples: Array.from(finalAudio.slice(-10)) // Last 10 samples
+      };
+
+      for (let i = 0; i < finalAudio.length; i++) {
+        const sample = finalAudio[i];
+        stats.min = Math.min(stats.min, sample);
+        stats.max = Math.max(stats.max, sample);
+        stats.absMax = Math.max(stats.absMax, Math.abs(sample));
+        stats.rms += sample * sample;
+      }
+      stats.rms = Math.sqrt(stats.rms / finalAudio.length);
+
+      console.log('Final audio statistics:', {
+        sampleRate: 16000,
+        channels: 1,
+        samples: finalAudio.length,
+        duration: finalAudio.length / 16000,
+        stats
+      });
+
+      // Log initial extraction options
+      console.log('[audio-playground:whisper] Extract audio options:', {
+        fileUri: selectedFile.name,
+        includeBase64Data: true,
+        includeNormalizedData: true,
+        includeWavHeader: false,
+        startTimeMs: 0,
+        endTimeMs: durationToExtract * 1000,
+        decodingOptions: {
+          targetSampleRate: 16000,
+          targetChannels: 1,
+          targetBitDepth: 16,
+          normalizeAudio: true,
+        }
+      });
+
+      // Log initial audio buffer details
+      console.log('[audio-playground:whisper] EXTRACT AUDIO - Step 1.5: Audio buffer details', {
+        channels: audioBuffer.numberOfChannels,
+        sampleRate: audioBuffer.sampleRate,
+        duration: audioBuffer.duration,
+        length: audioBuffer.length
+      });
+
+      // Log final output details
+      console.log('[audio-playground:whisper] EXTRACT AUDIO - Step 4: Final output', {
+        pcmData: {
+          length: finalAudio.length,
+          sampleRate: 16000,
+          channels: 1
+        },
+        timing: {
+          duration: finalAudio.length / 16000
+        }
+      });
 
       // Store the extracted audio
       setExtractedAudio(finalAudio);
@@ -194,21 +311,25 @@ export default function WhisperDebugPage() {
       setTranscript('');
       
       const jobId = `debug_${Date.now()}`;
+
+      const action = {
+          type: 'transcribe',
+          audio: extractedAudio,
+          jobId,
+          model: 'Xenova/whisper-tiny',
+          multilingual: true,
+          quantized: true,
+          language: null,
+          // options: {
+          //   task: 'transcribe',
+          //   without_timestamps: true
+          // }
+      }
+
+      console.log('Sending to worker:', action);
       
       // Send message to worker
-      workerRef.current.postMessage({
-        type: 'transcribe',
-        audio: extractedAudio,
-        jobId,
-        model: 'Xenova/whisper-tiny',
-        multilingual: true,
-        quantized: true,
-        language: null,
-        options: {
-          task: 'transcribe',
-          without_timestamps: true
-        }
-      });
+      workerRef.current.postMessage(action);
       
     } catch (error) {
       console.error('Transcription error:', error);
