@@ -157,10 +157,23 @@ export async function processAudioBuffer({
             shouldBe3000ms: true,
         })
 
-        // Create offline context for processing
+        // Calculate the correct number of samples based on duration
+        const originalDuration = actualSamples / buffer.sampleRate // Duration in seconds
+        const targetSamples = Math.ceil(originalDuration * targetSampleRate) // Correct sample count at target rate
+
+        logger?.debug('STEP 4.5 - Sample rate conversion:', {
+            originalSampleRate: buffer.sampleRate,
+            targetSampleRate,
+            originalDuration,
+            originalSamples: actualSamples,
+            targetSamples,
+            expectedDurationMs: Math.round(originalDuration * 1000),
+        })
+
+        // Create offline context with the correct number of samples to maintain duration
         const offlineCtx = new OfflineAudioContext(
             targetChannels,
-            actualSamples,
+            targetSamples, // Use targetSamples instead of actualSamples
             targetSampleRate
         )
 
@@ -238,9 +251,7 @@ export async function processAudioBuffer({
         }
 
         // Update duration calculation to be based on the requested samples
-        const durationMs = Math.round(
-            (actualSamples / buffer.sampleRate) * 1000
-        )
+        const durationMs = Math.round(originalDuration * 1000)
 
         logger?.debug('Processed buffer details:', {
             startSample,
@@ -249,16 +260,16 @@ export async function processAudioBuffer({
             processedLength: pcmData.length,
             pcmDataLength: pcmData.length,
             durationMs,
-            sampleRate: buffer.sampleRate,
+            sampleRate: targetSampleRate,
             channels: buffer.numberOfChannels,
         })
 
         return {
             buffer,
             pcmData,
-            samples: actualSamples,
+            samples: targetSamples,
             durationMs,
-            sampleRate: buffer.sampleRate,
+            sampleRate: targetSampleRate,
             channels: processedBuffer.numberOfChannels,
         }
     } catch (error) {

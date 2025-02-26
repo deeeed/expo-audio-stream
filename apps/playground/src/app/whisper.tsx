@@ -10,9 +10,9 @@ import { isWeb } from '../../../../packages/expo-audio-ui/src/constants'
 import { PCMPlayer } from '../component/PCMPlayer'
 import { TranscriberConfig } from '../component/TranscriberConfig'
 import Transcript from '../component/Transcript'
+import { baseLogger } from '../config'
 import { useTranscription } from '../context/TranscriptionProvider'
 import { TranscribeParams } from '../context/TranscriptionProvider.types'
-import { baseLogger } from '../config'
 
 
 const logger = baseLogger.extend('whisper')
@@ -49,6 +49,7 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
         container: {
             gap: theme.spacing.gap,
+            paddingHorizontal: theme.padding.s,
         },
         progressContainer: {
             flexDirection: 'row',
@@ -227,6 +228,7 @@ export function WhisperScreen() {
                 fileUri: selectedFile.uri,
                 includeBase64Data: true,
                 includeNormalizedData: true,
+                includeWavHeader: isWeb,
                 startTimeMs: 0,
                 endTimeMs: durationToExtract,
                 logger,
@@ -234,15 +236,41 @@ export function WhisperScreen() {
                     targetSampleRate: 16000, // Whisper expects 16kHz
                     targetChannels: 1, // Mono
                     targetBitDepth: 16, // 16-bit
+                    normalizeAudio: false,
                 },
             }
             logger.debug('Extract audio options:', options)
             const extractedData = await extractAudioData(options);
 
+            // Validate the extracted audio data immediately
+            if (extractedData.normalizedData) {
+                // Fix TypeScript errors by using proper type assertions and explicit typing
+                const normalizedArray = Array.from(extractedData.normalizedData.slice(0, 1000));
+                
+                // Use explicit type assertion to tell TypeScript these are numbers
+                const max = Math.max(...normalizedArray.map((x: unknown): number => Math.abs(x as number)));
+                const sum = normalizedArray.reduce((a: number, b: unknown): number => a + Math.abs(b as number), 0);
+                
+                logger.debug('Extracted audio validation:', {
+                    max,
+                    sum,
+                    hasSignal: max > 0,
+                    isAmplified: max >= 0.5
+                });
+                
+                if (max === 0) {
+                    logger.error('Extracted audio contains no signal (all zeros)');
+                    alert('The extracted audio contains no signal. Please try a different file or time range.');
+                    setIsExtracting(false);
+                    return;
+                }
+            }
+
             setExtractedAudioData(extractedData);
             setAudioExtracted(true);
         } catch (error) {
             console.error('Audio extraction error:', error);
+            alert('Failed to extract audio: ' + (error instanceof Error ? error.message : 'Unknown error'));
         } finally {
             setIsExtracting(false)
         }
@@ -280,34 +308,6 @@ export function WhisperScreen() {
                     : 0
             sound.sound.unloadAsync()
 
-            // // Always extract audio to ensure proper format and duration
-            // try {
-            //     setProgress(0.1); // Show some initial progress
-                
-            //     // Get the duration to extract based on user selection
-            //     const durationToExtract = isCustomDuration ? customDuration : extractDuration;
-                
-            //     const extractedData = await extractAudioData({
-            //         fileUri: selectedFile.uri,
-            //         includeBase64Data: true,
-            //         includeNormalizedData: true,
-            //         startTimeMs: 0,
-            //         logger,
-            //         endTimeMs: durationToExtract,
-            //         decodingOptions: {
-            //             targetSampleRate: 16000, // Whisper expects 16kHz
-            //             targetChannels: 1, // Mono
-            //             targetBitDepth: 16, // 16-bit
-            //         },
-            //     });
-                
-            //     setExtractedAudioData(extractedData);
-            //     setAudioExtracted(true);
-            // } catch (error) {
-            //     console.error('Audio extraction error:', error);
-            //     throw new Error('Failed to extract audio file');
-            // }
-        
             const transcribeParams: Partial<TranscribeParams> = {
                 jobId: '1',
                 options: {
@@ -354,28 +354,46 @@ export function WhisperScreen() {
                 }
             }
 
-            if(isWeb) {
-                // transform extractedAudioData to a blob
-                // const blob = new Blob([extractedAudioData.normalizedData!], { type: 'audio/wav' });
-                // transcribeParams.audioUri = URL.createObjectURL(blob);
-                transcribeParams.audioUri = selectedFile.uri
-            } else if(extractedAudioData) {
-                transcribeParams.audioData = isWeb ?  extractedAudioData.normalizedData: extractedAudioData.base64Data
+            // Debug the extracted audio data
+            logger.debug('Extracted audio data details:', {
+                sampleRate: extractedAudioData.sampleRate,
+                channels: extractedAudioData.channels,
+                bitDepth: extractedAudioData.bitDepth,
+                durationMs: extractedAudioData.durationMs,
+                format: extractedAudioData.format,
+                samples: extractedAudioData.samples,
+                hasPcmData: !!extractedAudioData.pcmData,
+                pcmDataLength: extractedAudioData.pcmData?.length,
+                hasNormalizedData: !!extractedAudioData.normalizedData,
+                normalizedDataLength: extractedAudioData.normalizedData?.length,
+                hasBase64Data: !!extractedAudioData.base64Data,
+                base64DataLength: extractedAudioData.base64Data?.length,
+            });
+
+            if (isWeb) {
+                // Use the PCM data directly since it already has a WAV header
+                transcribeParams.audioUri = URL.createObjectURL(
+                    new Blob([extractedAudioData.pcmData], { type: 'audio/wav' })
+                );
             } else {
-                transcribeParams.audioUri = selectedFile.uri
+                // For native platforms, use base64 data if available
+                if (extractedAudioData.base64Data) {
+                    logger.debug('Using base64 data for native transcription');
+                    transcribeParams.audioData = extractedAudioData.base64Data;
+                } else {
+                    logger.debug('Using original file URI for native transcription');
+                    transcribeParams.audioUri = selectedFile.uri;
+                }
             }
 
-            logger.debug(`selectedFile: `, selectedFile)
-            logger.debug('Transcribe params:', transcribeParams)
-            const { promise, stop } = await transcribe(transcribeParams as TranscribeParams)
+            logger.debug('Transcribe params:', transcribeParams);
+            const { promise, stop } = await transcribe(transcribeParams as TranscribeParams);
+            setStopTranscription(() => stop);
 
-            setStopTranscription(() => stop)
+            const transcription = await promise;
+            const endTime = Date.now();
+            const processingDuration = (endTime - startTime) / 1000;
 
-            const transcription = await promise
-            const endTime = Date.now()
-            const processingDuration = (endTime - startTime) / 1000
-
-            // Store only the last transcription log
             setLastTranscriptionLog({
                 modelId: 'tiny',
                 fileName: selectedFile.name ?? 'Unknown file',
@@ -385,24 +403,24 @@ export function WhisperScreen() {
                 fileSize: selectedFile.size ?? 0,
             });
             
-            console.log('Final transcription:', transcription)
-            setTranscriptionData(transcription)
+            console.log('Final transcription:', transcription);
+            setTranscriptionData(transcription);
         } catch (error) {
-            console.error('Transcription error:', error)
+            console.error('Transcription error:', error);
             setTranscriptionData((prev) => ({
                 ...prev,
                 isBusy: false,
                 text: 'Error during transcription',
                 endTime: Date.now(),
-            }))
+            }));
         } finally {
             if (processingTimer.current) {
-                clearInterval(processingTimer.current)
+                clearInterval(processingTimer.current);
             }
-            setIsTranscribing(false)
-            setStopTranscription(null)
+            setIsTranscribing(false);
+            setStopTranscription(null);
         }
-    }, [selectedFile, whisperContextReady, extractedAudioData, transcribe, isCustomDuration, customDuration, extractDuration])
+    }, [selectedFile, whisperContextReady, extractedAudioData, transcribe]);
 
     const handleStop = useCallback(async () => {
         if (stopTranscription) {
@@ -510,6 +528,7 @@ export function WhisperScreen() {
                                         sampleRate={extractedAudioData.sampleRate} 
                                         bitDepth={16}
                                         channels={extractedAudioData.channels}
+                                        hasWavHeader={extractedAudioData.hasWavHeader}
                                     />
                                 )}
                             </View>

@@ -24,53 +24,139 @@ class PipelineFactory {
         quantized,
         progress_callback = null,
     }) {
-        const isDistilWhisper = model.startsWith('distil-whisper/')
+        try {
+            const isDistilWhisper = model.startsWith('distil-whisper/')
 
-        let modelName = model
-        if (!isDistilWhisper && !multilingual && !model.includes('large')) {
-            modelName += '.en'
-        }
+            // Make sure we're using the correct model name format
+            let modelName = model
 
-        if (
-            this.model !== modelName ||
-            this.quantized !== quantized ||
-            this.instance === null
-        ) {
-            const transformers = await import(
-                'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
-            )
-            pipeline = transformers.pipeline
-            env = transformers.env
-            env.allowLocalModels = false
-            console.log(`${TAG} env:`, env)
-
-            this.task = 'automatic-speech-recognition'
-            this.model = modelName
-            this.quantized = quantized
-
-            console.log(
-                `${TAG} Initializing pipeline for ${this.model} quantized: ${this.quantized} multilingual: ${multilingual}`
-            )
-
-            if (this.instance !== null) {
-                // this.instance.dispose()
-                this.instance = null
+            // If model already has .en suffix, respect it
+            if (
+                !isDistilWhisper &&
+                !multilingual &&
+                !model.endsWith('.en') &&
+                !model.includes('large')
+            ) {
+                modelName += '.en'
             }
 
-            const revision = model.includes('/whisper-medium')
-                ? 'no_attentions'
-                : 'main'
-            this.instance = await pipeline(this.task, this.model, {
-                quantized: this.quantized,
-                progress_callback,
-                revision,
+            if (
+                this.model !== modelName ||
+                this.quantized !== quantized ||
+                this.instance === null
+            ) {
+                const transformers = await import(
+                    // eslint-disable-next-line import/no-unresolved
+                    'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
+                )
+                pipeline = transformers.pipeline
+                env = transformers.env
+                env.allowLocalModels = false
+                console.log(`${TAG} env:`, env)
+
+                this.task = 'automatic-speech-recognition'
+                this.model = modelName
+                this.quantized = quantized
+
+                console.log(
+                    `${TAG} Initializing pipeline for ${this.model} quantized: ${this.quantized} multilingual: ${multilingual}`
+                )
+
+                if (this.instance !== null) {
+                    // this.instance.dispose()
+                    this.instance = null
+                }
+
+                const revision = model.includes('/whisper-medium')
+                    ? 'no_attentions'
+                    : 'main'
+
+                // Create a custom progress callback that enhances the progress data
+                const wrappedProgressCallback = (data) => {
+                    // Add file and name information to all progress events
+                    if (data) {
+                        // Make sure we have a proper progress object
+                        const enhancedData = {
+                            ...data,
+                            file: modelName,
+                            name: modelName,
+                        }
+
+                        // For download progress specifically
+                        if (
+                            data.status === 'progress' ||
+                            data.status === 'downloading'
+                        ) {
+                            enhancedData.status = 'progress'
+
+                            // Calculate progress percentage if not provided
+                            if (data.loaded && data.total && !data.progress) {
+                                enhancedData.progress = Math.round(
+                                    (data.loaded / data.total) * 100
+                                )
+                            }
+                        }
+
+                        // Forward the enhanced progress data
+                        if (progress_callback) {
+                            progress_callback(enhancedData)
+                        } else {
+                            // If no callback provided, post directly to main thread
+                            self.postMessage(enhancedData)
+                        }
+                    }
+                }
+
+                // Send initial progress event
+                wrappedProgressCallback({
+                    status: 'progress',
+                    name: modelName,
+                    file: modelName,
+                    loaded: 0,
+                    total: 100,
+                    progress: 0,
+                    message: 'Starting model download',
+                })
+
+                this.instance = await pipeline(this.task, this.model, {
+                    quantized: this.quantized,
+                    progress_callback: wrappedProgressCallback,
+                    revision,
+                })
+
+                // Send final progress event
+                wrappedProgressCallback({
+                    status: 'progress',
+                    name: modelName,
+                    file: modelName,
+                    loaded: 100,
+                    total: 100,
+                    progress: 100,
+                    message: 'Model download complete',
+                })
+
+                // Add this line to signal completion
+                self.postMessage({
+                    status: 'done',
+                    file: modelName,
+                    name: modelName,
+                })
+
+                this.initialized = true
+            }
+
+            console.log(`${TAG} Pipeline initialized`, this.instance)
+            return this.instance
+        } catch (error) {
+            console.error(`${TAG} Error initializing pipeline:`, error)
+            self.postMessage({
+                status: 'error',
+                data: {
+                    message: `Failed to initialize model: ${error.message}`,
+                },
             })
-
-            this.initialized = true
+            throw error
         }
-
-        console.log(`${TAG} Pipeline initialized`, this.instance)
-        return this.instance
     }
 
     static async getInstance() {
@@ -83,6 +169,9 @@ class AutomaticSpeechRecognitionPipelineFactory extends PipelineFactory {
     static model = null
     static quantized = null
 }
+
+// Add a map to track active transcription jobs
+const activeJobs = new Map()
 
 const transcribe = async ({
     audio,
@@ -168,49 +257,75 @@ const transcribe = async ({
         self.postMessage(updateData)
     }
 
-    const options = {
-        top_k: 0,
-        do_sample: false,
-        chunk_length_s: isDistilWhisper ? 20 : 30,
-        stride_length_s: isDistilWhisper ? 3 : 5,
-        language,
-        // task: subtask, // can be used for translation to english
-        return_timestamps: true,
-        force_full_sequences: false,
-        word_timestamps: true,
-        callback_function,
-        chunk_callback,
-    }
-    console.log(`${TAG} jobId=${jobId} Transcribing with options:`, options)
+    // Store the job in the active jobs map with an abort controller
+    const abortController = new AbortController()
+    activeJobs.set(jobId, { abortController })
 
-    const output = await transcriber(audio, options).catch((error) => {
-        self.postMessage({
-            status: 'error',
-            task: 'automatic-speech-recognition',
-            jobId,
-            data: error,
-        })
-        return null
-    })
+    try {
+        const options = {
+            top_k: 0,
+            do_sample: false,
+            chunk_length_s: isDistilWhisper ? 20 : 30,
+            stride_length_s: isDistilWhisper ? 3 : 5,
+            language,
+            // task: subtask, // can be used for translation to english
+            return_timestamps: true,
+            force_full_sequences: false,
+            word_timestamps: true,
+            callback_function,
+            chunk_callback,
+            signal: abortController.signal, // Add abort signal
+        }
+        console.log(`${TAG} jobId=${jobId} Transcribing with options:`, options)
 
-    // adjust chunks timestamps based on position
-    if (position && position > 0 && output) {
-        output.startTime = position
-        output.endTime = position + audio.length / SAMPLE_RATE
-        const adjustedChunks = output.chunks.map((chunk) => {
-            return {
-                ...chunk,
-                timestamp: [
-                    chunk.timestamp[0] + position,
-                    chunk.timestamp[1] ? chunk.timestamp[1] + position : null,
-                ],
+        const output = await transcriber(audio, options).catch((error) => {
+            if (error.name === 'AbortError') {
+                console.log(`${TAG} jobId=${jobId} Transcription aborted`)
+                self.postMessage({
+                    status: 'aborted',
+                    task: 'automatic-speech-recognition',
+                    jobId,
+                })
+                return null
             }
-        })
-        output.chunks = adjustedChunks
-    }
-    console.log(`${TAG} adjusted transcription:`, output)
 
-    return output
+            self.postMessage({
+                status: 'error',
+                task: 'automatic-speech-recognition',
+                jobId,
+                data: error,
+            })
+            return null
+        })
+
+        // Remove job from active jobs
+        activeJobs.delete(jobId)
+
+        // adjust chunks timestamps based on position
+        if (position && position > 0 && output) {
+            output.startTime = position
+            output.endTime = position + audio.length / SAMPLE_RATE
+            const adjustedChunks = output.chunks.map((chunk) => {
+                return {
+                    ...chunk,
+                    timestamp: [
+                        chunk.timestamp[0] + position,
+                        chunk.timestamp[1]
+                            ? chunk.timestamp[1] + position
+                            : null,
+                    ],
+                }
+            })
+            output.chunks = adjustedChunks
+        }
+        console.log(`${TAG} adjusted transcription:`, output)
+
+        return output
+    } catch (error) {
+        // Remove job from active jobs
+        activeJobs.delete(jobId)
+        throw error
+    }
 }
 
 self.addEventListener('message', async (event) => {
@@ -225,11 +340,30 @@ self.addEventListener('message', async (event) => {
             language: message.languauge,
             subtask: message.subtask,
             progress_callback: (data) => {
-                // console.debug(`${TAG} progress`, data)
                 self.postMessage(data)
             },
         })
         self.postMessage({ status: 'ready' })
+        return
+    }
+
+    if (message.type === 'abort') {
+        const jobId = message.jobId
+        console.log(`${TAG} Aborting job ${jobId}`)
+
+        if (activeJobs.has(jobId)) {
+            const { abortController } = activeJobs.get(jobId)
+            abortController.abort()
+            activeJobs.delete(jobId)
+
+            self.postMessage({
+                status: 'aborted',
+                task: 'automatic-speech-recognition',
+                jobId,
+            })
+        } else {
+            console.log(`${TAG} Job ${jobId} not found for aborting`)
+        }
         return
     }
 

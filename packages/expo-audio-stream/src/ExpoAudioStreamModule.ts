@@ -12,6 +12,7 @@ import {
     ExpoAudioStreamWebProps,
 } from './ExpoAudioStream.web'
 import { processAudioBuffer } from './utils/audioProcessing'
+import { writeWavHeader } from './utils/writeWavHeader'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let ExpoAudioStreamModule: any
@@ -92,6 +93,7 @@ if (Platform.OS === 'web') {
                 decodingOptions,
                 includeNormalizedData,
                 includeBase64Data,
+                includeWavHeader = false,
                 logger,
             } = options
 
@@ -201,14 +203,45 @@ if (Platform.OS === 'web') {
                 samples: numSamples,
             }
 
-            if (includeNormalizedData) {
-                result.normalizedData = channelData
+            // Add WAV header if requested
+            if (includeWavHeader) {
+                const wavBuffer = writeWavHeader({
+                    buffer: pcmData.buffer.slice(0, pcmData.length),
+                    sampleRate: processedBuffer.sampleRate,
+                    numChannels: processedBuffer.channels,
+                    bitDepth,
+                })
+                result.pcmData = new Uint8Array(wavBuffer)
+                result.hasWavHeader = true
             }
-            
+
+            if (includeNormalizedData) {
+                // Simple approach: Create normalized data directly from the PCM data
+                // Just convert to -1 to 1 range without any amplification
+                const normalizedData = new Float32Array(numSamples)
+
+                // Convert the PCM data to float values
+                for (let i = 0; i < numSamples; i++) {
+                    // Get the 16-bit PCM value (little endian)
+                    const lowByte = pcmData[i * 2]
+                    const highByte = pcmData[i * 2 + 1]
+                    const pcmValue = (highByte << 8) | lowByte
+
+                    // Convert to signed 16-bit value
+                    const signedValue =
+                        pcmValue > 32767 ? pcmValue - 65536 : pcmValue
+
+                    // Normalize to float between -1 and 1
+                    normalizedData[i] = signedValue / 32768.0
+                }
+                // Store the normalized data in the result
+                result.normalizedData = normalizedData
+            }
+
             if (includeBase64Data) {
                 // Convert the PCM data to a base64 string
                 const binary = Array.from(new Uint8Array(pcmData.buffer))
-                    .map(b => String.fromCharCode(b))
+                    .map((b) => String.fromCharCode(b))
                     .join('')
                 result.base64Data = btoa(binary)
             }

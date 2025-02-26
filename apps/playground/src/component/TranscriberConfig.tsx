@@ -3,8 +3,11 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { ProgressBar, Text } from 'react-native-paper'
 
+import { baseLogger } from '../config'
 import { useTranscription } from '../context/TranscriptionProvider'
 import { TranscriptionConfigForm, TranscriptionConfigFormState } from './TranscriptionConfigForm'
+
+const logger = baseLogger.extend('TranscriberConfig')
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
@@ -22,6 +25,9 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
         progressBar: {
             flex: 1,
             height: 6,
+            minWidth: Platform.OS === 'web' ? 100 : undefined,
+            display: 'flex',
+            opacity: 1,
         },
         progressText: {
             fontSize: 12,
@@ -126,7 +132,7 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
         tdrz: false,
     })
     
-    const { openDrawer, dismiss } = useModal()
+    const { openDrawer } = useModal()
 
     const hasEditedConfig = useMemo(() => {
         if (selectedConfig.model !== model) return true
@@ -205,17 +211,16 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
                 </View>
                 
                 {(isDownloading || isModelLoading) && (
-                    <View style={styles.compactProgressContainer}>
+                    <View style={[styles.compactProgressContainer, { minHeight: 10, width: '100%' }]}>
                         <ProgressBar 
                             progress={isDownloading ? downloadProgress : 0.5} 
                             indeterminate={!isDownloading && isModelLoading}
-                            style={styles.progressBar}
+                            style={[styles.progressBar, { height: 8, minHeight: 8 }]}
                             color={theme.colors.primary}
                         />
                     </View>
                 )}
             </View>
-            
             {!ready && !isModelLoading && !isDownloading && !hasEditedConfig && (
                 <Button 
                     mode="contained" 
@@ -267,11 +272,11 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
             <Text style={styles.statusText}>{statusText}</Text>
             
             {(isDownloading || isModelLoading) && (
-                <View style={styles.progressContainer}>
+                <View style={[styles.progressContainer, { minHeight: 10, width: '100%' }]}>
                     <ProgressBar 
                         progress={isDownloading ? downloadProgress : 0.5} 
                         indeterminate={!isDownloading && isModelLoading}
-                        style={styles.progressBar}
+                        style={[styles.progressBar, { height: 8, minHeight: 8 }]}
                         color={theme.colors.primary}
                     />
                     {isDownloading && (
@@ -301,24 +306,28 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
                 label={compact ? "Model" : "Transcription Config"}
                 value={modelName} // This is just a placeholder, we'll use renderValue
                 renderValue={() => compact ? renderCompactView() : renderDetailedView()}
-                editable={!isModelLoading && !isDownloading}
+                editable={true}
                 onEdit={async () => {
-                    openDrawer({
+                    const config = await openDrawer({
                         title: 'Transcription Config',
                         initialData: selectedConfig,
                         bottomSheetProps: {
                             enableDynamicSizing: true,
                         },
-                        render: () => (
+                        render: ({ resolve }) => (
                             <TranscriptionConfigForm
                                 config={selectedConfig}
                                 onChange={(config) => {
-                                    setSelectedConfig(config)
-                                    dismiss()
+                                    resolve(config)
                                 }}
                             />
                         ),
                     })
+                    if (config) {   
+                        setSelectedConfig(config)
+                        await updateConfig(config, true)
+                        logger.log('config has changed', config)
+                    }
                 }}
             />
             

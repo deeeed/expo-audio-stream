@@ -279,6 +279,9 @@ export interface ExtractAudioDataOptions {
     includeNormalizedData?: boolean
     /** Include base64 encoded string representation of the audio data */
     includeBase64Data?: boolean
+    /** Include WAV header in the PCM data (makes it a valid WAV file) */
+    includeWavHeader?: boolean
+    /** Logger for debugging - can pass console directly. */
     logger?: ConsoleLike
     /** Compute the checksum of the pcm data */
     computeChecksum?: boolean
@@ -305,6 +308,8 @@ export interface ExtractedAudioData {
     format: PCMFormat
     /** Total number of audio samples per channel */
     samples: number
+    /** Whether the pcmData includes a WAV header */
+    hasWavHeader?: boolean
     /** CRC32 Checksum of pcm data */
     checksum?: number
 }

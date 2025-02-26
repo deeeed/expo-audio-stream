@@ -16,6 +16,7 @@ interface PCMPlayerProps {
     sampleRate: number
     bitDepth: number
     channels?: number
+    hasWavHeader?: boolean
 }
 
 const getStyles = (theme: AppTheme) => StyleSheet.create({
@@ -59,7 +60,8 @@ export function PCMPlayer({
     data, 
     sampleRate, 
     bitDepth,
-    channels = 1 
+    channels = 1,
+    hasWavHeader = false
 }: PCMPlayerProps) {
     const theme = useTheme()
     const styles = getStyles(theme)
@@ -101,16 +103,27 @@ export function PCMPlayer({
                 sampleRate,
                 channels,
                 bitDepth,
-                dataSize: data.length
+                dataSize: data.length,
+                hasWavHeader
             })
 
-            const pcmBuffer = data.buffer.slice(0) as ArrayBuffer
-            const wavBuffer = writeWavHeader({
-                buffer: pcmBuffer.slice(0, data.length),
-                sampleRate,
-                numChannels: channels,
-                bitDepth,
-            })
+            let wavBuffer: ArrayBuffer
+            
+            if (hasWavHeader) {
+                // If data already has a WAV header, use it directly
+                wavBuffer = data.buffer.slice(0, data.length) as ArrayBuffer
+                logger.debug('Using existing WAV header')
+            } else {
+                // Otherwise, create a WAV header
+                const pcmBuffer = data.buffer.slice(0) as ArrayBuffer
+                wavBuffer = writeWavHeader({
+                    buffer: pcmBuffer.slice(0, data.length),
+                    sampleRate,
+                    numChannels: channels,
+                    bitDepth,
+                })
+                logger.debug('Created new WAV header')
+            }
 
             let uri: string
             if (Platform.OS === 'web') {
@@ -159,7 +172,7 @@ export function PCMPlayer({
             logger.error('Failed to play audio:', error)
             show({ type: 'error', message: 'Failed to play audio segment' })
         }
-    }, [data, sampleRate, channels, bitDepth, sound, isPlaying, show])
+    }, [data, sampleRate, channels, bitDepth, hasWavHeader, sound, isPlaying, show])
 
     useEffect(() => {
         return () => {
