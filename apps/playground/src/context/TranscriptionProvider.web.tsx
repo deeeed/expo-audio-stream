@@ -241,8 +241,6 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         const currentModel = modelRef.current;
         
         // Format the model name for web if needed
-        // If it already starts with 'Xenova/whisper-', use it as is
-        // Otherwise, check if it's a short name that needs the prefix
         const formattedModel = currentModel.startsWith('Xenova/whisper-') 
             ? currentModel 
             : `Xenova/whisper-${currentModel}`;
@@ -252,6 +250,16 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             formattedModel
         )
         
+        console.log("Initializing worker with:", {
+            type: 'initialize',
+            model: formattedModel,
+            quantized: quantizedRef.current,
+            multilingual: multilingualRef.current,
+            subtask: multilingualRef.current ? subtaskRef.current : null,
+            language: multilingualRef.current && languageRef.current !== 'auto'
+                ? languageRef.current
+                : null
+        });
 
         webWorker.postMessage({
             type: 'initialize',
@@ -283,6 +291,12 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             jobId: string;
         }> => {
             const jobId = providedJobId || `transcribe_${Date.now()}_${Math.random().toString(36).slice(2)}`
+            
+            // Format the model name consistently
+            const currentModel = modelRef.current;
+            const formattedModel = currentModel.startsWith('Xenova/whisper-') 
+                ? currentModel 
+                : `Xenova/whisper-${currentModel}`;
             
             // Store callbacks
             onChunkUpdateRef.current = onNewSegments ? 
@@ -341,6 +355,39 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     type: 'TRANSCRIPTION_START',
                 })
 
+                // Add diagnostic logging for the audio data
+                if (audioData instanceof Float32Array) {
+                    // Check if audio has content
+                    const sum = Array.from(audioData.slice(0, 1000)).reduce((a, b) => a + Math.abs(b), 0);
+                    const max = Math.max(...Array.from(audioData.slice(0, 1000)).map(Math.abs));
+                    
+                    console.log("Audio diagnostics:", {
+                        type: audioData.constructor.name,
+                        length: audioData.length,
+                        sum: sum,
+                        max: max,
+                        firstSamples: Array.from(audioData.slice(0, 10)),
+                        expectedDurationSec: audioData.length / 16000
+                    });
+                    
+                    // If audio is all zeros or very low levels, warn and don't proceed
+                    if (sum === 0 || max < 0.0001) {
+                        console.warn("Audio data contains no signal (all zeros or very low levels)");
+                        return {
+                            promise: Promise.resolve({
+                                id: jobId,
+                                isBusy: false,
+                                text: '',
+                                chunks: [],
+                                startTime: 0,
+                                endTime: 0,
+                            }),
+                            stop: async () => {},
+                            jobId
+                        };
+                    }
+                }
+
                 // Progress simulation code
                 let progressInterval: NodeJS.Timeout | null = null;
                 if (progressCallbackRef.current) {
@@ -380,12 +427,28 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         `Transcribing position=${position} jobId=${jobId}...`
                     );
                     
+                    // Log what we're sending to the worker
+                    console.log(`Sending to worker:`, {
+                        type: 'transcribe',
+                        audioType: audioData.constructor.name,
+                        audioLength: ArrayBuffer.isView(audioData) ? audioData.length : (audioData as ArrayBuffer).byteLength,
+                        position,
+                        jobId,
+                        model: formattedModel,
+                        multilingual: multilingualRef.current,
+                        quantized: quantizedRef.current,
+                        subtask: multilingualRef.current ? subtaskRef.current : null,
+                        language: multilingualRef.current && languageRef.current !== 'auto'
+                            ? languageRef.current 
+                            : null
+                    });
+
                     webWorker.postMessage({
                         type: 'transcribe',
                         audio: audioData,
                         position,
                         jobId,
-                        model: modelRef.current,
+                        model: formattedModel,
                         multilingual: multilingualRef.current,
                         quantized: quantizedRef.current,
                         subtask: multilingualRef.current ? subtaskRef.current : null,
@@ -465,12 +528,25 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     fetch(audioUri)
                         .then(response => response.arrayBuffer())
                         .then(buffer => {
+                            // Convert ArrayBuffer to Float32Array for the Whisper model
+                            // First, convert to 16-bit PCM samples
+                            const view = new Int16Array(buffer);
+                            
+                            // Then convert to normalized float32 (-1.0 to 1.0)
+                            const floatData = new Float32Array(view.length);
+                            for (let i = 0; i < view.length; i++) {
+                                // Convert from int16 to float32 range
+                                floatData[i] = view[i] / 32768.0;
+                            }
+                            
+                            console.log(`Converted audio data: length=${floatData.length}, first samples=${Array.from(floatData.slice(0, 5))}`);
+                            
                             webWorker.postMessage({
                                 type: 'transcribe',
-                                audio: buffer,
+                                audio: floatData,  // Send the Float32Array instead of the raw buffer
                                 position,
                                 jobId,
-                                model: modelRef.current,
+                                model: formattedModel,
                                 multilingual: multilingualRef.current,
                                 quantized: quantizedRef.current,
                                 subtask: multilingualRef.current ? subtaskRef.current : null,

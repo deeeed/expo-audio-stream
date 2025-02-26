@@ -243,7 +243,7 @@ export const PlayPage = () => {
         } finally {
             setProcessing(false)
         }
-    }, [endTimeMs, show, startTimeMs, enableTrim, PREVIEW_POINTS, fileSize, originalDurationMs])
+    }, [endTimeMs, show, startTimeMs, enableTrim, fileSize, originalDurationMs])
 
     const pickAudioFile = async () => {
         try {

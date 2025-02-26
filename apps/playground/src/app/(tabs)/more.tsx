@@ -185,19 +185,6 @@ export const MoreScreen = () => {
                     router.navigate('/logs')
                 }}
             />
-            {isWeb && (
-                <ListItem
-                    contentContainerStyle={{
-                        backgroundColor: theme.colors.surface,
-                        margin: 0,
-                    }}
-                label="Transcriber Config"
-                subLabel="Configure model and AI parameters for transcription"
-                    onPress={() => {
-                        router.navigate('/transcription-config')
-                    }}
-                />
-            )}
             <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,

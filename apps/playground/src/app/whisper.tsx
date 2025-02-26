@@ -1,5 +1,5 @@
 import { AppTheme, Button, NumberAdjuster, ScreenWrapper, Text, useTheme } from '@siteed/design-system'
-import { ExtractedAudioData, TranscriberData, extractAudioData } from '@siteed/expo-audio-stream'
+import { ExtractAudioDataOptions, ExtractedAudioData, TranscriberData, extractAudioData } from '@siteed/expo-audio-stream'
 import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
@@ -12,6 +12,10 @@ import { TranscriberConfig } from '../component/TranscriberConfig'
 import Transcript from '../component/Transcript'
 import { useTranscription } from '../context/TranscriptionProvider'
 import { TranscribeParams } from '../context/TranscriptionProvider.types'
+import { baseLogger } from '../config'
+
+
+const logger = baseLogger.extend('whisper')
 
 interface TranscriptionLog {
     modelId: string
@@ -207,7 +211,10 @@ export function WhisperScreen() {
     }, [])
 
     const handleExtractAudio = useCallback(async () => {
-        if (!selectedFile) return
+        if (!selectedFile) {
+            logger.error('No file selected')
+            return
+        }
 
         try {
             setIsExtracting(true)
@@ -216,19 +223,22 @@ export function WhisperScreen() {
             // Get the duration to extract based on user selection
             const durationToExtract = isCustomDuration ? customDuration : extractDuration;
             
-            const extractedData = await extractAudioData({
+            const options: ExtractAudioDataOptions = {
                 fileUri: selectedFile.uri,
                 includeBase64Data: true,
                 includeNormalizedData: true,
                 startTimeMs: 0,
                 endTimeMs: durationToExtract,
+                logger,
                 decodingOptions: {
                     targetSampleRate: 16000, // Whisper expects 16kHz
                     targetChannels: 1, // Mono
                     targetBitDepth: 16, // 16-bit
                 },
-            });
-            
+            }
+            logger.debug('Extract audio options:', options)
+            const extractedData = await extractAudioData(options);
+
             setExtractedAudioData(extractedData);
             setAudioExtracted(true);
         } catch (error) {
@@ -270,32 +280,33 @@ export function WhisperScreen() {
                     : 0
             sound.sound.unloadAsync()
 
-            // Always extract audio to ensure proper format and duration
-            try {
-                setProgress(0.1); // Show some initial progress
+            // // Always extract audio to ensure proper format and duration
+            // try {
+            //     setProgress(0.1); // Show some initial progress
                 
-                // Get the duration to extract based on user selection
-                const durationToExtract = isCustomDuration ? customDuration : extractDuration;
+            //     // Get the duration to extract based on user selection
+            //     const durationToExtract = isCustomDuration ? customDuration : extractDuration;
                 
-                const extractedData = await extractAudioData({
-                    fileUri: selectedFile.uri,
-                    includeBase64Data: true,
-                    includeNormalizedData: true,
-                    startTimeMs: 0,
-                    endTimeMs: durationToExtract,
-                    decodingOptions: {
-                        targetSampleRate: 16000, // Whisper expects 16kHz
-                        targetChannels: 1, // Mono
-                        targetBitDepth: 16, // 16-bit
-                    },
-                });
+            //     const extractedData = await extractAudioData({
+            //         fileUri: selectedFile.uri,
+            //         includeBase64Data: true,
+            //         includeNormalizedData: true,
+            //         startTimeMs: 0,
+            //         logger,
+            //         endTimeMs: durationToExtract,
+            //         decodingOptions: {
+            //             targetSampleRate: 16000, // Whisper expects 16kHz
+            //             targetChannels: 1, // Mono
+            //             targetBitDepth: 16, // 16-bit
+            //         },
+            //     });
                 
-                setExtractedAudioData(extractedData);
-                setAudioExtracted(true);
-            } catch (error) {
-                console.error('Audio extraction error:', error);
-                throw new Error('Failed to extract audio file');
-            }
+            //     setExtractedAudioData(extractedData);
+            //     setAudioExtracted(true);
+            // } catch (error) {
+            //     console.error('Audio extraction error:', error);
+            //     throw new Error('Failed to extract audio file');
+            // }
         
             const transcribeParams: Partial<TranscribeParams> = {
                 jobId: '1',
@@ -343,12 +354,19 @@ export function WhisperScreen() {
                 }
             }
 
-            if(extractedAudioData) {
+            if(isWeb) {
+                // transform extractedAudioData to a blob
+                // const blob = new Blob([extractedAudioData.normalizedData!], { type: 'audio/wav' });
+                // transcribeParams.audioUri = URL.createObjectURL(blob);
+                transcribeParams.audioUri = selectedFile.uri
+            } else if(extractedAudioData) {
                 transcribeParams.audioData = isWeb ?  extractedAudioData.normalizedData: extractedAudioData.base64Data
             } else {
                 transcribeParams.audioUri = selectedFile.uri
             }
 
+            logger.debug(`selectedFile: `, selectedFile)
+            logger.debug('Transcribe params:', transcribeParams)
             const { promise, stop } = await transcribe(transcribeParams as TranscribeParams)
 
             setStopTranscription(() => stop)

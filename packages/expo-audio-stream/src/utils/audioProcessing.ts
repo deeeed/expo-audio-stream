@@ -212,8 +212,30 @@ export async function processAudioBuffer({
         source.start()
         const processedBuffer = await offlineCtx.startRendering()
 
-        // Get the processed audio data
-        const pcmData = processedBuffer.getChannelData(0)
+        // Get the processed audio data - need to handle multiple channels
+        let pcmData: Float32Array
+
+        if (processedBuffer.numberOfChannels === 1) {
+            // Single channel case - just get the data
+            pcmData = processedBuffer.getChannelData(0)
+        } else {
+            // Multiple channels case - need to interleave the channels
+            const length =
+                processedBuffer.length * processedBuffer.numberOfChannels
+            pcmData = new Float32Array(length)
+
+            for (
+                let channel = 0;
+                channel < processedBuffer.numberOfChannels;
+                channel++
+            ) {
+                const channelData = processedBuffer.getChannelData(channel)
+                for (let i = 0; i < processedBuffer.length; i++) {
+                    pcmData[i * processedBuffer.numberOfChannels + channel] =
+                        channelData[i]
+                }
+            }
+        }
 
         // Update duration calculation to be based on the requested samples
         const durationMs = Math.round(
@@ -237,7 +259,7 @@ export async function processAudioBuffer({
             samples: actualSamples,
             durationMs,
             sampleRate: buffer.sampleRate,
-            channels: buffer.numberOfChannels,
+            channels: processedBuffer.numberOfChannels,
         }
     } catch (error) {
         logger?.error('Failed to process audio buffer:', {
