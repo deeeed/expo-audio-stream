@@ -156,13 +156,13 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     break
                 }
                 case 'initiate':
-                    // dispatch({
-                    //     type: 'UPDATE_STATE',
-                    //     payload: {
-                    //         isModelLoading: true,
-                    //         progressItems: [...state.progressItems, message],
-                    //     },
-                    // })
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: {
+                            isModelLoading: true,
+                            progressItems: [...state.progressItems, message],
+                        },
+                    })
                     break
                 case 'ready':
                     dispatch({
@@ -292,6 +292,13 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         }> => {
             const jobId = providedJobId || `transcribe_${Date.now()}_${Math.random().toString(36).slice(2)}`
             
+            logger.debug('Transcribing with:', {
+                audioData,
+                audioUri,
+                position,
+                jobId,
+                options,
+            })
             // Format the model name consistently
             const currentModel = modelRef.current;
             const formattedModel = currentModel.startsWith('Xenova/whisper-') 
@@ -529,17 +536,19 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         .then(response => response.arrayBuffer())
                         .then(buffer => {
                             // Convert ArrayBuffer to Float32Array for the Whisper model
-                            // First, convert to 16-bit PCM samples
                             const view = new Int16Array(buffer);
-                            
-                            // Then convert to normalized float32 (-1.0 to 1.0)
                             const floatData = new Float32Array(view.length);
+                            let maxAmplitude = 0;
                             for (let i = 0; i < view.length; i++) {
-                                // Convert from int16 to float32 range
                                 floatData[i] = view[i] / 32768.0;
+                                maxAmplitude = Math.max(maxAmplitude, Math.abs(floatData[i]));
                             }
-                            
-                            console.log(`Converted audio data: length=${floatData.length}, first samples=${Array.from(floatData.slice(0, 5))}`);
+
+                            console.log(`Converted audio data: length=${floatData.length}, maxAmplitude=${maxAmplitude}, first samples=${Array.from(floatData.slice(0, 5))}`);
+
+                            if (maxAmplitude < 0.1) {
+                                console.warn('Audio signal too quiet for transcription', { maxAmplitude });
+                            }
                             
                             webWorker.postMessage({
                                 type: 'transcribe',

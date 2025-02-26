@@ -8,6 +8,7 @@ import { Button, Text } from 'react-native-paper'
 import { TranscriptionResults } from '../../components/TranscriptionResults'
 import { useSileroVAD } from '../../hooks/useSileroVAD'
 import { useTranscriptionAnalyzer } from '../../hooks/useTranscriptionAnalyzer'
+import { isWeb } from '../../utils/utils'
 
 interface SpeechAnalyzerProps {
     analysis: AudioAnalysis
@@ -73,7 +74,7 @@ export function SpeechAnalyzer({
         setShowTranscriptionResults(true)
         try {
             await processTranscription(
-                audioData.pcmData
+                isWeb ? audioData.normalizedData : audioData.pcmData
             )
         } finally {
             setIsTranscribing(false)
