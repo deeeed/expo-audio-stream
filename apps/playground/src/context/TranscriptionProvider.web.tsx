@@ -151,8 +151,8 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     if (transcribeResolveMapRef.current[jobId]) {
                         transcribeResolveMapRef.current[jobId](transcript)
                         delete transcribeResolveMapRef.current[jobId]
+                        delete transcribeRejectMapRef.current[jobId]
                     }
-
                     break
                 }
                 case 'initiate':
@@ -179,6 +179,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         type: 'UPDATE_STATE',
                         payload: {
                             isBusy: false,
+                            transcript: undefined
                         },
                     })
                     alert(
@@ -292,6 +293,32 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         }> => {
             const jobId = providedJobId || `transcribe_${Date.now()}_${Math.random().toString(36).slice(2)}`
             
+            // First check if we have either audioData or audioUri
+            if (!audioData && !audioUri) {
+                dispatch({
+                    type: 'UPDATE_STATE',
+                    payload: { isBusy: false }
+                });
+                return {
+                    promise: Promise.resolve({
+                        id: jobId,
+                        isBusy: false,
+                        text: '',
+                        chunks: [],
+                        startTime: 0,
+                        endTime: 0,
+                    }),
+                    stop: async () => {},
+                    jobId
+                };
+            }
+
+            // Reset busy state before starting new transcription
+            dispatch({
+                type: 'UPDATE_STATE',
+                payload: { isBusy: false }
+            });
+
             logger.debug('Transcribing with:', {
                 audioData,
                 audioUri,
@@ -334,22 +361,6 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             console.debug(
                 `transcribe, audioData: ${typeof audioData}, audioUri: ${audioUri ? 'provided' : 'not provided'}, jobId: ${jobId}, position: ${position}`
             )
-
-            // First check if we have either audioData or audioUri
-            if (!audioData && !audioUri) {
-                return {
-                    promise: Promise.resolve({
-                        id: jobId,
-                        isBusy: false,
-                        text: '',
-                        chunks: [],
-                        startTime: 0,
-                        endTime: 0,
-                    }),
-                    stop: async () => {},
-                    jobId
-                };
-            }
 
             // Handle audioData as object (Float32Array, etc.)
             if (

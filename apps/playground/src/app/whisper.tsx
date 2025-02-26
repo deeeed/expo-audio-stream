@@ -13,6 +13,7 @@ import Transcript from '../component/Transcript'
 import { baseLogger } from '../config'
 import { useTranscription } from '../context/TranscriptionProvider'
 import { TranscribeParams } from '../context/TranscriptionProvider.types'
+import { validateExtractedAudio } from '../utils/audioValidation'
 
 
 const logger = baseLogger.extend('whisper')
@@ -286,83 +287,8 @@ export function WhisperScreen() {
             logger.debug('Extract audio options:', options)
             const extractedData = await extractAudioData(options)
 
-            // Enhanced validation with detailed diagnostics
-            const validateAudioData = (data: Float32Array | Int16Array, label: string) => {
-                if (!data || data.length === 0) {
-                    logger.warn(`${label} is empty or null`)
-                    return null
-                }
-
-                const sampleSize = Math.min(10000, data.length)
-                const samples = data.slice(0, sampleSize)
-                let max = -Infinity
-                let min = Infinity
-                let sum = 0
-                let rms = 0
-                let nonZeroCount = 0
-                let clipCount = 0
-                
-                for (let i = 0; i < sampleSize; i++) {
-                    const value = samples[i]
-                    max = Math.max(max, value)
-                    min = Math.min(min, value)
-                    sum += Math.abs(value)
-                    rms += value * value
-                    if (value !== 0) nonZeroCount++
-                    if (Math.abs(value) > 0.99) clipCount++
-                }
-
-                return {
-                    max,
-                    min,
-                    mean: sum / sampleSize,
-                    rms: Math.sqrt(rms / sampleSize),
-                    nonZeroCount,
-                    nonZeroPercentage: (nonZeroCount / sampleSize) * 100,
-                    clipCount,
-                    firstSamples: Array.from(samples.slice(0, 10)),
-                    totalSamples: data.length,
-                    sampleRate: extractedData.sampleRate,
-                    hasSignal: max !== min || max !== 0,
-                    signalStrength: sum / sampleSize
-                }
-            }
-
-            const pcmStats = validateAudioData(
-                extractedData.pcmData ? new Int16Array(extractedData.pcmData) as Int16Array : new Int16Array(0),
-                'PCM data'
-            )
-            const normalizedStats = validateAudioData(
-                extractedData.normalizedData,
-                'Normalized data'
-            )
-
-            // Comprehensive audio validation logging
-            logger.debug('Audio extraction results:', {
-                pcmStats,
-                normalizedStats,
-                metadata: {
-                    sampleRate: extractedData.sampleRate,
-                    channels: extractedData.channels,
-                    duration: extractedData.durationMs,
-                    format: extractedData.format,
-                    hasWavHeader: extractedData.hasWavHeader,
-                    pcmDataSize: extractedData.pcmData?.byteLength,
-                    normalizedDataSize: extractedData.normalizedData?.length,
-                    base64DataSize: extractedData.base64Data?.length
-                }
-            })
-
-            // More nuanced signal validation
-            if ((!pcmStats?.hasSignal && !normalizedStats?.hasSignal) || 
-                ((pcmStats?.signalStrength ?? 0) < 1e-6 && (normalizedStats?.signalStrength ?? 0) < 1e-6)) {
-                throw new Error(
-                    `No audio signal detected. File: ${selectedFile.name}\n` +
-                    `PCM RMS: ${pcmStats?.rms.toExponential(2)}\n` +
-                    `Normalized RMS: ${normalizedStats?.rms.toExponential(2)}\n` +
-                    'Please try a different file or time range.'
-                )
-            }
+            // Use the shared validation utility
+            validateExtractedAudio(extractedData, selectedFile.name)
 
             setExtractedAudioData(extractedData)
             setAudioExtracted(true)
@@ -370,9 +296,11 @@ export function WhisperScreen() {
             // Log success
             logger.debug('Audio extraction successful:', {
                 fileName: selectedFile.name,
-                pcmSignalStrength: pcmStats?.signalStrength,
-                normalizedSignalStrength: normalizedStats?.signalStrength
+                duration: extractedData.durationMs,
+                sampleRate: extractedData.sampleRate,
+                channels: extractedData.channels
             })
+
         } catch (error) {
             console.error('Audio extraction error:', {
                 error,
