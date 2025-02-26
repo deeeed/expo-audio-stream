@@ -18,7 +18,7 @@ export interface ProcessAudioBufferOptions {
 }
 
 export interface ProcessedAudioData {
-    pcmData: Float32Array
+    channelData: Float32Array
     samples: number
     durationMs: number
     sampleRate: number
@@ -197,45 +197,45 @@ export async function processAudioBuffer({
         const source = offlineCtx.createBufferSource()
         source.buffer = segmentBuffer
 
-        if (normalizeAudio) {
-            const gainNode = offlineCtx.createGain()
-            source.connect(gainNode)
-            gainNode.connect(offlineCtx.destination)
+        // if (normalizeAudio) {
+        //     const gainNode = offlineCtx.createGain()
+        //     source.connect(gainNode)
+        //     gainNode.connect(offlineCtx.destination)
 
-            // Calculate normalization factor
-            let maxAmp = 0
-            for (
-                let channel = 0;
-                channel < segmentBuffer.numberOfChannels;
-                channel++
-            ) {
-                const channelData = segmentBuffer.getChannelData(channel)
-                for (let i = 0; i < channelData.length; i++) {
-                    maxAmp = Math.max(maxAmp, Math.abs(channelData[i]))
-                }
-            }
+        //     // Calculate normalization factor
+        //     let maxAmp = 0
+        //     for (
+        //         let channel = 0;
+        //         channel < segmentBuffer.numberOfChannels;
+        //         channel++
+        //     ) {
+        //         const channelData = segmentBuffer.getChannelData(channel)
+        //         for (let i = 0; i < channelData.length; i++) {
+        //             maxAmp = Math.max(maxAmp, Math.abs(channelData[i]))
+        //         }
+        //     }
 
-            // Set gain to normalize
-            gainNode.gain.value = maxAmp > 0 ? 1 / maxAmp : 1
-        } else {
-            source.connect(offlineCtx.destination)
-        }
-
+        //     // Set gain to normalize
+        //     gainNode.gain.value = maxAmp > 0 ? 1 / maxAmp : 1
+        // } else {
+        //     source.connect(offlineCtx.destination)
+        // }
+        source.connect(offlineCtx.destination)
         // Start the source and render
         source.start()
         const processedBuffer = await offlineCtx.startRendering()
 
         // Get the processed audio data - need to handle multiple channels
-        let pcmData: Float32Array
+        let channelData: Float32Array
 
         if (processedBuffer.numberOfChannels === 1) {
             // Single channel case - just get the data
-            pcmData = processedBuffer.getChannelData(0)
+            channelData = processedBuffer.getChannelData(0)
         } else {
             // Multiple channels case - need to interleave the channels
             const length =
                 processedBuffer.length * processedBuffer.numberOfChannels
-            pcmData = new Float32Array(length)
+            channelData = new Float32Array(length)
 
             for (
                 let channel = 0;
@@ -244,8 +244,9 @@ export async function processAudioBuffer({
             ) {
                 const channelData = processedBuffer.getChannelData(channel)
                 for (let i = 0; i < processedBuffer.length; i++) {
-                    pcmData[i * processedBuffer.numberOfChannels + channel] =
-                        channelData[i]
+                    channelData[
+                        i * processedBuffer.numberOfChannels + channel
+                    ] = channelData[i]
                 }
             }
         }
@@ -257,8 +258,8 @@ export async function processAudioBuffer({
             startSample,
             endSample: startSample + actualSamples,
             rangeLength: actualSamples,
-            processedLength: pcmData.length,
-            pcmDataLength: pcmData.length,
+            processedLength: channelData.length,
+            pcmDataLength: channelData.length,
             durationMs,
             sampleRate: targetSampleRate,
             channels: buffer.numberOfChannels,
@@ -266,7 +267,7 @@ export async function processAudioBuffer({
 
         return {
             buffer,
-            pcmData,
+            channelData,
             samples: targetSamples,
             durationMs,
             sampleRate: targetSampleRate,

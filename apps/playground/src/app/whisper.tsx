@@ -40,6 +40,7 @@ interface ExtractDurationOption {
 
 const EXTRACT_DURATION_OPTIONS: ExtractDurationOption[] = [
     { label: '3 sec', value: 3000 },
+    { label: '5 sec', value: 5000 },
     { label: '10 sec', value: 10000 },
     { label: '30 sec', value: 30000 },
     { label: '1 min', value: 60000 }

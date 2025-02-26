@@ -131,7 +131,7 @@ if (Platform.OS === 'web') {
                 processed: {
                     samples: processedBuffer.samples,
                     durationMs: processedBuffer.durationMs,
-                    pcmDataLength: processedBuffer.pcmData.length,
+                    pcmDataLength: processedBuffer.channelData.length,
                 },
                 shouldBe: {
                     samples: length ? length / 2 : undefined,
@@ -141,7 +141,7 @@ if (Platform.OS === 'web') {
                 },
             })
 
-            const channelData = processedBuffer.pcmData
+            const channelData = processedBuffer.channelData
             const bitDepth = (decodingOptions?.targetBitDepth ?? 16) as BitDepth
             const bytesPerSample = bitDepth / 8
             const numSamples = processedBuffer.samples
@@ -216,26 +216,26 @@ if (Platform.OS === 'web') {
             }
 
             if (includeNormalizedData) {
-                // Simple approach: Create normalized data directly from the PCM data
-                // Just convert to -1 to 1 range without any amplification
-                const normalizedData = new Float32Array(numSamples)
+                // // Simple approach: Create normalized data directly from the PCM data
+                // // Just convert to -1 to 1 range without any amplification
+                // const normalizedData = new Float32Array(numSamples)
 
-                // Convert the PCM data to float values
-                for (let i = 0; i < numSamples; i++) {
-                    // Get the 16-bit PCM value (little endian)
-                    const lowByte = pcmData[i * 2]
-                    const highByte = pcmData[i * 2 + 1]
-                    const pcmValue = (highByte << 8) | lowByte
+                // // Convert the PCM data to float values
+                // for (let i = 0; i < numSamples; i++) {
+                //     // Get the 16-bit PCM value (little endian)
+                //     const lowByte = pcmData[i * 2]
+                //     const highByte = pcmData[i * 2 + 1]
+                //     const pcmValue = (highByte << 8) | lowByte
 
-                    // Convert to signed 16-bit value
-                    const signedValue =
-                        pcmValue > 32767 ? pcmValue - 65536 : pcmValue
+                //     // Convert to signed 16-bit value
+                //     const signedValue =
+                //         pcmValue > 32767 ? pcmValue - 65536 : pcmValue
 
-                    // Normalize to float between -1 and 1
-                    normalizedData[i] = signedValue / 32768.0
-                }
+                //     // Normalize to float between -1 and 1
+                //     normalizedData[i] = signedValue / 32768.0
+                // }
                 // Store the normalized data in the result
-                result.normalizedData = normalizedData
+                result.normalizedData = channelData
             }
 
             if (includeBase64Data) {
