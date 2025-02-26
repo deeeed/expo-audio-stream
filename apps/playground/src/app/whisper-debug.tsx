@@ -90,7 +90,7 @@ export default function WhisperDebugPage() {
       }
       
       // Read file as ArrayBuffer
-      const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
           if (reader.result instanceof ArrayBuffer) {
@@ -109,11 +109,14 @@ export default function WhisperDebugPage() {
         throw new Error('AudioContext not initialized');
       }
       
-      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      const audioBuffer = await ctx.decodeAudioData(buffer);
       
       // Extract audio (either first 10 seconds or full file)
       const durationToExtract = fullFile ? audioBuffer.duration : Math.min(10, audioBuffer.duration);
       
+      console.log(`Audio buffer - channels: ${audioBuffer.numberOfChannels} - sampleRate: ${audioBuffer.sampleRate} - duration: ${audioBuffer.duration}`)
+      // print nu,ber of samples
+      console.log(`Number of samples: ${audioBuffer.length}`)
       // Mix channels properly
       let audio;
       if (audioBuffer.numberOfChannels === 2) {
@@ -143,12 +146,14 @@ export default function WhisperDebugPage() {
         );
         
         // Create a buffer with the mixed audio
-        const buffer = ctx.createBuffer(1, audio.length, audioBuffer.sampleRate);
-        buffer.getChannelData(0).set(audio);
+        const segmentBuffer = ctx.createBuffer(1, audio.length, audioBuffer.sampleRate);
+
+        console.log(`Segment buffer: samples=${segmentBuffer.length}`)
+        segmentBuffer.getChannelData(0).set(audio);
         
         // Create source and connect
         const source = offlineCtx.createBufferSource();
-        source.buffer = buffer;
+        source.buffer = segmentBuffer;
         source.connect(offlineCtx.destination);
         
         // Start the source and render
@@ -157,8 +162,18 @@ export default function WhisperDebugPage() {
         
         // Get the resampled audio data
         finalAudio = resampledBuffer.getChannelData(0) as Float32Array<ArrayBuffer>;
+
+                
+        let maxAmplitude = 0;
+        for (const sample of finalAudio) {
+            const absSample = Math.abs(sample);
+            if (absSample > maxAmplitude) {
+                maxAmplitude = absSample;
+            }
+                }
+        console.log('Max amplitude in WhisperDebugPage:', maxAmplitude)
       }
-      
+
       // Store the extracted audio
       setExtractedAudio(finalAudio);
       
