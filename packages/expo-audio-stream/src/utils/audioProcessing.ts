@@ -47,6 +47,19 @@ export async function processAudioBuffer({
     let buffer: AudioBuffer | undefined
 
     try {
+        // Log initial parameters
+        logger?.debug('Process audio buffer - Initial params:', {
+            hasArrayBuffer: !!arrayBuffer,
+            fileUri,
+            targetSampleRate,
+            targetChannels,
+            normalizeAudio,
+            startTimeMs,
+            endTimeMs,
+            position,
+            length,
+        })
+
         // Get the audio data
         let audioData: ArrayBuffer
         if (arrayBuffer) {
@@ -63,232 +76,95 @@ export async function processAudioBuffer({
             throw new Error('Either arrayBuffer or fileUri must be provided')
         }
 
-        // Use provided context or create a new one
+        logger?.debug('Audio data loaded:', {
+            byteLength: audioData.byteLength,
+            firstBytes: Array.from(new Uint8Array(audioData.slice(0, 16))),
+        })
+
+        // Create context at original sample rate first
         ctx =
             audioContext ||
-            new (window.AudioContext || (window as any).webkitAudioContext)({
-                sampleRate: targetSampleRate,
-            })
-
-        // Decode the audio data
+            new (window.AudioContext || (window as any).webkitAudioContext)()
         buffer = await ctx.decodeAudioData(audioData)
 
-        logger?.debug('Input parameters:', {
-            position,
-            length,
-            startTimeMs,
-            endTimeMs,
-            targetSampleRate,
-            targetChannels,
-            bufferInfo: {
-                length: buffer.length,
-                sampleRate: buffer.sampleRate,
-                duration: buffer.duration,
-                channels: buffer.numberOfChannels,
-            },
+        logger?.debug('Decoded audio buffer:', {
+            originalChannels: buffer.numberOfChannels,
+            originalSampleRate: buffer.sampleRate,
+            originalDuration: buffer.duration,
+            originalLength: buffer.length,
         })
 
-        const bytesPerSample = 2 // 16-bit audio = 2 bytes per sample
-
-        logger?.debug('RAW INPUT:', {
-            position,
-            length,
-            startTimeMs,
-            endTimeMs,
-        })
-
-        // Log every step of the calculation
-        logger?.debug('STEP 1 - Position calculation:', {
-            position,
-            bytesPerSample,
-            wouldBe: position ? position / bytesPerSample : null,
-            orFromTime: startTimeMs
-                ? Math.floor((startTimeMs / 1000) * buffer.sampleRate)
-                : null,
-        })
-
+        // Calculate time range
         const startSample =
             startTimeMs !== undefined
                 ? Math.floor((startTimeMs / 1000) * buffer.sampleRate)
                 : position !== undefined
-                  ? Math.floor(position / bytesPerSample)
+                  ? Math.floor(position / 2)
                   : 0
-
-        logger?.debug('STEP 2 - Length calculation:', {
-            length,
-            bytesPerSample,
-            wouldBe: length ? length / bytesPerSample : null,
-            orFromTime:
-                endTimeMs && startTimeMs
-                    ? Math.floor(
-                          ((endTimeMs - startTimeMs) / 1000) * buffer.sampleRate
-                      )
-                    : null,
-        })
 
         const samplesNeeded =
             length !== undefined
-                ? Math.floor(length / bytesPerSample)
+                ? Math.floor(length / 2)
                 : endTimeMs !== undefined && startTimeMs !== undefined
                   ? Math.floor(
                         ((endTimeMs - startTimeMs) / 1000) * buffer.sampleRate
                     )
                   : buffer.length - startSample
 
-        logger?.debug('STEP 3 - Final numbers:', {
+        logger?.debug('Sample calculations:', {
             startSample,
             samplesNeeded,
             expectedDurationMs: (samplesNeeded / buffer.sampleRate) * 1000,
-            shouldBe: {
-                samplesFor3Seconds: buffer.sampleRate * 3,
-                bytesFor3Seconds: buffer.sampleRate * 3 * bytesPerSample,
-            },
         })
 
-        // Ensure we don't exceed buffer bounds
-        const endSample = Math.min(buffer.length, startSample + samplesNeeded)
-        const actualSamples = endSample - startSample
-
-        logger?.debug('STEP 4 - Final check:', {
-            startSample,
-            endSample,
-            actualSamples,
-            durationMs: (actualSamples / buffer.sampleRate) * 1000,
-            shouldBe3000ms: true,
-        })
-
-        // Calculate the correct number of samples based on duration
-        const originalDuration = actualSamples / buffer.sampleRate // Duration in seconds
-        const targetSamples = Math.ceil(originalDuration * targetSampleRate) // Correct sample count at target rate
-
-        logger?.debug('STEP 4.5 - Sample rate conversion:', {
-            originalSampleRate: buffer.sampleRate,
-            targetSampleRate,
-            originalDuration,
-            originalSamples: actualSamples,
-            targetSamples,
-            expectedDurationMs: Math.round(originalDuration * 1000),
-        })
-
-        // Create offline context with the correct number of samples to maintain duration
-        const offlineCtx = new OfflineAudioContext(
-            targetChannels,
-            targetSamples, // Use targetSamples instead of actualSamples
-            targetSampleRate
-        )
-
-        // Create source buffer with the exact segment we want
+        // Create temporary buffer for the segment
         const segmentBuffer = ctx.createBuffer(
             buffer.numberOfChannels,
-            actualSamples,
+            samplesNeeded,
             buffer.sampleRate
         )
 
-        // Copy the segment data with proper channel mixing if stereo
-        if (buffer.numberOfChannels === 2 && targetChannels === 1) {
-            // Proper stereo to mono mixing with scaling factor
-            const SCALING_FACTOR = Math.sqrt(2)
-            const left = buffer.getChannelData(0)
-            const right = buffer.getChannelData(1)
-            const monoChannel = segmentBuffer.getChannelData(0)
-
-            for (let i = 0; i < actualSamples; i++) {
-                monoChannel[i] =
-                    (SCALING_FACTOR *
-                        (left[startSample + i] + right[startSample + i])) /
-                    2
-            }
-        } else {
-            // Standard channel copy
-            for (
-                let channel = 0;
-                channel < buffer.numberOfChannels;
-                channel++
-            ) {
-                const channelData = buffer.getChannelData(channel)
-                const segmentChannelData = segmentBuffer.getChannelData(channel)
-                for (let i = 0; i < actualSamples; i++) {
-                    segmentChannelData[i] = channelData[startSample + i]
-                }
+        // Copy the segment
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+            const channelData = buffer.getChannelData(channel)
+            const segmentData = segmentBuffer.getChannelData(channel)
+            for (let i = 0; i < samplesNeeded; i++) {
+                segmentData[i] = channelData[startSample + i]
             }
         }
+
+        // Create offline context for resampling
+        const offlineCtx = new OfflineAudioContext(
+            targetChannels,
+            Math.ceil((samplesNeeded * targetSampleRate) / buffer.sampleRate),
+            targetSampleRate
+        )
 
         // Create source and connect
         const source = offlineCtx.createBufferSource()
         source.buffer = segmentBuffer
-
-        // if (normalizeAudio) {
-        //     const gainNode = offlineCtx.createGain()
-        //     source.connect(gainNode)
-        //     gainNode.connect(offlineCtx.destination)
-
-        //     // Calculate normalization factor
-        //     let maxAmp = 0
-        //     for (
-        //         let channel = 0;
-        //         channel < segmentBuffer.numberOfChannels;
-        //         channel++
-        //     ) {
-        //         const channelData = segmentBuffer.getChannelData(channel)
-        //         for (let i = 0; i < channelData.length; i++) {
-        //             maxAmp = Math.max(maxAmp, Math.abs(channelData[i]))
-        //         }
-        //     }
-
-        //     // Set gain to normalize
-        //     gainNode.gain.value = maxAmp > 0 ? 1 / maxAmp : 1
-        // } else {
-        //     source.connect(offlineCtx.destination)
-        // }
         source.connect(offlineCtx.destination)
-        // Start the source and render
+
+        // Render at new sample rate
         source.start()
         const processedBuffer = await offlineCtx.startRendering()
 
-        // Get the processed audio data - need to handle multiple channels
-        let channelData: Float32Array
+        // Get the final audio data
+        const channelData = processedBuffer.getChannelData(0)
+        const durationMs = Math.round(
+            (samplesNeeded / buffer.sampleRate) * 1000
+        )
 
-        if (processedBuffer.numberOfChannels === 1) {
-            // Single channel case - just get the data
-            channelData = processedBuffer.getChannelData(0)
-        } else {
-            // Multiple channels case - need to interleave the channels
-            const length =
-                processedBuffer.length * processedBuffer.numberOfChannels
-            channelData = new Float32Array(length)
-
-            for (
-                let channel = 0;
-                channel < processedBuffer.numberOfChannels;
-                channel++
-            ) {
-                const channelData = processedBuffer.getChannelData(channel)
-                for (let i = 0; i < processedBuffer.length; i++) {
-                    channelData[
-                        i * processedBuffer.numberOfChannels + channel
-                    ] = channelData[i]
-                }
-            }
-        }
-
-        // Update duration calculation to be based on the requested samples
-        const durationMs = Math.round(originalDuration * 1000)
-
-        logger?.debug('Processed buffer details:', {
-            startSample,
-            endSample: startSample + actualSamples,
-            rangeLength: actualSamples,
-            processedLength: channelData.length,
-            pcmDataLength: channelData.length,
+        logger?.debug('Final processed audio:', {
+            outputSamples: channelData.length,
+            outputSampleRate: targetSampleRate,
             durationMs,
-            sampleRate: targetSampleRate,
-            channels: buffer.numberOfChannels,
         })
 
         return {
-            buffer,
+            buffer: processedBuffer,
             channelData,
-            samples: targetSamples,
+            samples: channelData.length,
             durationMs,
             sampleRate: targetSampleRate,
             channels: processedBuffer.numberOfChannels,

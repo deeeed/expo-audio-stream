@@ -31,6 +31,7 @@ interface SelectedFile {
     size: number
     name: string
     duration?: number
+    fileType?: string
 }
 
 interface ExtractDurationOption {
@@ -181,22 +182,46 @@ export function WhisperScreen() {
         if (!result.canceled && result.assets?.[0]) {
             const { uri, size = 0, name } = result.assets[0]
             
-            // Get audio duration for the selected file
+            // Add file type detection
+            const fileExtension = name.split('.').pop()?.toLowerCase()
+            logger.debug('Selected file details:', {
+                name,
+                size,
+                extension: fileExtension,
+                uri
+            })
+            
+            // Get audio duration and metadata for the selected file
             try {
-                const sound = await Audio.Sound.createAsync({ uri });
-                const status = await sound.sound.getStatusAsync();
+                const sound = await Audio.Sound.createAsync({ uri })
+                const status = await sound.sound.getStatusAsync()
+                
                 const fileDuration = status.isLoaded && status.durationMillis 
                     ? status.durationMillis / 1000 
-                    : 0;
-                sound.sound.unloadAsync();
+                    : 0
+
+                sound.sound.unloadAsync()
                 
-                setSelectedFile({ uri, size, name, duration: fileDuration });
+                setSelectedFile({ 
+                    uri, 
+                    size, 
+                    name, 
+                    duration: fileDuration,
+                    fileType: fileExtension
+                })
             } catch (error) {
-                console.error('Error getting audio duration:', error);
-                setSelectedFile({ uri, size, name, duration: 0 });
+                console.error('Error loading audio file:', error)
+                alert(`Warning: Could not load audio metadata. The file may not be in a supported format. Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+                setSelectedFile({ 
+                    uri, 
+                    size, 
+                    name, 
+                    duration: 0,
+                    fileType: fileExtension
+                })
             }
             
-            // Reset everything when a new file is selected
+            // Reset state for new file
             setTranscriptionData({
                 id: '1',
                 isBusy: false,
@@ -204,11 +229,11 @@ export function WhisperScreen() {
                 startTime: 0,
                 endTime: 0,
                 chunks: [],
-            });
-            setProgress(0);
-            setCurrentProcessingTime(0);
-            setAudioExtracted(false);
-            setExtractedAudioData(null);
+            })
+            setProgress(0)
+            setCurrentProcessingTime(0)
+            setAudioExtracted(false)
+            setExtractedAudioData(null)
         }
     }, [])
 
@@ -222,9 +247,18 @@ export function WhisperScreen() {
             setIsExtracting(true)
             setProgress(0)
             
-            // Get the duration to extract based on user selection
-            const durationToExtract = isCustomDuration ? customDuration : extractDuration;
+            const durationToExtract = isCustomDuration ? customDuration : extractDuration
             
+            // Log extraction attempt details
+            logger.debug('Starting audio extraction:', {
+                fileName: selectedFile.name,
+                fileSize: selectedFile.size,
+                fileType: selectedFile.fileType,
+                duration: selectedFile.duration,
+                requestedDuration: durationToExtract,
+                uri: selectedFile.uri
+            })
+
             const options: ExtractAudioDataOptions = {
                 fileUri: selectedFile.uri,
                 includeBase64Data: true,
@@ -234,48 +268,123 @@ export function WhisperScreen() {
                 endTimeMs: durationToExtract,
                 logger,
                 decodingOptions: {
-                    targetSampleRate: 16000, // Whisper expects 16kHz
-                    targetChannels: 1, // Mono
-                    targetBitDepth: 16, // 16-bit
-                    normalizeAudio: false,
+                    targetSampleRate: 16000,
+                    targetChannels: 1,
+                    targetBitDepth: 16,
+                    normalizeAudio: true,
+                    // Add format-specific options based on file type
+                    ...(selectedFile.fileType === 'mp3' && {
+                        preferredCodec: 'mp3',
+                        maintainPitch: true,
+                    }),
+                    ...(selectedFile.fileType === 'wav' && {
+                        preferredCodec: 'wav',
+                    }),
                 },
             }
-            logger.debug('Extract audio options:', options)
-            const extractedData = await extractAudioData(options);
 
-            // Validate the extracted audio data immediately
-            if (extractedData.normalizedData) {
-                // Fix TypeScript errors by using proper type assertions and explicit typing
-                const normalizedArray = Array.from(extractedData.normalizedData.slice(0, 1000));
+            logger.debug('Extract audio options:', options)
+            const extractedData = await extractAudioData(options)
+
+            // Enhanced validation with detailed diagnostics
+            const validateAudioData = (data: Float32Array | Int16Array, label: string) => {
+                if (!data || data.length === 0) {
+                    logger.warn(`${label} is empty or null`)
+                    return null
+                }
+
+                const sampleSize = Math.min(10000, data.length)
+                const samples = data.slice(0, sampleSize)
+                let max = -Infinity
+                let min = Infinity
+                let sum = 0
+                let rms = 0
+                let nonZeroCount = 0
+                let clipCount = 0
                 
-                // Use explicit type assertion to tell TypeScript these are numbers
-                const max = Math.max(...normalizedArray.map((x: unknown): number => Math.abs(x as number)));
-                const sum = normalizedArray.reduce((a: number, b: unknown): number => a + Math.abs(b as number), 0);
-                
-                logger.debug('Extracted audio validation:', {
+                for (let i = 0; i < sampleSize; i++) {
+                    const value = samples[i]
+                    max = Math.max(max, value)
+                    min = Math.min(min, value)
+                    sum += Math.abs(value)
+                    rms += value * value
+                    if (value !== 0) nonZeroCount++
+                    if (Math.abs(value) > 0.99) clipCount++
+                }
+
+                return {
                     max,
-                    sum,
-                    hasSignal: max > 0,
-                    isAmplified: max >= 0.5
-                });
-                
-                if (max === 0) {
-                    logger.error('Extracted audio contains no signal (all zeros)');
-                    alert('The extracted audio contains no signal. Please try a different file or time range.');
-                    setIsExtracting(false);
-                    return;
+                    min,
+                    mean: sum / sampleSize,
+                    rms: Math.sqrt(rms / sampleSize),
+                    nonZeroCount,
+                    nonZeroPercentage: (nonZeroCount / sampleSize) * 100,
+                    clipCount,
+                    firstSamples: Array.from(samples.slice(0, 10)),
+                    totalSamples: data.length,
+                    sampleRate: extractedData.sampleRate,
+                    hasSignal: max !== min || max !== 0,
+                    signalStrength: sum / sampleSize
                 }
             }
 
-            setExtractedAudioData(extractedData);
-            setAudioExtracted(true);
+            const pcmStats = validateAudioData(
+                extractedData.pcmData ? new Int16Array(extractedData.pcmData) as Int16Array : new Int16Array(0),
+                'PCM data'
+            )
+            const normalizedStats = validateAudioData(
+                extractedData.normalizedData,
+                'Normalized data'
+            )
+
+            // Comprehensive audio validation logging
+            logger.debug('Audio extraction results:', {
+                pcmStats,
+                normalizedStats,
+                metadata: {
+                    sampleRate: extractedData.sampleRate,
+                    channels: extractedData.channels,
+                    duration: extractedData.durationMs,
+                    format: extractedData.format,
+                    hasWavHeader: extractedData.hasWavHeader,
+                    pcmDataSize: extractedData.pcmData?.byteLength,
+                    normalizedDataSize: extractedData.normalizedData?.length,
+                    base64DataSize: extractedData.base64Data?.length
+                }
+            })
+
+            // More nuanced signal validation
+            if ((!pcmStats?.hasSignal && !normalizedStats?.hasSignal) || 
+                ((pcmStats?.signalStrength ?? 0) < 1e-6 && (normalizedStats?.signalStrength ?? 0) < 1e-6)) {
+                throw new Error(
+                    `No audio signal detected. File: ${selectedFile.name}\n` +
+                    `PCM RMS: ${pcmStats?.rms.toExponential(2)}\n` +
+                    `Normalized RMS: ${normalizedStats?.rms.toExponential(2)}\n` +
+                    'Please try a different file or time range.'
+                )
+            }
+
+            setExtractedAudioData(extractedData)
+            setAudioExtracted(true)
+            
+            // Log success
+            logger.debug('Audio extraction successful:', {
+                fileName: selectedFile.name,
+                pcmSignalStrength: pcmStats?.signalStrength,
+                normalizedSignalStrength: normalizedStats?.signalStrength
+            })
         } catch (error) {
-            console.error('Audio extraction error:', error);
-            alert('Failed to extract audio: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            console.error('Audio extraction error:', {
+                error,
+                fileName: selectedFile.name,
+                fileType: selectedFile.fileType,
+                fileSize: selectedFile.size
+            })
+            alert('Failed to extract audio: ' + (error instanceof Error ? error.message : 'Unknown error'))
         } finally {
             setIsExtracting(false)
         }
-    }, [selectedFile, extractDuration, customDuration, isCustomDuration]);
+    }, [selectedFile, extractDuration, customDuration, isCustomDuration])
 
     const startTranscription = useCallback(async () => {
         if (!selectedFile || !whisperContextReady || !extractedAudioData) return
