@@ -312,7 +312,6 @@ export function WhisperScreen() {
             const transcribeParams: Partial<TranscribeParams> = {
                 jobId: '1',
                 options: {
-                    language: 'en',
                     tokenTimestamps: true,
                     tdrzEnable: true,
                 },
