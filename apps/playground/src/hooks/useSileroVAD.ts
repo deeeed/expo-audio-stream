@@ -159,7 +159,7 @@ export function useSileroVAD({
         } finally {
             setIsProcessing(false);
         }
-    }, [initModel, createTensor, onError, minSpeechDuration, maxSpeechDuration, minSilenceDuration, speechPadding]);
+    }, [initModel, minSpeechDuration, maxSpeechDuration, minSilenceDuration, speechPadding, createTensor, isProcessing, onError]);
 
     const reset = useCallback(() => {
         setSpeechTimestamps([]);

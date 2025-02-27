@@ -18,7 +18,7 @@ import {
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 
@@ -178,7 +178,6 @@ export const AudioRecordingView = ({
     extractAnalysis,
     visualConfig,
     showTranscript,
-    resetTrigger,
     onActionPress,
     onDelete,
 }: AudioRecordingViewProps) => {
@@ -306,11 +305,13 @@ export const AudioRecordingView = ({
                 pause()
             } else {
                 // Get the appropriate URI based on format
-                const audioUriToPlay = activeFormat === 'compressed' && recording.compression?.compressedFileUri
+                let audioUriToPlay = activeFormat === 'compressed' && recording.compression?.compressedFileUri
                     ? recording.compression.compressedFileUri
                     : recording.fileUri
 
                 if (isWeb) {
+                    // On web audio uri is always inside recording.fileUri (even the compressed one)
+                    audioUriToPlay = recording.fileUri
                     // For web, directly use the blob URL without file:// prefix
                     const cleanUri = audioUriToPlay.replace('file://', '')
                     logger.debug(`Playing web audio from: ${cleanUri}`)
@@ -427,12 +428,12 @@ export const AudioRecordingView = ({
                             color={theme.colors.onPrimary}
                         />
                         <Text>
-                            {isPlaying ? 'Pause' : `Play ${activeFormat === 'compressed' ? '(Compressed)' : ''}`}
+                            {isPlaying ? 'Pause' : (isWeb ? 'Play' : `Play ${activeFormat === 'compressed' ? '(Compressed)' : ''}`)}
                         </Text>
                     </View>
                 </Button>
                 
-                {recording.compression?.compressedFileUri && (
+                {recording.compression?.compressedFileUri && !isWeb && (
                     <Button
                         mode="outlined"
                         onPress={() => setActiveFormat(activeFormat === 'wav' ? 'compressed' : 'wav')}

@@ -105,13 +105,20 @@ export async function processAudioBuffer({
         // Fix: Adjust position calculation based on original sample rate
         // When position is provided in bytes, we need to account for the original sample rate
         const bytesPerSample = 2 // 16-bit audio = 2 bytes per sample
-        const adjustedStartSample = position !== undefined
-            ? Math.floor((position / bytesPerSample) * (buffer.sampleRate / targetSampleRate))
-            : startSample
-            
+        const adjustedStartSample =
+            position !== undefined
+                ? Math.floor(
+                      (position / bytesPerSample) *
+                          (buffer.sampleRate / targetSampleRate)
+                  )
+                : startSample
+
         const samplesNeeded =
             length !== undefined
-                ? Math.floor((length / bytesPerSample) * (buffer.sampleRate / targetSampleRate))
+                ? Math.floor(
+                      (length / bytesPerSample) *
+                          (buffer.sampleRate / targetSampleRate)
+                  )
                 : endTimeMs !== undefined && startTimeMs !== undefined
                   ? Math.floor(
                         ((endTimeMs - startTimeMs) / 1000) * buffer.sampleRate

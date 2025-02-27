@@ -66,13 +66,13 @@ export function useAudioTranscription() {
   const processingTimer = useRef<ReturnType<typeof setInterval>>();
   const [currentProcessingTime, setCurrentProcessingTime] = useState<number>(0);
   const [lastTranscriptionLog, setLastTranscriptionLog] = useState<TranscriptionLog | null>(null);
-  const [autoTranscribeOnSelect, setAutoTranscribeOnSelect] = useState(false);
+  const [autoTranscribeOnSelect, setAutoTranscribeOnSelect] = useState(true);
 
   const { transcribe } = useTranscription();
 
   // Start transcription with explicit data
   const startTranscriptionWithData = useCallback(
-    async (file: SelectedFile, audioData: ExtractedAudioData) => {
+    async ({ file, audioData }: { file: SelectedFile; audioData: ExtractedAudioData }) => {
       if (!file || !audioData) {
         logger.error('Missing required data for transcription', {
           file,
@@ -238,7 +238,10 @@ export function useAudioTranscription() {
       return;
     }
 
-    await startTranscriptionWithData(selectedFile, extractedAudioData);
+    await startTranscriptionWithData({ 
+      file: selectedFile, 
+      audioData: extractedAudioData 
+    });
   }, [selectedFile, extractedAudioData, startTranscriptionWithData]);
 
   const handleStop = useCallback(async () => {
@@ -254,7 +257,7 @@ export function useAudioTranscription() {
   }, [stopTranscription]);
 
   const handleExtractAudio = useCallback(
-    async (file?: SelectedFile, duration?: number) => {
+    async ({ file, duration }: { file?: SelectedFile; duration?: number } = {}) => {
       const fileToUse = file || selectedFile;
       const durationToUse = duration || (isCustomDuration ? customDuration : extractDuration);
 
@@ -264,6 +267,11 @@ export function useAudioTranscription() {
       }
 
       try {
+        // If a new file was passed, update the selectedFile state
+        if (file && file !== selectedFile) {
+          setSelectedFile(file);
+        }
+        
         setIsExtracting(true);
         setProgress(0);
 
@@ -313,7 +321,10 @@ export function useAudioTranscription() {
           // Wait for state updates to complete before starting transcription
           setTimeout(() => {
             // Use the local variables directly in a custom transcription function
-            startTranscriptionWithData(currentFile, currentExtractedData);
+            startTranscriptionWithData({ 
+              file: currentFile, 
+              audioData: currentExtractedData 
+            });
           }, 300);
         }
       } catch (error) {
@@ -401,7 +412,10 @@ export function useAudioTranscription() {
         if (autoTranscribeOnSelect) {
           // Use a shorter duration (10 seconds) for auto-transcription
           setExtractDuration(10000);
-          setTimeout(() => handleExtractAudio(fileInfo, 10000), 100);
+          setTimeout(() => handleExtractAudio({ 
+            file: fileInfo, 
+            duration: 10000 
+          }), 100);
         }
       } catch (error) {
         console.error('Error loading audio file:', error);

@@ -130,11 +130,10 @@ const logoSource = require('@assets/icon.png')
 const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
     return StyleSheet.create({
         container: {
-            gap: 10,
-            padding: 10,
-            justifyContent: 'center',
-            paddingBottom: insets?.bottom || theme.padding.s,
-            paddingTop: insets?.top || 0,
+            gap: theme.spacing.gap || 16,
+            paddingHorizontal: theme.padding.s,
+            paddingBottom: insets?.bottom || 80,
+            paddingTop: Math.max(insets?.top || 0, 10),
         },
         waveformContainer: {
             borderRadius: 10,
@@ -941,6 +940,11 @@ export default function RecordScreen() {
                 }}
             />
             <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container}>
+                <Notice
+                    type="info"
+                    title="Audio Recording"
+                    message="Record audio from your device's microphone. You can pause, resume, and stop recordings. Saved recordings will be available in the Files tab."
+                />
                 {result && (
                     <View style={{ gap: 10, paddingBottom: 100 }}>
                         <AudioRecordingView
