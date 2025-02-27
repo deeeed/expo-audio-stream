@@ -1,6 +1,5 @@
 // playground/src/app/(tabs)/_layout.tsx
-import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons'
-import FontAwesome from '@expo/vector-icons/FontAwesome'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useTheme } from '@siteed/design-system'
 import { useSharedAudioRecorder } from '@siteed/expo-audio-stream'
 import { Tabs } from 'expo-router'
@@ -35,6 +34,7 @@ export default function TabLayout() {
                                     isWeb && position === 'beside-icon'
                                         ? 20
                                         : 0,
+                                fontSize: 12,
                             }}
                         >
                             Record
@@ -43,19 +43,23 @@ export default function TabLayout() {
                     tabBarIcon: ({ color }) => (
                         <MaterialCommunityIcons
                             name="record-circle"
-                            size={24}
+                            size={26}
                             color={isRecording ? recordingColor : color}
                         />
                     ),
                 }}
             />
             <Tabs.Screen
-                name="play"
+                name="import"
                 options={{
-                    title: 'Play',
-                    href: 'play',
+                    title: 'Import',
+                    href: 'import',
                     tabBarIcon: ({ color }) => (
-                        <FontAwesome size={28} name="play" color={color} />
+                        <MaterialCommunityIcons
+                            name="file-upload"
+                            size={28}
+                            color={color}
+                        />
                     ),
                 }}
             />
@@ -67,7 +71,7 @@ export default function TabLayout() {
                     tabBarIcon: ({ color }) => (
                         <MaterialCommunityIcons
                             name="waveform"
-                            size={24}
+                            size={28}
                             color={color}
                         />
                     ),
@@ -79,8 +83,8 @@ export default function TabLayout() {
                     title: 'Transcription',
                     href: 'transcription',
                     tabBarIcon: ({ color }) => (
-                        <MaterialIcons
-                            name="transcribe"
+                        <MaterialCommunityIcons
+                            name="text-to-speech"
                             size={28}
                             color={color}
                         />
@@ -93,7 +97,11 @@ export default function TabLayout() {
                     title: 'Files',
                     href: 'files',
                     tabBarIcon: ({ color }) => (
-                        <FontAwesome size={28} name="cog" color={color} />
+                        <MaterialCommunityIcons
+                            name="cog"
+                            size={28}
+                            color={color}
+                        />
                     ),
                 }}
             />
@@ -102,8 +110,8 @@ export default function TabLayout() {
                 options={{
                     title: 'More',
                     tabBarIcon: ({ color }) => (
-                        <MaterialIcons
-                            name="more-horiz"
+                        <MaterialCommunityIcons
+                            name="dots-horizontal"
                             size={28}
                             color={color}
                         />

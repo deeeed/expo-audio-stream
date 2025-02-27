@@ -122,7 +122,7 @@ function formatDuration(seconds: number): string {
     return parts.join(' ')
 }
 
-export const PlayPage = () => {
+export const ImportPage = () => {
     const theme = useTheme()
     const { bottom, top } = useSafeAreaInsets()
     const styles = useMemo(() => getStyles(theme, { bottom, top }), [theme, bottom, top])
@@ -591,8 +591,8 @@ export const PlayPage = () => {
         <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container}>
             <Notice
                 type="info"
-                title="Audio Analysis"
-                message="Select an audio file to analyze its waveform. Save to Files to enable detailed segment analysis and feature extraction."
+                title="Import Audio"
+                message="Import an audio file to analyze its waveform. Save to Files to enable detailed segment analysis and feature extraction."
             />
             {fileName && (
                 <EditableInfoCard
@@ -792,4 +792,4 @@ export const PlayPage = () => {
     )
 }
 
-export default PlayPage
+export default ImportPage

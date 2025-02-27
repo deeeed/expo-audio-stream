@@ -228,14 +228,6 @@ export const MoreScreen = () => {
                     router.navigate('/permissions')
                 }}
             />
-            <ListItem
-                contentContainerStyle={styles.listItemContainer}
-                label="Transcription"
-                subLabel="Transcription"
-                onPress={() => {
-                    router.navigate('/transcription')
-                }}
-            />
             {__DEV__ && isWeb && (
                 <>
                     <ListItem
