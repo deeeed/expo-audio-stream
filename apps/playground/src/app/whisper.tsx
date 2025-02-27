@@ -3,7 +3,7 @@ import { ExtractAudioDataOptions, ExtractedAudioData, TranscriberData, extractAu
 import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet, View, ScrollView } from 'react-native'
 import { ProgressBar, SegmentedButtons } from 'react-native-paper'
 
 import { isWeb } from '../../../../packages/expo-audio-ui/src/constants'
@@ -631,31 +631,37 @@ export function WhisperScreen() {
                     <View style={styles.extractionSection}>
                         <Text style={styles.sectionTitle}>Audio Extraction Options</Text>
                         
-                        <SegmentedButtons
-                            value={isCustomDuration ? 'custom' : extractDuration.toString()}
-                            onValueChange={(value) => {
-                                if (value === 'custom') {
-                                    setIsCustomDuration(true);
-                                    setAudioExtracted(false);
-                                } else {
-                                    setIsCustomDuration(false);
-                                    setExtractDuration(parseInt(value, 10));
-                                    setAudioExtracted(false);
-                                }
-                            }}
-                            buttons={[
-                                ...EXTRACT_DURATION_OPTIONS
-                                    .filter(option => 
-                                        option.value === -1 || // Always include 'Full' option
-                                        (selectedFile.duration && option.value <= selectedFile.duration * 1000) // Convert duration to ms
-                                    )
-                                    .map((option) => ({
-                                        value: option.value.toString(),
-                                        label: option.label,
-                                    })),
-                                { value: 'custom', label: 'Custom' }
-                            ]}
-                        />
+                        <ScrollView 
+                            horizontal 
+                            showsHorizontalScrollIndicator={true}
+                            contentContainerStyle={{ paddingBottom: 8 }}
+                        >
+                            <SegmentedButtons
+                                value={isCustomDuration ? 'custom' : extractDuration.toString()}
+                                onValueChange={(value) => {
+                                    if (value === 'custom') {
+                                        setIsCustomDuration(true);
+                                        setAudioExtracted(false);
+                                    } else {
+                                        setIsCustomDuration(false);
+                                        setExtractDuration(parseInt(value, 10));
+                                        setAudioExtracted(false);
+                                    }
+                                }}
+                                buttons={[
+                                    ...EXTRACT_DURATION_OPTIONS
+                                        .filter(option => 
+                                            option.value === -1 || // Always include 'Full' option
+                                            (selectedFile.duration && option.value <= selectedFile.duration * 1000) // Convert duration to ms
+                                        )
+                                        .map((option) => ({
+                                            value: option.value.toString(),
+                                            label: option.label,
+                                        })),
+                                    { value: 'custom', label: 'Custom' }
+                                ]}
+                            />
+                        </ScrollView>
                         
                         {isCustomDuration && (
                             <NumberAdjuster
