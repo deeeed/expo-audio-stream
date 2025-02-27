@@ -206,7 +206,7 @@ export function AudioTimeRangeSelector({
 
     const formatTime = useCallback((ms: number) => {
         if (typeof ms !== 'number' || isNaN(ms)) {
-            return "0:00"; // Safe fallback
+            return '0:00' // Safe fallback
         }
         const seconds = Math.floor(ms / 1000)
         const minutes = Math.floor(seconds / 60)

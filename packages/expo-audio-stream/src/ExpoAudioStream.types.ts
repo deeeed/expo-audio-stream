@@ -327,3 +327,190 @@ export interface UseAudioRecorderState {
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
     onRecordingInterrupted?: (_: RecordingInterruptionEvent) => void
 }
+
+/**
+ * Represents an event emitted during the trimming process to report progress.
+ */
+export interface TrimProgressEvent {
+    /**
+     * The percentage of the trimming process that has been completed, ranging from 0 to 100.
+     */
+    progress: number
+
+    /**
+     * The number of bytes that have been processed so far. This is optional and may not be provided in all implementations.
+     */
+    bytesProcessed?: number
+
+    /**
+     * The total number of bytes to process. This is optional and may not be provided in all implementations.
+     */
+    totalBytes?: number
+}
+
+/**
+ * Defines a time range in milliseconds for trimming operations.
+ */
+export interface TimeRange {
+    /**
+     * The start time of the range in milliseconds.
+     */
+    startTimeMs: number
+
+    /**
+     * The end time of the range in milliseconds.
+     */
+    endTimeMs: number
+}
+
+/**
+ * Options for configuring the audio trimming operation.
+ */
+export interface TrimAudioOptions {
+    /**
+     * The URI of the audio file to trim.
+     */
+    fileUri: string
+
+    /**
+     * The mode of trimming to apply.
+     * - `'single'`: Trims the audio to a single range defined by `startTimeMs` and `endTimeMs`.
+     * - `'keep'`: Keeps the specified `ranges` and removes all other portions of the audio.
+     * - `'remove'`: Removes the specified `ranges` and keeps the remaining portions of the audio.
+     * @default 'single'
+     */
+    mode?: 'single' | 'keep' | 'remove'
+
+    /**
+     * An array of time ranges to keep or remove, depending on the `mode`.
+     * - Required for `'keep'` and `'remove'` modes.
+     * - Ignored when `mode` is `'single'`.
+     */
+    ranges?: TimeRange[]
+
+    /**
+     * The start time in milliseconds for the `'single'` mode.
+     * - If not provided, trimming starts from the beginning of the audio (0 ms).
+     */
+    startTimeMs?: number
+
+    /**
+     * The end time in milliseconds for the `'single'` mode.
+     * - If not provided, trimming extends to the end of the audio.
+     */
+    endTimeMs?: number
+
+    /**
+     * The name of the output file. If not provided, a default name will be generated.
+     */
+    outputFileName?: string
+
+    /**
+     * Configuration for the output audio format.
+     */
+    outputFormat?: {
+        /**
+         * The format of the output audio file.
+         * - `'wav'`: Waveform Audio File Format (uncompressed).
+         * - `'aac'`: Advanced Audio Coding (compressed).
+         * - `'mp3'`: MPEG Audio Layer III (compressed).
+         * - `'opus'`: Opus Audio Codec (compressed).
+         */
+        format: 'wav' | 'aac' | 'mp3' | 'opus'
+
+        /**
+         * The sample rate of the output audio in Hertz (Hz).
+         * - If not provided, the input audio’s sample rate is used.
+         */
+        sampleRate?: number
+
+        /**
+         * The number of channels in the output audio (e.g., 1 for mono, 2 for stereo).
+         * - If not provided, the input audio’s channel count is used.
+         */
+        channels?: number
+
+        /**
+         * The bit depth of the output audio, applicable to PCM formats like `'wav'`.
+         * - If not provided, the input audio’s bit depth is used.
+         */
+        bitDepth?: number
+
+        /**
+         * The bitrate of the output audio in bits per second, applicable to compressed formats like `'aac'`, `'mp3'`, `'opus'`.
+         * - If not provided, a default bitrate is used based on the format.
+         */
+        bitrate?: number
+    }
+
+    /**
+     * Options for decoding the input audio file.
+     * - See `DecodingConfig` for details.
+     */
+    decodingOptions?: DecodingConfig
+}
+
+/**
+ * Result of the audio trimming operation.
+ */
+export interface TrimAudioResult {
+    /**
+     * The URI of the trimmed audio file.
+     */
+    uri: string
+
+    /**
+     * The filename of the trimmed audio file.
+     */
+    filename: string
+
+    /**
+     * The duration of the trimmed audio in milliseconds.
+     */
+    durationMs: number
+
+    /**
+     * The size of the trimmed audio file in bytes.
+     */
+    size: number
+
+    /**
+     * The sample rate of the trimmed audio in Hertz (Hz).
+     */
+    sampleRate: number
+
+    /**
+     * The number of channels in the trimmed audio (e.g., 1 for mono, 2 for stereo).
+     */
+    channels: number
+
+    /**
+     * The bit depth of the trimmed audio, applicable to PCM formats like `'wav'`.
+     */
+    bitDepth: number
+
+    /**
+     * The MIME type of the trimmed audio file (e.g., `'audio/wav'`, `'audio/mpeg'`).
+     */
+    mimeType: string
+
+    /**
+     * Information about compression if the output format is compressed.
+     */
+    compression?: {
+        /**
+         * The format of the compression (e.g., `'aac'`, `'mp3'`, `'opus'`).
+         */
+        format: string
+
+        /**
+         * The bitrate of the compressed audio in bits per second.
+         */
+        bitrate: number
+
+        /**
+         * The size of the compressed audio file in bytes.
+         */
+        size: number
+    }
+}
