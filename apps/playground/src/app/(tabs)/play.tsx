@@ -27,6 +27,7 @@ import * as FileSystem from 'expo-file-system'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
+import { useRouter } from 'expo-router'
 
 import { RecordingStats } from '../../component/RecordingStats'
 import { baseLogger } from '../../config'
@@ -152,6 +153,30 @@ export const PlayPage = () => {
     } | null>(null)
 
     const { files, removeFile, refreshFiles } = useAudioFiles()
+    const router = useRouter()
+
+    const resetUIState = useCallback(() => {
+        setAudioUri(null)
+        setSound(null)
+        setFileName(null)
+        setAudioAnalysis(undefined)
+        setIsPlaying(false)
+        setCurrentTimeMs(0)
+        setProcessing(false)
+        setShowVisualizer(true)
+        setPreviewData(null)
+        setStartTimeMs(0)
+        setEndTimeMs(0)
+        setCustomFileName('')
+        setEnableTrim(false)
+        setFileSize(0)
+        setOriginalDurationMs(0)
+        setPreviewStats(null)
+        
+        if (sound) {
+            sound.unloadAsync()
+        }
+    }, [sound])
 
     const generatePreview = useCallback(async (fileUri: string) => {
         try {
@@ -518,6 +543,12 @@ export const PlayPage = () => {
 
             refreshFiles()
             show({ iconVisible: true, type: 'success', message: 'File saved' })
+            
+            // Reset UI state
+            resetUIState()
+            
+            // Navigate to the file in the files tab
+            router.push(`(recordings)/${fileName}`)
         } catch (error) {
             logger.error('Error saving file to files:', error)
             show({ type: 'error', message: 'Error saving file' })
@@ -536,7 +567,7 @@ export const PlayPage = () => {
         } finally {
             setIsSaving(false)
         }
-    }, [fileName, audioUri, files, show, refreshFiles, removeFile, audioAnalysis, isSaving])
+    }, [fileName, audioUri, files, show, refreshFiles, removeFile, audioAnalysis, isSaving, router, resetUIState])
 
     const handleRestoreOriginal = useCallback(async () => {
         if (!audioUri) return

@@ -28,7 +28,7 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
     return StyleSheet.create({
         container: {
             gap: 10,
-            paddingBottom: insets?.bottom || theme.padding.s,
+            paddingBottom: insets?.bottom || 80,
             paddingTop: insets?.top || 0,
         },
         iconContainer: {
@@ -154,7 +154,11 @@ export const MoreScreen = () => {
       } = useAppUpdates();
 
     return (
-        <ScreenWrapper withScrollView useInsets contentContainerStyle={styles.container}>
+        <ScreenWrapper 
+            withScrollView 
+            useInsets 
+            contentContainerStyle={styles.container}
+        >
             <View style={styles.iconContainer}>
                 <Image
                     source={logoSource}

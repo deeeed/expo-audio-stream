@@ -16,7 +16,6 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
             gap: theme.spacing.gap,
             paddingHorizontal: theme.padding.s,
             paddingBottom: insets?.bottom || theme.padding.s,
-            paddingTop: insets?.top || 0,
         },
         progressContainer: {
             flexDirection: 'row',
