@@ -6,18 +6,25 @@
 
 # Function: extractPreview()
 
-> **extractPreview**(`__namedParameters`): `Promise`\<[`AudioPreview`](../interfaces/AudioPreview.md)\>
+> **extractPreview**(`options`): `Promise`\<[`AudioAnalysis`](../interfaces/AudioAnalysis.md)\>
+
+Generates a simplified preview of the audio waveform for quick visualization.
+Ideal for UI rendering with a specified number of points.
 
 ## Parameters
 
-### \_\_namedParameters
+### options
 
 [`PreviewOptions`](../interfaces/PreviewOptions.md)
 
+The options for the preview, including file URI and time range.
+
 ## Returns
 
-`Promise`\<[`AudioPreview`](../interfaces/AudioPreview.md)\>
+`Promise`\<[`AudioAnalysis`](../interfaces/AudioAnalysis.md)\>
+
+A promise that resolves to the audio preview data.
 
 ## Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:321](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L321)
+[src/AudioAnalysis/extractAudioAnalysis.ts:343](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L343)

@@ -14,7 +14,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:263](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L263)
+[src/ExpoAudioStream.types.ts:262](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L262)
 
 ***
 
@@ -24,7 +24,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:268](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L268)
+[src/ExpoAudioStream.types.ts:267](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L267)
 
 ***
 
@@ -34,7 +34,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:267](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L267)
+[src/ExpoAudioStream.types.ts:266](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L266)
 
 ***
 
@@ -44,7 +44,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:264](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L264)
+[src/ExpoAudioStream.types.ts:263](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L263)
 
 ***
 
@@ -54,14 +54,14 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:265](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L265)
+[src/ExpoAudioStream.types.ts:264](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L264)
 
 ***
 
 ### style?
 
-> `optional` **style**: `"fill"` \| `"stroke"`
+> `optional` **style**: `"stroke"` \| `"fill"`
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:266](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L266)
+[src/ExpoAudioStream.types.ts:265](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L265)
