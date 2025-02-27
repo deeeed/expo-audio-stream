@@ -46,6 +46,24 @@
 
 `void`
 
+### info()
+
+> **info**: (`message`, ...`args`) => `void`
+
+#### Parameters
+
+##### message
+
+`string`
+
+##### args
+
+...`unknown`[]
+
+#### Returns
+
+`void`
+
 ### log()
 
 > **log**: (`message`, ...`args`) => `void`
@@ -84,4 +102,4 @@
 
 ## Defined in
 
-[src/ExpoAudioStream.types.ts:43](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L43)
+[src/ExpoAudioStream.types.ts:44](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L44)

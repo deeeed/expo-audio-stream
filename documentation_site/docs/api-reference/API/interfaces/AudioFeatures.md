@@ -10,130 +10,180 @@ Represents various audio features extracted from an audio signal.
 
 ## Properties
 
-### chromagram
+### chromagram?
 
-> **chromagram**: `number`[]
+> `optional` **chromagram**: `number`[]
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:27](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L27)
+[src/AudioAnalysis/AudioAnalysis.types.ts:46](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L46)
 
 ***
 
-### energy
+### crc32?
 
-> **energy**: `number`
+> `optional` **crc32**: `number`
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:17](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L17)
+[src/AudioAnalysis/AudioAnalysis.types.ts:53](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L53)
 
 ***
 
-### hnr
+### energy?
 
-> **hnr**: `number`
+> `optional` **energy**: `number`
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:29](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L29)
+[src/AudioAnalysis/AudioAnalysis.types.ts:36](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L36)
 
 ***
 
-### maxAmplitude
+### hnr?
 
-> **maxAmplitude**: `number`
+> `optional` **hnr**: `number`
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:21](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L21)
+[src/AudioAnalysis/AudioAnalysis.types.ts:48](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L48)
 
 ***
 
-### mfcc
+### maxAmplitude?
 
-> **mfcc**: `number`[]
+> `optional` **maxAmplitude**: `number`
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:18](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L18)
+[src/AudioAnalysis/AudioAnalysis.types.ts:40](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L40)
 
 ***
 
-### minAmplitude
+### melSpectrogram?
 
-> **minAmplitude**: `number`
+> `optional` **melSpectrogram**: `number`[]
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:20](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L20)
+[src/AudioAnalysis/AudioAnalysis.types.ts:49](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L49)
 
 ***
 
-### rms
+### mfcc?
 
-> **rms**: `number`
+> `optional` **mfcc**: `number`[]
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:19](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L19)
+[src/AudioAnalysis/AudioAnalysis.types.ts:37](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L37)
 
 ***
 
-### spectralBandwidth
+### minAmplitude?
 
-> **spectralBandwidth**: `number`
+> `optional` **minAmplitude**: `number`
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:26](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L26)
+[src/AudioAnalysis/AudioAnalysis.types.ts:39](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L39)
 
 ***
 
-### spectralCentroid
+### pitch?
 
-> **spectralCentroid**: `number`
+> `optional` **pitch**: `number`
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:23](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L23)
+[src/AudioAnalysis/AudioAnalysis.types.ts:52](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L52)
 
 ***
 
-### spectralFlatness
+### rms?
 
-> **spectralFlatness**: `number`
+> `optional` **rms**: `number`
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:24](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L24)
+[src/AudioAnalysis/AudioAnalysis.types.ts:38](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L38)
 
 ***
 
-### spectralRolloff
+### spectralBandwidth?
 
-> **spectralRolloff**: `number`
+> `optional` **spectralBandwidth**: `number`
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:25](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L25)
+[src/AudioAnalysis/AudioAnalysis.types.ts:45](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L45)
 
 ***
 
-### tempo
+### spectralCentroid?
 
-> **tempo**: `number`
+> `optional` **spectralCentroid**: `number`
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:28](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L28)
+[src/AudioAnalysis/AudioAnalysis.types.ts:42](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L42)
 
 ***
 
-### zcr
+### spectralContrast?
 
-> **zcr**: `number`
+> `optional` **spectralContrast**: `number`[]
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:22](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L22)
+[src/AudioAnalysis/AudioAnalysis.types.ts:50](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L50)
+
+***
+
+### spectralFlatness?
+
+> `optional` **spectralFlatness**: `number`
+
+#### Defined in
+
+[src/AudioAnalysis/AudioAnalysis.types.ts:43](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L43)
+
+***
+
+### spectralRolloff?
+
+> `optional` **spectralRolloff**: `number`
+
+#### Defined in
+
+[src/AudioAnalysis/AudioAnalysis.types.ts:44](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L44)
+
+***
+
+### tempo?
+
+> `optional` **tempo**: `number`
+
+#### Defined in
+
+[src/AudioAnalysis/AudioAnalysis.types.ts:47](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L47)
+
+***
+
+### tonnetz?
+
+> `optional` **tonnetz**: `number`[]
+
+#### Defined in
+
+[src/AudioAnalysis/AudioAnalysis.types.ts:51](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L51)
+
+***
+
+### zcr?
+
+> `optional` **zcr**: `number`
+
+#### Defined in
+
+[src/AudioAnalysis/AudioAnalysis.types.ts:41](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L41)

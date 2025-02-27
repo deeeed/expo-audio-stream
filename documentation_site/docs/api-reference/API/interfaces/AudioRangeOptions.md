@@ -14,24 +14,24 @@ Options for specifying a time range within an audio file.
 
 ## Properties
 
-### endTime?
+### endTimeMs?
 
-> `optional` **endTime**: `number`
+> `optional` **endTimeMs**: `number`
 
 End time in milliseconds
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:102](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L102)
+[src/AudioAnalysis/AudioAnalysis.types.ts:137](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L137)
 
 ***
 
-### startTime?
+### startTimeMs?
 
-> `optional` **startTime**: `number`
+> `optional` **startTimeMs**: `number`
 
 Start time in milliseconds
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:100](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L100)
+[src/AudioAnalysis/AudioAnalysis.types.ts:135](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L135)
