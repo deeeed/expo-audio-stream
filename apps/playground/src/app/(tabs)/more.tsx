@@ -21,6 +21,7 @@ import { useReanimatedWebHack } from '../../hooks/useReanimatedWebHack'
 import { isWeb } from '../../utils/utils'
 import { Updater } from '../../component/Updater'
 import { useAppUpdates } from '../../hooks/useAppUpdates'
+import { TranscriberConfig } from '../../component/TranscriberConfig'
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
@@ -40,6 +41,19 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             fontSize: 12,
             paddingTop: 5,
             color: 'lightgrey',
+        },
+        configSection: {
+            marginTop: 16,
+            marginBottom: 8,
+            backgroundColor: theme.colors.surface,
+            borderRadius: 12,
+            padding: 16,
+        },
+        sectionTitle: {
+            fontSize: 16,
+            fontWeight: '500',
+            marginBottom: 8,
+            color: theme.colors.onSurface,
         },
     })
 }
@@ -143,6 +157,16 @@ export const MoreScreen = () => {
             </View>
             
             <AppInfoBanner theme={theme} />
+            
+            <View style={styles.configSection}>
+                <Text style={styles.sectionTitle}>Transcription Model</Text>
+                <TranscriberConfig 
+                    compact={true}
+                    onConfigChange={() => {
+                        // Optional callback when config changes
+                    }}
+                />
+            </View>
             
             <LabelSwitch
                 label="Dark Mode"

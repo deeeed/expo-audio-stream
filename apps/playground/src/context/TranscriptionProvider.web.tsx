@@ -292,6 +292,23 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         }> => {
             const jobId = providedJobId || `transcribe_${Date.now()}_${Math.random().toString(36).slice(2)}`
             
+            // Auto-initialize if not ready
+            if (!state.ready && !state.isModelLoading) {
+                logger.debug('Model not initialized, auto-initializing before transcription')
+                try {
+                    await initialize()
+                    // Wait a bit for the worker to be ready
+                    await new Promise(resolve => setTimeout(resolve, 500))
+                } catch (error) {
+                    logger.error('Auto-initialization failed:', error)
+                    return {
+                        promise: Promise.reject(new Error('Failed to initialize model: ' + error)),
+                        stop: async () => {},
+                        jobId
+                    }
+                }
+            }
+            
             // First check if we have either audioData or audioUri
             if (!audioData && !audioUri) {
                 dispatch({
@@ -674,7 +691,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 jobId
             };
         },
-        [webWorker]
+        [webWorker, state.ready, state.isModelLoading, initialize]
     )
 
     const updateConfig = useCallback(

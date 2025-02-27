@@ -175,6 +175,21 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         }: TranscribeParams): Promise<TranscribeResult> => {
             const jobId = providedJobId || `transcribe_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
+            // Auto-initialize if not ready
+            if (!state.ready && !state.isModelLoading) {
+                logger.debug('Model not initialized, auto-initializing before transcription')
+                try {
+                    await initialize()
+                } catch (error) {
+                    logger.error('Auto-initialization failed:', error)
+                    return {
+                        promise: Promise.reject(new Error('Failed to initialize model: ' + error)),
+                        stop: async () => {},
+                        jobId
+                    }
+                }
+            }
+
             if(!whisperContext) {
                 return {
                     promise: Promise.reject(new Error('No whisper context')),
@@ -362,7 +377,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 jobId
             }
         },
-        [whisperContext, state.language, state.model]
+        [whisperContext, state.language, state.model, state.ready, state.isModelLoading, initialize]
     )
 
     const updateConfig = useCallback(
