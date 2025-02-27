@@ -67,17 +67,17 @@ class AudioTrimmer(
             Log.d(TAG, "Using format string: $formatStr")
             
             // Determine the appropriate extension and format
-            // For non-WAV formats, we'll use AAC in an MP4 container
-            val extension = when (formatStr) {
+            val extension = when (formatStr.toLowerCase()) {
                 "wav" -> "wav"
-                else -> "aac" // Force AAC for all other formats for compatibility
+                "opus" -> "opus"
+                else -> "aac" // Default to AAC for other formats
             }
             
             Log.d(TAG, "Using output extension: $extension")
             
             // Add a warning log if the requested format is not supported
-            if (formatStr != "wav" && formatStr != "aac") {
-                Log.w(TAG, "Requested format '$formatStr' is not supported. Using 'aac' instead.")
+            if (formatStr != "wav" && formatStr != "aac" && formatStr != "opus") {
+                Log.w(TAG, "Requested format '$formatStr' is not fully supported. Using '$extension' instead.")
             }
             
             val outputFile = if (outputFileName != null) {
@@ -141,6 +141,63 @@ class AudioTrimmer(
                     config,
                     progressListener
                 )
+            } else if (extension == "opus") {
+                // For Opus output, we'll use the same two-step approach as AAC
+                val tempWavFile = File(context.filesDir, "temp_${System.currentTimeMillis()}.wav")
+                
+                try {
+                    // First decode to WAV
+                    val config = DecodingConfig(
+                        // Opus works best at 16kHz or 48kHz for voice
+                        // 16kHz is optimal for voice-only content
+                        targetSampleRate = formatOptions["sampleRate"] as? Int ?: 16000, 
+                        targetChannels = formatOptions["channels"] as? Int ?: 1, // Default to mono for voice
+                        targetBitDepth = 16, // Use 16-bit for compatibility
+                        normalizeAudio = false
+                    )
+                    
+                    // Process to temporary WAV file
+                    processToWav(
+                        inputUri,
+                        tempWavFile,
+                        timeRanges,
+                        config,
+                        object : ProgressListener {
+                            override fun onProgress(progress: Float, bytesProcessed: Long, totalBytes: Long) {
+                                progressListener?.onProgress(progress / 2, bytesProcessed, totalBytes)
+                            }
+                        }
+                    )
+                    
+                    // Now encode the WAV to Opus using Android's MediaCodec
+                    val audioProcessor = AudioProcessor(context.filesDir)
+                    val audioData = audioProcessor.loadAudioFromAnyFormat(
+                        tempWavFile.absolutePath,
+                        DecodingConfig(
+                            targetSampleRate = formatOptions["sampleRate"] as? Int ?: 16000,
+                            targetChannels = formatOptions["channels"] as? Int ?: 1,
+                            targetBitDepth = 16,
+                            normalizeAudio = false
+                        )
+                    ) ?: throw IOException("Failed to load WAV file")
+                    
+                    // Use the same MediaCodec approach as in encodeWavToAac but with Opus codec
+                    encodeToOpus(
+                        audioData,
+                        outputFile,
+                        formatOptions,
+                        object : ProgressListener {
+                            override fun onProgress(progress: Float, bytesProcessed: Long, totalBytes: Long) {
+                                progressListener?.onProgress(50 + progress / 2, bytesProcessed, totalBytes)
+                            }
+                        }
+                    )
+                } finally {
+                    // Clean up temp file
+                    if (tempWavFile.exists()) {
+                        tempWavFile.delete()
+                    }
+                }
             } else {
                 // For AAC output, we need to decode to PCM first, then encode to AAC
                 // This is more reliable than trying to copy frames directly
@@ -878,5 +935,115 @@ class AudioTrimmer(
         }
         
         Log.d(TAG, "WAV to AAC encoding completed successfully")
+    }
+
+    /**
+     * Encodes audio data to Opus format using MediaCodec
+     */
+    private fun encodeToOpus(
+        audioData: AudioProcessor.AudioData,
+        outputFile: File,
+        formatOptions: Map<String, Any>,
+        progressListener: ProgressListener?
+    ) {
+        Log.d(TAG, "Encoding to Opus: ${outputFile.absolutePath}")
+        
+        try {
+            // Check if Opus codec is available
+            val codecList = android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS)
+            val opusCodecName = codecList.codecInfos
+                .filter { it.isEncoder && it.supportedTypes.contains(MediaFormat.MIMETYPE_AUDIO_OPUS) }
+                .map { it.name }
+                .firstOrNull()
+            
+            if (opusCodecName == null) {
+                Log.w(TAG, "Opus encoder not available, falling back to AAC")
+                
+                // Create a temporary WAV file
+                val tempWavFile = File(context.filesDir, "temp_${System.currentTimeMillis()}.wav")
+                try {
+                    // Use AudioFileHandler to write WAV header and data
+                    val audioFileHandler = AudioFileHandler(context.filesDir)
+                    tempWavFile.outputStream().use { outputStream ->
+                        // Write WAV header
+                        audioFileHandler.writeWavHeader(
+                            outputStream,
+                            audioData.sampleRate,
+                            audioData.channels,
+                            audioData.bitDepth
+                        )
+                        
+                        // Write PCM data
+                        outputStream.write(audioData.data)
+                    }
+                    
+                    // Update WAV header with correct file size
+                    audioFileHandler.updateWavHeader(tempWavFile)
+                    
+                    // Now we can call encodeWavToAac with the temp file
+                    encodeWavToAac(
+                        tempWavFile,
+                        outputFile,
+                        formatOptions,
+                        progressListener
+                    )
+                } finally {
+                    // Clean up temp file
+                    if (tempWavFile.exists()) {
+                        tempWavFile.delete()
+                    }
+                }
+                return
+            }
+            
+            // Set up MediaCodec for Opus encoding
+            val sampleRate = formatOptions["sampleRate"] as? Int ?: audioData.sampleRate
+            val channels = formatOptions["channels"] as? Int ?: audioData.channels
+            
+            // Determine appropriate bitrate based on content type and channels
+            // For voice: 8-24kbps for mono, 16-32kbps for stereo is typically sufficient
+            val defaultBitrate = if (channels > 1) 32000 else 16000 // Lower defaults for voice
+            val bitrate = formatOptions["bitrate"] as? Int ?: defaultBitrate
+            
+            // Determine if this is voice content based on sample rate and/or explicit flag
+            val isVoiceContent = formatOptions["isVoice"] as? Boolean ?: (sampleRate <= 16000)
+            
+            val mediaFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_OPUS, sampleRate, channels)
+            mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
+            mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 16384)
+            
+            // Set complexity - lower for voice (faster encoding, still good quality)
+            // Complexity range is 0-10, with 10 being highest quality but slowest
+            val complexity = if (isVoiceContent) 5 else 7
+            try {
+                mediaFormat.setInteger("complexity", complexity)
+                Log.d(TAG, "Set Opus complexity to $complexity")
+            } catch (e: Exception) {
+                // Some devices might not support this parameter
+                Log.w(TAG, "Failed to set complexity parameter: ${e.message}")
+            }
+
+            // For API 28+ we can set some additional parameters
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                try {
+                    // Use 1 for speech, 2 for music
+                    val contentTypeValue = if (isVoiceContent) 1 else 2
+                    mediaFormat.setInteger("audio-content-type", contentTypeValue)
+                    Log.d(TAG, "Set Opus content type to: ${if (isVoiceContent) "SPEECH" else "MUSIC"}")
+                } catch (e: Exception) {
+                    // Some devices might not support this parameter
+                    Log.w(TAG, "Failed to set audio-content-type parameter: ${e.message}")
+                }
+            }
+
+            // Create encoder
+            val encoder = android.media.MediaCodec.createByCodecName(opusCodecName)
+            encoder.configure(mediaFormat, null, null, android.media.MediaCodec.CONFIGURE_FLAG_ENCODE)
+            
+            Log.d(TAG, "Opus encoding completed successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error encoding to Opus: ${e.message}", e)
+            throw IOException("Failed to encode to Opus: ${e.message}", e)
+        }
     }
 } 

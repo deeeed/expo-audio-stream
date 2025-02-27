@@ -413,8 +413,9 @@ export interface TrimAudioOptions {
          * The format of the output audio file.
          * - `'wav'`: Waveform Audio File Format (uncompressed).
          * - `'aac'`: Advanced Audio Coding (compressed).
+         * - `'opus'`: Opus Interactive Audio Codec (compressed).
          */
-        format: 'wav' | 'aac'
+        format: 'wav' | 'aac' | 'opus'
 
         /**
          * The sample rate of the output audio in Hertz (Hz).

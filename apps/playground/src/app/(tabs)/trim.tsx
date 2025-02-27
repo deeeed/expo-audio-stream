@@ -84,7 +84,7 @@ export default function TrimScreen() {
     const [startTime, setStartTime] = useState<number>(0)
     const [endTime, setEndTime] = useState<number>(10000)
     const [timeRanges, setTimeRanges] = useState<TimeRange[]>([])
-    const [outputFormat, setOutputFormat] = useState<'wav' | 'aac'>('wav')
+    const [outputFormat, setOutputFormat] = useState<'wav' | 'aac' | 'opus'>('wav')
     const [showManualInput, setShowManualInput] = useState(false)
 
     // Add this to your state declarations
@@ -800,10 +800,11 @@ export default function TrimScreen() {
                             <Text variant="titleMedium" style={{ marginBottom: 8 }}>Output Format</Text>
                             <SegmentedButtons
                                 value={outputFormat}
-                                onValueChange={(value) => setOutputFormat(value as 'wav' | 'aac')}
+                                onValueChange={(value) => setOutputFormat(value as 'wav' | 'aac' | 'opus')}
                                 buttons={[
                                     { value: 'wav', label: 'WAV' },
                                     { value: 'aac', label: 'AAC' },
+                                    { value: 'opus', label: 'OPUS' },
                                 ]}
                             />
                         </View>
