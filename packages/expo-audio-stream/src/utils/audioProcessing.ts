@@ -102,18 +102,29 @@ export async function processAudioBuffer({
                   ? Math.floor(position / 2)
                   : 0
 
+        // Fix: Adjust position calculation based on original sample rate
+        // When position is provided in bytes, we need to account for the original sample rate
+        const bytesPerSample = 2 // 16-bit audio = 2 bytes per sample
+        const adjustedStartSample = position !== undefined
+            ? Math.floor((position / bytesPerSample) * (buffer.sampleRate / targetSampleRate))
+            : startSample
+            
         const samplesNeeded =
             length !== undefined
-                ? Math.floor(length / 2)
+                ? Math.floor((length / bytesPerSample) * (buffer.sampleRate / targetSampleRate))
                 : endTimeMs !== undefined && startTimeMs !== undefined
                   ? Math.floor(
                         ((endTimeMs - startTimeMs) / 1000) * buffer.sampleRate
                     )
-                  : buffer.length - startSample
+                  : buffer.length - adjustedStartSample
 
-        logger?.debug('Sample calculations:', {
-            startSample,
+        logger?.debug('Sample calculations (adjusted):', {
+            originalStartSample: startSample,
+            adjustedStartSample,
             samplesNeeded,
+            originalSampleRate: buffer.sampleRate,
+            targetSampleRate,
+            conversionRatio: buffer.sampleRate / targetSampleRate,
             expectedDurationMs: (samplesNeeded / buffer.sampleRate) * 1000,
         })
 
@@ -129,7 +140,7 @@ export async function processAudioBuffer({
             const channelData = buffer.getChannelData(channel)
             const segmentData = segmentBuffer.getChannelData(channel)
             for (let i = 0; i < samplesNeeded; i++) {
-                segmentData[i] = channelData[startSample + i]
+                segmentData[i] = channelData[adjustedStartSample + i]
             }
         }
 
