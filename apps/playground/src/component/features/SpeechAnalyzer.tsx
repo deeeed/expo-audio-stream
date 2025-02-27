@@ -74,8 +74,7 @@ export function SpeechAnalyzer({
         setShowTranscriptionResults(true)
         try {
             await processTranscription(
-                isWeb ? audioData.normalizedData : audioData.pcmData,
-                sampleRate
+                isWeb ? audioData.normalizedData : audioData.pcmData
             )
         } finally {
             setIsTranscribing(false)

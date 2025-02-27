@@ -1,5 +1,5 @@
 import { Chunk, TranscriberData } from '@siteed/expo-audio-stream'
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useMemo } from 'react'
 import {
     ScrollView,
     StyleSheet,
@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native'
+import { AppTheme, useTheme } from '@siteed/design-system'
 
 import { formatDuration } from '../utils/utils'
 
@@ -29,6 +30,8 @@ export default function Transcript({
     showActions = true,
     useScrollView = false,
 }: TranscriptProps) {
+    const theme = useTheme()
+    const styles = useMemo(() => getStyles({ theme }), [theme])
     const scrollViewRef = useRef<ScrollView | null>(null)
 
     const handleChunkPress = (chunk: Chunk) => {
@@ -156,23 +159,23 @@ export default function Transcript({
     )
 }
 
-const styles = StyleSheet.create({
+const getStyles = ({ theme }: { theme: AppTheme }) => StyleSheet.create({
     container: {
         width: '100%',
-        backgroundColor: '#f5f5f5',
+        backgroundColor: theme.colors.surface,
     },
     contentWrapper: {
         flexGrow: 1,
     },
     chunksContainer: {
-        paddingVertical: 5,
+        paddingVertical: theme.padding.s,
     },
     chunkContainer: {
-        marginBottom: 12,
-        backgroundColor: '#ffffff',
-        borderRadius: 8,
-        padding: 12,
-        shadowColor: '#000000',
+        marginBottom: theme.margin.s,
+        backgroundColor: theme.colors.background,
+        borderRadius: theme.roundness,
+        padding: theme.padding.s,
+        shadowColor: theme.colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
@@ -183,43 +186,43 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
     },
     activeChunkContainer: {
-        backgroundColor: '#d1e7dd',
+        backgroundColor: theme.colors.primaryContainer,
     },
     timestamp: {
-        marginRight: 12,
+        marginRight: theme.margin.s,
         minWidth: 80,
         fontSize: 12,
-        color: '#666666',
+        color: theme.colors.onSurfaceVariant,
     },
     chunkText: {
         flex: 1,
         fontSize: 14,
-        color: '#333333',
+        color: theme.colors.onSurface,
         lineHeight: 20,
     },
     emptyText: {
         textAlign: 'center',
-        padding: 16,
-        color: '#666666',
+        padding: theme.padding.m,
+        color: theme.colors.onSurfaceVariant,
     },
     buttonContainer: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        padding: 16,
-        paddingTop: 8,
-        backgroundColor: '#ffffff',
+        padding: theme.padding.m,
+        paddingTop: theme.padding.s,
+        backgroundColor: theme.colors.background,
         borderTopWidth: 1,
-        borderTopColor: '#e0e0e0',
+        borderTopColor: theme.colors.outlineVariant,
     },
     button: {
-        backgroundColor: '#10B981',
-        borderRadius: 8,
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        marginLeft: 8,
+        backgroundColor: theme.colors.primary,
+        borderRadius: theme.roundness,
+        paddingVertical: theme.padding.s,
+        paddingHorizontal: theme.padding.m,
+        marginLeft: theme.margin.s,
     },
     buttonText: {
-        color: '#ffffff',
+        color: theme.colors.onPrimary,
         fontSize: 14,
         fontWeight: '500',
     },

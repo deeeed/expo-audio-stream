@@ -1,11 +1,12 @@
 import { useFont } from '@shopify/react-native-skia'
-import { Notice, NumberAdjuster, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
+import { AppTheme, Notice, NumberAdjuster, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
 import { AudioAnalysis, extractPreview } from '@siteed/expo-audio-stream'
 import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
 import * as DocumentPicker from 'expo-document-picker'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, IconButton, Text } from 'react-native-paper'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { baseLogger } from '../../config'
 import { isWeb } from '../../utils/utils'
 
@@ -32,8 +33,36 @@ const QUICK_TIME_RANGES: QuickTimeRange[] = [
     { label: '10-60s', startTime: 10000, endTime: 60000 },
 ]
 
+const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
+    return StyleSheet.create({
+        container: {
+            gap: 16,
+            padding: 16,
+            paddingBottom: insets?.bottom || 80,
+            paddingTop: insets?.top || 0,
+        },
+        waveformContainer: {
+            borderRadius: 8,
+            overflow: 'hidden',
+            backgroundColor: theme.colors.surfaceVariant,
+        },
+        quickRangeContainer: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            alignItems: 'center',
+        },
+        quickRangeButton: {
+            flex: 1,
+            minWidth: 100,
+        },
+    })
+}
+
 export default function PreviewScreen() {
     const theme = useTheme()
+    const { bottom, top } = useSafeAreaInsets()
+    const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
     const colors = theme.colors
     const [previewData, setPreviewData] = useState<AudioAnalysis | null>(null)
     const [currentFile, setCurrentFile] = useState<AudioFile | null>(null)
@@ -317,27 +346,4 @@ export default function PreviewScreen() {
             </View>
         </ScreenWrapper>
     )
-}
-
-const styles = StyleSheet.create({
-    container: {
-        gap: 16,
-        padding: 16,
-        paddingBottom: 80,
-    },
-    waveformContainer: {
-        borderRadius: 8,
-        overflow: 'hidden',
-        backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    },
-    quickRangeContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        alignItems: 'center',
-    },
-    quickRangeButton: {
-        flex: 1,
-        minWidth: 100,
-    },
-}) 
+} 
