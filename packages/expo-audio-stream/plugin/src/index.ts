@@ -90,7 +90,15 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
             enableBackgroundAudio === true &&
             !existingBackgroundModes.includes('audio')
         ) {
-            existingBackgroundModes.push('audio')
+            // Don't automatically add 'audio' background mode as it's only for playback
+            // existingBackgroundModes.push('audio')
+
+            // Instead, ensure processing mode is used for background recording
+            if (options.iosBackgroundModes?.useProcessing !== true) {
+                console.warn(
+                    `${LOG_PREFIX} Warning: Background audio recording requires 'processing' background mode. Please enable 'useProcessing' in iosBackgroundModes.`
+                )
+            }
         }
 
         if (
