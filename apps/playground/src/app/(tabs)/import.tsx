@@ -16,26 +16,25 @@ import {
     BitDepth,
     CompressionInfo,
     extractAudioAnalysis,
-    extractAudioData,
     getWavFileInfo,
-    SampleRate,
+    SampleRate
 } from '@siteed/expo-audio-stream'
 import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
+import { useRouter } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
-import { useRouter } from 'expo-router'
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { RecordingStats } from '../../component/RecordingStats'
 import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
+import { useSampleAudio } from '../../hooks/useSampleAudio'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
-import { validateExtractedAudio } from '../../utils/audioValidation'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const logger = console
 const getStyles = (theme: AppTheme, insets?: { bottom: number, top: number }) => {
@@ -142,7 +141,6 @@ export const ImportPage = () => {
     const [endTimeMs, setEndTimeMs] = useState<number>(0)
     const [customFileName, setCustomFileName] = useState<string>('')
     const [enableTrim, setEnableTrim] = useState<boolean>(false)
-    const PREVIEW_POINTS = 100
     const [fileSize, setFileSize] = useState<number>(0)
     const [originalDurationMs, setOriginalDurationMs] = useState<number>(0)
     const [previewStats, setPreviewStats] = useState<{
@@ -154,6 +152,17 @@ export const ImportPage = () => {
 
     const { files, removeFile, refreshFiles } = useAudioFiles()
     const router = useRouter()
+    
+    const { isLoading: isSampleLoading, loadSampleAudio } = useSampleAudio({
+        onError: (error) => {
+            logger.error('Error loading sample audio file:', error)
+            show({
+                type: 'error',
+                message: 'Error loading sample audio file',
+                duration: 3000
+            })
+        }
+    })
 
     const resetUIState = useCallback(() => {
         setAudioUri(null)
@@ -323,88 +332,6 @@ export const ImportPage = () => {
         setEndTimeMs(newEndTimeMs)
     }, [])
 
-    const loadWebAudioFile = async ({
-        audioUri,
-        filename,
-    }: {
-        audioUri: string
-        filename?: string
-    }) => {
-        try {
-            logger.log('Loading audio file:', audioUri)
-            const timings: { [key: string]: number } = {}
-
-            const startOverall = performance.now()
-
-            const startUnloadSound = performance.now()
-            if (sound) {
-                setSound(null)
-            }
-            timings['Unload Sound'] = performance.now() - startUnloadSound
-
-            const startResetPlayback = performance.now()
-            setCurrentTimeMs(0)
-            setIsPlaying(false)
-            timings['Reset Playback'] = performance.now() - startResetPlayback
-
-            // Extract audio data with proper options like in whisper.tsx
-            const extractedData = await extractAudioData({
-                fileUri: audioUri,
-                includeBase64Data: true,
-                includeNormalizedData: true,
-                includeWavHeader: isWeb,
-                startTimeMs: 0,
-                endTimeMs: 10000,
-                logger: baseLogger.extend('extractAudioData'),
-                decodingOptions: {
-                    targetSampleRate: 16000,
-                    targetChannels: 1,
-                    targetBitDepth: 16,
-                    normalizeAudio: true,
-                },
-            })
-
-            // Add validation
-            validateExtractedAudio(extractedData, filename ?? 'Unknown')
-
-            const startAudioAnalysis = performance.now()
-            logger.log('Extracting audio preview...', audioUri)
-            const preview = await extractAudioAnalysis({
-                fileUri: audioUri,
-                logger: baseLogger.extend('extractAudioAnalysis'),
-                segmentDurationMs: (PREVIEW_POINTS / 10),
-                position: 0,
-                length: extractedData.samples,
-            })
-
-            // Set preview stats with the correct duration
-            setPreviewStats({
-                durationMs: extractedData.durationMs,
-                size: extractedData.pcmData?.byteLength ?? 0
-            })
-            
-            logger.info(`Audio preview computed in ${performance.now() - startAudioAnalysis}ms`)
-            setAudioAnalysis(preview)
-            timings['Audio Analysis'] = performance.now() - startAudioAnalysis
-
-            const actualFileName = filename ?? audioUri.split('/').pop()?.split('?')[0] ?? 'Unknown'
-            setFileName(actualFileName)
-            setCustomFileName(actualFileName)
-            setAudioUri(audioUri)
-
-            timings['Total Time'] = performance.now() - startOverall
-            logger.log('Timings:', timings)
-            logger.log(`AudioAnalysis:`, audioAnalysis)
-        } catch (error) {
-            logger.error('Error loading audio file:', error)
-            show({
-                type: 'error',
-                message: 'Error loading audio file',
-                duration: 3000
-            })
-        }
-    }
-
     const handleSeekEnd = (timeSeconds: number) => {
         logger.debug('handleSeekEnd', timeSeconds * 1000)
         const timeMs = timeSeconds * 1000
@@ -466,7 +393,22 @@ export const ImportPage = () => {
         }
 
         setIsSaving(true)
-        const destination = `${FileSystem.documentDirectory ?? ''}${fileName}`
+        
+        // Ensure the filename has a proper extension
+        let finalFileName = fileName
+        if (!finalFileName.match(/\.(wav|mp3|opus|aac)$/i)) {
+            // Extract extension from the URI if possible
+            const uriExtension = audioUri.split('.').pop()?.toLowerCase()
+            if (uriExtension && ['wav', 'mp3', 'opus', 'aac'].includes(uriExtension)) {
+                finalFileName = `${finalFileName}.${uriExtension}`
+            } else {
+                // Default to mp3 if we can't determine the extension
+                finalFileName = `${finalFileName}.mp3`
+            }
+            logger.debug(`Added extension to filename: ${finalFileName}`)
+        }
+        
+        const destination = `${FileSystem.documentDirectory ?? ''}${finalFileName}`
         
         try {
             // Fetch the audio file
@@ -483,15 +425,15 @@ export const ImportPage = () => {
             let wavMetadata
             let compressionInfo: CompressionInfo | undefined
 
-            if (fileName.toLowerCase().endsWith('.wav')) {
+            if (finalFileName.toLowerCase().endsWith('.wav')) {
                 try {
                     wavMetadata = await getWavFileInfo(arrayBuffer)
                 } catch (_error) {
                     logger.warn('Not a valid WAV file, using audio analysis data instead')
                 }
-            } else if (fileName.match(/\.(mp3|opus|aac)$/i)) {
+            } else if (finalFileName.match(/\.(mp3|opus|aac)$/i)) {
                 // Handle compressed audio formats
-                const format = fileName.split('.').pop()?.toLowerCase() || ''
+                const format = finalFileName.split('.').pop()?.toLowerCase() || ''
                 compressionInfo = {
                     size: arrayBuffer.byteLength,
                     mimeType: `audio/${format}`,
@@ -503,7 +445,7 @@ export const ImportPage = () => {
             // Create audio recording metadata using either WAV metadata or audio analysis
             const audioResult: AudioRecording = {
                 fileUri: destination,
-                filename: fileName,
+                filename: finalFileName,
                 mimeType: compressionInfo?.mimeType || 'audio/*',
                 size: arrayBuffer.byteLength,
                 // Use WAV metadata if available, otherwise fall back to audio analysis data
@@ -517,7 +459,6 @@ export const ImportPage = () => {
                     compressedFileUri: destination
                 } : undefined,
             }
-
 
             logger.log('Saving file to files:', audioResult)
 
@@ -533,8 +474,8 @@ export const ImportPage = () => {
                     to: audioResult.fileUri,
                 })
 
-                // Save metadata
-                const jsonPath = audioResult.fileUri.replace(/\.[^.]+$/, '.json')
+                // Save metadata - ensure the JSON path uses the same filename with .json extension
+                const jsonPath = `${FileSystem.documentDirectory}${finalFileName.replace(/\.[^.]+$/, '.json')}`
                 await FileSystem.writeAsStringAsync(
                     jsonPath,
                     JSON.stringify(audioResult, null, 2)
@@ -547,15 +488,15 @@ export const ImportPage = () => {
             // Reset UI state
             resetUIState()
             
-            // Navigate to the file in the files tab
-            router.push(`(recordings)/${fileName}`)
+            // Navigate to the file in the files tab - use the filename with extension
+            router.push(`(recordings)/${finalFileName}`)
         } catch (error) {
             logger.error('Error saving file to files:', error)
             show({ type: 'error', message: 'Error saving file' })
             // cleanup files if failed
             await removeFile({
                 fileUri: destination,
-                filename: fileName,
+                filename: finalFileName,
                 mimeType: 'audio/*',
                 size: 0,
                 durationMs: 0,
@@ -577,6 +518,48 @@ export const ImportPage = () => {
         setPreviewStats(null)
         await generatePreview(audioUri)
     }, [audioUri, generatePreview])
+
+    const handleLoadSampleAudio = useCallback(async () => {
+        try {
+            setProcessing(true)
+            
+            // Reset all values when loading new file
+            setStartTimeMs(0)
+            setEndTimeMs(0)
+            setEnableTrim(false)
+            setPreviewStats(null)
+            setCurrentTimeMs(0)
+            setIsPlaying(false)
+            setAudioAnalysis(undefined)
+            setPreviewData(null)
+            
+            // Use our hook to load the sample audio
+            const sampleFile = await loadSampleAudio(require('@assets/jfk.mp3'))
+            
+            if (!sampleFile) {
+                throw new Error('Failed to load sample audio file')
+            }
+            
+            // Update state with the sample file details
+            setFileName(sampleFile.name)
+            setCustomFileName(sampleFile.name)
+            setAudioUri(sampleFile.uri)
+            setFileSize(sampleFile.size)
+            setOriginalDurationMs(sampleFile.durationMs)
+            
+            // Generate preview for visualization
+            await generatePreview(sampleFile.uri)
+        } catch (error) {
+            logger.error('Error loading sample audio file:', error)
+            show({
+                type: 'error',
+                message: 'Error loading sample audio file',
+                duration: 3000
+            })
+        } finally {
+            setProcessing(false)
+        }
+    }, [generatePreview, loadSampleAudio, show])
 
     useEffect(() => {
         return sound
@@ -627,24 +610,15 @@ export const ImportPage = () => {
                         Select Audio File
                     </Button>
 
-                    {isWeb && (
-                        <Button
-                            mode="contained-tonal"
-                            disabled={processing || isSaving}
-                            icon="music-box"
-                            onPress={async () => {
-                                try {
-                                    await loadWebAudioFile({
-                                        audioUri: 'audio_samples/recorder_jre_lex_watch.wav',
-                                    })
-                                } catch (error) {
-                                    logger.error('Error loading audio file:', error)
-                                }
-                            }}
-                        >
-                            Load Sample
-                        </Button>
-                    )}
+                    <Button
+                        mode="contained-tonal"
+                        disabled={processing || isSaving || isSampleLoading}
+                        icon="music-box"
+                        onPress={handleLoadSampleAudio}
+                        loading={isSampleLoading}
+                    >
+                        Load Sample
+                    </Button>
                 </View>
 
                 <View style={styles.switchesContainer}>

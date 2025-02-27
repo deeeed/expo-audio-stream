@@ -6,6 +6,7 @@ import { setLoggerConfig } from '@siteed/react-native-logger'
 import { App as ExpoRouterApp } from 'expo-router/build/qualified-entry'
 import { StatusBar } from 'expo-status-bar'
 import React, { useEffect, useState } from 'react'
+import { View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 import { en, registerTranslation } from "react-native-paper-dates"
 import { Provider } from 'react-redux'
@@ -38,7 +39,11 @@ export const WithUIProvider = ({ children }: { children: React.ReactNode }) => {
     }, [])
 
     if (!isThemeReady || !ready || !isReanimatedReady) {
-        return <ActivityIndicator />
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator />
+            </View>
+        )
     }
 
     return (
