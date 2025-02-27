@@ -2,6 +2,7 @@ import { AppTheme, Button, NumberAdjuster, ScreenWrapper, Text, useTheme, LabelS
 import React, { useMemo } from 'react'
 import { StyleSheet, View, ScrollView } from 'react-native'
 import { ProgressBar, SegmentedButtons } from 'react-native-paper'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { PCMPlayer } from '../../component/PCMPlayer'
 import { TranscriberConfig } from '../../component/TranscriberConfig'
@@ -9,11 +10,13 @@ import Transcript from '../../component/Transcript'
 import { useAudioTranscription, EXTRACT_DURATION_OPTIONS } from '../../hooks/useAudioTranscription'
 import { TranscriptionHistoryList } from '../../component/TranscriptionHistoryList'
 
-const getStyles = ({ theme }: { theme: AppTheme }) => {
+const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
     return StyleSheet.create({
         container: {
             gap: theme.spacing.gap,
             paddingHorizontal: theme.padding.s,
+            paddingBottom: insets?.bottom || theme.padding.s,
+            paddingTop: insets?.top || 0,
         },
         progressContainer: {
             flexDirection: 'row',
@@ -173,7 +176,8 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
 
 export function TranscriptionScreen() {
     const theme = useTheme()
-    const styles = useMemo(() => getStyles({ theme }), [theme])
+    const { bottom, top } = useSafeAreaInsets()
+    const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
 
     const {
         // State
@@ -207,7 +211,6 @@ export function TranscriptionScreen() {
     return (
         <ScreenWrapper 
             withScrollView={true}
-            useInsets 
             contentContainerStyle={styles.container}
         >
             <Notice

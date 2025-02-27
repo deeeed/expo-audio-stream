@@ -16,6 +16,7 @@ import Animated, {
     useSharedValue,
     withTiming,
 } from "react-native-reanimated"
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useReanimatedWebHack } from '../../hooks/useReanimatedWebHack'
 import { isWeb } from '../../utils/utils'
@@ -23,10 +24,12 @@ import { Updater } from '../../component/Updater'
 import { useAppUpdates } from '../../hooks/useAppUpdates'
 import { TranscriberConfig } from '../../component/TranscriberConfig'
 
-const getStyles = ({ theme }: { theme: AppTheme }) => {
+const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
     return StyleSheet.create({
         container: {
             gap: 10,
+            paddingBottom: insets?.bottom || theme.padding.s,
+            paddingTop: insets?.top || 0,
         },
         iconContainer: {
             alignItems: 'center',
@@ -137,7 +140,8 @@ const AppInfoBanner = memo(function AppInfoBanner({
 export const MoreScreen = () => {
     const router = useRouter()
     const { toggleDarkMode, darkMode, theme } = useThemePreferences()
-    const styles = useMemo(() => getStyles({ theme }), [theme])
+    const { bottom, top } = useSafeAreaInsets()
+    const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
     const appVersion = Constants.expoConfig?.version
     const { isHackEnabled, handleHackToggle } = useReanimatedWebHack()
     const {

@@ -8,7 +8,7 @@ import {
     Notice,
     ScreenWrapper,
     useTheme,
-    useToast
+    useToast,
 } from '@siteed/design-system'
 import {
     AudioAnalysis,
@@ -34,14 +34,16 @@ import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
 import { validateExtractedAudio } from '../../utils/audioValidation'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const logger = console
-const getStyles = (theme: AppTheme) => {
+const getStyles = (theme: AppTheme, insets?: { bottom: number, top: number }) => {
     return StyleSheet.create({
         container: {
             padding: theme.padding.m,
             gap: theme.padding.s,
-            paddingBottom: 80,
+            paddingBottom: insets?.bottom || 80,
+            paddingTop: insets?.top || 0,
         },
         controlsContainer: {
             backgroundColor: theme.colors.surfaceVariant,
@@ -121,7 +123,8 @@ function formatDuration(seconds: number): string {
 
 export const PlayPage = () => {
     const theme = useTheme()
-    const styles = useMemo(() => getStyles(theme), [theme])
+    const { bottom, top } = useSafeAreaInsets()
+    const styles = useMemo(() => getStyles(theme, { bottom, top }), [theme, bottom, top])
     const [audioUri, setAudioUri] = useState<string | null>(null)
     const [sound, setSound] = useState<Audio.Sound | null>(null)
     const [fileName, setFileName] = useState<string | null>(null)

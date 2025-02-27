@@ -1,12 +1,15 @@
 // playground/src/app/(tabs)/index.tsx
 import {
+    AppTheme,
     Button,
     EditableInfoCard,
     LabelSwitch,
+    Text,
     Notice,
     Picker,
     ScreenWrapper,
     useToast,
+    useTheme,
 } from '@siteed/design-system'
 import {
     AudioDataEvent,
@@ -24,9 +27,10 @@ import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
 import { useRouter, Stack } from 'expo-router'
 import isBase64 from 'is-base64'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { Platform, StyleSheet, View, Image } from 'react-native'
-import { ActivityIndicator, Text, useTheme } from 'react-native-paper'
+import { ActivityIndicator } from 'react-native-paper'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { IOSSettingsConfig } from '../../component/IOSSettingsConfig'
@@ -123,6 +127,28 @@ if (Platform.OS === 'ios') {
 
 const logoSource = require('@assets/icon.png')
 
+const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
+    return StyleSheet.create({
+        container: {
+            gap: 10,
+            padding: 10,
+            justifyContent: 'center',
+            paddingBottom: insets?.bottom || theme.padding.s,
+            paddingTop: insets?.top || 0,
+        },
+        waveformContainer: {
+            borderRadius: 10,
+        },
+        recordingContainer: {
+            gap: 10,
+            borderWidth: 1,
+        },
+        button: {
+            marginTop: 10,
+        },
+    })
+}
+
 export default function RecordScreen() {
     const [error, setError] = useState<string | null>(null)
     const [notificationEnabled, setNotificationEnabled] = useState(
@@ -218,7 +244,11 @@ export default function RecordScreen() {
     const [transcripts, setTranscripts] = useState<TranscriberData[]>([])
     const [activeTranscript, setActiveTranscript] = useState<TranscriberData | null>(null)
 
-    const { show, hide } = useToast()
+    const { show } = useToast()
+
+    const theme = useTheme()
+    const { bottom, top } = useSafeAreaInsets()
+    const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
 
     const showPermissionError = (permission: string) => {
         logger.error(`${permission} permission not granted`)
@@ -471,7 +501,7 @@ export default function RecordScreen() {
             setTranscripts([])
             setActiveTranscript(null)
         }
-    }, [stopRecording, enableLiveTranscription, router, show, hide, transcripts, refreshFiles, transcribeLive, startRecordingConfig.sampleRate])
+    }, [stopRecording, enableLiveTranscription, router, transcripts, refreshFiles, transcribeLive, startRecordingConfig.sampleRate])
 
     const renderRecording = () => (
         <View style={{ gap: 10, display: 'flex' }}>
@@ -933,24 +963,3 @@ export default function RecordScreen() {
         </>
     )
 }
-
-const styles = StyleSheet.create({
-    container: {
-        gap: 10,
-        padding: 10,
-        // flex: 1,
-        // alignItems: "center",
-        justifyContent: 'center',
-        paddingBottom: 80,
-    },
-    waveformContainer: {
-        borderRadius: 10,
-    },
-    recordingContainer: {
-        gap: 10,
-        borderWidth: 1,
-    },
-    button: {
-        marginTop: 10,
-    },
-})
