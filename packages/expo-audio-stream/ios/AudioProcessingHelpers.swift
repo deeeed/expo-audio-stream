@@ -579,8 +579,9 @@ func extractRawAudioData(
     frameCount: AVAudioFrameCount,
     format: AVAudioFormat,
     decodingConfig: DecodingConfig,
-    includeNormalizedData: Bool
-) throws -> (pcmData: Data, floatData: [Float]?) {
+    includeNormalizedData: Bool,
+    includeBase64Data: Bool
+) throws -> (pcmData: Data, floatData: [Float]?, base64Data: String?) {
     // Apply decoding configuration
     let targetFormat = decodingConfig.toAudioFormat(baseFormat: format)
     
@@ -647,7 +648,12 @@ func extractRawAudioData(
         Array(UnsafeBufferPointer(start: floatData[0], count: Int(finalBuffer.frameLength))) :
         nil
     
-    return (pcmData: pcmData, floatData: normalizedData)
+    // Convert to base64 if requested
+    let base64Data: String? = includeBase64Data ?
+        pcmData.base64EncodedString() :
+        nil
+    
+    return (pcmData: pcmData, floatData: normalizedData, base64Data: base64Data)
 }
 
 // Update the CRC32 function to use zlib's implementation
@@ -663,5 +669,75 @@ func calculateCRC32(from floatArray: [Float], count: Int) -> UInt32 {
         // Get raw pointer to the bytes with proper alignment
         let byteCount = count * MemoryLayout<Float>.size
         return UInt32(crc32(0, floatBytes.baseAddress, UInt32(byteCount)))
+    }
+}
+
+func createWavHeader(pcmData: Data, sampleRate: Int, channels: Int, bitDepth: Int) -> Data {
+    let headerSize = 44
+    let totalDataLen = pcmData.count + headerSize - 8
+    let bytesPerSample = bitDepth / 8
+    let byteRate = sampleRate * channels * bytesPerSample
+    let blockAlign = channels * bytesPerSample
+    
+    var header = Data(capacity: headerSize)
+    
+    // RIFF header
+    header.append(contentsOf: "RIFF".data(using: .ascii)!)
+    
+    // Total data length
+    header.append(UInt32(totalDataLen).littleEndian.data)
+    
+    // WAVE header
+    header.append(contentsOf: "WAVE".data(using: .ascii)!)
+    
+    // 'fmt ' chunk
+    header.append(contentsOf: "fmt ".data(using: .ascii)!)
+    
+    // 16 for PCM format
+    header.append(UInt32(16).littleEndian.data)
+    
+    // Format = 1 for PCM
+    header.append(UInt16(1).littleEndian.data)
+    
+    // Number of channels
+    header.append(UInt16(channels).littleEndian.data)
+    
+    // Sample rate
+    header.append(UInt32(sampleRate).littleEndian.data)
+    
+    // Byte rate
+    header.append(UInt32(byteRate).littleEndian.data)
+    
+    // Block align
+    header.append(UInt16(blockAlign).littleEndian.data)
+    
+    // Bits per sample
+    header.append(UInt16(bitDepth).littleEndian.data)
+    
+    // 'data' chunk
+    header.append(contentsOf: "data".data(using: .ascii)!)
+    
+    // Data length
+    header.append(UInt32(pcmData.count).littleEndian.data)
+    
+    // Combine header and PCM data
+    var wavData = header
+    wavData.append(pcmData)
+    
+    return wavData
+}
+
+// Extension to help with binary data conversion
+extension UInt16 {
+    var data: Data {
+        var value = self
+        return Data(bytes: &value, count: MemoryLayout<UInt16>.size)
+    }
+}
+
+extension UInt32 {
+    var data: Data {
+        var value = self
+        return Data(bytes: &value, count: MemoryLayout<UInt32>.size)
     }
 }

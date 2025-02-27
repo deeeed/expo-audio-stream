@@ -14,13 +14,14 @@ import { getLogger } from '@siteed/react-native-logger'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback, useMemo } from 'react'
 import { FlatList, StyleSheet, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { formatBytes } from '../../utils/utils'
 const logger = getLogger('FilesScreen')
 
-const getStyles = ({ theme }: { theme: AppTheme }) => {
+const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
     return StyleSheet.create({
         container: {
             flex: 1,
@@ -28,7 +29,8 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
         },
         contentContainer: {
             gap: 10,
-            paddingBottom: 80,
+            paddingBottom: insets?.bottom || 80,
+            paddingTop: insets?.top || 0,
         },
         recordingContainer: {
             gap: 10,
@@ -47,7 +49,8 @@ const FilesScreen = () => {
     const { show } = useToast()
     const router = useRouter()
     const theme = useTheme()
-    const styles = useMemo(() => getStyles({ theme }), [theme])
+    const { bottom, top } = useSafeAreaInsets()
+    const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
 
     const {
         ready,

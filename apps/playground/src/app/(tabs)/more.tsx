@@ -16,16 +16,20 @@ import Animated, {
     useSharedValue,
     withTiming,
 } from "react-native-reanimated"
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useReanimatedWebHack } from '../../hooks/useReanimatedWebHack'
 import { isWeb } from '../../utils/utils'
 import { Updater } from '../../component/Updater'
 import { useAppUpdates } from '../../hooks/useAppUpdates'
+import { TranscriberConfig } from '../../component/TranscriberConfig'
 
-const getStyles = ({ theme }: { theme: AppTheme }) => {
+const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
     return StyleSheet.create({
         container: {
             gap: 10,
+            paddingBottom: insets?.bottom || 80,
+            paddingTop: insets?.top || 0,
         },
         iconContainer: {
             alignItems: 'center',
@@ -40,6 +44,23 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             fontSize: 12,
             paddingTop: 5,
             color: 'lightgrey',
+        },
+        configSection: {
+            marginTop: 16,
+            marginBottom: 8,
+            backgroundColor: theme.colors.surface,
+            borderRadius: 12,
+            padding: 16,
+        },
+        sectionTitle: {
+            fontSize: 16,
+            fontWeight: '500',
+            marginBottom: 8,
+            color: theme.colors.onSurface,
+        },
+        listItemContainer: {
+            backgroundColor: theme.colors.surface,
+            margin: 0,
         },
     })
 }
@@ -68,7 +89,7 @@ const AppInfoBanner = memo(function AppInfoBanner({
             })
             return newIsExpanded
         })
-    }, [])
+    }, [animatedHeight])
 
     return (
         <Pressable onPress={toggleExpanded}>
@@ -119,7 +140,8 @@ const AppInfoBanner = memo(function AppInfoBanner({
 export const MoreScreen = () => {
     const router = useRouter()
     const { toggleDarkMode, darkMode, theme } = useThemePreferences()
-    const styles = useMemo(() => getStyles({ theme }), [theme])
+    const { bottom, top } = useSafeAreaInsets()
+    const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
     const appVersion = Constants.expoConfig?.version
     const { isHackEnabled, handleHackToggle } = useReanimatedWebHack()
     const {
@@ -132,7 +154,11 @@ export const MoreScreen = () => {
       } = useAppUpdates();
 
     return (
-        <ScreenWrapper withScrollView useInsets contentContainerStyle={styles.container}>
+        <ScreenWrapper 
+            withScrollView 
+            useInsets 
+            contentContainerStyle={styles.container}
+        >
             <View style={styles.iconContainer}>
                 <Image
                     source={logoSource}
@@ -152,6 +178,7 @@ export const MoreScreen = () => {
                 onValueChange={toggleDarkMode}
                 value={darkMode}
             />
+            
             {!isWeb && (
                     <Updater
                         isUpdateAvailable={isUpdateAvailable}
@@ -162,6 +189,17 @@ export const MoreScreen = () => {
                 canUpdate={canUpdate}
                 />
             )}
+
+            <View style={styles.configSection}>
+                <Text style={styles.sectionTitle}>Transcription Model</Text>
+                <TranscriberConfig 
+                    compact={true}
+                    onConfigChange={() => {
+                        // Optional callback when config changes
+                    }}
+                />
+            </View>
+            
 
             {isWeb && (
                 <LabelSwitch
@@ -175,52 +213,32 @@ export const MoreScreen = () => {
             )}
 
             <ListItem
-                contentContainerStyle={{
-                    backgroundColor: theme.colors.surface,
-                    margin: 0,
-                }}
+                contentContainerStyle={styles.listItemContainer}
                 label="Logs"
                 subLabel="Console logs"
                 onPress={() => {
                     router.navigate('/logs')
                 }}
             />
-            {isWeb && (
-                <ListItem
-                    contentContainerStyle={{
-                        backgroundColor: theme.colors.surface,
-                        margin: 0,
-                    }}
-                label="Transcriber Config"
-                subLabel="Configure model and AI parameters for transcription"
-                    onPress={() => {
-                        router.navigate('/transcription-config')
-                    }}
-                />
-            )}
             <ListItem
-                contentContainerStyle={{
-                    backgroundColor: theme.colors.surface,
-                    margin: 0,
-                }}
+                contentContainerStyle={styles.listItemContainer}
                 label="Permissions"
                 subLabel="Check and request permissions"
                 onPress={() => {
                     router.navigate('/permissions')
                 }}
             />
-            {!isWeb && __DEV__ && (
-                <ListItem
-                    contentContainerStyle={{
-                        backgroundColor: theme.colors.surface,
-                        margin: 0,
-                    }}
-                    label="Native Whisper"
-                    subLabel="Native Whisper (Dev Only)"
-                    onPress={() => {
-                        router.navigate('/nativewhisper')
-                    }}
-                />
+            {__DEV__ && isWeb && (
+                <>
+                    <ListItem
+                        contentContainerStyle={styles.listItemContainer}
+                        label="Whisper Debug"
+                        subLabel="Whisper Debug (Dev Only)"
+                        onPress={() => {
+                            router.navigate('/whisper-debug')
+                        }}
+                    />
+                </>
             )}
             {/* <ListItem
                 contentContainerStyle={{

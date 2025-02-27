@@ -401,18 +401,52 @@ class ExpoAudioStreamModule : Module(), EventSender {
                 """.trimIndent())
 
                 val includeNormalizedData = options["includeNormalizedData"] as? Boolean ?: false
+                val includeBase64Data = options["includeBase64Data"] as? Boolean ?: false
+                val includeWavHeader = options["includeWavHeader"] as? Boolean ?: false
                 val bytesPerSample = audioData.bitDepth / 8
                 val samples = audioData.data.size / (bytesPerSample * audioData.channels)
                 
-                val resultMap = mutableMapOf(
-                    "pcmData" to audioData.data,
+                // Create the result map
+                val resultMap = mutableMapOf<String, Any>()
+                
+                // Add WAV header if requested
+                if (includeWavHeader) {
+                    // Use ByteArrayOutputStream to write the WAV header and data
+                    val outputStream = java.io.ByteArrayOutputStream()
+                    val audioFileHandler = AudioFileHandler(appContext.reactContext!!.filesDir)
+                    
+                    // Write the WAV header
+                    audioFileHandler.writeWavHeader(
+                        outputStream,
+                        audioData.sampleRate,
+                        audioData.channels,
+                        audioData.bitDepth
+                    )
+                    
+                    // Write the PCM data
+                    outputStream.write(audioData.data)
+                    
+                    // Get the complete WAV data
+                    val wavData = outputStream.toByteArray()
+                    
+                    resultMap["pcmData"] = wavData
+                    resultMap["hasWavHeader"] = true
+                    
+                    Log.d(Constants.TAG, "Added WAV header to PCM data, total size: ${wavData.size} bytes")
+                } else {
+                    resultMap["pcmData"] = audioData.data
+                    resultMap["hasWavHeader"] = false
+                }
+                
+                // Add the rest of the data
+                resultMap.putAll(mapOf(
                     "sampleRate" to audioData.sampleRate,
                     "channels" to audioData.channels,
                     "bitDepth" to audioData.bitDepth,
                     "durationMs" to audioData.durationMs,
                     "format" to "pcm_${audioData.bitDepth}bit",
                     "samples" to samples
-                )
+                ))
                 
                 // Add checksum if requested
                 if (options["computeChecksum"] == true) {
@@ -429,6 +463,15 @@ class ExpoAudioStreamModule : Module(), EventSender {
                         "pcm_${audioData.bitDepth}bit"
                     )
                     resultMap["normalizedData"] = float32Data
+                }
+                
+                if (includeBase64Data) {
+                    // Convert the PCM data to a base64 string
+                    val base64Data = android.util.Base64.encodeToString(
+                        audioData.data, 
+                        android.util.Base64.NO_WRAP
+                    )
+                    resultMap["base64Data"] = base64Data
                 }
                 
                 promise.resolve(resultMap)

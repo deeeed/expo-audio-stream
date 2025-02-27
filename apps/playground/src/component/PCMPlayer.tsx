@@ -3,7 +3,7 @@ import { AppTheme, useTheme, useToast } from '@siteed/design-system'
 import { writeWavHeader } from '@siteed/expo-audio-stream'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { Button as PaperButton, Text } from 'react-native-paper'
 import { baseLogger } from '../config'
@@ -16,6 +16,7 @@ interface PCMPlayerProps {
     sampleRate: number
     bitDepth: number
     channels?: number
+    hasWavHeader?: boolean
 }
 
 const getStyles = (theme: AppTheme) => StyleSheet.create({
@@ -59,7 +60,8 @@ export function PCMPlayer({
     data, 
     sampleRate, 
     bitDepth,
-    channels = 1 
+    channels = 1,
+    hasWavHeader = false
 }: PCMPlayerProps) {
     const theme = useTheme()
     const styles = getStyles(theme)
@@ -68,19 +70,23 @@ export function PCMPlayer({
     const [position, setPosition] = useState(0)
     const { show } = useToast()
 
-    // Update duration calculation to match the segment length
-    const bytesPerSample = bitDepth / 8
-    const totalSamples = data.length / bytesPerSample
-    const totalDurationMs = (totalSamples / (sampleRate * channels)) * 1000
-
-    logger?.debug('PCM Player duration calculation:', {
-        dataLength: data.length,
-        bytesPerSample,
-        totalSamples,
-        sampleRate,
-        channels,
-        totalDurationMs
-    })
+    // Memoize the duration calculation to avoid recalculating on every render
+    const totalDurationMs = useMemo(() => {
+        const bytesPerSample = bitDepth / 8
+        const totalSamples = data.length / bytesPerSample
+        const durationMs = (totalSamples / (sampleRate * channels)) * 1000
+        
+        logger?.debug('PCM Player duration calculation (memoized):', {
+            dataLength: data.length,
+            bytesPerSample,
+            totalSamples,
+            sampleRate,
+            channels,
+            totalDurationMs: durationMs
+        })
+        
+        return durationMs
+    }, [data.length, bitDepth, sampleRate, channels])
 
     const handlePlayPause = useCallback(async () => {
         try {
@@ -101,16 +107,27 @@ export function PCMPlayer({
                 sampleRate,
                 channels,
                 bitDepth,
-                dataSize: data.length
+                dataSize: data.length,
+                hasWavHeader
             })
 
-            const pcmBuffer = data.buffer.slice(0) as ArrayBuffer
-            const wavBuffer = writeWavHeader({
-                buffer: pcmBuffer.slice(0, data.length),
-                sampleRate,
-                numChannels: channels,
-                bitDepth,
-            })
+            let wavBuffer: ArrayBuffer
+            
+            if (hasWavHeader) {
+                // If data already has a WAV header, use it directly
+                wavBuffer = data.buffer.slice(0, data.length) as ArrayBuffer
+                logger.debug('Using existing WAV header')
+            } else {
+                // Otherwise, create a WAV header
+                const pcmBuffer = data.buffer.slice(0) as ArrayBuffer
+                wavBuffer = writeWavHeader({
+                    buffer: pcmBuffer.slice(0, data.length),
+                    sampleRate,
+                    numChannels: channels,
+                    bitDepth,
+                })
+                logger.debug('Created new WAV header')
+            }
 
             let uri: string
             if (Platform.OS === 'web') {
@@ -159,7 +176,7 @@ export function PCMPlayer({
             logger.error('Failed to play audio:', error)
             show({ type: 'error', message: 'Failed to play audio segment' })
         }
-    }, [data, sampleRate, channels, bitDepth, sound, isPlaying, show])
+    }, [data, sampleRate, channels, bitDepth, hasWavHeader, sound, isPlaying, show])
 
     useEffect(() => {
         return () => {

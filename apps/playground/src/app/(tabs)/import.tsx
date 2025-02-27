@@ -8,19 +8,17 @@ import {
     Notice,
     ScreenWrapper,
     useTheme,
-    useToast
+    useToast,
 } from '@siteed/design-system'
 import {
     AudioAnalysis,
     AudioRecording,
     BitDepth,
-    Chunk,
     CompressionInfo,
-    convertPCMToFloat32,
     extractAudioAnalysis,
+    extractAudioData,
     getWavFileInfo,
     SampleRate,
-    TranscriberData
 } from '@siteed/expo-audio-stream'
 import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
@@ -29,21 +27,24 @@ import * as FileSystem from 'expo-file-system'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
+import { useRouter } from 'expo-router'
 
 import { RecordingStats } from '../../component/RecordingStats'
-import Transcriber from '../../component/Transcriber'
 import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
+import { validateExtractedAudio } from '../../utils/audioValidation'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const logger = console
-const getStyles = (theme: AppTheme) => {
+const getStyles = (theme: AppTheme, insets?: { bottom: number, top: number }) => {
     return StyleSheet.create({
         container: {
             padding: theme.padding.m,
             gap: theme.padding.s,
-            paddingBottom: 80,
+            paddingBottom: insets?.bottom || 80,
+            paddingTop: insets?.top || 0,
         },
         controlsContainer: {
             backgroundColor: theme.colors.surfaceVariant,
@@ -121,9 +122,10 @@ function formatDuration(seconds: number): string {
     return parts.join(' ')
 }
 
-export const PlayPage = () => {
+export const ImportPage = () => {
     const theme = useTheme()
-    const styles = useMemo(() => getStyles(theme), [theme])
+    const { bottom, top } = useSafeAreaInsets()
+    const styles = useMemo(() => getStyles(theme, { bottom, top }), [theme, bottom, top])
     const [audioUri, setAudioUri] = useState<string | null>(null)
     const [sound, setSound] = useState<Audio.Sound | null>(null)
     const [fileName, setFileName] = useState<string | null>(null)
@@ -131,11 +133,7 @@ export const PlayPage = () => {
     const [isPlaying, setIsPlaying] = useState<boolean>(false)
     const [currentTimeMs, setCurrentTimeMs] = useState<number>(0)
     const [processing, setProcessing] = useState<boolean>(false)
-    const [audioBuffer, setAudioBuffer] = useState<Float32Array | string>()
     const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
-    const [enableTranscription, setEnableTranscription] =
-        useState<boolean>(isWeb)
-    const [transcript, setTranscript] = useState<TranscriberData>()
     const { show } = useToast()
     const [showVisualizer, setShowVisualizer] = useState<boolean>(true)
     const [isSaving, setIsSaving] = useState<boolean>(false)
@@ -155,6 +153,30 @@ export const PlayPage = () => {
     } | null>(null)
 
     const { files, removeFile, refreshFiles } = useAudioFiles()
+    const router = useRouter()
+
+    const resetUIState = useCallback(() => {
+        setAudioUri(null)
+        setSound(null)
+        setFileName(null)
+        setAudioAnalysis(undefined)
+        setIsPlaying(false)
+        setCurrentTimeMs(0)
+        setProcessing(false)
+        setShowVisualizer(true)
+        setPreviewData(null)
+        setStartTimeMs(0)
+        setEndTimeMs(0)
+        setCustomFileName('')
+        setEnableTrim(false)
+        setFileSize(0)
+        setOriginalDurationMs(0)
+        setPreviewStats(null)
+        
+        if (sound) {
+            sound.unloadAsync()
+        }
+    }, [sound])
 
     const generatePreview = useCallback(async (fileUri: string) => {
         try {
@@ -243,7 +265,7 @@ export const PlayPage = () => {
         } finally {
             setProcessing(false)
         }
-    }, [endTimeMs, show, startTimeMs, enableTrim, PREVIEW_POINTS, fileSize, originalDurationMs])
+    }, [endTimeMs, show, startTimeMs, enableTrim, fileSize, originalDurationMs])
 
     const pickAudioFile = async () => {
         try {
@@ -257,9 +279,7 @@ export const PlayPage = () => {
             setIsPlaying(false)
             setAudioAnalysis(undefined)
             setPreviewData(null)
-            setTranscript(undefined)
             setCustomFileName('')
-            setAudioBuffer(undefined)
 
             const result = await DocumentPicker.getDocumentAsync({
                 type: ['audio/*'],
@@ -325,55 +345,42 @@ export const PlayPage = () => {
             const startResetPlayback = performance.now()
             setCurrentTimeMs(0)
             setIsPlaying(false)
-            setTranscript(undefined)
             timings['Reset Playback'] = performance.now() - startResetPlayback
 
-            const startFetchAudio = performance.now()
-            const response = await fetch(audioUri)
-            const arrayBuffer = await response.arrayBuffer()
-            timings['Fetch and Convert Audio'] = performance.now() - startFetchAudio
-
-            // Get file size from response
-            const size = Number(response.headers.get('content-length')) || arrayBuffer.byteLength
-            setFileSize(size)
-
-            const audioCTX = new AudioContext({
-                sampleRate: 16000,
+            // Extract audio data with proper options like in whisper.tsx
+            const extractedData = await extractAudioData({
+                fileUri: audioUri,
+                includeBase64Data: true,
+                includeNormalizedData: true,
+                includeWavHeader: isWeb,
+                startTimeMs: 0,
+                endTimeMs: 10000,
+                logger: baseLogger.extend('extractAudioData'),
+                decodingOptions: {
+                    targetSampleRate: 16000,
+                    targetChannels: 1,
+                    targetBitDepth: 16,
+                    normalizeAudio: true,
+                },
             })
-            const decoded = await audioCTX.decodeAudioData(arrayBuffer.slice(0))
-            logger.log('Decoded audio:', decoded)
 
-            // Convert to mono if stereo
-            let pcmAudio: Float32Array
-            if (decoded.numberOfChannels === 2) {
-                const SCALING_FACTOR = Math.sqrt(2)
-                const left = decoded.getChannelData(0)
-                const right = decoded.getChannelData(1)
-
-                pcmAudio = new Float32Array(left.length)
-                for (let i = 0; i < decoded.length; ++i) {
-                    pcmAudio[i] = (SCALING_FACTOR * (left[i] + right[i])) / 2
-                }
-            } else {
-                pcmAudio = decoded.getChannelData(0)
-            }
-
-            setAudioBuffer(pcmAudio)
+            // Add validation
+            validateExtractedAudio(extractedData, filename ?? 'Unknown')
 
             const startAudioAnalysis = performance.now()
             logger.log('Extracting audio preview...', audioUri)
             const preview = await extractAudioAnalysis({
                 fileUri: audioUri,
                 logger: baseLogger.extend('extractAudioAnalysis'),
-                segmentDurationMs: (PREVIEW_POINTS / 10), // Convert points to duration (10 sec default)
+                segmentDurationMs: (PREVIEW_POINTS / 10),
                 position: 0,
-                length: decoded.length,
+                length: extractedData.samples,
             })
 
-            // Set preview stats immediately with the correct duration from decoded audio
+            // Set preview stats with the correct duration
             setPreviewStats({
-                durationMs: decoded.duration * 1000, // Use decoded.duration instead of preview.durationMs
-                size: size
+                durationMs: extractedData.durationMs,
+                size: extractedData.pcmData?.byteLength ?? 0
             })
             
             logger.info(`Audio preview computed in ${performance.now() - startAudioAnalysis}ms`)
@@ -479,11 +486,6 @@ export const PlayPage = () => {
             if (fileName.toLowerCase().endsWith('.wav')) {
                 try {
                     wavMetadata = await getWavFileInfo(arrayBuffer)
-                    const { pcmValues } = await convertPCMToFloat32({
-                        buffer: arrayBuffer,
-                        bitDepth: wavMetadata.bitDepth,
-                    })
-                    setAudioBuffer(pcmValues)
                 } catch (_error) {
                     logger.warn('Not a valid WAV file, using audio analysis data instead')
                 }
@@ -516,9 +518,6 @@ export const PlayPage = () => {
                 } : undefined,
             }
 
-            if (transcript) {
-                audioResult.transcripts = [transcript]
-            }
 
             logger.log('Saving file to files:', audioResult)
 
@@ -544,6 +543,12 @@ export const PlayPage = () => {
 
             refreshFiles()
             show({ iconVisible: true, type: 'success', message: 'File saved' })
+            
+            // Reset UI state
+            resetUIState()
+            
+            // Navigate to the file in the files tab
+            router.push(`(recordings)/${fileName}`)
         } catch (error) {
             logger.error('Error saving file to files:', error)
             show({ type: 'error', message: 'Error saving file' })
@@ -562,13 +567,7 @@ export const PlayPage = () => {
         } finally {
             setIsSaving(false)
         }
-    }, [fileName, audioUri, files, show, transcript, refreshFiles, removeFile, audioAnalysis, isSaving])
-
-    const handleSelectChunk = ({ chunk }: { chunk: Chunk }) => {
-        if (chunk.timestamp && chunk.timestamp.length > 0) {
-            setCurrentTimeMs(chunk.timestamp[0])
-        }
-    }
+    }, [fileName, audioUri, files, show, refreshFiles, removeFile, audioAnalysis, isSaving, router, resetUIState])
 
     const handleRestoreOriginal = useCallback(async () => {
         if (!audioUri) return
@@ -592,8 +591,8 @@ export const PlayPage = () => {
         <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container}>
             <Notice
                 type="info"
-                title="Audio Analysis"
-                message="Select an audio file to analyze its waveform. Save to Files to enable detailed segment analysis and feature extraction."
+                title="Import Audio"
+                message="Import an audio file to analyze its waveform. Save to Files to enable detailed segment analysis and feature extraction."
             />
             {fileName && (
                 <EditableInfoCard
@@ -649,15 +648,6 @@ export const PlayPage = () => {
                 </View>
 
                 <View style={styles.switchesContainer}>
-                    {isWeb && (
-                        <LabelSwitch
-                            disabled={processing || isSaving}
-                            label="Transcription"
-                            value={enableTranscription}
-                            containerStyle={styles.labelSwitchContainer}
-                            onValueChange={setEnableTranscription}
-                        />
-                    )}
                     <LabelSwitch
                         disabled={processing || isSaving}
                         label="Waveform"
@@ -774,17 +764,6 @@ export const PlayPage = () => {
                         </View>
                     )}
 
-                    {enableTranscription && audioBuffer && isWeb && (
-                        <Transcriber
-                            fullAudio={audioBuffer}
-                            currentTimeMs={currentTimeMs}
-                            sampleRate={16000}
-                            onSelectChunk={handleSelectChunk}
-                            onTranscriptionComplete={setTranscript}
-                            onTranscriptionUpdate={setTranscript}
-                        />
-                    )}
-
                     <Button 
                         onPress={playPauseAudio} 
                         mode="contained"
@@ -813,4 +792,4 @@ export const PlayPage = () => {
     )
 }
 
-export default PlayPage
+export default ImportPage

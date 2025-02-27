@@ -1,5 +1,6 @@
 // apps/playground/src/context/TranscriptionProvider.tsx
 import { TranscriberData } from '@siteed/expo-audio-stream'
+import * as FileSystem from 'expo-file-system'
 import React, {
     createContext,
     useCallback,
@@ -9,10 +10,11 @@ import React, {
     useRef,
     useState
 } from 'react'
-import { initWhisper, WhisperContext } from 'whisper.rn'
-import * as FileSystem from 'expo-file-system'
+import { fromByteArray } from 'react-native-quick-base64'
+import { initWhisper, TranscribeFileOptions, WhisperContext } from 'whisper.rn'
 
 import { baseLogger, config } from '../config'
+import { WHISPER_MODELS } from '../hooks/useWhisperModels'
 import {
     initialState,
     transcriptionReducer,
@@ -24,7 +26,6 @@ import {
     TranscriptionProviderProps,
     TranscriptionState,
 } from './TranscriptionProvider.types'
-import { WHISPER_MODELS } from '../hooks/useWhisperModels'
 
 const logger = baseLogger.extend('TranscriptionProvider')
 
@@ -143,15 +144,25 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             const modelPath = await downloadModel(state.model)
             
             logger.debug('Model downloaded, initializing context with path:', modelPath)
+            
+            // Add more detailed logging
+            logger.debug('Calling initWhisper...')
             const context = await initWhisper({
                 filePath: modelPath,
             })
+            logger.debug('initWhisper returned successfully, context:', context ? 'valid' : 'null')
+            
+            // Set the context with logging
+            logger.debug('Setting whisperContext state...')
             setWhisperContext(context)
+            logger.debug('whisperContext state set, dispatching ready state')
             
             dispatch({
                 type: 'UPDATE_STATE',
                 payload: { isModelLoading: false, ready: true },
             })
+            
+            return;
         } catch (error) {
             logger.error('Failed to initialize whisper:', error)
             dispatch({
@@ -165,6 +176,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
     const transcribe = useCallback(
         async ({
             audioData,
+            audioUri,
             position = 0,
             jobId: providedJobId,
             options,
@@ -173,18 +185,116 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         }: TranscribeParams): Promise<TranscribeResult> => {
             const jobId = providedJobId || `transcribe_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
-            if (!whisperContext || !audioData || typeof audioData !== 'string') {
+            // Add logging for current state
+            logger.debug('transcribe called, current state:', { 
+                hasContext: !!whisperContext, 
+                isModelLoading: state.isModelLoading,
+                ready: state.ready 
+            })
+
+            // Auto-initialize if not ready
+            let localContext = whisperContext;
+            if (!localContext && !state.isModelLoading) {
+                logger.debug('Model not initialized, auto-initializing before transcription')
+                try {
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: { isModelLoading: true }
+                    })
+                    
+                    // Download model and initialize directly
+                    logger.debug('Downloading model and initializing directly...')
+                    const modelPath = await downloadModel(state.model)
+                    logger.debug('Model downloaded, initializing context with path:', modelPath)
+                    
+                    // Initialize context directly and capture the result
+                    localContext = await initWhisper({
+                        filePath: modelPath,
+                    })
+                    
+                    logger.debug('Context initialized directly:', localContext ? 'valid' : 'null')
+                    
+                    // Also update the state for future calls
+                    setWhisperContext(localContext)
+                    
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: { isModelLoading: false, ready: true }
+                    })
+                    
+                    if (!localContext) {
+                        throw new Error('Failed to initialize whisper context')
+                    }
+                } catch (error) {
+                    logger.error('Auto-initialization failed:', error)
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: { isModelLoading: false }
+                    })
+                    return {
+                        promise: Promise.reject(new Error('Failed to initialize model: ' + error)),
+                        stop: async () => {},
+                        jobId
+                    }
+                }
+            }
+
+            if(!localContext) {
                 return {
-                    promise: Promise.reject(new Error('No whisper context or invalid audio data')),
+                    promise: Promise.reject(new Error('No whisper context available')),
                     stop: async () => {},
                     jobId
                 }
             }
 
+            if (!audioData && !audioUri) {
+                return {
+                    promise: Promise.reject(new Error('No audio data or URI provided')),
+                    stop: async () => {},
+                    jobId
+                }
+            }
+
+            // Determine what to use for transcription
+            let filePathOrBase64: string;
+            let useTranscribeData = false;
+            
+            if (audioUri) {
+                // If audioUri is provided, use it directly
+                filePathOrBase64 = audioUri;
+            } else if (audioData) {
+                // Convert audioData to base64 if needed
+                useTranscribeData = true;
+                if (typeof audioData === 'string') {
+                    // Already a string (likely base64)
+                    filePathOrBase64 = audioData;
+                } else if (audioData instanceof ArrayBuffer || 
+                          audioData instanceof Float32Array || 
+                          audioData instanceof Uint8Array) {
+                    // Convert buffer to base64
+                    filePathOrBase64 = fromByteArray(new Uint8Array(audioData instanceof ArrayBuffer ? audioData : audioData.buffer));
+                } else {
+                    return {
+                        promise: Promise.reject(new Error('Unsupported audio data format')),
+                        stop: async () => {},
+                        jobId
+                    }
+                }
+            } else {
+                // This shouldn't happen due to the earlier check
+                return {
+                    promise: Promise.reject(new Error('No audio data or URI provided')),
+                    stop: async () => {},
+                    jobId
+                }
+            }
+
+            const file = `file_${Date.now()}`;
+            
             dispatch({
                 type: 'UPDATE_PROGRESS_ITEM',
                 progressItem: {
-                    file: audioData,
+                    file,
                     loaded: 0,
                     total: 100,
                     progress: 0,
@@ -193,56 +303,58 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 }
             })
 
+            const fullOptions: TranscribeFileOptions = {
+                ...options,
+                language: state.language === 'auto' ? undefined : state.language,
+                onProgress(progress) {
+                    dispatch({
+                        type: 'UPDATE_PROGRESS_ITEM',
+                        progressItem: {
+                            file,
+                            loaded: progress,
+                            total: 100,
+                            progress,
+                            name: state.model,
+                            status: 'processing',
+                        },
+                    })
+                    onProgress?.(progress)
+                },
+                onNewSegments(result) {
+                    const chunks = result.segments.map((segment) => ({
+                        text: segment.text.trim(),
+                        timestamp: [
+                            segment.t0 / 100,
+                            segment.t1 ? segment.t1 / 100 : null,
+                        ] as [number, number | null],
+                    }))
+
+                    const text = chunks.map((c) => c.text).join(' ')
+                    const chunkStartTime = startTime + position * 1000
+
+                    const transcriptUpdate: TranscriberData = {
+                        id: jobId,
+                        isBusy: true,
+                        text,
+                        chunks,
+                        startTime: chunkStartTime,
+                        endTime: chunkStartTime + (chunks[chunks.length - 1]?.timestamp[1] ?? 0) * 1000,
+                    }
+
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: { transcript: transcriptUpdate },
+                    })
+
+                    onNewSegments?.(result)
+                },
+            }
             const startTime = Date.now()
-            const { promise: whisperPromise, stop } = whisperContext.transcribe(
-                audioData,
-                {
-                    ...options,
-                    language: state.language === 'auto' ? undefined : state.language,
-                    onProgress(progress) {
-                        dispatch({
-                            type: 'UPDATE_PROGRESS_ITEM',
-                            progressItem: {
-                                file: audioData,
-                                loaded: progress,
-                                total: 100,
-                                progress,
-                                name: state.model,
-                                status: 'processing',
-                            },
-                        })
-                        onProgress?.(progress)
-                    },
-                    onNewSegments(result) {
-                        const chunks = result.segments.map((segment) => ({
-                            text: segment.text.trim(),
-                            timestamp: [
-                                segment.t0 / 100,
-                                segment.t1 ? segment.t1 / 100 : null,
-                            ] as [number, number | null],
-                        }))
-
-                        const text = chunks.map((c) => c.text).join(' ')
-                        const chunkStartTime = startTime + position * 1000
-
-                        const transcriptUpdate: TranscriberData = {
-                            id: jobId,
-                            isBusy: true,
-                            text,
-                            chunks,
-                            startTime: chunkStartTime,
-                            endTime: chunkStartTime + (chunks[chunks.length - 1]?.timestamp[1] ?? 0) * 1000,
-                        }
-
-                        dispatch({
-                            type: 'UPDATE_STATE',
-                            payload: { transcript: transcriptUpdate },
-                        })
-
-                        onNewSegments?.(result)
-                    },
-                }
-            )
+            
+            // Use the appropriate transcribe method based on the input type
+            const { promise: whisperPromise, stop } = useTranscribeData 
+                ? localContext.transcribeData(filePathOrBase64, fullOptions)
+                : localContext.transcribe(filePathOrBase64, fullOptions);
 
             const transcriptionPromise = new Promise<TranscriberData>((resolve, reject) => {
                 transcribeResolveMapRef.current[jobId] = resolve
@@ -281,7 +393,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
 
                         dispatch({
                             type: 'REMOVE_PROGRESS_ITEM',
-                            payload: audioData,
+                            payload: file,
                         })
                         
                         return finalTranscript
@@ -306,7 +418,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     })
                     dispatch({
                         type: 'REMOVE_PROGRESS_ITEM',
-                        payload: audioData,
+                        payload: file,
                     })
                     delete transcribeResolveMapRef.current[jobId]
                     delete transcribeRejectMapRef.current[jobId]
@@ -314,7 +426,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 jobId
             }
         },
-        [whisperContext, state.language, state.model]
+        [whisperContext, state.language, state.model, state.ready, state.isModelLoading, downloadModel]
     )
 
     const updateConfig = useCallback(

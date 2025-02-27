@@ -7,7 +7,7 @@
  */
 import crc32 from 'crc-32'
 
-import { ConsoleLike } from '../ExpoAudioStream.types'
+import { ConsoleLike, ExtractAudioDataOptions } from '../ExpoAudioStream.types'
 import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
 import { isWeb } from '../constants'
 import {
@@ -363,4 +363,8 @@ export async function extractPreview({
 
     // Transform the result into AudioPreview format
     return analysis
+}
+
+export const extractAudioData = async (props: ExtractAudioDataOptions) => {
+    return await ExpoAudioStreamModule.extractAudioData(props)
 }

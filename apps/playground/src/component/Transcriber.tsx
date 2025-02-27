@@ -66,12 +66,17 @@ const Transcriber: React.FC<TranscriberProps> = ({
         console.debug(
             `Transcriber useEffect, isBusy: ${isBusy}, currentAudio: ${typeof currentAudio}, ready: ${ready}`
         )
+        console.log(`isBusy: ${isBusy}, currentAudio: ${typeof currentAudio}, ready: ${ready}`)
         if (!isBusy && currentAudio && ready) {
             logger.debug('Start new transcription...', currentAudio)
             transcribe({
                 audioData: currentAudio,
-                position: 0,
                 jobId: Date.now().toString(),
+                options: {
+                    language: 'en',
+                    tokenTimestamps: true,
+                    tdrzEnable: true,
+                },
             })
                 .then((result) => {
                     console.debug('Transcriber result', JSON.stringify(result))
