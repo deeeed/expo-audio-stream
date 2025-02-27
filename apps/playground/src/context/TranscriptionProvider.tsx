@@ -179,9 +179,19 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             if (!state.ready && !state.isModelLoading) {
                 logger.debug('Model not initialized, auto-initializing before transcription')
                 try {
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: { isModelLoading: true }
+                    })
                     await initialize()
+                    // Wait a short time to ensure initialization is complete
+                    await new Promise(resolve => setTimeout(resolve, 100))
                 } catch (error) {
                     logger.error('Auto-initialization failed:', error)
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: { isModelLoading: false }
+                    })
                     return {
                         promise: Promise.reject(new Error('Failed to initialize model: ' + error)),
                         stop: async () => {},

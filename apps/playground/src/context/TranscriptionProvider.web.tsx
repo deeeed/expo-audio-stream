@@ -232,10 +232,12 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
     ])
 
     const initialize = useCallback(async () => {
+        logger.debug('Initialize called with model:', modelRef.current);
+        
         dispatch({
             type: 'UPDATE_STATE',
             payload: { isModelLoading: true, ready: false },
-        })
+        });
         
         // Get the current model from the ref
         const currentModel = modelRef.current;
@@ -248,9 +250,9 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         logger.debug(
             'Initializing transcription with model:',
             formattedModel
-        )
+        );
         
-        console.log("Initializing worker with:", {
+        const initParams = {
             type: 'initialize',
             model: formattedModel,
             quantized: quantizedRef.current,
@@ -259,22 +261,22 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             language: multilingualRef.current && languageRef.current !== 'auto'
                 ? languageRef.current
                 : null
-        });
-
-        webWorker.postMessage({
-            type: 'initialize',
-            model: formattedModel,
-            quantized: quantizedRef.current,
-            multilingual: multilingualRef.current,
-            subtask: multilingualRef.current ? subtaskRef.current : null,
-            language:
-                multilingualRef.current && languageRef.current !== 'auto'
-                    ? languageRef.current
-                    : null,
-        })
+        };
         
-        return Promise.resolve()
-    }, [dispatch, webWorker])
+        logger.debug("Sending initialization message to worker:", initParams);
+        
+        try {
+            webWorker.postMessage(initParams);
+            return Promise.resolve();
+        } catch (error) {
+            logger.error('Error sending initialization message to worker:', error);
+            dispatch({
+                type: 'UPDATE_STATE',
+                payload: { isModelLoading: false, ready: false },
+            });
+            return Promise.reject(error);
+        }
+    }, [dispatch, webWorker]);
 
     const transcribe = useCallback(
         async ({
@@ -296,11 +298,45 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             if (!state.ready && !state.isModelLoading) {
                 logger.debug('Model not initialized, auto-initializing before transcription')
                 try {
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: { isModelLoading: true }
+                    })
+                    
+                    // Initialize the model
                     await initialize()
-                    // Wait a bit for the worker to be ready
-                    await new Promise(resolve => setTimeout(resolve, 500))
+                    
+                    // Wait for the worker to signal it's ready
+                    await new Promise<void>((resolve, reject) => {
+                        // Set up a timeout to prevent hanging indefinitely
+                        const timeout = setTimeout(() => {
+                            reject(new Error('Timed out waiting for model initialization'));
+                        }, 30000); // 30 second timeout
+                        
+                        // Create a listener for the 'ready' message
+                        const checkReady = (event: MessageEvent) => {
+                            const message = event.data;
+                            if (message.status === 'ready') {
+                                clearTimeout(timeout);
+                                window.removeEventListener('message', checkReady);
+                                resolve();
+                            } else if (message.status === 'error') {
+                                clearTimeout(timeout);
+                                window.removeEventListener('message', checkReady);
+                                reject(new Error(message.data?.message || 'Error initializing model'));
+                            }
+                        };
+                        
+                        window.addEventListener('message', checkReady);
+                    });
+                    
+                    logger.debug('Model initialization complete, proceeding with transcription');
                 } catch (error) {
                     logger.error('Auto-initialization failed:', error)
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: { isModelLoading: false }
+                    })
                     return {
                         promise: Promise.reject(new Error('Failed to initialize model: ' + error)),
                         stop: async () => {},

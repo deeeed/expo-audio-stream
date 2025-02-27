@@ -230,9 +230,272 @@ export function WhisperScreen() {
     const [autoTranscribeOnSelect, setAutoTranscribeOnSelect] = useState(false)
 
     const {
-        ready: whisperContextReady,
         transcribe,
     } = useTranscription()
+
+        // Add a new helper function to start transcription with explicit data
+        const startTranscriptionWithData = useCallback(async (file: SelectedFile, audioData: ExtractedAudioData) => {
+            if (!file || !audioData) {
+                logger.error('Missing required data for transcription', {
+                    file,
+                    audioData
+                });
+                return;
+            }
+    
+            try {
+                setIsTranscribing(true);
+                setProgress(0);
+                setCurrentProcessingTime(0);
+    
+                processingTimer.current = setInterval(() => {
+                    setCurrentProcessingTime((prev) => prev + 1);
+                }, 1000);
+    
+                setTranscriptionData({
+                    id: '1',
+                    isBusy: true,
+                    text: '',
+                    startTime: Date.now(),
+                    endTime: 0,
+                    chunks: [],
+                });
+    
+                const startTime = Date.now();
+                
+                // Use the duration we already have from the file
+                const fileDuration = file.duration || 0;
+                
+                const transcribeParams: Partial<TranscribeParams> = {
+                    jobId: '1',
+                    options: {
+                        tokenTimestamps: true,
+                        tdrzEnable: true,
+                    },
+                    onProgress(progress: number) {
+                        setProgress(progress);
+                    },
+                    onNewSegments(result) {
+                        setTranscriptionData((prev) => {
+                            const existingChunks = prev.chunks || [];
+                            const updatedChunks = [...existingChunks];
+                            
+                            // Convert segments to the format we need
+                            const newChunks = result.segments.map(segment => ({
+                                text: segment.text.trim(),
+                                timestamp: [
+                                    segment.t0 / 100,
+                                    segment.t1 ? segment.t1 / 100 : null,
+                                ] as [number, number | null],
+                            }));
+    
+                            newChunks.forEach((newChunk) => {
+                                const isDuplicate = existingChunks.some(
+                                    (existing) =>
+                                        existing.text === newChunk.text &&
+                                        existing.timestamp[0] === newChunk.timestamp[0]
+                                );
+                                if (!isDuplicate) {
+                                    updatedChunks.push(newChunk);
+                                }
+                            });
+    
+                            return {
+                                ...prev,
+                                text: updatedChunks
+                                    .map((chunk) => chunk.text)
+                                    .join(' '),
+                                chunks: updatedChunks,
+                            };
+                        });
+                    }
+                };
+    
+                // Debug the extracted audio data
+                logger.debug('Extracted audio data details:', {
+                    sampleRate: audioData.sampleRate,
+                    channels: audioData.channels,
+                    bitDepth: audioData.bitDepth,
+                    durationMs: audioData.durationMs,
+                    format: audioData.format,
+                    samples: audioData.samples,
+                    hasPcmData: !!audioData.pcmData,
+                    pcmDataLength: audioData.pcmData?.length,
+                    hasNormalizedData: !!audioData.normalizedData,
+                    normalizedDataLength: audioData.normalizedData?.length,
+                    hasBase64Data: !!audioData.base64Data,
+                    base64DataLength: audioData.base64Data?.length,
+                });
+    
+                if (isWeb) {
+                    if(audioData.normalizedData) {
+                        transcribeParams.audioData = audioData.normalizedData;
+                    } else {
+                        // Use the PCM data directly since it already has a WAV header
+                        transcribeParams.audioUri = URL.createObjectURL(
+                            new Blob([audioData.pcmData], { type: 'audio/wav' })
+                        );
+                    }
+                } else {
+                    // For native platforms, use base64 data if available
+                    if (audioData.base64Data) {
+                        logger.debug('Using base64 data for native transcription');
+                        transcribeParams.audioData = audioData.base64Data;
+                    } else {
+                        logger.debug('Using original file URI for native transcription');
+                        transcribeParams.audioUri = file.uri;
+                    }
+                }
+    
+                logger.debug('Transcribe params:', transcribeParams);
+                
+                const { promise, stop } = await transcribe(transcribeParams as TranscribeParams);
+                setStopTranscription(() => stop);
+    
+                const transcription = await promise;
+                const endTime = Date.now();
+                const processingDuration = (endTime - startTime) / 1000;
+    
+                // Calculate extracted audio size
+                let extractedSize = 0;
+                if (audioData.pcmData) {
+                    extractedSize = audioData.pcmData.byteLength;
+                } else if (audioData.base64Data) {
+                    // Estimate size from base64 (4 chars in base64 = 3 bytes)
+                    extractedSize = Math.floor(audioData.base64Data.length * 0.75);
+                }
+    
+                setLastTranscriptionLog({
+                    modelId: 'tiny',
+                    fileName: file.name ?? 'Unknown file',
+                    processingDuration,
+                    fileDuration,
+                    timestamp: endTime,
+                    fileSize: file.size ?? 0,
+                    extractedDuration: audioData.durationMs / 1000,
+                    extractedSize: extractedSize
+                });
+                
+                console.log('Final transcription:', transcription);
+                setTranscriptionData(transcription);
+            } catch (error) {
+                console.error('Transcription error:', error);
+                setTranscriptionData((prev) => ({
+                    ...prev,
+                    isBusy: false,
+                    text: 'Error during transcription: ' + (error instanceof Error ? error.message : String(error)),
+                    endTime: Date.now(),
+                }));
+            } finally {
+                if (processingTimer.current) {
+                    clearInterval(processingTimer.current);
+                }
+                setIsTranscribing(false);
+                setStopTranscription(null);
+            }
+        }, [transcribe]);
+
+    const startTranscription = useCallback(async () => {
+        if (!selectedFile || !extractedAudioData) {
+            logger.error('Missing required data for transcription', {
+                selectedFile,
+                extractedAudioData
+            });
+            return;
+        }
+
+        await startTranscriptionWithData(selectedFile, extractedAudioData);
+    }, [selectedFile, extractedAudioData, startTranscriptionWithData]);
+
+    const handleStop = useCallback(async () => {
+        if (stopTranscription) {
+            await stopTranscription()
+            setTranscriptionData((prev) => ({
+                ...prev,
+                isBusy: false,
+                text: 'Transcription stopped',
+                endTime: Date.now(),
+            }))
+        }
+    }, [stopTranscription])
+
+    const handleExtractAudio = useCallback(async (file?: SelectedFile, duration?: number) => {
+        const fileToUse = file || selectedFile;
+        const durationToUse = duration || (isCustomDuration ? customDuration : extractDuration);
+        
+        if (!fileToUse) {
+            logger.error('No file selected')
+            return
+        }
+
+        try {
+            setIsExtracting(true)
+            setProgress(0)
+            
+            const options: ExtractAudioDataOptions = {
+                fileUri: fileToUse.uri,
+                includeBase64Data: true,
+                includeNormalizedData: true,
+                includeWavHeader: isWeb,
+                startTimeMs: 0,
+                logger,
+                decodingOptions: {
+                    targetSampleRate: 16000,
+                    targetChannels: 1,
+                    targetBitDepth: 16,
+                    normalizeAudio: true,
+                },
+            }
+
+            // Only add endTimeMs if we're not extracting the full file
+            if (durationToUse !== -1) {
+                options.endTimeMs = durationToUse;
+            }
+
+            logger.debug('Extract audio options:', options)
+            const extractedData = await extractAudioData(options)
+
+            // Use the shared validation utility
+            validateExtractedAudio(extractedData, fileToUse.name)
+
+            setExtractedAudioData(extractedData)
+            setAudioExtracted(true)
+            
+            // Log success
+            logger.debug('Audio extraction successful:', {
+                fileName: fileToUse.name,
+                duration: extractedData.durationMs,
+                sampleRate: extractedData.sampleRate,
+                channels: extractedData.channels
+            })
+
+            // Auto-start transcription if this was triggered by auto-transcribe
+            if (autoTranscribeOnSelect && file) {
+                // Store the file and extracted data in local variables to ensure they're available
+                const currentFile = fileToUse;
+                const currentExtractedData = extractedData;
+                
+                // Wait for state updates to complete before starting transcription
+                setTimeout(() => {
+                    // Use the local variables directly in a custom transcription function
+                    startTranscriptionWithData(currentFile, currentExtractedData);
+                }, 300);
+            }
+
+        } catch (error) {
+            console.error('Audio extraction error:', {
+                error,
+                fileName: fileToUse.name,
+                fileType: fileToUse.fileType,
+                fileSize: fileToUse.size
+            })
+            alert('Failed to extract audio: ' + (error instanceof Error ? error.message : 'Unknown error'))
+        } finally {
+            setIsExtracting(false)
+        }
+    }, [selectedFile,startTranscriptionWithData, extractDuration, customDuration, isCustomDuration, autoTranscribeOnSelect])
+
+
 
     const handleFileSelection = useCallback(async () => {
         const result = await DocumentPicker.getDocumentAsync({
@@ -334,241 +597,9 @@ export function WhisperScreen() {
             setAudioExtracted(false);
             setExtractedAudioData(null);
         }
-    }, [autoTranscribeOnSelect])
+    }, [autoTranscribeOnSelect, handleExtractAudio])
 
-    const handleExtractAudio = useCallback(async (file?: SelectedFile, duration?: number) => {
-        const fileToUse = file || selectedFile;
-        const durationToUse = duration || (isCustomDuration ? customDuration : extractDuration);
-        
-        if (!fileToUse) {
-            logger.error('No file selected')
-            return
-        }
 
-        try {
-            setIsExtracting(true)
-            setProgress(0)
-            
-            const options: ExtractAudioDataOptions = {
-                fileUri: fileToUse.uri,
-                includeBase64Data: true,
-                includeNormalizedData: true,
-                includeWavHeader: isWeb,
-                startTimeMs: 0,
-                logger,
-                decodingOptions: {
-                    targetSampleRate: 16000,
-                    targetChannels: 1,
-                    targetBitDepth: 16,
-                    normalizeAudio: true,
-                },
-            }
-
-            // Only add endTimeMs if we're not extracting the full file
-            if (durationToUse !== -1) {
-                options.endTimeMs = durationToUse;
-            }
-
-            logger.debug('Extract audio options:', options)
-            const extractedData = await extractAudioData(options)
-
-            // Use the shared validation utility
-            validateExtractedAudio(extractedData, fileToUse.name)
-
-            setExtractedAudioData(extractedData)
-            setAudioExtracted(true)
-            
-            // Log success
-            logger.debug('Audio extraction successful:', {
-                fileName: fileToUse.name,
-                duration: extractedData.durationMs,
-                sampleRate: extractedData.sampleRate,
-                channels: extractedData.channels
-            })
-
-            // Auto-start transcription if this was triggered by auto-transcribe
-            if (autoTranscribeOnSelect && file) {
-                setTimeout(() => startTranscription(), 100);
-            }
-
-        } catch (error) {
-            console.error('Audio extraction error:', {
-                error,
-                fileName: fileToUse.name,
-                fileType: fileToUse.fileType,
-                fileSize: fileToUse.size
-            })
-            alert('Failed to extract audio: ' + (error instanceof Error ? error.message : 'Unknown error'))
-        } finally {
-            setIsExtracting(false)
-        }
-    }, [selectedFile, extractDuration, customDuration, isCustomDuration, autoTranscribeOnSelect])
-
-    const startTranscription = useCallback(async () => {
-        if (!selectedFile || !whisperContextReady || !extractedAudioData) return
-
-        try {
-            setIsTranscribing(true)
-            setProgress(0)
-            setCurrentProcessingTime(0)
-
-            processingTimer.current = setInterval(() => {
-                setCurrentProcessingTime((prev) => prev + 1)
-            }, 1000)
-
-            setTranscriptionData({
-                id: '1',
-                isBusy: true,
-                text: '',
-                startTime: Date.now(),
-                endTime: 0,
-                chunks: [],
-            })
-
-            const startTime = Date.now()
-            
-            // Use the duration we already have from the selected file
-            const fileDuration = selectedFile.duration || 0;
-            
-            const transcribeParams: Partial<TranscribeParams> = {
-                jobId: '1',
-                options: {
-                    tokenTimestamps: true,
-                    tdrzEnable: true,
-                },
-                onProgress(progress: number) {
-                    setProgress(progress)
-                },
-                onNewSegments(result) {
-                    setTranscriptionData((prev) => {
-                        const existingChunks = prev.chunks || []
-                        const updatedChunks = [...existingChunks]
-                        
-                        // Convert segments to the format we need
-                        const newChunks = result.segments.map(segment => ({
-                            text: segment.text.trim(),
-                            timestamp: [
-                                segment.t0 / 100,
-                                segment.t1 ? segment.t1 / 100 : null,
-                            ] as [number, number | null],
-                        }))
-
-                        newChunks.forEach((newChunk) => {
-                            const isDuplicate = existingChunks.some(
-                                (existing) =>
-                                    existing.text === newChunk.text &&
-                                    existing.timestamp[0] === newChunk.timestamp[0]
-                            )
-                            if (!isDuplicate) {
-                                updatedChunks.push(newChunk)
-                            }
-                        })
-
-                        return {
-                            ...prev,
-                            text: updatedChunks
-                                .map((chunk) => chunk.text)
-                                .join(' '),
-                            chunks: updatedChunks,
-                        }
-                    })
-                }
-            }
-
-            // Debug the extracted audio data
-            logger.debug('Extracted audio data details:', {
-                sampleRate: extractedAudioData.sampleRate,
-                channels: extractedAudioData.channels,
-                bitDepth: extractedAudioData.bitDepth,
-                durationMs: extractedAudioData.durationMs,
-                format: extractedAudioData.format,
-                samples: extractedAudioData.samples,
-                hasPcmData: !!extractedAudioData.pcmData,
-                pcmDataLength: extractedAudioData.pcmData?.length,
-                hasNormalizedData: !!extractedAudioData.normalizedData,
-                normalizedDataLength: extractedAudioData.normalizedData?.length,
-                hasBase64Data: !!extractedAudioData.base64Data,
-                base64DataLength: extractedAudioData.base64Data?.length,
-            });
-
-            if (isWeb) {
-                if(extractedAudioData.normalizedData) {
-                    transcribeParams.audioData = extractedAudioData.normalizedData
-                } else {
-                    // Use the PCM data directly since it already has a WAV header
-                    transcribeParams.audioUri = URL.createObjectURL(
-                        new Blob([extractedAudioData.pcmData], { type: 'audio/wav' })
-                    );
-                }
-            } else {
-                // For native platforms, use base64 data if available
-                if (extractedAudioData.base64Data) {
-                    logger.debug('Using base64 data for native transcription');
-                    transcribeParams.audioData = extractedAudioData.base64Data;
-                } else {
-                    logger.debug('Using original file URI for native transcription');
-                    transcribeParams.audioUri = selectedFile.uri;
-                }
-            }
-
-            logger.debug('Transcribe params:', transcribeParams);
-            const { promise, stop } = await transcribe(transcribeParams as TranscribeParams);
-            setStopTranscription(() => stop);
-
-            const transcription = await promise;
-            const endTime = Date.now();
-            const processingDuration = (endTime - startTime) / 1000;
-
-            // Calculate extracted audio size
-            let extractedSize = 0;
-            if (extractedAudioData.pcmData) {
-                extractedSize = extractedAudioData.pcmData.byteLength;
-            } else if (extractedAudioData.base64Data) {
-                // Estimate size from base64 (4 chars in base64 = 3 bytes)
-                extractedSize = Math.floor(extractedAudioData.base64Data.length * 0.75);
-            }
-
-            setLastTranscriptionLog({
-                modelId: 'tiny',
-                fileName: selectedFile.name ?? 'Unknown file',
-                processingDuration,
-                fileDuration,  // This will now use the correct duration from selectedFile
-                timestamp: endTime,
-                fileSize: selectedFile.size ?? 0,
-                extractedDuration: extractedAudioData.durationMs / 1000,
-                extractedSize: extractedSize
-            });
-            
-            console.log('Final transcription:', transcription);
-            setTranscriptionData(transcription);
-        } catch (error) {
-            console.error('Transcription error:', error);
-            setTranscriptionData((prev) => ({
-                ...prev,
-                isBusy: false,
-                text: 'Error during transcription',
-                endTime: Date.now(),
-            }));
-        } finally {
-            if (processingTimer.current) {
-                clearInterval(processingTimer.current);
-            }
-            setIsTranscribing(false);
-            setStopTranscription(null);
-        }
-    }, [selectedFile, whisperContextReady, extractedAudioData, transcribe]);
-
-    const handleStop = useCallback(async () => {
-        if (stopTranscription) {
-            await stopTranscription()
-            setTranscriptionData((prev) => ({
-                ...prev,
-                isBusy: false,
-                text: 'Transcription stopped',
-                endTime: Date.now(),
-            }))
-        }
-    }, [stopTranscription])
 
     return (
         <ScreenWrapper withScrollView useInsets contentContainerStyle={styles.container}>
