@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.0.1] - 2025-02-27
+### Changed
+- refactor: update background mode handling for audio stream plugin ([e7e98cc](https://github.com/deeeed/expo-audio-stream/commit/e7e98cc60b7965770dcf25e9ae74cb356e1e7097))
+- chore(expo-audio-stream): release @siteed/expo-audio-stream@2.0.0 ([356d3f4](https://github.com/deeeed/expo-audio-stream/commit/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6))
 ## [2.0.0] - 2025-02-27
 ### Changed
 - feat(playground): Enhance Audio Playground with Improved UX and Sample Audio Loading (#148) ([09d2794](https://github.com/deeeed/expo-audio-stream/commit/09d27940dcffa60e662c828742f4577bca5327f9))
@@ -154,7 +158,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@2.0.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@2.0.1...HEAD
+[2.0.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@2.0.0...@siteed/expo-audio-stream@2.0.1
 [2.0.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.17.0...@siteed/expo-audio-stream@2.0.0
 [1.17.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.16.0...@siteed/expo-audio-stream@1.17.0
 [1.16.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.15.1...@siteed/expo-audio-stream@1.16.0
