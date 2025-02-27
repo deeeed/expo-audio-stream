@@ -415,11 +415,8 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             )
 
             // Handle audioData as object (Float32Array, etc.)
-            if (
-                audioData && 
-                typeof audioData === 'object' &&
-                (!audioDataRef.current || audioData !== audioDataRef.current)
-            ) {
+            if (audioData && typeof audioData === 'object') {
+                // Always update the reference to ensure we process it as new data
                 audioDataRef.current = audioData
                 dispatch({
                     type: 'TRANSCRIPTION_START',

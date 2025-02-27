@@ -25,6 +25,10 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             gap: theme.spacing.gap,
             padding: theme.padding.s,
             paddingVertical: 16,
+            minHeight: 200,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
         },
         formField: {
             marginBottom: theme.margin.s,
@@ -43,6 +47,11 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             backgroundColor: theme.colors.surface,
         },
         segmentedButtonContainer: {
+        },
+        buttonContainer: {
+            marginTop: 'auto',
+            paddingTop: theme.margin.m,
+            paddingBottom: Platform.OS === 'ios' ? 20 : theme.padding.m,
         }
     })
 }
@@ -132,72 +141,76 @@ export const TranscriptionConfigForm: React.FC<TranscriptionConfigFormProps> = (
     
     return (
         <View style={styles.container}>
-            <View style={styles.formField}>
-                <SegmentedButtons
-                    value={selectedConfig.model}
-                    onValueChange={(value) => handleChange('model', value)}
-                    buttons={modelOptions}
-                    style={styles.segmentedButtonContainer}
-                />
-            </View>
-            
-            {modelCapabilities.quantizable && (
-                <LabelSwitch
-                    label="Quantized"
-                    value={selectedConfig.quantized}
-                    onValueChange={(value: boolean) => handleChange('quantized', value)}
-                    containerStyle={styles.switchContainer}
-                />
-            )}
-            
-            {modelCapabilities.multilingual && (
-                <>
+            <View>
+                <View style={styles.formField}>
+                    <SegmentedButtons
+                        value={selectedConfig.model}
+                        onValueChange={(value) => handleChange('model', value)}
+                        buttons={modelOptions}
+                        style={styles.segmentedButtonContainer}
+                    />
+                </View>
+                
+                {modelCapabilities.quantizable && (
                     <LabelSwitch
-                        label="Multilingual"
-                        value={selectedConfig.multilingual}
-                        onValueChange={(value: boolean) => handleChange('multilingual', value)}
+                        label="Quantized"
+                        value={selectedConfig.quantized}
+                        onValueChange={(value: boolean) => handleChange('quantized', value)}
                         containerStyle={styles.switchContainer}
                     />
-                    
-                    {selectedConfig.multilingual && (
-                        <View style={styles.formField}>
-                            <Text style={styles.label}>Language</Text>
-                            <RadioButton.Group
-                                value={selectedConfig.language || 'auto'}
-                                onValueChange={(value: string) => handleChange('language', value)}
-                            >
-                                {languageOptions.map(option => (
-                                    <View key={option.value} style={styles.radioOption}>
-                                        <RadioButton value={option.value} />
-                                        <Text style={{ color: theme.colors.text }}>{option.label}</Text>
-                                    </View>
-                                ))}
-                            </RadioButton.Group>
-                        </View>
-                    )}
-                </>
-            )}
+                )}
+                
+                {modelCapabilities.multilingual && (
+                    <>
+                        <LabelSwitch
+                            label="Multilingual"
+                            value={selectedConfig.multilingual}
+                            onValueChange={(value: boolean) => handleChange('multilingual', value)}
+                            containerStyle={styles.switchContainer}
+                        />
+                        
+                        {selectedConfig.multilingual && (
+                            <View style={styles.formField}>
+                                <Text style={styles.label}>Language</Text>
+                                <RadioButton.Group
+                                    value={selectedConfig.language || 'auto'}
+                                    onValueChange={(value: string) => handleChange('language', value)}
+                                >
+                                    {languageOptions.map(option => (
+                                        <View key={option.value} style={styles.radioOption}>
+                                            <RadioButton value={option.value} />
+                                            <Text style={{ color: theme.colors.text }}>{option.label}</Text>
+                                        </View>
+                                    ))}
+                                </RadioButton.Group>
+                            </View>
+                        )}
+                    </>
+                )}
+                
+                {/* TDRZ option for native only */}
+                {Platform.OS !== 'web' && 
+                'tdrz' in modelCapabilities && 
+                modelCapabilities.tdrz === true && (
+                    <LabelSwitch
+                        label="TDRZ"
+                        value={selectedConfig.tdrz || false}
+                        onValueChange={(value: boolean) => handleChange('tdrz', value)}
+                        containerStyle={styles.switchContainer}
+                    />
+                )}
+            </View>
             
-            {/* TDRZ option for native only */}
-            {Platform.OS !== 'web' && 
-             'tdrz' in modelCapabilities && 
-             modelCapabilities.tdrz === true && (
-                <LabelSwitch
-                    label="TDRZ (Timestamp Distillation)"
-                    value={selectedConfig.tdrz || false}
-                    onValueChange={(value: boolean) => handleChange('tdrz', value)}
-                    containerStyle={styles.switchContainer}
-                />
-            )}
-            
-            <Button 
-                mode="contained" 
-                onPress={handleSubmit}
-                buttonColor={theme.colors.primary}
-                textColor={theme.colors.onPrimary}
-            >
-                Apply Configuration
-            </Button>
+            <View style={styles.buttonContainer}>
+                <Button 
+                    mode="contained" 
+                    onPress={handleSubmit}
+                    buttonColor={theme.colors.primary}
+                    textColor={theme.colors.onPrimary}
+                >
+                    Apply Configuration
+                </Button>
+            </View>
         </View>
     )
 }

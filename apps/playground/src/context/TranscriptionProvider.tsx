@@ -144,15 +144,25 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             const modelPath = await downloadModel(state.model)
             
             logger.debug('Model downloaded, initializing context with path:', modelPath)
+            
+            // Add more detailed logging
+            logger.debug('Calling initWhisper...')
             const context = await initWhisper({
                 filePath: modelPath,
             })
+            logger.debug('initWhisper returned successfully, context:', context ? 'valid' : 'null')
+            
+            // Set the context with logging
+            logger.debug('Setting whisperContext state...')
             setWhisperContext(context)
+            logger.debug('whisperContext state set, dispatching ready state')
             
             dispatch({
                 type: 'UPDATE_STATE',
                 payload: { isModelLoading: false, ready: true },
             })
+            
+            return;
         } catch (error) {
             logger.error('Failed to initialize whisper:', error)
             dispatch({
@@ -175,17 +185,45 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         }: TranscribeParams): Promise<TranscribeResult> => {
             const jobId = providedJobId || `transcribe_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
+            // Add logging for current state
+            logger.debug('transcribe called, current state:', { 
+                hasContext: !!whisperContext, 
+                isModelLoading: state.isModelLoading,
+                ready: state.ready 
+            })
+
             // Auto-initialize if not ready
-            if (!state.ready && !state.isModelLoading) {
+            let localContext = whisperContext;
+            if (!localContext && !state.isModelLoading) {
                 logger.debug('Model not initialized, auto-initializing before transcription')
                 try {
                     dispatch({
                         type: 'UPDATE_STATE',
                         payload: { isModelLoading: true }
                     })
-                    await initialize()
-                    // Wait a short time to ensure initialization is complete
-                    await new Promise(resolve => setTimeout(resolve, 100))
+                    
+                    // Initialize the model directly without relying on state updates
+                    logger.debug('Downloading model and initializing directly...')
+                    const modelPath = await downloadModel(state.model)
+                    logger.debug('Model downloaded, initializing context with path:', modelPath)
+                    
+                    localContext = await initWhisper({
+                        filePath: modelPath,
+                    })
+                    
+                    logger.debug('Context initialized directly:', localContext ? 'valid' : 'null')
+                    
+                    // Also update the state for future calls
+                    setWhisperContext(localContext)
+                    
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: { isModelLoading: false, ready: true }
+                    })
+                    
+                    if (!localContext) {
+                        throw new Error('Failed to initialize whisper context')
+                    }
                 } catch (error) {
                     logger.error('Auto-initialization failed:', error)
                     dispatch({
@@ -200,9 +238,9 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 }
             }
 
-            if(!whisperContext) {
+            if(!localContext) {
                 return {
-                    promise: Promise.reject(new Error('No whisper context')),
+                    promise: Promise.reject(new Error('No whisper context available')),
                     stop: async () => {},
                     jobId
                 }
@@ -314,8 +352,8 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             
             // Use the appropriate transcribe method based on the input type
             const { promise: whisperPromise, stop } = useTranscribeData 
-                ? whisperContext.transcribeData(filePathOrBase64, fullOptions)
-                : whisperContext.transcribe(filePathOrBase64, fullOptions);
+                ? localContext.transcribeData(filePathOrBase64, fullOptions)
+                : localContext.transcribe(filePathOrBase64, fullOptions);
 
             const transcriptionPromise = new Promise<TranscriberData>((resolve, reject) => {
                 transcribeResolveMapRef.current[jobId] = resolve

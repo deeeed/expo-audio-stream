@@ -95,9 +95,13 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             flex: 1,
             marginLeft: theme.spacing.gap,
         },
-        compactButton: {
+        initButton: {
             marginLeft: theme.spacing.gap,
             minWidth: 80,
+        },
+        detailedInitButton: {
+            alignSelf: 'flex-start',
+            marginTop: theme.spacing.gap / 2,
         },
     })
 }
@@ -223,11 +227,12 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
             </View>
             {!ready && !isModelLoading && !isDownloading && !hasEditedConfig && (
                 <Button 
-                    mode="contained" 
+                    mode="outlined" 
                     onPress={initialize}
                     compact
-                    style={styles.compactButton}
+                    style={styles.initButton}
                     contentStyle={{ paddingHorizontal: 8 }}
+                    icon="refresh"
                 >
                     Init
                 </Button>
@@ -289,10 +294,11 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
             
             {!ready && !isModelLoading && !isDownloading && !hasEditedConfig && (
                 <Button 
-                    mode="contained" 
+                    mode="outlined" 
                     onPress={initialize}
-                    style={{ marginTop: theme.spacing.gap }}
+                    style={styles.detailedInitButton}
                     compact
+                    icon="refresh"
                 >
                     Initialize
                 </Button>

@@ -74,6 +74,20 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
+                name="transcription"
+                options={{
+                    title: 'Transcription',
+                    href: 'transcription',
+                    tabBarIcon: ({ color }) => (
+                        <MaterialIcons
+                            name="transcribe"
+                            size={28}
+                            color={color}
+                        />
+                    ),
+                }}
+            />
+            <Tabs.Screen
                 name="files"
                 options={{
                     title: 'Files',

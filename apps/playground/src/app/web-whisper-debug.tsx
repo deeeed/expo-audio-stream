@@ -4,7 +4,7 @@ import { Button, Text, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 
 // Minimal debug page for audio extraction and transcription
-export default function WhisperDebugPage() {
+export default function WebWhisperDebugPage() {
   // State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [extractedAudio, setExtractedAudio] = useState<Float32Array | null>(null);

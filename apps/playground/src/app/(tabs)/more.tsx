@@ -55,6 +55,10 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             marginBottom: 8,
             color: theme.colors.onSurface,
         },
+        listItemContainer: {
+            backgroundColor: theme.colors.surface,
+            margin: 0,
+        },
     })
 }
 
@@ -158,16 +162,6 @@ export const MoreScreen = () => {
             
             <AppInfoBanner theme={theme} />
             
-            <View style={styles.configSection}>
-                <Text style={styles.sectionTitle}>Transcription Model</Text>
-                <TranscriberConfig 
-                    compact={true}
-                    onConfigChange={() => {
-                        // Optional callback when config changes
-                    }}
-                />
-            </View>
-            
             <LabelSwitch
                 label="Dark Mode"
                 containerStyle={{
@@ -176,6 +170,7 @@ export const MoreScreen = () => {
                 onValueChange={toggleDarkMode}
                 value={darkMode}
             />
+            
             {!isWeb && (
                     <Updater
                         isUpdateAvailable={isUpdateAvailable}
@@ -186,6 +181,17 @@ export const MoreScreen = () => {
                 canUpdate={canUpdate}
                 />
             )}
+
+            <View style={styles.configSection}>
+                <Text style={styles.sectionTitle}>Transcription Model</Text>
+                <TranscriberConfig 
+                    compact={true}
+                    onConfigChange={() => {
+                        // Optional callback when config changes
+                    }}
+                />
+            </View>
+            
 
             {isWeb && (
                 <LabelSwitch
@@ -199,10 +205,7 @@ export const MoreScreen = () => {
             )}
 
             <ListItem
-                contentContainerStyle={{
-                    backgroundColor: theme.colors.surface,
-                    margin: 0,
-                }}
+                contentContainerStyle={styles.listItemContainer}
                 label="Logs"
                 subLabel="Console logs"
                 onPress={() => {
@@ -210,34 +213,25 @@ export const MoreScreen = () => {
                 }}
             />
             <ListItem
-                contentContainerStyle={{
-                    backgroundColor: theme.colors.surface,
-                    margin: 0,
-                }}
+                contentContainerStyle={styles.listItemContainer}
                 label="Permissions"
                 subLabel="Check and request permissions"
                 onPress={() => {
                     router.navigate('/permissions')
                 }}
             />
-            {__DEV__ && (
+            <ListItem
+                contentContainerStyle={styles.listItemContainer}
+                label="Transcription"
+                subLabel="Transcription"
+                onPress={() => {
+                    router.navigate('/transcription')
+                }}
+            />
+            {__DEV__ && isWeb && (
                 <>
                     <ListItem
-                        contentContainerStyle={{
-                            backgroundColor: theme.colors.surface,
-                            margin: 0,
-                        }}
-                        label="Whisper"
-                        subLabel="Whisper (Dev Only)"
-                        onPress={() => {
-                            router.navigate('/whisper')
-                        }}
-                    />
-                    <ListItem
-                        contentContainerStyle={{
-                            backgroundColor: theme.colors.surface,
-                            margin: 0,
-                        }}
+                        contentContainerStyle={styles.listItemContainer}
                         label="Whisper Debug"
                         subLabel="Whisper Debug (Dev Only)"
                         onPress={() => {
@@ -245,7 +239,6 @@ export const MoreScreen = () => {
                         }}
                     />
                 </>
-                
             )}
             {/* <ListItem
                 contentContainerStyle={{
