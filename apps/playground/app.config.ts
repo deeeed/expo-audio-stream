@@ -121,7 +121,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     updates: {
         url: 'https://u.expo.dev/' + validatedEnv.EAS_PROJECT_ID,
     },
-    runtimeVersion: '0.7.0',
+    runtimeVersion: '0.8.0',
     owner: 'deeeed',
     plugins: [
         [

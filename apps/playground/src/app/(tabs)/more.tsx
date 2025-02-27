@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 import {
     AppTheme,
     LabelSwitch,
@@ -7,10 +8,9 @@ import {
 } from '@siteed/design-system'
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
-import React, { useMemo, useState, useCallback, memo } from 'react'
-import { Image, StyleSheet, View, Pressable } from 'react-native'
+import React, { memo, useCallback, useMemo, useState } from 'react'
+import { Image, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
-import { MaterialCommunityIcons } from "@expo/vector-icons"
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
@@ -18,18 +18,18 @@ import Animated, {
 } from "react-native-reanimated"
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { useReanimatedWebHack } from '../../hooks/useReanimatedWebHack'
-import { isWeb } from '../../utils/utils'
+import { TranscriberConfig } from '../../component/TranscriberConfig'
 import { Updater } from '../../component/Updater'
 import { useAppUpdates } from '../../hooks/useAppUpdates'
-import { TranscriberConfig } from '../../component/TranscriberConfig'
+import { isWeb } from '../../utils/utils'
 
 const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
     return StyleSheet.create({
         container: {
-            gap: 10,
+            gap: theme.spacing.gap || 10,
+            paddingHorizontal: theme.padding.s,
             paddingBottom: insets?.bottom || 80,
-            paddingTop: insets?.top || 0,
+            paddingTop: Math.max(insets?.top || 0, 10),
         },
         iconContainer: {
             alignItems: 'center',
@@ -143,7 +143,6 @@ export const MoreScreen = () => {
     const { bottom, top } = useSafeAreaInsets()
     const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
     const appVersion = Constants.expoConfig?.version
-    const { isHackEnabled, handleHackToggle } = useReanimatedWebHack()
     const {
         checking,
         downloading,
@@ -156,7 +155,7 @@ export const MoreScreen = () => {
     return (
         <ScreenWrapper 
             withScrollView 
-            useInsets 
+            useInsets={false} 
             contentContainerStyle={styles.container}
         >
             <View style={styles.iconContainer}>
@@ -199,18 +198,6 @@ export const MoreScreen = () => {
                     }}
                 />
             </View>
-            
-
-            {isWeb && (
-                <LabelSwitch
-                    label="Reanimated Web Hack"
-                    containerStyle={{
-                        backgroundColor: theme.colors.surface,
-                    }}
-                    onValueChange={handleHackToggle}
-                    value={isHackEnabled}
-                />
-            )}
 
             <ListItem
                 contentContainerStyle={styles.listItemContainer}

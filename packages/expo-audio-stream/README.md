@@ -48,7 +48,7 @@
 - Background audio recording on iOS.
 - Audio features extraction during recording.
 - Consistent WAV PCM recording format across all platforms.
-- Keep device awake during recording sessions
+- Keep recording acrtive while app is in background
 - Rich notification system for recording status:
   - Android: Live waveform visualization in notifications
   - Android: Fully customizable notification appearance and actions

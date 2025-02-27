@@ -1,21 +1,23 @@
-import { AppTheme, Button, NumberAdjuster, ScreenWrapper, Text, useTheme, LabelSwitch, Notice } from '@siteed/design-system'
-import React, { useMemo } from 'react'
-import { StyleSheet, View, ScrollView } from 'react-native'
+import { AppTheme, Button, LabelSwitch, Notice, NumberAdjuster, ScreenWrapper, Text, useTheme } from '@siteed/design-system'
+import React, { useCallback, useMemo } from 'react'
+import { ScrollView, StyleSheet, View } from 'react-native'
 import { ProgressBar, SegmentedButtons } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { PCMPlayer } from '../../component/PCMPlayer'
 import { TranscriberConfig } from '../../component/TranscriberConfig'
 import Transcript from '../../component/Transcript'
-import { useAudioTranscription, EXTRACT_DURATION_OPTIONS } from '../../hooks/useAudioTranscription'
 import { TranscriptionHistoryList } from '../../component/TranscriptionHistoryList'
+import { EXTRACT_DURATION_OPTIONS, SelectedFile, useAudioTranscription } from '../../hooks/useAudioTranscription'
+import { useSampleAudio } from '../../hooks/useSampleAudio'
 
 const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
     return StyleSheet.create({
         container: {
             gap: theme.spacing.gap,
             paddingHorizontal: theme.padding.s,
-            paddingBottom: insets?.bottom || theme.padding.s,
+            paddingBottom: insets?.bottom || 80,
+            paddingTop: Math.max(insets?.top || 0, 10),
         },
         progressContainer: {
             flexDirection: 'row',
@@ -206,10 +208,50 @@ export function TranscriptionScreen() {
         handleFileSelection,
         resetTranscriptionState,
     } = useAudioTranscription();
+    
+    const { isLoading: isSampleLoading, loadSampleAudio } = useSampleAudio({
+        onError: (error) => {
+            console.error('Error loading sample audio file:', error)
+        }
+    })
+    
+    const handleLoadSampleAudio = useCallback(async () => {
+        try {
+            // Reset state before loading new sample
+            resetTranscriptionState()
+            
+            // Load the sample audio
+            const sampleFile = await loadSampleAudio(require('@assets/jfk.mp3'))
+            
+            if (!sampleFile) {
+                throw new Error('Failed to load sample audio file')
+            }
+            
+            // Create a SelectedFile object from the sample file
+            const selectedFileInfo: SelectedFile = {
+                uri: sampleFile.uri,
+                size: sampleFile.size,
+                name: 'JFK Speech Sample',
+                duration: sampleFile.durationMs / 1000,
+                fileType: 'mp3',
+            }
+            
+            // We can use the existing handleExtractAudio function which accepts a file parameter
+            // This will set the selectedFile state internally and then extract the audio
+            handleExtractAudio({ 
+                file: selectedFileInfo, 
+                duration: isCustomDuration ? customDuration : extractDuration 
+            })
+            
+        } catch (error) {
+            console.error('Error loading sample audio:', error)
+        }
+    }, [handleExtractAudio, loadSampleAudio, resetTranscriptionState, isCustomDuration, customDuration, extractDuration])
 
     return (
         <ScreenWrapper 
             withScrollView={true}
+            useInsets={false}
             contentContainerStyle={styles.container}
         >
             <Notice
@@ -233,13 +275,27 @@ export function TranscriptionScreen() {
                 onConfigChange={resetTranscriptionState}
             />
 
-            <Button
-                mode="contained"
-                onPress={handleFileSelection}
-                disabled={isTranscribing}
-            >
-                Select Audio File
-            </Button>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Button
+                    mode="contained"
+                    onPress={handleFileSelection}
+                    disabled={isTranscribing}
+                    style={{ flex: 1 }}
+                    icon="file-upload"
+                >
+                    Select Audio File
+                </Button>
+                
+                <Button
+                    mode="contained-tonal"
+                    onPress={handleLoadSampleAudio}
+                    disabled={isTranscribing || isSampleLoading}
+                    loading={isSampleLoading}
+                    icon="music-box"
+                >
+                    Load Sample
+                </Button>
+            </View>
 
             {selectedFile && (
                 <View style={styles.fileInfoContainer}>
@@ -322,7 +378,7 @@ export function TranscriptionScreen() {
                         
                         <Button
                             mode="contained-tonal"
-                            onPress={() => handleExtractAudio()}
+                            onPress={() => handleExtractAudio({})}
                             loading={isExtracting}
                             disabled={isTranscribing || !selectedFile}
                             style={{ marginTop: 10 }}
