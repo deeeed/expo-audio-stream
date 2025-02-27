@@ -59,6 +59,21 @@ export function transcriptionReducer(
                 isBusy: true,
             }
         }
+        case 'TRANSCRIPTION_ABORT': {
+            return {
+                ...state,
+                transcript: {
+                    id: action.jobId,
+                    isBusy: false,
+                    text: 'Transcription aborted by user',
+                    chunks: [],
+                    startTime: Date.now(),
+                    endTime: Date.now(),
+                },
+                isBusy: false,
+                progressItems: [],  // Clear progress items
+            }
+        }
         default:
             return state
     }

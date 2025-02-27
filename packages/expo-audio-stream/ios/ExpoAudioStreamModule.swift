@@ -367,6 +367,10 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///     - `position`: Optional byte position
         ///     - `length`: Optional byte length
         ///     - `includeNormalizedData`: Boolean to include normalized audio data in [-1, 1] range
+        ///     - `includeWavHeader`: Boolean to include WAV header in the PCM data
+        ///     - `decodingOptions`: Decoding configuration
+        ///     - `includeBase64Data`: Boolean to include base64 encoded string representation of the audio data
+        ///     - `computeChecksum`: Boolean to compute and include CRC32 checksum of the PCM data
         AsyncFunction("extractAudioData") { (options: [String: Any], promise: Promise) in
             guard let fileUri = options["fileUri"] as? String,
                   let url = URL(string: fileUri) else {
@@ -379,6 +383,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             let endTimeMs = options["endTimeMs"] as? Double
             let position = options["position"] as? Int
             let length = options["length"] as? Int
+            let includeWavHeader = options["includeWavHeader"] as? Bool ?? false
 
             // Validate that we have either time range or byte range, but not both and not neither
             let hasTimeRange = startTimeMs != nil && endTimeMs != nil
@@ -430,24 +435,40 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 // Pass both options separately - normalizeAudio from decodingOptions, and includeNormalizedData as is
                 let decodingConfig = DecodingConfig.fromDictionary(decodingOptions)
                 
-                let (pcmData, normalizedData) = try extractRawAudioData(
+                let (pcmData, normalizedData, base64Data) = try extractRawAudioData(
                     from: url,
                     startFrame: startFrame,
                     frameCount: frameCount,
                     format: format,
                     decodingConfig: decodingConfig,
-                    includeNormalizedData: includeNormalizedData
+                    includeNormalizedData: includeNormalizedData,
+                    includeBase64Data: options["includeBase64Data"] as? Bool ?? false
                 )
 
-                var resultDict: [String: Any] = [
-                    "pcmData": pcmData,
-                    "sampleRate": Int(sampleRate),
-                    "channels": channels,
-                    "bitDepth": bitDepth,
-                    "durationMs": Int(Double(frameCount) * 1000.0 / sampleRate),
-                    "format": "pcm_\(bitDepth)bit",
-                    "samples": Int(frameCount) * channels
-                ]
+                var resultDict: [String: Any] = [:]
+                
+                if includeWavHeader {
+                    // Create WAV header and prepend it to the PCM data
+                    let wavData = createWavHeader(
+                        pcmData: pcmData,
+                        sampleRate: Int(sampleRate),
+                        channels: channels,
+                        bitDepth: bitDepth
+                    )
+                    resultDict["pcmData"] = wavData
+                    resultDict["hasWavHeader"] = true
+                } else {
+                    resultDict["pcmData"] = pcmData
+                    resultDict["hasWavHeader"] = false
+                }
+                
+                // Add the rest of the data
+                resultDict["sampleRate"] = Int(sampleRate)
+                resultDict["channels"] = channels
+                resultDict["bitDepth"] = bitDepth
+                resultDict["durationMs"] = Int(Double(frameCount) * 1000.0 / sampleRate)
+                resultDict["format"] = "pcm_\(bitDepth)bit"
+                resultDict["samples"] = Int(frameCount) * channels
                 
                 // Add normalized data if requested, regardless of normalization setting
                 if includeNormalizedData {
@@ -460,6 +481,10 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     resultDict["checksum"] = Int(checksum)
                     
                     Logger.debug("Computed CRC32 checksum: \(checksum)")
+                }
+                
+                if let includeBase64Data = options["includeBase64Data"] as? Bool, includeBase64Data {
+                    resultDict["base64Data"] = base64Data
                 }
                 
                 promise.resolve(resultDict)

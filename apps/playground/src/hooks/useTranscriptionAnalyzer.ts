@@ -1,7 +1,8 @@
 import { TranscriberData } from '@siteed/expo-audio-stream'
 import { useCallback, useEffect, useState } from 'react'
 import { baseLogger } from '../config'
-import { useUnifiedTranscription } from './useUnifiedTranscription'
+import { useTranscription } from '../context/TranscriptionProvider'
+import { AudioInputData } from '../context/TranscriptionProvider.types'
 
 const logger = baseLogger.extend('useTranscriptionAnalyzer')
 
@@ -16,51 +17,110 @@ export function useTranscriptionAnalyzer({
     onTranscriptionUpdate,
     language = 'auto'
 }: UseTranscriptionAnalyzerProps) {
-    const {
-        isProcessing,
-        isModelLoading,
-        transcribe,
-        initialize
-    } = useUnifiedTranscription({
-        onError,
-        onTranscriptionUpdate,
-        language
-    });
-
-    const [isInitialized, setIsInitialized] = useState(false);
-
+    const [isInitialized, setIsInitialized] = useState(false)
+    const [isProcessing, setIsProcessing] = useState(false)
+    const [_activeJobId, setActiveJobId] = useState<string | null>(null)
+    
+    // Get the transcription context directly
+    const transcriptionContext = useTranscription()
+    
     // Initialize the transcription model if not already done
     useEffect(() => {
-        if (!isInitialized && !isModelLoading) {
-            initialize()
-                .then(() => setIsInitialized(true))
-                .catch(error => {
-                    logger.error('Failed to initialize transcription:', error);
-                    onError?.(error instanceof Error ? error : new Error('Failed to initialize transcription'));
-                });
+        if (!isInitialized && !transcriptionContext.isModelLoading) {
+            // Update language config if needed
+            if (language !== 'auto' && language !== transcriptionContext.language) {
+                transcriptionContext.updateConfig({ language })
+                    .then(() => transcriptionContext.initialize())
+                    .then(() => setIsInitialized(true))
+                    .catch((error: Error) => {
+                        logger.error('Failed to initialize transcription:', error)
+                        onError?.(error instanceof Error ? error : new Error('Failed to initialize transcription'))
+                    })
+            } else {
+                // Simply call initialize and set state to initialized
+                transcriptionContext.initialize()
+                    .then(() => {
+                        setIsInitialized(true);
+                        return true;
+                    })
+                    .catch((error: unknown) => {
+                        logger.error('Failed to initialize transcription:', error);
+                        onError?.(error instanceof Error ? error : new Error('Failed to initialize transcription'));
+                        return false;
+                    });
+            }
         }
-    }, [initialize, isInitialized, isModelLoading, onError]);
-
+    }, [transcriptionContext, isInitialized, language, onError])
+    
+    // Process audio segment directly using the provider
     const processAudioSegment = useCallback(async (
-        audioData: Float32Array | Uint8Array | string,
-        sampleRate: number
+        audioData: AudioInputData,
     ): Promise<TranscriberData | null> => {
-        if (!audioData) return null;
+        if (!audioData) return null
         
         // Handle string input for native platforms
         if (typeof audioData === 'string') {
-            logger.error('String audio data is not supported in this analyzer');
-            onError?.(new Error('String audio data is not supported in this analyzer'));
-            return null;
+            logger.error('String audio data is not supported in this analyzer')
+            onError?.(new Error('String audio data is not supported in this analyzer'))
+            return null
         }
         
-        // Process the audio data
-        return transcribe(audioData, sampleRate);
-    }, [transcribe, onError]);
-
+        // Skip if already processing
+        if (isProcessing || transcriptionContext.isBusy) {
+            logger.debug('Skipping transcription - another one in progress')
+            return null
+        }
+        
+        setIsProcessing(true)
+        
+        try {
+            // new Float32Array(audioData.buffer)
+                
+            const { promise, jobId } = await transcriptionContext.transcribe({
+                audioData,
+                onNewSegments: (result) => {
+                    // Convert segments to the format expected by components
+                    const chunks = result.segments.map((segment) => ({
+                        text: segment.text.trim(),
+                        timestamp: [
+                            segment.t0 / 100,
+                            segment.t1 ? segment.t1 / 100 : null,
+                        ] as [number, number | null],
+                    }))
+                    
+                    const text = chunks.map((c) => c.text).join(' ')
+                    const updateData: TranscriberData = {
+                        id: jobId,
+                        text,
+                        chunks,
+                        isBusy: true,
+                        startTime: Date.now(),
+                        endTime: Date.now()
+                    }
+                    
+                    onTranscriptionUpdate?.(updateData)
+                }
+            })
+            
+            setActiveJobId(jobId)
+            
+            // Wait for the transcription to complete
+            const result = await promise
+            onTranscriptionUpdate?.(result)
+            return result
+        } catch (error) {
+            logger.error('Transcription error:', error)
+            onError?.(error instanceof Error ? error : new Error('Transcription failed'))
+            return null
+        } finally {
+            setIsProcessing(false)
+            setActiveJobId(null)
+        }
+    }, [transcriptionContext, isProcessing, onError, onTranscriptionUpdate])
+    
     return {
-        isProcessing,
-        isModelLoading,
+        isProcessing: isProcessing || transcriptionContext.isBusy,
+        isModelLoading: transcriptionContext.isModelLoading,
         processAudioSegment
-    };
+    }
 } 

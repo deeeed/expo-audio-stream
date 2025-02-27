@@ -277,6 +277,11 @@ export interface ExtractAudioDataOptions {
     length?: number
     /** Include normalized audio data in [-1, 1] range */
     includeNormalizedData?: boolean
+    /** Include base64 encoded string representation of the audio data */
+    includeBase64Data?: boolean
+    /** Include WAV header in the PCM data (makes it a valid WAV file) */
+    includeWavHeader?: boolean
+    /** Logger for debugging - can pass console directly. */
     logger?: ConsoleLike
     /** Compute the checksum of the pcm data */
     computeChecksum?: boolean
@@ -289,6 +294,8 @@ export interface ExtractedAudioData {
     pcmData: Uint8Array
     /** Normalized audio data in [-1, 1] range (when includeNormalizedData is true) */
     normalizedData?: Float32Array
+    /** Base64 encoded string representation of the audio data (when includeBase64Data is true) */
+    base64Data?: string
     /** Sample rate in Hz (e.g., 44100, 48000) */
     sampleRate: number
     /** Number of audio channels (1 for mono, 2 for stereo) */
@@ -301,6 +308,8 @@ export interface ExtractedAudioData {
     format: PCMFormat
     /** Total number of audio samples per channel */
     samples: number
+    /** Whether the pcmData includes a WAV header */
+    hasWavHeader?: boolean
     /** CRC32 Checksum of pcm data */
     checksum?: number
 }

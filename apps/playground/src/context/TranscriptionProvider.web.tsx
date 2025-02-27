@@ -1,6 +1,5 @@
 // apps/playground/src/context/TranscriptionProvider.tsx
 import { TranscriberData } from '@siteed/expo-audio-stream'
-import throttle from 'lodash.throttle'
 import React, {
     createContext,
     useCallback,
@@ -19,6 +18,7 @@ import {
     transcriptionReducer,
 } from './TranscriptionProvider.reducer'
 import {
+    AudioInputData,
     TranscribeParams,
     TranscriberCompleteData,
     TranscriberUpdateData,
@@ -51,7 +51,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         initialProviderState
     )
 
-    const audioDataRef = useRef<Float32Array | null>(null)
+    const audioDataRef = useRef<AudioInputData | null>(null)
     const resolveUpdateConfigRef = useRef<(() => void) | null>(null)
     const initializeAfterUpdateRef = useRef<boolean>(false)
 
@@ -72,7 +72,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const messageEventHandler = useCallback(
-        throttle((event: MessageEvent) => {
+        (event: MessageEvent) => {
             const message = event.data
             const jobId = message.jobId
             switch (message.status) {
@@ -150,18 +150,18 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     if (transcribeResolveMapRef.current[jobId]) {
                         transcribeResolveMapRef.current[jobId](transcript)
                         delete transcribeResolveMapRef.current[jobId]
+                        delete transcribeRejectMapRef.current[jobId]
                     }
-
                     break
                 }
                 case 'initiate':
-                    // dispatch({
-                    //     type: 'UPDATE_STATE',
-                    //     payload: {
-                    //         isModelLoading: true,
-                    //         progressItems: [...state.progressItems, message],
-                    //     },
-                    // })
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: {
+                            isModelLoading: true,
+                            progressItems: [...state.progressItems, message],
+                        },
+                    })
                     break
                 case 'ready':
                     dispatch({
@@ -178,6 +178,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         type: 'UPDATE_STATE',
                         payload: {
                             isBusy: false,
+                            transcript: undefined
                         },
                     })
                     alert(
@@ -201,8 +202,8 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 default:
                     break
             }
-        }, 100), // Throttle to run at most once every 100ms
-        []
+        },
+        [state.progressItems]
     )
 
     const webWorker = useWorker({
@@ -230,32 +231,57 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         state.language,
     ])
 
-    const initialize = useCallback(() => {
+    const initialize = useCallback(async () => {
+        logger.debug('Initialize called with model:', modelRef.current);
+        
         dispatch({
             type: 'UPDATE_STATE',
             payload: { isModelLoading: true, ready: false },
-        })
+        });
+        
+        // Get the current model from the ref
+        const currentModel = modelRef.current;
+        
+        // Format the model name for web if needed
+        const formattedModel = currentModel.startsWith('Xenova/whisper-') 
+            ? currentModel 
+            : `Xenova/whisper-${currentModel}`;
+        
         logger.debug(
-            'Initializing transcription...',
-            modelRef.current,
-            quantizedRef.current
-        )
-        webWorker.postMessage({
+            'Initializing transcription with model:',
+            formattedModel
+        );
+        
+        const initParams = {
             type: 'initialize',
-            model: modelRef.current,
+            model: formattedModel,
             quantized: quantizedRef.current,
             multilingual: multilingualRef.current,
             subtask: multilingualRef.current ? subtaskRef.current : null,
-            language:
-                multilingualRef.current && languageRef.current !== 'auto'
-                    ? languageRef.current
-                    : null,
-        })
-    }, [dispatch, webWorker])
+            language: multilingualRef.current && languageRef.current !== 'auto'
+                ? languageRef.current
+                : null
+        };
+        
+        logger.debug("Sending initialization message to worker:", initParams);
+        
+        try {
+            webWorker.postMessage(initParams);
+            return Promise.resolve();
+        } catch (error) {
+            logger.error('Error sending initialization message to worker:', error);
+            dispatch({
+                type: 'UPDATE_STATE',
+                payload: { isModelLoading: false, ready: false },
+            });
+            return Promise.reject(error);
+        }
+    }, [dispatch, webWorker]);
 
     const transcribe = useCallback(
         async ({
             audioData,
+            audioUri,
             position = 0,
             jobId: providedJobId,
             options,
@@ -268,8 +294,97 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         }> => {
             const jobId = providedJobId || `transcribe_${Date.now()}_${Math.random().toString(36).slice(2)}`
             
-            // Store the legacy onChunkUpdate functionality for backward compatibility
-            // We'll map onNewSegments to this functionality
+            // Auto-initialize if not ready
+            if (!state.ready && !state.isModelLoading) {
+                logger.debug('Model not initialized, auto-initializing before transcription')
+                try {
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: { isModelLoading: true }
+                    })
+                    
+                    // Initialize the model
+                    await initialize()
+                    
+                    // Wait for the worker to signal it's ready
+                    await new Promise<void>((resolve, reject) => {
+                        // Set up a timeout to prevent hanging indefinitely
+                        const timeout = setTimeout(() => {
+                            reject(new Error('Timed out waiting for model initialization'));
+                        }, 30000); // 30 second timeout
+                        
+                        // Create a listener for the 'ready' message
+                        const checkReady = (event: MessageEvent) => {
+                            const message = event.data;
+                            if (message.status === 'ready') {
+                                clearTimeout(timeout);
+                                window.removeEventListener('message', checkReady);
+                                resolve();
+                            } else if (message.status === 'error') {
+                                clearTimeout(timeout);
+                                window.removeEventListener('message', checkReady);
+                                reject(new Error(message.data?.message || 'Error initializing model'));
+                            }
+                        };
+                        
+                        window.addEventListener('message', checkReady);
+                    });
+                    
+                    logger.debug('Model initialization complete, proceeding with transcription');
+                } catch (error) {
+                    logger.error('Auto-initialization failed:', error)
+                    dispatch({
+                        type: 'UPDATE_STATE',
+                        payload: { isModelLoading: false }
+                    })
+                    return {
+                        promise: Promise.reject(new Error('Failed to initialize model: ' + error)),
+                        stop: async () => {},
+                        jobId
+                    }
+                }
+            }
+            
+            // First check if we have either audioData or audioUri
+            if (!audioData && !audioUri) {
+                dispatch({
+                    type: 'UPDATE_STATE',
+                    payload: { isBusy: false }
+                });
+                return {
+                    promise: Promise.resolve({
+                        id: jobId,
+                        isBusy: false,
+                        text: '',
+                        chunks: [],
+                        startTime: 0,
+                        endTime: 0,
+                    }),
+                    stop: async () => {},
+                    jobId
+                };
+            }
+
+            // Reset busy state before starting new transcription
+            dispatch({
+                type: 'UPDATE_STATE',
+                payload: { isBusy: false }
+            });
+
+            logger.debug('Transcribing with:', {
+                audioData,
+                audioUri,
+                position,
+                jobId,
+                options,
+            })
+            // Format the model name consistently
+            const currentModel = modelRef.current;
+            const formattedModel = currentModel.startsWith('Xenova/whisper-') 
+                ? currentModel 
+                : `Xenova/whisper-${currentModel}`;
+            
+            // Store callbacks
             onChunkUpdateRef.current = onNewSegments ? 
                 (data) => {
                     // Map the data format from web to match TranscribeNewSegmentsResult
@@ -296,36 +411,51 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             progressCallbackRef.current = onProgress || null;
 
             console.debug(
-                `transcribe, audioData: ${typeof audioData}, jobId: ${jobId}, position: ${position}`
+                `transcribe, audioData: ${typeof audioData}, audioUri: ${audioUri ? 'provided' : 'not provided'}, jobId: ${jobId}, position: ${position}`
             )
 
-            // First check if audioData exists
-            if (!audioData) {
-                return {
-                    promise: Promise.resolve({
-                        id: jobId,
-                        isBusy: false,
-                        text: '',
-                        chunks: [],
-                        startTime: 0,
-                        endTime: 0,
-                    }),
-                    stop: async () => {},
-                    jobId
-                };
-            }
-
-            // Then check the type
-            if (
-                typeof audioData === 'object' &&
-                (!audioDataRef.current || audioData !== audioDataRef.current)
-            ) {
+            // Handle audioData as object (Float32Array, etc.)
+            if (audioData && typeof audioData === 'object') {
+                // Always update the reference to ensure we process it as new data
                 audioDataRef.current = audioData
                 dispatch({
                     type: 'TRANSCRIPTION_START',
                 })
 
-                // If we have a progress callback, simulate progress updates
+                // Add diagnostic logging for the audio data
+                if (audioData instanceof Float32Array) {
+                    // Check if audio has content
+                    const sum = Array.from(audioData.slice(0, 1000)).reduce((a, b) => a + Math.abs(b), 0);
+                    const max = Math.max(...Array.from(audioData.slice(0, 1000)).map(Math.abs));
+                    
+                    console.log("Audio diagnostics:", {
+                        type: audioData.constructor.name,
+                        length: audioData.length,
+                        sum: sum,
+                        max: max,
+                        firstSamples: Array.from(audioData.slice(0, 10)),
+                        expectedDurationSec: audioData.length / 16000
+                    });
+                    
+                    // If audio is all zeros or very low levels, warn and don't proceed
+                    if (sum === 0 || max < 0.0001) {
+                        console.warn("Audio data contains no signal (all zeros or very low levels)");
+                        return {
+                            promise: Promise.resolve({
+                                id: jobId,
+                                isBusy: false,
+                                text: '',
+                                chunks: [],
+                                startTime: 0,
+                                endTime: 0,
+                            }),
+                            stop: async () => {},
+                            jobId
+                        };
+                    }
+                }
+
+                // Progress simulation code
                 let progressInterval: NodeJS.Timeout | null = null;
                 if (progressCallbackRef.current) {
                     // Start with 0% progress
@@ -364,12 +494,28 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         `Transcribing position=${position} jobId=${jobId}...`
                     );
                     
+                    // Log what we're sending to the worker
+                    console.log(`Sending to worker:`, {
+                        type: 'transcribe',
+                        audioType: audioData.constructor.name,
+                        audioLength: ArrayBuffer.isView(audioData) ? audioData.length : (audioData as ArrayBuffer).byteLength,
+                        position,
+                        jobId,
+                        model: formattedModel,
+                        multilingual: multilingualRef.current,
+                        quantized: quantizedRef.current,
+                        subtask: multilingualRef.current ? subtaskRef.current : null,
+                        language: multilingualRef.current && languageRef.current !== 'auto'
+                            ? languageRef.current 
+                            : null
+                    });
+
                     webWorker.postMessage({
                         type: 'transcribe',
                         audio: audioData,
                         position,
                         jobId,
-                        model: modelRef.current,
+                        model: formattedModel,
                         multilingual: multilingualRef.current,
                         quantized: quantizedRef.current,
                         subtask: multilingualRef.current ? subtaskRef.current : null,
@@ -380,42 +526,191 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     });
                 });
 
+                const stop = async () => {
+                    logger.debug(`Aborting transcription for jobId: ${jobId}`);
+                    
+                    if (progressInterval) {
+                        clearInterval(progressInterval);
+                    }
+                    
+                    // Send abort message to web worker
+                    webWorker.postMessage({
+                        type: 'abort',
+                        jobId
+                    });
+                    
+                    // Use the new TRANSCRIPTION_ABORT action
+                    dispatch({
+                        type: 'TRANSCRIPTION_ABORT',
+                        jobId
+                    });
+                    
+                    // Reset progress tracking
+                    lastProgressUpdate.current = 0;
+                    
+                    // Clean up callbacks and references
+                    onChunkUpdateRef.current = null;
+                    progressCallbackRef.current = null;
+                    
+                    // Clean up promise resolvers
+                    if (transcribeResolveMapRef.current[jobId]) {
+                        transcribeResolveMapRef.current[jobId]({
+                            id: jobId,
+                            isBusy: false,
+                            text: 'Transcription aborted by user',
+                            chunks: [],
+                            startTime: Date.now(),
+                            endTime: Date.now(),
+                        });
+                    }
+                    delete transcribeResolveMapRef.current[jobId];
+                    delete transcribeRejectMapRef.current[jobId];
+                };
+
                 return {
                     promise: transcriptionPromise,
-                    stop: async () => {
-                        if (progressInterval) {
-                            clearInterval(progressInterval);
-                        }
-                        
-                        // Send abort message to web worker
-                        webWorker.postMessage({
-                            type: 'abort',
-                            jobId
-                        });
-                        
-                        // Update state to indicate transcription is no longer busy
-                        dispatch({
-                            type: 'UPDATE_STATE',
-                            payload: { isBusy: false }
-                        });
-                        
-                        // Remove callbacks
-                        delete transcribeResolveMapRef.current[jobId];
-                        delete transcribeRejectMapRef.current[jobId];
-                    },
+                    stop,
                     jobId
                 };
-            } else if (typeof audioData === 'string') {
-                // Handle string input (base64 or file path) by rejecting
+            } 
+            // Handle audioUri (for web, we need to fetch the file and convert to ArrayBuffer)
+            else if (audioUri) {
+                dispatch({
+                    type: 'TRANSCRIPTION_START',
+                })
+
+                // Progress simulation
+                let progressInterval: NodeJS.Timeout | null = null;
+                if (progressCallbackRef.current) {
+                    // Start with 0% progress
+                    progressCallbackRef.current(0);
+                    
+                    // Simulate progress updates
+                    progressInterval = setInterval(() => {
+                        if (!progressCallbackRef.current) {
+                            if (progressInterval) clearInterval(progressInterval);
+                            return;
+                        }
+                        
+                        const currentProgress = lastProgressUpdate.current || 0;
+                        const newProgress = Math.min(currentProgress + 5, 95);
+                        
+                        lastProgressUpdate.current = newProgress;
+                        progressCallbackRef.current(newProgress);
+                    }, 500);
+                }
+
+                const transcriptionPromise = new Promise<TranscriberData>((resolve, reject) => {
+                    transcribeResolveMapRef.current[jobId] = (transcript) => {
+                        if (progressInterval) {
+                            clearInterval(progressInterval);
+                            if (progressCallbackRef.current) {
+                                progressCallbackRef.current(100);
+                            }
+                        }
+                        resolve(transcript);
+                    };
+                    transcribeRejectMapRef.current[jobId] = reject;
+
+                    // Fetch the audio file and convert to ArrayBuffer
+                    fetch(audioUri)
+                        .then(response => response.arrayBuffer())
+                        .then(buffer => {
+                            // Convert ArrayBuffer to Float32Array for the Whisper model
+                            const view = new Int16Array(buffer);
+                            const floatData = new Float32Array(view.length);
+                            let maxAmplitude = 0;
+                            for (let i = 0; i < view.length; i++) {
+                                floatData[i] = view[i] / 32768.0;
+                                maxAmplitude = Math.max(maxAmplitude, Math.abs(floatData[i]));
+                            }
+
+                            console.log(`Converted audio data: length=${floatData.length}, maxAmplitude=${maxAmplitude}, first samples=${Array.from(floatData.slice(0, 5))}`);
+
+                            if (maxAmplitude < 0.1) {
+                                console.warn('Audio signal too quiet for transcription', { maxAmplitude });
+                            }
+                            
+                            webWorker.postMessage({
+                                type: 'transcribe',
+                                audio: floatData,  // Send the Float32Array instead of the raw buffer
+                                position,
+                                jobId,
+                                model: formattedModel,
+                                multilingual: multilingualRef.current,
+                                quantized: quantizedRef.current,
+                                subtask: multilingualRef.current ? subtaskRef.current : null,
+                                language: multilingualRef.current && languageRef.current !== 'auto'
+                                    ? languageRef.current 
+                                    : null,
+                                ...options
+                            });
+                            return buffer;
+                        })
+                        .catch(error => {
+                            if (progressInterval) clearInterval(progressInterval);
+                            reject(new Error(`Failed to fetch audio file: ${error.message}`));
+                        });
+                });
+
+                const stop = async () => {
+                    logger.debug(`Aborting transcription for jobId: ${jobId}`);
+                    
+                    if (progressInterval) {
+                        clearInterval(progressInterval);
+                    }
+                    
+                    // Send abort message to web worker
+                    webWorker.postMessage({
+                        type: 'abort',
+                        jobId
+                    });
+                    
+                    dispatch({
+                        type: 'TRANSCRIPTION_ABORT',
+                        jobId
+                    });
+                    
+                    // Reset progress tracking
+                    lastProgressUpdate.current = 0;
+                    
+                    // Clean up callbacks and references
+                    onChunkUpdateRef.current = null;
+                    progressCallbackRef.current = null;
+                    
+                    // Clean up promise resolvers
+                    if (transcribeResolveMapRef.current[jobId]) {
+                        transcribeResolveMapRef.current[jobId]({
+                            id: jobId,
+                            isBusy: false,
+                            text: 'Transcription aborted by user',
+                            chunks: [],
+                            startTime: Date.now(),
+                            endTime: Date.now(),
+                        });
+                    }
+                    delete transcribeResolveMapRef.current[jobId];
+                    delete transcribeRejectMapRef.current[jobId];
+                };
+
+                return {
+                    promise: transcriptionPromise,
+                    stop,
+                    jobId
+                };
+            } 
+            // Handle string audioData (base64 or file path)
+            else if (typeof audioData === 'string') {
                 return {
                     promise: Promise.reject(
-                        new Error('String audio data is not supported in web version')
+                        new Error('String audio data is not directly supported in web version. Please provide a URL or ArrayBuffer.')
                     ),
                     stop: async () => {},
                     jobId
                 };
             }
             
+            // Fallback return
             return {
                 promise: Promise.resolve({
                     id: jobId,
@@ -429,25 +724,31 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 jobId
             };
         },
-        [webWorker]
+        [webWorker, state.ready, state.isModelLoading, initialize]
     )
 
     const updateConfig = useCallback(
-        (
+        async (
             config: Partial<TranscriptionState>,
             shouldInitialize: boolean = false
         ): Promise<void> => {
             logger.debug('Updating config', config)
-            return new Promise<void>((resolve) => {
-                resolveUpdateConfigRef.current = resolve
-                initializeAfterUpdateRef.current = shouldInitialize
-                dispatch({
-                    type: 'UPDATE_STATE',
-                    payload: config,
-                })
+            dispatch({
+                type: 'UPDATE_STATE',
+                payload: config,
             })
+
+            // Important: If shouldInitialize is true, call initialize immediately
+            if (shouldInitialize) {
+                // Small delay to ensure state is updated before initialization
+                setTimeout(() => {
+                    initialize();
+                }, 0);
+            }
+
+            return Promise.resolve()
         },
-        []
+        [initialize]
     )
 
     useEffect(() => {
