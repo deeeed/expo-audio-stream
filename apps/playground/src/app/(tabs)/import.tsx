@@ -43,7 +43,7 @@ const getStyles = (theme: AppTheme, insets?: { bottom: number, top: number }) =>
             gap: theme.spacing.gap || theme.padding.s,
             paddingHorizontal: theme.padding.s,
             paddingBottom: insets?.bottom || 80,
-            paddingTop: insets?.top || 0,
+            paddingTop: Math.max(insets?.top || 0, 10),
         },
         controlsContainer: {
             backgroundColor: theme.colors.surfaceVariant,

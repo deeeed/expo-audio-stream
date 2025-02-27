@@ -31,7 +31,7 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
             gap: theme.spacing.gap || 10,
             paddingHorizontal: theme.padding.s,
             paddingBottom: insets?.bottom || 80,
-            paddingTop: insets?.top || 0,
+            paddingTop: Math.max(insets?.top || 0, 10),
         },
         recordingContainer: {
             gap: 10,
