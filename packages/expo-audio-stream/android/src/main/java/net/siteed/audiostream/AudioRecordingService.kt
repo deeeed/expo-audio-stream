@@ -11,8 +11,6 @@ import android.os.Looper
 import expo.modules.kotlin.Promise
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.os.Build.VERSION_CODES
-import android.app.Notification
 import androidx.core.app.NotificationCompat
 
 class AudioRecordingService : Service() {
@@ -27,6 +25,8 @@ class AudioRecordingService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.d(Constants.TAG, "AudioRecordingService onCreate")
+        isRunning = true
+        setServiceRunning(true)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -84,6 +84,7 @@ class AudioRecordingService : Service() {
         stopForeground(STOP_FOREGROUND_REMOVE)
 
         isRunning = false
+        setServiceRunning(false)
         super.onDestroy()
     }
 
@@ -122,6 +123,17 @@ class AudioRecordingService : Service() {
     }
 
     companion object {
+        // Static flag to track if service is running
+        private var isServiceRunningStatic = false
+
+        fun isServiceRunning(): Boolean {
+            return isServiceRunningStatic
+        }
+
+        fun setServiceRunning(running: Boolean) {
+            isServiceRunningStatic = running
+        }
+
         fun startService(context: Context) {
             val serviceIntent = Intent(context, AudioRecordingService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -129,10 +141,12 @@ class AudioRecordingService : Service() {
             } else {
                 context.startService(serviceIntent)
             }
+            setServiceRunning(true)
         }
 
         fun stopService(context: Context) {
             context.stopService(Intent(context, AudioRecordingService::class.java))
+            setServiceRunning(false)
         }
     }
 }

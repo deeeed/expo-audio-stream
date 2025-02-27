@@ -11,6 +11,7 @@ import {
     useSharedAudioRecorder,
 } from './AudioRecorder.provider'
 import ExpoAudioStreamModule from './ExpoAudioStreamModule'
+import { trimAudio } from './trimAudio'
 import { useAudioRecorder } from './useAudioRecorder'
 
 export * from './utils/convertPCMToFloat32'
@@ -23,15 +24,11 @@ export {
     extractRawWavAnalysis as extractWavAudioAnalysis,
     extractAudioAnalysis,
     extractPreview,
+    trimAudio,
     extractAudioData,
     useAudioRecorder,
     useSharedAudioRecorder,
 }
 
 export type * from './AudioAnalysis/AudioAnalysis.types'
-
 export type * from './ExpoAudioStream.types'
-export type {
-    ExtractWavAudioAnalysisProps,
-    ExtractAudioAnalysisProps,
-} from './AudioAnalysis/extractAudioAnalysis'
