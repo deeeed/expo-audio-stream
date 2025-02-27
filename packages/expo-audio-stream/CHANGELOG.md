@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.0.0] - 2025-02-27
+### Changed
+- feat(playground): Enhance Audio Playground with Improved UX and Sample Audio Loading (#148) ([09d2794](https://github.com/deeeed/expo-audio-stream/commit/09d27940dcffa60e662c828742f4577bca5327f9))
+- feat: Implement Enhanced Audio Transcription Workflow with Configurable Extraction and UI Updates (#147) ([c658c7e](https://github.com/deeeed/expo-audio-stream/commit/c658c7e8531dd731b01d9347bc7c744470a3b7b9))
+- fix: audio recording reliability improvements and web IndexedDB management (#146) ([d4fa245](https://github.com/deeeed/expo-audio-stream/commit/d4fa245c46d487fe50c6454165efc2e1032ec126))
+- feat(transcription): refactor and unify transcription services across platforms (#145) ([a94b905](https://github.com/deeeed/expo-audio-stream/commit/a94b90562fb2112f712f78c03ca6a5110d6b1401))
+- feat(audio): enhance checksum verification and audio segment analysis (#143) ([49b6587](https://github.com/deeeed/expo-audio-stream/commit/49b65877d1fd9922f25b4892261c4fedf02ba3c3))
+- feat(playground): implement cross-platform ONNX runtime with Silero VAD model (#142) ([4a94639](https://github.com/deeeed/expo-audio-stream/commit/4a9463995f1eadf6531a2b4d6d057e90da097920))
+- feat(audio-analysis): enhance audio analysis and visualization capabilities (#141) ([ecf8f5d](https://github.com/deeeed/expo-audio-stream/commit/ecf8f5daf967bf27afb827c8cf6bca7510ce7b4e))
+- android 15 (#140) ([5321a3c](https://github.com/deeeed/expo-audio-stream/commit/5321a3c805d22e6824fd11fee4290987d550bd06))
+- refactor(audio): consolidate audio analysis APIs and migrate to segment-based processing (#139) ([5d45da8](https://github.com/deeeed/expo-audio-stream/commit/5d45da871ee1849898405ee4bf8bf8d296aebc48))
+- feat: pcm player (#137) ([8db6f16](https://github.com/deeeed/expo-audio-stream/commit/8db6f16f13cbcf78fd4a8e412bb00689e47d5a72))
+- feat(audio-stream): add extractAudioData API ([faf8915](https://github.com/deeeed/expo-audio-stream/commit/faf8915df3b18ea54ca7e562f61749d7cadf8bb4))
+- feat(audio): improve audio trimming and waveform visualization (#136) ([ad5514b](https://github.com/deeeed/expo-audio-stream/commit/ad5514b412eedc7211cb200cc3747e8a83afbf88))
+- feat(audio): enhance audio player with preview, trimming and feature analysis (#135) ([3f7eb9c](https://github.com/deeeed/expo-audio-stream/commit/3f7eb9cde7b314505d8ed3e4704c7b1321da6b15))
+- feat: add web permission for microphone (#131) ([9a2ed7f](https://github.com/deeeed/expo-audio-stream/commit/9a2ed7f31ad41560d094a22d1248034cb2f5886d))
+- refactor(audio): simplify amplitude analysis and remove redundant configuration (#133) ([5d64aa2](https://github.com/deeeed/expo-audio-stream/commit/5d64aa22299836cc9cb925d3e91f3d9470f3e856))
+- feat: add full audio analysis with spectral features and time range controls (#132) ([5677dc3](https://github.com/deeeed/expo-audio-stream/commit/5677dc321f5a9ff4bea37fbbce3cb6ae3aad67f6))
+- chore(expo-audio-stream): release @siteed/expo-audio-stream@1.17.0 ([689aead](https://github.com/deeeed/expo-audio-stream/commit/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db))
 ## [1.17.0] - 2025-02-18
 ### Changed
 - feat(web): add audio interval analysis ([281b7e6](https://github.com/deeeed/expo-audio-stream/commit/281b7e6b1136afe0569450a9d1e3d5f01da7af28))
@@ -135,7 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.17.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@2.0.0...HEAD
+[2.0.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.17.0...@siteed/expo-audio-stream@2.0.0
 [1.17.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.16.0...@siteed/expo-audio-stream@1.17.0
 [1.16.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.15.1...@siteed/expo-audio-stream@1.16.0
 [1.15.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.15.0...@siteed/expo-audio-stream@1.15.1
