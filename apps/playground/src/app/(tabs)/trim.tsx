@@ -2,13 +2,14 @@ import { AppTheme, Notice, NumberAdjuster, ScreenWrapper, useTheme, useToast } f
 import { trimAudio, TrimAudioOptions, TrimAudioResult } from '@siteed/expo-audio-stream'
 import { AudioTimeRangeSelector } from '@siteed/expo-audio-ui'
 import * as DocumentPicker from 'expo-document-picker'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, ProgressBar, SegmentedButtons, Text } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import TrimVisualization from '../../components/TrimVisualization'
 import { baseLogger } from '../../config'
 import { useSampleAudio } from '../../hooks/useSampleAudio'
+import { Audio, AVPlaybackStatus } from 'expo-av'
 
 const logger = baseLogger.extend('TrimScreen')
 
@@ -73,13 +74,17 @@ export default function TrimScreen() {
     const [error, setError] = useState<string>()
     const [progress, setProgress] = useState(0)
     const [trimResult, setTrimResult] = useState<TrimAudioResult | null>(null)
+    const [sound, setSound] = useState<Audio.Sound | null>(null)
+    const [isPlaying, setIsPlaying] = useState(false)
+    const [playbackPosition, setPlaybackPosition] = useState(0)
+    const playbackPositionRef = useRef(0)
 
     // Trim parameters
     const [trimMode, setTrimMode] = useState<'single' | 'keep' | 'remove'>('single')
     const [startTime, setStartTime] = useState<number>(0)
     const [endTime, setEndTime] = useState<number>(10000)
     const [timeRanges, setTimeRanges] = useState<TimeRange[]>([])
-    const [outputFormat, setOutputFormat] = useState<'wav' | 'aac' | 'mp3' | 'opus'>('wav')
+    const [outputFormat, setOutputFormat] = useState<'wav' | 'aac'>('wav')
     const [showManualInput, setShowManualInput] = useState(false)
 
     // Add this to your state declarations
@@ -106,31 +111,76 @@ export default function TrimScreen() {
 
             if (result.canceled) return
 
+            const fileUri = result.assets[0].uri
+            const mimeType = result.assets[0].mimeType ?? 'audio/*'
+            const filename = result.assets[0].name ?? 'Unknown'
+            
+            // Show loading toast
+            show({
+                loading: true,
+                message: 'Loading audio file...'
+            })
+            
+            // Get audio duration by loading the file with Expo AV
+            let durationMs = 0
+            
+            // Create a temporary sound object to get metadata
+            const { sound: tempSound } = await Audio.Sound.createAsync(
+                { uri: fileUri },
+                { shouldPlay: false },
+                null,
+                true // Download first for accurate metadata
+            )
+            
+            try {
+                // Play and immediately stop to get accurate duration
+                await tempSound.playAsync()
+                await tempSound.stopAsync()
+                
+                // Get the loaded status to access metadata
+                const loadedStatus = await tempSound.getStatusAsync()
+                
+                if (loadedStatus.isLoaded) {
+                    durationMs = loadedStatus.durationMillis || 0
+                    
+                    console.log('Audio metadata loaded', {
+                        durationMs,
+                        filename
+                    })
+                }
+            } catch (error) {
+                console.warn('Error getting audio metadata:', error)
+            } finally {
+                // Always unload the temporary sound
+                await tempSound.unloadAsync()
+            }
+            
             const newFile = {
-                fileUri: result.assets[0].uri,
-                mimeType: result.assets[0].mimeType ?? 'audio/*',
-                filename: result.assets[0].name ?? 'Unknown'
+                fileUri,
+                mimeType,
+                filename,
+                durationMs
             }
             
             setCurrentFile(newFile)
+            
+            // Set the end time to match the actual duration
+            setEndTime(durationMs)
+            
             setTrimResult(null)
             setError(undefined)
             setProgress(0)
             
             // Automatically select matching output format based on file type
-            const mimeType = newFile.mimeType.toLowerCase()
-            const extension = newFile.filename.split('.').pop()?.toLowerCase() || ''
+            const lowerMimeType = mimeType.toLowerCase()
+            const extension = filename.split('.').pop()?.toLowerCase() || ''
             
-            if (mimeType.includes('wav') || extension === 'wav') {
+            if (lowerMimeType.includes('wav') || extension === 'wav') {
                 setOutputFormat('wav')
-            } else if (mimeType.includes('aac') || extension === 'aac') {
+            } else {
+                // Default to 'aac' for any other format
                 setOutputFormat('aac')
-            } else if (mimeType.includes('mp3') || extension === 'mp3') {
-                setOutputFormat('mp3')
-            } else if (mimeType.includes('opus') || extension === 'opus') {
-                setOutputFormat('opus')
             }
-            // If no match, keep current format
             
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load audio')
@@ -158,11 +208,14 @@ export default function TrimScreen() {
                 fileUri: sampleFile.uri,
                 mimeType: 'audio/mp3',
                 filename: 'JFK Speech Sample',
-                durationMs: 60000 // Approximate duration for the sample
+                durationMs: sampleFile.durationMs // Use the actual duration from the sample file
             })
             
-            // Set output format to match the sample file (mp3)
-            setOutputFormat('mp3')
+            // Set output format to 'aac' instead of 'mp3'
+            setOutputFormat('aac')
+            
+            // Also update the end time to match the actual duration
+            setEndTime(sampleFile.durationMs)
             
             setTrimResult(null)
             setError(undefined)
@@ -245,30 +298,66 @@ export default function TrimScreen() {
             setProgress(0)
             setError(undefined)
             setTrimResult(null)
+            
+            // Unload any existing sound
+            if (sound) {
+                await sound.unloadAsync()
+                setSound(null)
+                setIsPlaying(false)
+            }
 
             show({
                 loading: true,
                 message: 'Trimming audio...'
             })
 
+            // Validate trim range and ensure we're not trimming the entire file
+            // which seems to cause the native code to just copy the file
+            const maxDuration = currentFile.durationMs || 60000;
+            
+            // Make sure we're not trying to trim the entire file
+            let actualStartTime = Math.max(0, startTime);
+            let actualEndTime = Math.min(endTime, maxDuration);
+            
+            // If we're selecting the entire file (or very close to it), adjust the range slightly
+            if (actualStartTime <= 10 && actualEndTime >= maxDuration - 10) {
+                // Add a small offset to start and end to force actual trimming
+                actualStartTime = 10;
+                actualEndTime = maxDuration - 10;
+                
+                console.log(`Adjusted range to ${actualStartTime}ms - ${actualEndTime}ms to force trimming`);
+            }
+            
+            // Ensure we have a reasonable duration
+            if (actualEndTime - actualStartTime < 100) {
+                // If range is too small, adjust it
+                actualEndTime = actualStartTime + 100;
+                console.log(`Range too small, adjusted to ${actualStartTime}ms - ${actualEndTime}ms`);
+            }
+            
+            console.log(`Trimming audio from ${actualStartTime}ms to ${actualEndTime}ms (duration: ${actualEndTime - actualStartTime}ms)`);
+
             // Prepare trim options based on mode
             const trimOptions: TrimAudioOptions = {
                 fileUri: currentFile.fileUri,
                 mode: trimMode,
                 outputFormat: {
-                    format: outputFormat
+                    format: outputFormat,
+                    bitrate: outputFormat === 'wav' ? 16000 : 128000, // Higher bitrate for AAC
                 }
             }
 
             if (trimMode === 'single') {
-                trimOptions.startTimeMs = startTime
-                trimOptions.endTimeMs = endTime
+                trimOptions.startTimeMs = actualStartTime;
+                trimOptions.endTimeMs = actualEndTime;
             } else {
                 // For keep or remove modes, use the time ranges
-                trimOptions.ranges = timeRanges.map(range => ({
-                    startTimeMs: range.startTimeMs,
-                    endTimeMs: range.endTimeMs
-                }))
+                // Make sure none of the ranges cover the entire file
+                trimOptions.ranges = timeRanges.map(range => {
+                    const start = Math.max(10, range.startTimeMs);
+                    const end = Math.min(range.endTimeMs, maxDuration - 10);
+                    return { startTimeMs: start, endTimeMs: end };
+                });
             }
 
             // Execute trim with progress callback
@@ -300,7 +389,105 @@ export default function TrimScreen() {
         } finally {
             setIsProcessing(false)
         }
-    }, [currentFile, trimMode, startTime, endTime, timeRanges, outputFormat, show])
+    }, [currentFile, trimMode, startTime, endTime, timeRanges, outputFormat, show, sound])
+
+
+    // Add this function to handle playback status updates
+    const onPlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
+        if (!status.isLoaded) return
+        
+        // Update position for progress tracking
+        if (status.positionMillis !== undefined) {
+            playbackPositionRef.current = status.positionMillis
+            setPlaybackPosition(status.positionMillis)
+        }
+        
+        // Handle playback state
+        if (status.isPlaying !== undefined) {
+            setIsPlaying(status.isPlaying)
+        }
+        
+        // Handle playback completion
+        if (status.didJustFinish) {
+            setIsPlaying(false)
+            setPlaybackPosition(0)
+            playbackPositionRef.current = 0
+        }
+    }, [])
+    
+
+    // Add this function to handle audio playback
+    const playTrimmedAudio = useCallback(async () => {
+        try {
+            // If sound is already loaded, unload it first
+            if (sound) {
+                await sound.unloadAsync()
+                setSound(null)
+                setIsPlaying(false)
+                setPlaybackPosition(0)
+                playbackPositionRef.current = 0
+            }
+            
+            // Show loading toast
+            show({
+                loading: true,
+                message: 'Loading audio...',
+                duration: 1000
+            })
+            
+            // Create and load the sound
+            const { sound: newSound } = await Audio.Sound.createAsync(
+                { uri: trimResult?.uri || '' },
+                { shouldPlay: true },
+                onPlaybackStatusUpdate
+            )
+            
+            // Set the sound state
+            setSound(newSound)
+            setIsPlaying(true)
+            
+            // Play the sound
+            await newSound.playAsync()
+            
+        } catch (err) {
+            console.error('Error playing audio:', err)
+            show({
+                type: 'error',
+                message: 'Failed to play audio',
+                duration: 3000
+            })
+        }
+    }, [trimResult, sound, show, onPlaybackStatusUpdate])
+    
+    // Add this function to toggle play/pause
+    const togglePlayback = useCallback(async () => {
+        if (!sound) return
+        
+        if (isPlaying) {
+            await sound.pauseAsync()
+        } else {
+            await sound.playAsync()
+        }
+    }, [sound, isPlaying])
+    
+    // Add this function to stop playback
+    const stopPlayback = useCallback(async () => {
+        if (!sound) return
+        
+        await sound.stopAsync()
+        await sound.setPositionAsync(0)
+        setPlaybackPosition(0)
+        playbackPositionRef.current = 0
+    }, [sound])
+    
+    // Clean up sound when component unmounts
+    useEffect(() => {
+        return () => {
+            if (sound) {
+                sound.unloadAsync()
+            }
+        }
+    }, [sound])
 
     const renderSingleModeControls = () => (
         <View>
@@ -613,12 +800,10 @@ export default function TrimScreen() {
                             <Text variant="titleMedium" style={{ marginBottom: 8 }}>Output Format</Text>
                             <SegmentedButtons
                                 value={outputFormat}
-                                onValueChange={(value) => setOutputFormat(value as 'wav' | 'aac' | 'mp3' | 'opus')}
+                                onValueChange={(value) => setOutputFormat(value as 'wav' | 'aac')}
                                 buttons={[
                                     { value: 'wav', label: 'WAV' },
                                     { value: 'aac', label: 'AAC' },
-                                    { value: 'mp3', label: 'MP3' },
-                                    { value: 'opus', label: 'Opus' },
                                 ]}
                             />
                         </View>
@@ -678,6 +863,55 @@ export default function TrimScreen() {
                                 <Text>Size: {(trimResult.compression.size / 1024).toFixed(1)} KB</Text>
                             </View>
                         )}
+                        
+                        {/* Add playback controls */}
+                        <View style={{ marginTop: 16, gap: 12 }}>
+                            <Text variant="titleSmall">Playback</Text>
+                            
+                            {/* Progress bar */}
+                            {sound && (
+                                <View>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                        <Text>{(playbackPosition / 1000).toFixed(1)}s</Text>
+                                        <Text>{(trimResult.durationMs / 1000).toFixed(1)}s</Text>
+                                    </View>
+                                    <ProgressBar 
+                                        progress={trimResult.durationMs > 0 ? playbackPosition / trimResult.durationMs : 0} 
+                                        color={colors.primary} 
+                                    />
+                                </View>
+                            )}
+                            
+                            {/* Playback buttons */}
+                            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16 }}>
+                                {!sound ? (
+                                    <Button 
+                                        mode="contained" 
+                                        onPress={playTrimmedAudio}
+                                        icon="play"
+                                    >
+                                        Play Audio
+                                    </Button>
+                                ) : (
+                                    <>
+                                        <Button 
+                                            mode="contained" 
+                                            onPress={togglePlayback}
+                                            icon={isPlaying ? "pause" : "play"}
+                                        >
+                                            {isPlaying ? "Pause" : "Play"}
+                                        </Button>
+                                        <Button 
+                                            mode="outlined" 
+                                            onPress={stopPlayback}
+                                            icon="stop"
+                                        >
+                                            Stop
+                                        </Button>
+                                    </>
+                                )}
+                            </View>
+                        </View>
                     </View>
                 )}
             </View>

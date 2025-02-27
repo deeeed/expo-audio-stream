@@ -42,6 +42,8 @@ class AudioTrimmer(
     ): Map<String, Any> {
         val startTime = System.currentTimeMillis()
         Log.d(TAG, "Starting audio trim operation: mode=$mode, fileUri=$fileUri")
+        Log.d(TAG, "Parameters: startTimeMs=$startTimeMs, endTimeMs=$endTimeMs, ranges=$ranges")
+        Log.d(TAG, "Output format options: $outputFormat")
 
         try {
             // Resolve the input file URI
@@ -62,11 +64,20 @@ class AudioTrimmer(
             // Create output file
             val formatOptions = outputFormat ?: mapOf()
             val formatStr = formatOptions["format"] as? String ?: "wav"
+            Log.d(TAG, "Using format string: $formatStr")
+            
+            // Determine the appropriate extension and format
+            // For non-WAV formats, we'll use AAC in an MP4 container
             val extension = when (formatStr) {
-                "aac" -> "aac"
-                "mp3" -> "mp3"
-                "opus" -> "opus"
-                else -> "wav"
+                "wav" -> "wav"
+                else -> "aac" // Force AAC for all other formats for compatibility
+            }
+            
+            Log.d(TAG, "Using output extension: $extension")
+            
+            // Add a warning log if the requested format is not supported
+            if (formatStr != "wav" && formatStr != "aac") {
+                Log.w(TAG, "Requested format '$formatStr' is not supported. Using 'aac' instead.")
             }
             
             val outputFile = if (outputFileName != null) {
@@ -74,6 +85,8 @@ class AudioTrimmer(
             } else {
                 fileHandler.createAudioFile(extension)
             }
+            
+            Log.d(TAG, "Created output file: ${outputFile.absolutePath}")
             
             // Determine the time ranges to process based on the mode
             val timeRanges = when (mode) {
@@ -112,27 +125,67 @@ class AudioTrimmer(
             var bytesProcessed = 0L
             
             // Process the audio file based on format
-            if (mimeType.contains("wav") && extension == "wav") {
-                // For WAV to WAV, we can directly process the PCM data
-                processWavFile(
-                    inputUri, 
-                    outputFile, 
-                    timeRanges, 
-                    formatOptions
-                ) { progress, bytes, _ ->
-                    bytesProcessed += bytes
-                    progressListener?.onProgress(progress, bytesProcessed, totalBytes)
-                }
+            if (extension == "wav") {
+                // For any format to WAV conversion, use processToWav which properly decodes to PCM
+                val config = DecodingConfig(
+                    targetSampleRate = formatOptions["sampleRate"] as? Int,
+                    targetChannels = formatOptions["channels"] as? Int,
+                    targetBitDepth = formatOptions["bitDepth"] as? Int ?: 16,
+                    normalizeAudio = false
+                )
+                
+                processToWav(
+                    inputUri,
+                    outputFile,
+                    timeRanges,
+                    config,
+                    progressListener
+                )
             } else {
-                // For other formats or format conversions, use MediaExtractor/MediaMuxer
-                processCompressedAudio(
-                    inputUri, 
-                    outputFile, 
-                    timeRanges, 
-                    formatOptions
-                ) { progress, bytes, _ ->
-                    bytesProcessed += bytes
-                    progressListener?.onProgress(progress, bytesProcessed, totalBytes)
+                // For AAC output, we need to decode to PCM first, then encode to AAC
+                // This is more reliable than trying to copy frames directly
+                val tempWavFile = File(context.filesDir, "temp_${System.currentTimeMillis()}.wav")
+                
+                try {
+                    // First decode to WAV
+                    val config = DecodingConfig(
+                        targetSampleRate = formatOptions["sampleRate"] as? Int,
+                        targetChannels = formatOptions["channels"] as? Int,
+                        targetBitDepth = 16, // Use 16-bit for compatibility
+                        normalizeAudio = false
+                    )
+                    
+                    // Process to temporary WAV file
+                    processToWav(
+                        inputUri,
+                        tempWavFile,
+                        timeRanges,
+                        config,
+                        object : ProgressListener {
+                            override fun onProgress(progress: Float, bytesProcessed: Long, totalBytes: Long) {
+                                // Report half the progress for the first step
+                                progressListener?.onProgress(progress / 2, bytesProcessed, totalBytes)
+                            }
+                        }
+                    )
+                    
+                    // Now encode the WAV to AAC using Android's MediaCodec
+                    encodeWavToAac(
+                        tempWavFile,
+                        outputFile,
+                        formatOptions,
+                        object : ProgressListener {
+                            override fun onProgress(progress: Float, bytesProcessed: Long, totalBytes: Long) {
+                                // Report the second half of progress
+                                progressListener?.onProgress(50 + progress / 2, bytesProcessed, totalBytes)
+                            }
+                        }
+                    )
+                } finally {
+                    // Clean up temp file
+                    if (tempWavFile.exists()) {
+                        tempWavFile.delete()
+                    }
                 }
             }
             
@@ -196,7 +249,9 @@ class AudioTrimmer(
                 "sampleRate" to sampleRate,
                 "channels" to channels,
                 "bitDepth" to bitDepth,
-                "mimeType" to "audio/$extension"
+                "mimeType" to "audio/$extension",
+                "requestedFormat" to formatStr, // Add the originally requested format
+                "actualFormat" to extension     // Add the actual format used
             )
             
             // Add compression info if not WAV
@@ -378,127 +433,192 @@ class AudioTrimmer(
         // Get file duration using MediaMetadataRetriever for consistency
         val retriever = MediaMetadataRetriever()
         retriever.setDataSource(context, inputUri)
+        val mimeType = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
+        Log.d(TAG, "Input file mime type: $mimeType")
         retriever.release()
-        
+
         val extractor = MediaExtractor()
         extractor.setDataSource(context, inputUri, null)
-        
+
         // Find the audio track
         val audioTrackIndex = selectTrack(extractor)
         if (audioTrackIndex < 0) {
             throw IOException("No audio track found in $inputUri")
         }
-        
+
         extractor.selectTrack(audioTrackIndex)
         val format = extractor.getTrackFormat(audioTrackIndex)
-        
+
+        // Log the original format details
+        Log.d(TAG, "Original format: $format")
+
         // Create a new MediaFormat object instead of cloning
         val outputMediaFormat = MediaFormat()
-        
+
+        // Get the input MIME type
+        val inputMime = format.getString(MediaFormat.KEY_MIME)
+        Log.d(TAG, "Input MIME type from format: $inputMime")
+
+        // Determine output MIME type based on format options
+        // MediaMuxer only reliably supports AAC for audio in MP4 container
+        val outputMime = MediaFormat.MIMETYPE_AUDIO_AAC
+
+        Log.d(TAG, "Using output MIME type: $outputMime")
+        outputMediaFormat.setString(MediaFormat.KEY_MIME, outputMime)
+
         // Copy essential properties from the original format
-        if (format.containsKey(MediaFormat.KEY_MIME)) {
-            outputMediaFormat.setString(MediaFormat.KEY_MIME, format.getString(MediaFormat.KEY_MIME))
-        }
         if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
-            outputMediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, format.getInteger(MediaFormat.KEY_SAMPLE_RATE))
+            val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            outputMediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, sampleRate)
+            Log.d(TAG, "Setting sample rate: $sampleRate")
         }
         if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
-            outputMediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, format.getInteger(MediaFormat.KEY_CHANNEL_COUNT))
+            val channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            outputMediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, channelCount)
+            Log.d(TAG, "Setting channel count: $channelCount")
         }
-        if (format.containsKey(MediaFormat.KEY_BIT_RATE)) {
-            outputMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, format.getInteger(MediaFormat.KEY_BIT_RATE))
+
+        // Set a reasonable default bitrate if not present in original
+        val defaultBitrate = 128000 // 128kbps
+        val bitRate = if (format.containsKey(MediaFormat.KEY_BIT_RATE)) {
+            format.getInteger(MediaFormat.KEY_BIT_RATE)
+        } else {
+            defaultBitrate
         }
-        
+        outputMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+        Log.d(TAG, "Setting bit rate: $bitRate")
+
         // Set output format parameters if specified
         formatOptions["sampleRate"]?.let {
-            outputMediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, (it as Number).toInt())
+            val sampleRate = (it as Number).toInt()
+            outputMediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, sampleRate)
+            Log.d(TAG, "Overriding sample rate with: $sampleRate")
         }
-        
+
         formatOptions["channels"]?.let {
-            outputMediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, (it as Number).toInt())
+            val channels = (it as Number).toInt()
+            outputMediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, channels)
+            Log.d(TAG, "Overriding channel count with: $channels")
         }
-        
+
         formatOptions["bitrate"]?.let {
-            outputMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, (it as Number).toInt())
+            val bitrate = (it as Number).toInt()
+            outputMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
+            Log.d(TAG, "Overriding bit rate with: $bitrate")
         }
-        
+
         // Create a new muxer
-        val muxerFormat = when (formatOptions["format"] as? String) {
-            "aac", "mp3", "opus" -> MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
-            else -> MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4 // Default
-        }
-        
+        val muxerFormat = MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4 // Always use MP4 container
+
+        Log.d(TAG, "Creating MediaMuxer with format: $muxerFormat for output file: ${outputFile.absolutePath}")
         val muxer = MediaMuxer(outputFile.absolutePath, muxerFormat)
-        val trackIndex = muxer.addTrack(outputMediaFormat)
-        muxer.start()
-        
-        // Process each time range
-        val buffer = ByteBuffer.allocate(BUFFER_SIZE)
-        val bufferInfo = android.media.MediaCodec.BufferInfo()
-        
-        var totalBytesProcessed = 0L
-        val totalRangeDuration = calculateOutputDuration(timeRanges)
-        var currentRangeProcessed = 0L
-        
-        for (range in timeRanges) {
-            val startTimeUs = (range["startTimeMs"] ?: 0) * 1000
-            val endTimeUs = (range["endTimeMs"] ?: Long.MAX_VALUE) * 1000
-            
-            extractor.seekTo(startTimeUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
-            
-            var rangeBytes = 0L
-            val rangeDuration = (range["endTimeMs"] ?: 0) - (range["startTimeMs"] ?: 0)
-            
-            while (true) {
-                val sampleSize = extractor.readSampleData(buffer, 0)
-                if (sampleSize < 0) {
-                    break
+
+        try {
+            Log.d(TAG, "Adding track with format: $outputMediaFormat")
+            val trackIndex = muxer.addTrack(outputMediaFormat)
+            Log.d(TAG, "Track added successfully with index: $trackIndex")
+            muxer.start()
+
+            // Process each time range
+            val buffer = ByteBuffer.allocate(BUFFER_SIZE)
+            val bufferInfo = android.media.MediaCodec.BufferInfo()
+
+            var totalBytesProcessed = 0L
+            val totalRangeDuration = calculateOutputDuration(timeRanges)
+            var currentRangeProcessed = 0L
+            val muxerStarted = true // Add flag to track muxer state
+
+            for (range in timeRanges) {
+                val startTimeUs = (range["startTimeMs"] ?: 0) * 1000
+                val endTimeUs = (range["endTimeMs"] ?: Long.MAX_VALUE) * 1000
+
+                extractor.seekTo(startTimeUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+
+                var rangeBytes = 0L
+                val rangeDuration = (range["endTimeMs"] ?: 0) - (range["startTimeMs"] ?: 0)
+                var samplesWritten = 0 // Track if we've written any samples
+
+                while (true) {
+                    val sampleSize = extractor.readSampleData(buffer, 0)
+                    if (sampleSize < 0) {
+                        break
+                    }
+
+                    val sampleTime = extractor.sampleTime
+                    if (sampleTime > endTimeUs) {
+                        break
+                    }
+
+                    bufferInfo.size = sampleSize
+                    bufferInfo.offset = 0
+
+                    // Map MediaExtractor sample flags to MediaCodec buffer flags
+                    val sampleFlags = extractor.sampleFlags
+                    bufferInfo.flags = when {
+                        (sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC) != 0 ->
+                            android.media.MediaCodec.BUFFER_FLAG_KEY_FRAME
+                        else -> 0
+                    }
+
+                    bufferInfo.presentationTimeUs = sampleTime - startTimeUs + currentRangeProcessed * 1000
+
+                    muxer.writeSampleData(trackIndex, buffer, bufferInfo)
+                    samplesWritten++
+
+                    extractor.advance()
+
+                    // Update progress
+                    rangeBytes += sampleSize
+                    totalBytesProcessed += sampleSize
+
+                    // Calculate progress based on time
+                    val currentTimeInRange = (sampleTime - startTimeUs) / 1000
+
+                    // Calculate overall progress directly
+                    val overallProgress = (currentRangeProcessed + currentTimeInRange).toFloat() / totalRangeDuration
+
+                    progressCallback(overallProgress * 100, sampleSize.toLong(), totalRangeDuration)
                 }
+
+                currentRangeProcessed += rangeDuration
                 
-                val sampleTime = extractor.sampleTime
-                if (sampleTime > endTimeUs) {
-                    break
+                // If we didn't write any samples for this range, log a warning
+                if (samplesWritten == 0) {
+                    Log.w(TAG, "No samples written for range: startTimeMs=${range["startTimeMs"]}, endTimeMs=${range["endTimeMs"]}")
                 }
-                
-                bufferInfo.size = sampleSize
-                bufferInfo.offset = 0
-                
-                // Map MediaExtractor sample flags to MediaCodec buffer flags
-                val sampleFlags = extractor.sampleFlags
-                bufferInfo.flags = when {
-                    (sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC) != 0 -> 
-                        android.media.MediaCodec.BUFFER_FLAG_KEY_FRAME
-                    else -> 0
-                }
-                
-                bufferInfo.presentationTimeUs = sampleTime - startTimeUs + currentRangeProcessed * 1000
-                
-                muxer.writeSampleData(trackIndex, buffer, bufferInfo)
-                
-                extractor.advance()
-                
-                // Update progress
-                rangeBytes += sampleSize
-                totalBytesProcessed += sampleSize
-                
-                // Calculate progress based on time
-                val currentTimeInRange = (sampleTime - startTimeUs) / 1000
-                
-                // Calculate overall progress directly
-                val overallProgress = (currentRangeProcessed + currentTimeInRange).toFloat() / totalRangeDuration
-                
-                progressCallback(overallProgress * 100, sampleSize.toLong(), totalRangeDuration)
             }
             
-            currentRangeProcessed += rangeDuration
+            // Only stop if we've actually started and written data
+            if (muxerStarted) {
+                try {
+                    Log.d(TAG, "Stopping muxer...")
+                    muxer.stop()
+                    Log.d(TAG, "Muxer stopped successfully")
+                } catch (e: IllegalStateException) {
+                    // This can happen if no samples were written or muxer is already stopped
+                    Log.w(TAG, "Error stopping muxer: ${e.message}. This may be normal if no samples were written.")
+                    // Don't rethrow - we'll still release the muxer
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in processCompressedAudio", e)
+            throw e
+        } finally {
+            // Always release resources in finally block
+            try {
+                muxer.release()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error releasing muxer: ${e.message}")
+            }
+            
+            try {
+                extractor.release()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error releasing extractor: ${e.message}")
+            }
         }
-        
-        // Clean up
-        muxer.stop()
-        muxer.release()
-        extractor.release()
     }
-    
+
     private fun selectTrack(extractor: MediaExtractor): Int {
         val numTracks = extractor.trackCount
         for (i in 0 until numTracks) {
@@ -509,5 +629,254 @@ class AudioTrimmer(
             }
         }
         return -1
+    }
+
+    private fun processToWav(
+        inputUri: Uri,
+        outputFile: File,
+        timeRanges: List<Map<String, Long>>,
+        config: DecodingConfig,
+        progressListener: ProgressListener?
+    ) {
+        val audioProcessor = AudioProcessor(context.filesDir)
+        
+        // Create output file with WAV header
+        FileOutputStream(outputFile).use { outputStream ->
+            // We'll write the header at the end when we know the total size
+            var totalBytes = 0L
+            var totalProgress = 0f
+            val totalRanges = timeRanges.size
+            
+            // Process each time range
+            for ((index, range) in timeRanges.withIndex()) {
+                val startTimeMs = range["startTimeMs"] ?: 0
+                val endTimeMs = range["endTimeMs"] ?: 0
+                val rangeDuration = endTimeMs - startTimeMs
+                
+                Log.d(TAG, "Processing range $index: $startTimeMs-$endTimeMs ms")
+                
+                // Load just this range of audio
+                val audioData = audioProcessor.loadAudioRange(
+                    fileUri = inputUri.toString(),
+                    startTimeMs = startTimeMs,
+                    endTimeMs = endTimeMs,
+                    config = config
+                ) ?: throw IOException("Failed to load audio range $startTimeMs-$endTimeMs")
+                
+                // For the first range, write the WAV header
+                if (index == 0) {
+                    fileHandler.writeWavHeader(
+                        outputStream,
+                        audioData.sampleRate,
+                        audioData.channels,
+                        audioData.bitDepth
+                    )
+                }
+                
+                // Write the PCM data for this range
+                outputStream.write(audioData.data)
+                totalBytes += audioData.data.size
+                
+                // Update progress
+                val rangeProgress = (index + 1).toFloat() / totalRanges
+                totalProgress = rangeProgress * 100
+                progressListener?.onProgress(totalProgress, audioData.data.size.toLong(), rangeDuration)
+                
+                Log.d(TAG, "Range $index processed: ${audioData.data.size} bytes, ${audioData.durationMs} ms")
+            }
+        }
+        
+        // Update WAV header with correct file size
+        fileHandler.updateWavHeader(outputFile)
+        
+        Log.d(TAG, "WAV file created successfully: ${outputFile.absolutePath}")
+    }
+
+    /**
+     * Encodes a WAV file to AAC format using MediaCodec
+     */
+    private fun encodeWavToAac(
+        inputWavFile: File,
+        outputAacFile: File,
+        formatOptions: Map<String, Any>,
+        progressListener: ProgressListener?
+    ) {
+        Log.d(TAG, "Encoding WAV to AAC: ${inputWavFile.absolutePath} -> ${outputAacFile.absolutePath}")
+        
+        // Get WAV file details
+        val audioProcessor = AudioProcessor(context.filesDir)
+        val audioFormat = audioProcessor.getAudioFormat(inputWavFile.absolutePath)
+            ?: throw IOException("Failed to get audio format from WAV file")
+        
+        val sampleRate = formatOptions["sampleRate"] as? Int ?: audioFormat.sampleRate
+        val channels = formatOptions["channels"] as? Int ?: audioFormat.channels
+        val bitrate = formatOptions["bitrate"] as? Int ?: 128000
+        
+        // Load the entire WAV file as PCM data
+        val audioData = audioProcessor.loadAudioFromAnyFormat(
+            inputWavFile.absolutePath,
+            DecodingConfig(
+                targetSampleRate = sampleRate,
+                targetChannels = channels,
+                targetBitDepth = 16,
+                normalizeAudio = false
+            )
+        ) ?: throw IOException("Failed to load WAV file")
+        
+        // Set up MediaCodec for AAC encoding
+        val mediaFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, channels)
+        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
+        mediaFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, android.media.MediaCodecInfo.CodecProfileLevel.AACObjectLC)
+        mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 16384)
+        
+        val encoder = android.media.MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
+        encoder.configure(mediaFormat, null, null, android.media.MediaCodec.CONFIGURE_FLAG_ENCODE)
+        encoder.start()
+        
+        // Set up MediaMuxer for MP4 container
+        val muxer = MediaMuxer(outputAacFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        var trackIndex = -1
+        var muxerStarted = false
+        
+        try {
+            val bufferInfo = android.media.MediaCodec.BufferInfo()
+            val timeoutUs = 10000L
+            var presentationTimeUs = 0L
+            var totalBytesProcessed = 0L
+            val totalBytes = audioData.data.size.toLong()
+            var allInputSubmitted = false
+            var encoderDone = false
+            
+            // Calculate bytes per frame
+            val bytesPerSample = audioData.bitDepth / 8
+            val bytesPerFrame = bytesPerSample * audioData.channels
+            val frameSizeInBytes = 1024 * bytesPerFrame // Process 1024 samples at a time
+            
+            // Process the PCM data in chunks
+            var inputOffset = 0
+            
+            while (!encoderDone) {
+                // Submit input data if we have any left
+                if (!allInputSubmitted) {
+                    val inputBufferIndex = encoder.dequeueInputBuffer(timeoutUs)
+                    if (inputBufferIndex >= 0) {
+                        val inputBuffer = encoder.getInputBuffer(inputBufferIndex)
+                        inputBuffer?.clear()
+                        
+                        // Calculate how many bytes to read
+                        val bytesToRead = if (inputOffset + frameSizeInBytes <= audioData.data.size) {
+                            frameSizeInBytes
+                        } else {
+                            audioData.data.size - inputOffset
+                        }
+                        
+                        if (bytesToRead > 0) {
+                            // Copy data to the input buffer
+                            inputBuffer?.put(audioData.data, inputOffset, bytesToRead)
+                            
+                            // Calculate presentation time in microseconds
+                            val frameDurationUs = (bytesToRead * 1000000L) / (sampleRate * bytesPerFrame)
+                            
+                            // Submit the input buffer
+                            encoder.queueInputBuffer(
+                                inputBufferIndex,
+                                0,
+                                bytesToRead,
+                                presentationTimeUs,
+                                0
+                            )
+                            
+                            // Update state
+                            presentationTimeUs += frameDurationUs
+                            inputOffset += bytesToRead
+                            totalBytesProcessed += bytesToRead
+                            
+                            // Report progress
+                            val progress = (totalBytesProcessed * 100f) / totalBytes
+                            progressListener?.onProgress(progress, bytesToRead.toLong(), totalBytes)
+                        } else {
+                            // End of input
+                            encoder.queueInputBuffer(
+                                inputBufferIndex,
+                                0,
+                                0,
+                                presentationTimeUs,
+                                android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                            )
+                            allInputSubmitted = true
+                        }
+                    }
+                }
+                
+                // Get encoded output
+                val outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, timeoutUs)
+                if (outputBufferIndex == android.media.MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    // Encoder output format changed, must be the first before any data
+                    if (trackIndex >= 0) {
+                        throw RuntimeException("Format changed twice")
+                    }
+                    val newFormat = encoder.outputFormat
+                    Log.d(TAG, "Encoder output format changed: $newFormat")
+                    trackIndex = muxer.addTrack(newFormat)
+                    muxer.start()
+                    muxerStarted = true
+                } else if (outputBufferIndex >= 0) {
+                    // Got encoded data
+                    val encodedData = encoder.getOutputBuffer(outputBufferIndex)
+                    
+                    if (encodedData != null) {
+                        if ((bufferInfo.flags and android.media.MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                            // Codec config data, not actual media data
+                            bufferInfo.size = 0
+                        }
+                        
+                        if (bufferInfo.size > 0 && muxerStarted) {
+                            // Adjust buffer info offset and size for the buffer
+                            encodedData.position(bufferInfo.offset)
+                            encodedData.limit(bufferInfo.offset + bufferInfo.size)
+                            
+                            // Write to muxer
+                            muxer.writeSampleData(trackIndex, encodedData, bufferInfo)
+                        }
+                        
+                        // Release the output buffer
+                        encoder.releaseOutputBuffer(outputBufferIndex, false)
+                        
+                        // Check if we're done
+                        if ((bufferInfo.flags and android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                            encoderDone = true
+                        }
+                    }
+                }
+            }
+            
+            // Make sure we report 100% progress
+            progressListener?.onProgress(100f, totalBytes, totalBytes)
+            
+        } finally {
+            // Clean up resources
+            try {
+                encoder.stop()
+                encoder.release()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error releasing encoder: ${e.message}")
+            }
+            
+            if (muxerStarted) {
+                try {
+                    muxer.stop()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error stopping muxer: ${e.message}")
+                }
+            }
+            
+            try {
+                muxer.release()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error releasing muxer: ${e.message}")
+            }
+        }
+        
+        Log.d(TAG, "WAV to AAC encoding completed successfully")
     }
 } 

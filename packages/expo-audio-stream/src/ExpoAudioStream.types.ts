@@ -413,31 +413,29 @@ export interface TrimAudioOptions {
          * The format of the output audio file.
          * - `'wav'`: Waveform Audio File Format (uncompressed).
          * - `'aac'`: Advanced Audio Coding (compressed).
-         * - `'mp3'`: MPEG Audio Layer III (compressed).
-         * - `'opus'`: Opus Audio Codec (compressed).
          */
-        format: 'wav' | 'aac' | 'mp3' | 'opus'
+        format: 'wav' | 'aac'
 
         /**
          * The sample rate of the output audio in Hertz (Hz).
-         * - If not provided, the input audio’s sample rate is used.
+         * - If not provided, the input audio's sample rate is used.
          */
         sampleRate?: number
 
         /**
          * The number of channels in the output audio (e.g., 1 for mono, 2 for stereo).
-         * - If not provided, the input audio’s channel count is used.
+         * - If not provided, the input audio's channel count is used.
          */
         channels?: number
 
         /**
          * The bit depth of the output audio, applicable to PCM formats like `'wav'`.
-         * - If not provided, the input audio’s bit depth is used.
+         * - If not provided, the input audio's bit depth is used.
          */
         bitDepth?: number
 
         /**
-         * The bitrate of the output audio in bits per second, applicable to compressed formats like `'aac'`, `'mp3'`, `'opus'`.
+         * The bitrate of the output audio in bits per second, applicable to compressed formats like `'aac'`.
          * - If not provided, a default bitrate is used based on the format.
          */
         bitrate?: number

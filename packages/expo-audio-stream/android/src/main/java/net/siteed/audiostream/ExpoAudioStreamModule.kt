@@ -256,6 +256,9 @@ class ExpoAudioStreamModule : Module(), EventSender {
                     return@AsyncFunction
                 }
 
+                Log.d(Constants.TAG, "trimAudio called with fileUri: $fileUri")
+                Log.d(Constants.TAG, "Full options: $options")
+
                 val mode = options["mode"] as? String ?: "single"
                 val startTimeMs = (options["startTimeMs"] as? Number)?.toLong()
                 val endTimeMs = (options["endTimeMs"] as? Number)?.toLong()
@@ -266,7 +269,21 @@ class ExpoAudioStreamModule : Module(), EventSender {
                 val outputFileName = options["outputFileName"] as? String
                 
                 @Suppress("UNCHECKED_CAST")
-                val outputFormat = options["outputFormat"] as? Map<String, Any>
+                var outputFormatMap = options["outputFormat"] as? Map<String, Any>
+                
+                // Validate output format if provided
+                if (outputFormatMap != null) {
+                    val format = outputFormatMap["format"] as? String
+                    if (format != null && format != "wav" && format != "aac") {
+                        Log.w(Constants.TAG, "Requested format '$format' is not supported. Using 'aac' instead.")
+                        // Create a new map with the corrected format
+                        val newOutputFormat = HashMap<String, Any>(outputFormatMap)
+                        newOutputFormat["format"] = "aac"
+                        outputFormatMap = newOutputFormat
+                    }
+                }
+                
+                Log.d(Constants.TAG, "Output format options: $outputFormatMap")
                 
                 // Create progress listener
                 val progressListener = object : AudioTrimmer.ProgressListener {
@@ -287,12 +304,14 @@ class ExpoAudioStreamModule : Module(), EventSender {
                     endTimeMs = endTimeMs,
                     ranges = ranges,
                     outputFileName = outputFileName,
-                    outputFormat = outputFormat,
+                    outputFormat = outputFormatMap,
                     progressListener = progressListener
                 )
 
+                Log.d(Constants.TAG, "Trim operation completed successfully: $result")
                 promise.resolve(result)
             } catch (e: Exception) {
+                Log.e(Constants.TAG, "Error trimming audio: ${e.message}", e)
                 promise.reject("TRIM_ERROR", "Error trimming audio: ${e.message}", e)
             }
         }
