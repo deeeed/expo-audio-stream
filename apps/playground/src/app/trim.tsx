@@ -6,9 +6,9 @@ import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, ProgressBar, SegmentedButtons, Text } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import TrimVisualization from '../../components/TrimVisualization'
-import { baseLogger } from '../../config'
-import { useSampleAudio } from '../../hooks/useSampleAudio'
+import TrimVisualization from '../components/TrimVisualization'
+import { baseLogger } from '../config'
+import { useSampleAudio } from '../hooks/useSampleAudio'
 import { Audio, AVPlaybackStatus } from 'expo-av'
 
 const logger = baseLogger.extend('TrimScreen')

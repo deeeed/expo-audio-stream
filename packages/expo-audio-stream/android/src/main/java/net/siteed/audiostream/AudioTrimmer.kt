@@ -696,6 +696,9 @@ class AudioTrimmer(
         config: DecodingConfig,
         progressListener: ProgressListener?
     ) {
+        // Increase buffer size for better performance
+        val LARGER_BUFFER_SIZE = 8 * 1024 * 1024 // 8MB buffer instead of 1MB
+        
         val audioProcessor = AudioProcessor(context.filesDir)
         
         // Create output file with WAV header
@@ -759,6 +762,9 @@ class AudioTrimmer(
         formatOptions: Map<String, Any>,
         progressListener: ProgressListener?
     ) {
+        // Increase MediaCodec buffer size
+        val LARGER_INPUT_BUFFER_SIZE = 65536 // 64KB
+        
         Log.d(TAG, "Encoding WAV to AAC: ${inputWavFile.absolutePath} -> ${outputAacFile.absolutePath}")
         
         // Get WAV file details
@@ -785,7 +791,7 @@ class AudioTrimmer(
         val mediaFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, channels)
         mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
         mediaFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, android.media.MediaCodecInfo.CodecProfileLevel.AACObjectLC)
-        mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 16384)
+        mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, LARGER_INPUT_BUFFER_SIZE)
         
         val encoder = android.media.MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
         encoder.configure(mediaFormat, null, null, android.media.MediaCodec.CONFIGURE_FLAG_ENCODE)
@@ -808,9 +814,9 @@ class AudioTrimmer(
             // Calculate bytes per frame
             val bytesPerSample = audioData.bitDepth / 8
             val bytesPerFrame = bytesPerSample * audioData.channels
-            val frameSizeInBytes = 1024 * bytesPerFrame // Process 1024 samples at a time
+            val frameSizeInBytes = 4096 * bytesPerFrame // Process 4096 samples at a time instead of 1024
             
-            // Process the PCM data in chunks
+            // Process the PCM data in larger chunks
             var inputOffset = 0
             
             while (!encoderDone) {

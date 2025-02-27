@@ -227,6 +227,16 @@ export const MoreScreen = () => {
                     />
                 </>
             )}
+            {__DEV__ && (
+                <ListItem
+                    contentContainerStyle={styles.listItemContainer}
+                    label="Trim"
+                    subLabel="Trim audio"
+                    onPress={() => {
+                        router.navigate('/trim')
+                    }}
+                />
+            )}
             {/* <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,
