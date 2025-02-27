@@ -2,8 +2,6 @@
 package net.siteed.audiostream
 
 import android.Manifest
-import android.app.ActivityManager
-import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -19,6 +17,17 @@ class ExpoAudioStreamModule : Module(), EventSender {
     private lateinit var audioRecorderManager: AudioRecorderManager
     private lateinit var audioProcessor: AudioProcessor
 
+    private val audioFileHandler by lazy { 
+        AudioFileHandler(appContext.reactContext?.filesDir ?: throw IllegalStateException("React context not available")) 
+    }
+    
+    private val audioTrimmer by lazy { 
+        AudioTrimmer(
+            appContext.reactContext ?: throw IllegalStateException("React context not available"), 
+            audioFileHandler
+        ) 
+    }
+
     @RequiresApi(Build.VERSION_CODES.R)
     override fun definition() = ModuleDefinition {
         // The module will be accessible from `requireNativeModule('ExpoAudioStream')` in JavaScript.
@@ -27,7 +36,8 @@ class ExpoAudioStreamModule : Module(), EventSender {
         Events(
             Constants.AUDIO_EVENT_NAME,
             Constants.AUDIO_ANALYSIS_EVENT_NAME,
-            Constants.RECORDING_INTERRUPTED_EVENT_NAME
+            Constants.RECORDING_INTERRUPTED_EVENT_NAME,
+            Constants.TRIM_PROGRESS_EVENT
         )
 
         // Initialize AudioRecorderManager
@@ -241,52 +251,68 @@ class ExpoAudioStreamModule : Module(), EventSender {
 
         AsyncFunction("trimAudio") { options: Map<String, Any>, promise: Promise ->
             try {
-                val fileUri = requireNotNull(options["fileUri"] as? String) { "fileUri is required" }
-                val startTimeMs = requireNotNull(options["startTimeMs"] as? Number)?.toLong() 
-                    ?: throw IllegalArgumentException("startTimeMs is required")
-                val endTimeMs = requireNotNull(options["endTimeMs"] as? Number)?.toLong()
-                    ?: throw IllegalArgumentException("endTimeMs is required")
+                val fileUri = options["fileUri"] as? String ?: run {
+                    promise.reject("INVALID_URI", "fileUri is required", null)
+                    return@AsyncFunction
+                }
+
+                Log.d(Constants.TAG, "trimAudio called with fileUri: $fileUri")
+                Log.d(Constants.TAG, "Full options: $options")
+
+                val mode = options["mode"] as? String ?: "single"
+                val startTimeMs = (options["startTimeMs"] as? Number)?.toLong()
+                val endTimeMs = (options["endTimeMs"] as? Number)?.toLong()
+                
+                @Suppress("UNCHECKED_CAST")
+                val ranges = options["ranges"] as? List<Map<String, Long>>
+                
                 val outputFileName = options["outputFileName"] as? String
                 
-                // Get decoding options
-                val decodingOptionsMap = options["decodingOptions"] as? Map<String, Any>
-                val decodingConfig = if (decodingOptionsMap != null) {
-                    DecodingConfig(
-                        targetSampleRate = decodingOptionsMap["targetSampleRate"] as? Int,
-                        targetChannels = decodingOptionsMap["targetChannels"] as? Int,
-                        targetBitDepth = (decodingOptionsMap["targetBitDepth"] as? Int) ?: 16,
-                        normalizeAudio = (decodingOptionsMap["normalizeAudio"] as? Boolean) ?: false
-                    )
-                } else null
+                @Suppress("UNCHECKED_CAST")
+                var outputFormatMap = options["outputFormat"] as? Map<String, Any>
+                
+                // Validate output format if provided
+                if (outputFormatMap != null) {
+                    val format = outputFormatMap["format"] as? String
+                    if (format != null && format != "wav" && format != "aac" && format != "opus") {
+                        Log.w(Constants.TAG, "Requested format '$format' is not fully supported. Using 'aac' instead.")
+                        // Create a new map with the corrected format
+                        val newOutputFormat = HashMap<String, Any>(outputFormatMap)
+                        newOutputFormat["format"] = "aac"
+                        outputFormatMap = newOutputFormat
+                    }
+                }
+                
+                Log.d(Constants.TAG, "Output format options: $outputFormatMap")
+                
+                // Create progress listener
+                val progressListener = object : AudioTrimmer.ProgressListener {
+                    override fun onProgress(progress: Float, bytesProcessed: Long, totalBytes: Long) {
+                        sendEvent(Constants.TRIM_PROGRESS_EVENT, mapOf(
+                            "progress" to progress,
+                            "bytesProcessed" to bytesProcessed,
+                            "totalBytes" to totalBytes
+                        ))
+                    }
+                }
 
-                Log.d(Constants.TAG, """
-                    Trimming audio with params:
-                    - fileUri: $fileUri
-                    - startTimeMs: $startTimeMs
-                    - endTimeMs: $endTimeMs
-                    - outputFileName: ${outputFileName ?: "auto-generated"}
-                """.trimIndent())
-
-                val trimmedAudio = audioProcessor.trimAudio(
+                // Perform the trim operation
+                val result = audioTrimmer.trimAudio(
                     fileUri = fileUri,
+                    mode = mode,
                     startTimeMs = startTimeMs,
                     endTimeMs = endTimeMs,
-                    config = decodingConfig,
-                    outputFileName = outputFileName
-                ) ?: throw IllegalStateException("Failed to trim audio")
-
-                // Create a map with the available data
-                val resultMap = mapOf<String, Any>(
-                    "sampleRate" to trimmedAudio.sampleRate,
-                    "channels" to trimmedAudio.channels,
-                    "bitDepth" to trimmedAudio.bitDepth,
-                    "dataSize" to trimmedAudio.data.size
+                    ranges = ranges,
+                    outputFileName = outputFileName,
+                    outputFormat = outputFormatMap,
+                    progressListener = progressListener
                 )
 
-                promise.resolve(resultMap)
+                Log.d(Constants.TAG, "Trim operation completed successfully: $result")
+                promise.resolve(result)
             } catch (e: Exception) {
-                Log.e(Constants.TAG, "Failed to trim audio: ${e.message}", e)
-                promise.reject("TRIM_ERROR", e.message ?: "Unknown error", e)
+                Log.e(Constants.TAG, "Error trimming audio: ${e.message}", e)
+                promise.reject("TRIM_ERROR", "Error trimming audio: ${e.message}", e)
             }
         }
 
@@ -296,11 +322,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
 
         // Add a new function to check if recording is actually running
         AsyncFunction("checkRecordingStatus") { promise: Promise ->
-            val isServiceRunning = AudioRecordingService::class.java.name.let { className ->
-                val manager = appContext.reactContext?.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-                manager?.getRunningServices(Integer.MAX_VALUE)
-                    ?.any { it.service.className == className }
-            } ?: false
+            val isServiceRunning = AudioRecordingService.isServiceRunning()
 
             val status = audioRecorderManager.getStatus()
             

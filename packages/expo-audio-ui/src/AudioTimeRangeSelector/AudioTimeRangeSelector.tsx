@@ -205,6 +205,9 @@ export function AudioTimeRangeSelector({
     const endHandleGesture = createHandleGesture(false)
 
     const formatTime = useCallback((ms: number) => {
+        if (typeof ms !== 'number' || isNaN(ms)) {
+            return '0:00' // Safe fallback
+        }
         const seconds = Math.floor(ms / 1000)
         const minutes = Math.floor(seconds / 60)
         const remainingSeconds = seconds % 60
@@ -308,7 +311,7 @@ export function AudioTimeRangeSelector({
                     </GestureDetector>
                 </View>
             </View>
-            {activeLabel && (
+            {activeLabel && typeof activeLabel.time === 'number' && (
                 <Animated.View
                     style={[
                         styles.timeLabel,
