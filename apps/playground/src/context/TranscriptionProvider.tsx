@@ -202,11 +202,12 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         payload: { isModelLoading: true }
                     })
                     
-                    // Initialize the model directly without relying on state updates
+                    // Download model and initialize directly
                     logger.debug('Downloading model and initializing directly...')
                     const modelPath = await downloadModel(state.model)
                     logger.debug('Model downloaded, initializing context with path:', modelPath)
                     
+                    // Initialize context directly and capture the result
                     localContext = await initWhisper({
                         filePath: modelPath,
                     })
@@ -425,7 +426,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 jobId
             }
         },
-        [whisperContext, state.language, state.model, state.ready, state.isModelLoading, initialize]
+        [whisperContext, state.language, state.model, state.ready, state.isModelLoading, downloadModel]
     )
 
     const updateConfig = useCallback(

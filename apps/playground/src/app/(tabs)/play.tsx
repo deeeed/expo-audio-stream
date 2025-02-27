@@ -14,14 +14,11 @@ import {
     AudioAnalysis,
     AudioRecording,
     BitDepth,
-    Chunk,
     CompressionInfo,
-    convertPCMToFloat32,
     extractAudioAnalysis,
     extractAudioData,
     getWavFileInfo,
     SampleRate,
-    TranscriberData
 } from '@siteed/expo-audio-stream'
 import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
@@ -32,7 +29,6 @@ import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 
 import { RecordingStats } from '../../component/RecordingStats'
-import Transcriber from '../../component/Transcriber'
 import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { storeAudioFile } from '../../utils/indexedDB'
@@ -133,11 +129,7 @@ export const PlayPage = () => {
     const [isPlaying, setIsPlaying] = useState<boolean>(false)
     const [currentTimeMs, setCurrentTimeMs] = useState<number>(0)
     const [processing, setProcessing] = useState<boolean>(false)
-    const [audioBuffer, setAudioBuffer] = useState<Float32Array | string>()
     const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
-    const [enableTranscription, setEnableTranscription] =
-        useState<boolean>(isWeb)
-    const [transcript, setTranscript] = useState<TranscriberData>()
     const { show } = useToast()
     const [showVisualizer, setShowVisualizer] = useState<boolean>(true)
     const [isSaving, setIsSaving] = useState<boolean>(false)
@@ -259,9 +251,7 @@ export const PlayPage = () => {
             setIsPlaying(false)
             setAudioAnalysis(undefined)
             setPreviewData(null)
-            setTranscript(undefined)
             setCustomFileName('')
-            setAudioBuffer(undefined)
 
             const result = await DocumentPicker.getDocumentAsync({
                 type: ['audio/*'],
@@ -327,7 +317,6 @@ export const PlayPage = () => {
             const startResetPlayback = performance.now()
             setCurrentTimeMs(0)
             setIsPlaying(false)
-            setTranscript(undefined)
             timings['Reset Playback'] = performance.now() - startResetPlayback
 
             // Extract audio data with proper options like in whisper.tsx
@@ -349,9 +338,6 @@ export const PlayPage = () => {
 
             // Add validation
             validateExtractedAudio(extractedData, filename ?? 'Unknown')
-
-            // Use the normalized data instead of raw PCM data
-            setAudioBuffer(extractedData.normalizedData)
 
             const startAudioAnalysis = performance.now()
             logger.log('Extracting audio preview...', audioUri)
@@ -472,11 +458,6 @@ export const PlayPage = () => {
             if (fileName.toLowerCase().endsWith('.wav')) {
                 try {
                     wavMetadata = await getWavFileInfo(arrayBuffer)
-                    const { pcmValues } = await convertPCMToFloat32({
-                        buffer: arrayBuffer,
-                        bitDepth: wavMetadata.bitDepth,
-                    })
-                    setAudioBuffer(pcmValues)
                 } catch (_error) {
                     logger.warn('Not a valid WAV file, using audio analysis data instead')
                 }
@@ -509,9 +490,6 @@ export const PlayPage = () => {
                 } : undefined,
             }
 
-            if (transcript) {
-                audioResult.transcripts = [transcript]
-            }
 
             logger.log('Saving file to files:', audioResult)
 
@@ -555,13 +533,7 @@ export const PlayPage = () => {
         } finally {
             setIsSaving(false)
         }
-    }, [fileName, audioUri, files, show, transcript, refreshFiles, removeFile, audioAnalysis, isSaving])
-
-    const handleSelectChunk = ({ chunk }: { chunk: Chunk }) => {
-        if (chunk.timestamp && chunk.timestamp.length > 0) {
-            setCurrentTimeMs(chunk.timestamp[0])
-        }
-    }
+    }, [fileName, audioUri, files, show, refreshFiles, removeFile, audioAnalysis, isSaving])
 
     const handleRestoreOriginal = useCallback(async () => {
         if (!audioUri) return
@@ -642,15 +614,6 @@ export const PlayPage = () => {
                 </View>
 
                 <View style={styles.switchesContainer}>
-                    {isWeb && (
-                        <LabelSwitch
-                            disabled={processing || isSaving}
-                            label="Transcription"
-                            value={enableTranscription}
-                            containerStyle={styles.labelSwitchContainer}
-                            onValueChange={setEnableTranscription}
-                        />
-                    )}
                     <LabelSwitch
                         disabled={processing || isSaving}
                         label="Waveform"
@@ -765,17 +728,6 @@ export const PlayPage = () => {
                                 }}
                             />
                         </View>
-                    )}
-
-                    {enableTranscription && audioBuffer && isWeb && (
-                        <Transcriber
-                            fullAudio={audioBuffer}
-                            currentTimeMs={currentTimeMs}
-                            sampleRate={16000}
-                            onSelectChunk={handleSelectChunk}
-                            onTranscriptionComplete={setTranscript}
-                            onTranscriptionUpdate={setTranscript}
-                        />
                     )}
 
                     <Button 
