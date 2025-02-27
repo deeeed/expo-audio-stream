@@ -66,7 +66,7 @@ export function useAudioTranscription() {
   const processingTimer = useRef<ReturnType<typeof setInterval>>();
   const [currentProcessingTime, setCurrentProcessingTime] = useState<number>(0);
   const [lastTranscriptionLog, setLastTranscriptionLog] = useState<TranscriptionLog | null>(null);
-  const [autoTranscribeOnSelect, setAutoTranscribeOnSelect] = useState(false);
+  const [autoTranscribeOnSelect, setAutoTranscribeOnSelect] = useState(true);
 
   const { transcribe } = useTranscription();
 
