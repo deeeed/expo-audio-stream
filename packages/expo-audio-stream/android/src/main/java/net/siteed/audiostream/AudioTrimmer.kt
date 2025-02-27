@@ -332,20 +332,21 @@ class AudioTrimmer(
     private fun calculateTotalBytes(timeRanges: List<Map<String, Long>>, durationMs: Long, bitrate: Int): Long {
         var totalDurationMs = 0L
         for (range in timeRanges) {
-            val start = range["startTimeMs"] ?: 0
+            val start = range["startTimeMs"] ?: 0L
             val end = range["endTimeMs"] ?: durationMs
             totalDurationMs += (end - start)
         }
         
         // Calculate bytes based on bitrate and duration
-        return (totalDurationMs / 1000.0 * bitrate / 8).toLong()
+        // Use toLong() to ensure we're getting a Long result
+        return ((totalDurationMs / 1000.0) * (bitrate / 8.0)).toLong()
     }
     
     private fun calculateOutputDuration(timeRanges: List<Map<String, Long>>): Long {
         var totalDurationMs = 0L
         for (range in timeRanges) {
-            val start = range["startTimeMs"] ?: 0
-            val end = range["endTimeMs"] ?: 0
+            val start = range["startTimeMs"] ?: 0L
+            val end = range["endTimeMs"] ?: 0L
             totalDurationMs += (end - start)
         }
         return totalDurationMs
@@ -1039,10 +1040,188 @@ class AudioTrimmer(
             // Create encoder
             val encoder = android.media.MediaCodec.createByCodecName(opusCodecName)
             encoder.configure(mediaFormat, null, null, android.media.MediaCodec.CONFIGURE_FLAG_ENCODE)
+            encoder.start()
+            
+            // Set up MediaMuxer for Opus container (using OGG container)
+            val muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG)
+            var trackIndex = -1
+            var muxerStarted = false
+            
+            try {
+                val bufferInfo = android.media.MediaCodec.BufferInfo()
+                val timeoutUs = 10000L
+                var presentationTimeUs = 0L
+                var totalBytesProcessed = 0L
+                val totalBytes = audioData.data.size.toLong()
+                var allInputSubmitted = false
+                var encoderDone = false
+                
+                // Calculate bytes per frame
+                val bytesPerSample = audioData.bitDepth / 8
+                val bytesPerFrame = bytesPerSample * audioData.channels
+                val frameSizeInBytes = 960 * bytesPerFrame // Opus typically uses 20ms frames (960 samples at 48kHz)
+                
+                // Process the PCM data in chunks
+                var inputOffset = 0
+                
+                while (!encoderDone) {
+                    // Submit input data if we have any left
+                    if (!allInputSubmitted) {
+                        val inputBufferIndex = encoder.dequeueInputBuffer(timeoutUs)
+                        if (inputBufferIndex >= 0) {
+                            val inputBuffer = encoder.getInputBuffer(inputBufferIndex)
+                            inputBuffer?.clear()
+                            
+                            // Calculate how many bytes to read
+                            val bytesToRead = if (inputOffset + frameSizeInBytes <= audioData.data.size) {
+                                frameSizeInBytes
+                            } else {
+                                audioData.data.size - inputOffset
+                            }
+                            
+                            if (bytesToRead > 0) {
+                                // Copy data to the input buffer
+                                inputBuffer?.put(audioData.data, inputOffset, bytesToRead)
+                                
+                                // Calculate presentation time in microseconds
+                                val frameDurationUs = (bytesToRead * 1000000L) / (sampleRate * bytesPerFrame)
+                                
+                                // Submit the input buffer
+                                encoder.queueInputBuffer(
+                                    inputBufferIndex,
+                                    0,
+                                    bytesToRead,
+                                    presentationTimeUs,
+                                    0
+                                )
+                                
+                                // Update state
+                                presentationTimeUs += frameDurationUs
+                                inputOffset += bytesToRead
+                                totalBytesProcessed += bytesToRead
+                                
+                                // Report progress
+                                val progress = (totalBytesProcessed * 100f) / totalBytes
+                                progressListener?.onProgress(progress, bytesToRead.toLong(), totalBytes)
+                            } else {
+                                // End of input
+                                encoder.queueInputBuffer(
+                                    inputBufferIndex,
+                                    0,
+                                    0,
+                                    presentationTimeUs,
+                                    android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                                )
+                                allInputSubmitted = true
+                            }
+                        }
+                    }
+                    
+                    // Get encoded output
+                    val outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, timeoutUs)
+                    if (outputBufferIndex == android.media.MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                        // Encoder output format changed, must be the first before any data
+                        if (trackIndex >= 0) {
+                            throw RuntimeException("Format changed twice")
+                        }
+                        val newFormat = encoder.outputFormat
+                        Log.d(TAG, "Encoder output format changed: $newFormat")
+                        trackIndex = muxer.addTrack(newFormat)
+                        muxer.start()
+                        muxerStarted = true
+                    } else if (outputBufferIndex >= 0) {
+                        // Got encoded data
+                        val encodedData = encoder.getOutputBuffer(outputBufferIndex)
+                        
+                        if (encodedData != null) {
+                            if ((bufferInfo.flags and android.media.MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                                // Codec config data, not actual media data
+                                bufferInfo.size = 0
+                            }
+                            
+                            if (bufferInfo.size > 0 && muxerStarted) {
+                                // Adjust buffer info offset and size for the buffer
+                                encodedData.position(bufferInfo.offset)
+                                encodedData.limit(bufferInfo.offset + bufferInfo.size)
+                                
+                                // Write to muxer
+                                muxer.writeSampleData(trackIndex, encodedData, bufferInfo)
+                            }
+                            
+                            // Release the output buffer
+                            encoder.releaseOutputBuffer(outputBufferIndex, false)
+                            
+                            // Check if we're done
+                            if ((bufferInfo.flags and android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                                encoderDone = true
+                            }
+                        }
+                    }
+                }
+                
+                // Make sure we report 100% progress
+                progressListener?.onProgress(100f, totalBytes, totalBytes)
+                
+            } finally {
+                // Clean up resources
+                try {
+                    encoder.stop()
+                    encoder.release()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error releasing encoder: ${e.message}")
+                }
+                
+                if (muxerStarted) {
+                    try {
+                        muxer.stop()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error stopping muxer: ${e.message}")
+                    }
+                }
+                
+                try {
+                    muxer.release()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error releasing muxer: ${e.message}")
+                }
+            }
             
             Log.d(TAG, "Opus encoding completed successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error encoding to Opus: ${e.message}", e)
+            
+            // Fall back to AAC if Opus encoding fails
+            Log.w(TAG, "Opus encoding failed, falling back to AAC")
+            
+            // Create a temporary WAV file
+            val tempWavFile = File(context.filesDir, "temp_${System.currentTimeMillis()}.wav")
+            try {
+                // Write the audio data to a temporary WAV file
+                val audioFileHandler = AudioFileHandler(context.filesDir)
+                tempWavFile.outputStream().use { outputStream ->
+                    audioFileHandler.writeWavHeader(
+                        outputStream,
+                        audioData.sampleRate,
+                        audioData.channels,
+                        audioData.bitDepth
+                    )
+                    outputStream.write(audioData.data)
+                }
+                audioFileHandler.updateWavHeader(tempWavFile)
+                
+                // Encode to AAC
+                encodeWavToAac(
+                    tempWavFile,
+                    File(outputFile.absolutePath.replace(".opus", ".aac")),
+                    formatOptions,
+                    progressListener
+                )
+            } finally {
+                if (tempWavFile.exists()) {
+                    tempWavFile.delete()
+                }
+            }
+            
             throw IOException("Failed to encode to Opus: ${e.message}", e)
         }
     }

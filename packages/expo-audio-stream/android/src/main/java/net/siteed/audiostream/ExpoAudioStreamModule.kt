@@ -274,8 +274,8 @@ class ExpoAudioStreamModule : Module(), EventSender {
                 // Validate output format if provided
                 if (outputFormatMap != null) {
                     val format = outputFormatMap["format"] as? String
-                    if (format != null && format != "wav" && format != "aac") {
-                        Log.w(Constants.TAG, "Requested format '$format' is not supported. Using 'aac' instead.")
+                    if (format != null && format != "wav" && format != "aac" && format != "opus") {
+                        Log.w(Constants.TAG, "Requested format '$format' is not fully supported. Using 'aac' instead.")
                         // Create a new map with the corrected format
                         val newOutputFormat = HashMap<String, Any>(outputFormatMap)
                         newOutputFormat["format"] = "aac"

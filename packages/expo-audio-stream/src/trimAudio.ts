@@ -45,19 +45,6 @@ export async function trimAudio(
         )
     }
 
-    // Add a warning for Android users about format limitations
-    if (
-        Platform.OS === 'android' &&
-        options.outputFormat?.format &&
-        options.outputFormat.format !== 'wav' &&
-        options.outputFormat.format !== 'aac'
-    ) {
-        console.warn(
-            `On Android, only 'wav' and 'aac' output formats are fully supported. ` +
-                `Your requested format '${options.outputFormat.format}' will be converted to AAC.`
-        )
-    }
-
     // Set up progress event listener if callback is provided
     let subscription: EventSubscription | undefined
     if (progressCallback) {
