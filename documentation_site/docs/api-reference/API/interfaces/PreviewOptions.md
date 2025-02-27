@@ -15,24 +15,6 @@ This is optimized for UI rendering with a specified number of points.
 
 ## Properties
 
-### algorithm?
-
-> `optional` **algorithm**: [`AmplitudeAlgorithm`](../type-aliases/AmplitudeAlgorithm.md)
-
-Algorithm used to calculate amplitude values
-
-#### Default
-
-```ts
-"rms"
-```
-
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:121](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L121)
-
-***
-
 ### decodingOptions?
 
 > `optional` **decodingOptions**: [`DecodingConfig`](DecodingConfig.md)
@@ -46,23 +28,23 @@ Defaults to:
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:130](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L130)
+[src/AudioAnalysis/AudioAnalysis.types.ts:164](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L164)
 
 ***
 
-### endTime?
+### endTimeMs?
 
-> `optional` **endTime**: `number`
+> `optional` **endTimeMs**: `number`
 
 End time in milliseconds
 
 #### Inherited from
 
-[`AudioRangeOptions`](AudioRangeOptions.md).[`endTime`](AudioRangeOptions.md#endtime)
+[`AudioRangeOptions`](AudioRangeOptions.md).[`endTimeMs`](AudioRangeOptions.md#endtimems)
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:102](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L102)
+[src/AudioAnalysis/AudioAnalysis.types.ts:137](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L137)
 
 ***
 
@@ -74,7 +56,19 @@ URI of the audio file to analyze
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:111](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L111)
+[src/AudioAnalysis/AudioAnalysis.types.ts:146](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L146)
+
+***
+
+### logger?
+
+> `optional` **logger**: [`ConsoleLike`](../type-aliases/ConsoleLike.md)
+
+Optional logger for debugging.
+
+#### Defined in
+
+[src/AudioAnalysis/AudioAnalysis.types.ts:155](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L155)
 
 ***
 
@@ -92,20 +86,20 @@ Total number of points to generate for the preview.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:116](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L116)
+[src/AudioAnalysis/AudioAnalysis.types.ts:151](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L151)
 
 ***
 
-### startTime?
+### startTimeMs?
 
-> `optional` **startTime**: `number`
+> `optional` **startTimeMs**: `number`
 
 Start time in milliseconds
 
 #### Inherited from
 
-[`AudioRangeOptions`](AudioRangeOptions.md).[`startTime`](AudioRangeOptions.md#starttime)
+[`AudioRangeOptions`](AudioRangeOptions.md).[`startTimeMs`](AudioRangeOptions.md#starttimems)
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:100](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L100)
+[src/AudioAnalysis/AudioAnalysis.types.ts:135](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L135)

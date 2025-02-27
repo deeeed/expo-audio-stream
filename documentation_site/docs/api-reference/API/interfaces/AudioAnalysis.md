@@ -10,16 +10,6 @@ Represents the complete data from the audio analysis.
 
 ## Properties
 
-### amplitudeAlgorithm
-
-> **amplitudeAlgorithm**: [`AmplitudeAlgorithm`](../type-aliases/AmplitudeAlgorithm.md)
-
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:83](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L83)
-
-***
-
 ### amplitudeRange
 
 > **amplitudeRange**: `object`
@@ -34,7 +24,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:84](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L84)
+[src/AudioAnalysis/AudioAnalysis.types.ts:109](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L109)
 
 ***
 
@@ -44,7 +34,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:78](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L78)
+[src/AudioAnalysis/AudioAnalysis.types.ts:104](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L104)
 
 ***
 
@@ -54,7 +44,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:82](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L82)
+[src/AudioAnalysis/AudioAnalysis.types.ts:108](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L108)
 
 ***
 
@@ -64,7 +54,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:77](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L77)
+[src/AudioAnalysis/AudioAnalysis.types.ts:103](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L103)
 
 ***
 
@@ -74,17 +64,25 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:80](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L80)
+[src/AudioAnalysis/AudioAnalysis.types.ts:106](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L106)
 
 ***
 
-### pointsPerSecond
+### rmsRange
 
-> **pointsPerSecond**: `number`
+> **rmsRange**: `object`
+
+#### max
+
+> **max**: `number`
+
+#### min
+
+> **min**: `number`
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:76](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L76)
+[src/AudioAnalysis/AudioAnalysis.types.ts:113](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L113)
 
 ***
 
@@ -94,7 +92,7 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:81](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L81)
+[src/AudioAnalysis/AudioAnalysis.types.ts:107](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L107)
 
 ***
 
@@ -104,22 +102,28 @@ Represents the complete data from the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:79](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L79)
+[src/AudioAnalysis/AudioAnalysis.types.ts:105](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L105)
 
 ***
 
-### speakerChanges?
+### segmentDurationMs
 
-> `optional` **speakerChanges**: `object`[]
-
-#### speaker
-
-> **speaker**: `number`
-
-#### timestamp
-
-> **timestamp**: `number`
+> **segmentDurationMs**: `number`
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:89](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L89)
+[src/AudioAnalysis/AudioAnalysis.types.ts:102](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L102)
+
+***
+
+### speechAnalysis?
+
+> `optional` **speechAnalysis**: `object`
+
+#### speakerChanges
+
+> **speakerChanges**: `object`[]
+
+#### Defined in
+
+[src/AudioAnalysis/AudioAnalysis.types.ts:118](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L118)

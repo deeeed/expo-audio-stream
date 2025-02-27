@@ -18,7 +18,7 @@ The bit depth of the audio (e.g., 16, 24, or 32).
 
 #### Defined in
 
-[src/utils/writeWavHeader.ts:14](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/utils/writeWavHeader.ts#L14)
+[src/utils/writeWavHeader.ts:14](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/utils/writeWavHeader.ts#L14)
 
 ***
 
@@ -30,7 +30,7 @@ Optional buffer containing audio data. If provided, it will be combined with the
 
 #### Defined in
 
-[src/utils/writeWavHeader.ts:8](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/utils/writeWavHeader.ts#L8)
+[src/utils/writeWavHeader.ts:8](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/utils/writeWavHeader.ts#L8)
 
 ***
 
@@ -42,7 +42,7 @@ The number of audio channels (e.g., 1 for mono, 2 for stereo).
 
 #### Defined in
 
-[src/utils/writeWavHeader.ts:12](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/utils/writeWavHeader.ts#L12)
+[src/utils/writeWavHeader.ts:12](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/utils/writeWavHeader.ts#L12)
 
 ***
 
@@ -54,4 +54,4 @@ The sample rate of the audio in Hz (e.g., 44100).
 
 #### Defined in
 
-[src/utils/writeWavHeader.ts:10](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/utils/writeWavHeader.ts#L10)
+[src/utils/writeWavHeader.ts:10](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/utils/writeWavHeader.ts#L10)

@@ -14,19 +14,23 @@ Represents the configuration for decoding audio data.
 
 > `optional` **normalizeAudio**: `boolean`
 
+Whether to normalize audio levels (Android and Web)
+
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:10](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L10)
+[src/AudioAnalysis/AudioAnalysis.types.ts:16](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L16)
 
 ***
 
 ### targetBitDepth?
 
-> `optional` **targetBitDepth**: `number`
+> `optional` **targetBitDepth**: [`BitDepth`](../type-aliases/BitDepth.md)
+
+Target bit depth (Android and Web)
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:9](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L9)
+[src/AudioAnalysis/AudioAnalysis.types.ts:14](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L14)
 
 ***
 
@@ -34,9 +38,11 @@ Represents the configuration for decoding audio data.
 
 > `optional` **targetChannels**: `number`
 
+Target number of channels (Android and Web)
+
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:8](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L8)
+[src/AudioAnalysis/AudioAnalysis.types.ts:12](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L12)
 
 ***
 
@@ -44,6 +50,8 @@ Represents the configuration for decoding audio data.
 
 > `optional` **targetSampleRate**: `number`
 
+Target sample rate for decoded audio (Android and Web)
+
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:7](https://github.com/deeeed/expo-audio-stream/blob/689aeadedaa58050cd18e8ec1fa5ff1fcd93f0db/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L7)
+[src/AudioAnalysis/AudioAnalysis.types.ts:10](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L10)
