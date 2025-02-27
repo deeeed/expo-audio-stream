@@ -40,8 +40,8 @@ const logger = console
 const getStyles = (theme: AppTheme, insets?: { bottom: number, top: number }) => {
     return StyleSheet.create({
         container: {
-            padding: theme.padding.m,
-            gap: theme.padding.s,
+            gap: theme.spacing.gap || theme.padding.s,
+            paddingHorizontal: theme.padding.s,
             paddingBottom: insets?.bottom || 80,
             paddingTop: insets?.top || 0,
         },
@@ -571,7 +571,11 @@ export const ImportPage = () => {
     }, [sound])
 
     return (
-        <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container}>
+        <ScreenWrapper 
+            withScrollView 
+            useInsets={false} 
+            contentContainerStyle={styles.container}
+        >
             <Notice
                 type="info"
                 title="Import Audio"

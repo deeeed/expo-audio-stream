@@ -130,10 +130,9 @@ const logoSource = require('@assets/icon.png')
 const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
     return StyleSheet.create({
         container: {
-            gap: 10,
-            padding: 10,
-            justifyContent: 'center',
-            paddingBottom: insets?.bottom || theme.padding.s,
+            gap: theme.spacing.gap || 16,
+            paddingHorizontal: theme.padding.s,
+            paddingBottom: insets?.bottom || 80,
             paddingTop: insets?.top || 0,
         },
         waveformContainer: {

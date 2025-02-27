@@ -27,7 +27,8 @@ import { TranscriberConfig } from '../../component/TranscriberConfig'
 const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
     return StyleSheet.create({
         container: {
-            gap: 10,
+            gap: theme.spacing.gap || 10,
+            paddingHorizontal: theme.padding.s,
             paddingBottom: insets?.bottom || 80,
             paddingTop: insets?.top || 0,
         },
@@ -156,7 +157,7 @@ export const MoreScreen = () => {
     return (
         <ScreenWrapper 
             withScrollView 
-            useInsets 
+            useInsets={false} 
             contentContainerStyle={styles.container}
         >
             <View style={styles.iconContainer}>
