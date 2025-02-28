@@ -512,4 +512,14 @@ export interface TrimAudioResult {
          */
         size: number
     }
+    
+    /**
+     * Information about the processing time.
+     */
+    processingInfo?: {
+        /**
+         * The time it took to process the audio in milliseconds.
+         */
+        durationMs: number
+    }
 }
