@@ -818,7 +818,11 @@ export default function RecordScreen() {
                     )}
                 </>
             )}
-            <Button mode="contained" onPress={() => handleStart()}>
+            <Button 
+                testID="start-recording-button"
+                mode="contained" 
+                onPress={() => handleStart()}
+            >
                 Start Recording
             </Button>
         </View>
@@ -940,11 +944,13 @@ export default function RecordScreen() {
                 }}
             />
             <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container}>
-                <Notice
-                    type="info"
-                    title="Audio Recording"
-                    message="Record audio from your device's microphone. You can pause, resume, and stop recordings. Saved recordings will be available in the Files tab."
-                />
+                <View testID="record-screen-notice">
+                    <Notice
+                        type="info"
+                        title="Audio Recording"
+                        message="Record audio from your device's microphone. You can pause, resume, and stop recordings. Saved recordings will be available in the Files tab."
+                    />
+                </View>
                 {result && (
                     <View style={{ gap: 10, paddingBottom: 100 }}>
                         <AudioRecordingView
@@ -962,7 +968,11 @@ export default function RecordScreen() {
                 )}
                 {isRecording && !isPaused && renderRecording()}
                 {isPaused && renderPaused()}
-                {!result && !isRecording && !isPaused && renderStopped()}
+                {!result && !isRecording && !isPaused && (
+                    <View testID="recording-controls">
+                        {renderStopped()}
+                    </View>
+                )}
             </ScreenWrapper>
         </>
     )

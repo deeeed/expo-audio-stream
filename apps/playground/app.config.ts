@@ -162,8 +162,26 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 android: {},
             },
         ],
+        [
+            '@config-plugins/detox',
+            {
+              skipProguard: true,
+              subdomains: process.env.EAS_BUILD_PROFILE === "development"
+              ? "*"
+              : [
+                '10.0.2.2',
+                'localhost',
+                '192.168.50.10',
+                '192.168.50.11',
+                '192.168.11.1',
+                '192.168.1.39',
+              ],
+            },
+        ],
         'onnxruntime-react-native',
+        // Include the custom gradle config and detox packaging options
         ['./plugins/withCustomGradleConfig', {}],
+        ['./plugins/withDetoxTestFix', {}],
         'expo-localization',
         // [
         //     'expo-asset',

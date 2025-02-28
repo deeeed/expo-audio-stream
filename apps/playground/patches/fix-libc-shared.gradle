@@ -1,0 +1,16 @@
+// apps/playground/android/fix-libc-shared.gradle
+// This script fixes the duplicate libc++_shared.so issue across all modules
+ext.applyLibcppFix = { Project project ->
+    project.afterEvaluate {
+        if (project.hasProperty('android')) {
+            project.android {
+                packagingOptions {
+                    pickFirst 'lib/arm64-v8a/libc++_shared.so'
+                    pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+                    pickFirst 'lib/x86/libc++_shared.so'
+                    pickFirst 'lib/x86_64/libc++_shared.so'
+                }
+            }
+        }
+    }
+} 
