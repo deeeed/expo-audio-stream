@@ -98,7 +98,9 @@ const TrimVisualization: React.FC<TrimVisualizationProps> = ({
             <Text variant="titleMedium" style={{ marginBottom: 8 }}>Trim Preview</Text>
             
             <View style={{ marginBottom: 16 }}>
-                <Text style={{ marginBottom: 4 }}>Original: {(durationMs / 1000).toFixed(1)}s</Text>
+                <Text style={{ marginBottom: 4 }}>
+                    {(durationMs / 1000).toFixed(1)}s → {(finalDuration / 1000).toFixed(1)}s ({percentageKept}% kept)
+                </Text>
                 <View style={{ height: 24, backgroundColor: colors.surfaceVariant, borderRadius: 4, overflow: 'hidden', flexDirection: 'row' }}>
                     {segments.map((isKept, index) => (
                         <View 
@@ -127,22 +129,6 @@ const TrimVisualization: React.FC<TrimVisualizationProps> = ({
                                 {marker.label}
                             </Text>
                         </View>
-                    ))}
-                </View>
-            </View>
-            
-            <View style={{ marginBottom: 8 }}>
-                <Text style={{ marginBottom: 4 }}>After Trim: {(finalDuration / 1000).toFixed(1)}s ({percentageKept}% kept)</Text>
-                <View style={{ height: 24, backgroundColor: colors.surfaceVariant, borderRadius: 4, overflow: 'hidden', flexDirection: 'row' }}>
-                    {segments.filter(isKept => isKept).map((_, index) => (
-                        <View 
-                            key={index} 
-                            style={{ 
-                                flex: 1, 
-                                height: '100%', 
-                                backgroundColor: colors.primary,
-                            }} 
-                        />
                     ))}
                 </View>
             </View>
