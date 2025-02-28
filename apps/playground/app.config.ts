@@ -159,7 +159,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                         ITSAppUsesNonExemptEncryption: false
                     }
                 },
-                android: {},
+                android: {
+                    gradleProperties: {
+                        "org.gradle.jvmargs": "-Xmx4g -XX:MaxMetaspaceSize=2048m -XX:+HeapDumpOnOutOfMemoryError",
+                        "org.gradle.parallel": "true",
+                        "org.gradle.daemon": "true",
+                        "org.gradle.configureondemand": "true",
+                        "org.gradle.caching": "true"
+                    }
+                },
             },
         ],
         [
