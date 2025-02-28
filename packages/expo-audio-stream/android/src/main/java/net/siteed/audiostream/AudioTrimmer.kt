@@ -53,36 +53,45 @@ class AudioTrimmer(
             val retriever = MediaMetadataRetriever()
             retriever.setDataSource(context, inputUri)
             
-            val durationMsStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-            val durationMs = durationMsStr?.toLong() ?: 0
+            // Extract audio format information
+            val audioFormat = getAudioFormat(retriever)
+            Log.d(TAG, "Source audio format: $audioFormat")
             
-            val bitrateStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
-            val bitrate = bitrateStr?.toInt() ?: 128000
+            // Validate and process output format options
+            val formatOptions = outputFormat ?: emptyMap()
+            val outputFormatType = (formatOptions["format"] as? String)?.lowercase() ?: "wav"
             
-            val mimeType = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE) ?: "audio/wav"
-            val isWavInput = mimeType == "audio/wav" || mimeType == "audio/x-wav"
+            // Validate format and provide consistent fallback
+            val effectiveFormatType = if (outputFormatType !in listOf("wav", "aac", "opus")) {
+                Log.w(TAG, "Unsupported format '$outputFormatType'. Falling back to 'aac'")
+                "aac"
+            } else {
+                outputFormatType
+            }
             
-            Log.d(TAG, "Input file metadata: duration=$durationMs, bitrate=$bitrate, mimeType=$mimeType")
+            // Validate and normalize format-specific parameters
+            val sampleRate = (formatOptions["sampleRate"] as? Int)?.coerceIn(8000, 48000) 
+                ?: audioFormat.sampleRate
+            val channels = (formatOptions["channels"] as? Int)?.coerceIn(1, 2) 
+                ?: audioFormat.channels
+            val bitDepth = (formatOptions["bitDepth"] as? Int)?.coerceIn(8, 32) 
+                ?: audioFormat.bitDepth
+            val bitrate = (formatOptions["bitrate"] as? Int)?.coerceIn(8000, 320000) 
+                ?: 128000
             
-            // Create output file
-            val formatOptions = outputFormat ?: mapOf()
-            val formatStr = formatOptions["format"] as? String ?: "wav"
-            Log.d(TAG, "Using format string: $formatStr")
+            Log.d(TAG, "Output format parameters: format=$effectiveFormatType, sampleRate=$sampleRate, " +
+                  "channels=$channels, bitDepth=$bitDepth, bitrate=$bitrate")
             
             // Determine the appropriate extension and format
-            val extension = when (formatStr.lowercase()) {
+            val extension = when (effectiveFormatType) {
                 "wav" -> "wav"
                 "opus" -> "opus"
-                else -> "aac" // Default to AAC for other formats
+                else -> "m4a" // Use m4a extension for AAC to match iOS
             }
             
             Log.d(TAG, "Using output extension: $extension")
             
-            // Add a warning log if the requested format is not supported
-            if (formatStr != "wav" && formatStr != "aac" && formatStr != "opus") {
-                Log.w(TAG, "Requested format '$formatStr' is not fully supported. Using '$extension' instead.")
-            }
-            
+            // Create output file
             val outputFile = if (outputFileName != null) {
                 File(context.filesDir, "$outputFileName.$extension")
             } else {
@@ -95,27 +104,27 @@ class AudioTrimmer(
             val timeRanges = when (mode) {
                 "single" -> {
                     val start = startTimeMs ?: 0
-                    val end = endTimeMs ?: durationMs
+                    val end = endTimeMs ?: audioFormat.durationMs
                     listOf(mapOf("startTimeMs" to start, "endTimeMs" to end))
                 }
                 "keep" -> ranges ?: emptyList()
                 "remove" -> {
                     // For remove mode, we need to invert the ranges
                     val invertedRanges = mutableListOf<Map<String, Long>>()
-                    var lastEnd = 0L
+                    var lastEndTime = 0L
                     
                     ranges?.sortedBy { it["startTimeMs"] }?.forEach { range ->
-                        val start = range["startTimeMs"] ?: 0
-                        val end = range["endTimeMs"] ?: durationMs
+                        val start = range["startTimeMs"] ?: 0L
+                        val end = range["endTimeMs"] ?: audioFormat.durationMs
                         
-                        if (start > lastEnd) {
-                            invertedRanges.add(mapOf("startTimeMs" to lastEnd, "endTimeMs" to start))
+                        if (start > lastEndTime) {
+                            invertedRanges.add(mapOf("startTimeMs" to lastEndTime, "endTimeMs" to start))
                         }
-                        lastEnd = end
+                        lastEndTime = end
                     }
                     
-                    if (lastEnd < durationMs) {
-                        invertedRanges.add(mapOf("startTimeMs" to lastEnd, "endTimeMs" to durationMs))
+                    if (lastEndTime < audioFormat.durationMs) {
+                        invertedRanges.add(mapOf("startTimeMs" to lastEndTime, "endTimeMs" to audioFormat.durationMs))
                     }
                     
                     invertedRanges
@@ -128,17 +137,20 @@ class AudioTrimmer(
                                   formatOptions["channels"] != null || 
                                   formatOptions["bitDepth"] != null
             
+            // Check if input is WAV format
+            val isWavInput = audioFormat.mimeType == "audio/wav" || audioFormat.mimeType == "audio/x-wav"
+            
             // Optimized approach based on input/output formats
             if (isWavInput && extension == "wav" && !needFormatChange) {
                 // Fast path for WAV-to-WAV with no format changes
                 Log.d(TAG, "Using fast path: Direct WAV processing without decoding")
-                processWavFile(inputUri, outputFile, timeRanges, formatOptions, 
-                    { progress, bytesProcessed, totalBytes ->
-                        progressListener?.onProgress(progress, bytesProcessed, totalBytes)
-                    }
-                )
+                processWavFile(inputUri, outputFile, timeRanges
+                ) { progress, bytesProcessed, totalBytes ->
+                    progressListener?.onProgress(progress, bytesProcessed, totalBytes)
+                }
             } else {
                 // Need to decode and possibly re-encode
+                Log.d(TAG, "Using decode/encode path for non-WAV input or format conversion")
                 val config = DecodingConfig(
                     targetSampleRate = formatOptions["sampleRate"] as? Int,
                     targetChannels = formatOptions["channels"] as? Int,
@@ -226,96 +238,107 @@ class AudioTrimmer(
             
             // Extract audio format details
             val extractor = MediaExtractor()
-            extractor.setDataSource(outputFile.absolutePath)
-            
-            // Initialize variables that will be populated from the file or user options
-            val sampleRate: Int
-            val channels: Int
-            val outputBitrate: Int
+            try {
+                extractor.setDataSource(outputFile.absolutePath)
+                
+                // Initialize variables that will be populated from the file or user options
+                val outputBitrate: Int
 
-            // First try to get values from the output file
-            if (extractor.trackCount > 0) {
-                val format = extractor.getTrackFormat(0)
-                
-                sampleRate = if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
-                    format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                // First try to get values from the output file
+                if (extractor.trackCount > 0) {
+                    val format = extractor.getTrackFormat(0)
+                    
+                    outputBitrate = if (format.containsKey(MediaFormat.KEY_BIT_RATE)) {
+                        format.getInteger(MediaFormat.KEY_BIT_RATE)
+                    } else {
+                        // Use original bitrate or user-specified value
+                        bitrate
+                    }
                 } else {
-                    // Use from user options or fall back to Constants default
-                    formatOptions["sampleRate"] as? Int ?: Constants.DEFAULT_SAMPLE_RATE
+                    // If we can't get from the file, use user options or defaults
+                    outputBitrate = bitrate
                 }
                 
-                channels = if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
-                    format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-                } else {
-                    // Use from user options or fall back to Constants default
-                    formatOptions["channels"] as? Int ?: Constants.DEFAULT_CHANNEL_CONFIG
+                // Determine the correct MIME type
+                val mimeType = when (extension) {
+                    "m4a" -> "audio/mp4"  // Use audio/mp4 for AAC to match iOS
+                    "opus" -> "audio/ogg" // Use audio/ogg for Opus
+                    else -> "audio/wav"
                 }
                 
-                outputBitrate = if (format.containsKey(MediaFormat.KEY_BIT_RATE)) {
-                    format.getInteger(MediaFormat.KEY_BIT_RATE)
-                } else {
-                    // Use original bitrate or user-specified value
-                    formatOptions["bitrate"] as? Int ?: bitrate
-                }
-            } else {
-                // If we can't get from the file, use user options or defaults from Constants
-                sampleRate = formatOptions["sampleRate"] as? Int ?: Constants.DEFAULT_SAMPLE_RATE
-                channels = formatOptions["channels"] as? Int ?: Constants.DEFAULT_CHANNEL_CONFIG
-                outputBitrate = formatOptions["bitrate"] as? Int ?: bitrate
-            }
-
-            // Determine bit depth (not directly available from MediaFormat)
-            val bitDepth: Int = when {
-                extension == "wav" -> formatOptions["bitDepth"] as? Int ?: Constants.DEFAULT_AUDIO_FORMAT
-                else -> Constants.DEFAULT_AUDIO_FORMAT // Default for compressed formats
-            }
-            
-            extractor.release()
-            
-            val result = mutableMapOf<String, Any>(
-                "uri" to outputFile.absolutePath,
-                "filename" to outputFile.name,
-                "durationMs" to outputDurationMs,
-                "size" to outputFileSize,
-                "sampleRate" to sampleRate,
-                "channels" to channels,
-                "bitDepth" to bitDepth,
-                "mimeType" to "audio/$extension",
-                "requestedFormat" to formatStr, // Add the originally requested format
-                "actualFormat" to extension     // Add the actual format used
-            )
-            
-            // Add compression info if not WAV
-            if (extension != "wav") {
-                result["compression"] = mapOf(
-                    "format" to extension,
-                    "bitrate" to outputBitrate,
-                    "size" to outputFileSize
+                val result = mutableMapOf<String, Any>(
+                    "uri" to outputFile.absolutePath,
+                    "filename" to outputFile.name,
+                    "durationMs" to outputDurationMs,
+                    "size" to outputFileSize,
+                    "sampleRate" to sampleRate,
+                    "channels" to channels,
+                    "bitDepth" to bitDepth,
+                    "mimeType" to mimeType,
+                    "requestedFormat" to (formatOptions["format"] as? String ?: "wav"), // Add the originally requested format
+                    "actualFormat" to extension     // Add the actual format used
                 )
+                
+                // Add compression info if not WAV
+                if (extension != "wav") {
+                    result["compression"] = mapOf(
+                        "format" to effectiveFormatType,
+                        "bitrate" to outputBitrate,
+                        "size" to outputFileSize
+                    )
+                }
+                
+                Log.d(TAG, "Audio trim completed in ${System.currentTimeMillis() - startTime}ms")
+                return result
+            } catch (e: Exception) {
+                Log.e(TAG, "Error reading output file metadata: ${e.message}")
+                // Continue with basic metadata if extractor fails
+                
+                // Determine the correct MIME type
+                val mimeType = when (extension) {
+                    "m4a" -> "audio/mp4"  // Use audio/mp4 for AAC to match iOS
+                    "opus" -> "audio/ogg" // Use audio/ogg for Opus
+                    else -> "audio/wav"
+                }
+                
+                val result = mutableMapOf<String, Any>(
+                    "uri" to outputFile.absolutePath,
+                    "filename" to outputFile.name,
+                    "durationMs" to outputDurationMs,
+                    "size" to outputFileSize,
+                    "sampleRate" to sampleRate,
+                    "channels" to channels,
+                    "bitDepth" to bitDepth,
+                    "mimeType" to mimeType,
+                    "requestedFormat" to (formatOptions["format"] as? String ?: "wav"),
+                    "actualFormat" to extension
+                )
+                
+                // Add compression info if not WAV
+                if (extension != "wav") {
+                    result["compression"] = mapOf(
+                        "format" to effectiveFormatType,
+                        "bitrate" to bitrate,
+                        "size" to outputFileSize
+                    )
+                }
+                
+                Log.d(TAG, "Audio trim completed in ${System.currentTimeMillis() - startTime}ms")
+                return result
+            } finally {
+                try {
+                    extractor.release()
+                } catch (e: Exception) {
+                    // Ignore
+                }
             }
-            
-            Log.d(TAG, "Audio trim completed in ${System.currentTimeMillis() - startTime}ms")
-            return result
             
         } catch (e: Exception) {
             Log.e(TAG, "Error trimming audio", e)
             throw e
         }
     }
-    
-    private fun calculateTotalBytes(timeRanges: List<Map<String, Long>>, durationMs: Long, bitrate: Int): Long {
-        var totalDurationMs = 0L
-        for (range in timeRanges) {
-            val start = range["startTimeMs"] ?: 0L
-            val end = range["endTimeMs"] ?: durationMs
-            totalDurationMs += (end - start)
-        }
-        
-        // Calculate bytes based on bitrate and duration
-        // Use toLong() to ensure we're getting a Long result
-        return ((totalDurationMs / 1000.0) * (bitrate / 8.0)).toLong()
-    }
-    
+
     private fun calculateOutputDuration(timeRanges: List<Map<String, Long>>): Long {
         var totalDurationMs = 0L
         for (range in timeRanges) {
@@ -334,7 +357,6 @@ class AudioTrimmer(
         inputUri: Uri,
         outputFile: File,
         timeRanges: List<Map<String, Long>>,
-        formatOptions: Map<String, Any>,
         progressCallback: (Float, Long, Long) -> Unit
     ) {
         // Get input file path from URI
@@ -469,7 +491,7 @@ class AudioTrimmer(
         FileOutputStream(outputFile).use { outputStream ->
             // We'll write the header at the end when we know the total size
             var totalBytes = 0L
-            var totalProgress = 0f
+            var totalProgress: Float
             val totalRanges = timeRanges.size
             
             // Process each time range
@@ -563,7 +585,7 @@ class AudioTrimmer(
         progressListener: ProgressListener?
     ) {
         // Increase MediaCodec buffer size
-        val LARGER_INPUT_BUFFER_SIZE = 65536 // 64KB
+        val largerInputBufferSize = 65536 // 64KB
         
         Log.d(TAG, "Encoding WAV to AAC: ${inputWavFile.absolutePath} -> ${outputAacFile.absolutePath}")
         
@@ -591,7 +613,7 @@ class AudioTrimmer(
         val mediaFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, channels)
         mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
         mediaFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, android.media.MediaCodecInfo.CodecProfileLevel.AACObjectLC)
-        mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, LARGER_INPUT_BUFFER_SIZE)
+        mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, largerInputBufferSize)
         
         val encoder = android.media.MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
         encoder.configure(mediaFormat, null, null, android.media.MediaCodec.CONFIGURE_FLAG_ENCODE)
@@ -1045,4 +1067,33 @@ class AudioTrimmer(
             throw IOException("Failed to encode to Opus: ${e.message}", e)
         }
     }
+
+    // Helper function to extract audio format from MediaMetadataRetriever
+    private fun getAudioFormat(retriever: MediaMetadataRetriever): AudioFormat {
+        val sampleRate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull() ?: 44100
+        val channels = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull()?.let {
+            // Estimate channels from bitrate and sample rate if not directly available
+            if (it > sampleRate * 16) 2 else 1
+        } ?: 1
+        
+        // Bit depth is often not directly available, assume 16-bit as default
+        val bitDepth = 16
+        
+        // Get duration in milliseconds
+        val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        
+        // Get MIME type
+        val mimeType = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE) ?: "audio/mpeg"
+        
+        return AudioFormat(sampleRate, channels, bitDepth, durationMs, mimeType)
+    }
+
+    // Data class to hold audio format information
+    data class AudioFormat(
+        val sampleRate: Int,
+        val channels: Int,
+        val bitDepth: Int,
+        val durationMs: Long = 0,
+        val mimeType: String = "audio/mpeg"
+    )
 } 

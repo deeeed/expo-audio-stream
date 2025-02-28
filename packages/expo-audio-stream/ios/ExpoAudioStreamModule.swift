@@ -313,46 +313,136 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         /// - Parameters:
         ///   - options: A dictionary containing:
         ///     - `fileUri`: The URI of the audio file.
-        ///     - `startTimeMs`: Start time in milliseconds.
-        ///     - `endTimeMs`: End time in milliseconds.
+        ///     - `mode`: Trim mode ('single', 'keep', or 'remove').
+        ///     - `startTimeMs`: Start time in milliseconds (for 'single' mode).
+        ///     - `endTimeMs`: End time in milliseconds (for 'single' mode).
+        ///     - `ranges`: Array of time ranges (for 'keep' and 'remove' modes).
+        ///     - `outputFileName`: Optional name for the output file.
         ///     - `outputFormat`: Optional output format configuration.
+        ///     - `decodingOptions`: Optional decoding configuration.
         AsyncFunction("trimAudio") { (options: [String: Any], promise: Promise) in
             guard let fileUri = options["fileUri"] as? String,
-                  let startTimeMs = options["startTimeMs"] as? Double,
-                  let endTimeMs = options["endTimeMs"] as? Double,
                   let url = URL(string: fileUri) else {
-                promise.reject("INVALID_ARGUMENTS", "Invalid arguments provided")
+                promise.reject("INVALID_ARGUMENTS", "Invalid file URI provided")
                 return
             }
 
+            let mode = options["mode"] as? String ?? "single"
+            let startTimeMs = options["startTimeMs"] as? Double
+            let endTimeMs = options["endTimeMs"] as? Double
+            let ranges = options["ranges"] as? [[String: Double]]
+            let outputFileName = options["outputFileName"] as? String
             let outputFormat = options["outputFormat"] as? [String: Any]
+            let decodingOptions = options["decodingOptions"] as? [String: Any]
+
+            // Add detailed logging for filename and format options
+            Logger.debug("Trim audio request:")
+            Logger.debug("- Input file: \(fileUri)")
+            Logger.debug("- Mode: \(mode)")
+            Logger.debug("- Output filename: \(outputFileName ?? "not specified (will generate UUID)")")
+            if let format = outputFormat?["format"] as? String {
+                Logger.debug("- Output format: \(format)")
+            } else {
+                Logger.debug("- Output format: not specified (will use default)")
+            }
+
+            // Input validation based on mode
+            switch mode {
+            case "single":
+                guard let start = startTimeMs, let end = endTimeMs else {
+                    promise.reject("INVALID_ARGUMENTS", "startTimeMs and endTimeMs required for 'single' mode")
+                    return
+                }
+                guard start >= 0, end > start else {
+                    promise.reject("INVALID_ARGUMENTS", "Invalid time range")
+                    return
+                }
+            case "keep", "remove":
+                guard let rangesArray = ranges, !rangesArray.isEmpty else {
+                    promise.reject("INVALID_ARGUMENTS", "'ranges' array required for 'keep' or 'remove' mode")
+                    return
+                }
+            default:
+                promise.reject("INVALID_MODE", "Mode must be 'single', 'keep', or 'remove'")
+                return
+            }
 
             DispatchQueue.global().async {
                 do {
                     let audioProcessor = try AudioProcessor(
                         url: url,
-                        resolve: { result in
-                            promise.resolve(result)
-                        },
-                        reject: { code, message in
-                            promise.reject(code, message)
-                        }
+                        resolve: { result in promise.resolve(result) },
+                        reject: { code, message in promise.reject(code, message) }
                     )
-                    
+
+                    let progressCallback: (Float, Int64, Int64) -> Void = { progress, bytesProcessed, totalBytes in
+                        self.sendEvent("TrimProgress", [
+                            "progress": progress,
+                            "bytesProcessed": bytesProcessed,
+                            "totalBytes": totalBytes
+                        ])
+                    }
+
+                    let startTime = CACurrentMediaTime()
                     if let result = audioProcessor.trimAudio(
+                        mode: mode,
                         startTimeMs: startTimeMs,
                         endTimeMs: endTimeMs,
-                        outputFormat: outputFormat
+                        ranges: ranges,
+                        outputFileName: outputFileName,
+                        outputFormat: outputFormat,
+                        decodingOptions: decodingOptions,
+                        progressCallback: progressCallback
                     ) {
-                        promise.resolve([
-                            "uri": result.uri,
-                            "duration": result.duration,
-                            "size": result.size
-                        ])
+                        let processingTimeMs = Int((CACurrentMediaTime() - startTime) * 1000)
+                        var resultDict = result.toDictionary()
+                        resultDict["processingInfo"] = ["durationMs": processingTimeMs]
+                        
+                        let uri = result.uri
+                        Logger.debug("Trim completed successfully in \(processingTimeMs)ms")
+                        Logger.debug("Output file URI: \(uri)")
+                        
+                        // Verify file exists
+                        let fileManager = FileManager.default
+                        if let url = URL(string: uri) {
+                            let exists = fileManager.fileExists(atPath: url.path)
+                            Logger.debug("File exists at path \(url.path): \(exists)")
+                            
+                            // Log filename details
+                            Logger.debug("Filename: \(url.lastPathComponent)")
+                            Logger.debug("File extension: \(url.pathExtension.lowercased())")
+                            
+                            // If format is AAC, ensure we're using the correct extension and MIME type
+                            if let format = outputFormat?["format"] as? String, 
+                               format.lowercased() == "aac" {
+                                
+                                Logger.debug("AAC format detected - ensuring correct metadata")
+                                
+                                // For AAC format, ensure we're using the correct extension and MIME type
+                                if url.pathExtension.lowercased() == "m4a" {
+                                    Logger.debug("File has correct m4a extension for AAC audio")
+                                    
+                                    // Just update the MIME type in the result to ensure correct playback
+                                    if var compression = resultDict["compression"] as? [String: Any] {
+                                        compression["mimeType"] = "audio/mp4"
+                                        resultDict["compression"] = compression
+                                    }
+                                    
+                                    resultDict["mimeType"] = "audio/mp4"
+                                    resultDict["actualFormat"] = "m4a"
+                                } else {
+                                    Logger.debug("Warning: AAC format should use .m4a extension, but found .\(url.pathExtension.lowercased())")
+                                }
+                            }
+                        }
+                        
+                        promise.resolve(resultDict)
                     } else {
+                        Logger.debug("Failed to trim audio")
                         promise.reject("TRIM_ERROR", "Failed to trim audio")
                     }
                 } catch {
+                    Logger.debug("Failed to initialize audio processor: \(error.localizedDescription)")
                     promise.reject("PROCESSING_ERROR", "Failed to initialize audio processor: \(error.localizedDescription)")
                 }
             }
