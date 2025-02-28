@@ -6,14 +6,61 @@ import AVFoundation
 import QuartzCore
 
 public struct TrimResult {
-    public let uri: String
-    public let duration: Double
-    public let size: Int64
-    
-    public init(uri: String, duration: Double, size: Int64) {
+    let uri: String
+    let filename: String
+    let durationMs: Double
+    let size: Int64
+    let sampleRate: Int
+    let channels: Int
+    let bitDepth: Int
+    let mimeType: String
+    let requestedFormat: String
+    let actualFormat: String
+    let compression: [String: Any]?
+
+    init(
+        uri: String,
+        filename: String,
+        durationMs: Double,
+        size: Int64,
+        sampleRate: Int,
+        channels: Int,
+        bitDepth: Int,
+        mimeType: String,
+        requestedFormat: String,
+        actualFormat: String,
+        compression: [String: Any]?
+    ) {
         self.uri = uri
-        self.duration = duration
+        self.filename = filename
+        self.durationMs = durationMs
         self.size = size
+        self.sampleRate = sampleRate
+        self.channels = channels
+        self.bitDepth = bitDepth
+        self.mimeType = mimeType
+        self.requestedFormat = requestedFormat
+        self.actualFormat = actualFormat
+        self.compression = compression
+    }
+
+    func toDictionary() -> [String: Any] {
+        var dict: [String: Any] = [
+            "uri": uri,
+            "filename": filename,
+            "durationMs": durationMs,
+            "size": size,
+            "sampleRate": sampleRate,
+            "channels": channels,
+            "bitDepth": bitDepth,
+            "mimeType": mimeType,
+            "requestedFormat": requestedFormat,
+            "actualFormat": actualFormat
+        ]
+        if let compression = compression {
+            dict["compression"] = compression
+        }
+        return dict
     }
 }
 
@@ -596,95 +643,498 @@ public class AudioProcessor {
 
     /// Trims audio file to specified range
     public func trimAudio(
-        startTimeMs: Double,
-        endTimeMs: Double,
-        outputFormat: [String: Any]?
+        mode: String,
+        startTimeMs: Double?,
+        endTimeMs: Double?,
+        ranges: [[String: Double]]?,
+        outputFileName: String?,
+        outputFormat: [String: Any]?,
+        decodingOptions: [String: Any]?,
+        progressCallback: ((Float, Int64, Int64) -> Void)? = nil
     ) -> TrimResult? {
-        guard let currentAudioFile = audioFile else {
-            Logger.debug("No audio file loaded")
-            return nil
+        // Log the input parameters
+        Logger.debug("Starting audio trim operation:")
+        Logger.debug("- Mode: \(mode)")
+        if let start = startTimeMs, let end = endTimeMs {
+            Logger.debug("- Time range: \(start)ms to \(end)ms")
+        }
+        if let ranges = ranges {
+            Logger.debug("- Ranges count: \(ranges.count)")
+        }
+        
+        // Log output format details
+        if let format = outputFormat {
+            let formatType = format["format"] as? String ?? "unknown"
+            let bitrate = format["bitrate"] as? Int ?? 0
+            Logger.debug("- Output format: \(formatType), bitrate: \(bitrate)")
+        }
+        
+        guard let audioFile = audioFile else { return nil }
+
+        let inputFormat = audioFile.processingFormat
+        let inputSampleRate = inputFormat.sampleRate
+        let inputChannels = Int(inputFormat.channelCount)
+        let totalDurationMs = Double(audioFile.length) / inputSampleRate * 1000
+
+        // Compute ranges to keep
+        let keepRanges = computeKeepRanges(
+            mode: mode,
+            startTimeMs: startTimeMs,
+            endTimeMs: endTimeMs,
+            ranges: ranges,
+            totalDurationMs: totalDurationMs
+        )
+
+        guard !keepRanges.isEmpty else { return nil }
+
+        // Output format setup
+        let requestedFormat = outputFormat?["format"] as? String ?? "wav"
+        let validFormats = ["wav", "aac", "opus"]
+        let formatStr = validFormats.contains(requestedFormat.lowercased()) ? requestedFormat.lowercased() : "aac"
+
+        if formatStr != requestedFormat.lowercased() {
+            Logger.debug("Unsupported format '\(requestedFormat)', falling back to 'aac'")
         }
 
-        let sampleRate = currentAudioFile.fileFormat.sampleRate
-        let startFrame = AVAudioFramePosition(startTimeMs * sampleRate / 1000.0)
-        let endFrame = AVAudioFramePosition(endTimeMs * sampleRate / 1000.0)
-        
-        // Create output format
-        let outputSettings = createOutputSettings(from: outputFormat, originalFormat: currentAudioFile.fileFormat)
-        
-        // Create temporary output file
+        let targetSampleRate = outputFormat?["sampleRate"] as? Double ?? inputSampleRate
+        let targetChannels = outputFormat?["channels"] as? Int ?? inputChannels
+        let targetBitDepth = outputFormat?["bitDepth"] as? Int ?? 16
+        let bitrate = outputFormat?["bitrate"] as? Int ?? 128000
+
+        let fileExtension = formatStr == "wav" ? "wav" : (formatStr == "aac" ? "aac" : "opus")
         let outputURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("wav")
-        
+            .appendingPathComponent(outputFileName ?? UUID().uuidString)
+            .appendingPathExtension(fileExtension)
+
+        let decodingConfig = DecodingConfig.fromDictionary(decodingOptions ?? [:])
+        let needFormatChange = decodingConfig.targetSampleRate != nil || decodingConfig.targetChannels != nil || decodingConfig.targetBitDepth != nil
+        let isWavInput = audioFile.fileFormat.settings[AVFormatIDKey] as? UInt32 == kAudioFormatLinearPCM
+
         do {
-            let outputFile = try AVAudioFile(
-                forWriting: outputURL,
-                settings: outputSettings,
-                commonFormat: .pcmFormatFloat32,
-                interleaved: false
-            )
-            
-            // Read and write in chunks
-            let bufferSize = 32768
-            let buffer = AVAudioPCMBuffer(
-                pcmFormat: currentAudioFile.processingFormat,
-                frameCapacity: AVAudioFrameCount(bufferSize)
-            )!
-            
-            currentAudioFile.framePosition = startFrame
-            var currentFrame = startFrame
-            
-            while currentFrame < endFrame {
-                let framesToRead = min(
-                    AVAudioFrameCount(bufferSize),
-                    AVAudioFrameCount(endFrame - currentFrame)
-                )
+            if isWavInput && formatStr == "wav" && !needFormatChange {
+                // Fast path: WAV-to-WAV with no format changes
+                let outputFile = try AVAudioFile(forWriting: outputURL, settings: inputFormat.settings)
+                var totalFrames: Int64 = 0
+                for range in keepRanges {
+                    // Break down complex expression
+                    let startTimeInSeconds = range[0] / 1000
+                    let endTimeInSeconds = range[1] / 1000
+                    let startFramePosition = startTimeInSeconds * inputSampleRate
+                    let endFramePosition = endTimeInSeconds * inputSampleRate
+                    totalFrames += Int64(endFramePosition - startFramePosition)
+                }
+                var cumulativeFrames: Int64 = 0
+
+                for range in keepRanges {
+                    // Break down complex expressions
+                    let startTimeInSeconds = range[0] / 1000
+                    let startFrame = AVAudioFramePosition(startTimeInSeconds * inputSampleRate)
+                    
+                    let endTimeInSeconds = range[1] / 1000
+                    let endFramePosition = endTimeInSeconds * inputSampleRate
+                    let frameCount = AVAudioFrameCount(endFramePosition - Double(startFrame))
+                    
+                    let buffer = AVAudioPCMBuffer(pcmFormat: inputFormat, frameCapacity: frameCount)!
+                    audioFile.framePosition = startFrame
+                    try audioFile.read(into: buffer, frameCount: frameCount)
+                    try outputFile.write(from: buffer)
+                    cumulativeFrames += Int64(frameCount)
+                    let progress = Float(cumulativeFrames) / Float(totalFrames) * 100
+                    progressCallback?(progress, Int64(frameCount) * Int64(inputFormat.streamDescription.pointee.mBytesPerFrame), totalFrames * Int64(inputFormat.streamDescription.pointee.mBytesPerFrame))
+                }
+
+                // When creating the output file
+                Logger.debug("Creating output file at: \(outputURL.path)")
                 
-                try currentAudioFile.read(into: buffer, frameCount: framesToRead)
-                try outputFile.write(from: buffer)
+                // After processing is complete
+                Logger.debug("Trim operation completed")
+                Logger.debug("- Output file: \(outputURL.path)")
+                Logger.debug("- File exists: \(FileManager.default.fileExists(atPath: outputURL.path))")
+                Logger.debug("- File size: \(try? FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? Int64 ?? 0) bytes")
+                Logger.debug("- File extension: \(outputURL.pathExtension)")
                 
-                currentFrame += Int64(framesToRead)
+                return createTrimResult(from: outputURL, keepRanges: keepRanges, formatStr: formatStr, sampleRate: Int(inputSampleRate), channels: inputChannels, bitDepth: 16, bitrate: bitrate)
+            } else {
+                // Non-fast path: Decode and re-encode
+                let targetFormat = AVAudioFormat(
+                    commonFormat: .pcmFormatFloat32,
+                    sampleRate: targetSampleRate,
+                    channels: AVAudioChannelCount(targetChannels),
+                    interleaved: false
+                )!
+
+                var totalFrames: Int64 = 0
+                for range in keepRanges {
+                    // Break down complex expression
+                    let startTimeInSeconds = range[0] / 1000
+                    let endTimeInSeconds = range[1] / 1000
+                    let startFramePosition = startTimeInSeconds * inputSampleRate
+                    let endFramePosition = endTimeInSeconds * inputSampleRate
+                    totalFrames += Int64(endFramePosition - startFramePosition)
+                }
+                var cumulativeFrames: Int64 = 0
+
+                if formatStr == "wav" {
+                    let outputFile = try AVAudioFile(forWriting: outputURL, settings: [
+                        AVFormatIDKey: kAudioFormatLinearPCM,
+                        AVSampleRateKey: targetSampleRate,
+                        AVNumberOfChannelsKey: targetChannels,
+                        AVLinearPCMBitDepthKey: targetBitDepth,
+                        AVLinearPCMIsFloatKey: false,
+                        AVLinearPCMIsBigEndianKey: false
+                    ])
+
+                    for range in keepRanges {
+                        // Break down complex expressions
+                        let startTimeInSeconds = range[0] / 1000
+                        let startFrame = AVAudioFramePosition(startTimeInSeconds * inputSampleRate)
+                        
+                        let endTimeInSeconds = range[1] / 1000
+                        let endFramePosition = endTimeInSeconds * inputSampleRate
+                        let frameCount = AVAudioFrameCount(endFramePosition - Double(startFrame))
+                        
+                        let buffer = AVAudioPCMBuffer(pcmFormat: inputFormat, frameCapacity: frameCount)!
+                        audioFile.framePosition = startFrame
+                        try audioFile.read(into: buffer, frameCount: frameCount)
+                        let converter = AVAudioConverter(from: inputFormat, to: targetFormat)!
+                        let convertedBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: frameCount)!
+                        try converter.convert(to: convertedBuffer, from: buffer)
+                        try outputFile.write(from: convertedBuffer)
+                        cumulativeFrames += Int64(frameCount)
+                        let progress = Float(cumulativeFrames) / Float(totalFrames) * 100
+                        progressCallback?(progress, 0, totalFrames * Int64(inputFormat.streamDescription.pointee.mBytesPerFrame))
+                    }
+                    return createTrimResult(from: outputURL, keepRanges: keepRanges, formatStr: formatStr, sampleRate: Int(targetSampleRate), channels: targetChannels, bitDepth: targetBitDepth, bitrate: bitrate)
+                } else {
+                    // AAC or Opus output
+                    let outputSettings: [String: Any]
+                    let fileType: AVFileType
+                    
+                    if formatStr == "aac" {
+                        // AAC settings
+                        let outputExtension = "m4a"
+                        let tempOutputURL = FileManager.default.temporaryDirectory
+                            .appendingPathComponent(outputFileName ?? UUID().uuidString)
+                            .appendingPathExtension(outputExtension)
+                        
+                        // Validate and adjust sample rate for AAC
+                        // AAC typically supports: 8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000 Hz
+                        let supportedSampleRates = [8000.0, 11025.0, 12000.0, 16000.0, 22050.0, 24000.0, 32000.0, 44100.0, 48000.0]
+                        
+                        // Default to 44100 if not specified
+                        var sampleRate = outputFormat?["sampleRate"] as? Double ?? 44100.0
+                        
+                        // Find closest supported sample rate
+                        if !supportedSampleRates.contains(sampleRate) {
+                            let closestRate = supportedSampleRates.min(by: { abs($0 - sampleRate) < abs($1 - sampleRate) }) ?? 44100.0
+                            Logger.debug("Unsupported sample rate \(sampleRate)Hz for AAC, using closest supported rate: \(closestRate)Hz")
+                            sampleRate = closestRate
+                        }
+                        
+                        // Validate channels (AAC typically supports 1 or 2 channels)
+                        var channels = outputFormat?["channels"] as? Int ?? 2
+                        if channels > 2 {
+                            Logger.debug("AAC encoding doesn't support \(channels) channels, limiting to 2 channels")
+                            channels = 2
+                        } else if channels < 1 {
+                            channels = 1
+                        }
+                        
+                        // Validate bitrate (AAC typically supports 8000-320000 bps)
+                        var bitrate = outputFormat?["bitrate"] as? Int ?? 128000
+                        if bitrate < 8000 {
+                            Logger.debug("AAC bitrate too low, setting to minimum 8000 bps")
+                            bitrate = 8000
+                        } else if bitrate > 320000 {
+                            Logger.debug("AAC bitrate too high, setting to maximum 320000 bps")
+                            bitrate = 320000
+                        }
+                        
+                        // Set up proper audio settings for AAC
+                        outputSettings = [
+                            AVFormatIDKey: kAudioFormatMPEG4AAC,
+                            AVSampleRateKey: sampleRate,
+                            AVNumberOfChannelsKey: channels,
+                            AVEncoderBitRateKey: bitrate,
+                            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                        ]
+                        fileType = .m4a
+                        
+                        Logger.debug("""
+                            Configuring AAC output:
+                            - Container: m4a
+                            - Format: AAC
+                            - Sample rate: \(sampleRate)Hz
+                            - Channels: \(channels)
+                            - Bitrate: \(bitrate) bps
+                            - Output path: \(tempOutputURL.path)
+                            - File type: \(fileType)
+                            """)
+                    } else {
+                        // Opus settings - use CAF container which can hold Opus
+                        outputSettings = [
+                            AVFormatIDKey: kAudioFormatOpus,
+                            AVSampleRateKey: targetSampleRate,
+                            AVNumberOfChannelsKey: targetChannels,
+                            AVEncoderBitRateKey: bitrate
+                        ]
+                        fileType = .caf // Core Audio Format can contain Opus
+                    }
+                    
+                    // Use proper file extension for the container format
+                    let tempFileExtension = formatStr == "aac" ? "m4a" : "caf"
+                    let tempOutputURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(outputFileName ?? UUID().uuidString)
+                        .appendingPathExtension(tempFileExtension)
+                    
+                    // Create the asset writer with the appropriate file type
+                    let assetWriter = try AVAssetWriter(
+                        outputURL: tempOutputURL, 
+                        fileType: fileType
+                    )
+                    
+                    // Configure the writer input with better settings
+                    let writerInput = AVAssetWriterInput(mediaType: .audio, outputSettings: outputSettings)
+                    writerInput.expectsMediaDataInRealTime = false
+                    assetWriter.add(writerInput)
+                    
+                    // Start the writing session
+                    assetWriter.startWriting()
+                    assetWriter.startSession(atSourceTime: CMTime.zero)
+                    
+                    // Improved buffer handling
+                    let bufferSize = 32768 // Use a larger buffer for better performance
+                    let pcmBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: AVAudioFrameCount(bufferSize))!
+
+                    for range in keepRanges {
+                        let startTimeInSeconds = range[0] / 1000
+                        let startFrame = AVAudioFramePosition(startTimeInSeconds * inputSampleRate)
+                        
+                        let endTimeInSeconds = range[1] / 1000
+                        let endFramePosition = endTimeInSeconds * inputSampleRate
+                        let totalFramesToProcess = AVAudioFrameCount(endFramePosition - Double(startFrame))
+                        
+                        // Process in chunks for better memory management
+                        var framesProcessed: AVAudioFrameCount = 0
+                        audioFile.framePosition = startFrame
+                        
+                        while framesProcessed < totalFramesToProcess {
+                            let framesToRead = min(AVAudioFrameCount(bufferSize), totalFramesToProcess - framesProcessed)
+                            let buffer = AVAudioPCMBuffer(pcmFormat: inputFormat, frameCapacity: framesToRead)!
+                            
+                            do {
+                                try audioFile.read(into: buffer, frameCount: framesToRead)
+                                
+                                // Convert the buffer to the target format
+                                let converter = AVAudioConverter(from: inputFormat, to: targetFormat)!
+                                let convertedBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: framesToRead)!
+                                
+                                var error: NSError?
+                                let conversionStatus = converter.convert(to: convertedBuffer, error: &error) { inNumPackets, outStatus in
+                                    outStatus.pointee = .haveData
+                                    return buffer
+                                }
+                                
+                                if let error = error {
+                                    Logger.debug("Conversion error: \(error)")
+                                    continue
+                                }
+                                
+                                // Create a sample buffer and append to writer
+                                if let sampleBuffer = createSampleBuffer(from: convertedBuffer) {
+                                    // Wait until the writer is ready
+                                    while !writerInput.isReadyForMoreMediaData {
+                                        Thread.sleep(forTimeInterval: 0.01)
+                                    }
+                                    
+                                    if !writerInput.append(sampleBuffer) {
+                                        Logger.debug("Failed to append sample buffer: \(assetWriter.error?.localizedDescription ?? "Unknown error")")
+                                    }
+                                }
+                                
+                                framesProcessed += framesToRead
+                                cumulativeFrames += Int64(framesToRead)
+                                let progress = Float(cumulativeFrames) / Float(totalFrames) * 100
+                                progressCallback?(progress, 0, totalFrames * Int64(inputFormat.streamDescription.pointee.mBytesPerFrame))
+                                
+                                if framesProcessed % 10000 == 0 { // Log every 10000 frames to avoid excessive logging
+                                    Logger.debug("Processed \(framesProcessed)/\(totalFramesToProcess) frames")
+                                }
+                                
+                            } catch {
+                                Logger.debug("Error reading audio: \(error)")
+                                break
+                            }
+                        }
+                    }
+
+                    // Finish writing properly
+                    writerInput.markAsFinished()
+                    let finishSemaphore = DispatchSemaphore(value: 0)
+                    assetWriter.finishWriting { 
+                        if let error = assetWriter.error {
+                            Logger.debug("Error finishing writing: \(error)")
+                        } else {
+                            Logger.debug("Writing finished successfully")
+                            
+                            // Verify the output file
+                            let fileExists = FileManager.default.fileExists(atPath: tempOutputURL.path)
+                            let fileSize = (try? FileManager.default.attributesOfItem(atPath: tempOutputURL.path)[.size] as? Int64) ?? 0
+                            
+                            Logger.debug("""
+                                Output file verification:
+                                - Path: \(tempOutputURL.path)
+                                - Exists: \(fileExists)
+                                - Size: \(fileSize) bytes
+                                - Extension: \(tempOutputURL.pathExtension)
+                                """)
+                        }
+                        finishSemaphore.signal() 
+                    }
+                    finishSemaphore.wait()
+                    
+                    // Verify the file was created successfully
+                    guard FileManager.default.fileExists(atPath: tempOutputURL.path) else {
+                        reject("FILE_CREATION_FAILED", "Failed to create output file")
+                        return nil
+                    }
+                    
+                    // Create compression info
+                    var compressionInfo: [String: Any] = [
+                        "format": formatStr,
+                        "bitrate": bitrate,
+                        "size": (try? FileManager.default.attributesOfItem(atPath: tempOutputURL.path)[.size] as? Int64) ?? 0
+                    ]
+                    
+                    // Add fallback information if applicable
+                    if formatStr != requestedFormat.lowercased() {
+                        compressionInfo["requestedFormat"] = requestedFormat
+                        compressionInfo["fallbackReason"] = "Unsupported format"
+                    }
+                    
+                    // Use the correct MIME type
+                    let mimeType = formatStr == "aac" ? "audio/mp4" : "audio/opus"
+                    
+                    return TrimResult(
+                        uri: tempOutputURL.absoluteString,
+                        filename: tempOutputURL.lastPathComponent,
+                        durationMs: keepRanges.map { $0[1] - $0[0] }.reduce(0, +),
+                        size: (try? FileManager.default.attributesOfItem(atPath: tempOutputURL.path)[.size] as? Int64) ?? 0,
+                        sampleRate: Int(targetSampleRate),
+                        channels: targetChannels,
+                        bitDepth: 16,
+                        mimeType: mimeType,
+                        requestedFormat: formatStr,
+                        actualFormat: tempFileExtension,
+                        compression: compressionInfo
+                    )
+                }
             }
-            
-            // Get file size
-            let attributes = try FileManager.default.attributesOfItem(atPath: outputURL.path)
-            let fileSize = attributes[.size] as! Int64
-            
-            // After successful trim, update the class property
-            audioFile = try AVAudioFile(forReading: outputURL)
-            
-            // After successful trim, create the result
-            let trimmedDuration = (endTimeMs - startTimeMs) / 1000.0 // Convert to seconds
-            let result = TrimResult(
-                uri: outputURL.absoluteString,
-                duration: trimmedDuration, // Use actual trimmed duration
-                size: fileSize
-            )
-            
-            return result
         } catch {
-            Logger.debug("Error trimming audio: \(error)")
+            reject("TRIM_ERROR", "Failed to trim audio: \(error.localizedDescription)")
             return nil
         }
     }
+    
+    private func computeKeepRanges(mode: String, startTimeMs: Double?, endTimeMs: Double?, ranges: [[String: Double]]?, totalDurationMs: Double) -> [[Double]] {
+        switch mode {
+        case "single":
+            guard let start = startTimeMs, let end = endTimeMs else { return [] }
+            return [[start, end]]
+        case "keep":
+            return ranges?.map { [$0["startTimeMs"] ?? 0, $0["endTimeMs"] ?? totalDurationMs] } ?? []
+        case "remove":
+            let removeRanges = ranges?.map { [$0["startTimeMs"] ?? 0, $0["endTimeMs"] ?? totalDurationMs] }.sorted { $0[0] < $1[0] } ?? []
+            var keepRanges: [[Double]] = []
+            var lastEnd = 0.0
+            for range in removeRanges {
+                if range[0] > lastEnd {
+                    keepRanges.append([lastEnd, range[0]])
+                }
+                lastEnd = max(lastEnd, range[1])
+            }
+            if lastEnd < totalDurationMs {
+                keepRanges.append([lastEnd, totalDurationMs])
+            }
+            return keepRanges
+        default:
+            return []
+        }
+    }
 
-    private func createOutputSettings(
-        from options: [String: Any]?,
-        originalFormat: AVAudioFormat
-    ) -> [String: Any] {
-        var settings: [String: Any] = [:]
+    private func createTrimResult(from url: URL, keepRanges: [[Double]], formatStr: String, sampleRate: Int, channels: Int, bitDepth: Int, bitrate: Int, compression: [String: Any]? = nil) -> TrimResult {
+        let durationMs = keepRanges.map { $0[1] - $0[0] }.reduce(0, +)
+        let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64 ?? 0) ?? 0
+        let fileExtension = formatStr == "wav" ? "wav" : (formatStr == "aac" ? "aac" : "opus")
+        return TrimResult(
+            uri: url.absoluteString,
+            filename: url.lastPathComponent,
+            durationMs: durationMs,
+            size: size,
+            sampleRate: sampleRate,
+            channels: channels,
+            bitDepth: bitDepth,
+            mimeType: "audio/\(fileExtension)",
+            requestedFormat: formatStr,
+            actualFormat: fileExtension,
+            compression: compression
+        )
+    }
+
+    private func createSampleBuffer(from buffer: AVAudioPCMBuffer) -> CMSampleBuffer? {
+        var formatDesc: CMAudioFormatDescription?
+        CMAudioFormatDescriptionCreate(
+            allocator: kCFAllocatorDefault,
+            asbd: buffer.format.streamDescription,
+            layoutSize: 0,
+            layout: nil,
+            magicCookieSize: 0,
+            magicCookie: nil,
+            extensions: nil,
+            formatDescriptionOut: &formatDesc
+        )
+        guard let format = formatDesc else { return nil }
+
+        var sampleBuffer: CMSampleBuffer?
+        var timingInfo = CMSampleTimingInfo(
+            duration: CMTime(value: 1, timescale: CMTimeScale(buffer.format.sampleRate)),
+            presentationTimeStamp: .zero,
+            decodeTimeStamp: .invalid
+        )
+
+        CMSampleBufferCreate(
+            allocator: kCFAllocatorDefault,
+            dataBuffer: nil,
+            dataReady: false,
+            makeDataReadyCallback: nil,
+            refcon: nil,
+            formatDescription: format,
+            sampleCount: CMItemCount(buffer.frameLength),
+            sampleTimingEntryCount: 1,
+            sampleTimingArray: &timingInfo,
+            sampleSizeEntryCount: 0,
+            sampleSizeArray: nil,
+            sampleBufferOut: &sampleBuffer
+        )
+        guard let sampleBuf = sampleBuffer else { return nil }
+
+        var dataBuffer: CMBlockBuffer?
+        CMBlockBufferCreateWithMemoryBlock(
+            allocator: kCFAllocatorDefault,
+            memoryBlock: UnsafeMutableRawPointer(buffer.floatChannelData![0]),
+            blockLength: Int(buffer.frameLength * buffer.format.streamDescription.pointee.mBytesPerFrame),
+            blockAllocator: kCFAllocatorNull,
+            customBlockSource: nil,
+            offsetToData: 0,
+            dataLength: Int(buffer.frameLength * buffer.format.streamDescription.pointee.mBytesPerFrame),
+            flags: 0,
+            blockBufferOut: &dataBuffer
+        )
+        guard let blockBuf = dataBuffer else { return nil }
         
-        // Use original format settings as defaults
-        settings[AVFormatIDKey] = kAudioFormatLinearPCM
-        settings[AVSampleRateKey] = options?["sampleRate"] as? Double ?? originalFormat.sampleRate
-        settings[AVNumberOfChannelsKey] = options?["channels"] as? Int ?? originalFormat.channelCount
-        settings[AVLinearPCMBitDepthKey] = options?["bitDepth"] as? Int ?? 16
-        settings[AVLinearPCMIsFloatKey] = false
-        settings[AVLinearPCMIsBigEndianKey] = false
-        settings[AVLinearPCMIsNonInterleaved] = false
+        CMSampleBufferSetDataBuffer(sampleBuf, newValue: blockBuf)
         
-        return settings
+        return sampleBuf
     }
 
     /// Extracts a preview of the audio data with consistent time range support
@@ -854,5 +1304,10 @@ public class AudioProcessor {
             speechAnalysis: nil,
             extractionTimeMs: extractionTimeMs
         )
+    }
+
+    // Add this helper function to the AudioProcessor class
+    private func getDocumentsDirectory() -> URL {
+        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 }

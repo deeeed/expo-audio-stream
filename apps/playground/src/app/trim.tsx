@@ -1,15 +1,15 @@
-import { AppTheme, Notice, NumberAdjuster, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
+import { AppTheme, Notice, NumberAdjuster, EditableInfoCard, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
 import { SampleRate, trimAudio, TrimAudioOptions, TrimAudioResult } from '@siteed/expo-audio-stream'
 import { AudioTimeRangeSelector } from '@siteed/expo-audio-ui'
+import { Audio, AVPlaybackStatus } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
-import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react'
-import { StyleSheet, View, Platform } from 'react-native'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Platform, StyleSheet, View } from 'react-native'
 import { Button, ProgressBar, SegmentedButtons, Text } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import TrimVisualization from '../components/TrimVisualization'
 import { baseLogger } from '../config'
 import { useSampleAudio } from '../hooks/useSampleAudio'
-import { Audio, AVPlaybackStatus } from 'expo-av'
 
 const logger = baseLogger.extend('TrimScreen')
 
@@ -78,6 +78,7 @@ export default function TrimScreen() {
     const [isPlaying, setIsPlaying] = useState(false)
     const [playbackPosition, setPlaybackPosition] = useState(0)
     const playbackPositionRef = useRef(0)
+    const [customFileName, setCustomFileName] = useState<string>('')
 
     // Trim parameters
     const [trimMode, setTrimMode] = useState<'single' | 'keep' | 'remove'>('single')
@@ -172,6 +173,10 @@ export default function TrimScreen() {
             setError(undefined)
             setProgress(0)
             
+            // Generate a default filename for the trimmed output
+            const baseName = filename.split('.').shift() || 'audio'
+            setCustomFileName(`${baseName}_trimmed`)
+            
             // Automatically select matching output format based on file type
             const lowerMimeType = mimeType.toLowerCase()
             const extension = filename.split('.').pop()?.toLowerCase() || ''
@@ -217,6 +222,9 @@ export default function TrimScreen() {
             
             // Also update the end time to match the actual duration
             setEndTime(sampleFile.durationMs)
+            
+            // Set a default filename for the trimmed output
+            setCustomFileName('jfk_speech_trimmed')
             
             setTrimResult(null)
             setError(undefined)
@@ -344,6 +352,16 @@ export default function TrimScreen() {
                 }
             }
 
+            // Add custom filename if provided
+            if (customFileName) {
+                // Ensure filename has the correct extension
+                let finalFileName = customFileName;
+                if (!finalFileName.toLowerCase().endsWith(`.${outputFormat}`)) {
+                    finalFileName = `${finalFileName}.${outputFormat}`;
+                }
+                trimOptions.outputFileName = finalFileName;
+            }
+
             if (trimMode === 'single') {
                 trimOptions.startTimeMs = actualStartTime;
                 trimOptions.endTimeMs = actualEndTime;
@@ -391,7 +409,7 @@ export default function TrimScreen() {
         } finally {
             setIsProcessing(false)
         }
-    }, [currentFile, trimMode, startTime, endTime, timeRanges, outputFormat, outputSampleRate, show, sound])
+    }, [currentFile, sound, startTime, endTime, trimMode, outputFormat, outputSampleRate, customFileName, show, timeRanges])
 
 
     // Add this function to handle playback status updates
@@ -743,6 +761,87 @@ export default function TrimScreen() {
         </View>
     )
 
+    const renderStopped = () => (
+        <View style={{ gap: 10 }}>
+            <EditableInfoCard
+                label="File Name"
+                value={customFileName}
+                placeholder="Enter a filename for the trimmed audio"
+                inlineEditable
+                editable
+                containerStyle={{
+                    backgroundColor: colors.secondaryContainer,
+                }}
+                onInlineEdit={(newFileName) => {
+                    if (typeof newFileName === 'string') {
+                        setCustomFileName(newFileName)
+                    }
+                }}
+            />
+
+            {renderModeSelector()}
+
+            {trimMode === 'single' ? renderSingleModeControls() : renderRangesControls()}
+
+            <View>
+                <Text variant="titleMedium" style={{ marginBottom: 8 }}>Output Format</Text>
+                <SegmentedButtons
+                    value={outputFormat}
+                    onValueChange={(value) => setOutputFormat(value as 'wav' | 'aac' | 'opus')}
+                    buttons={[
+                        { value: 'wav', label: 'WAV' },
+                                    { value: 'aac', label: 'AAC', disabled: Platform.OS === 'web' },
+                        { value: 'opus', label: 'OPUS' },
+                    ]}
+                />
+                            {Platform.OS === 'web' && outputFormat === 'aac' && (
+                                <Notice
+                                    type="warning"
+                                    message="AAC format is not supported on web platforms. Please select WAV or OPUS instead."
+                                />
+                            )}
+                        </View>
+
+                        <View>
+                            <Text variant="titleMedium" style={{ marginBottom: 8 }}>Output Sample Rate</Text>
+                            <SegmentedButtons
+                                value={outputSampleRate.toString()}
+                                onValueChange={(value) => setOutputSampleRate(parseInt(value, 10) as SampleRate)}
+                                buttons={[
+                                    { value: '16000', label: '16 kHz' },
+                                    { value: '44100', label: '44.1 kHz' },
+                                    { value: '48000', label: '48 kHz' },
+                                ]}
+                            />
+            </View>
+
+            <TrimVisualization 
+                durationMs={currentFile?.durationMs || 60000}
+                mode={trimMode}
+                startTime={startTime}
+                endTime={endTime}
+                ranges={timeRanges}
+            />
+
+            <Button 
+                mode="contained" 
+                onPress={handleTrimAudio}
+                icon="content-cut"
+                loading={isProcessing}
+                disabled={isProcessing || (trimMode !== 'single' && timeRanges.length === 0)}
+            >
+                Trim Audio
+            </Button>
+
+            {isProcessing && (
+                <View>
+                    <Text style={{ marginBottom: 4 }}>Progress: {Math.round(progress * 100)}%</Text>
+                    <ProgressBar progress={progress} color={colors.primary} />
+                </View>
+            )}
+        </View>
+    )
+
     return (
         <ScreenWrapper 
             withScrollView 
@@ -787,64 +886,84 @@ export default function TrimScreen() {
                             <Text>Type: {currentFile.mimeType}</Text>
                         </View>
 
-                        {renderModeSelector()}
+                        {renderStopped()}
 
-                        {trimMode === 'single' ? renderSingleModeControls() : renderRangesControls()}
-
-                        <View>
-                            <Text variant="titleMedium" style={{ marginBottom: 8 }}>Output Format</Text>
-                            <SegmentedButtons
-                                value={outputFormat}
-                                onValueChange={(value) => setOutputFormat(value as 'wav' | 'aac' | 'opus')}
-                                buttons={[
-                                    { value: 'wav', label: 'WAV' },
-                                    { value: 'aac', label: 'AAC', disabled: Platform.OS === 'web' },
-                                    { value: 'opus', label: 'OPUS' },
-                                ]}
-                            />
-                            {Platform.OS === 'web' && outputFormat === 'aac' && (
-                                <Notice
-                                    type="warning"
-                                    message="AAC format is not supported on web platforms. Please select WAV or OPUS instead."
-                                />
-                            )}
-                        </View>
-
-                        <View>
-                            <Text variant="titleMedium" style={{ marginBottom: 8 }}>Output Sample Rate</Text>
-                            <SegmentedButtons
-                                value={outputSampleRate.toString()}
-                                onValueChange={(value) => setOutputSampleRate(parseInt(value, 10) as SampleRate)}
-                                buttons={[
-                                    { value: '16000', label: '16 kHz' },
-                                    { value: '44100', label: '44.1 kHz' },
-                                    { value: '48000', label: '48 kHz' },
-                                ]}
-                            />
-                        </View>
-
-                        <TrimVisualization 
-                            durationMs={currentFile?.durationMs || 60000}
-                            mode={trimMode}
-                            startTime={startTime}
-                            endTime={endTime}
-                            ranges={timeRanges}
-                        />
-
-                        <Button 
-                            mode="contained" 
-                            onPress={handleTrimAudio}
-                            icon="content-cut"
-                            loading={isProcessing}
-                            disabled={isProcessing || (trimMode !== 'single' && timeRanges.length === 0)}
-                        >
-                            Trim Audio
-                        </Button>
-
-                        {isProcessing && (
-                            <View>
-                                <Text style={{ marginBottom: 4 }}>Progress: {Math.round(progress * 100)}%</Text>
-                                <ProgressBar progress={progress} color={colors.primary} />
+                        {trimResult && (
+                            <View style={styles.resultContainer}>
+                                <Text variant="titleMedium" style={{ marginBottom: 8 }}>Trim Result</Text>
+                                <Text>Output URI: {trimResult.uri}</Text>
+                                <Text>Filename: {trimResult.filename}</Text>
+                                <Text>Duration: {(trimResult.durationMs / 1000).toFixed(1)}s</Text>
+                                <Text>Size: {(trimResult.size / 1024).toFixed(1)} KB</Text>
+                                <Text>Format: {trimResult.mimeType}</Text>
+                                <Text>Sample Rate: {trimResult.sampleRate} Hz</Text>
+                                <Text>Channels: {trimResult.channels}</Text>
+                                <Text>Bit Depth: {trimResult.bitDepth} bits</Text>
+                                
+                                {trimResult.compression && (
+                                    <View style={{ marginTop: 8 }}>
+                                        <Text variant="titleSmall">Compression</Text>
+                                        <Text>Format: {trimResult.compression.format}</Text>
+                                        <Text>Bitrate: {trimResult.compression.bitrate} kbps</Text>
+                                        <Text>Size: {(trimResult.compression.size / 1024).toFixed(1)} KB</Text>
+                                    </View>
+                                )}
+                                
+                                {trimResult.processingInfo && (
+                                    <View style={{ marginTop: 8 }}>
+                                        <Text variant="titleSmall">Processing</Text>
+                                        <Text>Processing Time: {(trimResult.processingInfo.durationMs / 1000).toFixed(2)}s</Text>
+                                    </View>
+                                )}
+                                
+                                {/* Add playback controls */}
+                                <View style={{ marginTop: 16, gap: 12 }}>
+                                    <Text variant="titleSmall">Playback</Text>
+                                    
+                                    {/* Progress bar */}
+                                    {sound && (
+                                        <View>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                <Text>{(playbackPosition / 1000).toFixed(1)}s</Text>
+                                                <Text>{(trimResult.durationMs / 1000).toFixed(1)}s</Text>
+                                            </View>
+                                            <ProgressBar 
+                                                progress={trimResult.durationMs > 0 ? playbackPosition / trimResult.durationMs : 0} 
+                                                color={colors.primary} 
+                                            />
+                                        </View>
+                                    )}
+                                    
+                                    {/* Playback buttons */}
+                                    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16 }}>
+                                        {!sound ? (
+                                            <Button 
+                                                mode="contained" 
+                                                onPress={playTrimmedAudio}
+                                                icon="play"
+                                            >
+                                                Play Audio
+                                            </Button>
+                                        ) : (
+                                            <>
+                                                <Button 
+                                                    mode="contained" 
+                                                    onPress={togglePlayback}
+                                                    icon={isPlaying ? "pause" : "play"}
+                                                >
+                                                    {isPlaying ? "Pause" : "Play"}
+                                                </Button>
+                                                <Button 
+                                                    mode="outlined" 
+                                                    onPress={stopPlayback}
+                                                    icon="stop"
+                                                >
+                                                    Stop
+                                                </Button>
+                                            </>
+                                        )}
+                                    </View>
+                                </View>
                             </View>
                         )}
                     </View>
@@ -856,85 +975,6 @@ export default function TrimScreen() {
                         title="Error"
                         message={error}
                     />
-                )}
-
-                {trimResult && (
-                    <View style={styles.resultContainer}>
-                        <Text variant="titleMedium" style={{ marginBottom: 8 }}>Trim Result</Text>
-                        <Text>Output URI: {trimResult.uri}</Text>
-                        <Text>Filename: {trimResult.filename}</Text>
-                        <Text>Duration: {(trimResult.durationMs / 1000).toFixed(1)}s</Text>
-                        <Text>Size: {(trimResult.size / 1024).toFixed(1)} KB</Text>
-                        <Text>Format: {trimResult.mimeType}</Text>
-                        <Text>Sample Rate: {trimResult.sampleRate} Hz</Text>
-                        <Text>Channels: {trimResult.channels}</Text>
-                        <Text>Bit Depth: {trimResult.bitDepth} bits</Text>
-                        
-                        {trimResult.compression && (
-                            <View style={{ marginTop: 8 }}>
-                                <Text variant="titleSmall">Compression</Text>
-                                <Text>Format: {trimResult.compression.format}</Text>
-                                <Text>Bitrate: {trimResult.compression.bitrate} kbps</Text>
-                                <Text>Size: {(trimResult.compression.size / 1024).toFixed(1)} KB</Text>
-                            </View>
-                        )}
-                        
-                        {trimResult.processingInfo && (
-                            <View style={{ marginTop: 8 }}>
-                                <Text variant="titleSmall">Processing</Text>
-                                <Text>Processing Time: {(trimResult.processingInfo.durationMs / 1000).toFixed(2)}s</Text>
-                            </View>
-                        )}
-                        
-                        {/* Add playback controls */}
-                        <View style={{ marginTop: 16, gap: 12 }}>
-                            <Text variant="titleSmall">Playback</Text>
-                            
-                            {/* Progress bar */}
-                            {sound && (
-                                <View>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                        <Text>{(playbackPosition / 1000).toFixed(1)}s</Text>
-                                        <Text>{(trimResult.durationMs / 1000).toFixed(1)}s</Text>
-                                    </View>
-                                    <ProgressBar 
-                                        progress={trimResult.durationMs > 0 ? playbackPosition / trimResult.durationMs : 0} 
-                                        color={colors.primary} 
-                                    />
-                                </View>
-                            )}
-                            
-                            {/* Playback buttons */}
-                            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16 }}>
-                                {!sound ? (
-                                    <Button 
-                                        mode="contained" 
-                                        onPress={playTrimmedAudio}
-                                        icon="play"
-                                    >
-                                        Play Audio
-                                    </Button>
-                                ) : (
-                                    <>
-                                        <Button 
-                                            mode="contained" 
-                                            onPress={togglePlayback}
-                                            icon={isPlaying ? "pause" : "play"}
-                                        >
-                                            {isPlaying ? "Pause" : "Play"}
-                                        </Button>
-                                        <Button 
-                                            mode="outlined" 
-                                            onPress={stopPlayback}
-                                            icon="stop"
-                                        >
-                                            Stop
-                                        </Button>
-                                    </>
-                                )}
-                            </View>
-                        </View>
-                    </View>
                 )}
             </View>
         </ScreenWrapper>
