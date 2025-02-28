@@ -15,7 +15,7 @@ const emitter = new LegacyEventEmitter(ExpoAudioStreamModule)
  * Trims an audio file based on the provided options.
  *
  * @experimental This API is experimental and not fully optimized for production use.
- * Currently only available on Android. Performance may vary based on file size and
+ * Currently only available on Android and Web. Performance may vary based on file size and
  * device capabilities. Future versions may include breaking changes.
  *
  * @param options Configuration options for the trimming operation
@@ -26,12 +26,8 @@ export async function trimAudio(
     options: TrimAudioOptions,
     progressCallback?: (event: TrimProgressEvent) => void
 ): Promise<TrimAudioResult> {
-    if (Platform.OS === 'web') {
-        throw new Error('trimAudio is not supported on web yet')
-    }
-
     if (Platform.OS === 'ios') {
-        throw new Error('trimAudio is currently only supported on Android')
+        throw new Error('trimAudio is currently only supported on Android and Web')
     }
 
     // Validation
@@ -85,7 +81,7 @@ export async function trimAudio(
  * Simplified version of trimAudio that returns only the URI of the trimmed file.
  *
  * @experimental This API is experimental and not fully optimized for production use.
- * Currently only available on Android. Performance may vary based on file size and
+ * Currently only available on Android and Web. Performance may vary based on file size and
  * device capabilities. Future versions may include breaking changes.
  *
  * @param options Configuration options for the trimming operation
