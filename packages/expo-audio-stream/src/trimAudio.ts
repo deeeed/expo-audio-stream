@@ -1,5 +1,4 @@
 import { LegacyEventEmitter, type EventSubscription } from 'expo-modules-core'
-import { Platform } from 'react-native'
 
 import {
     TrimAudioOptions,
@@ -15,7 +14,7 @@ const emitter = new LegacyEventEmitter(ExpoAudioStreamModule)
  * Trims an audio file based on the provided options.
  *
  * @experimental This API is experimental and not fully optimized for production use.
- * Performance may vary based on file size and device capabilities. 
+ * Performance may vary based on file size and device capabilities.
  * Future versions may include breaking changes.
  *
  * @param options Configuration options for the trimming operation
@@ -26,10 +25,6 @@ export async function trimAudio(
     options: TrimAudioOptions,
     progressCallback?: (event: TrimProgressEvent) => void
 ): Promise<TrimAudioResult> {
-    if (Platform.OS === 'web') {
-        throw new Error('trimAudio is not supported on web yet')
-    }
-
     // Validation
     if (!options.fileUri) {
         throw new Error('fileUri is required')
