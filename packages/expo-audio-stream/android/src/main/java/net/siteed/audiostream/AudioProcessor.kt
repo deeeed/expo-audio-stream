@@ -998,7 +998,7 @@ class AudioProcessor(private val filesDir: File) {
         return a + fraction * (b - a)
     }
 
-    private fun processAudio(
+    fun processAudio(
         pcmData: ByteArray,
         originalSampleRate: Int,
         targetSampleRate: Int?,
@@ -1931,6 +1931,117 @@ class AudioProcessor(private val filesDir: File) {
         } catch (e: Exception) {
             Log.e(Constants.TAG, "Error calculating WAV header size: ${e.message}")
             return null
+        }
+    }
+
+    /**
+     * Decodes a specific time range of an audio file directly to PCM data
+     * This is more efficient than decoding the entire file when only a portion is needed
+     */
+    fun decodeAudioRangeToPCM(fileUri: String, startTimeMs: Long, endTimeMs: Long): AudioData? {
+        val extractor = MediaExtractor()
+        var decoder: android.media.MediaCodec? = null
+        
+        try {
+            extractor.setDataSource(fileUri)
+            val trackIndex = (0 until extractor.trackCount).find { 
+                extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true 
+            } ?: return null
+            
+            extractor.selectTrack(trackIndex)
+            val format = extractor.getTrackFormat(trackIndex)
+            
+            val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            val channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            decoder = android.media.MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME)!!)
+            decoder.configure(format, null, null, 0)
+            decoder.start()
+
+            extractor.seekTo(startTimeMs * 1000, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+            val pcmData = mutableListOf<Byte>()
+            val bufferInfo = android.media.MediaCodec.BufferInfo()
+            var isEOS = false
+            var firstBufferTimeUs: Long? = null
+
+            while (!isEOS) {
+                val inputBufferId = decoder.dequeueInputBuffer(10000)
+                if (inputBufferId >= 0) {
+                    val inputBuffer = decoder.getInputBuffer(inputBufferId)!!
+                    val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                    if (sampleSize < 0 || extractor.sampleTime > endTimeMs * 1000) {
+                        decoder.queueInputBuffer(inputBufferId, 0, 0, 0, android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                        isEOS = true
+                    } else {
+                        decoder.queueInputBuffer(inputBufferId, 0, sampleSize, extractor.sampleTime, 0)
+                        extractor.advance()
+                    }
+                }
+
+                val outputBufferId = decoder.dequeueOutputBuffer(bufferInfo, 10000)
+                if (outputBufferId >= 0) {
+                    val outputBuffer = decoder.getOutputBuffer(outputBufferId)!!
+                    if (firstBufferTimeUs == null) firstBufferTimeUs = bufferInfo.presentationTimeUs
+                    val chunk = ByteArray(bufferInfo.size)
+                    outputBuffer.get(chunk)
+                    pcmData.addAll(chunk.toList())
+                    decoder.releaseOutputBuffer(outputBufferId, false)
+                }
+            }
+
+            // If we didn't get any data or first buffer time, return null
+            if (pcmData.isEmpty() || firstBufferTimeUs == null) {
+                return null
+            }
+
+            // Trim PCM data to exact time range
+            val bytesPerSample = 2 // 16-bit PCM
+            val bytesPerFrame = bytesPerSample * channels
+            val samplesPerSecond = sampleRate * channels
+            val dt = 1_000_000.0 / sampleRate // Time per sample in microseconds
+            
+            val allSamples = java.nio.ByteBuffer.wrap(pcmData.toByteArray()).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+            val totalSamples = allSamples.capacity()
+            
+            // Calculate sample indices for the exact time range
+            val startSample = ((startTimeMs * 1000 - firstBufferTimeUs) / dt).toInt().coerceIn(0, totalSamples)
+            val endSample = ((endTimeMs * 1000 - firstBufferTimeUs) / dt).toInt().coerceIn(startSample, totalSamples)
+            
+            // Create a new ShortBuffer view starting at the correct position
+            allSamples.position(startSample)
+            val trimmedSamples = ShortArray(endSample - startSample)
+            for (i in trimmedSamples.indices) {
+                trimmedSamples[i] = allSamples.get()
+            }
+            
+            // Convert ShortArray to ByteArray
+            val trimmedBytes = ByteArray(trimmedSamples.size * 2)
+            val byteBuffer = java.nio.ByteBuffer.wrap(trimmedBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            val shortBuffer = byteBuffer.asShortBuffer()
+            shortBuffer.put(trimmedSamples)
+
+            return AudioData(
+                data = trimmedBytes,
+                sampleRate = sampleRate,
+                channels = channels,
+                bitDepth = 16, // MediaCodec typically decodes to 16-bit PCM
+                durationMs = endTimeMs - startTimeMs
+            )
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to decode audio range: ${e.message}", e)
+            return null
+        } finally {
+            try {
+                decoder?.stop()
+                decoder?.release()
+            } catch (e: Exception) {
+                Log.w(Constants.TAG, "Error releasing decoder: ${e.message}")
+            }
+            
+            try {
+                extractor.release()
+            } catch (e: Exception) {
+                Log.w(Constants.TAG, "Error releasing extractor: ${e.message}")
+            }
         }
     }
 }
