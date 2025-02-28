@@ -20,7 +20,7 @@ const emitter = new LegacyEventEmitter(ExpoAudioStreamModule)
  *
  * @param options Configuration options for the trimming operation
  * @param progressCallback Optional callback to receive progress updates
- * @returns Promise resolving to the trimmed audio file information
+ * @returns Promise resolving to the trimmed audio file information, including processing time
  */
 export async function trimAudio(
     options: TrimAudioOptions,

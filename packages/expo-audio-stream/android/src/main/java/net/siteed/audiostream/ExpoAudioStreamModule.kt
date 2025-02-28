@@ -296,6 +296,9 @@ class ExpoAudioStreamModule : Module(), EventSender {
                     }
                 }
 
+                // Record start time
+                val startTime = System.currentTimeMillis()
+
                 // Perform the trim operation
                 val result = audioTrimmer.trimAudio(
                     fileUri = fileUri,
@@ -308,8 +311,17 @@ class ExpoAudioStreamModule : Module(), EventSender {
                     progressListener = progressListener
                 )
 
-                Log.d(Constants.TAG, "Trim operation completed successfully: $result")
-                promise.resolve(result)
+                // Calculate processing time
+                val processingTimeMs = System.currentTimeMillis() - startTime
+                
+                // Add processing time to result
+                val resultWithProcessingTime = result.toMutableMap()
+                resultWithProcessingTime["processingInfo"] = mapOf(
+                    "durationMs" to processingTimeMs
+                )
+
+                Log.d(Constants.TAG, "Trim operation completed successfully in ${processingTimeMs}ms: $result")
+                promise.resolve(resultWithProcessingTime)
             } catch (e: Exception) {
                 Log.e(Constants.TAG, "Error trimming audio: ${e.message}", e)
                 promise.reject("TRIM_ERROR", "Error trimming audio: ${e.message}", e)
