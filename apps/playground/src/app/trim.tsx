@@ -1,9 +1,9 @@
 import { AppTheme, Notice, NumberAdjuster, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
-import { trimAudio, TrimAudioOptions, TrimAudioResult } from '@siteed/expo-audio-stream'
+import { SampleRate, trimAudio, TrimAudioOptions, TrimAudioResult } from '@siteed/expo-audio-stream'
 import { AudioTimeRangeSelector } from '@siteed/expo-audio-ui'
 import * as DocumentPicker from 'expo-document-picker'
 import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet, View, Platform } from 'react-native'
 import { Button, ProgressBar, SegmentedButtons, Text } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import TrimVisualization from '../components/TrimVisualization'
@@ -85,6 +85,7 @@ export default function TrimScreen() {
     const [endTime, setEndTime] = useState<number>(10000)
     const [timeRanges, setTimeRanges] = useState<TimeRange[]>([])
     const [outputFormat, setOutputFormat] = useState<'wav' | 'aac' | 'opus'>('wav')
+    const [outputSampleRate, setOutputSampleRate] = useState<SampleRate>(16000)
     const [showManualInput, setShowManualInput] = useState(false)
 
     // Add this to your state declarations
@@ -338,7 +339,8 @@ export default function TrimScreen() {
                 mode: trimMode,
                 outputFormat: {
                     format: outputFormat,
-                    bitrate: outputFormat === 'wav' ? 16000 : 128000, // Higher bitrate for AAC
+                    sampleRate: outputSampleRate,
+                    bitrate: outputFormat === 'wav' ? 16000 : 128000,
                 }
             }
 
@@ -389,7 +391,7 @@ export default function TrimScreen() {
         } finally {
             setIsProcessing(false)
         }
-    }, [currentFile, trimMode, startTime, endTime, timeRanges, outputFormat, show, sound])
+    }, [currentFile, trimMode, startTime, endTime, timeRanges, outputFormat, outputSampleRate, show, sound])
 
 
     // Add this function to handle playback status updates
@@ -796,8 +798,27 @@ export default function TrimScreen() {
                                 onValueChange={(value) => setOutputFormat(value as 'wav' | 'aac' | 'opus')}
                                 buttons={[
                                     { value: 'wav', label: 'WAV' },
-                                    { value: 'aac', label: 'AAC' },
+                                    { value: 'aac', label: 'AAC', disabled: Platform.OS === 'web' },
                                     { value: 'opus', label: 'OPUS' },
+                                ]}
+                            />
+                            {Platform.OS === 'web' && outputFormat === 'aac' && (
+                                <Notice
+                                    type="warning"
+                                    message="AAC format is not supported on web platforms. Please select WAV or OPUS instead."
+                                />
+                            )}
+                        </View>
+
+                        <View>
+                            <Text variant="titleMedium" style={{ marginBottom: 8 }}>Output Sample Rate</Text>
+                            <SegmentedButtons
+                                value={outputSampleRate.toString()}
+                                onValueChange={(value) => setOutputSampleRate(parseInt(value, 10) as SampleRate)}
+                                buttons={[
+                                    { value: '16000', label: '16 kHz' },
+                                    { value: '44100', label: '44.1 kHz' },
+                                    { value: '48000', label: '48 kHz' },
                                 ]}
                             />
                         </View>
