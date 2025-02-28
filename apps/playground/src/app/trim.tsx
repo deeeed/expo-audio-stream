@@ -306,11 +306,6 @@ export default function TrimScreen() {
                 setIsPlaying(false)
             }
 
-            show({
-                loading: true,
-                message: 'Trimming audio...'
-            })
-
             // Validate trim range and ensure we're not trimming the entire file
             // which seems to cause the native code to just copy the file
             const maxDuration = currentFile.durationMs || 60000;
@@ -370,13 +365,18 @@ export default function TrimScreen() {
 
             setTrimResult(result)
             
+            // Show success toast with processing time information
+            const processingTimeSeconds = result.processingInfo?.durationMs 
+                ? (result.processingInfo.durationMs / 1000).toFixed(2) 
+                : "unknown";
+                
             show({
                 type: 'success',
-                message: 'Audio trimmed successfully',
+                message: `Audio trimmed successfully in ${processingTimeSeconds}s`,
                 stackBehavior: {
                     isStackable: false,
                 },
-                duration: 2000
+                duration: 3000
             })
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to trim audio')
@@ -428,13 +428,6 @@ export default function TrimScreen() {
                 playbackPositionRef.current = 0
             }
             
-            // Show loading toast
-            show({
-                loading: true,
-                message: 'Loading audio...',
-                duration: 1000
-            })
-            
             // Create and load the sound
             const { sound: newSound } = await Audio.Sound.createAsync(
                 { uri: trimResult?.uri || '' },
@@ -457,7 +450,7 @@ export default function TrimScreen() {
                 duration: 3000
             })
         }
-    }, [trimResult, sound, show, onPlaybackStatusUpdate])
+    }, [trimResult, sound, onPlaybackStatusUpdate, show])
     
     // Add this function to toggle play/pause
     const togglePlayback = useCallback(async () => {
