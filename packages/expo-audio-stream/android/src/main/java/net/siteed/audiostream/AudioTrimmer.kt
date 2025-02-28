@@ -70,7 +70,7 @@ class AudioTrimmer(
             Log.d(TAG, "Using format string: $formatStr")
             
             // Determine the appropriate extension and format
-            val extension = when (formatStr.toLowerCase()) {
+            val extension = when (formatStr.lowercase()) {
                 "wav" -> "wav"
                 "opus" -> "opus"
                 else -> "aac" // Default to AAC for other formats
@@ -127,9 +127,6 @@ class AudioTrimmer(
             val needFormatChange = formatOptions["sampleRate"] != null || 
                                   formatOptions["channels"] != null || 
                                   formatOptions["bitDepth"] != null
-            
-            // Calculate total bytes to process for progress reporting
-            val totalBytes = calculateTotalBytes(timeRanges, durationMs, bitrate)
             
             // Optimized approach based on input/output formats
             if (isWavInput && extension == "wav" && !needFormatChange) {
@@ -389,6 +386,9 @@ class AudioTrimmer(
             val totalRangeDuration = calculateOutputDuration(timeRanges)
             var currentRangeProcessed = 0L
             
+            var lastUpdateTime = 0L
+            val updateIntervalMs = 100L // Update progress every 100ms
+            
             for (range in timeRanges) {
                 val startTimeMs = range["startTimeMs"] ?: 0
                 val endTimeMs = range["endTimeMs"] ?: fileDurationMs // Use actual file duration instead of Long.MAX_VALUE
@@ -424,7 +424,11 @@ class AudioTrimmer(
                         // Calculate overall progress directly
                         val overallProgress = (currentRangeProcessed + currentTimeInRange).toFloat() / totalRangeDuration
                         
-                        progressCallback(overallProgress * 100, bytesToWrite.toLong(), totalRangeDuration)
+                        val currentTime = System.currentTimeMillis()
+                        if (currentTime - lastUpdateTime >= updateIntervalMs) {
+                            progressCallback(overallProgress * 100, bytesToWrite.toLong(), totalRangeDuration)
+                            lastUpdateTime = currentTime
+                        }
                         
                         // Break if we've read the entire range
                         if (rangeProcessed >= rangeSize) {
@@ -610,10 +614,13 @@ class AudioTrimmer(
             // Calculate bytes per frame
             val bytesPerSample = audioData.bitDepth / 8
             val bytesPerFrame = bytesPerSample * audioData.channels
-            val frameSizeInBytes = 4096 * bytesPerFrame // Process 4096 samples at a time instead of 1024
+            val frameSizeInBytes = 65536 // 64KB buffer instead of smaller chunks
             
             // Process the PCM data in larger chunks
             var inputOffset = 0
+            
+            var lastUpdateTime = 0L
+            val updateIntervalMs = 100L
             
             while (!encoderDone) {
                 // Submit input data if we have any left
@@ -653,7 +660,11 @@ class AudioTrimmer(
                             
                             // Report progress
                             val progress = (totalBytesProcessed * 100f) / totalBytes
-                            progressListener?.onProgress(progress, bytesToRead.toLong(), totalBytes)
+                            val currentTime = System.currentTimeMillis()
+                            if (progressListener != null && (currentTime - lastUpdateTime >= updateIntervalMs)) {
+                                progressListener.onProgress(progress, bytesToRead.toLong(), totalBytes)
+                                lastUpdateTime = currentTime
+                            }
                         } else {
                             // End of input
                             encoder.queueInputBuffer(
@@ -813,7 +824,7 @@ class AudioTrimmer(
             
             val mediaFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_OPUS, sampleRate, channels)
             mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
-            mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 16384)
+            mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 65536)
             
             // Set complexity - lower for voice (faster encoding, still good quality)
             // Complexity range is 0-10, with 10 being highest quality but slowest
@@ -861,10 +872,13 @@ class AudioTrimmer(
                 // Calculate bytes per frame
                 val bytesPerSample = audioData.bitDepth / 8
                 val bytesPerFrame = bytesPerSample * audioData.channels
-                val frameSizeInBytes = 960 * bytesPerFrame // Opus typically uses 20ms frames (960 samples at 48kHz)
+                val frameSizeInBytes = 65536 // 64KB buffer instead of smaller chunks
                 
                 // Process the PCM data in chunks
                 var inputOffset = 0
+                
+                var lastUpdateTime = 0L
+                val updateIntervalMs = 100L
                 
                 while (!encoderDone) {
                     // Submit input data if we have any left
@@ -904,7 +918,11 @@ class AudioTrimmer(
                                 
                                 // Report progress
                                 val progress = (totalBytesProcessed * 100f) / totalBytes
-                                progressListener?.onProgress(progress, bytesToRead.toLong(), totalBytes)
+                                val currentTime = System.currentTimeMillis()
+                                if (progressListener != null && (currentTime - lastUpdateTime >= updateIntervalMs)) {
+                                    progressListener.onProgress(progress, bytesToRead.toLong(), totalBytes)
+                                    lastUpdateTime = currentTime
+                                }
                             } else {
                                 // End of input
                                 encoder.queueInputBuffer(
