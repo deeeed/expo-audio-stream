@@ -865,6 +865,13 @@ export default function TrimScreen() {
                             </View>
                         )}
                         
+                        {trimResult.processingInfo && (
+                            <View style={{ marginTop: 8 }}>
+                                <Text variant="titleSmall">Processing</Text>
+                                <Text>Processing Time: {(trimResult.processingInfo.durationMs / 1000).toFixed(2)}s</Text>
+                            </View>
+                        )}
+                        
                         {/* Add playback controls */}
                         <View style={{ marginTop: 16, gap: 12 }}>
                             <Text variant="titleSmall">Playback</Text>
