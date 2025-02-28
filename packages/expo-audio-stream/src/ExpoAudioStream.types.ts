@@ -412,7 +412,7 @@ export interface TrimAudioOptions {
         /**
          * The format of the output audio file.
          * - `'wav'`: Waveform Audio File Format (uncompressed).
-         * - `'aac'`: Advanced Audio Coding (compressed).
+         * - `'aac'`: Advanced Audio Coding (compressed). Not supported on web platforms.
          * - `'opus'`: Opus Interactive Audio Codec (compressed).
          */
         format: 'wav' | 'aac' | 'opus'
@@ -512,7 +512,7 @@ export interface TrimAudioResult {
          */
         size: number
     }
-    
+
     /**
      * Information about the processing time.
      */
