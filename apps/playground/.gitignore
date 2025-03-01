@@ -15,6 +15,8 @@ web-build/
 android
 ios
 
+artifacts/
+
 # Native
 *.orig.*
 *.jks

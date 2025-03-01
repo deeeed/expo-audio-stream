@@ -121,7 +121,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     updates: {
         url: 'https://u.expo.dev/' + validatedEnv.EAS_PROJECT_ID,
     },
-    runtimeVersion: '0.8.0',
+    runtimeVersion: '0.9.0',
     owner: 'deeeed',
     plugins: [
         [
@@ -164,6 +164,23 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         ],
         'onnxruntime-react-native',
         ['./plugins/withCustomGradleConfig', {}],
+        ['./plugins/withLibcppFix', {}],
+        [
+            '@config-plugins/detox',
+            {
+              skipProguard: false,
+              subdomains: process.env.EAS_BUILD_PROFILE === "development"
+              ? "*"
+              : [
+                '10.0.2.2',
+                'localhost',
+                '192.168.50.10',
+                '192.168.50.11',
+                '192.168.11.1',
+                '192.168.1.39',
+              ],
+            },
+        ],
         'expo-localization',
         // [
         //     'expo-asset',
