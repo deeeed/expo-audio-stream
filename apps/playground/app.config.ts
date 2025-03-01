@@ -156,7 +156,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             {
                 ios: {
                     infoPlist: {
-                        ITSAppUsesNonExemptEncryption: false
+                        ITSAppUsesNonExemptEncryption: false,
+                        LSApplicationCategoryType: "public.app-category.utilities"
                     }
                 },
                 android: {},
