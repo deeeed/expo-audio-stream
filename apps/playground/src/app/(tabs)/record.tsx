@@ -538,10 +538,15 @@ export default function RecordScreen() {
                         }
                     />
                 )}
-            <Button mode="contained" onPress={pauseRecording}>
+            <Button 
+                testID="pause-recording-button"
+                mode="contained" 
+                onPress={pauseRecording}
+            >
                 Pause Recording
             </Button>
             <Button 
+                testID="stop-recording-button"
                 mode="contained" 
                 onPress={() => handleStopRecording()}
                 loading={stopping}
@@ -589,7 +594,11 @@ export default function RecordScreen() {
                 channels={streamConfig?.channels}
                 compression={compression}
             />
-            <Button mode="contained" onPress={resumeRecording}>
+            <Button 
+                testID="resume-recording-button"
+                mode="contained" 
+                onPress={resumeRecording}
+            >
                 Resume Recording
             </Button>
             <Button mode="contained" onPress={() => handleStopRecording()}>

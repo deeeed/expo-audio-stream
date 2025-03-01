@@ -9,6 +9,11 @@ module.exports = {
       setupTimeout: 120000
     }
   },
+  session: {
+    debugSynchronization: 10000,
+    debug: true,
+    autoStart: true,
+  },
   apps: {
     'ios.debug': {
       type: 'ios.app',
