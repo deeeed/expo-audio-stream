@@ -13,17 +13,17 @@ module.exports = {
     'ios.debug': {
       type: 'ios.app',
       binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/AudioDevPlayground.app',
-      build: 'yarn build:ios:development'
+      build: 'xcodebuild -workspace ios/AudioDevPlayground.xcworkspace -scheme AudioDevPlayground -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build'
     },
     'ios.release': {
       type: 'ios.app',
       binaryPath: 'ios/build/Build/Products/Release-iphonesimulator/AudioPlayground.app',
-      build: 'yarn build:ios:production'
+      build: 'xcodebuild -workspace ios/AudioPlayground.xcworkspace -scheme AudioPlayground -configuration Release -sdk iphonesimulator -derivedDataPath ios/build'
     },
     'android.debug': {
       type: 'android.apk',
       binaryPath: 'android/app/build/outputs/apk/debug/app-debug.apk',
-      build: 'yarn build:android:development',
+      build: 'cd android && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug',
       reversePorts: [
         7365
       ]
@@ -36,6 +36,24 @@ module.exports = {
   },
   devices: {
     simulator: {
+      type: 'ios.simulator',
+      device: {
+        type: 'iPhone 15'
+      }
+    },
+    iphone15ProMax: {
+      type: 'ios.simulator',
+      device: {
+        type: 'iPhone 15 Pro Max'
+      }
+    },
+    ipadPro: {
+      type: 'ios.simulator',
+      device: {
+        type: 'iPad Pro (12.9-inch) (6th generation)'
+      }
+    },
+    iphone15: {
       type: 'ios.simulator',
       device: {
         type: 'iPhone 15'
@@ -62,6 +80,18 @@ module.exports = {
     'ios.sim.release': {
       device: 'simulator',
       app: 'ios.release'
+    },
+    'ios.iphone15ProMax.debug': {
+      device: 'iphone15ProMax',
+      app: 'ios.debug'
+    },
+    'ios.iPadPro.debug': {
+      device: 'ipadPro',
+      app: 'ios.debug'
+    },
+    'ios.iphone15.debug': {
+      device: 'iphone15',
+      app: 'ios.debug'
     },
     'android.att.debug': {
       device: 'attached',

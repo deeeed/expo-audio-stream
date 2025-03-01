@@ -170,6 +170,7 @@ export interface AudioRecordingViewProps {
     resetTrigger?: unknown
     onActionPress?: () => void
     onDelete?: () => Promise<void>
+    testID?: string
 }
 export const AudioRecordingView = ({
     recording,
@@ -180,6 +181,7 @@ export const AudioRecordingView = ({
     showTranscript,
     onActionPress,
     onDelete,
+    testID,
 }: AudioRecordingViewProps) => {
     const { show } = useToast()
     const audioUri = recording.fileUri
@@ -389,7 +391,7 @@ export const AudioRecordingView = ({
     }
 
     return (
-        <View style={styles.container}>
+        <View style={styles.container} testID={testID}>
             <View style={styles.header}>
                 <View style={styles.titleContainer}>
                     <Text style={styles.title}>{recording.filename}</Text>

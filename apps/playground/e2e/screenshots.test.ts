@@ -1,3 +1,8 @@
+import { beforeAll, describe, it } from '@jest/globals'
+import { by, element, waitFor, expect as detoxExpect, device } from 'detox'
+import { mkdirSync } from 'fs'
+import { join } from 'path'
+
 describe('App Screenshots', () => {
   beforeAll(async () => {
     await device.launchApp();
@@ -5,10 +10,6 @@ describe('App Screenshots', () => {
     await waitFor(element(by.id('record-screen-notice')))
       .toBeVisible()
       .withTimeout(10000);
-  });
-
-  beforeEach(async () => {
-    // Don't reload for each test to avoid loading delays
   });
 
   describe('Tab Screenshots', () => {
@@ -23,8 +24,22 @@ describe('App Screenshots', () => {
 
     tabs.forEach(tab => {
       it(`should capture ${tab.name} tab screenshot`, async () => {
-        // Navigate to the tab
-        await element(by.text(tab.name)).tap();
+        // Navigate to the tab - use index-based selection for tabs
+        // This avoids the ambiguity with multiple "Record" text elements
+        if (tab.name === 'Record') {
+          // For Record tab, we're already there in the first test
+          // or we can use a more specific approach
+          if (device.getPlatform() === 'android') {
+            // For Android, try to find the tab by its position in the tab bar
+            await element(by.text(tab.name)).atIndex(0).tap();
+          } else {
+            // For iOS
+            await element(by.label(tab.name)).atIndex(0).tap();
+          }
+        } else {
+          // For other tabs, the text selector works fine
+          await element(by.text(tab.name)).tap();
+        }
         
         // Wait for the tab content to load
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -37,11 +52,17 @@ describe('App Screenshots', () => {
 
   it('should capture Record screen with scrolled content', async () => {
     // Navigate to Record tab if not already there
-    await element(by.text('Record')).tap();
+    // Use the same approach as above for consistency
+    if (device.getPlatform() === 'android') {
+      await element(by.text('Record')).atIndex(0).tap();
+    } else {
+      await element(by.label('Record')).atIndex(0).tap();
+    }
+    
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     // First verify the record screen notice is visible
-    await expect(element(by.id('record-screen-notice'))).toBeVisible();
+    await detoxExpect(element(by.id('record-screen-notice'))).toBeVisible();
     
     // Take screenshot of initial view
     await device.takeScreenshot('record-tab-initial');
@@ -76,7 +97,7 @@ describe('App Screenshots', () => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Verify the button is visible and take screenshot
-    await expect(element(by.id('start-recording-button'))).toBeVisible();
+    await detoxExpect(element(by.id('start-recording-button'))).toBeVisible();
     await device.takeScreenshot('record-tab-with-button');
   });
 }); 

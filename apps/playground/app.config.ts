@@ -164,6 +164,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         ],
         'onnxruntime-react-native',
         ['./plugins/withCustomGradleConfig', {}],
+        ['./plugins/withLibcppFix', {}],
         [
             '@config-plugins/detox',
             {

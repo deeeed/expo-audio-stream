@@ -79,10 +79,11 @@ generate_ios_screenshots() {
         yarn ios:build:debug
     fi
 
+    # Use iPhone 15 models instead of iPhone 16
     yarn detox test -c ios.sim.debug e2e/screenshots.test.ts
-    yarn detox test -c ios.iphone13ProMax.debug e2e/screenshots.test.ts
-    yarn detox test -c ios.ipadPro2ndGen.debug e2e/screenshots.test.ts
-    yarn detox test -c ios.iphone8Plus.debug e2e/screenshots.test.ts
+    yarn detox test -c ios.iphone15ProMax.debug e2e/screenshots.test.ts
+    yarn detox test -c ios.iPadPro.debug e2e/screenshots.test.ts
+    yarn detox test -c ios.iphone15.debug e2e/screenshots.test.ts
 
     echo "$(date): Framing iOS screenshots..."
     # fastlane ios frame # disabled for now since it changes the format of the image
