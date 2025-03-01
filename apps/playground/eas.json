@@ -15,12 +15,10 @@
         "YARN_ENABLE_GLOBAL_CACHE": "false"
       },
       "android": {
-        "gradleCommand": ":app:assembleDebug",
-        "buildArtifactPaths": ["android/app/build/outputs/apk/debug/AudioDevPlayground-debug.apk"]
+        "gradleCommand": ":app:assembleDebug"
       },
       "ios": {
-        "buildConfiguration": "Debug",
-        "buildArtifactPaths": ["ios/build/Build/Products/Debug-iphonesimulator/AudioDevPlayground.app"]
+        "buildConfiguration": "Debug"
       },
       "cache": {
         "paths": [
@@ -47,8 +45,7 @@
       "distribution": "internal",
       "channel": "preview",
       "ios": {
-        "simulator": true,
-        "buildArtifactPaths": ["ios/build/Build/Products/Release-iphonesimulator/AudioPlayground.app"]
+        "simulator": true
       },
       "android": {
         "buildType": "apk"

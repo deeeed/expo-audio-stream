@@ -13,17 +13,17 @@ module.exports = {
     'ios.debug': {
       type: 'ios.app',
       binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/AudioDevPlayground.app',
-      build: 'APP_VARIANT=development xcodebuild -workspace ios/AudioDevPlayground.xcworkspace -scheme AudioDevPlayground -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build'
+      build: 'yarn build:ios:development'
     },
     'ios.release': {
       type: 'ios.app',
       binaryPath: 'ios/build/Build/Products/Release-iphonesimulator/AudioPlayground.app',
-      build: 'APP_VARIANT=production xcodebuild -workspace ios/AudioPlayground.xcworkspace -scheme AudioPlayground -configuration Release -sdk iphonesimulator -derivedDataPath ios/build'
+      build: 'yarn build:ios:production'
     },
     'android.debug': {
       type: 'android.apk',
       binaryPath: 'android/app/build/outputs/apk/debug/app-debug.apk',
-      build: 'APP_VARIANT=development yarn build:android:development',
+      build: 'yarn build:android:development',
       reversePorts: [
         7365
       ]
@@ -31,7 +31,7 @@ module.exports = {
     'android.release': {
       type: 'android.apk',
       binaryPath: 'android/app/build/outputs/apk/release/app-release.apk',
-      build: 'APP_VARIANT=production yarn build:android:production'
+      build: 'yarn build:android:production'
     }
   },
   devices: {
