@@ -146,15 +146,6 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
         return false
     }, [selectedConfig, model, multilingual, quantized, language])
 
-    const handleReinitialize = useCallback(async () => {
-        try {
-            await updateConfig(selectedConfig, true)
-            if (onConfigChange) onConfigChange()
-        } catch (error) {
-            console.error('Failed to update config', error)
-        }
-    }, [selectedConfig, updateConfig, onConfigChange])
-
     // Get download progress information
     const downloadProgress = useMemo(() => {
         const modelItem = progressItems.find(
@@ -227,14 +218,13 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
             </View>
             {!ready && !isModelLoading && !isDownloading && !hasEditedConfig && (
                 <Button 
-                    mode="outlined" 
+                    mode="contained" 
                     onPress={initialize}
                     compact
                     style={styles.initButton}
-                    contentStyle={{ paddingHorizontal: 8 }}
-                    icon="refresh"
+                    contentStyle={{ paddingHorizontal: 12 }}
                 >
-                    Init
+                    Load Model
                 </Button>
             )}
         </View>
@@ -294,17 +284,66 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
             
             {!ready && !isModelLoading && !isDownloading && !hasEditedConfig && (
                 <Button 
-                    mode="outlined" 
+                    mode="contained" 
                     onPress={initialize}
                     style={styles.detailedInitButton}
-                    compact
-                    icon="refresh"
+                    icon="download"
                 >
-                    Initialize
+                    Load Model
                 </Button>
             )}
         </View>
     )
+
+    const [showNoChangesNotice, setShowNoChangesNotice] = useState(false);
+
+    const handleConfigEdit = useCallback(async () => {
+        const config = await openDrawer({
+            title: 'Transcription Config',
+            initialData: selectedConfig,
+            bottomSheetProps: {
+                enableDynamicSizing: true,
+            },
+            render: ({ resolve }) => (
+                <TranscriptionConfigForm
+                    config={selectedConfig}
+                    onChange={(config) => {
+                        resolve(config)
+                    }}
+                />
+            ),
+        })
+        
+        if (config) {
+            // Check if config actually changed before updating
+            const configChanged = 
+                config.model !== selectedConfig.model ||
+                config.multilingual !== selectedConfig.multilingual ||
+                config.quantized !== selectedConfig.quantized ||
+                config.language !== selectedConfig.language;
+                
+            if (configChanged) {
+                logger.log('config has changed', config);
+                setSelectedConfig(config);
+                
+                // Immediately apply and initialize the new configuration
+                try {
+                    await updateConfig(config, true); // Set to true to initialize immediately
+                    if (onConfigChange) onConfigChange();
+                } catch (error) {
+                    console.error('Failed to update and initialize config', error);
+                }
+            } else {
+                // Show a temporary notice that no changes were made
+                setShowNoChangesNotice(true);
+                
+                // Clear the notice after a few seconds
+                setTimeout(() => {
+                    setShowNoChangesNotice(false);
+                }, 3000);
+            }
+        }
+    }, [selectedConfig, openDrawer, updateConfig, onConfigChange])
 
     return (
         <View style={styles.container}>
@@ -313,45 +352,27 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
                 value={modelName} // This is just a placeholder, we'll use renderValue
                 renderValue={() => compact ? renderCompactView() : renderDetailedView()}
                 editable={true}
-                onEdit={async () => {
-                    const config = await openDrawer({
-                        title: 'Transcription Config',
-                        initialData: selectedConfig,
-                        bottomSheetProps: {
-                            enableDynamicSizing: true,
-                        },
-                        render: ({ resolve }) => (
-                            <TranscriptionConfigForm
-                                config={selectedConfig}
-                                onChange={(config) => {
-                                    resolve(config)
-                                }}
-                            />
-                        ),
-                    })
-                    if (config) {   
-                        setSelectedConfig(config)
-                        await updateConfig(config, true)
-                        logger.log('config has changed', config)
-                    }
-                }}
+                onEdit={handleConfigEdit}
             />
             
-            {hasEditedConfig && (
+            {/* We can keep this for when the model is loading */}
+            {(isModelLoading || isDownloading) && (
                 <View style={styles.noticeContainer}>
                     <Notice
                         type="info"
-                        title="Config Changed"
-                        message="Model needs to be re-initialized with new settings."
+                        title="Initializing Model"
+                        message={isDownloading ? "Downloading model files..." : "Setting up model..."}
                     />
-                    <Button 
-                        onPress={handleReinitialize} 
-                        mode="contained"
-                        loading={isModelLoading || isDownloading}
-                        disabled={isModelLoading || isDownloading}
-                    >
-                        {isModelLoading || isDownloading ? "Initializing..." : "Reinitialize"}
-                    </Button>
+                </View>
+            )}
+            
+            {showNoChangesNotice && (
+                <View style={styles.noticeContainer}>
+                    <Notice
+                        type="info"
+                        title="No Changes Made"
+                        message="Select a different model or configuration to apply changes."
+                    />
                 </View>
             )}
         </View>
