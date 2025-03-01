@@ -104,6 +104,7 @@ export interface AudioVisualizerProps {
     amplitudeScaling?: AmplitudeScalingMode
     showDecibelVisualization?: DecibelVisualizationConfig
     resetTrigger?: unknown
+    testID?: string
 }
 
 export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
@@ -136,6 +137,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     amplitudeScaling = 'normalized', // default to normalized for backward compatibility
     showDecibelVisualization,
     resetTrigger,
+    testID,
 }) => {
     const translateX = useSharedValue(0)
     const [state, dispatch] = useReducer(reducer, initialState)
@@ -571,7 +573,11 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     }, [resetTrigger, handleReset])
 
     return (
-        <View style={mergedTheme.container} onLayout={handleLayout}>
+        <View
+            style={mergedTheme.container}
+            onLayout={handleLayout}
+            testID={testID ? `${testID}-container` : undefined}
+        >
             {mode !== 'live' && showNavigation && (
                 <NavigationControlsComponent
                     selectedCandle={selectedCandle}
@@ -637,6 +643,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
                                 scaleToHumanVoice={scaleToHumanVoice}
                                 amplitudeScaling={amplitudeScaling}
                                 currentAmplitude={getCurrentAmplitude()}
+                                testID={testID ? `${testID}-canvas` : undefined}
                             />
                             {showReferenceLine && (
                                 <View style={mergedTheme.referenceLine} />

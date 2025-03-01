@@ -16,7 +16,7 @@ module.exports = {
         'plugin:import/typescript',
         'expo',
     ],
-    ignorePatterns: ['build', 'node_modules', '.expo', 'dist', 'coverage'],
+    ignorePatterns: ['build', 'node_modules', '.expo', 'dist', 'coverage', 'e2e/**/*'],
     parser: '@typescript-eslint/parser',
     parserOptions: {
         ecmaVersion: 'latest',

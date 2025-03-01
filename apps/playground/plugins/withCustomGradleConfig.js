@@ -1,8 +1,9 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { withProjectBuildGradle } = require('@expo/config-plugins')
+const { withProjectBuildGradle, withGradleProperties } = require('@expo/config-plugins')
 
 module.exports = function withCustomGradleConfig(config) {
-    return withProjectBuildGradle(config, (config) => {
+    // First, handle the build.gradle modifications with existing code
+    config = withProjectBuildGradle(config, (config) => {
         if (config.modResults.contents.includes('jvmTarget')) {
             return config // If it's already configured, skip
         }
@@ -19,42 +20,114 @@ module.exports = function withCustomGradleConfig(config) {
         targetCompatibility = JavaVersion.VERSION_17
     }`
 
-        // Find the existing allprojects block
-        const allProjectsRegex = /allprojects\s*\{/g
-        const match = allProjectsRegex.exec(config.modResults.contents)
-
-        if (match) {
-            // If allprojects block exists, append new configurations to it
-            const blockStart = match.index + match[0].length
-            const blockEnd = findClosingBrace(
-                config.modResults.contents,
-                blockStart
-            )
-
-            if (blockEnd !== -1) {
-                const existingBlock = config.modResults.contents.substring(
-                    blockStart,
-                    blockEnd
-                )
-                const updatedAllProjects = `allprojects {${existingBlock}
+        // Check if the file already has the gradle.projectsEvaluated block from withDetoxTestFix
+        if (config.modResults.contents.includes('gradle.projectsEvaluated')) {
+            // We need to find the main allprojects block, not the one inside gradle.projectsEvaluated
+            const allProjectsRegex = /allprojects\s*\{(?!\s*tasks\.withType\(com\.android\.build\.gradle)/g;
+            const matches = [...config.modResults.contents.matchAll(allProjectsRegex)];
+            
+            // Find the main allprojects block (not the one inside gradle.projectsEvaluated)
+            const mainAllProjectsMatch = matches.find(match => {
+                const blockStart = match.index + match[0].length;
+                const blockText = config.modResults.contents.substring(blockStart, blockStart + 100);
+                return blockText.includes('repositories') || blockText.includes('maven');
+            });
+            
+            if (mainAllProjectsMatch) {
+                const blockStart = mainAllProjectsMatch.index + mainAllProjectsMatch[0].length;
+                const blockEnd = findClosingBrace(config.modResults.contents, blockStart);
+                
+                if (blockEnd !== -1) {
+                    const existingBlock = config.modResults.contents.substring(blockStart, blockEnd);
+                    const updatedAllProjects = `allprojects {${existingBlock}
 ${newConfigurations}
-}`
-                config.modResults.contents =
-                    config.modResults.contents.substring(0, match.index) +
-                    updatedAllProjects +
-                    config.modResults.contents.substring(blockEnd + 1)
+}`;
+                    config.modResults.contents = 
+                        config.modResults.contents.substring(0, mainAllProjectsMatch.index) +
+                        updatedAllProjects +
+                        config.modResults.contents.substring(blockEnd + 1);
+                }
+            } else {
+                // If we can't find the main allprojects block, add a new one after gradle.projectsEvaluated
+                const gradleEvalBlock = /gradle\.projectsEvaluated\s*\{[\s\S]*?\}\s*\}/g;
+                const gradleEvalMatch = gradleEvalBlock.exec(config.modResults.contents);
+                
+                if (gradleEvalMatch) {
+                    const blockEnd = gradleEvalMatch.index + gradleEvalMatch[0].length;
+                    
+                    config.modResults.contents = 
+                        config.modResults.contents.substring(0, blockEnd) +
+                        `
+
+allprojects {
+    repositories {
+        // Repositories will be added by React Native
+    }
+${newConfigurations}
+}` +
+                        config.modResults.contents.substring(blockEnd);
+                }
             }
         } else {
-            // If allprojects block doesn't exist, append a new one
-            config.modResults.contents += `
+            // Original behavior when there's no gradle.projectsEvaluated block
+            const allProjectsRegex = /allprojects\s*\{/g;
+            const match = allProjectsRegex.exec(config.modResults.contents);
+
+            if (match) {
+                // If allprojects block exists, append new configurations to it
+                const blockStart = match.index + match[0].length;
+                const blockEnd = findClosingBrace(config.modResults.contents, blockStart);
+
+                if (blockEnd !== -1) {
+                    const existingBlock = config.modResults.contents.substring(blockStart, blockEnd);
+                    const updatedAllProjects = `allprojects {${existingBlock}
+${newConfigurations}
+}`;
+                    config.modResults.contents =
+                        config.modResults.contents.substring(0, match.index) +
+                        updatedAllProjects +
+                        config.modResults.contents.substring(blockEnd + 1);
+                }
+            } else {
+                // If allprojects block doesn't exist, append a new one
+                config.modResults.contents += `
 
 allprojects {
 ${newConfigurations}
-}`
+}`;
+            }
         }
 
-        return config
-    })
+        return config;
+    });
+    
+    // Then, handle the gradle.properties modifications
+    config = withGradleProperties(config, (config) => {
+        // The correct way to modify gradle properties
+        // Gradle properties are stored as an array of key-value pairs
+        const gradleProperties = config.modResults;
+        
+        // Helper function to set or update a property
+        const setProperty = (key, value) => {
+            const index = gradleProperties.findIndex(prop => prop.key === key);
+            if (index !== -1) {
+                gradleProperties[index].value = value;
+            } else {
+                gradleProperties.push({ key, value, type: 'property' });
+            }
+        };
+        
+        // Set the JVM arguments and other properties
+        setProperty('org.gradle.jvmargs', '-Xmx4g -XX:MaxMetaspaceSize=2048m -XX:+HeapDumpOnOutOfMemoryError');
+        setProperty('org.gradle.parallel', 'true');
+        setProperty('org.gradle.daemon', 'true');
+        setProperty('org.gradle.configureondemand', 'true');
+        setProperty('org.gradle.caching', 'true');
+        
+        return config;
+    });
+    
+    return config;
 }
 
 // Function to find the matching closing brace
