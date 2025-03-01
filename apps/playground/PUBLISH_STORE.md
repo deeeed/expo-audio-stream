@@ -38,6 +38,8 @@ yarn build:ios:production --local
 
 # Remote Production Build + Auto Submit to App Store
 yarn build:ios:production --auto-submit
+# submit latest build to App Store
+eas submit --platform ios --latest
 ```
 
 Note: Remote builds (with --auto-submit) require proper store credentials and must be run on EAS servers.

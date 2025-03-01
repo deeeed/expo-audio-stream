@@ -6,7 +6,6 @@ import {
     LabelSwitch,
     Text,
     Notice,
-    Picker,
     ScreenWrapper,
     useToast,
     useTheme,
@@ -29,7 +28,7 @@ import { useRouter, Stack } from 'expo-router'
 import isBase64 from 'is-base64'
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { Platform, StyleSheet, View, Image } from 'react-native'
-import { ActivityIndicator } from 'react-native-paper'
+import { ActivityIndicator, SegmentedButtons } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AudioRecordingView } from '../../component/AudioRecordingView'
@@ -57,7 +56,7 @@ const baseRecordingConfig: RecordingConfig = {
     sampleRate: WhisperSampleRate,
     keepAwake: true,
     intervalAnalysis: CHUNK_DURATION_MS,
-    showNotification: true,
+    showNotification: Platform.OS === 'ios' ? false : true,
     showWaveformInNotification: true,
     encoding: 'pcm_32bit',
     segmentDurationMs: 100,
@@ -630,66 +629,40 @@ export default function RecordScreen() {
                 }}
             />
 
-            <Picker
-                testID="sample-rate-picker"
-                label="Sample Rate"
-                multi={false}
-                options={[
-                    {
-                        label: '16000',
-                        value: '16000',
-                        selected: startRecordingConfig.sampleRate === 16000,
-                    },
-                    {
-                        label: '44100',
-                        value: '44100',
-                        selected: startRecordingConfig.sampleRate === 44100,
-                    },
-                    {
-                        label: '48000',
-                        value: '48000',
-                        selected: startRecordingConfig.sampleRate === 48000,
-                    },
-                ]}
-                onFinish={(options) => {
-                    const selected = options?.find((option) => option.selected)
-                    if (!selected) return
-                    setStartRecordingConfig((prev) => ({
-                        ...prev,
-                        sampleRate: parseInt(selected.value, 10) as SampleRate,
-                    }))
-                }}
-            />
-            <Picker
-                testID="encoding-picker"
-                label="Encoding"
-                multi={false}
-                options={[
-                    {
-                        label: 'pcm_16bit',
-                        value: 'pcm_16bit',
-                        selected: startRecordingConfig.encoding === 'pcm_16bit',
-                    },
-                    {
-                        label: 'pcm_32bit',
-                        value: 'pcm_32bit',
-                        selected: startRecordingConfig.encoding === 'pcm_32bit',
-                    },
-                    {
-                        label: 'pcm_8bit',
-                        value: 'pcm_8bit',
-                        selected: startRecordingConfig.encoding === 'pcm_8bit',
-                    },
-                ]}
-                onFinish={(options) => {
-                    const selected = options?.find((option) => option.selected)
-                    if (!selected) return
-                    setStartRecordingConfig((prev) => ({
-                        ...prev,
-                        encoding: selected.value as RecordingConfig['encoding'],
-                    }))
-                }}
-            />
+            <View>
+                <Text variant="titleMedium" style={{ marginBottom: 8 }}>Sample Rate</Text>
+                <SegmentedButtons
+                    value={String(startRecordingConfig.sampleRate || WhisperSampleRate)}
+                    onValueChange={(value) => {
+                        setStartRecordingConfig((prev) => ({
+                            ...prev,
+                            sampleRate: parseInt(value, 10) as SampleRate,
+                        }))
+                    }}
+                    buttons={[
+                        { value: '16000', label: '16 kHz' },
+                        { value: '44100', label: '44.1 kHz' },
+                        { value: '48000', label: '48 kHz' },
+                    ]}
+                />
+            </View>
+            <View>
+                <Text variant="titleMedium" style={{ marginBottom: 8 }}>Encoding</Text>
+                <SegmentedButtons
+                    value={startRecordingConfig.encoding || 'pcm_32bit'}
+                    onValueChange={(value) => {
+                        setStartRecordingConfig((prev) => ({
+                            ...prev,
+                            encoding: value as RecordingConfig['encoding'],
+                        }))
+                    }}
+                    buttons={[
+                        { value: 'pcm_16bit', label: '16-bit' },
+                        { value: 'pcm_32bit', label: '32-bit' },
+                        { value: 'pcm_8bit', label: '8-bit' },
+                    ]}
+                />
+            </View>
             <SegmentDurationSelector
                 testID="segment-duration-selector"
                 value={(startRecordingConfig.segmentDurationMs ?? 100) as SegmentDuration}
@@ -720,62 +693,46 @@ export default function RecordScreen() {
 
                     {startRecordingConfig.compression?.enabled && (
                         <>
-                            <Picker
-                                label="Compression Format"
-                                multi={false}
-                                options={[
-                                    {
-                                        label: 'OPUS (Recommended)',
-                                        value: 'opus',
-                                        selected: startRecordingConfig.compression?.format === 'opus',
-                                    },
-                                    // Only show AAC option for native platforms
-                                    ...(!isWeb ? [{
-                                        label: 'AAC',
-                                        value: 'aac',
-                                        selected: startRecordingConfig.compression?.format === 'aac',
-                                    }] : []),
-                                ]}
-                                onFinish={(options) => {
-                                    const selected = options?.find((option) => option.selected)
-                                    if (!selected) return
-                                    setStartRecordingConfig((prev) => ({
-                                        ...prev,
-                                        compression: {
-                                            ...(prev.compression ?? { enabled: true, bitrate: DEFAULT_BITRATE }),
-                                            format: selected.value as 'aac' | 'opus',
-                                        },
-                                    }))
-                                }}
-                            />
+                            <View>
+                                <Text variant="titleMedium" style={{ marginBottom: 8 }}>Compression Format</Text>
+                                <SegmentedButtons
+                                    value={startRecordingConfig.compression?.format || 'opus'}
+                                    onValueChange={(value) => {
+                                        setStartRecordingConfig((prev) => ({
+                                            ...prev,
+                                            compression: {
+                                                ...(prev.compression ?? { enabled: true, bitrate: DEFAULT_BITRATE }),
+                                                format: value as 'aac' | 'opus',
+                                            },
+                                        }))
+                                    }}
+                                    buttons={[
+                                        { value: 'opus', label: 'OPUS' },
+                                        // Only show AAC option for native platforms
+                                        ...(!isWeb ? [{ value: 'aac', label: 'AAC' }] : []),
+                                    ]}
+                                />
+                            </View>
                             
-                            <Picker
-                                label="Bitrate (kbps)"
-                                multi={false}
-                                options={[
-                                    {
-                                        label: '32 kbps (High quality voice)',
-                                        value: '32000',
-                                        selected: startRecordingConfig.compression?.bitrate === 32000,
-                                    },
-                                    {
-                                        label: '64 kbps (Studio quality)',
-                                        value: '64000',
-                                        selected: startRecordingConfig.compression?.bitrate === 64000,
-                                    },
-                                ]}
-                                onFinish={(options) => {
-                                    const selected = options?.find((option) => option.selected)
-                                    if (!selected) return
-                                    setStartRecordingConfig((prev) => ({
-                                        ...prev,
-                                        compression: {
-                                            ...(prev.compression ?? { enabled: true, format: 'opus' }),
-                                            bitrate: parseInt(selected.value, 10),
-                                        },
-                                    }))
-                                }}
-                            />
+                            <View>
+                                <Text variant="titleMedium" style={{ marginBottom: 8 }}>Bitrate</Text>
+                                <SegmentedButtons
+                                    value={String(startRecordingConfig.compression?.bitrate || DEFAULT_BITRATE)}
+                                    onValueChange={(value) => {
+                                        setStartRecordingConfig((prev) => ({
+                                            ...prev,
+                                            compression: {
+                                                ...(prev.compression ?? { enabled: true, format: 'opus' }),
+                                                bitrate: parseInt(value, 10),
+                                            },
+                                        }))
+                                    }}
+                                    buttons={[
+                                        { value: '32000', label: '32 kbps (Voice)' },
+                                        { value: '64000', label: '64 kbps (Studio)' },
+                                    ]}
+                                />
+                            </View>
                         </>
                     )}
                 </>
