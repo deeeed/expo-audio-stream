@@ -1,8 +1,9 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { withProjectBuildGradle } = require('@expo/config-plugins')
+const { withProjectBuildGradle, withGradleProperties } = require('@expo/config-plugins')
 
 module.exports = function withCustomGradleConfig(config) {
-    return withProjectBuildGradle(config, (config) => {
+    // First, handle the build.gradle modifications with existing code
+    config = withProjectBuildGradle(config, (config) => {
         if (config.modResults.contents.includes('jvmTarget')) {
             return config // If it's already configured, skip
         }
@@ -99,6 +100,34 @@ ${newConfigurations}
 
         return config;
     });
+    
+    // Then, handle the gradle.properties modifications
+    config = withGradleProperties(config, (config) => {
+        // The correct way to modify gradle properties
+        // Gradle properties are stored as an array of key-value pairs
+        const gradleProperties = config.modResults;
+        
+        // Helper function to set or update a property
+        const setProperty = (key, value) => {
+            const index = gradleProperties.findIndex(prop => prop.key === key);
+            if (index !== -1) {
+                gradleProperties[index].value = value;
+            } else {
+                gradleProperties.push({ key, value, type: 'property' });
+            }
+        };
+        
+        // Set the JVM arguments and other properties
+        setProperty('org.gradle.jvmargs', '-Xmx4g -XX:MaxMetaspaceSize=2048m -XX:+HeapDumpOnOutOfMemoryError');
+        setProperty('org.gradle.parallel', 'true');
+        setProperty('org.gradle.daemon', 'true');
+        setProperty('org.gradle.configureondemand', 'true');
+        setProperty('org.gradle.caching', 'true');
+        
+        return config;
+    });
+    
+    return config;
 }
 
 // Function to find the matching closing brace

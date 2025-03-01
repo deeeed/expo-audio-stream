@@ -10844,7 +10844,7 @@ __metadata:
     canvaskit-wasm: "npm:^0.39.1"
     crc-32: "npm:^1.2.2"
     debug: "npm:^4.3.4"
-    detox: "npm:^20.34.3"
+    detox: "npm:^20.34.4"
     dotenv-flow: "npm:^4.1.0"
     env-cmd: "npm:^10.1.0"
     eslint: "npm:^8.56.0"
@@ -14528,9 +14528,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"detox@npm:^20.34.3":
-  version: 20.34.3
-  resolution: "detox@npm:20.34.3"
+"detox@npm:^20.34.4":
+  version: 20.34.4
+  resolution: "detox@npm:20.34.4"
   dependencies:
     ajv: "npm:^8.6.3"
     bunyan: "npm:^1.8.12"
@@ -14575,7 +14575,7 @@ __metadata:
       optional: true
   bin:
     detox: local-cli/cli.js
-  checksum: 10/4b3934d8c1c2699b900877e7081822dee64559ffde7920c7395c0328a7a91a5688d842a634b773155702dbec9dc15b1e536f6b48f823ea8ebde6b32425c04a5e
+  checksum: 10/6228f0b7fadf264a86f9520d5dae7b2e2e24b9fca47c24ad6ebdd87f6bcc069cc934b56c1d99244d59a481de65ce12692b4778a311d93179d8e579d9ca285aec
   languageName: node
   linkType: hard
 

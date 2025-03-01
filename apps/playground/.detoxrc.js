@@ -23,7 +23,7 @@ module.exports = {
     'android.debug': {
       type: 'android.apk',
       binaryPath: 'android/app/build/outputs/apk/debug/app-debug.apk',
-      build: 'APP_VARIANT=development cd android && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug',
+      build: 'APP_VARIANT=development yarn build:android:development',
       reversePorts: [
         7365
       ]
@@ -31,7 +31,7 @@ module.exports = {
     'android.release': {
       type: 'android.apk',
       binaryPath: 'android/app/build/outputs/apk/release/app-release.apk',
-      build: 'APP_VARIANT=production cd android && ./gradlew assembleRelease assembleAndroidTest -DtestBuildType=release'
+      build: 'APP_VARIANT=production yarn build:android:production'
     }
   },
   devices: {

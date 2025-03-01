@@ -159,21 +159,17 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                         ITSAppUsesNonExemptEncryption: false
                     }
                 },
-                android: {
-                    gradleProperties: {
-                        "org.gradle.jvmargs": "-Xmx4g -XX:MaxMetaspaceSize=2048m -XX:+HeapDumpOnOutOfMemoryError",
-                        "org.gradle.parallel": "true",
-                        "org.gradle.daemon": "true",
-                        "org.gradle.configureondemand": "true",
-                        "org.gradle.caching": "true"
-                    }
-                },
+                android: {},
             },
         ],
+        'onnxruntime-react-native',
+        // Include the custom gradle config and detox packaging options
+        ['./plugins/withCustomGradleConfig', {}],
+        // ['./plugins/withDetoxTestFix', {}],
         [
             '@config-plugins/detox',
             {
-              skipProguard: true,
+              skipProguard: false,
               subdomains: process.env.EAS_BUILD_PROFILE === "development"
               ? "*"
               : [
@@ -186,10 +182,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
               ],
             },
         ],
-        'onnxruntime-react-native',
-        // Include the custom gradle config and detox packaging options
-        ['./plugins/withCustomGradleConfig', {}],
-        ['./plugins/withDetoxTestFix', {}],
         'expo-localization',
         // [
         //     'expo-asset',
