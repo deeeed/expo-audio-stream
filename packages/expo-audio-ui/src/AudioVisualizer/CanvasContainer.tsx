@@ -48,6 +48,7 @@ export interface CanvasContainerProps {
     showSelectedCandle?: boolean
     amplitudeScaling: AmplitudeScalingMode
     currentAmplitude?: number // Current amplitude value for decibel visualization
+    testID?: string
 }
 
 const CanvasContainer: React.FC<CanvasContainerProps> = ({
@@ -77,6 +78,7 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     showSelectedCandle = true,
     amplitudeScaling,
     currentAmplitude,
+    testID,
 }) => {
     const candleColors = {
         ...defaultCandleColors,
@@ -406,7 +408,10 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
     return (
         <View style={theme.canvasContainer}>
-            <Canvas style={{ height: canvasHeight, width: canvasWidth }}>
+            <Canvas
+                style={{ height: canvasHeight, width: canvasWidth }}
+                testID={testID}
+            >
                 <Group transform={groupTransform}>
                     {visualizationContent}
                     {showRuler && (

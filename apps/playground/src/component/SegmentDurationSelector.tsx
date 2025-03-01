@@ -39,6 +39,7 @@ interface SegmentDurationSelectorProps {
     onConfirm?: () => void
     maxDurationMs?: number
     skipConfirmation?: boolean
+    testID?: string
 }
 
 export function SegmentDurationSelector({ 
@@ -46,7 +47,8 @@ export function SegmentDurationSelector({
     onChange,
     onConfirm,
     maxDurationMs,
-    skipConfirmation = false
+    skipConfirmation = false,
+    testID,
 }: SegmentDurationSelectorProps) {
     const theme = useTheme()
     const styles = useMemo(() => getStyles({ theme }), [theme])
@@ -86,7 +88,7 @@ export function SegmentDurationSelector({
     }
 
     return (
-        <View style={styles.container}>
+        <View style={styles.container} testID={testID}>
             <View style={styles.titleContainer}>
                 <Text style={styles.title}>Segment Duration</Text>
                 <Text style={styles.subtitle}>({pointsPerSecond} points/sec)</Text>

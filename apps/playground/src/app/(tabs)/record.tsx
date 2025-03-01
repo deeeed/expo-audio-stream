@@ -88,6 +88,7 @@ const baseRecordingConfig: RecordingConfig = {
     notification: {
         title: 'Recording in progress',
         text: 'Please wait while we transcribe your audio',
+        icon: undefined,
         android:
             Platform.OS === 'android'
                 ? {
@@ -537,10 +538,15 @@ export default function RecordScreen() {
                         }
                     />
                 )}
-            <Button mode="contained" onPress={pauseRecording}>
+            <Button 
+                testID="pause-recording-button"
+                mode="contained" 
+                onPress={pauseRecording}
+            >
                 Pause Recording
             </Button>
             <Button 
+                testID="stop-recording-button"
                 mode="contained" 
                 onPress={() => handleStopRecording()}
                 loading={stopping}
@@ -588,7 +594,11 @@ export default function RecordScreen() {
                 channels={streamConfig?.channels}
                 compression={compression}
             />
-            <Button mode="contained" onPress={resumeRecording}>
+            <Button 
+                testID="resume-recording-button"
+                mode="contained" 
+                onPress={resumeRecording}
+            >
                 Resume Recording
             </Button>
             <Button mode="contained" onPress={() => handleStopRecording()}>
@@ -598,8 +608,9 @@ export default function RecordScreen() {
     )
 
     const renderStopped = () => (
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: 10 }} testID="stopped-recording-view">
             <EditableInfoCard
+                testID="filename-input"
                 label="File Name"
                 value={customFileName}
                 placeholder="pick a filename for your recording"
@@ -620,6 +631,7 @@ export default function RecordScreen() {
             />
 
             <Picker
+                testID="sample-rate-picker"
                 label="Sample Rate"
                 multi={false}
                 options={[
@@ -649,6 +661,7 @@ export default function RecordScreen() {
                 }}
             />
             <Picker
+                testID="encoding-picker"
                 label="Encoding"
                 multi={false}
                 options={[
@@ -678,6 +691,7 @@ export default function RecordScreen() {
                 }}
             />
             <SegmentDurationSelector
+                testID="segment-duration-selector"
                 value={(startRecordingConfig.segmentDurationMs ?? 100) as SegmentDuration}
                 onChange={(duration) => {
                     setStartRecordingConfig((prev) => ({
@@ -818,7 +832,11 @@ export default function RecordScreen() {
                     )}
                 </>
             )}
-            <Button mode="contained" onPress={() => handleStart()}>
+            <Button 
+                testID="start-recording-button"
+                mode="contained" 
+                onPress={() => handleStart()}
+            >
                 Start Recording
             </Button>
         </View>
@@ -939,14 +957,17 @@ export default function RecordScreen() {
                     ),
                 }}
             />
-            <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container}>
-                <Notice
-                    type="info"
-                    title="Audio Recording"
-                    message="Record audio from your device's microphone. You can pause, resume, and stop recordings. Saved recordings will be available in the Files tab."
-                />
+            <ScreenWrapper withScrollView useInsets={false} contentContainerStyle={styles.container} testID="record-screen-wrapper">
+                <View testID="record-screen-header">
+                    <Notice
+                        type="info"
+                        title="Audio Recording"
+                        message="Record audio from your device's microphone. You can pause, resume, and stop recordings. Saved recordings will be available in the Files tab."
+                        testID="record-screen-notice"
+                    />
+                </View>
                 {result && (
-                    <View style={{ gap: 10, paddingBottom: 100 }}>
+                    <View style={{ gap: 10, paddingBottom: 100 }} testID="recording-result-view">
                         <AudioRecordingView
                             recording={result}
                             onDelete={() => handleDelete(result)}
@@ -954,15 +975,28 @@ export default function RecordScreen() {
                                 router.navigate(`(recordings)/${result.filename}`)
                             }}
                             actionText="Visualize"
+                            testID="audio-recording-view"
                         />
-                        <Button mode="contained" onPress={() => setResult(null)}>
+                        <Button mode="contained" onPress={() => setResult(null)} testID="record-again-button">
                             Record Again
                         </Button>
                     </View>
                 )}
-                {isRecording && !isPaused && renderRecording()}
-                {isPaused && renderPaused()}
-                {!result && !isRecording && !isPaused && renderStopped()}
+                {isRecording && !isPaused && (
+                    <View testID="active-recording-view">
+                        {renderRecording()}
+                    </View>
+                )}
+                {isPaused && (
+                    <View testID="paused-recording-view">
+                        {renderPaused()}
+                    </View>
+                )}
+                {!result && !isRecording && !isPaused && (
+                    <View testID="recording-controls">
+                        {renderStopped()}
+                    </View>
+                )}
             </ScreenWrapper>
         </>
     )
