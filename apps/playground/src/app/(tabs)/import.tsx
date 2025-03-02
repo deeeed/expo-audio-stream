@@ -620,6 +620,7 @@ export const ImportPage = () => {
                         icon="music-box"
                         onPress={handleLoadSampleAudio}
                         loading={isSampleLoading}
+                        testID="load-sample-button"
                     >
                         Load Sample
                     </Button>
@@ -746,6 +747,7 @@ export const ImportPage = () => {
                         mode="contained"
                         disabled={processing || isSaving}
                         icon={isPlaying ? 'pause' : 'play'}
+                        testID={isPlaying ? "pause-audio-button" : "play-audio-button"}
                     >
                         {isPlaying ? 'Pause Audio' : 'Play Audio'}
                     </Button>
@@ -760,6 +762,7 @@ export const ImportPage = () => {
                         disabled={processing || isSaving}
                         loading={isSaving}
                         icon="content-save"
+                        testID="save-to-files-button"
                     >
                         {isSaving ? 'Saving...' : 'Save to Files'}
                     </Button>

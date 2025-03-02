@@ -75,6 +75,12 @@ module.exports = {
       device: {
         avdName: 'Pixel_8_Pro_API_35'
       }
+    },
+    iosDevice: {
+      type: 'ios.device',
+      device: {
+        udid: undefined
+      }
     }
   },
   configurations: {
@@ -113,6 +119,10 @@ module.exports = {
     'android.emu.release': {
       device: 'emulator',
       app: 'android.release'
+    },
+    'ios.device.debug': {
+      device: 'iosDevice',
+      app: 'ios.debug'
     }
   }
 };
