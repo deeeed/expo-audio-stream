@@ -117,8 +117,8 @@ ${newConfigurations}
             }
         };
         
-        // Set the JVM arguments and other properties
-        setProperty('org.gradle.jvmargs', '-Xmx4g -XX:MaxMetaspaceSize=2048m -XX:+HeapDumpOnOutOfMemoryError');
+        // Set the JVM arguments with increased memory settings
+        setProperty('org.gradle.jvmargs', '-Xmx8g -XX:MaxMetaspaceSize=4096m -XX:+HeapDumpOnOutOfMemoryError');
         setProperty('org.gradle.parallel', 'true');
         setProperty('org.gradle.daemon', 'true');
         setProperty('org.gradle.configureondemand', 'true');
