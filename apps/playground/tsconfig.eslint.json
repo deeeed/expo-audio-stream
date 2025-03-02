@@ -4,6 +4,7 @@
     "./src",
     "./*.js",
     "./scripts",
+    "./e2e",
     "./plugins",
     "app.config.ts",
     ".eslintrc.js",
