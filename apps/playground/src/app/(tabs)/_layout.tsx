@@ -64,20 +64,6 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
-                name="preview"
-                options={{
-                    title: 'Preview',
-                    href: __DEV__ ? 'preview' : null,
-                    tabBarIcon: ({ color }) => (
-                        <MaterialCommunityIcons
-                            name="waveform"
-                            size={28}
-                            color={color}
-                        />
-                    ),
-                }}
-            />
-            <Tabs.Screen
                 name="transcription"
                 options={{
                     title: 'Transcription',

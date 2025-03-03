@@ -39,7 +39,7 @@ const DEFAULT_THEME: DecibelMeterTheme = {
     },
 }
 
-interface DecibelMeterProps {
+export interface DecibelMeterProps {
     db: number
     width: number
     height: number
@@ -48,7 +48,7 @@ interface DecibelMeterProps {
     maxDb?: number
     orientation?: 'vertical' | 'horizontal'
     theme?: Partial<DecibelMeterTheme>
-    font?: SkFont
+    font?: SkFont | null
 }
 
 export function DecibelMeter({

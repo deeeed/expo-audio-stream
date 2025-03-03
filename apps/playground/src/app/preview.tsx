@@ -7,9 +7,9 @@ import React, { useCallback, useMemo, useState, useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, IconButton, Text } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { baseLogger } from '../../config'
-import { isWeb } from '../../utils/utils'
-import { useSampleAudio } from '../../hooks/useSampleAudio'
+import { baseLogger } from '../config'
+import { isWeb } from '../utils/utils'
+import { useSampleAudio } from '../hooks/useSampleAudio'
 
 const SAMPLE_AUDIO = {
     web: '/audio_samples/jfk.mp3',
