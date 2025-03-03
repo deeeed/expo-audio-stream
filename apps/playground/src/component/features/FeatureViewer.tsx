@@ -2,6 +2,7 @@ import { AudioFeatures } from '@siteed/expo-audio-stream'
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
 
+import { MFCCFeatures } from './MFCCFeatures'
 import { SpectralFeatures } from './SpectralFeatures'
 import { TimeFeatures } from './TimeFeatures'
 import { TonalFeatures } from './TonalFeatures'
@@ -10,6 +11,14 @@ const getStyles = () => StyleSheet.create({
     container: {
         gap: 16,
     },
+    featureSection: {
+        padding: 16,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 8,
+    },
 })
 
 interface FeatureViewerProps {
@@ -17,12 +26,12 @@ interface FeatureViewerProps {
 }
 
 export function FeatureViewer({ features }: FeatureViewerProps) {
-    const styles = getStyles()
-
-    if (!features) return null
+    if (!features) {
+        return null
+    }
 
     return (
-        <View style={styles.container}>          
+        <View style={getStyles().container}>
             <TimeFeatures 
                 energy={features.energy}
                 rms={features.rms}
@@ -38,6 +47,8 @@ export function FeatureViewer({ features }: FeatureViewerProps) {
                 hnr={features.hnr}
             />
 
+            {features.mfcc && <MFCCFeatures mfcc={features.mfcc} />}
+
             <TonalFeatures 
                 chromagram={features.chromagram}
                 pitch={features.pitch}
@@ -45,4 +56,4 @@ export function FeatureViewer({ features }: FeatureViewerProps) {
             />
         </View>
     )
-} 
+}

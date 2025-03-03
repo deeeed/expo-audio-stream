@@ -6,8 +6,8 @@ import { View } from 'react-native'
 import { SharedValue, useDerivedValue } from 'react-native-reanimated'
 
 import AnimatedCandle from '../AnimatedCandle/AnimatedCandle'
-import { DecibelGauge } from '../DecibelGauge/DecibelGauge'
-import { DecibelMeter } from '../DecibelMeter/DecibelMeter'
+import { DecibelGauge, DecibelGaugeTheme } from '../DecibelGauge/DecibelGauge'
+import { DecibelMeter, DecibelMeterTheme } from '../DecibelMeter/DecibelMeter'
 import { SkiaTimeRuler } from '../SkiaTimeRuler/SkiaTimeRuler'
 import { Waveform } from '../Waveform/Waveform'
 import { YAxis } from '../YAxis/YAxis'
@@ -384,6 +384,27 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                                 width: gaugeWidth,
                                 height: gaugeHeight,
                             },
+                            colors: {
+                                needle:
+                                    (
+                                        theme.decibelVisualization
+                                            .theme as Partial<DecibelGaugeTheme>
+                                    )?.colors?.needle || '#007AFF',
+                                progress:
+                                    (
+                                        theme.decibelVisualization
+                                            .theme as Partial<DecibelGaugeTheme>
+                                    )?.colors?.progress || '#FFD60A',
+                                high:
+                                    (
+                                        theme.decibelVisualization
+                                            .theme as Partial<DecibelGaugeTheme>
+                                    )?.colors?.high || '#FF453A',
+                                tickMarks: (
+                                    theme.decibelVisualization
+                                        .theme as Partial<DecibelGaugeTheme>
+                                )?.colors?.tickMarks,
+                            },
                         }}
                         font={font}
                     />
@@ -398,7 +419,26 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     width={meterWidth}
                     height={meterHeight}
                     length={dimensions.length}
-                    theme={theme.decibelVisualization.theme}
+                    theme={{
+                        ...theme.decibelVisualization.theme,
+                        colors: {
+                            low:
+                                (
+                                    theme.decibelVisualization
+                                        .theme as Partial<DecibelMeterTheme>
+                                )?.colors?.low || '#34C759',
+                            mid:
+                                (
+                                    theme.decibelVisualization
+                                        .theme as Partial<DecibelMeterTheme>
+                                )?.colors?.mid || '#FFD60A',
+                            high:
+                                (
+                                    theme.decibelVisualization
+                                        .theme as Partial<DecibelMeterTheme>
+                                )?.colors?.high || '#FF453A',
+                        },
+                    }}
                     font={font}
                     orientation={orientation}
                 />
