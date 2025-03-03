@@ -302,7 +302,7 @@ export class WebRecorder {
                 }
             }
 
-            console.debug('[WebRecorder] Raw segment result:', {
+            this.logger?.debug('[WebRecorder] Raw segment result:', {
                 dataPointsLength: segmentResult.dataPoints.length,
                 durationMs: segmentResult.durationMs,
                 sampleRate: segmentResult.sampleRate,
@@ -367,7 +367,7 @@ export class WebRecorder {
             )
             this.emitAudioAnalysisCallback(segmentResult)
 
-            console.debug('[WebRecorder] Updated audioAnalysisData:', {
+            this.logger?.debug('[WebRecorder] Updated audioAnalysisData:', {
                 dataPointsLength: this.audioAnalysisData.dataPoints.length,
                 durationMs: this.audioAnalysisData.durationMs,
                 sampleRate: this.audioAnalysisData.sampleRate,

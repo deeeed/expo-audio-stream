@@ -61,7 +61,7 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
         },
         gaugeCanvas: {
             width: 300, 
-            height: 250,
+            height: 300,
         },
     })
 }
@@ -147,7 +147,6 @@ export default function DecibelScreen() {
             useInsets={false} 
             contentContainerStyle={styles.container}
         >
-            <View style={styles.gaugeContainer}>
                 <View style={styles.segmentedButtonContainer}>
                     <SegmentedButtons
                         value={visualizationType}
@@ -160,6 +159,7 @@ export default function DecibelScreen() {
                     />
                 </View>
                 
+            <View style={styles.gaugeContainer}>                
                 <View style={styles.visualizationContainer}>
                     {visualizationType === 'gauge' && (
                         <Canvas style={styles.gaugeCanvas}>
@@ -185,7 +185,7 @@ export default function DecibelScreen() {
                             <DecibelMeter
                                 db={currentDb}
                                 width={80}
-                                height={250}
+                                height={200}
                                 minDb={-60}
                                 maxDb={0}
                                 orientation="vertical"
@@ -211,7 +211,7 @@ export default function DecibelScreen() {
                         <Canvas style={styles.horizontalMeterCanvas}>
                             <DecibelMeter
                                 db={currentDb}
-                                width={300}
+                                width={250}
                                 height={80}
                                 minDb={-60}
                                 maxDb={0}
