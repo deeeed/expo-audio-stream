@@ -1,12 +1,16 @@
-import { Path, SkFont, Text as SkiaText } from '@shopify/react-native-skia'
-import React, { useCallback, useEffect, useMemo } from 'react'
+import {
+    Group,
+    Path,
+    SkFont,
+    Skia,
+    Text as SkiaText,
+} from '@shopify/react-native-skia'
+import React, { useEffect, useMemo } from 'react'
 import {
     useDerivedValue,
     useSharedValue,
     withSpring,
 } from 'react-native-reanimated'
-
-import { isWeb } from '../constants'
 
 export interface DecibelGaugeTheme {
     minDb: number
@@ -19,36 +23,38 @@ export interface DecibelGaugeTheme {
         radius?: number
     }
     colors: {
-        low: string
-        mid: string
+        needle: string
+        progress: string
         high: string
     }
     text?: {
         color?: string
         size?: number
-        xOffset?: number // Horizontal offset for web
-        yOffset?: number // Vertical offset from center
+        xOffset?: number
+        yOffset?: number
     }
 }
 
 const DEFAULT_THEME: DecibelGaugeTheme = {
     minDb: -60,
     maxDb: 0,
-    backgroundColor: '#333333',
+    backgroundColor: '#666666', // Lighter gray for contrast
     strokeWidth: 10,
     size: {
-        width: 200,
-        height: 120,
-        radius: 30,
+        width: 300,
+        height: 150,
+        radius: 60,
     },
     colors: {
-        low: '#34C759',
-        mid: '#FFD60A',
+        needle: '#007AFF',
+        progress: '#FFD60A',
         high: '#FF453A',
     },
     text: {
         color: '#FFFFFF',
-        size: 12,
+        size: 16,
+        xOffset: 0,
+        yOffset: 50, // Fixed offset below gauge
     },
 }
 
@@ -68,20 +74,18 @@ export function DecibelGauge({
     const mergedTheme = useMemo(() => ({ ...DEFAULT_THEME, ...theme }), [theme])
     const { minDb, maxDb } = mergedTheme
 
-    const animatedDb = useSharedValue(minDb)
+    const animatedDb = useSharedValue(db)
+    const centerX = mergedTheme.size!.width / 2
+    const centerY = mergedTheme.size!.height / 1.5
+    const radius =
+        mergedTheme.size!.radius ??
+        Math.min(mergedTheme.size!.width, mergedTheme.size!.height) / 2.5
 
-    // Mark as worklet
-    const getColor = useCallback(
-        (value: number) => {
-            'worklet'
-            if (value <= 0.6) return mergedTheme.colors.low
-            if (value <= 0.8) return mergedTheme.colors.mid
-            return mergedTheme.colors.high
-        },
-        [mergedTheme.colors]
-    )
+    const animatedText = useDerivedValue(() => {
+        'worklet'
+        return `${Math.round(animatedDb.value)} dB`
+    })
 
-    // Convert to worklet
     const animatedProgress = useDerivedValue(() => {
         'worklet'
         const normalizedValue = Math.max(
@@ -91,58 +95,147 @@ export function DecibelGauge({
         return (normalizedValue - minDb) / (maxDb - minDb)
     }, [minDb, maxDb])
 
-    const animatedColor = useDerivedValue(() => {
+    const GAUGE_START_ANGLE = 135
+    const GAUGE_END_ANGLE = 45
+    const NEEDLE_LENGTH = 0.9
+
+    const needleRotation = useDerivedValue(() => {
         'worklet'
-        return getColor(animatedProgress.value)
-    }, [getColor])
+        const normalizedValue = Math.max(
+            0,
+            Math.min(
+                1,
+                (db - mergedTheme.minDb) /
+                    (mergedTheme.maxDb - mergedTheme.minDb)
+            )
+        )
+        return (
+            GAUGE_START_ANGLE * (Math.PI / 180) -
+            normalizedValue *
+                (GAUGE_START_ANGLE - GAUGE_END_ANGLE) *
+                (Math.PI / 180)
+        )
+    }, [db, mergedTheme.minDb, mergedTheme.maxDb])
 
-    useEffect(() => {
-        animatedDb.value = withSpring(db)
-    }, [db, animatedDb])
-
-    const centerX = mergedTheme.size!.width / 2
-    const centerY = mergedTheme.size!.height / 2
-    const radius =
-        mergedTheme.size!.radius ??
-        Math.min(mergedTheme.size!.width, mergedTheme.size!.height) / 4
-
-    const gradientPath = useMemo(() => {
-        const startX = centerX - radius
-        const endX = centerX + radius
-
-        return `M ${startX} ${centerY} A ${radius} ${radius} 0 0 1 ${endX} ${centerY}`
+    const needlePath = useMemo(() => {
+        const path = Skia.Path.Make()
+        path.moveTo(centerX, centerY)
+        path.lineTo(centerX - 5, centerY - 30) // Wider needle
+        path.lineTo(centerX, centerY + radius * NEEDLE_LENGTH)
+        path.lineTo(centerX + 5, centerY - 30)
+        path.close()
+        return path
     }, [centerX, centerY, radius])
 
+    const needleBaseDot = useMemo(() => {
+        const path = Skia.Path.Make()
+        const dotRadius = 5
+        path.addCircle(centerX, centerY, dotRadius)
+        return path
+    }, [centerX, centerY])
+
+    const currentDbText = animatedText.value
+
+    const gaugePath = useMemo(() => {
+        const path = Skia.Path.Make()
+        path.addArc(
+            {
+                x: centerX - radius,
+                y: centerY - radius,
+                width: radius * 2,
+                height: radius * 2,
+            },
+            GAUGE_START_ANGLE,
+            GAUGE_START_ANGLE - GAUGE_END_ANGLE
+        )
+        return path
+    }, [centerX, centerY, radius])
+
+    // Tick marks
+    const TICK_COUNT = 5
+    const tickAngles = Array.from({ length: TICK_COUNT }, (_, i) => {
+        const normalized = i / (TICK_COUNT - 1)
+        return (
+            GAUGE_START_ANGLE -
+            normalized * (GAUGE_START_ANGLE - GAUGE_END_ANGLE)
+        )
+    })
+
+    const tickPaths = tickAngles.map((angle) => {
+        const tickStartRadius = radius - 5
+        const tickEndRadius = radius + 5
+        const startX =
+            centerX + tickStartRadius * Math.cos(angle * (Math.PI / 180))
+        const startY =
+            centerY + tickStartRadius * Math.sin(angle * (Math.PI / 180))
+        const endX = centerX + tickEndRadius * Math.cos(angle * (Math.PI / 180))
+        const endY = centerY + tickEndRadius * Math.sin(angle * (Math.PI / 180))
+        const tickPath = Skia.Path.Make()
+        tickPath.moveTo(startX, startY)
+        tickPath.lineTo(endX, endY)
+        return tickPath
+    })
+
+    useEffect(() => {
+        animatedDb.value = withSpring(db, {
+            mass: 1,
+            damping: 15,
+            stiffness: 120,
+            overshootClamping: true,
+            restDisplacementThreshold: 0.01,
+            restSpeedThreshold: 0.01,
+        })
+    }, [db])
+
     return (
-        <>
+        <Group>
             <Path
-                path={gradientPath}
+                path={gaugePath}
                 strokeWidth={mergedTheme.strokeWidth}
                 color={mergedTheme.backgroundColor}
+                style="stroke"
             />
             <Path
-                path={gradientPath}
+                path={gaugePath}
                 strokeWidth={mergedTheme.strokeWidth}
-                color={animatedColor}
+                color={mergedTheme.colors.progress}
+                style="stroke"
                 start={0}
                 end={animatedProgress}
             />
+            {tickPaths.map((path, index) => (
+                <Path
+                    key={index}
+                    path={path}
+                    color="white"
+                    style="stroke"
+                    strokeWidth={1}
+                />
+            ))}
+            <Group
+                origin={{ x: centerX, y: centerY }}
+                transform={[{ rotate: needleRotation.value }]}
+            >
+                <Path
+                    path={needlePath}
+                    color={mergedTheme.colors.needle}
+                    style="fill"
+                />
+                <Path
+                    path={needleBaseDot}
+                    color={mergedTheme.colors.needle}
+                    style="fill"
+                />
+            </Group>
             {showValue && font && (
                 <SkiaText
-                    x={
-                        centerX -
-                        (!isWeb
-                            ? font.measureText(
-                                  `${Math.round(animatedDb.value)}dB`
-                              ).width / 2
-                            : (mergedTheme.text?.xOffset ?? 15))
-                    }
-                    y={centerY + (mergedTheme.text?.yOffset ?? 5)}
-                    text={`${Math.round(animatedDb.value)}dB`}
+                    x={centerX + (mergedTheme.text?.xOffset ?? 0)}
+                    y={centerY + (mergedTheme.text?.yOffset ?? 50)} // Fixed below gauge
+                    text={currentDbText}
                     font={font}
                     color={mergedTheme.text?.color ?? '#FFFFFF'}
                 />
             )}
-        </>
+        </Group>
     )
 }

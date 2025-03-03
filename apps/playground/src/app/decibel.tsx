@@ -85,7 +85,7 @@ export default function DecibelScreen() {
             })
 
             return unsubscribe
-        }, [navigation, isRecording, stopRecording, confirm, theme])
+        }, [navigation, isRecording, stopRecording, confirm])
     )
 
     const handleToggleRecording = async () => {
@@ -117,11 +117,6 @@ export default function DecibelScreen() {
                             minDb: -60,
                             maxDb: 0,
                             backgroundColor: theme.colors.surfaceVariant,
-                            colors: {
-                                low: theme.colors.primary,
-                                mid: theme.colors.warning,
-                                high: theme.colors.error
-                            },
                             size: {
                                 width: 300,
                                 height: 150
