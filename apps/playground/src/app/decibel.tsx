@@ -141,6 +141,14 @@ export default function DecibelScreen() {
         }
     }
 
+    const convertToDBSPL = (dbfs: number): number => {
+        // This offset value needs calibration with a reference sound
+        const calibrationOffset = 94; // Typical professional calibration level
+        
+        // Convert from dBFS to dB SPL
+        return dbfs + calibrationOffset;
+    };
+
     return (
         <ScreenWrapper 
             withScrollView 
@@ -168,7 +176,7 @@ export default function DecibelScreen() {
                                 theme={{
                                     minDb: -60,
                                     maxDb: 0,
-                                    backgroundColor: theme.colors.surfaceVariant,
+                                    backgroundColor: '#333333', // Darker gray for contrast
                                     size: {
                                         width: 300,
                                         height: 150
@@ -183,7 +191,7 @@ export default function DecibelScreen() {
                     {visualizationType === 'vertical' && (
                         <Canvas style={styles.verticalMeterCanvas}>
                             <DecibelMeter
-                                db={currentDb}
+                                db={convertToDBSPL(currentDb)}
                                 width={80}
                                 height={200}
                                 minDb={-60}
@@ -210,7 +218,7 @@ export default function DecibelScreen() {
                     {visualizationType === 'horizontal' && (
                         <Canvas style={styles.horizontalMeterCanvas}>
                             <DecibelMeter
-                                db={currentDb}
+                                db={convertToDBSPL(currentDb)}
                                 width={250}
                                 height={80}
                                 minDb={-60}

@@ -29,6 +29,7 @@ export interface DecibelGaugeTheme {
         xOffset?: number
         yOffset?: number
     }
+    strokeCap?: 'butt' | 'round' | 'square'
 }
 
 const DEFAULT_THEME: DecibelGaugeTheme = {
@@ -52,6 +53,7 @@ const DEFAULT_THEME: DecibelGaugeTheme = {
         xOffset: 0,
         yOffset: 50,
     },
+    strokeCap: 'round',
 }
 
 export interface DecibelGaugeProps {
@@ -67,21 +69,17 @@ export function DecibelGauge({
     showValue = true,
     font,
 }: DecibelGaugeProps) {
-    // Merge themes
     const mergedTheme = useMemo(() => ({ ...DEFAULT_THEME, ...theme }), [theme])
     const { minDb, maxDb } = mergedTheme
 
-    // Animation setup
     const dbShared = useSharedValue(db)
 
-    // Gauge dimensions
     const radius =
         mergedTheme.size!.radius ??
         Math.min(mergedTheme.size!.width, mergedTheme.size!.height) / 2.5
     const centerX = mergedTheme.size!.width / 2
-    const centerY = mergedTheme.size!.height - radius // Center at bottom
+    const centerY = mergedTheme.size!.height / 2 // Center vertically
 
-    // Animated text and progress
     const animatedText = useDerivedValue(() => {
         'worklet'
         return `${Math.round(dbShared.value)} dB`
@@ -93,19 +91,14 @@ export function DecibelGauge({
         return (normalizedValue - minDb) / (maxDb - minDb)
     }, [minDb, maxDb])
 
-    // Gauge angles: 180° (left) to 360° (right), top at 270°
     const GAUGE_START_ANGLE = 180 // Left
-    const GAUGE_END_ANGLE = 270   // Top (maximum)
+    const GAUGE_END_ANGLE = 360 // Right
 
-    // Needle rotation: 180° to 270° as dB goes from minDb to maxDb
     const needleRotation = useDerivedValue(() => {
         'worklet'
         const normalizedValue = Math.max(
             0,
-            Math.min(
-                1,
-                (dbShared.value - minDb) / (maxDb - minDb)
-            )
+            Math.min(1, (dbShared.value - minDb) / (maxDb - minDb))
         )
         return (
             (GAUGE_START_ANGLE +
@@ -114,22 +107,19 @@ export function DecibelGauge({
         )
     }, [dbShared.value, minDb, maxDb])
 
-    // Needle path: single line pointing right initially
     const needlePath = useMemo(() => {
         const path = Skia.Path.Make()
         path.moveTo(centerX, centerY)
-        path.lineTo(centerX + radius, centerY) // Initial position at 0°
+        path.lineTo(centerX + radius, centerY)
         return path
     }, [centerX, centerY, radius])
 
-    // Needle base dot
     const needleBaseDot = useMemo(() => {
         const path = Skia.Path.Make()
         path.addCircle(centerX, centerY, 5)
         return path
     }, [centerX, centerY])
 
-    // Gauge arc path: semi-circle from 180° to 360°
     const gaugePath = useMemo(() => {
         const path = Skia.Path.Make()
         path.addArc(
@@ -140,23 +130,24 @@ export function DecibelGauge({
                 height: radius * 2,
             },
             GAUGE_START_ANGLE, // 180°
-            180                // Sweep to 360° for full bottom arc
+            180 // Sweep to 360°
         )
         return path
     }, [centerX, centerY, radius])
 
-    // Tick marks (e.g., at 180°, 225°, 270°, 315°, 360°)
     const TICK_COUNT = 5
     const tickAngles = Array.from({ length: TICK_COUNT }, (_, i) => {
         const normalized = i / (TICK_COUNT - 1)
-        return GAUGE_START_ANGLE + normalized * 180 // Full arc from 180° to 360°
+        return GAUGE_START_ANGLE + normalized * 180
     })
 
     const tickPaths = tickAngles.map((angle) => {
         const tickStartRadius = radius - 5
         const tickEndRadius = radius + 5
-        const startX = centerX + tickStartRadius * Math.cos((angle * Math.PI) / 180)
-        const startY = centerY + tickStartRadius * Math.sin((angle * Math.PI) / 180)
+        const startX =
+            centerX + tickStartRadius * Math.cos((angle * Math.PI) / 180)
+        const startY =
+            centerY + tickStartRadius * Math.sin((angle * Math.PI) / 180)
         const endX = centerX + tickEndRadius * Math.cos((angle * Math.PI) / 180)
         const endY = centerY + tickEndRadius * Math.sin((angle * Math.PI) / 180)
         const tickPath = Skia.Path.Make()
@@ -165,21 +156,19 @@ export function DecibelGauge({
         return tickPath
     })
 
-    // Update shared value
     useEffect(() => {
         dbShared.value = db
     }, [db])
 
     return (
         <Group>
-            {/* Background arc */}
             <Path
                 path={gaugePath}
                 strokeWidth={mergedTheme.strokeWidth}
                 color={mergedTheme.backgroundColor}
                 style="stroke"
+                strokeCap={mergedTheme.strokeCap ?? 'round'}
             />
-            {/* Progress fill */}
             <Path
                 path={gaugePath}
                 strokeWidth={mergedTheme.strokeWidth}
@@ -187,8 +176,8 @@ export function DecibelGauge({
                 style="stroke"
                 start={0}
                 end={animatedProgress}
+                strokeCap={mergedTheme.strokeCap ?? 'round'}
             />
-            {/* Tick marks */}
             {tickPaths.map((path, index) => (
                 <Path
                     key={index}
@@ -198,7 +187,6 @@ export function DecibelGauge({
                     strokeWidth={1}
                 />
             ))}
-            {/* Needle with rotation */}
             <Group
                 origin={{ x: centerX, y: centerY }}
                 transform={[{ rotate: needleRotation.value }]}
@@ -215,7 +203,6 @@ export function DecibelGauge({
                     style="fill"
                 />
             </Group>
-            {/* Decibel value text */}
             {showValue && font && (
                 <SkiaText
                     x={centerX + (mergedTheme.text?.xOffset ?? 0)}

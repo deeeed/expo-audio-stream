@@ -63,7 +63,6 @@ export default function TabLayout() {
                     ),
                 }}
             />
-            
             <Tabs.Screen
                 name="transcription"
                 options={{
