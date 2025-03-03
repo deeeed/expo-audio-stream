@@ -28,17 +28,21 @@ const styles = StyleSheet.create<Styles>({
         flex: 1,
         padding: 20,
         backgroundColor: '#1C1C1E',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 400, // Explicit height for Storybook canvas
     },
     gaugeWrapper: {
         marginBottom: 16,
+        alignItems: 'center',
     },
     row: {
-        flexDirection: 'row' as const,
-        justifyContent: 'space-around' as const,
+        flexDirection: 'row',
+        justifyContent: 'space-around',
         width: '100%',
     },
     gauge: {
-        alignItems: 'center' as const,
+        alignItems: 'center',
     },
     label: {
         color: '#FFFFFF',
@@ -47,33 +51,55 @@ const styles = StyleSheet.create<Styles>({
     },
 })
 
-const DecibelGaugeStory = (args: React.ComponentProps<typeof DecibelGauge>) => {
+const _DecibelGaugeStory = (
+    args: React.ComponentProps<typeof DecibelGauge>
+) => {
     const font = useFont(RobotoRegular, 14)
 
     if (!font) {
-        return null
+        return (
+            <View style={styles.container}>
+                <Text>Loading font...</Text>
+            </View>
+        )
     }
 
     return (
-        <Canvas style={{ width: 200, height: 60 }}>
-            <DecibelGauge {...args} font={font} />
-        </Canvas>
+        <View style={styles.container}>
+            <View style={styles.gaugeWrapper}>
+                <DecibelGauge {...args} font={font} />
+            </View>
+        </View>
     )
 }
 
-const meta = {
-    title: 'Audio UI/DecibelGauge',
-    component: DecibelGaugeStory,
+export default {
+    title: 'DecibelGauge',
+    component: DecibelGauge,
+    parameters: {
+        layout: 'centered',
+        // This ensures the component renders with proper dimensions
+        viewport: {
+            defaultViewport: 'mobile1',
+        },
+    },
+    // Add a decorator to ensure proper rendering environment
     decorators: [
         (Story) => (
-            <View style={styles.container}>
+            <View
+                style={{
+                    flex: 1,
+                    backgroundColor: '#1C1C1E',
+                    padding: 16,
+                    minHeight: 400,
+                }}
+            >
                 <Story />
             </View>
         ),
     ],
-} satisfies Meta<typeof DecibelGauge>
+} as Meta<typeof DecibelGauge>
 
-export default meta
 type Story = StoryObj<typeof DecibelGauge>
 
 // Basic usage - only needs db value
@@ -89,8 +115,8 @@ export const CustomTheme: Story = {
         db: -20,
         theme: {
             colors: {
-                low: '#00FF00',
-                mid: '#FFFF00',
+                needle: '#00FF00',
+                progress: '#FFFF00',
                 high: '#FF0000',
             },
             strokeWidth: 15,
@@ -110,8 +136,8 @@ export const MultipleRanges: Story = {
                             minDb: -60,
                             maxDb: -40,
                             colors: {
-                                low: '#34C759',
-                                mid: '#34C759',
+                                needle: '#34C759',
+                                progress: '#34C759',
                                 high: '#34C759',
                             },
                         }}
@@ -126,8 +152,8 @@ export const MultipleRanges: Story = {
                             minDb: -40,
                             maxDb: -20,
                             colors: {
-                                low: '#FFD60A',
-                                mid: '#FFD60A',
+                                needle: '#FFD60A',
+                                progress: '#FFD60A',
                                 high: '#FFD60A',
                             },
                         }}
@@ -142,8 +168,8 @@ export const MultipleRanges: Story = {
                             minDb: -20,
                             maxDb: 0,
                             colors: {
-                                low: '#FF453A',
-                                mid: '#FF453A',
+                                needle: '#FF453A',
+                                progress: '#FF453A',
                                 high: '#FF453A',
                             },
                         }}
@@ -171,7 +197,7 @@ export const LiveAudio: Story = {
         if (!font) return <ActivityIndicator />
 
         return (
-            <View style={styles.container}>
+            <View style={[styles.container, { height: 500 }]}>
                 <View style={styles.row}>
                     <View style={styles.gauge}>
                         <Text style={styles.label}>Without Value</Text>
@@ -198,6 +224,10 @@ export const LiveAudio: Story = {
                 </View>
             </View>
         )
+    },
+    parameters: {
+        // Override default parameters if needed
+        layout: 'fullscreen',
     },
 }
 

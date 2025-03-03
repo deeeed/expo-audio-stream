@@ -19,7 +19,7 @@ import {
     getWavFileInfo,
     SampleRate
 } from '@siteed/expo-audio-stream'
-import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
+import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
@@ -105,22 +105,6 @@ const getStyles = (theme: AppTheme, insets?: { bottom: number, top: number }) =>
     })
 }
 
-function formatDuration(seconds: number): string {
-    if (!seconds) return '0s'
-    
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const remainingSeconds = Math.floor(seconds % 60)
-    
-    const parts = []
-    
-    if (hours > 0) parts.push(`${hours}h`)
-    if (minutes > 0) parts.push(`${minutes}m`)
-    if (remainingSeconds > 0 || parts.length === 0) parts.push(`${remainingSeconds}s`)
-    
-    return parts.join(' ')
-}
-
 export const ImportPage = () => {
     const theme = useTheme()
     const { bottom, top } = useSafeAreaInsets()
@@ -136,11 +120,6 @@ export const ImportPage = () => {
     const { show } = useToast()
     const [showVisualizer, setShowVisualizer] = useState<boolean>(true)
     const [isSaving, setIsSaving] = useState<boolean>(false)
-    const [previewData, setPreviewData] = useState<AudioAnalysis | null>(null)
-    const [startTimeMs, setStartTimeMs] = useState<number>(0)
-    const [endTimeMs, setEndTimeMs] = useState<number>(0)
-    const [customFileName, setCustomFileName] = useState<string>('')
-    const [enableTrim, setEnableTrim] = useState<boolean>(false)
     const [fileSize, setFileSize] = useState<number>(0)
     const [originalDurationMs, setOriginalDurationMs] = useState<number>(0)
     const [previewStats, setPreviewStats] = useState<{
@@ -173,13 +152,6 @@ export const ImportPage = () => {
         setCurrentTimeMs(0)
         setProcessing(false)
         setShowVisualizer(true)
-        setPreviewData(null)
-        setStartTimeMs(0)
-        setEndTimeMs(0)
-        setCustomFileName('')
-        setEnableTrim(false)
-        setFileSize(0)
-        setOriginalDurationMs(0)
         setPreviewStats(null)
         
         if (sound) {
@@ -195,44 +167,17 @@ export const ImportPage = () => {
                 message: 'Generating preview...'
             })
 
-            const effectiveStartTimeMs = enableTrim && startTimeMs > 0 ? startTimeMs : undefined
-            const effectiveEndTimeMs = enableTrim && endTimeMs > startTimeMs ? endTimeMs : undefined
-
             logger.debug(`generatePreview`, {
                 fileUri,
-                startTimeMs,
-                endTimeMs,
-                enableTrim,
-                effectiveStartTimeMs,
-                effectiveEndTimeMs,
             })
             // Use extractAudioAnalysis directly instead of preview wrapper
             const audioAnalysis = await extractAudioAnalysis({
                 fileUri,
                 logger: baseLogger.extend('generatePreview'),
                 segmentDurationMs: 100,
-                startTimeMs: effectiveStartTimeMs,
-                endTimeMs: effectiveEndTimeMs,
             })
 
             logger.debug(`generatePreview`, audioAnalysis.durationMs)
-            // Reset trim boundaries if not in trim mode
-            if (!enableTrim) {
-                setStartTimeMs(0)
-                setEndTimeMs(0)
-            }
-
-            // Reset cursor position to start of trim range or 0
-            setCurrentTimeMs(enableTrim ? startTimeMs : 0)
-
-            // Ensure trim boundaries are within valid range
-            if (enableTrim) {
-                const durationSec = audioAnalysis.durationMs / 1000
-                if (startTimeMs > durationSec || endTimeMs > durationSec) {
-                    setStartTimeMs(0)
-                    setEndTimeMs(durationSec)
-                }
-            }
 
             // Use the duration directly from audioAnalysis
             const duration = audioAnalysis.durationMs
@@ -241,22 +186,15 @@ export const ImportPage = () => {
                 setOriginalDurationMs(duration)
             }
 
-            if (enableTrim && startTimeMs !== undefined && endTimeMs !== undefined) {
-                const trimDurationMs = (endTimeMs - startTimeMs)
-                const trimRatio = trimDurationMs / originalDurationMs
-                const estimatedSize = Math.floor(fileSize * trimRatio)
-                
+            if (previewStats?.originalDurationMs !== duration) {
                 setPreviewStats({
-                    durationMs: trimDurationMs,
-                    size: estimatedSize,
-                    originalDurationMs: originalDurationMs,
-                    originalSize: fileSize
+                    durationMs: duration,
+                    size: previewStats?.size || 0,
+                    originalDurationMs: duration,
+                    originalSize: previewStats?.size || 0
                 })
-            } else {
-                setPreviewStats(null)
             }
 
-            setPreviewData(audioAnalysis)
             setAudioAnalysis(audioAnalysis)
             
             show({
@@ -274,21 +212,16 @@ export const ImportPage = () => {
         } finally {
             setProcessing(false)
         }
-    }, [endTimeMs, show, startTimeMs, enableTrim, fileSize, originalDurationMs])
+    }, [show, previewStats])
 
     const pickAudioFile = async () => {
         try {
             setProcessing(true)
             // Reset all values when loading new file
-            setStartTimeMs(0)
-            setEndTimeMs(0)
-            setEnableTrim(false)
             setPreviewStats(null)
             setCurrentTimeMs(0)
             setIsPlaying(false)
             setAudioAnalysis(undefined)
-            setPreviewData(null)
-            setCustomFileName('')
 
             const result = await DocumentPicker.getDocumentAsync({
                 type: ['audio/*'],
@@ -308,7 +241,6 @@ export const ImportPage = () => {
                 }
 
                 setFileName(name)
-                setCustomFileName(name)
                 setAudioUri(uri)
                 setFileSize(size)
 
@@ -326,11 +258,6 @@ export const ImportPage = () => {
             setProcessing(false)
         }
     }
-
-    const handleRangeChange = useCallback((newStartTimeMs: number, newEndTimeMs: number) => {
-        setStartTimeMs(newStartTimeMs)
-        setEndTimeMs(newEndTimeMs)
-    }, [])
 
     const handleSeekEnd = (timeSeconds: number) => {
         logger.debug('handleSeekEnd', timeSeconds * 1000)
@@ -350,9 +277,6 @@ export const ImportPage = () => {
                     await sound.pauseAsync()
                     setIsPlaying(false)
                 } else {
-                    if (enableTrim && startTimeMs > 0) {
-                        await sound.setPositionAsync(startTimeMs)
-                    }
                     await sound.playAsync()
                     setIsPlaying(true)
                 }
@@ -363,10 +287,6 @@ export const ImportPage = () => {
             })
             setSound(newSound)
             
-            if (enableTrim && startTimeMs > 0) {
-                await newSound.setPositionAsync(startTimeMs)
-            }
-            
             await newSound.playAsync()
             setIsPlaying(true)
 
@@ -374,17 +294,10 @@ export const ImportPage = () => {
                 if (status.isLoaded) {
                     setCurrentTimeMs(status.positionMillis)
                     setIsPlaying(status.isPlaying)
-
-                    if (enableTrim && endTimeMs > 0 && status.positionMillis >= endTimeMs) {
-                        newSound.pauseAsync()
-                        newSound.setPositionAsync(startTimeMs)
-                        setIsPlaying(false)
-                        setCurrentTimeMs(startTimeMs)
-                    }
                 }
             })
         }
-    }, [audioUri, sound, enableTrim, startTimeMs, endTimeMs])
+    }, [audioUri, sound])
 
     const saveToFiles = useCallback(async () => {
         if (isSaving || !fileName || !audioUri) {
@@ -510,28 +423,14 @@ export const ImportPage = () => {
         }
     }, [fileName, audioUri, files, show, refreshFiles, removeFile, audioAnalysis, isSaving, router, resetUIState])
 
-    const handleRestoreOriginal = useCallback(async () => {
-        if (!audioUri) return
-        
-        setStartTimeMs(0)
-        setEndTimeMs(0)
-        setPreviewStats(null)
-        await generatePreview(audioUri)
-    }, [audioUri, generatePreview])
-
     const handleLoadSampleAudio = useCallback(async () => {
         try {
             setProcessing(true)
             
             // Reset all values when loading new file
-            setStartTimeMs(0)
-            setEndTimeMs(0)
-            setEnableTrim(false)
-            setPreviewStats(null)
             setCurrentTimeMs(0)
             setIsPlaying(false)
             setAudioAnalysis(undefined)
-            setPreviewData(null)
             
             // Use our hook to load the sample audio
             const sampleFile = await loadSampleAudio(require('@assets/jfk.mp3'))
@@ -542,7 +441,6 @@ export const ImportPage = () => {
             
             // Update state with the sample file details
             setFileName(sampleFile.name)
-            setCustomFileName(sampleFile.name)
             setAudioUri(sampleFile.uri)
             setFileSize(sampleFile.size)
             setOriginalDurationMs(sampleFile.durationMs)
@@ -584,17 +482,12 @@ export const ImportPage = () => {
             {fileName && (
                 <EditableInfoCard
                     label="File Name"
-                    value={customFileName}
+                    value={fileName}
                     placeholder="pick a filename for your recording"
                     inlineEditable
                     editable
                     containerStyle={{
                         backgroundColor: theme.colors.secondaryContainer,
-                    }}
-                    onInlineEdit={(newFileName) => {
-                        if (typeof newFileName === 'string') {
-                            setCustomFileName(newFileName)
-                        }
                     }}
                 />
             )}
@@ -634,15 +527,6 @@ export const ImportPage = () => {
                         containerStyle={styles.labelSwitchContainer}
                         onValueChange={setShowVisualizer}
                     />
-                    {__DEV__ && (
-                        <LabelSwitch
-                            disabled={processing || isSaving}
-                            label="Trim Audio (__DEV__)"
-                            value={enableTrim}
-                            containerStyle={styles.labelSwitchContainer}
-                            onValueChange={setEnableTrim}
-                        />
-                    )}
                 </View>
             </View>
 
@@ -667,61 +551,6 @@ export const ImportPage = () => {
                         bitDepth={audioAnalysis?.bitDepth ?? 16}
                         channels={audioAnalysis?.numberOfChannels ?? 1}
                     />
-
-                    {enableTrim && (
-                        <View style={styles.controlsContainer}>
-                            {previewStats && (
-                                <Notice
-                                    type="info"
-                                    title="Trim Preview"
-                                    message={`New duration: ${formatDuration(previewStats.durationMs / 1000)}`}
-                                />
-                            )}
-                            <AudioTimeRangeSelector
-                                durationMs={originalDurationMs || (previewData?.durationMs || 0)}
-                                startTime={startTimeMs}
-                                endTime={endTimeMs}
-                                onRangeChange={handleRangeChange}
-                                disabled={processing || !previewData}
-                                theme={{
-                                    container: {
-                                        backgroundColor: theme.colors.surfaceVariant,
-                                        height: 40,
-                                        borderRadius: theme.roundness,
-                                    },
-                                    selectedRange: {
-                                        backgroundColor: theme.colors.primary,
-                                        opacity: 0.5,
-                                    },
-                                    handle: {
-                                        backgroundColor: theme.colors.primary,
-                                        width: 12,
-                                    },
-                                }}
-                            />
-
-                            <View style={styles.actionsContainer}>
-                                <Button
-                                    mode="contained"
-                                    onPress={() => generatePreview(audioUri)}
-                                    loading={processing}
-                                    disabled={processing || !previewData}
-                                >
-                                    Preview Trim
-                                </Button>
-                                {previewStats?.originalDurationMs && (
-                                    <Button
-                                        mode="outlined"
-                                        onPress={handleRestoreOriginal}
-                                        disabled={processing}
-                                        icon="restore"
-                                    >
-                                        Restore Original
-                                    </Button>
-                                )}
-                            </View>
-                        </View>
-                    )}
 
                     {showVisualizer && audioAnalysis && (
                         <View style={styles.visualizerContainer}>
