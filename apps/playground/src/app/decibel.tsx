@@ -153,6 +153,9 @@ export default function DecibelScreen() {
                         <DecibelGauge
                             db={currentDb}
                             showTickMarks
+                            showUnit={true}
+                            inputFormat="dBFS"
+                            outputFormat="dB SPL"
                             theme={{
                                 minDb: -60,
                                 maxDb: 0,

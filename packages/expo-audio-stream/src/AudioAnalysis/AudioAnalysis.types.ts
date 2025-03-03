@@ -82,7 +82,7 @@ export interface DataPoint {
     id: number
     amplitude: number // Peak amplitude for the segment
     rms: number // Root mean square value
-    dB: number // Always computed
+    dB: number // dBFS (decibels relative to full scale) computed from RMS value
     silent: boolean // Always computed
     features?: AudioFeatures
     speech?: SpeechFeatures

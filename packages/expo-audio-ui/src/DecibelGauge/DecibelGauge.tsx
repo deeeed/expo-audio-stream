@@ -8,6 +8,31 @@ import {
 import React, { useEffect, useMemo } from 'react'
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated'
 
+/**
+ * Decibel measurement formats:
+ *
+ * - dBFS (Decibels relative to Full Scale):
+ *   Used in digital audio systems where 0 dBFS represents the maximum possible level.
+ *   Values are always negative or zero, typically ranging from -∞ to 0 dBFS.
+ *   Common in digital audio workstations, audio interfaces, and digital recordings.
+ *
+ * - dB SPL (Sound Pressure Level):
+ *   Measures actual sound pressure in the physical world, referenced to the threshold of human hearing.
+ *   0 dB SPL is the threshold of human hearing, while 120-140 dB SPL can cause pain/damage.
+ *   Typical conversation: 60-70 dB SPL, busy street: 80-90 dB SPL, rock concert: 100-120 dB SPL.
+ *
+ * - dBA (A-weighted Sound Pressure Level):
+ *   SPL measurement adjusted to match human hearing sensitivity, which varies by frequency.
+ *   Reduces the weight of low frequencies humans don't hear well.
+ *   Common in environmental noise regulations and occupational safety standards.
+ *
+ * - dBC (C-weighted Sound Pressure Level):
+ *   Similar to dBA but with less filtering of low frequencies.
+ *   Better represents how humans perceive louder sounds (above 100 dB).
+ *   Used for measuring musical events, industrial noise, and peak levels.
+ */
+export type DecibelFormat = 'dBFS' | 'dB SPL' | 'dBA' | 'dBC'
+
 export interface DecibelGaugeTheme {
     minDb: number
     maxDb: number
@@ -22,12 +47,14 @@ export interface DecibelGaugeTheme {
         needle: string
         progress: string
         high: string
+        tickMarks?: string
     }
     text?: {
         color?: string
         size?: number
         xOffset?: number
         yOffset?: number
+        showUnit?: boolean
     }
     strokeCap?: 'butt' | 'round' | 'square'
 }
@@ -52,23 +79,87 @@ const DEFAULT_THEME: DecibelGaugeTheme = {
         size: 16,
         xOffset: 0,
         yOffset: 100,
+        showUnit: true,
     },
     strokeCap: 'butt', // Changed to 'butt' for precise arc ending
 }
 
+/**
+ * DecibelGauge component for visualizing audio levels.
+ * By default, expects input values in dBFS format (common in digital audio processing).
+ */
 export interface DecibelGaugeProps {
-    db: number
+    db: number // Input value in decibels
+    inputFormat?: DecibelFormat // Format of the input value (default: dBFS)
+    outputFormat?: DecibelFormat // Optional: convert to this format for display
     theme?: Partial<DecibelGaugeTheme>
     showTickMarks?: boolean
     showValue?: boolean
+    showUnit?: boolean
     font?: SkFont | null
+}
+
+/**
+ * Converts decibel values between different measurement formats.
+ *
+ * Note: These conversions are approximations and may need adjustment
+ * based on specific equipment, calibration, or measurement contexts.
+ * In professional audio applications, exact conversions should be
+ * determined through proper calibration.
+ */
+function convertDecibels({
+    value,
+    fromFormat,
+    toFormat,
+}: {
+    value: number
+    fromFormat: DecibelFormat
+    toFormat: DecibelFormat
+}): number {
+    if (fromFormat === toFormat) return value
+
+    // Example conversions (you would need to implement accurate conversions based on your needs)
+    if (fromFormat === 'dBFS' && toFormat === 'dB SPL') {
+        // Assuming a reference level of about 83-85 dB SPL = 0 dBFS
+        return value + 85
+    }
+
+    if (fromFormat === 'dB SPL' && toFormat === 'dBFS') {
+        return value - 85
+    }
+
+    // Add other conversion pairs as needed
+
+    // Default fallback - no conversion
+    return value
+}
+
+/**
+ * Formats a decibel value for display.
+ * For UI consistency, all values are displayed with the generic "dB" unit
+ * regardless of the actual format being used for measurement/calculation.
+ */
+function formatDecibelValue({
+    value,
+    showUnit = true,
+}: {
+    value: number
+    format?: DecibelFormat // Keep for internal use but don't use for display
+    showUnit?: boolean
+}): string {
+    const formattedValue = Math.round(value).toString()
+    // Always display just "dB" regardless of the actual format
+    return showUnit ? `${formattedValue} dB` : formattedValue
 }
 
 export function DecibelGauge({
     db,
+    inputFormat = 'dBFS',
+    outputFormat,
     theme,
     showValue = true,
     showTickMarks = false,
+    showUnit = true,
     font,
 }: DecibelGaugeProps) {
     const mergedTheme = useMemo(() => ({ ...DEFAULT_THEME, ...theme }), [theme])
@@ -79,11 +170,6 @@ export function DecibelGauge({
     const centerY = radius + 20 // Shift arc upward
 
     const dbShared = useSharedValue(db)
-
-    const animatedText = useDerivedValue(() => {
-        'worklet'
-        return `${Math.round(dbShared.value)} dB`
-    })
 
     const animatedProgress = useDerivedValue(() => {
         'worklet'
@@ -171,6 +257,26 @@ export function DecibelGauge({
         return tickPath
     })
 
+    // Calculate the display value based on format conversion if needed
+    const displayDb = useMemo(() => {
+        if (outputFormat && inputFormat !== outputFormat) {
+            return convertDecibels({
+                value: db,
+                fromFormat: inputFormat,
+                toFormat: outputFormat,
+            })
+        }
+        return db
+    }, [db, inputFormat, outputFormat])
+
+    // Update this where the value text is created, passing in fewer parameters
+    const valueText = showValue
+        ? formatDecibelValue({
+              value: displayDb,
+              showUnit: showUnit && mergedTheme.text?.showUnit !== false,
+          })
+        : ''
+
     useEffect(() => {
         dbShared.value = db
     }, [db])
@@ -198,7 +304,7 @@ export function DecibelGauge({
                     <Path
                         key={index}
                         path={path}
-                        color="white"
+                        color={mergedTheme.colors.tickMarks || 'white'}
                         style="stroke"
                         strokeWidth={1}
                     />
@@ -228,7 +334,7 @@ export function DecibelGauge({
                 <SkiaText
                     x={centerX + (mergedTheme.text?.xOffset ?? 0)}
                     y={centerY + (mergedTheme.text?.yOffset ?? 100)}
-                    text={animatedText.value}
+                    text={valueText}
                     font={font}
                     color={mergedTheme.text?.color ?? '#FFFFFF'}
                 />
