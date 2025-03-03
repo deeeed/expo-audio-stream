@@ -3,10 +3,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { Canvas, useFont } from '@shopify/react-native-skia'
 import { AppTheme, Button, ScreenWrapper, useConfirm, useTheme } from '@siteed/design-system'
 import { useSharedAudioRecorder } from '@siteed/expo-audio-stream'
-import { DecibelGauge, DecibelMeter } from '@siteed/expo-audio-ui'
-import React, { useCallback, useMemo, useState } from 'react'
+import { DecibelGauge } from '@siteed/expo-audio-ui'
+import React, { useCallback, useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'
-import { SegmentedButtons } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { baseLogger } from '../config'
 
@@ -67,8 +66,7 @@ export default function DecibelScreen() {
     const navigation = useNavigation()
     const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
     
-    const [visualizationType, setVisualizationType] = useState<'gauge' | 'horizontal' | 'vertical'>('gauge')
-    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
+    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 16)
 
     const {
         startRecording,
@@ -149,95 +147,29 @@ export default function DecibelScreen() {
             useInsets={false} 
             contentContainerStyle={styles.container}
         >
-            <View style={styles.segmentedButtonContainer}>
-                <SegmentedButtons
-                    value={visualizationType}
-                    onValueChange={(value) => setVisualizationType(value as 'gauge' | 'horizontal' | 'vertical')}
-                    buttons={[
-                        { value: 'gauge', label: 'Gauge' },
-                        { value: 'horizontal', label: 'Horizontal' },
-                        { value: 'vertical', label: 'Vertical' },
-                    ]}
-                />
-            </View>
-            
             <View style={styles.gaugeContainer}>                
                 <View style={styles.visualizationContainer}>
-                    {visualizationType === 'gauge' && (
-                        <Canvas style={styles.gaugeCanvas}>
-                            <DecibelGauge
-                                db={currentDb}
-                                theme={{
-                                    minDb: -60,
-                                    maxDb: 0,
-                                    backgroundColor: '#333333',
-                                    size: {
-                                        width: 300,
-                                        height: 180,
-                                    },
-                                    text: {
-                                        yOffset: 82,
-                                    },
-                                }}
-                                showValue
-                                font={font}
-                            />
-                        </Canvas>
-                    )}
-                    
-                    {visualizationType === 'vertical' && (
-                        <Canvas style={styles.verticalMeterCanvas}>
-                            <DecibelMeter
-                                db={currentDb}
-                                width={80}
-                                height={200}
-                                minDb={-60}
-                                maxDb={0}
-                                orientation="vertical"
-                                font={font}
-                                theme={{
-                                    backgroundColor: theme.colors.surfaceVariant,
-                                    colors: {
-                                        low: theme.colors.primary,
-                                        mid: theme.colors.secondary,
-                                        high: theme.colors.error,
-                                    },
-                                    ruler: {
-                                        show: true,
-                                        tickColor: theme.colors.onSurface,
-                                        labelColor: theme.colors.onSurface,
-                                    },
-                                }}
-                            />
-                        </Canvas>
-                    )}
-                    
-                    {visualizationType === 'horizontal' && (
-                        <Canvas style={styles.horizontalMeterCanvas}>
-                            <DecibelMeter
-                                db={currentDb}
-                                width={250}
-                                height={80}
-                                minDb={-60}
-                                maxDb={0}
-                                orientation="horizontal"
-                                font={font}
-                                theme={{
-                                    backgroundColor: theme.colors.surfaceVariant,
-                                    colors: {
-                                        low: theme.colors.primary,
-                                        mid: theme.colors.secondary,
-                                        high: theme.colors.error,
-                                    },
-                                    ruler: {
-                                        show: true,
-                                        tickColor: theme.colors.onSurface,
-                                        labelColor: theme.colors.onSurface,
-                                    },
-                                }}
-                            />
-                        </Canvas>
-                    )}
+                    <Canvas style={styles.gaugeCanvas}>
+                        <DecibelGauge
+                            db={currentDb}
+                            showTickMarks
+                            theme={{
+                                minDb: -60,
+                                maxDb: 0,
+                                backgroundColor: '#333333',
+                                size: {
+                                    width: 300,
+                                    height: 220,
+                                },
+                                text: {
+                                    yOffset: 60,
+                                    xOffset: -20,
+                                },
+                            }}
+                            showValue
+                            font={font}
+                        />
+                    </Canvas>
                 </View>
             </View>
             

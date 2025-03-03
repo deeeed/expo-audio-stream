@@ -36,11 +36,11 @@ const DEFAULT_THEME: DecibelGaugeTheme = {
     minDb: -60,
     maxDb: 0,
     backgroundColor: '#666666',
-    strokeWidth: 10,
+    strokeWidth: 20,
     size: {
         width: 300,
-        height: 150,
-        radius: 60,
+        height: 220,
+        radius: 80,
     },
     colors: {
         needle: '#007AFF',
@@ -51,7 +51,7 @@ const DEFAULT_THEME: DecibelGaugeTheme = {
         color: '#FFFFFF',
         size: 16,
         xOffset: 0,
-        yOffset: 50,
+        yOffset: 100,
     },
     strokeCap: 'round',
 }
@@ -74,13 +74,11 @@ export function DecibelGauge({
     const mergedTheme = useMemo(() => ({ ...DEFAULT_THEME, ...theme }), [theme])
     const { minDb, maxDb } = mergedTheme
 
-    const dbShared = useSharedValue(db)
-
-    const radius =
-        mergedTheme.size!.radius ??
-        Math.min(mergedTheme.size!.width, mergedTheme.size!.height) / 2.5
+    const radius = mergedTheme.size!.radius ?? 80
     const centerX = mergedTheme.size!.width / 2
-    const centerY = mergedTheme.size!.height / 2 // Center vertically
+    const centerY = radius + 20 // Shift arc upward
+
+    const dbShared = useSharedValue(db)
 
     const animatedText = useDerivedValue(() => {
         'worklet'
@@ -93,8 +91,8 @@ export function DecibelGauge({
         return (normalizedValue - minDb) / (maxDb - minDb)
     }, [minDb, maxDb])
 
-    const GAUGE_START_ANGLE = 180 // Left
-    const GAUGE_END_ANGLE = 360 // Right
+    const GAUGE_START_ANGLE = 135 // Start at bottom-left
+    const GAUGE_SWEEP_ANGLE = 270 // Sweep 270 degrees
 
     const needleRotation = useDerivedValue(() => {
         'worklet'
@@ -103,8 +101,7 @@ export function DecibelGauge({
             Math.min(1, (dbShared.value - minDb) / (maxDb - minDb))
         )
         return (
-            (GAUGE_START_ANGLE +
-                normalizedValue * (GAUGE_END_ANGLE - GAUGE_START_ANGLE)) *
+            (GAUGE_START_ANGLE + normalizedValue * GAUGE_SWEEP_ANGLE) *
             (Math.PI / 180)
         )
     }, [dbShared.value, minDb, maxDb])
@@ -131,8 +128,8 @@ export function DecibelGauge({
                 width: radius * 2,
                 height: radius * 2,
             },
-            GAUGE_START_ANGLE, // 180°
-            180 // Sweep to 360°
+            GAUGE_START_ANGLE,
+            GAUGE_SWEEP_ANGLE
         )
         return path
     }, [centerX, centerY, radius])
@@ -140,7 +137,7 @@ export function DecibelGauge({
     const TICK_COUNT = 5
     const tickAngles = Array.from({ length: TICK_COUNT }, (_, i) => {
         const normalized = i / (TICK_COUNT - 1)
-        return GAUGE_START_ANGLE + normalized * 180
+        return GAUGE_START_ANGLE + normalized * GAUGE_SWEEP_ANGLE
     })
 
     const tickPaths = tickAngles.map((angle) => {
@@ -209,7 +206,7 @@ export function DecibelGauge({
             {showValue && font && (
                 <SkiaText
                     x={centerX + (mergedTheme.text?.xOffset ?? 0)}
-                    y={centerY + (mergedTheme.text?.yOffset ?? 50)}
+                    y={centerY + (mergedTheme.text?.yOffset ?? 100)}
                     text={animatedText.value}
                     font={font}
                     color={mergedTheme.text?.color ?? '#FFFFFF'}
