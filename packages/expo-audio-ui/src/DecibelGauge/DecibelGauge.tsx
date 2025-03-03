@@ -10,26 +10,10 @@ import { useDerivedValue, useSharedValue } from 'react-native-reanimated'
 
 /**
  * Decibel measurement formats:
- *
- * - dBFS (Decibels relative to Full Scale):
- *   Used in digital audio systems where 0 dBFS represents the maximum possible level.
- *   Values are always negative or zero, typically ranging from -∞ to 0 dBFS.
- *   Common in digital audio workstations, audio interfaces, and digital recordings.
- *
- * - dB SPL (Sound Pressure Level):
- *   Measures actual sound pressure in the physical world, referenced to the threshold of human hearing.
- *   0 dB SPL is the threshold of human hearing, while 120-140 dB SPL can cause pain/damage.
- *   Typical conversation: 60-70 dB SPL, busy street: 80-90 dB SPL, rock concert: 100-120 dB SPL.
- *
- * - dBA (A-weighted Sound Pressure Level):
- *   SPL measurement adjusted to match human hearing sensitivity, which varies by frequency.
- *   Reduces the weight of low frequencies humans don't hear well.
- *   Common in environmental noise regulations and occupational safety standards.
- *
- * - dBC (C-weighted Sound Pressure Level):
- *   Similar to dBA but with less filtering of low frequencies.
- *   Better represents how humans perceive louder sounds (above 100 dB).
- *   Used for measuring musical events, industrial noise, and peak levels.
+ * - dBFS (Decibels relative to Full Scale): Range from -∞ to 0 dB, where 0 dB is the maximum digital level
+ * - dB SPL (Sound Pressure Level): Typically 0 to 120+ dB, where 0 dB is the threshold of hearing
+ * - dBA (A-weighted Sound Pressure Level): Similar to dB SPL but weighted to match human hearing sensitivity
+ * - dBC (C-weighted Sound Pressure Level): Similar to dB SPL with less filtering than dBA
  */
 export type DecibelFormat = 'dBFS' | 'dB SPL' | 'dBA' | 'dBC'
 
@@ -59,7 +43,13 @@ export interface DecibelGaugeTheme {
     strokeCap?: 'butt' | 'round' | 'square'
 }
 
-const DEFAULT_THEME: DecibelGaugeTheme = {
+/**
+ * Default theme for the DecibelGauge component.
+ * Customize colors, sizes, and ranges based on your specific decibel format:
+ * - For dBFS: typically use minDb: -60, maxDb: 0
+ * - For dB SPL/dBA/dBC: typically use minDb: 30, maxDb: 120
+ */
+export const defaultDecibelGaugeTheme: DecibelGaugeTheme = {
     minDb: -60,
     maxDb: 0,
     backgroundColor: '#666666',
@@ -96,6 +86,7 @@ export interface DecibelGaugeProps {
     showTickMarks?: boolean
     showValue?: boolean
     showUnit?: boolean
+    showNeedle?: boolean
     font?: SkFont | null
 }
 
@@ -160,9 +151,13 @@ export function DecibelGauge({
     showValue = true,
     showTickMarks = false,
     showUnit = true,
+    showNeedle = true,
     font,
 }: DecibelGaugeProps) {
-    const mergedTheme = useMemo(() => ({ ...DEFAULT_THEME, ...theme }), [theme])
+    const mergedTheme = useMemo(
+        () => ({ ...defaultDecibelGaugeTheme, ...theme }),
+        [theme]
+    )
     const { minDb, maxDb } = mergedTheme
 
     const radius = mergedTheme.size!.radius ?? 80
@@ -190,7 +185,7 @@ export function DecibelGauge({
             (GAUGE_START_ANGLE + normalizedValue * GAUGE_SWEEP_ANGLE) *
             (Math.PI / 180)
         )
-    }, [dbShared.value, minDb, maxDb])
+    }, [dbShared, minDb, maxDb])
 
     // Define arrow parameters
     const arrowLength = 10
@@ -309,31 +304,41 @@ export function DecibelGauge({
                         strokeWidth={1}
                     />
                 ))}
-            <Group
-                origin={{ x: centerX, y: centerY }}
-                transform={[{ rotate: needleRotation.value }]}
-            >
-                <Path
-                    path={needleLinePath}
-                    color={mergedTheme.colors.needle}
-                    style="stroke"
-                    strokeWidth={2}
-                />
-                <Path
-                    path={arrowheadPath}
-                    color={mergedTheme.colors.needle}
-                    style="fill"
-                />
+            {showNeedle && (
+                <Group
+                    origin={{ x: centerX, y: centerY }}
+                    transform={[{ rotate: needleRotation.get() }]}
+                >
+                    <Path
+                        path={needleLinePath}
+                        color={mergedTheme.colors.needle}
+                        style="stroke"
+                        strokeWidth={2}
+                    />
+                    <Path
+                        path={arrowheadPath}
+                        color={mergedTheme.colors.needle}
+                        style="fill"
+                    />
+                </Group>
+            )}
+            {showNeedle && (
                 <Path
                     path={needleBaseDot}
                     color={mergedTheme.colors.needle}
                     style="fill"
                 />
-            </Group>
+            )}
             {showValue && font && (
                 <SkiaText
-                    x={centerX + (mergedTheme.text?.xOffset ?? 0)}
-                    y={centerY + (mergedTheme.text?.yOffset ?? 100)}
+                    x={
+                        centerX +
+                        (mergedTheme.text?.xOffset ?? (showNeedle ? 0 : 0))
+                    }
+                    y={
+                        centerY +
+                        (mergedTheme.text?.yOffset ?? (showNeedle ? 100 : 0))
+                    }
                     text={valueText}
                     font={font}
                     color={mergedTheme.text?.color ?? '#FFFFFF'}

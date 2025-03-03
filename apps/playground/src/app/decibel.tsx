@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons'
-import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { Canvas, useFont } from '@shopify/react-native-skia'
-import { AppTheme, Button, ScreenWrapper, useConfirm, useTheme } from '@siteed/design-system'
+import { AppTheme, Button, ScreenWrapper, useTheme } from '@siteed/design-system'
 import { useSharedAudioRecorder } from '@siteed/expo-audio-stream'
 import { DecibelGauge } from '@siteed/expo-audio-ui'
 import React, { useCallback, useMemo } from 'react'
@@ -63,10 +62,9 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
 export default function DecibelScreen() {
     const theme = useTheme()
     const { bottom, top } = useSafeAreaInsets()
-    const navigation = useNavigation()
     const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
     
-    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 16)
+    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 30)
 
     const {
         startRecording,
@@ -80,66 +78,20 @@ export default function DecibelScreen() {
         const lastPoint = analysisData.dataPoints[analysisData.dataPoints.length - 1]
         return lastPoint.dB || -60
     }, [analysisData])
-
-    const confirm = useConfirm()
     
-    // Handle navigation state changes
-    useFocusEffect(
-        useCallback(() => {
-            const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-                if (!isRecording) return
 
-                // Prevent default behavior of leaving the screen
-                e.preventDefault()
-
-                // Show confirmation dialog
-                confirm({
-                    title: 'Stop Recording?',
-                    notice: 'Leaving this screen will stop the current recording. Do you want to continue?',
-                    confirmButton: {
-                        label: 'Stop & Leave',
-                        mode: 'contained',
-                    },
-                    cancelButton: {
-                        label: 'Stay',
-                    },
-                    onConfirm: async () => {
-                        try {
-                            await stopRecording()
-                            navigation.dispatch(e.data.action)
-                        } catch (error) {
-                            logger.error('Error stopping recording:', error)
-                        }
-                    }
-                })
-            })
-
-            return unsubscribe
-        }, [navigation, isRecording, stopRecording, confirm])
-    )
-
-    const handleToggleRecording = async () => {
+    const handleToggleRecording = useCallback(async () => {
+        logger.info('handleToggleRecording', { isRecording })
         if (isRecording) {
             await stopRecording()
         } else {
             await startRecording({
-                sampleRate: 44100,
+                sampleRate: 16000,
                 enableProcessing: true,
                 intervalAnalysis: 100, // Update every 100ms
-                features: {
-                    rms: true // Enable RMS calculation for dB values
-                }
             })
         }
-    }
-
-    const _convertToDBSPL = (dbfs: number): number => {
-        // This offset value needs calibration with a reference sound
-        const calibrationOffset = 94; // Typical professional calibration level
-        
-        // Convert from dBFS to dB SPL
-        return dbfs + calibrationOffset;
-    };
+    }, [isRecording, startRecording, stopRecording])
 
     return (
         <ScreenWrapper 
@@ -165,11 +117,12 @@ export default function DecibelScreen() {
                                     height: 220,
                                 },
                                 text: {
-                                    yOffset: 60,
-                                    xOffset: -20,
+                                    yOffset: 10,
+                                    xOffset: -35,
                                 },
                             }}
                             showValue
+                            showNeedle={false}
                             font={font}
                         />
                     </Canvas>
