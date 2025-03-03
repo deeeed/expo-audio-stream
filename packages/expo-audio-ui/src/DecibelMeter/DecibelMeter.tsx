@@ -48,7 +48,7 @@ export interface DecibelMeterProps {
     maxDb?: number
     orientation?: 'vertical' | 'horizontal'
     theme?: Partial<DecibelMeterTheme>
-    font?: SkFont
+    font?: SkFont | null
 }
 
 export function DecibelMeter({
