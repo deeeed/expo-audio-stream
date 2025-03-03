@@ -59,6 +59,7 @@ const DEFAULT_THEME: DecibelGaugeTheme = {
 export interface DecibelGaugeProps {
     db: number
     theme?: Partial<DecibelGaugeTheme>
+    showTickMarks?: boolean
     showValue?: boolean
     font?: SkFont | null
 }
@@ -67,6 +68,7 @@ export function DecibelGauge({
     db,
     theme,
     showValue = true,
+    showTickMarks = false,
     font,
 }: DecibelGaugeProps) {
     const mergedTheme = useMemo(() => ({ ...DEFAULT_THEME, ...theme }), [theme])
@@ -178,15 +180,16 @@ export function DecibelGauge({
                 end={animatedProgress}
                 strokeCap={mergedTheme.strokeCap ?? 'round'}
             />
-            {tickPaths.map((path, index) => (
-                <Path
-                    key={index}
-                    path={path}
-                    color="white"
-                    style="stroke"
-                    strokeWidth={1}
-                />
-            ))}
+            {showTickMarks &&
+                tickPaths.map((path, index) => (
+                    <Path
+                        key={index}
+                        path={path}
+                        color="white"
+                        style="stroke"
+                        strokeWidth={1}
+                    />
+                ))}
             <Group
                 origin={{ x: centerX, y: centerY }}
                 transform={[{ rotate: needleRotation.value }]}

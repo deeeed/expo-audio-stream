@@ -6,9 +6,9 @@ import { useSharedAudioRecorder } from '@siteed/expo-audio-stream'
 import { DecibelGauge, DecibelMeter } from '@siteed/expo-audio-ui'
 import React, { useCallback, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
+import { SegmentedButtons } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { baseLogger } from '../config'
-import { SegmentedButtons } from 'react-native-paper'
 
 const logger = baseLogger.extend('DecibelScreen')
 
@@ -34,14 +34,12 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
             alignItems: 'center',
         },
         verticalMeterCanvas: {
-            width: 50,
+            width: 80,
             height: 200,
-            marginVertical: 10,
         },
         horizontalMeterCanvas: {
             width: 300,
             height: 50,
-            marginVertical: 10,
         },
         meterLabel: {
             fontSize: 16,
@@ -50,18 +48,15 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
             marginTop: 10,
         },
         visualizationContainer: {
-            marginVertical: 20,
             alignItems: 'center',
-            width: '100%',
+            justifyContent: 'center',
         },
         segmentedButtonContainer: {
-            marginBottom: 20,
-            width: '100%',
-            paddingHorizontal: 20,
+            marginBottom: 16,
         },
         gaugeCanvas: {
-            width: 300, 
-            height: 300,
+            width: 300,
+            height: 180,
         },
     })
 }
@@ -72,10 +67,9 @@ export default function DecibelScreen() {
     const navigation = useNavigation()
     const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
     
-    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 12)
-    
     const [visualizationType, setVisualizationType] = useState<'gauge' | 'horizontal' | 'vertical'>('gauge')
-    
+    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
+
     const {
         startRecording,
         stopRecording,
@@ -141,7 +135,7 @@ export default function DecibelScreen() {
         }
     }
 
-    const convertToDBSPL = (dbfs: number): number => {
+    const _convertToDBSPL = (dbfs: number): number => {
         // This offset value needs calibration with a reference sound
         const calibrationOffset = 94; // Typical professional calibration level
         
@@ -155,18 +149,18 @@ export default function DecibelScreen() {
             useInsets={false} 
             contentContainerStyle={styles.container}
         >
-                <View style={styles.segmentedButtonContainer}>
-                    <SegmentedButtons
-                        value={visualizationType}
-                        onValueChange={(value) => setVisualizationType(value as 'gauge' | 'horizontal' | 'vertical')}
-                        buttons={[
-                            { value: 'gauge', label: 'Gauge' },
-                            { value: 'horizontal', label: 'Horizontal' },
-                            { value: 'vertical', label: 'Vertical' }
-                        ]}
-                    />
-                </View>
-                
+            <View style={styles.segmentedButtonContainer}>
+                <SegmentedButtons
+                    value={visualizationType}
+                    onValueChange={(value) => setVisualizationType(value as 'gauge' | 'horizontal' | 'vertical')}
+                    buttons={[
+                        { value: 'gauge', label: 'Gauge' },
+                        { value: 'horizontal', label: 'Horizontal' },
+                        { value: 'vertical', label: 'Vertical' },
+                    ]}
+                />
+            </View>
+            
             <View style={styles.gaugeContainer}>                
                 <View style={styles.visualizationContainer}>
                     {visualizationType === 'gauge' && (
@@ -176,11 +170,14 @@ export default function DecibelScreen() {
                                 theme={{
                                     minDb: -60,
                                     maxDb: 0,
-                                    backgroundColor: '#333333', // Darker gray for contrast
+                                    backgroundColor: '#333333',
                                     size: {
                                         width: 300,
-                                        height: 150
-                                    }
+                                        height: 180,
+                                    },
+                                    text: {
+                                        yOffset: 82,
+                                    },
                                 }}
                                 showValue
                                 font={font}
@@ -191,7 +188,7 @@ export default function DecibelScreen() {
                     {visualizationType === 'vertical' && (
                         <Canvas style={styles.verticalMeterCanvas}>
                             <DecibelMeter
-                                db={convertToDBSPL(currentDb)}
+                                db={currentDb}
                                 width={80}
                                 height={200}
                                 minDb={-60}
@@ -203,13 +200,13 @@ export default function DecibelScreen() {
                                     colors: {
                                         low: theme.colors.primary,
                                         mid: theme.colors.secondary,
-                                        high: theme.colors.error
+                                        high: theme.colors.error,
                                     },
                                     ruler: {
                                         show: true,
                                         tickColor: theme.colors.onSurface,
-                                        labelColor: theme.colors.onSurface
-                                    }
+                                        labelColor: theme.colors.onSurface,
+                                    },
                                 }}
                             />
                         </Canvas>
@@ -218,7 +215,7 @@ export default function DecibelScreen() {
                     {visualizationType === 'horizontal' && (
                         <Canvas style={styles.horizontalMeterCanvas}>
                             <DecibelMeter
-                                db={convertToDBSPL(currentDb)}
+                                db={currentDb}
                                 width={250}
                                 height={80}
                                 minDb={-60}
@@ -230,13 +227,13 @@ export default function DecibelScreen() {
                                     colors: {
                                         low: theme.colors.primary,
                                         mid: theme.colors.secondary,
-                                        high: theme.colors.error
+                                        high: theme.colors.error,
                                     },
                                     ruler: {
                                         show: true,
                                         tickColor: theme.colors.onSurface,
-                                        labelColor: theme.colors.onSurface
-                                    }
+                                        labelColor: theme.colors.onSurface,
+                                    },
                                 }}
                             />
                         </Canvas>
