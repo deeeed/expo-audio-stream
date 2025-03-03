@@ -212,7 +212,7 @@ export const ImportPage = () => {
         } finally {
             setProcessing(false)
         }
-    }, [show, previewStats])
+    }, [show, originalDurationMs, previewStats?.originalDurationMs, previewStats?.size])
 
     const pickAudioFile = async () => {
         try {
