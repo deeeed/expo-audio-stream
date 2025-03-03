@@ -245,14 +245,6 @@ export const MoreScreen = () => {
             />
             <ListItem
                 contentContainerStyle={styles.listItemContainer}
-                label="Classify"
-                subLabel="Classify audio"
-                onPress={() => {
-                    router.navigate('/classify')
-                }}
-            />
-            <ListItem
-                contentContainerStyle={styles.listItemContainer}
                 label="Decibel"
                 subLabel="Decibel Viewer"
                 onPress={() => {
