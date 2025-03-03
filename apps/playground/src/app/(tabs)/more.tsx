@@ -227,16 +227,30 @@ export const MoreScreen = () => {
                     />
                 </>
             )}
-            {__DEV__ && (
-                <ListItem
-                    contentContainerStyle={styles.listItemContainer}
-                    label="Trim"
-                    subLabel="Trim audio"
-                    onPress={() => {
-                        router.navigate('/trim')
-                    }}
-                />
-            )}
+            <ListItem
+                contentContainerStyle={styles.listItemContainer}
+                label="Trim"
+                subLabel="Trim audio"
+                onPress={() => {
+                    router.navigate('/trim')
+                }}
+            />
+            <ListItem
+                contentContainerStyle={styles.listItemContainer}
+                label="Preview"
+                subLabel="Preview audio"
+                onPress={() => {
+                    router.navigate('/preview')
+                }}
+            />
+            <ListItem
+                contentContainerStyle={styles.listItemContainer}
+                label="Decibel"
+                subLabel="Decibel Viewer"
+                onPress={() => {
+                    router.navigate('/decibel')
+                }}
+            />
             {/* <ListItem
                 contentContainerStyle={{
                     backgroundColor: theme.colors.surface,

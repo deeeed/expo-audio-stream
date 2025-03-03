@@ -39,7 +39,7 @@ const DEFAULT_THEME: DecibelMeterTheme = {
     },
 }
 
-interface DecibelMeterProps {
+export interface DecibelMeterProps {
     db: number
     width: number
     height: number

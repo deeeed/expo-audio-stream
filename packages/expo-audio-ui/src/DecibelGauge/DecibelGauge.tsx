@@ -52,11 +52,11 @@ const DEFAULT_THEME: DecibelGaugeTheme = {
     },
 }
 
-interface DecibelGaugeProps {
+export interface DecibelGaugeProps {
     db: number
     theme?: Partial<DecibelGaugeTheme>
     showValue?: boolean
-    font?: SkFont
+    font?: SkFont | null
 }
 
 export function DecibelGauge({
