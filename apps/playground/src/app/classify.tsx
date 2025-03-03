@@ -8,13 +8,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { baseLogger } from '../config';
-import { useSampleAudio } from '../hooks/useSampleAudio';
+import { loadModelFromAssets } from '../utils/tensorflowIO';
 
 interface ClassificationResult {
   className: string;
   probability: number;
 }
-
 
 const logger = baseLogger.extend("Classify")
 
@@ -109,134 +108,129 @@ const getModelCapabilities = (_modelName: string, _isWeb: boolean): { classes: s
   };
 };
 
-// Fix the loadModel function to use state from props
-const loadModel = async ({ 
-  setLoading, 
-  setStatus, 
-  setError 
-}: { 
-  setLoading: (loading: boolean) => void;
-  setStatus: (status: string) => void;
-  setError: (error: string | null) => void;
-}): Promise<tf.GraphModel> => {
-  try {
-    setLoading(true);
-    setStatus('Loading model...');
-    
-    // Use the original URL that was working
-    const handler = tf.io.http(
-      'https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1/default/1'
-    );
-    const model = await tf.loadGraphModel(handler);
-    
-    setStatus('Model loaded successfully');
-    return model;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error loading model';
-    setError(errorMessage);
-    throw error;
-  } finally {
-    setLoading(false);
-  }
-};
-
-// Fix the _loadModelFromAssets function to avoid require
-const _loadModelFromAssets = async ({ 
-  setLoading, 
-  setStatus, 
-  setError 
-}: { 
-  setLoading: (loading: boolean) => void;
-  setStatus: (status: string) => void;
-  setError: (error: string | null) => void;
-}): Promise<tf.GraphModel> => {
-  setLoading(true);
-  setStatus('Loading model from assets...');
-  
-  try {
-    // Initialize TensorFlow
-    await tf.ready();
-    
-    setStatus('Loading YAMNet model from assets...');
-    
-    // Use a string path instead of require
-    const modelPath = 'asset:///assets/yamnet/model.json';
-    
-    const loadedModel = await tf.loadGraphModel(modelPath);
-    
-    setStatus('Model loaded successfully');
-    return loadedModel;
-  } catch (error) {
-    console.error('Error loading model from assets:', error);
-    setError('Failed to load model from assets: ' + (error instanceof Error ? error.message : String(error)));
-    throw error;
-  } finally {
-    setLoading(false);
-  }
-};
-
 export const ClassifyPage = () => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => getStyles({ theme, insets }), [theme, insets]);
+  const { show } = useToast();
   
-  const [model, setModel] = useState<tf.GraphModel | null>(null);
-  const [isModelLoading, _setIsModelLoading] = useState(true);
-  const [status, setStatus] = useState('Loading TensorFlow...');
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [model, setModel] = useState<tf.GraphModel | null>(null);
   const [audioUri, setAudioUri] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [classificationResults, setClassificationResults] = useState<ClassificationResult[]>([]);
-  const [_classNames, _setClassNames] = useState<string[]>([]);
-      const { show } = useToast()
-
-    const { isLoading: isSampleLoading, loadSampleAudio } = useSampleAudio({
-        onError: () => {
-            logger.error('Error loading sample audio file:')
-            show({
-                type: 'error',
-                message: 'Error loading sample audio file',
-                duration: 3000
-            })
-        }
-    })
-
-  // Wrap in useCallback to fix exhaustive-deps warning
+  const [audioName, setAudioName] = useState<string | null>(null);
+  const [results, setResults] = useState<ClassificationResult[]>([]);
+  const [_sound, _setSound] = useState<Audio.Sound | null>(null);
+  const [_isPlaying, _setIsPlaying] = useState(false);
+  const [_audioData, _setAudioData] = useState<Float32Array | null>(null);
+  const [_classifying, _setClassifying] = useState(false);
+  
+  // Check platform
+  const isWeb = Platform.OS === 'web';
+  
+  // Move loadModel inside the component where it belongs
+  const loadModel = useCallback(async (): Promise<tf.GraphModel> => {
+    try {
+      logger.info('Starting model loading process');
+      setLoading(true);
+      setStatus('Loading TensorFlow...');
+      
+      await tf.ready();
+      logger.info('TensorFlow.js is ready');
+      setStatus('Loading model...');
+      
+      // Use our custom model loader that handles both web and native
+      const modelPath = Platform.OS === 'web' 
+        ? '/assets/model/model.json'  // Web path (public folder)
+        : 'model/model.json';         // Native path (relative to document directory)
+      
+      logger.info(`Loading model from path: ${modelPath} on platform: ${Platform.OS}`);
+      
+      // Use the loadModelFromAssets utility we created
+      const loadedModel = await loadModelFromAssets(modelPath);
+      
+      logger.info('Model loaded successfully', { 
+        modelType: loadedModel.constructor.name,
+        inputNodes: loadedModel.inputs.map(i => i.name),
+        outputNodes: loadedModel.outputs.map(o => o.name)
+      });
+      
+      return loadedModel;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Failed to load model', { error: errorMessage, stack: error instanceof Error ? error.stack : undefined });
+      setError(`Failed to load model: ${errorMessage}`);
+      throw error;
+    }
+  }, [setLoading, setStatus, setError]);
+  
+  // Initialize TensorFlow and load model
   const runTensorFlowAndModel = useCallback(async () => {
     try {
-      setIsLoading(true);
+      logger.info('Initializing TensorFlow and model');
+      setLoading(true);
+      setStatus('Initializing TensorFlow...');
       
-      // Initialize TF
-      await tf.ready();
-      
-      // Load model if not already loaded
       if (!model) {
-        const loadedModel = await loadModel({ 
-          setLoading: setIsLoading,
-          setStatus, 
-          setError 
-        });
+        // Configure TensorFlow.js for the platform
+        if (Platform.OS !== 'web') {
+          logger.info('Setting up TensorFlow backend for native platform');
+          await tf.setBackend('rn-webgl');
+          logger.info('Backend set to rn-webgl');
+        } else {
+          logger.info('Using default TensorFlow backend for web');
+        }
+        
+        // Initialize TensorFlow
+        await tf.ready();
+        logger.info('TensorFlow initialized successfully');
+        
+        // Load the model using our loadModel function
+        const loadedModel = await loadModel();
         setModel(loadedModel);
+      } else {
+        logger.info('Model already loaded, skipping initialization');
       }
       
       setStatus('Model loaded successfully');
     } catch (err) {
-      setError(`Failed to initialize: ${err instanceof Error ? err.message : String(err)}`);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to initialize TensorFlow', { 
+        error: errorMessage, 
+        stack: err instanceof Error ? err.stack : undefined,
+        platform: Platform.OS
+      });
+      setError(`Failed to initialize: ${errorMessage}`);
+      show({
+        type: 'error',
+        message: 'Failed to load model',
+        duration: 3000
+      });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [model, setIsLoading, setStatus, setError, setModel]);
-
+  }, [model, loadModel, setLoading, setStatus, setError, setModel, show]);
+  
   // Load TensorFlow and model on component mount
   useEffect(() => {
     runTensorFlowAndModel();
-  }, [runTensorFlowAndModel]);
+    
+    // Cleanup
+    return () => {
+      if (model) {
+        logger.info('Disposing model resources');
+        model.dispose();
+      }
+    };
+  }, [runTensorFlowAndModel, model]);
 
   const pickAudioFile = async () => {
     try {
+      logger.info('Starting audio file selection');
       if (Platform.OS === 'web') {
         // For web, use the browser's file input
+        logger.info('Using web file input');
         return new Promise<void>((resolve, reject) => {
           const input = document.createElement('input');
           input.type = 'file';
@@ -250,7 +244,7 @@ export const ClassifyPage = () => {
               const file = files[0];
               const fileUrl = URL.createObjectURL(file);
               setAudioUri(fileUrl);
-              setFileName(file.name);
+              setAudioName(file.name);
               resolve();
             } else {
               reject(new Error('No file selected'));
@@ -261,6 +255,7 @@ export const ClassifyPage = () => {
         });
       } else {
         // For native, use DocumentPicker
+        logger.info('Using document picker for native platform');
         const result = await DocumentPicker.getDocumentAsync({
           type: ['audio/*'],
           copyToCacheDirectory: true,
@@ -272,9 +267,23 @@ export const ClassifyPage = () => {
         
         const asset = result.assets[0];
         setAudioUri(asset.uri);
-        setFileName(asset.name);
+        setAudioName(asset.name);
+      }
+      logger.info('Audio file selected successfully', { uri: audioUri });
+      
+      if (audioUri) {
+        const processedData = await preprocessAudio(audioUri);
+        if (processedData) {
+          _setAudioData(processedData);
+          logger.info('Audio data processed successfully', { 
+            dataLength: processedData.length 
+          });
+        }
       }
     } catch (error) {
+      logger.error('Failed to pick audio file', { 
+        error: error instanceof Error ? error.message : String(error)
+      });
       console.error('Error picking audio file:', error);
       setError('Failed to pick audio file');
     }
@@ -282,6 +291,7 @@ export const ClassifyPage = () => {
 
   const preprocessAudio = async (audioUri: string): Promise<Float32Array | null> => {
     try {
+      logger.info('Starting audio preprocessing', { uri: audioUri });
       // Use the correct Audio API
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUri },
@@ -294,46 +304,7 @@ export const ClassifyPage = () => {
       // Use sound object as needed
       await sound.unloadAsync(); // Make sure to unload when done
       
-      // Web-specific handling for audio preprocessing
-      if (Platform.OS === 'web') {
-        // For web, we need to handle the audio differently
-        // Web Audio API approach
-        const response = await fetch(audioUri);
-        const arrayBuffer = await response.arrayBuffer();
-        
-        // Create audio context with proper type
-        interface WebkitWindow extends Window {
-          webkitAudioContext: typeof AudioContext;
-        }
-        
-        const AudioContextClass = window.AudioContext || 
-          (window as unknown as WebkitWindow).webkitAudioContext;
-        const audioContext = new AudioContextClass({ sampleRate: 16000 });
-        
-        // Decode audio data
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        
-        // Get audio data and resample if needed
-        const originalData = audioBuffer.getChannelData(0);
-        
-        // If the sample rate is not 16kHz, we need to resample
-        let normalizedData: Float32Array;
-        if (audioBuffer.sampleRate !== 16000) {
-          // Simple resampling by picking samples at intervals
-          // (In a production app, you'd want a better resampling algorithm)
-          const resampleRatio = audioBuffer.sampleRate / 16000;
-          const resampledLength = Math.floor(originalData.length / resampleRatio);
-          normalizedData = new Float32Array(resampledLength);
-          
-          for (let i = 0; i < resampledLength; i++) {
-            normalizedData[i] = originalData[Math.floor(i * resampleRatio)];
-          }
-        } else {
-          normalizedData = originalData;
-        }
-        
-        return normalizedData;
-      } else {
+
         // Native implementation - use extractAudioData
         const extractedData = await extractAudioData({
           fileUri: audioUri,
@@ -349,68 +320,62 @@ export const ClassifyPage = () => {
           throw new Error('Failed to extract normalized audio data');
         }
         
-        return extractedData.normalizedData;
+        const processedData = extractedData.normalizedData;
+        const sampleRate = extractedData.sampleRate;
+        const numChannels = extractedData.channels;
+        const audioData = extractedData.rawData;
+        
+        logger.info('Audio preprocessing completed', { 
+          sampleRate,
+          duration: audioData.length / sampleRate,
+          channels: numChannels
+        });
+        
+        return processedData;
+      } catch(err) {
+        logger.error('Failed to preprocess audio', { 
+          error: err instanceof Error ? err.message : String(err),
+          uri: audioUri
+        });
+        console.error('Error preprocessing audio:', err);
+        setError('Failed to preprocess audio');
+        return null;
       }
-    } catch (error) {
-      console.error('Error preprocessing audio:', error);
-      setError('Failed to preprocess audio: ' + (error instanceof Error ? error.message : String(error)));
-      return null;
-    }
   };
-
-
-    const handleLoadSampleAudio = useCallback(async () => {
-        try {            
-            // Load the sample audio
-            const sampleFile = await loadSampleAudio(require('@assets/why jfk.mp3'))
-            
-            if (!sampleFile) {
-                throw new Error('Failed to load sample audio file')
-            }
-            
-            // TODO now we should process it
-            
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load sample audio')
-            show({
-                type: 'error',
-                message: 'Failed to load sample audio',
-                duration: 3000
-            })
-        }
-    }, [loadSampleAudio, show])
 
   const classifyAudio = async () => {
     try {
-      if (!audioUri || !model) {
-        setError('No audio file selected or model not loaded');
+      logger.info('Starting audio classification');
+      _setClassifying(true);
+      setResults([]);
+      
+      if (!_audioData) {
+        logger.warn('No audio data available for classification');
+        show({
+          type: 'warning',
+          message: 'Please select an audio file first',
+          duration: 3000
+        });
         return;
       }
-
-      setIsLoading(true);
-      setError(null);
-      setClassificationResults([]);
-      setStatus('Processing audio...');
-
-      // Use the accessible function instead
-      await runTensorFlowAndModel();
       
-      // Preprocess audio to get waveform
-      const waveform = await preprocessAudio(audioUri);
-      if (!waveform) {
-        throw new Error('Failed to preprocess audio');
+      if (!model) {
+        logger.error('Model not loaded for classification');
+        show({
+          type: 'error',
+          message: 'Model not loaded. Please try again.',
+          duration: 3000
+        });
+        return;
       }
-
-      setStatus('Running inference...');
       
-      // Create input tensor
-      const waveformTensor = tf.tensor(waveform);
-      
-      // Run inference - note the model returns multiple outputs
-      const outputs = model.predict(waveformTensor) as tf.Tensor[];
+      // Fix the null check for model
+      // Now TypeScript knows model is not null
+      const inputTensor = tf.tensor(_audioData);
+      const output = model.predict(inputTensor) as tf.Tensor;
       
       // Get scores (first output tensor)
-      const scores = outputs[0];
+      const scores = output;
       
       // Get top 5 predictions
       const topK = 5;
@@ -431,11 +396,10 @@ export const ClassifyPage = () => {
       const topKIndices = scoreIndices.slice(0, topK);
       
       // Get class names from config
-      const isWeb = Platform.OS === 'web';
       const classNames = getModelCapabilities('yamnet', isWeb).classes;
       
       // Format results
-      const classificationResults: ClassificationResult[] = topKIndices.map(([probability, index]) => {
+      const results: ClassificationResult[] = topKIndices.map(([probability, index]) => {
         const idx = index as number;
         return {
           className: idx < classNames.length ? classNames[idx] : `Unknown (${idx})`,
@@ -443,32 +407,42 @@ export const ClassifyPage = () => {
         };
       });
       
-      setClassificationResults(classificationResults);
+      logger.info('Model prediction completed', { 
+        outputShape: output.shape,
+        topResults: results.slice(0, 3).map(r => `${r.className}: ${r.probability.toFixed(4)}`)
+      });
+      
+      setResults(results);
       
       // Clean up tensors
-      waveformTensor.dispose();
+      inputTensor.dispose();
+      output.dispose();
       meanScores.dispose();
-      outputs.forEach(tensor => tensor.dispose());
       
+      logger.info('Classification completed successfully');
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Classification failed', { error: errorMessage });
       console.error('Error classifying audio:', error);
       setError('Failed to classify audio: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
-      setIsLoading(false);
+      _setClassifying(false);
     }
   };
 
   // Prefix with underscore to indicate it's unused
   const _loadClassNames = async (): Promise<string[]> => {
+    logger.info('Loading class names');
     const isWeb = Platform.OS === 'web';
-    setIsLoading(false);
+    setLoading(false);
     return getModelCapabilities('yamnet', isWeb).classes;
   };
 
   // Prefix with underscore to indicate it's unused
   const _testModel = async () => {
     try {
-      setIsLoading(true);
+      logger.info('Running model test');
+      setLoading(true);
       setStatus('Testing model...');
       
       // Use the accessible function instead
@@ -507,7 +481,7 @@ export const ClassifyPage = () => {
       console.error('Error testing model:', error);
       setError('Test failed: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -522,7 +496,7 @@ export const ClassifyPage = () => {
         />
         
         {/* Model loading indicator */}
-        {isModelLoading && (
+        {loading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text style={{ marginTop: 10 }}>{status}</Text>
@@ -533,28 +507,21 @@ export const ClassifyPage = () => {
           <TouchableOpacity 
             style={styles.button}
             onPress={pickAudioFile} 
-            disabled={isLoading || isModelLoading}
+            disabled={loading}
           >
             <Text style={styles.buttonText}>Select Audio File</Text>
           </TouchableOpacity>
-             <TouchableOpacity 
-                        style={styles.button}
-                        onPress={handleLoadSampleAudio}
-                        disabled={isSampleLoading}
-                    >
-                        <Text style={styles.buttonText}>Load Sample</Text>
-                    </TouchableOpacity>
         </View>
         
-        {fileName && (
-          <Text style={styles.fileInfo}>Selected file: {fileName}</Text>
+        {audioName && (
+          <Text style={styles.fileInfo}>Selected file: {audioName}</Text>
         )}
         
         <View style={styles.buttonContainer}>
           <TouchableOpacity 
             style={styles.button}
             onPress={classifyAudio} 
-            disabled={!audioUri || isLoading || isModelLoading || !model}
+            disabled={!audioUri || loading}
           >
             <Text style={styles.buttonText}>Classify Audio</Text>
           </TouchableOpacity>
@@ -564,10 +531,10 @@ export const ClassifyPage = () => {
           <Text style={styles.errorText}>{error}</Text>
         )}
         
-        {classificationResults.length > 0 && (
+        {results.length > 0 && (
           <View style={styles.resultsContainer}>
             <Text style={styles.resultHeader}>Classification Results</Text>
-            {classificationResults.map((result, index) => (
+            {results.map((result, index) => (
               <View key={index} style={styles.resultItem}>
                 <Text style={styles.className}>{result.className}</Text>
                 <Text style={styles.probability}>
