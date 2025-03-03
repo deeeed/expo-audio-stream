@@ -8467,6 +8467,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tensorflow/tfjs-tflite@npm:^0.0.1-alpha.10":
+  version: 0.0.1-alpha.10
+  resolution: "@tensorflow/tfjs-tflite@npm:0.0.1-alpha.10"
+  peerDependencies:
+    "@tensorflow/tfjs-core": 4.9.0
+  checksum: 10/d5c7dfa43e2481cfb6d7cf3f8eeef683f1fb46262d50d2c5337fed367141c39f73df9ca54a8047fa57a38759469f0e64bc44ee37d5a4d99eb141abba5ea8dc55
+  languageName: node
+  linkType: hard
+
 "@tensorflow/tfjs@npm:^4.22.0":
   version: 4.22.0
   resolution: "@tensorflow/tfjs@npm:4.22.0"
@@ -10984,6 +10993,7 @@ __metadata:
     "@siteed/react-native-logger": "npm:^0.11.0"
     "@tensorflow/tfjs": "npm:^4.22.0"
     "@tensorflow/tfjs-react-native": "npm:^1.0.0"
+    "@tensorflow/tfjs-tflite": "npm:^0.0.1-alpha.10"
     "@types/gh-pages": "npm:^6"
     "@types/is-base64": "npm:^1.1.3"
     "@types/jest": "npm:^29.5.14"
