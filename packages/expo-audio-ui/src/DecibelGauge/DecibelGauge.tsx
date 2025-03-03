@@ -53,7 +53,7 @@ const DEFAULT_THEME: DecibelGaugeTheme = {
         xOffset: 0,
         yOffset: 100,
     },
-    strokeCap: 'round',
+    strokeCap: 'butt', // Changed to 'butt' for precise arc ending
 }
 
 export interface DecibelGaugeProps {
@@ -106,16 +106,32 @@ export function DecibelGauge({
         )
     }, [dbShared.value, minDb, maxDb])
 
-    const needlePath = useMemo(() => {
+    // Define arrow parameters
+    const arrowLength = 10
+    const arrowWidth = 5
+
+    // Needle line path (stops before the arrowhead)
+    const needleLinePath = useMemo(() => {
         const path = Skia.Path.Make()
         path.moveTo(centerX, centerY)
-        path.lineTo(centerX + radius, centerY)
+        path.lineTo(centerX + radius - arrowLength, centerY)
         return path
-    }, [centerX, centerY, radius])
+    }, [centerX, centerY, radius, arrowLength])
 
+    // Arrowhead path (filled triangle)
+    const arrowheadPath = useMemo(() => {
+        const path = Skia.Path.Make()
+        path.moveTo(centerX + radius - arrowLength, centerY - arrowWidth)
+        path.lineTo(centerX + radius, centerY)
+        path.lineTo(centerX + radius - arrowLength, centerY + arrowWidth)
+        path.close()
+        return path
+    }, [centerX, centerY, radius, arrowLength, arrowWidth])
+
+    // Thicker center dot
     const needleBaseDot = useMemo(() => {
         const path = Skia.Path.Make()
-        path.addCircle(centerX, centerY, 5)
+        path.addCircle(centerX, centerY, 8) // Increased from 5 to 8
         return path
     }, [centerX, centerY])
 
@@ -166,7 +182,7 @@ export function DecibelGauge({
                 strokeWidth={mergedTheme.strokeWidth}
                 color={mergedTheme.backgroundColor}
                 style="stroke"
-                strokeCap={mergedTheme.strokeCap ?? 'round'}
+                strokeCap={mergedTheme.strokeCap}
             />
             <Path
                 path={gaugePath}
@@ -175,7 +191,7 @@ export function DecibelGauge({
                 style="stroke"
                 start={0}
                 end={animatedProgress}
-                strokeCap={mergedTheme.strokeCap ?? 'round'}
+                strokeCap={mergedTheme.strokeCap}
             />
             {showTickMarks &&
                 tickPaths.map((path, index) => (
@@ -192,10 +208,15 @@ export function DecibelGauge({
                 transform={[{ rotate: needleRotation.value }]}
             >
                 <Path
-                    path={needlePath}
+                    path={needleLinePath}
                     color={mergedTheme.colors.needle}
                     style="stroke"
                     strokeWidth={2}
+                />
+                <Path
+                    path={arrowheadPath}
+                    color={mergedTheme.colors.needle}
+                    style="fill"
                 />
                 <Path
                     path={needleBaseDot}
