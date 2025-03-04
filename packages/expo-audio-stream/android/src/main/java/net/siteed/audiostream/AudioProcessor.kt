@@ -1,4 +1,5 @@
 // packages/expo-audio-stream/android/src/main/java/net/siteed/audiostream/AudioProcessor.kt
+// packages/expo-audio-stream/android/src/main/java/net/siteed/audiostream/AudioProcessor.kt
 package net.siteed.audiostream
 
 import java.nio.ByteBuffer
@@ -20,6 +21,12 @@ data class DecodingConfig(
     val targetChannels: Int? = null,       // Optional target number of channels
     val targetBitDepth: Int = 16,          // Default to 16-bit PCM
     val normalizeAudio: Boolean = false    // Whether to normalize audio levels
+)
+
+data class SpectrogramData(
+    val spectrogram: Array<FloatArray>, // 2D array: [time, frequency]
+    val timeStamps: FloatArray,         // Time (in seconds) for each frame
+    val frequencies: FloatArray         // Frequencies (in Hz) for each mel bin
 )
 
 class AudioProcessor(private val filesDir: File) {
@@ -1623,6 +1630,187 @@ class AudioProcessor(private val filesDir: File) {
             output[i] = samples[i] * multiplier
         }
         return output
+    }
+
+    // Generate a Hann window of a specific size (new, avoids modifying applyHannWindow)
+    private fun generateHannWindow(size: Int): FloatArray {
+        return FloatArray(size) { i ->
+            0.5f * (1f - cos(2f * PI.toFloat() * i / (size - 1)))
+        }
+    }
+
+    // Main function to extract mel spectrogram
+    fun extractMelSpectrogram(
+        audioData: AudioData,
+        windowSizeMs: Float = 25f, // Default 25ms window
+        hopLengthMs: Float = 10f, // Default 10ms hop
+        nMels: Int = 128,         // Number of mel bins
+        fftLength: Int = 2048,    // FFT size
+        fMin: Float = 0f,         // Minimum frequency
+        fMax: Float = audioData.sampleRate.toFloat() / 2, // Nyquist frequency
+        windowType: String = "hann", // Add parameter
+        logScaling: Boolean = true, // Apply log scaling
+        normalize: Boolean = false  // Normalize output
+    ): SpectrogramData {
+        val sampleRate = audioData.sampleRate.toFloat()
+        val samples = convertToFloatArray(audioData.data, audioData.bitDepth)
+
+        // Convert ms to samples
+        val windowSizeSamples = (windowSizeMs * sampleRate / 1000).toInt()
+        val hopLengthSamples = (hopLengthMs * sampleRate / 1000).toInt()
+
+
+        val window = when (windowType.lowercase()) {
+            "hann" -> generateHannWindow(windowSizeSamples)
+            "hamming" -> FloatArray(windowSizeSamples) { i ->
+                0.54f - 0.46f * cos(2f * PI.toFloat() * i / (windowSizeSamples - 1))
+            }
+            else -> throw IllegalArgumentException("Unsupported windowType: $windowType")
+        }
+
+        // Compute STFT
+        val stft = computeSTFT(samples, fftLength, windowSizeSamples, hopLengthSamples, window)
+
+        // Apply mel filterbank
+        val melSpectrogram = applyMelFilterbank(stft, sampleRate, nMels, fftLength, fMin, fMax)
+
+        // Post-processing: log scaling and normalization
+        if (logScaling) {
+            for (i in melSpectrogram.indices) {
+                for (j in melSpectrogram[i].indices) {
+                    melSpectrogram[i][j] = ln(max(1e-10f, melSpectrogram[i][j])).toFloat()
+                }
+            }
+        }
+        if (normalize) {
+            // Find min and max values across the entire spectrogram
+            var minVal = Float.MAX_VALUE
+            var maxVal = Float.MIN_VALUE
+            
+            for (i in melSpectrogram.indices) {
+                for (j in melSpectrogram[i].indices) {
+                    val value = melSpectrogram[i][j]
+                    if (value < minVal) minVal = value
+                    if (value > maxVal) maxVal = value
+                }
+            }
+            
+            val range = maxVal - minVal
+            if (range > 0) {
+                for (i in melSpectrogram.indices) {
+                    for (j in melSpectrogram[i].indices) {
+                        melSpectrogram[i][j] = (melSpectrogram[i][j] - minVal) / range
+                    }
+                }
+            }
+        }
+
+        // Compute timestamps and frequencies for metadata
+        val numFrames = melSpectrogram.size
+        val timeStamps = FloatArray(numFrames) { it * hopLengthMs / 1000f }
+        val frequencies = melFrequencies(nMels, fMin, fMax)
+
+        return SpectrogramData(melSpectrogram, timeStamps, frequencies)
+    }
+
+    // Compute Short-Time Fourier Transform
+    private fun computeSTFT(
+        samples: FloatArray,
+        fftLength: Int,
+        windowSize: Int,
+        hopLength: Int,
+        window: FloatArray
+    ): Array<FloatArray> {
+        val fft = FFT(fftLength)
+        val numFrames = ((samples.size - windowSize) / hopLength) + 1
+        val stft = Array(numFrames) { FloatArray(fftLength / 2 + 1) }
+
+        for (frameIdx in 0 until numFrames) {
+            val start = frameIdx * hopLength
+            val end = minOf(start + windowSize, samples.size)
+            val frame = FloatArray(fftLength) { 0f }
+
+            // Extract and window the frame
+            for (i in start until end) {
+                frame[i - start] = samples[i] * window[i - start]
+            }
+
+            // Compute FFT and power spectrum
+            val fftResult = fft.processSegment(frame)
+            for (i in 0 until fftLength / 2 + 1) {
+                // Check bounds before accessing array elements
+                val real = if (2 * i < fftResult.size) fftResult[2 * i] else 0f
+                val imag = if (2 * i + 1 < fftResult.size) fftResult[2 * i + 1] else 0f
+                stft[frameIdx][i] = real * real + imag * imag
+            }
+        }
+        return stft
+    }
+
+    // Apply mel filterbank to STFT
+    private fun applyMelFilterbank(
+        stft: Array<FloatArray>,
+        sampleRate: Float,
+        nMels: Int,
+        fftLength: Int,
+        fMin: Float,
+        fMax: Float
+    ): Array<FloatArray> {
+        val numFrames = stft.size
+        val numBins = stft[0].size
+        val melFilters = createMelFilterbank(sampleRate, fftLength, nMels, fMin, fMax)
+        val melSpectrogram = Array(numFrames) { FloatArray(nMels) }
+
+        for (frame in 0 until numFrames) {
+            for (melBin in 0 until nMels) {
+                var sum = 0f
+                for (bin in 0 until numBins) {
+                    sum += stft[frame][bin] * melFilters[melBin][bin]
+                }
+                melSpectrogram[frame][melBin] = sum
+            }
+        }
+        return melSpectrogram
+    }
+
+    // Create mel filterbank matrix
+    private fun createMelFilterbank(
+        sampleRate: Float,
+        fftLength: Int,
+        nMels: Int,
+        fMin: Float,
+        fMax: Float
+    ): Array<FloatArray> {
+        val freqs = FloatArray(fftLength / 2 + 1) { it * sampleRate / fftLength }
+        val melPoints = melFrequencies(nMels + 2, fMin, fMax)
+        val melFilters = Array(nMels) { FloatArray(fftLength / 2 + 1) }
+
+        for (melIdx in 0 until nMels) {
+            val fLow = melPoints[melIdx]
+            val fCenter = melPoints[melIdx + 1]
+            val fHigh = melPoints[melIdx + 2]
+
+            for (bin in freqs.indices) {
+                val freq = freqs[bin]
+                melFilters[melIdx][bin] = when {
+                    freq < fLow || freq > fHigh -> 0f
+                    freq <= fCenter -> (freq - fLow) / (fCenter - fLow)
+                    else -> (fHigh - freq) / (fHigh - fCenter)
+                }
+            }
+        }
+        return melFilters
+    }
+
+    // Generate mel-spaced frequencies
+    private fun melFrequencies(nMels: Int, fMin: Float, fMax: Float): FloatArray {
+        val melMin = hzToMel(fMin)
+        val melMax = hzToMel(fMax)
+        val melPoints = FloatArray(nMels) { i ->
+            val mel = melMin + i * (melMax - melMin) / (nMels - 1)
+            melToHz(mel)
+        }
+        return melPoints
     }
 
     private fun computeMelSpectrogram(samples: FloatArray, sampleRate: Float): List<Float> {

@@ -583,6 +583,23 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 promise.reject("PROCESSING_ERROR", "Failed to process audio file: \(error.localizedDescription)")
             }
         }
+        
+        /// Extracts mel spectrogram data from a file.
+        ///
+        /// - Parameters:
+        ///   - options: A dictionary containing:
+        ///     - `fileUri`: The URI of the audio file.
+        ///     - `pointsPerSecond`: The number of data points to extract per second of audio.
+        ///   - promise: A promise to resolve with the extracted mel spectrogram data or reject with an error.
+        /// - Returns: Promise to be resolved with mel spectrogram data.
+        AsyncFunction("extractMelSpectrogram") { (options: [String: Any], promise: Promise) in
+            // This is a placeholder implementation that will be fully implemented later
+            // Currently, mel spectrogram extraction is only available on Android
+            promise.reject(
+                "UNSUPPORTED_PLATFORM", 
+                "Mel spectrogram extraction is currently only available on Android and is experimental"
+            )
+        }
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveInterruption info: [String: Any]) {

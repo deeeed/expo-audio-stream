@@ -328,6 +328,202 @@ class ExpoAudioStreamModule : Module(), EventSender {
             }
         }
 
+        AsyncFunction("extractMelSpectrogram") { options: Map<String, Any>, promise: Promise ->
+            try {
+                // Log all incoming options for debugging
+                Log.d(Constants.TAG, "extractMelSpectrogram called with options: $options")
+                
+                // Extract required parameters with detailed logging
+                val fileUri = options["fileUri"] as? String
+                Log.d(Constants.TAG, "fileUri: $fileUri")
+                if (fileUri == null) {
+                    Log.e(Constants.TAG, "Missing required parameter: fileUri")
+                    throw IllegalArgumentException("fileUri is required")
+                }
+                
+                val windowSizeMs = options["windowSizeMs"] as? Double
+                Log.d(Constants.TAG, "windowSizeMs: $windowSizeMs")
+                if (windowSizeMs == null) {
+                    Log.e(Constants.TAG, "Missing required parameter: windowSizeMs")
+                    throw IllegalArgumentException("windowSizeMs is required")
+                }
+                
+                val hopLengthMs = options["hopLengthMs"] as? Double
+                Log.d(Constants.TAG, "hopLengthMs: $hopLengthMs")
+                if (hopLengthMs == null) {
+                    Log.e(Constants.TAG, "Missing required parameter: hopLengthMs")
+                    throw IllegalArgumentException("hopLengthMs is required")
+                }
+                
+                // Handle nMels which might come as Double from JavaScript
+                val nMelsValue = options["nMels"]
+                Log.d(Constants.TAG, "Raw nMels value: $nMelsValue (type: ${nMelsValue?.javaClass?.name})")
+                
+                val nMels = when (nMelsValue) {
+                    is Int -> nMelsValue
+                    is Double -> nMelsValue.toInt()
+                    is Number -> nMelsValue.toInt()
+                    else -> {
+                        Log.e(Constants.TAG, "Missing or invalid required parameter: nMels")
+                        throw IllegalArgumentException("nMels is required and must be a number")
+                    }
+                }
+                
+                Log.d(Constants.TAG, "Converted nMels: $nMels (from ${nMelsValue?.javaClass?.name})")
+
+                // Extract optional parameters with defaults
+                val fMin = options["fMin"] as? Double ?: 0.0
+                val fMax = options["fMax"] as? Double
+                val windowType = options["windowType"] as? String ?: "hann"
+                val normalize = options["normalize"] as? Boolean ?: false
+                val logScale = options["logScale"] as? Boolean ?: true
+                
+                // Fix the conversion from Number to Long to preserve decimal values
+                val startTimeMsNumber = options["startTimeMs"] as? Number
+                val endTimeMsNumber = options["endTimeMs"] as? Number
+                val startTimeMs = startTimeMsNumber?.toLong() ?: startTimeMsNumber?.toDouble()?.toLong()
+                val endTimeMs = endTimeMsNumber?.toLong() ?: endTimeMsNumber?.toDouble()?.toLong()
+
+                Log.d(Constants.TAG, """
+                    Optional parameters:
+                    - fMin: $fMin
+                    - fMax: $fMax
+                    - windowType: $windowType
+                    - normalize: $normalize
+                    - logScale: $logScale
+                    - startTimeMs: $startTimeMs (original: $startTimeMsNumber)
+                    - endTimeMs: $endTimeMs (original: $endTimeMsNumber)
+                """.trimIndent())
+
+                // Handle decoding options
+                val decodingOptions = options["decodingOptions"] as? Map<String, Any>
+                Log.d(Constants.TAG, "Decoding options: $decodingOptions")
+                
+                val config = decodingOptions?.let {
+                    val targetSampleRateValue = it["targetSampleRate"]
+                    val targetSampleRate = when (targetSampleRateValue) {
+                        is Int -> targetSampleRateValue
+                        is Double -> targetSampleRateValue.toInt()
+                        is Number -> targetSampleRateValue.toInt()
+                        else -> null
+                    }
+                    
+                    val targetChannelsValue = it["targetChannels"]
+                    val targetChannels = when (targetChannelsValue) {
+                        is Int -> targetChannelsValue
+                        is Double -> targetChannelsValue.toInt()
+                        is Number -> targetChannelsValue.toInt()
+                        else -> 1
+                    }
+                    
+                    val targetBitDepthValue = it["targetBitDepth"]
+                    val targetBitDepth = when (targetBitDepthValue) {
+                        is Int -> targetBitDepthValue
+                        is Double -> targetBitDepthValue.toInt()
+                        is Number -> targetBitDepthValue.toInt()
+                        else -> 16
+                    }
+                    
+                    val normalizeAudio = it["normalizeAudio"] as? Boolean ?: false
+                    
+                    DecodingConfig(
+                        targetSampleRate = targetSampleRate,
+                        targetChannels = targetChannels,
+                        targetBitDepth = targetBitDepth,
+                        normalizeAudio = normalizeAudio
+                    ).also { config ->
+                        Log.d(Constants.TAG, """
+                            Using decoding config:
+                            - targetSampleRate: ${config.targetSampleRate ?: "original"}
+                            - targetChannels: ${config.targetChannels ?: "original"}
+                            - targetBitDepth: ${config.targetBitDepth}
+                            - normalizeAudio: ${config.normalizeAudio}
+                        """.trimIndent())
+                    }
+                } ?: DecodingConfig(targetSampleRate = null, targetChannels = 1, targetBitDepth = 16).also {
+                    Log.d(Constants.TAG, "Using default decoding config")
+                }
+
+                // Check if the audio data is too short
+                if (startTimeMs != null && endTimeMs != null) {
+                    val durationMs = endTimeMs - startTimeMs
+                    Log.d(Constants.TAG, "Audio duration for spectrogram: $durationMs ms")
+                    if (durationMs < 25) {  // 25ms is minimum for a single window
+                        Log.w(Constants.TAG, "Audio duration is too short for spectrogram analysis: $durationMs ms")
+                        throw IllegalArgumentException("Audio duration must be at least 25ms for spectrogram analysis")
+                    }
+                }
+
+                // Load audio data with optional time range
+                Log.d(Constants.TAG, "Loading audio data...")
+                val audioData = when {
+                    startTimeMs != null && endTimeMs != null -> {
+                        Log.d(Constants.TAG, "Loading audio range: $startTimeMs to $endTimeMs ms")
+                        audioProcessor.loadAudioRange(fileUri, startTimeMs, endTimeMs, config)
+                    }
+                    else -> {
+                        Log.d(Constants.TAG, "Loading entire audio file")
+                        audioProcessor.loadAudioFromAnyFormat(fileUri, config)
+                    }
+                }
+                
+                if (audioData == null) {
+                    Log.e(Constants.TAG, "Failed to load audio data")
+                    throw IllegalStateException("Failed to load audio data")
+                }
+                
+                Log.d(Constants.TAG, """
+                    Audio data loaded successfully:
+                    - data size: ${audioData.data.size} bytes
+                    - sampleRate: ${audioData.sampleRate}
+                    - channels: ${audioData.channels}
+                    - bitDepth: ${audioData.bitDepth}
+                    - durationMs: ${audioData.durationMs}
+                """.trimIndent())
+
+                // Validate that we have enough audio data for processing
+                if (audioData.data.size == 0 || audioData.durationMs < windowSizeMs) {
+                    Log.e(Constants.TAG, "Audio data is too short for spectrogram analysis: ${audioData.durationMs}ms, data size: ${audioData.data.size} bytes")
+                    throw IllegalArgumentException(
+                        "Audio data is too short for spectrogram analysis. " +
+                        "Duration: ${audioData.durationMs}ms, minimum required: ${windowSizeMs}ms"
+                    )
+                }
+
+                // Compute mel-spectrogram
+                Log.d(Constants.TAG, "Computing mel-spectrogram...")
+                val spectrogramData = audioProcessor.extractMelSpectrogram(
+                    audioData = audioData,
+                    windowSizeMs = windowSizeMs.toFloat(),
+                    hopLengthMs = hopLengthMs.toFloat(),
+                    nMels = nMels,
+                    fMin = fMin.toFloat(),
+                    fMax = fMax?.toFloat() ?: (audioData.sampleRate.toFloat() / 2),
+                    normalize = normalize,
+                    logScaling = logScale,
+                    windowType = windowType
+                )
+                
+                Log.d(Constants.TAG, "Mel-spectrogram computed successfully with ${spectrogramData.spectrogram.size} time steps")
+
+                // Convert to map for React Native
+                val result = mapOf(
+                    "spectrogram" to spectrogramData.spectrogram.map { it.toList() },
+                    "sampleRate" to audioData.sampleRate,
+                    "nMels" to nMels,
+                    "timeSteps" to spectrogramData.spectrogram.size,
+                    "durationMs" to audioData.durationMs
+                )
+                
+                Log.d(Constants.TAG, "Returning result with ${result["timeSteps"]} time steps and $nMels mel bands")
+                promise.resolve(result)
+            } catch (e: Exception) {
+                Log.e(Constants.TAG, "Failed to extract mel-spectrogram: ${e.message}")
+                Log.e(Constants.TAG, "Stack trace: ${e.stackTraceToString()}")
+                promise.reject("SPECTROGRAM_ERROR", e.message ?: "Unknown error", e)
+            }
+        }
+
         OnDestroy {
             AudioRecorderManager.destroy()
         }
