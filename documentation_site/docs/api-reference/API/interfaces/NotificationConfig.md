@@ -70,7 +70,7 @@ Configuration for the waveform visualization in the notification
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:310](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L310)
+[src/ExpoAudioStream.types.ts:310](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L310)
 
 ***
 
@@ -82,7 +82,7 @@ Icon to be displayed in the notification (resource name or URI)
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:307](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L307)
+[src/ExpoAudioStream.types.ts:307](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L307)
 
 ***
 
@@ -100,7 +100,7 @@ Identifier for the notification category (used for grouping similar notification
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:340](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L340)
+[src/ExpoAudioStream.types.ts:340](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L340)
 
 ***
 
@@ -112,7 +112,7 @@ Main text content of the notification
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:304](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L304)
+[src/ExpoAudioStream.types.ts:304](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L304)
 
 ***
 
@@ -124,4 +124,4 @@ Title of the notification
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:301](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L301)
+[src/ExpoAudioStream.types.ts:301](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L301)

@@ -16,7 +16,7 @@ Represents speech-related features extracted from audio.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:23](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L23)
+[src/AudioAnalysis/AudioAnalysis.types.ts:23](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L23)
 
 ***
 
@@ -26,4 +26,4 @@ Represents speech-related features extracted from audio.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:24](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L24)
+[src/AudioAnalysis/AudioAnalysis.types.ts:24](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L24)

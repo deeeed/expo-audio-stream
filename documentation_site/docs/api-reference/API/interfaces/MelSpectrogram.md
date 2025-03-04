@@ -23,7 +23,7 @@ The API may change in future versions.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:201](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L201)
+[src/AudioAnalysis/AudioAnalysis.types.ts:201](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L201)
 
 ***
 
@@ -35,7 +35,7 @@ The API may change in future versions.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:199](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L199)
+[src/AudioAnalysis/AudioAnalysis.types.ts:199](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L199)
 
 ***
 
@@ -47,7 +47,7 @@ The API may change in future versions.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:198](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L198)
+[src/AudioAnalysis/AudioAnalysis.types.ts:198](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L198)
 
 ***
 
@@ -59,7 +59,7 @@ The API may change in future versions.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:197](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L197)
+[src/AudioAnalysis/AudioAnalysis.types.ts:197](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L197)
 
 ***
 
@@ -71,4 +71,4 @@ The API may change in future versions.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:200](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L200)
+[src/AudioAnalysis/AudioAnalysis.types.ts:200](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L200)
