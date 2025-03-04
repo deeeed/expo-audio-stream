@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons'
 import { Canvas, useFont } from '@shopify/react-native-skia'
 import { AppTheme, Button, ScreenWrapper, useTheme } from '@siteed/design-system'
-import { useSharedAudioRecorder } from '@siteed/expo-audio-stream'
+import { useSharedAudioRecorder } from '@siteed/expo-audio-studio'
 import { DecibelGauge } from '@siteed/expo-audio-ui'
 import React, { useCallback, useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'

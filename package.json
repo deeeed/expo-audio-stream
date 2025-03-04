@@ -1,6 +1,6 @@
 {
     "private": true,
-    "name": "@siteed/expo-audio-stream-monorepo",
+    "name": "@siteed/expo-audio-studio-monorepo",
     "workspaces": [
         "packages/*",
         "apps/*",

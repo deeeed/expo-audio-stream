@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { ExtractAudioDataOptions, ExtractedAudioData, TranscriberData, extractAudioData } from '@siteed/expo-audio-stream';
+import { ExtractAudioDataOptions, ExtractedAudioData, TranscriberData, extractAudioData } from '@siteed/expo-audio-studio';
 import { Audio } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
 import { isWeb } from '../../../../packages/expo-audio-ui/src/constants';

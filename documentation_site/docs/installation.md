@@ -8,12 +8,12 @@ sidebar_label: Installation
 
 ## Installing the library
 
-To install `@siteed/expo-audio-stream`, add it to your project using npm or Yarn:
+To install `@siteed/expo-audio-studio`, add it to your project using npm or Yarn:
 
 ```bash
-npm install @siteed/expo-audio-stream
+npm install @siteed/expo-audio-studio
 # or
-yarn add @siteed/expo-audio-stream
+yarn add @siteed/expo-audio-studio
 ```
 
 ## Configuring with app.json
@@ -25,7 +25,7 @@ To ensure expo-audio-stream works correctly with Expo, you must add it as a plug
 ```json
 {
     "expo": {
-        "plugins": ["@siteed/expo-audio-stream"]
+        "plugins": ["@siteed/expo-audio-studio"]
     }
 }
 ```
@@ -39,7 +39,7 @@ You can customize the plugin's behavior by providing options:
     "expo": {
         "plugins": [
             [
-                "@siteed/expo-audio-stream",
+                "@siteed/expo-audio-studio",
                 {
                     "enablePhoneStateHandling": true,
                     "enableNotifications": true,
@@ -153,7 +153,7 @@ To request microphone permissions in your Expo project, you can use the followin
 ```tsx
 import {
     ExpoAudioStreamModule,
-} from '@siteed/expo-audio-stream'
+} from '@siteed/expo-audio-studio'
 
 const requestPermissions = async () => {
     const { granted } =

@@ -21,7 +21,7 @@ const modules = [
     'react-native-reanimated',
     '@siteed/expo-audio-ui',
     'react-native-gesture-handler',
-    '@siteed/expo-audio-stream',
+    '@siteed/expo-audio-studio',
     'react-dom',
     'react',
     'react-native',
@@ -77,7 +77,7 @@ config.resolver = {
                 filePath: monorepoRoot + '/packages/expo-audio-ui/src/index.ts',
                 type: 'sourceFile',
             }
-        } else if (moduleName === '@siteed/expo-audio-stream') {
+        } else if (moduleName === '@siteed/expo-audio-studio') {
             return {
                 filePath:
                     monorepoRoot + '/packages/expo-audio-stream/src/index.ts',

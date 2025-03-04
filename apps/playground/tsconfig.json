@@ -5,11 +5,17 @@
         "types": ["node"],
         "experimentalDecorators": true,
         "paths": {
-            "@siteed/expo-audio-stream": [
+            "@siteed/expo-audio-studio": [
                 "../../packages/expo-audio-stream/src/index"
             ],
-            "@siteed/expo-audio-stream/*": [
+            "@siteed/expo-audio-studio/*": [
                 "../../packages/expo-audio-stream/src/*"
+            ],
+            "@siteed/expo-audio-studio": [
+                "../../packages/expo-audio-studio/src/index"
+            ],
+            "@siteed/expo-audio-studio/*": [
+                "../../packages/expo-audio-studio/src/*"
             ],
             "@siteed/expo-audio-ui": ["../../packages/expo-audio-ui/src/index"],
             "@siteed/expo-audio-ui/*": ["../../packages/expo-audio-ui/src/*"]

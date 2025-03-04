@@ -1,7 +1,7 @@
 // import { FontAwesome } from '@expo/vector-icons'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { AppTheme, useTheme } from '@siteed/design-system'
-import { AudioAnalysis, ExtractedAudioData, extractMelSpectrogram, MelSpectrogram, TranscriberData } from '@siteed/expo-audio-stream'
+import { AudioAnalysis, ExtractedAudioData, extractMelSpectrogram, MelSpectrogram, TranscriberData } from '@siteed/expo-audio-studio'
 import React, { useCallback, useEffect, useState } from 'react'
 import { StyleSheet, View, Platform } from 'react-native'
 import { Button, Text } from 'react-native-paper'

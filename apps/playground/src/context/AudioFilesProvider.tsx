@@ -1,5 +1,5 @@
 // playground/src/context/AudioFilesProvider.tsx
-import { AudioRecording } from '@siteed/expo-audio-stream'
+import { AudioRecording } from '@siteed/expo-audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 import * as FileSystem from 'expo-file-system'
 import React, {

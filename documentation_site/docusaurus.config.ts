@@ -3,8 +3,8 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'Expo Audio Stream',
-  tagline: 'Real-time audio processing and streaming',
+  title: 'Expo Audio Studio',
+  tagline: 'Comprehensive audio studio library for React Native and Expo with recording, analysis, visualization, and streaming capabilities across iOS, Android, and web platforms.',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
@@ -50,9 +50,9 @@ const config: Config = {
     // Replace with your project's social card
     image: 'img/icon-192x192.png',
     navbar: {
-      title: 'Expo Audio Stream',
+      title: 'Expo Audio Studio',
       logo: {
-        alt: 'Expo Audio Stream Logo',
+        alt: 'Expo Audio Studio Logo',
         src: 'img/logo.svg',
       },
       items: [

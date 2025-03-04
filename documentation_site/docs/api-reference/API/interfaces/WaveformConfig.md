@@ -1,8 +1,8 @@
-[**@siteed/expo-audio-stream**](../README.md)
+[**@siteed/expo-audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-stream](../README.md) / WaveformConfig
+[@siteed/expo-audio-studio](../README.md) / WaveformConfig
 
 # Interface: WaveformConfig
 
@@ -16,7 +16,7 @@ The color of the waveform (e.g., "#FFFFFF" for white)
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:359](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L359)
+[src/ExpoAudioStream.types.ts:359](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L359)
 
 ***
 
@@ -28,7 +28,7 @@ Height of the waveform view in dp (default: 64)
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:369](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L369)
+[src/ExpoAudioStream.types.ts:369](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L369)
 
 ***
 
@@ -40,7 +40,7 @@ Whether to mirror the waveform (symmetrical display)
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:367](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L367)
+[src/ExpoAudioStream.types.ts:367](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L367)
 
 ***
 
@@ -52,7 +52,7 @@ Opacity of the waveform (0.0 - 1.0)
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:361](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L361)
+[src/ExpoAudioStream.types.ts:361](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L361)
 
 ***
 
@@ -64,7 +64,7 @@ Width of the waveform line (default: 1.5)
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:363](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L363)
+[src/ExpoAudioStream.types.ts:363](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L363)
 
 ***
 
@@ -76,4 +76,4 @@ Drawing style: "stroke" for outline, "fill" for solid
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:365](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L365)
+[src/ExpoAudioStream.types.ts:365](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L365)

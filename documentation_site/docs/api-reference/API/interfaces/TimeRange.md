@@ -1,8 +1,8 @@
-[**@siteed/expo-audio-stream**](../README.md)
+[**@siteed/expo-audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-stream](../README.md) / TimeRange
+[@siteed/expo-audio-studio](../README.md) / TimeRange
 
 # Interface: TimeRange
 
@@ -18,7 +18,7 @@ The end time of the range in milliseconds.
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:479](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L479)
+[src/ExpoAudioStream.types.ts:479](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L479)
 
 ***
 
@@ -30,4 +30,4 @@ The start time of the range in milliseconds.
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:474](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L474)
+[src/ExpoAudioStream.types.ts:474](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L474)

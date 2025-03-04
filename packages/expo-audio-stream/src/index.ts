@@ -1,36 +1,22 @@
-// src/index.ts
+ /**
+ * @siteed/expo-audio-stream
+ * 
+ * DEPRECATED: This package has been renamed to @siteed/expo-audio-studio
+ * This file serves as a compatibility wrapper that re-exports everything from the new package.
+ * 
+ * Please update your imports to use @siteed/expo-audio-studio directly.
+ */
 
-import {
-    extractRawWavAnalysis,
-    extractAudioAnalysis,
-} from './AudioAnalysis/extractAudioAnalysis'
-import { extractAudioData } from './AudioAnalysis/extractAudioData'
-import { extractMelSpectrogram } from './AudioAnalysis/extractMelSpectrogram'
-import { extractPreview } from './AudioAnalysis/extractPreview'
-import {
-    AudioRecorderProvider,
-    useSharedAudioRecorder,
-} from './AudioRecorder.provider'
-import ExpoAudioStreamModule from './ExpoAudioStreamModule'
-import { trimAudio } from './trimAudio'
-import { useAudioRecorder } from './useAudioRecorder'
+import * as ExpoAudioStudio from '@siteed/expo-audio-studio';
 
-export * from './utils/convertPCMToFloat32'
-export * from './utils/getWavFileInfo'
-export * from './utils/writeWavHeader'
+// Display deprecation warning
+console.warn(
+  '@siteed/expo-audio-stream is deprecated and will be removed in a future version. ' +
+  'Please migrate to @siteed/expo-audio-studio, which provides the same functionality with additional features.'
+);
 
-export {
-    AudioRecorderProvider,
-    ExpoAudioStreamModule,
-    extractRawWavAnalysis,
-    extractAudioAnalysis,
-    extractPreview,
-    trimAudio,
-    extractAudioData,
-    extractMelSpectrogram,
-    useAudioRecorder,
-    useSharedAudioRecorder,
-}
+// Re-export everything from the new package
+export * from '@siteed/expo-audio-studio';
 
-export type * from './AudioAnalysis/AudioAnalysis.types'
-export type * from './ExpoAudioStream.types'
+// For backward compatibility with default imports
+export default ExpoAudioStudio;

@@ -1,8 +1,8 @@
-[**@siteed/expo-audio-stream**](../README.md)
+[**@siteed/expo-audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-stream](../README.md) / TrimProgressEvent
+[@siteed/expo-audio-studio](../README.md) / TrimProgressEvent
 
 # Interface: TrimProgressEvent
 
@@ -18,7 +18,7 @@ The number of bytes that have been processed so far. This is optional and may no
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:459](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L459)
+[src/ExpoAudioStream.types.ts:459](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L459)
 
 ***
 
@@ -30,7 +30,7 @@ The percentage of the trimming process that has been completed, ranging from 0 t
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:454](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L454)
+[src/ExpoAudioStream.types.ts:454](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L454)
 
 ***
 
@@ -42,4 +42,4 @@ The total number of bytes to process. This is optional and may not be provided i
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:464](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L464)
+[src/ExpoAudioStream.types.ts:464](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L464)

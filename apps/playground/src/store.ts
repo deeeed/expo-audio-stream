@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { configureStore, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { SavedUserPreferences } from "@siteed/design-system/dist/src/hooks/_useAppThemeSetup";
-import { RecordingConfig } from "@siteed/expo-audio-stream/src/ExpoAudioStream.types";
+import { RecordingConfig } from "@siteed/expo-audio-studio/src/ExpoAudioStream.types";
 import { useSelector , useDispatch , TypedUseSelectorHook } from "react-redux";
 import { persistReducer, persistStore } from "redux-persist";
 import { combineReducers } from "redux";

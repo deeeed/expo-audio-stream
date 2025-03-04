@@ -1,8 +1,8 @@
-[**@siteed/expo-audio-stream**](../README.md)
+[**@siteed/expo-audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-stream](../README.md) / DataPoint
+[@siteed/expo-audio-studio](../README.md) / DataPoint
 
 # Interface: DataPoint
 
@@ -16,7 +16,7 @@ Represents a single data point in the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:83](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L83)
+[src/AudioAnalysis/AudioAnalysis.types.ts:83](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L83)
 
 ***
 
@@ -26,7 +26,7 @@ Represents a single data point in the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:85](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L85)
+[src/AudioAnalysis/AudioAnalysis.types.ts:85](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L85)
 
 ***
 
@@ -36,7 +36,7 @@ Represents a single data point in the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:93](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L93)
+[src/AudioAnalysis/AudioAnalysis.types.ts:93](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L93)
 
 ***
 
@@ -46,7 +46,7 @@ Represents a single data point in the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:90](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L90)
+[src/AudioAnalysis/AudioAnalysis.types.ts:90](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L90)
 
 ***
 
@@ -56,7 +56,7 @@ Represents a single data point in the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:87](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L87)
+[src/AudioAnalysis/AudioAnalysis.types.ts:87](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L87)
 
 ***
 
@@ -66,7 +66,7 @@ Represents a single data point in the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:82](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L82)
+[src/AudioAnalysis/AudioAnalysis.types.ts:82](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L82)
 
 ***
 
@@ -76,7 +76,7 @@ Represents a single data point in the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:84](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L84)
+[src/AudioAnalysis/AudioAnalysis.types.ts:84](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L84)
 
 ***
 
@@ -86,7 +86,7 @@ Represents a single data point in the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:95](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L95)
+[src/AudioAnalysis/AudioAnalysis.types.ts:95](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L95)
 
 ***
 
@@ -96,7 +96,7 @@ Represents a single data point in the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:86](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L86)
+[src/AudioAnalysis/AudioAnalysis.types.ts:86](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L86)
 
 ***
 
@@ -106,7 +106,7 @@ Represents a single data point in the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:88](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L88)
+[src/AudioAnalysis/AudioAnalysis.types.ts:88](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L88)
 
 ***
 
@@ -116,7 +116,7 @@ Represents a single data point in the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:92](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L92)
+[src/AudioAnalysis/AudioAnalysis.types.ts:92](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L92)
 
 ***
 
@@ -126,4 +126,4 @@ Represents a single data point in the audio analysis.
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:89](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts#L89)
+[src/AudioAnalysis/AudioAnalysis.types.ts:89](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L89)

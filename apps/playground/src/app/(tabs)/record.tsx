@@ -20,7 +20,7 @@ import {
     StartRecordingResult,
     TranscriberData,
     useSharedAudioRecorder,
-} from '@siteed/expo-audio-stream'
+} from '@siteed/expo-audio-studio'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'

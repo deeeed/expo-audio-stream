@@ -1,7 +1,7 @@
 // playground/src/app/_layout.tsx
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { useTheme } from '@siteed/design-system'
-import { AudioRecorderProvider } from '@siteed/expo-audio-stream'
+import { AudioRecorderProvider } from '@siteed/expo-audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 import Constants from 'expo-constants'
 import { Stack } from 'expo-router/stack'

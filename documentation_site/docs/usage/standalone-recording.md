@@ -18,7 +18,7 @@ import {
   useAudioRecorder,
   ExpoAudioStreamModule,
   RecordingConfig
-} from '@siteed/expo-audio-stream'
+} from '@siteed/expo-audio-studio'
 import { useAudioPlayer } from 'expo-audio'
 import { useState } from 'react'
 import { Button, StyleSheet, Text, View } from 'react-native'

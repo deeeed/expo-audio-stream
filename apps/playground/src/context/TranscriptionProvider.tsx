@@ -1,5 +1,5 @@
 // apps/playground/src/context/TranscriptionProvider.tsx
-import { TranscriberData } from '@siteed/expo-audio-stream'
+import { TranscriberData } from '@siteed/expo-audio-studio'
 import * as FileSystem from 'expo-file-system'
 import React, {
     createContext,

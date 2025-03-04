@@ -15,7 +15,7 @@ FILES=(
     "$CURRENT_FOLDER/ios/Pods/Headers/Public/React-Core/React/RCTDefines.h"
     "$CURRENT_FOLDER/ios/Pods/Headers/Private/React-Core/React/RCTDefines.h"
     "$CURRENT_FOLDER/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/AgpConfiguratorUtils.kt"
-    "$CURRENT_FOLDER/node_modules/@siteed/expo-audio-stream/node_modules/react-native/React/DevSupport/RCTInspectorDevServerHelper.mm"
+    "$CURRENT_FOLDER/node_modules/@siteed/expo-audio-studio/node_modules/react-native/React/DevSupport/RCTInspectorDevServerHelper.mm"
 )
 
 for file in "${FILES[@]}"; do
