@@ -7,32 +7,52 @@ import {
 import { AudioAnalysisEvent } from './events'
 
 export interface CompressionInfo {
+    /** Size of the compressed audio data in bytes */
     size: number
+    /** MIME type of the compressed audio (e.g., 'audio/aac', 'audio/opus') */
     mimeType: string
+    /** Bitrate of the compressed audio in bits per second */
     bitrate: number
+    /** Format of the compression (e.g., 'aac', 'opus') */
     format: string
+    /** URI to the compressed audio file if available */
     compressedFileUri?: string
 }
 
 export interface AudioStreamStatus {
+    /** Indicates whether audio recording is currently active */
     isRecording: boolean
+    /** Indicates whether recording is in a paused state */
     isPaused: boolean
+    /** Duration of the current recording in milliseconds */
     durationMs: number
+    /** Size of the recorded audio data in bytes */
     size: number
+    /** Interval in milliseconds at which recording data is emitted */
     interval: number
+    /** Interval in milliseconds at which analysis data is emitted */
     intervalAnalysis: number
+    /** MIME type of the recorded audio (e.g., 'audio/wav') */
     mimeType: string
+    /** Information about audio compression if enabled */
     compression?: CompressionInfo
 }
 
 export interface AudioDataEvent {
+    /** Audio data as base64 string (native) or Float32Array (web) */
     data: string | Float32Array
+    /** Current position in the audio stream in bytes */
     position: number
+    /** URI to the file being recorded */
     fileUri: string
+    /** Size of the current data chunk in bytes */
     eventDataSize: number
+    /** Total size of the recording so far in bytes */
     totalSize: number
+    /** Information about compression if enabled, including the compressed data chunk */
     compression?: CompressionInfo & {
-        data?: string | Blob // Base64 (native) or Float32Array (web) encoded compressed data chunk
+        /** Base64 (native) or Blob (web) encoded compressed data chunk */
+        data?: string | Blob
     }
 }
 
@@ -42,56 +62,98 @@ export type BitDepth = 8 | 16 | 32
 export type PCMFormat = `pcm_${BitDepth}bit`
 
 export type ConsoleLike = {
+    /** Logs a message with optional arguments */
     log: (message: string, ...args: unknown[]) => void
+    /** Logs a debug message with optional arguments */
     debug: (message: string, ...args: unknown[]) => void
+    /** Logs an info message with optional arguments */
     info: (message: string, ...args: unknown[]) => void
+    /** Logs a warning message with optional arguments */
     warn: (message: string, ...args: unknown[]) => void
+    /** Logs an error message with optional arguments */
     error: (message: string, ...args: unknown[]) => void
 }
 
 export interface Chunk {
+    /** Transcribed text content */
     text: string
+    /** Start and end timestamp in seconds [start, end] where end can be null if ongoing */
     timestamp: [number, number | null]
 }
 
 export interface TranscriberData {
+    /** Unique identifier for the transcription */
     id: string
+    /** Indicates if the transcriber is currently processing */
     isBusy: boolean
+    /** Complete transcribed text */
     text: string
+    /** Start time of the transcription in milliseconds */
     startTime: number
+    /** End time of the transcription in milliseconds */
     endTime: number
+    /** Array of transcribed text chunks with timestamps */
     chunks: Chunk[]
 }
 
 export interface AudioRecording {
+    /** URI to the recorded audio file */
     fileUri: string
+    /** Filename of the recorded audio */
     filename: string
+    /** Duration of the recording in milliseconds */
     durationMs: number
+    /** Size of the recording in bytes */
     size: number
+    /** MIME type of the recorded audio */
     mimeType: string
+    /** Number of audio channels (1 for mono, 2 for stereo) */
     channels: number
+    /** Bit depth of the audio (8, 16, or 32 bits) */
     bitDepth: BitDepth
+    /** Sample rate of the audio in Hz */
     sampleRate: SampleRate
+    /** Timestamp when the recording was created */
     createdAt?: number
+    /** Array of transcription data if available */
     transcripts?: TranscriberData[]
-    analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
+    /** Analysis data for the recording if processing was enabled */
+    analysisData?: AudioAnalysis
+    /** Information about compression if enabled, including the URI to the compressed file */
     compression?: CompressionInfo & {
+        /** URI to the compressed audio file */
         compressedFileUri: string
     }
 }
 
 export interface StartRecordingResult {
+    /** URI to the file being recorded */
     fileUri: string
+    /** MIME type of the recording */
     mimeType: string
+    /** Number of audio channels (1 for mono, 2 for stereo) */
     channels?: number
+    /** Bit depth of the audio (8, 16, or 32 bits) */
     bitDepth?: BitDepth
+    /** Sample rate of the audio in Hz */
     sampleRate?: SampleRate
+    /** Information about compression if enabled, including the URI to the compressed file */
     compression?: CompressionInfo & {
+        /** URI to the compressed audio file */
         compressedFileUri: string
     }
 }
 
 export interface AudioSessionConfig {
+    /** 
+     * Audio session category that defines the audio behavior
+     * - 'Ambient': Audio continues with silent switch, mixes with other audio
+     * - 'SoloAmbient': Audio continues with silent switch, interrupts other audio
+     * - 'Playback': Audio continues in background, interrupts other audio
+     * - 'Record': Optimized for recording, interrupts other audio
+     * - 'PlayAndRecord': Allows simultaneous playback and recording
+     * - 'MultiRoute': Routes audio to multiple outputs simultaneously
+     */
     category?:
         | 'Ambient'
         | 'SoloAmbient'
@@ -99,6 +161,17 @@ export interface AudioSessionConfig {
         | 'Record'
         | 'PlayAndRecord'
         | 'MultiRoute'
+    /**
+     * Audio session mode that defines the behavior for specific use cases
+     * - 'Default': Standard audio behavior
+     * - 'VoiceChat': Optimized for voice chat applications
+     * - 'VideoChat': Optimized for video chat applications
+     * - 'GameChat': Optimized for in-game chat
+     * - 'VideoRecording': Optimized for video recording
+     * - 'Measurement': Optimized for audio measurement
+     * - 'MoviePlayback': Optimized for movie playback
+     * - 'SpokenAudio': Optimized for spoken audio content
+     */
     mode?:
         | 'Default'
         | 'VoiceChat'
@@ -108,6 +181,16 @@ export interface AudioSessionConfig {
         | 'Measurement'
         | 'MoviePlayback'
         | 'SpokenAudio'
+    /**
+     * Options that modify the behavior of the audio session category
+     * - 'MixWithOthers': Allows mixing with other active audio sessions
+     * - 'DuckOthers': Reduces the volume of other audio sessions
+     * - 'InterruptSpokenAudioAndMixWithOthers': Interrupts spoken audio and mixes with others
+     * - 'AllowBluetooth': Allows audio routing to Bluetooth devices
+     * - 'AllowBluetoothA2DP': Allows audio routing to Bluetooth A2DP devices
+     * - 'AllowAirPlay': Allows audio routing to AirPlay devices
+     * - 'DefaultToSpeaker': Routes audio to the speaker by default
+     */
     categoryOptions?: (
         | 'MixWithOthers'
         | 'DuckOthers'
@@ -120,160 +203,182 @@ export interface AudioSessionConfig {
 }
 
 export interface IOSConfig {
+    /** Configuration for the iOS audio session */
     audioSession?: AudioSessionConfig
 }
 
 // Add new type for interruption reasons
 export type RecordingInterruptionReason =
+    /** Audio focus was lost to another app */
     | 'audioFocusLoss'
+    /** Audio focus was regained */
     | 'audioFocusGain'
+    /** Recording was interrupted by a phone call */
     | 'phoneCall'
+    /** Phone call that interrupted recording has ended */
     | 'phoneCallEnded'
+    /** Recording was stopped by the system or another app */
     | 'recordingStopped'
 
 // Add new interface for interruption events
 export interface RecordingInterruptionEvent {
+    /** The reason for the recording interruption */
     reason: RecordingInterruptionReason
+    /** Indicates whether the recording is paused due to the interruption */
     isPaused: boolean
 }
 
 export interface RecordingConfig {
-    // Sample rate for recording (16000, 44100, or 48000 Hz)
+    /** Sample rate for recording in Hz (16000, 44100, or 48000) */
     sampleRate?: SampleRate
 
-    // Number of audio channels (1 for mono, 2 for stereo)
+    /** Number of audio channels (1 for mono, 2 for stereo) */
     channels?: 1 | 2
 
-    // Encoding type for the recording (pcm_32bit, pcm_16bit, pcm_8bit)
+    /** Encoding type for the recording (pcm_32bit, pcm_16bit, pcm_8bit) */
     encoding?: EncodingType
 
-    // Interval in milliseconds at which to emit recording data
+    /** Interval in milliseconds at which to emit recording data */
     interval?: number
 
-    // Interval in milliseconds at which to emit analysis data
+    /** Interval in milliseconds at which to emit analysis data */
     intervalAnalysis?: number
 
-    // Keep the device awake while recording (default is false)
+    /** Keep the device awake while recording (default is false) */
     keepAwake?: boolean
 
-    // Show a notification during recording (default is false)
+    /** Show a notification during recording (default is false) */
     showNotification?: boolean
 
-    // Show waveform in the notification (Android only, when showNotification is true)
+    /** Show waveform in the notification (Android only, when showNotification is true) */
     showWaveformInNotification?: boolean
 
-    // Configuration for the notification
+    /** Configuration for the notification */
     notification?: NotificationConfig
 
-    // Enable audio processing (default is false)
+    /** Enable audio processing (default is false) */
     enableProcessing?: boolean
 
-    // iOS-specific configuration
+    /** iOS-specific configuration */
     ios?: IOSConfig
 
-    // Duration of each segment in milliseconds (default: 100)
+    /** Duration of each segment in milliseconds for analysis (default: 100) */
     segmentDurationMs?: number
 
-    // Feature options to extract (default is empty)
+    /** Feature options to extract during audio processing */
     features?: AudioFeaturesOptions
 
-    // Callback function to handle audio stream
+    /** Callback function to handle audio stream data */
     onAudioStream?: (_: AudioDataEvent) => Promise<void>
 
-    // Callback function to handle audio features extraction results
+    /** Callback function to handle audio features extraction results */
     onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void>
 
+    /** Configuration for audio compression */
     compression?: {
+        /** Enable audio compression */
         enabled: boolean
+        /** Format for compression (aac or opus) */
         format: 'aac' | 'opus'
+        /** Bitrate for compression in bits per second */
         bitrate?: number
     }
 
-    // Whether to automatically resume recording after an interruption (default is false)
+    /** Whether to automatically resume recording after an interruption (default is false) */
     autoResumeAfterInterruption?: boolean
 
-    // Optional callback to handle recording interruptions
+    /** Optional callback to handle recording interruptions */
     onRecordingInterrupted?: (_: RecordingInterruptionEvent) => void
 
-    // Optional output configuration
+    /** Optional directory path where output files will be saved */
     outputDirectory?: string // If not provided, uses default app directory
+    /** Optional filename for the recording (uses UUID if not provided) */
     filename?: string // If not provided, uses UUID
 }
 
 export interface NotificationConfig {
-    // Title of the notification
+    /** Title of the notification */
     title?: string
 
-    // Main text content of the notification
+    /** Main text content of the notification */
     text?: string
 
-    // Icon to be displayed in the notification (resource name or URI)
+    /** Icon to be displayed in the notification (resource name or URI) */
     icon?: string
 
-    // Android-specific notification configuration
+    /** Android-specific notification configuration */
     android?: {
-        // Unique identifier for the notification channel
+        /** Unique identifier for the notification channel */
         channelId?: string
 
-        // User-visible name of the notification channel
+        /** User-visible name of the notification channel */
         channelName?: string
 
-        // User-visible description of the notification channel
+        /** User-visible description of the notification channel */
         channelDescription?: string
 
-        // Unique identifier for this notification
+        /** Unique identifier for this notification */
         notificationId?: number
 
-        // List of actions that can be performed from the notification
+        /** List of actions that can be performed from the notification */
         actions?: NotificationAction[]
 
-        // Configuration for the waveform visualization in the notification
+        /** Configuration for the waveform visualization in the notification */
         waveform?: WaveformConfig
 
-        // Color of the notification LED (if device supports it)
+        /** Color of the notification LED (if device supports it) */
         lightColor?: string
 
-        // Priority of the notification (affects how it's displayed)
+        /** Priority of the notification (affects how it's displayed) */
         priority?: 'min' | 'low' | 'default' | 'high' | 'max'
 
-        // Accent color for the notification (used for the app icon and buttons)
+        /** Accent color for the notification (used for the app icon and buttons) */
         accentColor?: string
     }
 
-    // iOS-specific notification configuration
+    /** iOS-specific notification configuration */
     ios?: {
-        // Identifier for the notification category (used for grouping similar notifications)
+        /** Identifier for the notification category (used for grouping similar notifications) */
         categoryIdentifier?: string
     }
 }
 
 export interface NotificationAction {
-    // Display title for the action
+    /** Display title for the action */
     title: string
 
-    // Unique identifier for the action
+    /** Unique identifier for the action */
     identifier: string
 
-    // Icon to be displayed for the action (Android only)
+    /** Icon to be displayed for the action (Android only) */
     icon?: string
 }
 
 export interface WaveformConfig {
+    /** The color of the waveform (e.g., "#FFFFFF" for white) */
     color?: string // The color of the waveform (e.g., "#FFFFFF" for white)
+    /** Opacity of the waveform (0.0 - 1.0) */
     opacity?: number // Opacity of the waveform (0.0 - 1.0)
+    /** Width of the waveform line (default: 1.5) */
     strokeWidth?: number // Width of the waveform line (default: 1.5)
+    /** Drawing style: "stroke" for outline, "fill" for solid */
     style?: 'stroke' | 'fill' // Drawing style: "stroke" for outline, "fill" for solid
+    /** Whether to mirror the waveform (symmetrical display) */
     mirror?: boolean // Whether to mirror the waveform (symmetrical display)
+    /** Height of the waveform view in dp (default: 64) */
     height?: number // Height of the waveform view in dp (default: 64)
 }
 
 export interface ExtractAudioDataOptions {
+    /** URI of the audio file to extract data from */
     fileUri: string
-    // Time-based range (mutually exclusive with byte-based range)
+    /** Start time in milliseconds (for time-based range) */
     startTimeMs?: number
+    /** End time in milliseconds (for time-based range) */
     endTimeMs?: number
-    // Byte-based range (mutually exclusive with time-based range)
+    /** Start position in bytes (for byte-based range) */
     position?: number
+    /** Length in bytes to extract (for byte-based range) */
     length?: number
     /** Include normalized audio data in [-1, 1] range */
     includeNormalizedData?: boolean
@@ -283,7 +388,7 @@ export interface ExtractAudioDataOptions {
     includeWavHeader?: boolean
     /** Logger for debugging - can pass console directly. */
     logger?: ConsoleLike
-    /** Compute the checksum of the pcm data */
+    /** Compute the checksum of the PCM data */
     computeChecksum?: boolean
     /** Target config for the normalized audio (Android and Web) */
     decodingOptions?: DecodingConfig
@@ -310,21 +415,32 @@ export interface ExtractedAudioData {
     samples: number
     /** Whether the pcmData includes a WAV header */
     hasWavHeader?: boolean
-    /** CRC32 Checksum of pcm data */
+    /** CRC32 Checksum of PCM data */
     checksum?: number
 }
 
 export interface UseAudioRecorderState {
+    /** Starts recording with the specified configuration */
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
+    /** Stops the current recording and returns the recording data */
     stopRecording: () => Promise<AudioRecording | null>
+    /** Pauses the current recording */
     pauseRecording: () => Promise<void>
+    /** Resumes a paused recording */
     resumeRecording: () => Promise<void>
+    /** Indicates whether recording is currently active */
     isRecording: boolean
+    /** Indicates whether recording is in a paused state */
     isPaused: boolean
+    /** Duration of the current recording in milliseconds */
     durationMs: number // Duration of the recording
+    /** Size of the recorded audio in bytes */
     size: number // Size in bytes of the recorded audio
+    /** Information about compression if enabled */
     compression?: CompressionInfo
+    /** Analysis data for the recording if processing was enabled */
     analysisData?: AudioAnalysis // Analysis data for the recording depending on enableProcessing flag
+    /** Optional callback to handle recording interruptions */
     onRecordingInterrupted?: (_: RecordingInterruptionEvent) => void
 }
 
