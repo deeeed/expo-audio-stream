@@ -11,13 +11,14 @@ This example demonstrates how to use the audio analysis features in a real-world
 ## Complete Example
 
 ```tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Button, ScrollView } from 'react-native';
 import { 
   useAudioRecorder, 
   extractAudioAnalysis, 
   AudioAnalysis, 
-  AudioFeatures 
+  AudioFeatures,
+  AudioRecording
 } from '@siteed/expo-audio-stream';
 import { LineChart } from 'react-native-chart-kit';
 
@@ -46,35 +47,43 @@ const AudioAnalyzer: React.FC = () => {
   const [analysis, setAnalysis] = useState<AudioAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedFeatures, setSelectedFeatures] = useState<AudioFeatures | null>(null);
+  const [recording, setRecording] = useState<AudioRecording | null>(null);
   
   // Initialize the audio recorder
   const { 
     startRecording, 
     stopRecording, 
-    isRecording, 
-    recordingUri 
-  } = useAudioRecorder({
-    audioQuality: 'medium',
-    sampleRate: 22050,
-    numberOfChannels: 1,
-    bitDepth: 16,
-  });
+    isRecording,
+    durationMs
+  } = useAudioRecorder();
   
-  // Analyze the recording when it's available
-  useEffect(() => {
-    if (recordingUri && !isRecording && !isAnalyzing) {
-      analyzeAudio();
+  // Handle starting the recording
+  const handleStartRecording = async () => {
+    await startRecording({
+      sampleRate: 44100,
+      channels: 1,
+      encoding: 'pcm_16bit',
+      enableProcessing: true
+    });
+  };
+  
+  // Handle stopping the recording and analyzing the audio
+  const handleStopRecording = async () => {
+    const recordingResult = await stopRecording();
+    setRecording(recordingResult);
+    
+    if (recordingResult.fileUri) {
+      await analyzeAudio(recordingResult.fileUri);
     }
-  }, [recordingUri, isRecording]);
+  };
   
   // Function to analyze the recorded audio
-  const analyzeAudio = async () => {
-    if (!recordingUri) return;
-    
+  const analyzeAudio = async (fileUri: string) => {
     setIsAnalyzing(true);
     try {
       const result = await extractAudioAnalysis({
-        fileUri: recordingUri,
+        fileUri,
+        segmentDurationMs: 100, // 100ms segments
         features: {
           energy: true,
           rms: true,
@@ -84,7 +93,12 @@ const AudioAnalyzer: React.FC = () => {
           mfcc: true,
           tempo: true,
         },
-        pointsPerSecond: 10, // 10 analysis points per second
+        decodingOptions: {
+          targetSampleRate: 44100,
+          targetChannels: 1,
+          targetBitDepth: 16,
+          normalizeAudio: true
+        }
       });
       
       setAnalysis(result);
@@ -116,11 +130,22 @@ const AudioAnalyzer: React.FC = () => {
       <Text style={styles.title}>Audio Analyzer</Text>
       
       <View style={styles.buttonContainer}>
-        <Button
-          title={isRecording ? "Stop Recording" : "Start Recording"}
-          onPress={isRecording ? stopRecording : startRecording}
-          disabled={isAnalyzing}
-        />
+        {!isRecording ? (
+          <Button
+            title="Start Recording"
+            onPress={handleStartRecording}
+            disabled={isAnalyzing}
+          />
+        ) : (
+          <View>
+            <Text>Recording: {(durationMs / 1000).toFixed(1)}s</Text>
+            <Button
+              title="Stop Recording"
+              onPress={handleStopRecording}
+              color="red"
+            />
+          </View>
+        )}
       </View>
       
       {isAnalyzing && (
@@ -155,6 +180,7 @@ const AudioAnalyzer: React.FC = () => {
             <Text>Sample Rate: {analysis.sampleRate} Hz</Text>
             <Text>Bit Depth: {analysis.bitDepth} bits</Text>
             <Text>Channels: {analysis.numberOfChannels}</Text>
+            <Text>Segments: {analysis.dataPoints.length} ({analysis.segmentDurationMs}ms each)</Text>
           </View>
           
           {selectedFeatures && (
@@ -191,6 +217,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginBottom: 20,
+    alignItems: 'center',
   },
   status: {
     textAlign: 'center',
@@ -236,33 +263,75 @@ export default AudioAnalyzer;
 
 ## How It Works
 
-1. **Recording Setup**: We use the `useAudioRecorder` hook to handle audio recording.
+1. **Recording Setup**: We use the `useAudioRecorder` hook to handle audio recording with specific configuration options.
 
-2. **Analysis Trigger**: When recording stops, we automatically analyze the audio file.
+2. **Analysis Trigger**: When recording stops, we automatically analyze the audio file using `extractAudioAnalysis`.
 
-3. **Feature Extraction**: We use `extractAudioAnalysis` with specific features enabled:
+3. **Feature Extraction**: We specify which audio features to extract:
    - Basic features: RMS, energy, zero-crossing rate
    - Spectral features: spectral centroid, spectral flatness
    - Advanced features: MFCC, tempo
 
-4. **Visualization**: We display the audio waveform using a line chart.
+4. **Visualization**: We display the audio waveform using a line chart based on amplitude values.
 
-5. **Feature Display**: We show the extracted features in a readable format.
+5. **Feature Display**: We show the extracted features in a readable format, handling both scalar and array values.
 
-## Customization
+## Key API Usage
 
-You can customize this example by:
+### Recording Configuration
 
-- Changing which audio features to extract
-- Adjusting the recording parameters (sample rate, bit depth, etc.)
-- Modifying the visualization to focus on specific features
-- Adding real-time analysis during recording
+```tsx
+await startRecording({
+  sampleRate: 44100,
+  channels: 1,
+  encoding: 'pcm_16bit',
+  enableProcessing: true
+});
+```
+
+### Audio Analysis Configuration
+
+```tsx
+const result = await extractAudioAnalysis({
+  fileUri,
+  segmentDurationMs: 100, // 100ms segments
+  features: {
+    energy: true,
+    rms: true,
+    zcr: true,
+    spectralCentroid: true,
+    spectralFlatness: true,
+    mfcc: true,
+    tempo: true,
+  },
+  decodingOptions: {
+    targetSampleRate: 44100,
+    targetChannels: 1,
+    targetBitDepth: 16,
+    normalizeAudio: true
+  }
+});
+```
 
 ## Performance Tips
 
-- For longer recordings, consider analyzing in chunks
-- Adjust `pointsPerSecond` based on your visualization needs
-- For real-time applications, focus on lightweight features (RMS, ZCR)
-- Consider using a Web Worker for analysis on web platforms
+- For longer recordings, consider analyzing in chunks by specifying time ranges:
+  ```tsx
+  // Analyze just the first 10 seconds
+  await extractAudioAnalysis({
+    fileUri,
+    startTimeMs: 0,
+    endTimeMs: 10000,
+    // other options...
+  });
+  ```
+
+- Adjust `segmentDurationMs` based on your visualization needs:
+  - Smaller values (e.g., 50ms) provide more detail but more data points
+  - Larger values (e.g., 200ms) provide less detail but better performance
+
+- For real-time applications, focus on lightweight features (RMS, ZCR) and avoid computationally expensive ones (MFCC, tempo)
+
+- Consider using a Web Worker for analysis on web platforms to avoid blocking the main thread
 
 This example demonstrates a basic implementation. For production applications, you might want to add error handling, loading states, and more sophisticated visualizations. 

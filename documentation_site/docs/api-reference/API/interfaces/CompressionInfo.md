@@ -12,9 +12,11 @@
 
 > **bitrate**: `number`
 
+Bitrate of the compressed audio in bits per second
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:12](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L12)
+[src/ExpoAudioStream.types.ts:15](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L15)
 
 ***
 
@@ -22,9 +24,11 @@
 
 > `optional` **compressedFileUri**: `string`
 
+URI to the compressed audio file if available
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:14](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L14)
+[src/ExpoAudioStream.types.ts:19](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L19)
 
 ***
 
@@ -32,9 +36,11 @@
 
 > **format**: `string`
 
+Format of the compression (e.g., 'aac', 'opus')
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:13](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L13)
+[src/ExpoAudioStream.types.ts:17](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L17)
 
 ***
 
@@ -42,9 +48,11 @@
 
 > **mimeType**: `string`
 
+MIME type of the compressed audio (e.g., 'audio/aac', 'audio/opus')
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:11](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L11)
+[src/ExpoAudioStream.types.ts:13](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L13)
 
 ***
 
@@ -52,6 +60,8 @@
 
 > **size**: `number`
 
+Size of the compressed audio data in bytes
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:10](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L10)
+[src/ExpoAudioStream.types.ts:11](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L11)
