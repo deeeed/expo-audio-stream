@@ -6991,9 +6991,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@siteed/expo-audio-stream-monorepo@workspace:.":
+"@siteed/expo-audio-stream@workspace:^, @siteed/expo-audio-stream@workspace:packages/expo-audio-stream":
   version: 0.0.0-use.local
-  resolution: "@siteed/expo-audio-stream-monorepo@workspace:."
+  resolution: "@siteed/expo-audio-stream@workspace:packages/expo-audio-stream"
+  dependencies:
+    "@siteed/expo-audio-studio": "workspace:^"
+    typescript: "npm:~5.3.3"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  languageName: unknown
+  linkType: soft
+
+"@siteed/expo-audio-studio-monorepo@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "@siteed/expo-audio-studio-monorepo@workspace:."
   dependencies:
     eslint-import-resolver-typescript: "npm:^3.7.0"
     eslint-plugin-import: "npm:^2.31.0"
@@ -7005,9 +7018,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@siteed/expo-audio-stream@workspace:^, @siteed/expo-audio-stream@workspace:packages/expo-audio-stream":
+"@siteed/expo-audio-studio@workspace:^, @siteed/expo-audio-studio@workspace:packages/expo-audio-studio":
   version: 0.0.0-use.local
-  resolution: "@siteed/expo-audio-stream@workspace:packages/expo-audio-stream"
+  resolution: "@siteed/expo-audio-studio@workspace:packages/expo-audio-studio"
   dependencies:
     "@expo/config-plugins": "npm:~9.0.0"
     "@siteed/design-system": "npm:^0.35.1"
