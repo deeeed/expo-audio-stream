@@ -22,7 +22,7 @@ Audio session category that defines the audio behavior
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:157](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L157)
+[src/ExpoAudioStream.types.ts:157](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L157)
 
 ***
 
@@ -41,7 +41,7 @@ Options that modify the behavior of the audio session category
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:194](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L194)
+[src/ExpoAudioStream.types.ts:194](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L194)
 
 ***
 
@@ -61,4 +61,4 @@ Audio session mode that defines the behavior for specific use cases
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:175](https://github.com/deeeed/expo-audio-stream/blob/8819363e2f6518db8ec233a7ea17b579527a3ab5/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L175)
+[src/ExpoAudioStream.types.ts:175](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L175)
