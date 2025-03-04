@@ -27,61 +27,60 @@ class AudioRecordingService : Service() {
         Log.d(Constants.TAG, "AudioRecordingService onCreate")
         isRunning = true
         setServiceRunning(true)
+        
+        // Start foreground immediately in onCreate to prevent timing issues
+        startForegroundWithNotification()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(Constants.TAG, "AudioRecordingService onStartCommand")
-
-        // Check if service is being started from BOOT_COMPLETED
-        val isFromBoot = intent?.action == Intent.ACTION_BOOT_COMPLETED
-
-        if (!isRunning) {
-            isRunning = true
-            
-            // Don't start foreground service if coming from BOOT_COMPLETED on Android 15+
-            if (!isFromBoot || Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                // Start as foreground service if keepAwake is true, regardless of notification settings
-                val keepAwake = AudioRecorderManager.getInstance()?.getKeepAwakeStatus() ?: true
-                if (keepAwake) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        // Create a minimal notification channel if needed
-                        val channel = NotificationChannel(
-                            "recording_service",
-                            "Recording Service",
-                            NotificationManager.IMPORTANCE_LOW
-                        ).apply {
-                            setSound(null, null)
-                            enableLights(false)
-                            enableVibration(false)
-                        }
-                        val notificationManager = getSystemService(NotificationManager::class.java)
-                        notificationManager.createNotificationChannel(channel)
-                        
-                        // Create minimal silent notification
-                        val notification = NotificationCompat.Builder(this, "recording_service")
-                            .setContentTitle("")
-                            .setContentText("")
-                            .setSmallIcon(R.drawable.ic_microphone)
-                            .setOngoing(true)
-                            .setSound(null)
-                            .setVibrate(null)
-                            .setDefaults(0)
-                            .setPriority(NotificationCompat.PRIORITY_LOW)
-                            .build()
-                        
-                        startForeground(1, notification)
-                    }
-                }
-            }
-        }
-        
         return START_STICKY
+    }
+
+    private fun startForegroundWithNotification() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                // Create a minimal notification channel if needed
+                val channel = NotificationChannel(
+                    "recording_service",
+                    "Recording Service",
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    setSound(null, null)
+                    enableLights(false)
+                    enableVibration(false)
+                }
+                val notificationManager = getSystemService(NotificationManager::class.java)
+                notificationManager.createNotificationChannel(channel)
+                
+                // Create minimal silent notification with minimal text
+                val notification = NotificationCompat.Builder(this, "recording_service")
+                    .setContentTitle(" ")  // Space character instead of empty string
+                    .setContentText(" ")   // Space character instead of empty string
+                    .setSmallIcon(R.drawable.ic_microphone)
+                    .setOngoing(true)
+                    .setSound(null)
+                    .setVibrate(null)
+                    .setDefaults(0)
+                    .setPriority(NotificationCompat.PRIORITY_LOW)
+                    .build()
+                
+                startForeground(1, notification)
+                Log.d(Constants.TAG, "Started foreground service with minimal notification")
+            }
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to start foreground service: ${e.message}", e)
+        }
     }
 
     override fun onDestroy() {
         Log.d(Constants.TAG, "AudioRecordingService onDestroy")
 
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        try {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Error stopping foreground service: ${e.message}", e)
+        }
 
         isRunning = false
         setServiceRunning(false)
@@ -118,7 +117,11 @@ class AudioRecordingService : Service() {
 
     
     private fun cleanup() {
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        try {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Error stopping foreground in cleanup: ${e.message}", e)
+        }
         stopSelf()
     }
 
@@ -135,18 +138,29 @@ class AudioRecordingService : Service() {
         }
 
         fun startService(context: Context) {
-            val serviceIntent = Intent(context, AudioRecordingService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                context.startService(serviceIntent)
+            try {
+                val serviceIntent = Intent(context, AudioRecordingService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                    Log.d(Constants.TAG, "Started foreground service")
+                } else {
+                    context.startService(serviceIntent)
+                    Log.d(Constants.TAG, "Started regular service")
+                }
+                setServiceRunning(true)
+            } catch (e: Exception) {
+                Log.e(Constants.TAG, "Failed to start service: ${e.message}", e)
             }
-            setServiceRunning(true)
         }
 
         fun stopService(context: Context) {
-            context.stopService(Intent(context, AudioRecordingService::class.java))
-            setServiceRunning(false)
+            try {
+                context.stopService(Intent(context, AudioRecordingService::class.java))
+                setServiceRunning(false)
+                Log.d(Constants.TAG, "Stopped service")
+            } catch (e: Exception) {
+                Log.e(Constants.TAG, "Failed to stop service: ${e.message}", e)
+            }
         }
     }
 }
