@@ -6,12 +6,12 @@ sidebar_label: Overview
 
 # Audio Analysis Overview
 
-The `@siteed/expo-audio-stream` library provides powerful audio analysis capabilities that allow you to extract various features from audio recordings. These features can be used for visualization, audio fingerprinting, speech recognition preprocessing, and more.
+The `@siteed/expo-audio-studio` library provides powerful audio analysis capabilities that allow you to extract various features from audio recordings. These features can be used for visualization, audio fingerprinting, speech recognition preprocessing, and more.
 
 ## Quick Start
 
 ```typescript
-import { extractAudioAnalysis } from '@siteed/expo-audio-stream';
+import { extractAudioAnalysis } from '@siteed/expo-audio-studio';
 
 // Extract audio analysis with specific features enabled
 const analysis = await extractAudioAnalysis({

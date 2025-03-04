@@ -217,7 +217,7 @@ const compiledAudio = await trimAudio({
 For advanced use cases, the library provides direct access to the native module:
 
 ```typescript
-import { ExpoAudioStreamModule } from '@siteed/expo-audio-stream';
+import { ExpoAudioStreamModule } from '@siteed/expo-audio-studio';
 
 // Access platform-specific functionality
 const status = await ExpoAudioStreamModule.status();

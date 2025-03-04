@@ -30,7 +30,7 @@ The `data` field can be either a `string` or an `ArrayBuffer`:
 ## Example Usage
 
 ```tsx
-import { useAudioRecorder } from '@siteed/expo-audio-stream';
+import { useAudioRecorder } from '@siteed/expo-audio-studio';
 
 const config = {
     onAudioStream: async (event: AudioDataEvent) => {

@@ -1,8 +1,8 @@
-[**@siteed/expo-audio-stream**](../README.md)
+[**@siteed/expo-audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-stream](../README.md) / AudioFeaturesOptions
+[@siteed/expo-audio-studio](../README.md) / AudioFeaturesOptions
 
 # Interface: AudioFeaturesOptions
 

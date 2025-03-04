@@ -1,8 +1,8 @@
-[**@siteed/expo-audio-stream**](../README.md)
+[**@siteed/expo-audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-stream](../README.md) / trimAudio
+[@siteed/expo-audio-studio](../README.md) / trimAudio
 
 # Function: trimAudio()
 

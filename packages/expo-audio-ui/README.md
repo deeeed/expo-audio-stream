@@ -1,9 +1,9 @@
 <div align="center">
   <h1 align="center">
-    @siteed/expo-audio-stream-ui
+    @siteed/expo-audio-studio-ui
   </h1>
   <p>
-  <strong>@siteed/expo-audio-stream-ui<strong> is a UI component library designed to complement the @siteed/expo-audio-stream library for real-time audio processing and streaming.
+  <strong>@siteed/expo-audio-studio-ui<strong> is a UI component library designed to complement the @siteed/expo-audio-studio library for real-time audio processing and streaming.
   </p>
   <div align="center">
     <b>Storybook</b>
@@ -18,7 +18,7 @@
 
 - Customizable UI components for real-time audio streaming.
 - Intuitive interfaces for audio controls and visualizations.
-- Seamless integration with @siteed/expo-audio-stream.
+- Seamless integration with @siteed/expo-audio-studio.
 - Support for iOS, Android, and web platforms.
 
 ## Currently Available Components

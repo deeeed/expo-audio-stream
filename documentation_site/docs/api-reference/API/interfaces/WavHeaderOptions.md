@@ -1,8 +1,8 @@
-[**@siteed/expo-audio-stream**](../README.md)
+[**@siteed/expo-audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-stream](../README.md) / WavHeaderOptions
+[@siteed/expo-audio-studio](../README.md) / WavHeaderOptions
 
 # Interface: WavHeaderOptions
 

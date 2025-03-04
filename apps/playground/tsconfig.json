@@ -5,10 +5,10 @@
         "types": ["node"],
         "experimentalDecorators": true,
         "paths": {
-            "@siteed/expo-audio-stream": [
+            "@siteed/expo-audio-studio": [
                 "../../packages/expo-audio-stream/src/index"
             ],
-            "@siteed/expo-audio-stream/*": [
+            "@siteed/expo-audio-studio/*": [
                 "../../packages/expo-audio-stream/src/*"
             ],
             "@siteed/expo-audio-studio": [

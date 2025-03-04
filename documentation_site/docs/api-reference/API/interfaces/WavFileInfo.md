@@ -1,8 +1,8 @@
-[**@siteed/expo-audio-stream**](../README.md)
+[**@siteed/expo-audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-stream](../README.md) / WavFileInfo
+[@siteed/expo-audio-studio](../README.md) / WavFileInfo
 
 # Interface: WavFileInfo
 

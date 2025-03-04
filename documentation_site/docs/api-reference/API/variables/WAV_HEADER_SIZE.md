@@ -1,8 +1,8 @@
-[**@siteed/expo-audio-stream**](../README.md)
+[**@siteed/expo-audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-stream](../README.md) / WAV\_HEADER\_SIZE
+[@siteed/expo-audio-studio](../README.md) / WAV\_HEADER\_SIZE
 
 # Variable: WAV\_HEADER\_SIZE
 

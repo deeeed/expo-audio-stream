@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 import { FontAwesome } from '@expo/vector-icons'
 import { useFont } from '@shopify/react-native-skia'
-import { AudioAnalysis } from '@siteed/expo-audio-stream'
+import { AudioAnalysis } from '@siteed/expo-audio-studio'
 import { Meta, StoryFn } from '@storybook/react'
 import React from 'react'
 import { Text, View } from 'react-native'

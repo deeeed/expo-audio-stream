@@ -1,8 +1,8 @@
-[**@siteed/expo-audio-stream**](../README.md)
+[**@siteed/expo-audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-stream](../README.md) / DecodingConfig
+[@siteed/expo-audio-studio](../README.md) / DecodingConfig
 
 # Interface: DecodingConfig
 

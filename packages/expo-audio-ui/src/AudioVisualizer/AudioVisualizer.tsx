@@ -3,8 +3,10 @@ import { SkFont } from '@shopify/react-native-skia'
 import {
     AudioAnalysis,
     DataPoint,
+    extractPreview,
+    getWavFileInfo,
     ConsoleLike,
-} from '@siteed/expo-audio-stream'
+} from '@siteed/expo-audio-studio'
 import React, {
     useCallback,
     useEffect,

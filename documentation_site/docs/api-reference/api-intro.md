@@ -6,7 +6,7 @@ sidebar_label: API Intro
 
 # API Introduction
 
-This section provides detailed information about the various types, interfaces, and functions provided by the `@siteed/expo-audio-stream` library.
+This section provides detailed information about the various types, interfaces, and functions provided by the `@siteed/expo-audio-studio` library.
 
 ## Overview
 

@@ -1,8 +1,8 @@
-[**@siteed/expo-audio-stream**](../README.md)
+[**@siteed/expo-audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-stream](../README.md) / ExtractedAudioData
+[@siteed/expo-audio-studio](../README.md) / ExtractedAudioData
 
 # Interface: ExtractedAudioData
 

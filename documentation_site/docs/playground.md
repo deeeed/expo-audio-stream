@@ -19,7 +19,7 @@ sidebar_label: Playground Application
   </div>
 </div>
 
-The playground application is a showcase for the `@siteed/expo-audio-stream` library. It demonstrates the various features of the library and provides visualizations for different audio features.
+The playground application is a showcase for the `@siteed/expo-audio-studio` library. It demonstrates the various features of the library and provides visualizations for different audio features.
 
 ## Features
 
@@ -57,7 +57,7 @@ yarn apps/playground web
 
 The playground app can be used for the following purposes:
 
-1. **Demonstrating Library Capabilities**: Show the real-time audio processing and feature extraction capabilities of the `@siteed/expo-audio-stream` library.
+1. **Demonstrating Library Capabilities**: Show the real-time audio processing and feature extraction capabilities of the `@siteed/expo-audio-studio` library.
 2. **Visualizing Audio Features**: Display and analyze various audio features extracted from real-time audio data.
 3. **Interactive Testing**: Provide an interactive environment to test and experiment with different configurations and features of the library.
 4. **Speech-to-Text Applications**: Test audio transcription capabilities for voice commands, dictation, or accessibility features.

@@ -1,8 +1,8 @@
-[**@siteed/expo-audio-stream**](../README.md)
+[**@siteed/expo-audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-stream](../README.md) / getWavFileInfo
+[@siteed/expo-audio-studio](../README.md) / getWavFileInfo
 
 # Function: getWavFileInfo()
 
