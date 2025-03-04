@@ -41,12 +41,20 @@ const sidebars: SidebarsConfig = {
                 'api-reference/audio-data-event',
                 {
                     type: 'category',
-                    label: 'Audio Features',
+                    label: 'Audio Analysis',
                     items: [
                         'api-reference/audio-features/audio-analysis-overview',
                         'api-reference/audio-features/audio-analysis',
                         'api-reference/audio-features/extract-audio-analysis',
                         'api-reference/audio-features/audio-analysis-example',
+                    ],
+                },
+                {
+                    type: 'category',
+                    label: 'Specialized Audio Processing',
+                    items: [
+                        'api-reference/audio-processing/extract-mel-spectrogram',
+                        'api-reference/audio-processing/trim-audio',
                     ],
                 },
                 {
@@ -62,6 +70,11 @@ const sidebars: SidebarsConfig = {
             type: 'doc',
             id: 'playground',
             label: 'Playground Application',
+        },
+        {
+            type: 'doc',
+            id: 'ui-components',
+            label: 'UI Components',
         },
     ],
 }

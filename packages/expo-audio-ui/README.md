@@ -21,9 +21,30 @@
 - Seamless integration with @siteed/expo-audio-stream.
 - Support for iOS, Android, and web platforms.
 
+## Currently Available Components
+
+- **AudioVisualizer**: A powerful component for visualizing audio waveforms with extensive customization options, including interactive navigation, amplitude scaling, and theming.
+- **DecibelGauge**: A gauge component for displaying audio levels in decibels with various formatting options and customizable appearance.
+
+## Installation
+
+```bash
+# Install the UI components package
+npm install @siteed/expo-audio-ui
+
+# or with yarn
+yarn add @siteed/expo-audio-ui
+```
+
+Make sure you have the required peer dependencies installed:
+
+```bash
+npm install @shopify/react-native-skia react-native-gesture-handler react-native-reanimated
+```
+
 ## Development Status
 
-This package is currently under active development and is primarily used for testing purposes. The API and features are subject to change. Future updates will focus on optimization and expanding the feature set.
+This package is currently under active development and is primarily used for testing purposes. The API and features are subject to change. Future updates will focus on optimization and expanding the component library with additional audio visualization and control components.
 
 ## Documentation
 
