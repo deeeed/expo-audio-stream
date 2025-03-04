@@ -48,6 +48,38 @@ A gauge component for displaying audio levels in decibels with various formattin
 - Optional tick marks, value display, and needle
 - Configurable min/max ranges
 
+### DecibelMeter
+
+A linear meter component for displaying audio levels in decibels:
+
+- Visual representation of audio levels in a linear format
+- Customizable appearance and thresholds
+- Real-time level display
+
+### RecordButton
+
+A button component specifically designed for audio recording:
+
+- Visual feedback for recording state
+- Animated transitions between states
+- Customizable appearance
+
+### Waveform
+
+A lightweight component for rendering audio waveforms:
+
+- Efficient rendering of audio amplitude data
+- Customizable styling options
+- Support for different visualization modes
+
+### AudioTimeRangeSelector
+
+A component for selecting a time range within an audio file:
+
+- Interactive handles for adjusting start and end points
+- Visual representation of the selected range
+- Support for time-based navigation
+
 ## Usage Example: AudioVisualizer
 
 Here's a simple example of using the AudioVisualizer component:
@@ -145,6 +177,16 @@ const styles = StyleSheet.create({
 
 export default AudioLevelMeter;
 ```
+
+## Upcoming Components
+
+The following components are currently in development and may be available in future releases:
+
+- **NavigationControls**: Advanced controls for audio navigation and playback
+- **EmbeddingVisualizer**: Visualization tools for audio embeddings and feature vectors
+- **YAxis**: Customizable Y-axis component for audio visualizations
+- **SkiaTimeRuler**: High-performance time ruler component using Skia
+- **AnimatedCandle**: Animated visualization for audio levels
 
 ## Development Status
 

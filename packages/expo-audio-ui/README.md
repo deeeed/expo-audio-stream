@@ -25,6 +25,20 @@
 
 - **AudioVisualizer**: A powerful component for visualizing audio waveforms with extensive customization options, including interactive navigation, amplitude scaling, and theming.
 - **DecibelGauge**: A gauge component for displaying audio levels in decibels with various formatting options and customizable appearance.
+- **DecibelMeter**: A linear meter component for displaying audio levels in decibels with customizable appearance and thresholds.
+- **RecordButton**: A button component specifically designed for audio recording with visual feedback and animated transitions.
+- **Waveform**: A lightweight component for rendering audio waveforms with customizable styling options.
+- **AudioTimeRangeSelector**: A component for selecting a time range within an audio file with interactive handles.
+
+## Upcoming Components
+
+The following components are currently in development:
+
+- **NavigationControls**: Advanced controls for audio navigation and playback
+- **EmbeddingVisualizer**: Visualization tools for audio embeddings and feature vectors
+- **YAxis**: Customizable Y-axis component for audio visualizations
+- **SkiaTimeRuler**: High-performance time ruler component using Skia
+- **AnimatedCandle**: Animated visualization for audio levels
 
 ## Installation
 
