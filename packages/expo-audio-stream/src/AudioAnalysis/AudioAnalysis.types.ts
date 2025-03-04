@@ -164,7 +164,12 @@ export interface PreviewOptions extends AudioRangeOptions {
     decodingOptions?: DecodingConfig
 }
 
-// Options for mel-spectrogram extraction
+/**
+ * Options for mel-spectrogram extraction
+ * 
+ * @experimental This feature is experimental and currently only available on Android.
+ * The API may change in future versions.
+ */
 export interface ExtractMelSpectrogramOptions {
     fileUri?: string // Path to audio file
     arrayBuffer?: ArrayBuffer // Raw audio buffer
@@ -182,7 +187,12 @@ export interface ExtractMelSpectrogramOptions {
     logger?: ConsoleLike
 }
 
-// Return type
+/**
+ * Return type for mel spectrogram extraction
+ * 
+ * @experimental This feature is experimental and currently only available on Android.
+ * The API may change in future versions.
+ */
 export interface MelSpectrogram {
     spectrogram: number[][] // 2D array [time][mel]
     sampleRate: number // Audio sample rate

@@ -3,7 +3,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { AppTheme, useTheme } from '@siteed/design-system'
 import { AudioAnalysis, ExtractedAudioData, extractMelSpectrogram, MelSpectrogram, TranscriberData } from '@siteed/expo-audio-stream'
 import React, { useCallback, useEffect, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet, View, Platform } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { TranscriptionResults } from '../../components/TranscriptionResults'
 import { baseLogger } from '../../config'
@@ -281,65 +281,67 @@ export function SpeechAnalyzer({
                 )}
             </View>
 
-            {/* Language Detection Section */}
-            <View style={styles.featureSection}>
-                <Button
-                    mode="contained-tonal"
-                    onPress={handleDetectLanguage}
-                    loading={isLanguageProcessing}
-                    disabled={
-                        isLanguageProcessing || 
-                        !audioData || 
-                        !sampleRate ||
-                        !hasEnoughData
-                    }
-                    style={styles.actionButton}
-                    icon={() => (
-                        <MaterialCommunityIcons
-                            name="translate"
-                            size={20}
-                            color={theme.colors.onSecondaryContainer}
-                        />
-                    )}
-                >
-                    Detect Language
-                </Button>
-                
-                {hasEnoughData && detectedLanguage && (
-                    <View style={styles.resultCard}>
-                        <View style={styles.resultContainer}>
-                            <Text variant="bodyMedium" style={styles.label}>Detected Language:</Text>
-                            <Text variant="bodyMedium" style={styles.value}>{detectedLanguage}</Text>
-                        </View>
-                        
-                        {Object.keys(languageDetectionResults).length > 0 && (
-                            <View style={styles.languageResultsContainer}>
-                                <Text variant="bodySmall" style={styles.subsectionTitle}>Language Similarities:</Text>
-                                {Object.entries(languageDetectionResults)
-                                    .sort(([, a], [, b]) => b - a)
-                                    .map(([lang, similarity]) => (
-                                        <View key={lang} style={styles.languageRow}>
-                                            <Text variant="bodySmall" style={styles.languageLabel}>
-                                                {LANGUAGE_NAMES[lang] || lang}:
-                                            </Text>
-                                            <Text variant="bodySmall" style={[
-                                                styles.languageValue,
-                                                { 
-                                                    fontWeight: detectedLanguage === LANGUAGE_NAMES[lang] ? 'bold' : 'normal',
-                                                    color: detectedLanguage === LANGUAGE_NAMES[lang] ? 
-                                                        theme.colors.primary : theme.colors.onSecondaryContainer
-                                                }
-                                            ]}>
-                                                {(similarity * 100).toFixed(1)}%
-                                            </Text>
-                                        </View>
-                                    ))
-                                }
-                            </View>
+            {/* Language Detection Section - Hide on iOS */}
+            {Platform.OS !== 'ios' && (
+                <View style={styles.featureSection}>
+                    <Button
+                        mode="contained-tonal"
+                        onPress={handleDetectLanguage}
+                        loading={isLanguageProcessing}
+                        disabled={
+                            isLanguageProcessing || 
+                            !audioData || 
+                            !sampleRate ||
+                            !hasEnoughData
+                        }
+                        style={styles.actionButton}
+                        icon={() => (
+                            <MaterialCommunityIcons
+                                name="translate"
+                                size={20}
+                                color={theme.colors.onSecondaryContainer}
+                            />
                         )}
-                    </View>
-                )}
-            </View>
+                    >
+                        Detect Language
+                    </Button>
+                    
+                    {hasEnoughData && detectedLanguage && (
+                        <View style={styles.resultCard}>
+                            <View style={styles.resultContainer}>
+                                <Text variant="bodyMedium" style={styles.label}>Detected Language:</Text>
+                                <Text variant="bodyMedium" style={styles.value}>{detectedLanguage}</Text>
+                            </View>
+                            
+                            {Object.keys(languageDetectionResults).length > 0 && (
+                                <View style={styles.languageResultsContainer}>
+                                    <Text variant="bodySmall" style={styles.subsectionTitle}>Language Similarities:</Text>
+                                    {Object.entries(languageDetectionResults)
+                                        .sort(([, a], [, b]) => b - a)
+                                        .map(([lang, similarity]) => (
+                                            <View key={lang} style={styles.languageRow}>
+                                                <Text variant="bodySmall" style={styles.languageLabel}>
+                                                    {LANGUAGE_NAMES[lang] || lang}:
+                                                </Text>
+                                                <Text variant="bodySmall" style={[
+                                                    styles.languageValue,
+                                                    { 
+                                                        fontWeight: detectedLanguage === LANGUAGE_NAMES[lang] ? 'bold' : 'normal',
+                                                        color: detectedLanguage === LANGUAGE_NAMES[lang] ? 
+                                                            theme.colors.primary : theme.colors.onSecondaryContainer
+                                                    }
+                                                ]}>
+                                                    {(similarity * 100).toFixed(1)}%
+                                                </Text>
+                                            </View>
+                                        ))
+                                    }
+                                </View>
+                            )}
+                        </View>
+                    )}
+                </View>
+            )}
 
             {/* Transcription Section */}
             <View style={styles.featureSection}>
@@ -375,46 +377,48 @@ export function SpeechAnalyzer({
                 )}
             </View>
 
-            {/* Mel Spectrogram Section */}
-            <View style={styles.featureSection}>
-                <Button
-                    mode="contained-tonal"
-                    onPress={handleExtractMelSpectrogram}
-                    disabled={!hasEnoughData || isExtractingMelSpectrogram || !fileUri}
-                    loading={isExtractingMelSpectrogram}
-                    style={styles.actionButton}
-                    icon={() => (
-                        <MaterialCommunityIcons
-                            name="chart-histogram"
-                            size={20}
-                            color={theme.colors.onSecondaryContainer}
-                        />
+            {/* Mel Spectrogram Section - Hide on iOS */}
+            {Platform.OS !== 'ios' && (
+                <View style={styles.featureSection}>
+                    <Button
+                        mode="contained-tonal"
+                        onPress={handleExtractMelSpectrogram}
+                        disabled={!hasEnoughData || isExtractingMelSpectrogram || !fileUri}
+                        loading={isExtractingMelSpectrogram}
+                        style={styles.actionButton}
+                        icon={() => (
+                            <MaterialCommunityIcons
+                                name="chart-histogram"
+                                size={20}
+                                color={theme.colors.onSecondaryContainer}
+                            />
+                        )}
+                    >
+                        Extract Mel Spectrogram
+                    </Button>
+                    
+                    {melSpectrogramData && (
+                        <View style={styles.resultCard}>
+                            <Text variant="bodyMedium" style={styles.subsectionTitle}>Mel Spectrogram Results</Text>
+                            <Text>Time Steps: {melSpectrogramData.timeSteps}</Text>
+                            <Text>Mel Bands: {melSpectrogramData.nMels}</Text>
+                            <Text>Duration: {melSpectrogramData.durationMs}ms</Text>
+                            <Text>Sample Rate: {melSpectrogramData.sampleRate}Hz</Text>
+                            <Text style={styles.note}>
+                                Spectrogram data: {melSpectrogramData.spectrogram.length} × {
+                                    melSpectrogramData.spectrogram[0]?.length || 0
+                                } matrix
+                            </Text>
+                        </View>
                     )}
-                >
-                    Extract Mel Spectrogram
-                </Button>
-                
-                {melSpectrogramData && (
-                    <View style={styles.resultCard}>
-                        <Text variant="bodyMedium" style={styles.subsectionTitle}>Mel Spectrogram Results</Text>
-                        <Text>Time Steps: {melSpectrogramData.timeSteps}</Text>
-                        <Text>Mel Bands: {melSpectrogramData.nMels}</Text>
-                        <Text>Duration: {melSpectrogramData.durationMs}ms</Text>
-                        <Text>Sample Rate: {melSpectrogramData.sampleRate}Hz</Text>
-                        <Text style={styles.note}>
-                            Spectrogram data: {melSpectrogramData.spectrogram.length} × {
-                                melSpectrogramData.spectrogram[0]?.length || 0
-                            } matrix
-                        </Text>
-                    </View>
-                )}
-                
-                {melSpectrogramError && (
-                    <View style={styles.errorContainer}>
-                        <Text style={styles.errorText}>Error: {melSpectrogramError}</Text>
-                    </View>
-                )}
-            </View>
+                    
+                    {melSpectrogramError && (
+                        <View style={styles.errorContainer}>
+                            <Text style={styles.errorText}>Error: {melSpectrogramError}</Text>
+                        </View>
+                    )}
+                </View>
+            )}
         </View>
     )
 }

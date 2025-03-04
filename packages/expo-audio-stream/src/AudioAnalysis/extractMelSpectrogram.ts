@@ -1,3 +1,8 @@
+/**
+ * @experimental This feature is experimental and currently only available on Android.
+ * The API may change in future versions. The web implementation is a placeholder.
+ */
+
 import { ExpoAudioStreamModule } from '..'
 import { isWeb } from '../constants'
 import {
@@ -9,6 +14,13 @@ import {
     ProcessedAudioData,
 } from '../utils/audioProcessing'
 
+/**
+ * Extracts a mel spectrogram from audio data
+ * 
+ * @experimental This feature is experimental and currently only available on Android.
+ * The iOS implementation will throw an "UNSUPPORTED_PLATFORM" error.
+ * The web implementation is a placeholder that returns dummy data.
+ */
 export async function extractMelSpectrogram(
     options: ExtractMelSpectrogramOptions
 ): Promise<MelSpectrogram> {
@@ -91,6 +103,12 @@ export async function extractMelSpectrogram(
     return ExpoAudioStreamModule.extractMelSpectrogram(options)
 }
 
+/**
+ * Computes a mel spectrogram from audio data
+ * 
+ * @experimental This is a placeholder implementation that returns dummy data.
+ * The actual implementation will be added in a future version.
+ */
 function computeMelSpectrogram(
     audioData: Float32Array,
     sampleRate: number,
