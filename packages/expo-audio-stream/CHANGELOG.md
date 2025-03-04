@@ -6,7 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+- feat(docs): enhance audio processing documentation and examples (#158) ([26afd49](https://github.com/deeeed/expo-audio-stream/commit/26afd4938e1c626294f40b50a84fe15f5c2bb6a1))
+- feat: Add Mel Spectrogram Extraction and Language Detection to Audio Processing (#157) ([4129dee](https://github.com/deeeed/expo-audio-stream/commit/4129dee87c27dd5a9911c85e3dbf045507876cc1))
+- feat: enhance audio import functionality and decibel visualization (#156) ([2dbecc7](https://github.com/deeeed/expo-audio-stream/commit/2dbecc7bd0ea46edd80c2b0e28dd2a0525953362))
+- feat(trim): Implement iOS trim support with custom filename and format improvements (#152) ([dd49be4](https://github.com/deeeed/expo-audio-stream/commit/dd49be42bccbf3ae6cced8c3662237e1668ec2de))
+- feat: Add Sample Rate Control and Web Trimming Support to Expo Audio Stream (#151) ([9158eec](https://github.com/deeeed/expo-audio-stream/commit/9158eeccc10e25ac77ba3a99185b4dbc5abfb353))
+- feat: Enhance audio trimming with optimized processing and detailed feedback (#150) ([41a6945](https://github.com/deeeed/expo-audio-stream/commit/41a694528d1e803dc0012948eec4edfdc336b4fc))
+- feat(trim): add audio trimming functionality with visualization and preview (Android only) (#149) ([cba03dc](https://github.com/deeeed/expo-audio-stream/commit/cba03dc920eb8a1f111b45e8404a42e48076b7cd))
+- chore(expo-audio-stream): release @siteed/expo-audio-stream@2.0.1 ([c77cfc8](https://github.com/deeeed/expo-audio-stream/commit/c77cfc8b70f87a12bb19fa03b245cda7ed2496e1))
 
 ## [2.0.1] - 2025-02-27
 ### Changed
