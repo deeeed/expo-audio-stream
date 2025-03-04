@@ -43,8 +43,10 @@ const sidebars: SidebarsConfig = {
                     type: 'category',
                     label: 'Audio Features',
                     items: [
+                        'api-reference/audio-features/audio-analysis-overview',
                         'api-reference/audio-features/audio-analysis',
                         'api-reference/audio-features/extract-audio-analysis',
+                        'api-reference/audio-features/audio-analysis-example',
                     ],
                 },
                 {
