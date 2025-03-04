@@ -12,9 +12,11 @@
 
 > `optional` **autoResumeAfterInterruption**: `boolean`
 
+Whether to automatically resume recording after an interruption (default is false)
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:193](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L193)
+[src/ExpoAudioStream.types.ts:288](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L288)
 
 ***
 
@@ -22,9 +24,11 @@
 
 > `optional` **channels**: `1` \| `2`
 
+Number of audio channels (1 for mono, 2 for stereo)
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:145](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L145)
+[src/ExpoAudioStream.types.ts:236](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L236)
 
 ***
 
@@ -32,21 +36,29 @@
 
 > `optional` **compression**: `object`
 
+Configuration for audio compression
+
 #### bitrate?
 
 > `optional` **bitrate**: `number`
+
+Bitrate for compression in bits per second
 
 #### enabled
 
 > **enabled**: `boolean`
 
+Enable audio compression
+
 #### format
 
 > **format**: `"opus"` \| `"aac"`
 
+Format for compression (aac or opus)
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:186](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L186)
+[src/ExpoAudioStream.types.ts:278](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L278)
 
 ***
 
@@ -54,9 +66,11 @@
 
 > `optional` **enableProcessing**: `boolean`
 
+Enable audio processing (default is false)
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:169](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L169)
+[src/ExpoAudioStream.types.ts:260](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L260)
 
 ***
 
@@ -64,9 +78,11 @@
 
 > `optional` **encoding**: [`EncodingType`](../type-aliases/EncodingType.md)
 
+Encoding type for the recording (pcm_32bit, pcm_16bit, pcm_8bit)
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:148](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L148)
+[src/ExpoAudioStream.types.ts:239](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L239)
 
 ***
 
@@ -74,9 +90,11 @@
 
 > `optional` **features**: [`AudioFeaturesOptions`](AudioFeaturesOptions.md)
 
+Feature options to extract during audio processing
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:178](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L178)
+[src/ExpoAudioStream.types.ts:269](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L269)
 
 ***
 
@@ -84,9 +102,11 @@
 
 > `optional` **filename**: `string`
 
+Optional filename for the recording (uses UUID if not provided)
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:200](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L200)
+[src/ExpoAudioStream.types.ts:296](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L296)
 
 ***
 
@@ -94,9 +114,11 @@
 
 > `optional` **interval**: `number`
 
+Interval in milliseconds at which to emit recording data
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:151](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L151)
+[src/ExpoAudioStream.types.ts:242](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L242)
 
 ***
 
@@ -104,9 +126,11 @@
 
 > `optional` **intervalAnalysis**: `number`
 
+Interval in milliseconds at which to emit analysis data
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:154](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L154)
+[src/ExpoAudioStream.types.ts:245](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L245)
 
 ***
 
@@ -114,9 +138,11 @@
 
 > `optional` **ios**: [`IOSConfig`](IOSConfig.md)
 
+iOS-specific configuration
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:172](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L172)
+[src/ExpoAudioStream.types.ts:263](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L263)
 
 ***
 
@@ -124,9 +150,11 @@
 
 > `optional` **keepAwake**: `boolean`
 
+Keep the device awake while recording (default is false)
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:157](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L157)
+[src/ExpoAudioStream.types.ts:248](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L248)
 
 ***
 
@@ -134,15 +162,19 @@
 
 > `optional` **notification**: [`NotificationConfig`](NotificationConfig.md)
 
+Configuration for the notification
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:166](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L166)
+[src/ExpoAudioStream.types.ts:257](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L257)
 
 ***
 
 ### onAudioAnalysis()?
 
 > `optional` **onAudioAnalysis**: (`_`) => `Promise`\<`void`\>
+
+Callback function to handle audio features extraction results
 
 #### Parameters
 
@@ -156,13 +188,15 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:184](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L184)
+[src/ExpoAudioStream.types.ts:275](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L275)
 
 ***
 
 ### onAudioStream()?
 
 > `optional` **onAudioStream**: (`_`) => `Promise`\<`void`\>
+
+Callback function to handle audio stream data
 
 #### Parameters
 
@@ -176,13 +210,15 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:181](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L181)
+[src/ExpoAudioStream.types.ts:272](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L272)
 
 ***
 
 ### onRecordingInterrupted()?
 
 > `optional` **onRecordingInterrupted**: (`_`) => `void`
+
+Optional callback to handle recording interruptions
 
 #### Parameters
 
@@ -196,7 +232,7 @@
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:196](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L196)
+[src/ExpoAudioStream.types.ts:291](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L291)
 
 ***
 
@@ -204,9 +240,11 @@
 
 > `optional` **outputDirectory**: `string`
 
+Optional directory path where output files will be saved
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:199](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L199)
+[src/ExpoAudioStream.types.ts:294](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L294)
 
 ***
 
@@ -214,9 +252,11 @@
 
 > `optional` **sampleRate**: [`SampleRate`](../type-aliases/SampleRate.md)
 
+Sample rate for recording in Hz (16000, 44100, or 48000)
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:142](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L142)
+[src/ExpoAudioStream.types.ts:233](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L233)
 
 ***
 
@@ -224,9 +264,11 @@
 
 > `optional` **segmentDurationMs**: `number`
 
+Duration of each segment in milliseconds for analysis (default: 100)
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:175](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L175)
+[src/ExpoAudioStream.types.ts:266](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L266)
 
 ***
 
@@ -234,9 +276,11 @@
 
 > `optional` **showNotification**: `boolean`
 
+Show a notification during recording (default is false)
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:160](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L160)
+[src/ExpoAudioStream.types.ts:251](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L251)
 
 ***
 
@@ -244,6 +288,8 @@
 
 > `optional` **showWaveformInNotification**: `boolean`
 
+Show waveform in the notification (Android only, when showNotification is true)
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:163](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L163)
+[src/ExpoAudioStream.types.ts:254](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L254)

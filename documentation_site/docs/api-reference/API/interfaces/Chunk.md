@@ -12,9 +12,11 @@
 
 > **text**: `string`
 
+Transcribed text content
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:53](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L53)
+[src/ExpoAudioStream.types.ts:79](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L79)
 
 ***
 
@@ -22,6 +24,8 @@
 
 > **timestamp**: [`number`, `null` \| `number`]
 
+Start and end timestamp in seconds [start, end] where end can be null if ongoing
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:54](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L54)
+[src/ExpoAudioStream.types.ts:81](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L81)

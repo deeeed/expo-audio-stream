@@ -14,6 +14,8 @@
 
 > **debug**: (`message`, ...`args`) => `void`
 
+Logs a debug message with optional arguments
+
 #### Parameters
 
 ##### message
@@ -31,6 +33,8 @@
 ### error()
 
 > **error**: (`message`, ...`args`) => `void`
+
+Logs an error message with optional arguments
 
 #### Parameters
 
@@ -50,6 +54,8 @@
 
 > **info**: (`message`, ...`args`) => `void`
 
+Logs an info message with optional arguments
+
 #### Parameters
 
 ##### message
@@ -67,6 +73,8 @@
 ### log()
 
 > **log**: (`message`, ...`args`) => `void`
+
+Logs a message with optional arguments
 
 #### Parameters
 
@@ -86,6 +94,8 @@
 
 > **warn**: (`message`, ...`args`) => `void`
 
+Logs a warning message with optional arguments
+
 #### Parameters
 
 ##### message
@@ -102,4 +112,4 @@
 
 ## Defined in
 
-[src/ExpoAudioStream.types.ts:44](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L44)
+[src/ExpoAudioStream.types.ts:64](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L64)

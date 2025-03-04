@@ -15,7 +15,7 @@ Supports either time-based or byte-based ranges for flexibility in analysis.
 
 ### props
 
-[`ExtractAudioAnalysisProps`](../type-aliases/ExtractAudioAnalysisProps.md)
+`ExtractAudioAnalysisProps`
 
 The options for extraction, including file URI, ranges, and decoding settings.
 
@@ -31,4 +31,4 @@ If both time and byte ranges are provided or if required parameters are missing.
 
 ## Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:99](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L99)
+[src/AudioAnalysis/extractAudioAnalysis.ts:98](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts#L98)
