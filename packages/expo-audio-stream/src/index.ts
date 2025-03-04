@@ -3,9 +3,10 @@
 import {
     extractRawWavAnalysis,
     extractAudioAnalysis,
-    extractPreview,
-    extractAudioData,
 } from './AudioAnalysis/extractAudioAnalysis'
+import { extractAudioData } from './AudioAnalysis/extractAudioData'
+import { extractMelSpectrogram } from './AudioAnalysis/extractMelSpectrogram'
+import { extractPreview } from './AudioAnalysis/extractPreview'
 import {
     AudioRecorderProvider,
     useSharedAudioRecorder,
@@ -21,11 +22,12 @@ export * from './utils/writeWavHeader'
 export {
     AudioRecorderProvider,
     ExpoAudioStreamModule,
-    extractRawWavAnalysis as extractWavAudioAnalysis,
+    extractRawWavAnalysis,
     extractAudioAnalysis,
     extractPreview,
     trimAudio,
     extractAudioData,
+    extractMelSpectrogram,
     useAudioRecorder,
     useSharedAudioRecorder,
 }
