@@ -163,3 +163,30 @@ export interface PreviewOptions extends AudioRangeOptions {
      */
     decodingOptions?: DecodingConfig
 }
+
+// Options for mel-spectrogram extraction
+export interface ExtractMelSpectrogramOptions {
+    fileUri?: string // Path to audio file
+    arrayBuffer?: ArrayBuffer // Raw audio buffer
+    windowSizeMs: number // Window size in ms (e.g., 25)
+    hopLengthMs: number // Hop length in ms (e.g., 10)
+    nMels: number // Number of mel filters (e.g., 60)
+    fMin?: number // Min frequency (default: 0)
+    fMax?: number // Max frequency (default: sampleRate / 2)
+    windowType?: 'hann' | 'hamming' // Window function (default: 'hann')
+    normalize?: boolean // Mean normalization (default: false)
+    logScale?: boolean // Log scaling of mel energies (default: true)
+    decodingOptions?: DecodingConfig // Audio decoding settings
+    startTimeMs?: number // Optional start time
+    endTimeMs?: number // Optional end time
+    logger?: ConsoleLike
+}
+
+// Return type
+export interface MelSpectrogram {
+    spectrogram: number[][] // 2D array [time][mel]
+    sampleRate: number // Audio sample rate
+    nMels: number // Number of mel filters
+    timeSteps: number // Number of time frames
+    durationMs: number // Audio duration in ms
+}

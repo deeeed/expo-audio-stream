@@ -355,6 +355,7 @@ export function SegmentAnalyzer({
                         analysis={segmentAnalysis}
                         audioData={audioData}
                         sampleRate={sampleRate}
+                        fileUri={fileUri}
                     />
 
                     {segmentAnalysis.dataPoints[0]?.features && (
