@@ -53,7 +53,9 @@ You can customize the plugin's behavior by providing options:
                     },
                     "iosConfig": {
                         "allowBackgroundAudioControls": false,
-                        "backgroundProcessingTitle": "Audio Recording"
+                        "backgroundProcessingTitle": "Audio Recording",
+                        "microphoneUsageDescription": "Custom microphone usage message",
+                        "notificationUsageDescription": "Custom notification usage message"
                     }
                 }
             ]
@@ -82,8 +84,8 @@ You can customize the plugin's behavior by providing options:
 #### iOS Background Modes
 - **iosBackgroundModes**:
   - `useVoIP` (default: `false`): Enable VoIP background mode
-  - `useAudio` (default: `false`): Enable audio background mode
-  - `useProcessing` (default: `false`): Enable background processing mode
+  - `useAudio` (default: `false`): Enable audio background mode (Note: This is primarily for audio playback, not recording)
+  - `useProcessing` (default: `false`): Enable background processing mode (Required for background recording)
   - `useLocation` (default: `false`): Enable location updates in background
   - `useExternalAccessory` (default: `false`): Enable external audio accessories
 
@@ -91,6 +93,18 @@ You can customize the plugin's behavior by providing options:
 - **iosConfig**:
   - `allowBackgroundAudioControls` (default: `false`): Show audio controls in control center and enables remote-notification background mode
   - `backgroundProcessingTitle` (default: `undefined`): Description for background processing
+  - `microphoneUsageDescription` (default: `"Allow $(PRODUCT_NAME) to access your microphone"`): Custom message for microphone permission dialog
+  - `notificationUsageDescription` (default: `"Show recording notifications and controls"`): Custom message for notification permission dialog
+
+### iOS Configuration Details
+
+When configuring for iOS, note the following important details:
+
+1. For background audio recording, you should enable `useProcessing: true` in the `iosBackgroundModes` section. The plugin will warn you if you enable `useAudio` without `useProcessing`.
+
+2. The `microphoneUsageDescription` and `notificationUsageDescription` options allow you to customize the permission request messages shown to users.
+
+3. If you enable `allowBackgroundAudioControls`, the plugin will add the `remote-notification` background mode to support audio controls in the iOS control center.
 
 ### Android Manifest Permissions
 

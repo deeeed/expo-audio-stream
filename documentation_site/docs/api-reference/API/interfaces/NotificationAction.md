@@ -12,9 +12,11 @@
 
 > `optional` **icon**: `string`
 
+Icon to be displayed for the action (Android only)
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:258](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L258)
+[src/ExpoAudioStream.types.ts:354](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L354)
 
 ***
 
@@ -22,9 +24,11 @@
 
 > **identifier**: `string`
 
+Unique identifier for the action
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:255](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L255)
+[src/ExpoAudioStream.types.ts:351](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L351)
 
 ***
 
@@ -32,6 +36,8 @@
 
 > **title**: `string`
 
+Display title for the action
+
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:252](https://github.com/deeeed/expo-audio-stream/blob/356d3f40ffb66806eeecb86d12bcbe5d60b7eea6/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L252)
+[src/ExpoAudioStream.types.ts:348](https://github.com/deeeed/expo-audio-stream/blob/01587473d138d2044082592da4994edb9b0d9107/packages/expo-audio-stream/src/ExpoAudioStream.types.ts#L348)
