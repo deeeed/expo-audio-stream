@@ -10,15 +10,17 @@ This library provides hooks for recording audio. Here, we demonstrate how to use
 
 ## Standalone Usage
 
+The `useAudioRecorder` hook provides a complete API for recording audio in a single component. It manages the recording state internally and provides methods for controlling the recording process.
 
 ```tsx
 import {
   AudioRecording,
   useAudioRecorder,
-  ExpoAudioStreamModule
+  ExpoAudioStreamModule,
+  RecordingConfig
 } from '@siteed/expo-audio-stream'
 import { useAudioPlayer } from 'expo-audio'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button, StyleSheet, Text, View } from 'react-native'
 
 const STOP_BUTTON_COLOR = 'red'
@@ -44,6 +46,8 @@ export default function App() {
       size,
       isRecording,
       isPaused,
+      analysisData, // Audio analysis data if enableProcessing is true
+      compression, // Compression information if compression is enabled
   } = useAudioRecorder()
   const [audioResult, setAudioResult] = useState<AudioRecording | null>(null)
   const player = useAudioPlayer(audioResult?.fileUri ?? "")
@@ -53,14 +57,43 @@ export default function App() {
     if (status !== 'granted') {
       return
     }
-      const startResult = await startRecording({
-          interval: 500,
-          enableProcessing: true,
-          onAudioStream: async (_) => {
-              console.log(`onAudioStream`, _)
-          },
-      })
-      return startResult
+      
+    // Configure recording options
+    const config: RecordingConfig = {
+        interval: 500, // Emit recording data every 500ms
+        enableProcessing: true, // Enable audio analysis
+        sampleRate: 44100, // Sample rate in Hz (16000, 44100, or 48000)
+        channels: 1, // Mono recording
+        encoding: 'pcm_16bit', // PCM encoding (pcm_8bit, pcm_16bit, pcm_32bit)
+        
+        // Optional: Configure audio compression
+        compression: {
+            enabled: false, // Set to true to enable compression
+            format: 'aac', // 'aac' or 'opus'
+            bitrate: 128000, // Bitrate in bits per second
+        },
+        
+        // Optional: Handle audio stream data
+        onAudioStream: async (audioData) => {
+            console.log(`onAudioStream`, audioData)
+        },
+        
+        // Optional: Handle audio analysis data
+        onAudioAnalysis: async (analysisEvent) => {
+            console.log(`onAudioAnalysis`, analysisEvent)
+        },
+        
+        // Optional: Handle recording interruptions
+        onRecordingInterrupted: (event) => {
+            console.log(`Recording interrupted: ${event.reason}`)
+        },
+        
+        // Optional: Auto-resume after interruption
+        autoResumeAfterInterruption: false,
+    }
+    
+    const startResult = await startRecording(config)
+    return startResult
   }
 
   const handleStop = async () => {
@@ -121,4 +154,32 @@ export default function App() {
       </>
   )
 }
+
+## API Reference
+
+### useAudioRecorder Hook
+
+```tsx
+const recorder = useAudioRecorder(options?: UseAudioRecorderProps)
 ```
+
+#### Options
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `logger` | `ConsoleLike` | Optional logger for debugging |
+
+#### Return Value
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `startRecording` | `(config: RecordingConfig) => Promise<StartRecordingResult>` | Starts recording with the specified configuration |
+| `stopRecording` | `() => Promise<AudioRecording>` | Stops the current recording and returns the recording data |
+| `pauseRecording` | `() => Promise<void>` | Pauses the current recording |
+| `resumeRecording` | `() => Promise<void>` | Resumes a paused recording |
+| `isRecording` | `boolean` | Indicates whether recording is currently active |
+| `isPaused` | `boolean` | Indicates whether recording is in a paused state |
+| `durationMs` | `number` | Duration of the current recording in milliseconds |
+| `size` | `number` | Size of the recorded audio in bytes |
+| `compression` | `CompressionInfo \| undefined` | Information about compression if enabled |
+| `analysisData` | `AudioAnalysis \| undefined` | Analysis data for the recording if processing was enabled |

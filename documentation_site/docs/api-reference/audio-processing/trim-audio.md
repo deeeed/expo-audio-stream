@@ -24,8 +24,8 @@ The function accepts a single object with the following properties:
 | `startTimeMs` | number | No* | - | Start time in milliseconds (for single segment mode) |
 | `endTimeMs` | number | No* | - | End time in milliseconds (for single segment mode) |
 | `mode` | 'keep' \| 'remove' | No | 'keep' | Whether to keep or remove the specified ranges |
-| `ranges` | Array<{startTimeMs: number, endTimeMs: number}> | No* | - | Array of time ranges (for multi-segment mode) |
-| `outputFormat` | OutputFormatOptions | No | { format: 'wav' } | Output format configuration |
+| `ranges` | `Array<{startTimeMs: number, endTimeMs: number}>` | No* | - | Array of time ranges (for multi-segment mode) |
+| `outputFormat` | `OutputFormatOptions` | No | See below | Output format configuration |
 
 \* Either `startTimeMs`/`endTimeMs` pair or `ranges` must be provided
 
@@ -36,6 +36,8 @@ The function accepts a single object with the following properties:
 | `format` | 'wav' \| 'mp3' \| 'aac' \| 'opus' | No | 'wav' | Output audio format |
 | `bitrate` | number | No | - | Bitrate for compressed formats (in kbps) |
 | `quality` | 'low' \| 'medium' \| 'high' | No | 'medium' | Quality preset for compressed formats |
+
+Default value for `outputFormat` is `{ format: 'wav' }`.
 
 ## Return Value
 

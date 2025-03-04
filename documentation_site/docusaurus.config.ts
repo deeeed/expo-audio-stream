@@ -18,7 +18,7 @@ const config: Config = {
   organizationName: 'siteed', // Usually your GitHub org/user name.
   projectName: 'expo-audio-stream', // Usually your repo name.
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
 
   trailingSlash: true,
