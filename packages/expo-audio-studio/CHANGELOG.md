@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.1.1] - 2025-03-04
+### Changed
+- feat: Rename`@siteed/expo-audio-stream` to `@siteed/expo-audio-studio` (#160) ([1b99191](https://github.com/deeeed/expo-audio-stream/commit/1b9919143413a900aefed94c20fc9a8b0e6050d3))
 ## [2.1.0] - 2025-03-04
 ### Changed
 - feat(docs): enhance audio processing documentation and examples (#158) ([26afd49](https://github.com/deeeed/expo-audio-stream/commit/26afd4938e1c626294f40b50a84fe15f5c2bb6a1))
@@ -168,7 +171,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@2.1.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.1.1...HEAD
+[2.1.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.1.0...@siteed/expo-audio-studio@2.1.1
 [2.1.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@2.0.1...@siteed/expo-audio-stream@2.1.0
 [2.0.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@2.0.0...@siteed/expo-audio-stream@2.0.1
 [2.0.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@1.17.0...@siteed/expo-audio-stream@2.0.0
