@@ -7,7 +7,7 @@
  */
 import crc32 from 'crc-32'
 
-import { ConsoleLike, ExtractAudioDataOptions } from '../ExpoAudioStream.types'
+import { ConsoleLike } from '../ExpoAudioStream.types'
 import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
 import { isWeb } from '../constants'
 import {
@@ -15,7 +15,6 @@ import {
     AudioFeaturesOptions,
     DataPoint,
     DecodingConfig,
-    PreviewOptions,
 } from './AudioAnalysis.types'
 import { processAudioBuffer } from '../utils/audioProcessing'
 import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
@@ -331,40 +330,4 @@ export const extractRawWavAnalysis = async ({
         logger?.log(`extractAudioAnalysis`, res)
         return res
     }
-}
-
-/**
- * Generates a simplified preview of the audio waveform for quick visualization.
- * Ideal for UI rendering with a specified number of points.
- *
- * @param options - The options for the preview, including file URI and time range.
- * @returns A promise that resolves to the audio preview data.
- */
-export async function extractPreview({
-    fileUri,
-    numberOfPoints = 100,
-    startTimeMs = 0,
-    endTimeMs = 30000, // First 30 seconds
-    decodingOptions,
-    logger,
-}: PreviewOptions): Promise<AudioAnalysis> {
-    const durationMs = endTimeMs - startTimeMs
-    const segmentDurationMs = Math.floor(durationMs / numberOfPoints)
-
-    // Call extractAudioAnalysis with calculated parameters
-    const analysis = await extractAudioAnalysis({
-        fileUri,
-        startTimeMs,
-        endTimeMs,
-        logger,
-        segmentDurationMs,
-        decodingOptions,
-    })
-
-    // Transform the result into AudioPreview format
-    return analysis
-}
-
-export const extractAudioData = async (props: ExtractAudioDataOptions) => {
-    return await ExpoAudioStreamModule.extractAudioData(props)
 }
