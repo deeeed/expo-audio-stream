@@ -4,10 +4,10 @@
         "strict": true,
         "paths": {
             "@/*": ["./*"],
-            "@siteed/expo-audio-stream": [
+            "@siteed/expo-audio-studio": [
                 "../../packages/expo-audio-stream/src/index"
             ],
-            "@siteed/expo-audio-stream/*": [
+            "@siteed/expo-audio-studio/*": [
                 "../../packages/expo-audio-stream/src/*"
             ]
         }
