@@ -1,6 +1,6 @@
 // playground/src/app/(tabs)/play.tsx
 import { ScreenWrapper, useTheme, AppTheme } from '@siteed/design-system'
-import { ExpoAudioStreamModule } from '@siteed/expo-audio-stream'
+import { ExpoAudioStreamModule } from '@siteed/expo-audio-studio'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Alert, Linking, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'

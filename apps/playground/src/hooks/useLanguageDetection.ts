@@ -1,7 +1,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { baseLogger } from '../config';
 import { useOnnxModel } from './useOnnxModel';
-import { extractMelSpectrogram, MelSpectrogram } from '@siteed/expo-audio-stream';
+import { extractMelSpectrogram, MelSpectrogram } from '@siteed/expo-audio-studio';
 
 const logger = baseLogger.extend('useLanguageDetection');
 

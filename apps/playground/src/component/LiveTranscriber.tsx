@@ -1,5 +1,5 @@
 import { useToast } from '@siteed/design-system'
-import { TranscriberData } from '@siteed/expo-audio-stream'
+import { TranscriberData } from '@siteed/expo-audio-studio'
 import React, { useEffect } from 'react'
 import { View } from 'react-native'
 

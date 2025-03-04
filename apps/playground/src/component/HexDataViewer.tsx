@@ -3,7 +3,7 @@ import { getLogger } from '@siteed/react-native-logger'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { SegmentedButtons } from 'react-native-paper'
-import { convertPCMToFloat32 } from '@siteed/expo-audio-stream/src'
+import { convertPCMToFloat32 } from '@siteed/expo-audio-studio/src'
 import crc32 from 'crc-32'
 
 interface HexDataViewerProps {

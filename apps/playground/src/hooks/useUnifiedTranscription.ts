@@ -1,5 +1,5 @@
 import { useCallback, useState, useRef, useEffect } from 'react'
-import { TranscriberData } from '@siteed/expo-audio-stream'
+import { TranscriberData } from '@siteed/expo-audio-studio'
 import { useTranscription } from '../context/TranscriptionProvider'
 import { baseLogger, WhisperSampleRate } from '../config'
 import { isWeb } from '../utils/utils'

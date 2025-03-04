@@ -1,8 +1,8 @@
-**@siteed/expo-audio-stream**
+**@siteed/expo-audio-studio**
 
 ***
 
-# @siteed/expo-audio-stream
+# @siteed/expo-audio-studio
 
 ## Interfaces
 

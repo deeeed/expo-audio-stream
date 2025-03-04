@@ -21,10 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - cleanup (#83) ([c557bd7](https://github.com/deeeed/expo-audio-stream/commit/c557bd79e3b043bc89695a0351014eaca6857036))
 ## [0.1.19] - 2024-01-25
 ### Added
-- Initial release of @siteed/expo-audio-stream-ui
+- Initial release of @siteed/expo-audio-studio-ui
 - Feature: Customizable UI components for real-time audio streaming
 - Feature: Intuitive interfaces for audio controls and visualizations
-- Feature: Seamless integration with @siteed/expo-audio-stream
+- Feature: Seamless integration with @siteed/expo-audio-studio
 - Feature: Support for iOS, Android, and web platforms
 
 [unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.4.0...HEAD

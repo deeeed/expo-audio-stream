@@ -2,7 +2,7 @@ import { AppTheme, LabelSwitch, useTheme } from '@siteed/design-system'
 import {
     AudioFeaturesOptions,
     RecordingConfig,
-} from '@siteed/expo-audio-stream'
+} from '@siteed/expo-audio-studio'
 import React, { useCallback, useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'
 
