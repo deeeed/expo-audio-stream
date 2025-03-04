@@ -1,6 +1,6 @@
 // packages/expo-audio-ui/src/AudioVisualizer/CanvasContainer.tsx
 import { Canvas, Group, Path, SkFont } from '@shopify/react-native-skia'
-import { DataPoint } from '@siteed/expo-audio-stream'
+import { DataPoint } from '@siteed/expo-audio-studio'
 import React, { useEffect, useMemo, useRef } from 'react'
 import { View } from 'react-native'
 import { SharedValue, useDerivedValue } from 'react-native-reanimated'

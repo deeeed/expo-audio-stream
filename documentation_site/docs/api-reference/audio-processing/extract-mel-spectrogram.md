@@ -46,7 +46,7 @@ The function returns a Promise that resolves to a `MelSpectrogramResult` object 
 ## Example
 
 ```typescript
-import { extractMelSpectrogram } from '@siteed/expo-audio-stream';
+import { extractMelSpectrogram } from '@siteed/expo-audio-studio';
 
 async function generateMelSpectrogram() {
   try {
@@ -82,7 +82,7 @@ Here's an example of how to visualize the mel spectrogram using the `@siteed/exp
 import React from 'react';
 import { View } from 'react-native';
 import { MelSpectrogramVisualizer } from '@siteed/expo-audio-ui';
-import { extractMelSpectrogram } from '@siteed/expo-audio-stream';
+import { extractMelSpectrogram } from '@siteed/expo-audio-studio';
 
 const SpectrogramView = ({ audioUri }) => {
   const [spectrogramData, setSpectrogramData] = React.useState(null);

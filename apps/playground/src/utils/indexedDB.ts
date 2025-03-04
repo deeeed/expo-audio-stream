@@ -1,6 +1,6 @@
 // playground/src/utils/indexedDB.ts
 
-import { AudioRecording } from '@siteed/expo-audio-stream'
+import { AudioRecording } from '@siteed/expo-audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 
 interface OpenDatabaseParams {

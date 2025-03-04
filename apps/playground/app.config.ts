@@ -131,7 +131,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             },
         ],
         [
-            '../../packages/expo-audio-stream/app.plugin.js',
+            '../../packages/expo-audio-studio/app.plugin.js',
             {
                 enablePhoneStateHandling: true,
                 enableNotifications: true,

@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { AppTheme, useTheme, useToast } from '@siteed/design-system'
-import { writeWavHeader } from '@siteed/expo-audio-stream'
+import { writeWavHeader } from '@siteed/expo-audio-studio'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
 import { useCallback, useEffect, useState, useMemo } from 'react'

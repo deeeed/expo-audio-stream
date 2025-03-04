@@ -75,7 +75,7 @@ interface AudioFeaturesOptions {
 Here's an example of how to use the `extractAudioAnalysis` function to extract audio analysis data from a file:
 
 ```tsx
-import { extractAudioAnalysis } from '@siteed/expo-audio-stream';
+import { extractAudioAnalysis } from '@siteed/expo-audio-studio';
 
 // Time-based extraction with specific features
 const analysisResult = await extractAudioAnalysis({

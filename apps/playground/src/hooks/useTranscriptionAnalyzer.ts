@@ -1,4 +1,4 @@
-import { TranscriberData } from '@siteed/expo-audio-stream'
+import { TranscriberData } from '@siteed/expo-audio-studio'
 import { useCallback, useEffect, useState } from 'react'
 import { baseLogger } from '../config'
 import { useTranscription } from '../context/TranscriptionProvider'

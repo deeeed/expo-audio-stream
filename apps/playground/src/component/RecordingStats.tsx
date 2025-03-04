@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useState } from "react";
-import { CompressionInfo } from "@siteed/expo-audio-stream/src";
+import { CompressionInfo } from "@siteed/expo-audio-studio/src";
 
 interface RecordingStatsProps {
   readonly duration: number;

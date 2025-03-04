@@ -8,7 +8,7 @@ import { ExpoConfig } from '@expo/config-types'
 
 const MICROPHONE_USAGE = 'Allow $(PRODUCT_NAME) to access your microphone'
 const NOTIFICATION_USAGE = 'Show recording notifications and controls'
-const LOG_PREFIX = '[@siteed/expo-audio-stream]'
+const LOG_PREFIX = '[@siteed/expo-audio-studio]'
 
 function debugLog(message: string, ...args: unknown[]): void {
     if (process.env.EXPO_DEBUG) {
@@ -123,6 +123,7 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
                 existingBackgroundModes.push('processing')
             }
             // Add processing info if enabled
+            // Note: We keep the 'audiostream' namespace for native modules to maintain compatibility
             config.modResults.BGTaskSchedulerPermittedIdentifiers = [
                 'com.siteed.audiostream.processing',
             ]

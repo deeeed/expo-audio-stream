@@ -1,4 +1,4 @@
-import { ExtractedAudioData } from '@siteed/expo-audio-stream'
+import { ExtractedAudioData } from '@siteed/expo-audio-studio'
 
 export interface AudioStats {
     max: number

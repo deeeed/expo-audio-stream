@@ -1,7 +1,7 @@
 // playground/src/app/(tabs)/_layout.tsx
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useTheme } from '@siteed/design-system'
-import { useSharedAudioRecorder } from '@siteed/expo-audio-stream'
+import { useSharedAudioRecorder } from '@siteed/expo-audio-studio'
 import { Tabs } from 'expo-router'
 import React from 'react'
 import { Text } from 'react-native-paper'

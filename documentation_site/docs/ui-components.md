@@ -88,7 +88,7 @@ Here's a simple example of using the AudioVisualizer component:
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { AudioVisualizer } from '@siteed/expo-audio-ui';
-import { extractAudioAnalysis } from '@siteed/expo-audio-stream';
+import { extractAudioAnalysis } from '@siteed/expo-audio-studio';
 
 const AudioWaveform = ({ audioUri }) => {
   const [audioData, setAudioData] = React.useState(null);

@@ -14,7 +14,7 @@ import {
     AudioRecording,
     Chunk,
     DataPoint,
-} from '@siteed/expo-audio-stream'
+} from '@siteed/expo-audio-studio'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'

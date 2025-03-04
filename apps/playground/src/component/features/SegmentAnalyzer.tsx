@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { AppTheme, useTheme } from '@siteed/design-system'
-import { AudioAnalysis, AudioFeaturesOptions, BitDepth, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-stream'
+import { AudioAnalysis, AudioFeaturesOptions, BitDepth, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-studio'
 import React, { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
@@ -174,7 +174,8 @@ export function SegmentAnalyzer({
     const startPosition = dataPoint.startPosition ?? (dataPoint.startTime ?? 0) * sampleRate * 2  // startTime is in seconds
     const endPosition = dataPoint.endPosition ?? (dataPoint.endTime ?? 0) * sampleRate * 2  // endTime is in seconds
     const length = endPosition - startPosition
-    const durationMs = dataPoint.startTime !== undefined && dataPoint.endTime !== undefined
+    const durationMs = dataPoint.startTime !== undefined && !isNaN(dataPoint.startTime) && 
+                       dataPoint.endTime !== undefined && !isNaN(dataPoint.endTime)
         ? (dataPoint.endTime - dataPoint.startTime) * 1000  // Convert seconds to ms
         : (length / (sampleRate * 2)) * 1000  // Position-based duration
 
@@ -231,8 +232,8 @@ export function SegmentAnalyzer({
                           length: length,
                       }
                     : {
-                          startTimeMs: dataPoint.startTime ? dataPoint.startTime * 1000 : 0,  // Convert seconds to ms
-                          endTimeMs: dataPoint.endTime ? dataPoint.endTime * 1000 : 0,  // Convert seconds to ms
+                          startTimeMs: dataPoint.startTime !== undefined && !isNaN(dataPoint.startTime) ? dataPoint.startTime * 1000 : 0,  // Convert seconds to ms
+                          endTimeMs: dataPoint.endTime !== undefined && !isNaN(dataPoint.endTime) ? dataPoint.endTime * 1000 : 0,  // Convert seconds to ms
                       }),
                 segmentDurationMs: analysisConfig.segmentDurationMs,
                 features: analysisConfig.features,

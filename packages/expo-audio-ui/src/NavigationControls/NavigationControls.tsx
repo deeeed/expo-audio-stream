@@ -1,5 +1,5 @@
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons'
-import { AudioAnalysis, DataPoint } from '@siteed/expo-audio-stream'
+import { AudioAnalysis, DataPoint } from '@siteed/expo-audio-studio'
 import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 

@@ -48,7 +48,7 @@ The function returns a Promise that resolves to a string containing the URI of t
 ### Basic Trimming
 
 ```typescript
-import { trimAudio } from '@siteed/expo-audio-stream';
+import { trimAudio } from '@siteed/expo-audio-studio';
 
 async function trimAudioSegment() {
   try {
@@ -72,7 +72,7 @@ async function trimAudioSegment() {
 ### Multiple Segments
 
 ```typescript
-import { trimAudio } from '@siteed/expo-audio-stream';
+import { trimAudio } from '@siteed/expo-audio-studio';
 
 async function extractMultipleSegments() {
   try {
@@ -99,7 +99,7 @@ async function extractMultipleSegments() {
 ### Removing Segments
 
 ```typescript
-import { trimAudio } from '@siteed/expo-audio-stream';
+import { trimAudio } from '@siteed/expo-audio-studio';
 
 async function removeSilenceOrNoise() {
   try {

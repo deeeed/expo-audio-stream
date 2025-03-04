@@ -108,7 +108,7 @@ export interface StartRecordingResult {
 ## Example Usage
 
 ```tsx
-import { useAudioRecorder } from '@siteed/expo-audio-stream';
+import { useAudioRecorder } from '@siteed/expo-audio-studio';
 
 const config = {
     sampleRate: 16000,

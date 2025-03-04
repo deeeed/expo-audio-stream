@@ -17,7 +17,7 @@
     "dependencies": {
         "@expo/vector-icons": "^14.0.2",
         "@react-navigation/native": "^7.0.0",
-        "@siteed/expo-audio-stream": "workspace:^",
+        "@siteed/expo-audio-studio": "workspace:^",
         "@siteed/expo-audio-ui": "workspace:^",
         "@siteed/react-native-logger": "^0.10.0",
         "expo": "^52.0.35",

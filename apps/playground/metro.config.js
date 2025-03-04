@@ -13,14 +13,14 @@ const projectRoot = __dirname
 // This can be replaced with `find-yarn-workspace-root`
 const monorepoRoot = path.resolve(projectRoot, '../..')
 const uiRoot = path.resolve(monorepoRoot, 'packages/expo-audio-ui')
-const libRoot = path.resolve(monorepoRoot, 'packages/expo-audio-stream')
+const libRoot = path.resolve(monorepoRoot, 'packages/expo-audio-studio')
 
 const modules = [
     'react-native-paper',
     'react-native-safe-area-context',
     'react-native-reanimated',
     '@siteed/expo-audio-ui',
-    '@siteed/expo-audio-stream',
+    '@siteed/expo-audio-studio',
     'react-dom',
     'react',
     'react-native',
@@ -106,10 +106,10 @@ config.resolver = {
                 filePath: monorepoRoot + '/packages/expo-audio-ui/src/index.ts',
                 type: 'sourceFile',
             }
-        } else if (moduleName === '@siteed/expo-audio-stream') {
+        } else if (moduleName === '@siteed/expo-audio-studio') {
             return {
                 filePath:
-                    monorepoRoot + '/packages/expo-audio-stream/src/index.ts',
+                    monorepoRoot + '/packages/expo-audio-studio/src/index.ts',
                 type: 'sourceFile',
             }
             // } else if (moduleName === "react" || moduleName === "react-dom") {

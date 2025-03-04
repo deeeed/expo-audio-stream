@@ -4,7 +4,7 @@ import {
     AudioAnalysis,
     AudioRecording,
     extractAudioAnalysis,
-} from '@siteed/expo-audio-stream'
+} from '@siteed/expo-audio-studio'
 import { Audio, AVPlaybackStatus } from 'expo-av'
 import { useCallback, useEffect, useState } from 'react'
 

@@ -1,6 +1,6 @@
 # Audio Playground
 
-A demo application showcasing real-time audio processing and visualization capabilities using **@siteed/expo-audio-stream**. 
+A demo application showcasing real-time audio processing and visualization capabilities using **@siteed/expo-audio-studio**. 
 
 ## Features
 

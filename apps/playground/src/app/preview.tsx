@@ -1,6 +1,6 @@
 import { useFont } from '@shopify/react-native-skia'
 import { AppTheme, Notice, NumberAdjuster, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
-import { AudioAnalysis, extractPreview } from '@siteed/expo-audio-stream'
+import { AudioAnalysis, extractPreview } from '@siteed/expo-audio-studio'
 import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
 import * as DocumentPicker from 'expo-document-picker'
 import React, { useCallback, useMemo, useState, useEffect } from 'react'
