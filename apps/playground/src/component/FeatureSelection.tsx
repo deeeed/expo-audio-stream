@@ -1,5 +1,5 @@
 import { AppTheme, LabelSwitch, useTheme, Button } from '@siteed/design-system'
-import { AudioFeaturesOptions } from '@siteed/expo-audio-stream'
+import { AudioFeaturesOptions } from '@siteed/expo-audio-studio'
 import React, { useCallback, useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'
 

@@ -1,5 +1,5 @@
 import { FontAwesome } from '@expo/vector-icons'
-import { DataPoint } from '@siteed/expo-audio-stream'
+import { DataPoint } from '@siteed/expo-audio-studio'
 import React, { useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'

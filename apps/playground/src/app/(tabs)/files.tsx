@@ -9,7 +9,7 @@ import {
     useTheme,
     useToast,
 } from '@siteed/design-system'
-import { AudioRecording } from '@siteed/expo-audio-stream'
+import { AudioRecording } from '@siteed/expo-audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback, useMemo } from 'react'

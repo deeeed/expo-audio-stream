@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { AppTheme, useTheme } from '@siteed/design-system'
-import { AudioAnalysis, AudioFeaturesOptions, BitDepth, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-stream'
+import { AudioAnalysis, AudioFeaturesOptions, BitDepth, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-studio'
 import React, { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'

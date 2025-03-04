@@ -1,5 +1,5 @@
 import { AppTheme, Notice, NumberAdjuster, EditableInfoCard, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
-import { SampleRate, trimAudio, TrimAudioOptions, TrimAudioResult } from '@siteed/expo-audio-stream'
+import { SampleRate, trimAudio, TrimAudioOptions, TrimAudioResult } from '@siteed/expo-audio-studio'
 import { AudioTimeRangeSelector } from '@siteed/expo-audio-ui'
 import { Audio, AVPlaybackStatus } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'

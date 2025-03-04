@@ -1,4 +1,4 @@
-import { AudioFeatures } from '@siteed/expo-audio-stream'
+import { AudioFeatures } from '@siteed/expo-audio-studio'
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
 

@@ -1,5 +1,5 @@
 import { Picker, SelectOption } from '@siteed/design-system'
-import { IOSConfig, AudioSessionConfig } from '@siteed/expo-audio-stream'
+import { IOSConfig, AudioSessionConfig } from '@siteed/expo-audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 import React, { useCallback, useState } from 'react'
 import { StyleSheet, View } from 'react-native'

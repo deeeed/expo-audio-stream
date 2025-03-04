@@ -5,7 +5,7 @@ import {
     useModal,
     useTheme,
 } from '@siteed/design-system'
-import { NotificationConfig } from '@siteed/expo-audio-stream'
+import { NotificationConfig } from '@siteed/expo-audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 import React, { useMemo } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'

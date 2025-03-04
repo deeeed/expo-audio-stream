@@ -1,4 +1,4 @@
-import { Chunk, TranscriberData } from '@siteed/expo-audio-stream'
+import { Chunk, TranscriberData } from '@siteed/expo-audio-studio'
 import React, { useEffect, useRef, useMemo } from 'react'
 import {
     ScrollView,

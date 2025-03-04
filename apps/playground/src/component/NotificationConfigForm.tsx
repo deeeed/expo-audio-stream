@@ -6,7 +6,7 @@ import {
     TextInput,
     useTheme,
 } from '@siteed/design-system'
-import { NotificationConfig, WaveformConfig } from '@siteed/expo-audio-stream'
+import { NotificationConfig, WaveformConfig } from '@siteed/expo-audio-studio'
 import React, { useMemo } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { SegmentedButtons, Text } from 'react-native-paper'
