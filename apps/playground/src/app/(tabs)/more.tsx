@@ -241,6 +241,17 @@ export const MoreScreen = () => {
                             router.navigate('/playgroundapi')
                         }}
                     />
+                    <ListItem
+                        contentContainerStyle={{
+                            ...styles.listItemContainer,
+                            backgroundColor: theme.colors.errorContainer,
+                        }}
+                        label="Essentia"
+                        subLabel="Essentia"
+                        onPress={() => {
+                            router.navigate('/essentia')
+                        }}
+                    />
                 </>
             )}
             <ListItem
