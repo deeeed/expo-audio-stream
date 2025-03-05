@@ -1,4 +1,4 @@
-// apps/playground/src/context/TranscriptionProvider.tsx
+// apps/playground/src/context/TranscriptionProvider.web.tsx
 import { TranscriberData } from '@siteed/expo-audio-studio'
 import React, {
     createContext,

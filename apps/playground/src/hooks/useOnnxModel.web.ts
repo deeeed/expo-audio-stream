@@ -1,4 +1,4 @@
-import { Asset } from 'expo-asset';
+// apps/playground/src/hooks/useOnnxModel.web.ts
 import { createOnnxModelHook } from './useOnnxModel.shared';
 
 const webImplementation = {

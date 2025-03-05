@@ -4,6 +4,7 @@
     "./src",
     "./*.js",
     "./scripts",
+    "./modules/playgroundapi/src",
     "./e2e",
     "./plugins",
     "app.config.ts",
