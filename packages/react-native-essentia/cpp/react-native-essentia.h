@@ -1,20 +1,36 @@
 // packages/react-native-essentia/cpp/react-native-essentia.h
-#ifndef ESSENTIA_H
-#define ESSENTIA_H
+#ifndef CPPSRC_REACT_NATIVE_ESSENTIA_H_
+#define CPPSRC_REACT_NATIVE_ESSENTIA_H_
 
 #include <jni.h>
 #include "essentia/essentia.h"
 
+#ifdef __cplusplus
 extern "C" {
-    JNIEXPORT jboolean JNICALL
-    Java_com_essentia_EssentiaModule_initializeEssentia(JNIEnv *env, jobject thiz);
+#endif
 
-    JNIEXPORT jstring JNICALL
-    Java_com_essentia_EssentiaModule_getEssentiaVersion(JNIEnv *env, jobject thiz);
+// Core functionality
+JNIEXPORT jboolean JNICALL Java_com_essentia_EssentiaModule_initializeEssentia(JNIEnv *env, jobject thiz);
+JNIEXPORT jstring JNICALL Java_com_essentia_EssentiaModule_getEssentiaVersion(JNIEnv *env, jobject thiz);
+
+// Algorithm execution
+JNIEXPORT jstring JNICALL Java_com_essentia_EssentiaModule_executeEssentiaAlgorithm(
+    JNIEnv *env, jobject thiz, jstring category, jstring algorithm, jstring paramsJson);
+
+// Audio file handling
+JNIEXPORT jboolean JNICALL Java_com_essentia_EssentiaModule_loadAudioFile(
+    JNIEnv *env, jobject thiz, jstring audioPath, jdouble sampleRate);
+JNIEXPORT jboolean JNICALL Java_com_essentia_EssentiaModule_unloadAudioFile(
+    JNIEnv *env, jobject thiz);
+JNIEXPORT jboolean JNICALL Java_com_essentia_EssentiaModule_processAudioFrames(
+    JNIEnv *env, jobject thiz, jint frameSize, jint hopSize);
+
+#ifdef __cplusplus
 }
+#endif
 
 namespace essentia {
   double multiply(double a, double b);
 }
 
-#endif /* ESSENTIA_H */
+#endif  // CPPSRC_REACT_NATIVE_ESSENTIA_H_

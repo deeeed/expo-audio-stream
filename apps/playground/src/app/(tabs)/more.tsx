@@ -9,7 +9,7 @@ import {
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import React, { memo, useCallback, useMemo, useState } from 'react'
-import { Image, Pressable, StyleSheet, View } from 'react-native'
+import { Image, Platform, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 import Animated, {
     useAnimatedStyle,
@@ -230,28 +230,32 @@ export const MoreScreen = () => {
                             }}
                         />
                     )}
-                    <ListItem
-                        contentContainerStyle={{
-                            ...styles.listItemContainer,
-                            backgroundColor: theme.colors.errorContainer,
-                        }}
-                        label="Playground API"
-                        subLabel="Playground API"
-                        onPress={() => {
-                            router.navigate('/playgroundapi')
-                        }}
-                    />
-                    <ListItem
-                        contentContainerStyle={{
-                            ...styles.listItemContainer,
-                            backgroundColor: theme.colors.errorContainer,
-                        }}
-                        label="Essentia"
-                        subLabel="Essentia"
-                        onPress={() => {
-                            router.navigate('/essentia')
-                        }}
-                    />
+                    {Platform.OS === 'android' && (
+                        <>
+                            <ListItem
+                                contentContainerStyle={{
+                                    ...styles.listItemContainer,
+                                    backgroundColor: theme.colors.errorContainer,
+                                }}
+                                label="Playground API"
+                                subLabel="Playground API"
+                                onPress={() => {
+                                    router.navigate('/playgroundapi')
+                                }}
+                            />
+                            <ListItem
+                                contentContainerStyle={{
+                                    ...styles.listItemContainer,
+                                    backgroundColor: theme.colors.errorContainer,
+                                }}
+                                label="Essentia"
+                                subLabel="Essentia"
+                                onPress={() => {
+                                    router.navigate('/essentia')
+                                }}
+                            />
+                        </>
+                    )}
                 </>
             )}
             <ListItem
