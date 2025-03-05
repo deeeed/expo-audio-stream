@@ -1,3 +1,4 @@
+// apps/playground/src/hooks/useSileroVAD.ts
 import { useCallback, useState } from 'react';
 import { baseLogger } from '../config';
 import { useOnnxModel } from './useOnnxModel';

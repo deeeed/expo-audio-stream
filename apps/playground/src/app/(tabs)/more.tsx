@@ -215,14 +215,30 @@ export const MoreScreen = () => {
                     router.navigate('/permissions')
                 }}
             />
-            {__DEV__ && isWeb && (
+            {__DEV__ && (
                 <>
+                    {isWeb && (
+                        <ListItem
+                            contentContainerStyle={{
+                                ...styles.listItemContainer,
+                                backgroundColor: theme.colors.errorContainer,
+                            }}
+                            label="Whisper Debug"
+                            subLabel="Whisper Debug (Dev Only)"
+                            onPress={() => {
+                                router.navigate('/whisper-debug')
+                            }}
+                        />
+                    )}
                     <ListItem
-                        contentContainerStyle={styles.listItemContainer}
-                        label="Whisper Debug"
-                        subLabel="Whisper Debug (Dev Only)"
+                        contentContainerStyle={{
+                            ...styles.listItemContainer,
+                            backgroundColor: theme.colors.errorContainer,
+                        }}
+                        label="Playground API"
+                        subLabel="Playground API"
                         onPress={() => {
-                            router.navigate('/whisper-debug')
+                            router.navigate('/playgroundapi')
                         }}
                     />
                 </>
