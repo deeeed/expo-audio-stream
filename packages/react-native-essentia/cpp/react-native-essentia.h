@@ -25,6 +25,18 @@ JNIEXPORT jboolean JNICALL Java_com_essentia_EssentiaModule_unloadAudioFile(
 JNIEXPORT jboolean JNICALL Java_com_essentia_EssentiaModule_processAudioFrames(
     JNIEnv *env, jobject thiz, jint frameSize, jint hopSize);
 
+// Audio data handling
+JNIEXPORT jboolean JNICALL Java_com_essentia_EssentiaModule_setAudioData(
+    JNIEnv *env, jobject thiz, jfloatArray pcmData, jdouble sampleRate);
+JNIEXPORT void JNICALL Java_com_essentia_EssentiaModule_nativeClearAudioBuffer(
+    JNIEnv *env, jobject thiz);
+JNIEXPORT jboolean JNICALL Java_com_essentia_EssentiaModule_nativeSetAudioDataChunk(
+    JNIEnv *env, jobject thiz, jdoubleArray chunk, jint startIdx, jint totalSize, jdouble sampleRate);
+
+// Testing methods
+JNIEXPORT jstring JNICALL Java_com_essentia_EssentiaModule_testMFCC(
+    JNIEnv *env, jobject thiz);
+
 #ifdef __cplusplus
 }
 #endif

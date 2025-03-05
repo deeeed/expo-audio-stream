@@ -26,11 +26,15 @@
 #define LOGE(...) ((void)0)
 #endif
 
+// Define BUILD_SHARED_LIBRARY to properly export JNI functions
+#define BUILD_SHARED_LIBRARY
+
 // Global variables for audio processing state
 static essentia::Pool globalPool;
 static std::vector<essentia::Real> audioBuffer;
 static bool isAudioLoaded = false;
 static bool isEssentiaInitialized = false;
+static double currentSampleRate = 16000.0; // Default sample rate for speech processing
 
 namespace essentia {
 	double multiply(double a, double b) {
@@ -367,6 +371,7 @@ Java_com_essentia_EssentiaModule_loadAudioFile(JNIEnv *env, jobject thiz, jstrin
             // Store the audio for later processing
             audioBuffer = audio;
             isAudioLoaded = true;
+            currentSampleRate = sampleRate;
 
             LOGI("Loaded audio file: %s, %zu samples at %.1f Hz", audioPathStr.c_str(), audio.size(), sampleRate);
         }
@@ -427,6 +432,7 @@ Java_com_essentia_EssentiaModule_loadAudioFile(JNIEnv *env, jobject thiz, jstrin
             }
 
             isAudioLoaded = true;
+            currentSampleRate = sampleRate;
         }
         else {
             // No suitable loader available
@@ -465,6 +471,145 @@ Java_com_essentia_EssentiaModule_unloadAudioFile(JNIEnv *env, jobject thiz) {
         return JNI_TRUE;
     } catch (const std::exception& e) {
         LOGE("Error unloading audio file: %s", e.what());
+        return JNI_FALSE;
+    }
+}
+
+// Set audio data directly from PCM samples
+JNIEXPORT jboolean JNICALL
+Java_com_essentia_EssentiaModule_setAudioData(JNIEnv *env, jobject thiz, jfloatArray jpcmData, jdouble jsampleRate) {
+    if (!isEssentiaInitialized) {
+        LOGE("Essentia not initialized!");
+        return JNI_FALSE;
+    }
+
+    try {
+        LOGI("setAudioData: Starting to process PCM data");
+
+        // Get the PCM data from the JNI float array
+        jfloat* pcmData = env->GetFloatArrayElements(jpcmData, 0);
+        jsize length = env->GetArrayLength(jpcmData);
+        double sampleRate = static_cast<double>(jsampleRate);
+
+        LOGI("setAudioData: Got float array with %d samples at %.1f Hz", length, sampleRate);
+
+        // Clear previous audio buffer if any
+        if (isAudioLoaded) {
+            audioBuffer.clear();
+            isAudioLoaded = false;
+        }
+
+        // Resize the audio buffer to the correct size before adding data
+        audioBuffer.resize(length);
+
+        // Copy all PCM data in one go for small arrays
+        if (length <= 5000) {
+            for (jsize i = 0; i < length; i++) {
+                audioBuffer[i] = static_cast<essentia::Real>(pcmData[i]);
+            }
+            LOGI("setAudioData: Processed all %d samples in one go", length);
+        } else {
+            // Use a small chunk size to avoid stack overflow
+            const jsize CHUNK_SIZE = 5000;
+            for (jsize offset = 0; offset < length; offset += CHUNK_SIZE) {
+                // Calculate current chunk size (might be smaller for the last chunk)
+                jsize currentChunkSize = std::min(CHUNK_SIZE, length - offset);
+
+                // Copy chunk of PCM data into Essentia's format
+                for (jsize i = 0; i < currentChunkSize; i++) {
+                    audioBuffer[offset + i] = static_cast<essentia::Real>(pcmData[offset + i]);
+                }
+
+                LOGI("setAudioData: Processed chunk %d/%d (%d samples)",
+                    (offset / CHUNK_SIZE) + 1,
+                    (length + CHUNK_SIZE - 1) / CHUNK_SIZE,
+                    currentChunkSize);
+            }
+        }
+
+        // Set the audio as loaded and store the sample rate
+        isAudioLoaded = true;
+        currentSampleRate = sampleRate;
+
+        LOGI("setAudioData: Successfully set audio data - %zu samples at %.1f Hz", audioBuffer.size(), sampleRate);
+
+        // Release the JNI array
+        env->ReleaseFloatArrayElements(jpcmData, pcmData, 0);
+
+        return JNI_TRUE;
+    } catch (const std::exception& e) {
+        LOGE("Error setting audio data: %s", e.what());
+        return JNI_FALSE;
+    }
+}
+
+// Adding this alternative function with specific JNI name that Kotlin might be looking for
+JNIEXPORT jboolean JNICALL
+Java_com_essentia_EssentiaModule_setAudioData___3FD(JNIEnv *env, jobject thiz, jfloatArray jpcmData, jdouble jsampleRate) {
+    LOGI("Calling alternative setAudioData___3FD function");
+    return Java_com_essentia_EssentiaModule_setAudioData(env, thiz, jpcmData, jsampleRate);
+}
+
+// Native methods for chunking support
+JNIEXPORT void JNICALL
+Java_com_essentia_EssentiaModule_nativeClearAudioBuffer(JNIEnv *env, jobject thiz) {
+    try {
+        if (isAudioLoaded) {
+            audioBuffer.clear();
+            isAudioLoaded = false;
+            LOGI("Audio buffer cleared");
+        }
+    } catch (const std::exception& e) {
+        LOGE("Error clearing audio buffer: %s", e.what());
+    }
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_essentia_EssentiaModule_nativeSetAudioDataChunk(JNIEnv *env, jobject thiz, jdoubleArray jchunk, jint startIdx, jint totalSize, jdouble jsampleRate) {
+    if (!isEssentiaInitialized) {
+        LOGE("Essentia not initialized!");
+        return JNI_FALSE;
+    }
+
+    try {
+        // Get the chunk data
+        jdouble* chunkData = env->GetDoubleArrayElements(jchunk, 0);
+        jsize chunkSize = env->GetArrayLength(jchunk);
+        double sampleRate = static_cast<double>(jsampleRate);
+
+        // If this is the first chunk, prepare the buffer
+        if (startIdx == 0) {
+            audioBuffer.clear();
+            audioBuffer.resize(totalSize);
+            LOGI("Preparing audio buffer for chunked data: total size %d samples", totalSize);
+        }
+
+        // Ensure the buffer is large enough
+        if (audioBuffer.size() < startIdx + chunkSize) {
+            audioBuffer.resize(startIdx + chunkSize);
+            LOGI("Resized audio buffer to %zu samples", audioBuffer.size());
+        }
+
+        // Copy chunk data into the audio buffer
+        for (jsize i = 0; i < chunkSize; i++) {
+            audioBuffer[startIdx + i] = static_cast<essentia::Real>(chunkData[i]);
+        }
+
+        LOGI("Added chunk at position %d: %d samples", startIdx, chunkSize);
+
+        // If this is the final chunk, mark as loaded
+        if (startIdx + chunkSize >= totalSize) {
+            isAudioLoaded = true;
+            currentSampleRate = sampleRate;
+            LOGI("All chunks processed: %zu samples at %.1f Hz", audioBuffer.size(), sampleRate);
+        }
+
+        // Release the JNI array
+        env->ReleaseDoubleArrayElements(jchunk, chunkData, 0);
+
+        return JNI_TRUE;
+    } catch (const std::exception& e) {
+        LOGE("Error setting audio data chunk: %s", e.what());
         return JNI_FALSE;
     }
 }
@@ -543,5 +688,91 @@ Java_com_essentia_EssentiaModule_processAudioFrames(JNIEnv *env, jobject thiz, j
     } catch (const std::exception& e) {
         LOGE("Error processing audio frames: %s", e.what());
         return JNI_FALSE;
+    }
+}
+
+// Native methods for testing
+JNIEXPORT jstring JNICALL
+Java_com_essentia_EssentiaModule_testMFCC(JNIEnv *env, jobject thiz) {
+    if (!isEssentiaInitialized) {
+        LOGE("Essentia not initialized before calling testMFCC");
+        return env->NewStringUTF("{\"success\":false,\"error\":\"Essentia not initialized\"}");
+    }
+
+    try {
+        LOGI("Running MFCC test with dummy data");
+        essentia::Pool pool;  // For collecting results
+
+        // Create dummy buffer with a simple sine wave
+        int dummySize = 2048;
+        std::vector<essentia::Real> dummyBuffer(dummySize);
+        for (int i = 0; i < dummySize; i++) {
+            // Create a simple sine wave with frequency of 440Hz at 44100Hz sampling rate
+            dummyBuffer[i] = 0.5 * sin(2.0 * M_PI * 440.0 * i / 44100.0);
+        }
+
+        // Get the factory instance - this is the correct way to create algorithms in Essentia
+        essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
+
+        // Create the algorithms using the factory
+        essentia::standard::Algorithm* spectrum = factory.create("Spectrum");
+        essentia::standard::Algorithm* mfcc = factory.create("MFCC");
+
+        // Configure the algorithms with individual parameters
+        // For Spectrum
+        essentia::ParameterMap spectrumParamMap;
+        spectrumParamMap.insert("size", essentia::Parameter(2048));
+        spectrum->configure(spectrumParamMap);
+
+        // For MFCC
+        essentia::ParameterMap mfccParamMap;
+        mfccParamMap.insert("numberBands", essentia::Parameter(40));
+        mfccParamMap.insert("numberCoefficients", essentia::Parameter(13));
+        mfccParamMap.insert("sampleRate", essentia::Parameter(44100.0f));
+        mfccParamMap.insert("highFrequencyBound", essentia::Parameter(20000.0f));
+        mfccParamMap.insert("lowFrequencyBound", essentia::Parameter(0.0f));
+        mfcc->configure(mfccParamMap);
+
+        // Create input/output variables for Spectrum
+        std::vector<essentia::Real> spectrumInput = dummyBuffer;
+        std::vector<essentia::Real> spectrumOutput;
+
+        // Connect inputs/outputs for Spectrum
+        spectrum->input("frame").set(spectrumInput);
+        spectrum->output("spectrum").set(spectrumOutput);
+
+        // Create input/output variables for MFCC
+        std::vector<essentia::Real> bands;
+        std::vector<essentia::Real> mfccCoeffs;
+
+        // Connect inputs/outputs for MFCC
+        mfcc->input("spectrum").set(spectrumOutput);
+        mfcc->output("bands").set(bands);
+        mfcc->output("mfcc").set(mfccCoeffs);
+
+        // Compute algorithms
+        spectrum->compute();
+        mfcc->compute();
+
+        // Store results in pool for JSON serialization
+        pool.add("mfcc", mfccCoeffs);
+        pool.add("bands", bands);
+
+        // Convert to JSON and return
+        std::string resultJson = poolToJson(pool);
+        LOGI("MFCC test successful, result JSON: %s", resultJson.c_str());
+
+        // Clean up
+        delete spectrum;
+        delete mfcc;
+
+        return env->NewStringUTF(resultJson.c_str());
+    } catch (const std::exception& e) {
+        LOGE("Exception in testMFCC: %s", e.what());
+        std::string errorJson = "{\"success\":false,\"error\":\"" + std::string(e.what()) + "\"}";
+        return env->NewStringUTF(errorJson.c_str());
+    } catch (...) {
+        LOGE("Unknown error in testMFCC");
+        return env->NewStringUTF("{\"success\":false,\"error\":\"Unknown error\"}");
     }
 }

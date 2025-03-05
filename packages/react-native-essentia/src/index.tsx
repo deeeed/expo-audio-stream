@@ -36,6 +36,10 @@ interface EssentiaInterface {
   loadAudio(audioPath: string, sampleRate?: number): Promise<boolean>;
   unloadAudio(): Promise<boolean>;
   processAudio(frameSize: number, hopSize: number): Promise<boolean>;
+  setAudioData(pcmData: number[], sampleRate: number): Promise<boolean>;
+
+  // Testing functions
+  testMFCC(): Promise<any>;
 
   // Results retrieval
   getResults(): Promise<any>;
@@ -92,6 +96,8 @@ export interface IEssentiaAPI {
   loadAudio(audioPath: string, sampleRate: number): Promise<boolean>;
   unloadAudio(): Promise<boolean>;
   processAudio(frameSize?: number, hopSize?: number): Promise<boolean>;
+  setAudioData(pcmData: number[], sampleRate: number): Promise<boolean>;
+  testMFCC(): Promise<any>;
   getResults(): Promise<any>;
 
   // Category-specific APIs
@@ -373,6 +379,37 @@ class EssentiaAPI {
         success: false,
         error: error instanceof Error ? error.message : String(error)
       };
+    }
+  }
+
+  /**
+   * Sets PCM audio data directly for processing
+   * @param pcmData The PCM audio data as an array of numbers
+   * @param sampleRate Sample rate of the audio data (e.g., 16000, 44100)
+   * @returns Promise resolving to a boolean indicating success or failure
+   */
+  async setAudioData(pcmData: number[], sampleRate: number): Promise<boolean> {
+    try {
+      console.log(`Setting PCM data: ${pcmData.length} samples at ${sampleRate}Hz`);
+      return await Essentia.setAudioData(pcmData, sampleRate);
+    } catch (error) {
+      console.error('Error setting PCM data:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Tests the MFCC algorithm with dummy data
+   * This is useful for basic validation of the Essentia integration
+   * @returns Promise resolving to the test result
+   */
+  async testMFCC(): Promise<any> {
+    try {
+      console.log('Testing MFCC algorithm with dummy data');
+      return await Essentia.testMFCC();
+    } catch (error) {
+      console.error('Error testing MFCC:', error);
+      throw error;
     }
   }
 }

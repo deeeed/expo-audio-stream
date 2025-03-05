@@ -5,10 +5,12 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.bridge.Arguments
 import java.util.concurrent.Executors
 import java.util.concurrent.ExecutorService
+import android.util.Log
 
 class EssentiaModule(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
@@ -45,6 +47,10 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   private external fun loadAudioFile(path: String, sampleRate: Double): Boolean
   private external fun unloadAudioFile(): Boolean
   private external fun processAudioFrames(frameSize: Int, hopSize: Int): Boolean
+  private external fun setAudioData(pcmData: FloatArray, sampleRate: Double): Boolean
+  private external fun nativeClearAudioBuffer()
+  private external fun nativeSetAudioDataChunk(chunk: DoubleArray, startIdx: Int, totalSize: Int, sampleRate: Double): Boolean
+  private external fun testMFCC(): String
 
   // Wrapper methods to expose to JavaScript
   @ReactMethod
@@ -147,6 +153,56 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   }
 
   @ReactMethod
+  fun setAudioData(pcmArray: ReadableArray, sampleRate: Double, promise: Promise) {
+    if (!isInitialized) {
+      promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
+      return
+    }
+
+    try {
+      executor.execute {
+        // Log start of processing
+        Log.d("EssentiaModule", "Starting to process PCM data: ${pcmArray.size()} samples at ${sampleRate}Hz")
+
+        // Process the array more efficiently to avoid stack overflow
+        // Convert ReadableArray to FloatArray in chunks
+        val arraySize = pcmArray.size()
+        val pcmFloatArray = FloatArray(arraySize)
+
+        // Use a reasonable chunk size to avoid stack issues
+        val chunkSize = 1000
+        var i = 0
+
+        Log.d("EssentiaModule", "Converting PCM data in chunks of $chunkSize (total: $arraySize samples)")
+
+        while (i < arraySize) {
+          val end = Math.min(i + chunkSize, arraySize)
+          Log.d("EssentiaModule", "Processing chunk $i to $end (size: ${end - i})")
+
+          for (j in i until end) {
+            pcmFloatArray[j] = pcmArray.getDouble(j).toFloat()
+          }
+          i = end
+        }
+
+        Log.d("EssentiaModule", "Successfully converted all PCM data, now sending to native code")
+
+        val result = setAudioData(pcmFloatArray, sampleRate)
+        if (result) {
+          currentAudioBuffer = "PCM_DATA" // Indicate PCM data is loaded
+          Log.d("EssentiaModule", "Successfully set PCM audio data in native layer")
+        } else {
+          Log.e("EssentiaModule", "Failed to set PCM audio data in native layer")
+        }
+        promise.resolve(result)
+      }
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Error in setAudioData: ${e.message}", e)
+      promise.reject("ESSENTIA_SET_AUDIO_ERROR", "Failed to set audio data: ${e.message}")
+    }
+  }
+
+  @ReactMethod
   fun processAudio(frameSize: Int, hopSize: Int, promise: Promise) {
     if (!isInitialized) {
       promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
@@ -176,6 +232,33 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     }
 
     promise.resolve(lastResults)
+  }
+
+  // Add simple test method that doesn't depend on audio loading
+  @ReactMethod
+  fun testMFCC(promise: Promise) {
+    if (!isInitialized) {
+      promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
+      return
+    }
+
+    try {
+      executor.execute {
+        Log.d("EssentiaModule", "Running MFCC test with dummy data")
+
+        // Call the native implementation that runs MFCC with dummy data
+        val result = testMFCC()
+
+        // Create a result map
+        val resultMap = parseJsonToMap(result)
+
+        Log.d("EssentiaModule", "MFCC test result: $result")
+        promise.resolve(resultMap)
+      }
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Error in testMFCC: ${e.message}", e)
+      promise.reject("ESSENTIA_TEST_ERROR", "Failed to run MFCC test: ${e.message}")
+    }
   }
 
   // Helper function to parse JSON to WritableMap
