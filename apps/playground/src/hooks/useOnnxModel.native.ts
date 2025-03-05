@@ -1,3 +1,5 @@
+/* eslint-disable import/namespace */
+// apps/playground/src/hooks/useOnnxModel.native.ts
 import * as ort from 'onnxruntime-react-native';
 import { Asset } from 'expo-asset';
 import { createOnnxModelHook } from './useOnnxModel.shared';

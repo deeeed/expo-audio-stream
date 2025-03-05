@@ -3,6 +3,7 @@
     "name": "@siteed/expo-audio-studio-monorepo",
     "workspaces": [
         "packages/*",
+        "apps/playground/modules/playgroundapi",
         "apps/*",
         "documentation_site"
     ],

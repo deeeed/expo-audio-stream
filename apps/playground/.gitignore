@@ -12,8 +12,8 @@ web-build/
 *.bin
 
 # use expo continuous integration
-android
-ios
+./android/
+./ios/
 
 artifacts/
 
