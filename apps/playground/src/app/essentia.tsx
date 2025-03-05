@@ -1,7 +1,8 @@
 import { AppTheme, ScreenWrapper, useThemePreferences } from '@siteed/design-system';
+import { trimAudio } from '@siteed/expo-audio-studio';
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Essentia, { AlgorithmParams, essentiaAPI, EssentiaCategory } from 'react-native-essentia';
+import Essentia, { essentiaAPI, EssentiaCategory } from 'react-native-essentia';
 import { Button, Text, TouchableRipple } from 'react-native-paper';
 import { AssetSourceType, SampleAudioFile, useSampleAudio } from '../hooks/useSampleAudio';
 
@@ -113,6 +114,60 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
       padding: 20,
       color: theme.colors.onSurfaceDisabled,
     },
+    scrollContainer: {
+      flex: 1,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      marginBottom: 20,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      marginBottom: 10,
+    },
+    description: {
+      marginBottom: 10,
+    },
+    resultBox: {
+      padding: 10,
+      backgroundColor: theme.colors.elevation.level2,
+      borderRadius: 8,
+      marginVertical: 10,
+    },
+    successText: {
+      color: theme.colors.tertiaryContainer,
+    },
+    errorText: {
+      color: theme.colors.errorContainer,
+    },
+    errorDescription: {
+      color: theme.colors.error,
+    },
+    loadingContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 10,
+    },
+    loadingText: {
+      marginLeft: 10,
+    },
+    messageText: {
+      color: theme.colors.onSurface,
+    },
+    versionText: {
+      color: theme.colors.onPrimary,
+    },
+    algorithmsContainer: {
+      marginTop: 10,
+    },
+    algorithmsTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      marginBottom: 10,
+    },
   });
 };
 
@@ -145,10 +200,14 @@ function EssentiaScreen() {
   const sampleRates = [8000, 16000, 22050, 44100, 48000];
 
   // Function to load a specific sample on demand
-  const handleLoadSample = async (assetModule:  AssetSourceType, index: number) => {
+  const handleLoadSample = async (assetModule: AssetSourceType, index: number) => {
     try {
+      // Add debug logging to see the asset module details
+      console.log(`Loading asset module:`, assetModule);
+      
       const sample = await loadSampleAudio(assetModule, `sample${index}.mp3`);
       if (sample) {
+        console.log(`Successfully loaded sample to: ${sample.uri}`);
         setSampleFiles(prev => [...prev.filter(f => f.name !== sample.name), sample]);
         setSelectedSample(sample);
       }
@@ -156,7 +215,6 @@ function EssentiaScreen() {
       console.error(`Error loading sample ${index}:`, error);
     }
   };
-
   const handleInitialize = async () => {
     try {
       const success = await Essentia.initialize();
@@ -188,124 +246,153 @@ function EssentiaScreen() {
   };
 
   const validateEssentiaIntegration = async () => {
-    setIsValidating(true);
     try {
+      setValidationResult({ success: false, message: 'Validation in progress...' });
+      setIsValidating(true);
+
+      // Step 1: Initialize Essentia
+      const initialized = await essentiaAPI.initialize();
+      if (!initialized) {
+        setValidationResult({
+          success: false,
+          message: 'Failed to initialize Essentia library',
+        });
+        return;
+      }
+
+      // Step 2: Get the version
+      const version = await essentiaAPI.getVersion();
+
+      // Step 3: If we have a sample loaded, try to extract MFCC features
       const algorithmResults: Record<string, AlgorithmResult> = {};
       
-      // Step 1: Test initialization
-      let initialized = false;
-      try {
-        initialized = await essentiaAPI.initialize();
-        console.log('Essentia initialized successfully');
-      } catch (error) {
-        throw new Error(`Initialization failed: ${error instanceof Error ? error.message : String(error)}`);
-      }
-
-      // Step 2: Test version retrieval
-      let version = '';
-      try {
-        version = await essentiaAPI.getVersion();
-        console.log(`Essentia version: ${version}`);
-      } catch (error) {
-        throw new Error(`Version retrieval failed: ${error instanceof Error ? error.message : String(error)}`);
-      }
-
-      // Step 3: Test audio loading and processing if a sample was selected
-      if (selectedSample && selectedSample.isLoaded) {
+      if (selectedSample) {
         try {
-          console.log(`Loading audio file: ${selectedSample.name}`);
-          // Use the user-selected sample rate for processing
-          console.log(`Using sample rate: ${sampleRate} Hz`);
+          console.log(`Testing MFCC extraction on sample: ${selectedSample.uri}`);
           
-          // Debug file path info
-          console.log('File path:', selectedSample.uri, 'Has file:// prefix:', selectedSample.uri.startsWith('file://'));
+          // Try to load the audio
+          const audioLoaded = await essentiaAPI.loadAudio(selectedSample.uri, 44100);
           
-          const loaded = await essentiaAPI.loadAudio(selectedSample.uri, sampleRate);
-          if (!loaded) {
-            throw new Error('Failed to load audio file');
-          }
-
-          console.log('Audio file loaded successfully');
-          
-          // Process audio with default parameters
-          const processed = await essentiaAPI.processAudio();
-          if (!processed) {
-            throw new Error('Failed to process audio');
-          }
-          
-          console.log('Audio processed successfully');
-          
-          // Step 4: Test algorithm execution - MFCC
-          try {
-            const mfccParams: AlgorithmParams = {
-              numberBands: 40,
-              numberCoefficients: 13
-            };
+          if (audioLoaded) {
+            console.log('Audio loaded successfully, processing...');
             
-            console.log('Computing MFCCs...');
-            const mfccResult = await essentiaAPI.executeAlgorithm(
-              EssentiaCategory.SPECTRAL, 
-              'MFCC', 
-              mfccParams
-            );
+            // Process audio (using default frame/hop size)
+            const processed = await essentiaAPI.processAudio(2048, 1024);
             
-            algorithmResults.mfcc = {
-              success: true,
-              data: mfccResult
-            };
-            console.log('MFCC computation successful');
-          } catch (error) {
-            console.warn('MFCC computation failed:', error);
-            algorithmResults.mfcc = {
+            if (processed) {
+              console.log('Audio processed successfully, extracting MFCC...');
+              
+              // Try to compute MFCC
+              const mfccResult = await essentiaAPI.executeAlgorithm(
+                EssentiaCategory.SPECTRAL, 
+                'MFCC', 
+                { numberCoefficients: 13, numberBands: 40 }
+              );
+              
+              algorithmResults['mfcc'] = {
+                success: !!mfccResult && !mfccResult.error,
+                data: mfccResult,
+                error: mfccResult?.error
+              };
+              
+              // Clean up
+              await essentiaAPI.unloadAudio();
+            } else {
+              algorithmResults['processAudio'] = {
+                success: false,
+                error: 'Failed to process audio frames'
+              };
+            }
+          } else {
+            algorithmResults['loadAudio'] = {
               success: false,
-              error: error instanceof Error ? error.message : String(error)
+              error: 'Failed to load audio file'
             };
           }
-          
-          // Step 5: Test tonal analysis if available
-          try {
-            console.log('Analyzing key...');
-            const keyResult = await essentiaAPI.executeAlgorithm(
-              EssentiaCategory.TONAL,
-              'Key',
-              { sampleRate: sampleRate }
-            );
-            
-            algorithmResults.key = {
-              success: true,
-              data: keyResult
-            };
-            console.log('Key analysis successful');
-          } catch (error) {
-            console.warn('Key analysis failed:', error);
-            algorithmResults.key = {
-              success: false,
-              error: error instanceof Error ? error.message : String(error)
-            };
-          }
-          
-          // Unload audio when done
-          await essentiaAPI.unloadAudio();
-          console.log('Audio unloaded');
         } catch (error) {
-          console.error('Audio processing error:', error);
-          throw new Error(`Audio processing failed: ${error instanceof Error ? error.message : String(error)}`);
+          console.error('Algorithm execution error:', error);
+          algorithmResults['algorithm'] = {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          };
         }
-      } else {
-        console.log('No audio sample selected, skipping audio processing tests');
       }
-
+      
+      // Final validation result
       setValidationResult({
         success: true,
         initialized,
         version,
-        algorithmResults,
-        message: selectedSample 
-          ? 'Essentia integration is working correctly with audio processing'
-          : 'Basic Essentia integration is working correctly (no audio file tested)'
+        message: 'Essentia integration validation complete',
+        algorithmResults: Object.keys(algorithmResults).length > 0 ? algorithmResults : undefined
       });
     } catch (error) {
-      console.error('Essentia validation error:', error);
+      console.error('Validation error:', error);
+      setValidationResult({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  /**
+   * Example function to extract MFCC from a specific segment of audio
+   * First trims the audio to the segment, then analyzes it with Essentia
+   */
+  const extractMFCCFromSegment = async () => {
+    if (!selectedSample) {
+      alert('Please select a sample first');
+      return;
+    }
+
+    setIsValidating(true);
+    try {
+      // First trim the audio to get a specific segment (e.g., first 5 seconds)
+      const startTimeMs = 0;
+      const endTimeMs = 5000; // 5 seconds
+      
+      console.log(`Trimming audio ${selectedSample.name} from ${startTimeMs}ms to ${endTimeMs}ms`);
+      
+      // Use the trimAudio function to create a segment
+      const trimResult = await trimAudio({
+        fileUri: selectedSample.uri,
+        mode: 'single',
+        startTimeMs,
+        endTimeMs
+      });
+      
+      console.log('Trim successful, trimmed file:', trimResult.uri);
+      
+      // Use the new convenience method for feature extraction
+      const mfccResult = await essentiaAPI.extractMFCCFromFile({
+        audioPath: trimResult.uri,
+        sampleRate: 44100,
+        numCoeffs: 13,
+        numBands: 40,
+        cleanup: true // automatically handle cleanup
+      });
+      
+      if (mfccResult.success) {
+        console.log('MFCC extraction successful:', mfccResult.features);
+        
+        // Display results
+        setValidationResult({
+          success: true,
+          message: 'MFCC extraction from trimmed segment successful',
+          algorithmResults: {
+            mfcc: {
+              success: true,
+              data: mfccResult.features
+            }
+          }
+        });
+      } else {
+        throw new Error(mfccResult.error || 'Unknown error extracting MFCC features');
+      }
+    } catch (error) {
+      console.error('Error extracting MFCC from segment:', error);
       setValidationResult({
         success: false,
         error: error instanceof Error ? error.message : String(error),
@@ -374,7 +461,13 @@ function EssentiaScreen() {
   };
 
   return (
-    <ScreenWrapper withScrollView useInsets contentContainerStyle={styles.container}>
+    <ScreenWrapper 
+      withScrollView 
+      useInsets 
+      contentContainerStyle={styles.container}
+      // Add extra bottom padding to ensure content is fully scrollable on Android
+      style={{ paddingBottom: 40 }}
+    >
       <Text variant="headlineMedium">Essentia Integration</Text>
       
       <View style={styles.buttonContainer}>
@@ -416,6 +509,16 @@ function EssentiaScreen() {
         Validate Essentia Integration
       </Button>
 
+      <Button
+        mode="contained"
+        onPress={extractMFCCFromSegment}
+        style={{ backgroundColor: theme.colors.secondary, marginTop: 10 }}
+        loading={isValidating}
+        disabled={isValidating || !selectedSample}
+      >
+        Extract MFCC from 5s Segment
+      </Button>
+
       {selectedSample && (
         <View style={styles.resultContainer}>
           <Text variant="titleMedium">Selected Sample:</Text>
@@ -423,7 +526,7 @@ function EssentiaScreen() {
           <Text>Duration: {(selectedSample.durationMs / 1000).toFixed(2)} seconds</Text>
         </View>
       )}
-
+      
       {initResult && (
         <View style={[
           styles.resultContainer,
@@ -456,7 +559,7 @@ function EssentiaScreen() {
           )}
         </View>
       )}
-
+      
       {validationResult && (
         <View style={[
           styles.resultContainer,

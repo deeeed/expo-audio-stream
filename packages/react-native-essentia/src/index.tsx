@@ -109,6 +109,51 @@ export interface IEssentiaAPI {
   };
 }
 
+export interface MFCCOptions {
+  audioPath: string;
+  sampleRate?: number;
+  frameSize?: number;
+  hopSize?: number;
+  numCoeffs?: number;
+  numBands?: number;
+}
+
+export interface FeatureExtractionResult {
+  success: boolean;
+  features?: any;
+  error?: string;
+}
+
+export interface MFCCExtractionOptions {
+  audioPath: string;
+  sampleRate?: number;
+  frameSize?: number;
+  hopSize?: number;
+  numCoeffs?: number;
+  numBands?: number;
+  cleanup?: boolean;
+}
+
+// Add utility functions at the end before the exports
+// This utility helps normalize file paths for better compatibility
+export function normalizeFilePath(filePath: string): string {
+  if (!filePath) return '';
+
+  console.log(`Normalizing file path: ${filePath}`);
+
+  // Handle file:// prefix for Android
+  if (Platform.OS === 'android' && filePath.startsWith('file://')) {
+    return filePath.substring(7);
+  }
+
+  // Ensure file:// prefix for iOS
+  if (Platform.OS === 'ios' && !filePath.startsWith('file://')) {
+    return `file://${filePath}`;
+  }
+
+  return filePath;
+}
+
 // Structured API for Essentia algorithms
 class EssentiaAPI {
   // Core methods
@@ -192,13 +237,18 @@ class EssentiaAPI {
 
   // Audio loading and processing
   /**
-   * Loads an audio file into Essentia for processing
+   * Loads an audio file into Essentia for processing with improved path handling
    * @param audioPath Path to the audio file to load
    * @param sampleRate Sample rate to use for processing (e.g., 16000, 44100)
    * @returns Promise resolving to a boolean indicating success or failure
    */
   async loadAudio(audioPath: string, sampleRate: number): Promise<boolean> {
-    return Essentia.loadAudio(audioPath, sampleRate);
+    // Normalize the file path for better cross-platform compatibility
+    const normalizedPath = normalizeFilePath(audioPath);
+    console.log(`Original path: ${audioPath}`);
+    console.log(`Normalized path for loading: ${normalizedPath}`);
+
+    return Essentia.loadAudio(normalizedPath, sampleRate);
   }
 
   async unloadAudio(): Promise<boolean> {
@@ -236,6 +286,95 @@ class EssentiaAPI {
   };
 
   // Add other categories as needed
+
+  /**
+   * Convenience method to extract MFCC features from an audio file
+   * Handles initialization, loading, processing, and cleanup in one call
+   *
+   * @param options Options for extracting MFCC features
+   * @returns Promise resolving to the extraction result
+   */
+  async extractMFCCFromFile(options: MFCCExtractionOptions): Promise<FeatureExtractionResult> {
+    try {
+      if (!options.audioPath) {
+        return {
+          success: false,
+          error: "No audio path provided"
+        };
+      }
+
+      // Step 1: Initialize if not already
+      const initialized = await this.initialize();
+      if (!initialized) {
+        return {
+          success: false,
+          error: "Failed to initialize Essentia"
+        };
+      }
+
+      // Step 2: Load the audio file
+      const sampleRate = options.sampleRate || 44100;
+      const numCoeffs = options.numCoeffs || 13;
+      const numBands = options.numBands || 40;
+      const frameSize = options.frameSize || 2048;
+      const hopSize = options.hopSize || 1024;
+      const cleanup = options.cleanup !== false; // Default to true
+
+      // Normalize the path for better cross-platform compatibility
+      const normalizedPath = normalizeFilePath(options.audioPath);
+
+      console.log(`Loading audio file for MFCC extraction: ${normalizedPath}`);
+      const audioLoaded = await this.loadAudio(normalizedPath, sampleRate);
+
+      if (!audioLoaded) {
+        return {
+          success: false,
+          error: "Failed to load audio file"
+        };
+      }
+
+      // Step 3: Process the audio
+      const processed = await this.processAudio(frameSize, hopSize);
+      if (!processed) {
+        if (cleanup) await this.unloadAudio();
+        return {
+          success: false,
+          error: "Failed to process audio frames"
+        };
+      }
+
+      // Step 4: Extract MFCC features
+      const mfccParams: AlgorithmParams = {
+        numberCoefficients: numCoeffs,
+        numberBands: numBands,
+      };
+
+      const mfccResults = await this.spectral.mfcc(mfccParams);
+
+      // Step 5: Clean up if requested
+      if (cleanup) {
+        await this.unloadAudio();
+      }
+
+      return {
+        success: true,
+        features: mfccResults
+      };
+    } catch (error) {
+      console.error("Error extracting MFCC:", error);
+      // Try to clean up
+      try {
+        await this.unloadAudio();
+      } catch {
+        // Ignore cleanup errors
+      }
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
 }
 
 // Create and export the API instance

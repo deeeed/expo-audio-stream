@@ -314,10 +314,27 @@ Java_com_essentia_EssentiaModule_loadAudioFile(JNIEnv *env, jobject thiz, jstrin
 
     // Handle file:// prefix if present
     std::string audioPathStr(audioPath);
+
+    // Enhanced file path logging
+    LOGI("Original file path: %s (length: %zu)", audioPathStr.c_str(), audioPathStr.length());
+
     if (audioPathStr.find("file://") == 0) {
         audioPathStr = audioPathStr.substr(7); // Remove 'file://' prefix
         LOGI("Removed 'file://' prefix, using path: %s", audioPathStr.c_str());
     }
+
+    // Additional logging for file existence check
+    #ifdef __ANDROID__
+    // Android-specific file check
+    FILE* file = fopen(audioPathStr.c_str(), "r");
+    if (file) {
+        fclose(file);
+        LOGI("File exists and is readable: %s", audioPathStr.c_str());
+    } else {
+        LOGE("File does not exist or is not readable: %s (errno: %d, %s)",
+            audioPathStr.c_str(), errno, strerror(errno));
+    }
+    #endif
 
     try {
         essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();

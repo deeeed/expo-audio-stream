@@ -1,11 +1,13 @@
-# react-native-essentia
+# React Native Essentia
 
-React Native wrapper for the Essentia audio analysis library.
+A React Native wrapper for the Essentia audio analysis library.
 
 ## Installation
 
-```sh
+```bash
 npm install react-native-essentia
+# or
+yarn add react-native-essentia
 ```
 
 ## Features
@@ -20,151 +22,132 @@ npm install react-native-essentia
 - Audio file loading and processing
 - Both high-level API and low-level access to individual algorithms
 
-## Basic Usage
+## Usage
+
+### Basic Usage
 
 ```typescript
 import { essentiaAPI } from 'react-native-essentia';
 
-// Initialize Essentia
+// Initialize the library
 await essentiaAPI.initialize();
 
-// Get Essentia version
+// Get the version
 const version = await essentiaAPI.getVersion();
-console.log(`Using Essentia version: ${version}`);
+console.log(`Essentia version: ${version}`);
 
 // Load an audio file
-const audioPath = '/path/to/audio/file.mp3';
-const loaded = await essentiaAPI.loadAudio(audioPath);
-if (loaded) {
-  // Process audio with default frame size and hop size
-  await essentiaAPI.processAudio();
+const audioLoaded = await essentiaAPI.loadAudio('/path/to/audio.mp3', 44100);
 
-  // Compute MFCCs
-  const mfccResult = await essentiaAPI.spectral.mfcc({
-    numberBands: 40,
-    numberCoefficients: 13
-  });
-
-  console.log('MFCC results:', mfccResult);
-
-  // Detect key
-  const keyResult = await essentiaAPI.tonal.key();
-  console.log(`Detected key: ${keyResult.key} ${keyResult.scale}`);
-
-  // Track beats
-  const beatResult = await essentiaAPI.rhythm.beatTracking();
-  console.log(`Detected tempo: ${beatResult.tempo} BPM`);
-
-  // Unload audio when done
-  await essentiaAPI.unloadAudio();
-}
-```
-
-## Advanced Usage
-
-### Using Raw Algorithm Execution
-
-For direct access to any Essentia algorithm, you can use the `executeAlgorithm` method:
-
-```typescript
-import { essentiaAPI, EssentiaCategory, AlgorithmParams } from 'react-native-essentia';
-
-// Initialize Essentia
-await essentiaAPI.initialize();
-
-// Load and process audio
-await essentiaAPI.loadAudio('/path/to/audio/file.mp3');
+// Process the audio
 await essentiaAPI.processAudio(2048, 1024);
 
-// Configure algorithm parameters
-const params: AlgorithmParams = {
-  minFrequency: 20,
-  maxFrequency: 20000,
-  numberBands: 40,
+// Execute an algorithm
+const mfccResult = await essentiaAPI.spectral.mfcc({
   numberCoefficients: 13,
-  sampleRate: 44100
-};
+  numberBands: 40
+});
 
-// Execute an algorithm directly
-const result = await essentiaAPI.executeAlgorithm(
-  EssentiaCategory.SPECTRAL,
-  'MFCC',
-  params
-);
-
-console.log('Algorithm result:', result);
+// Clean up
+await essentiaAPI.unloadAudio();
 ```
 
-## Supported Algorithms
+### Analyzing Audio Segments
 
-The wrapper currently supports the following algorithms (more will be added):
+To analyze a specific segment of an audio file, you can use the `extractMFCCFromFile` method in combination with `trimAudio` from the `expo-audio-studio` package. This approach allows you to first trim the audio to the segment you want to analyze, and then extract features from that segment.
 
-### Spectral
-- MFCC
-- Spectrum
-- SpectralCentroid
-- SpectralContrast
+```typescript
+import { essentiaAPI } from 'react-native-essentia';
+import { trimAudio } from 'expo-audio-studio';
 
-### Tonal
-- Key
-- Chords
-- TuningFrequency
+async function analyzeMFCCFromSegment(audioPath, startMs, endMs) {
+  try {
+    // First trim the audio to get just the segment we want
+    const trimResult = await trimAudio({
+      fileUri: audioPath,
+      mode: 'single',
+      startTimeMs: startMs,
+      endTimeMs: endMs
+    });
 
-### Rhythm
-- BeatTracking
-- RhythmExtractor
-- BPM
+    // Then extract MFCC features from the trimmed segment
+    const mfccResult = await essentiaAPI.extractMFCCFromFile({
+      audioPath: trimResult.uri,
+      sampleRate: 44100,
+      numCoeffs: 13,
+      numBands: 40,
+      cleanup: true // automatically unload audio when done
+    });
+
+    if (mfccResult.success) {
+      console.log('MFCC features extracted successfully:', mfccResult.features);
+      return mfccResult.features;
+    } else {
+      console.error('Failed to extract MFCC features:', mfccResult.error);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error analyzing audio segment:', error);
+    return null;
+  }
+}
+
+// Usage
+analyzeMFCCFromSegment(
+  '/path/to/audio.mp3',  // Audio file path
+  5000,                  // Start time in milliseconds (5 seconds)
+  10000                  // End time in milliseconds (10 seconds)
+);
+```
+
+### Troubleshooting File Loading Issues
+
+If you're having trouble loading audio files, try these steps:
+
+1. Make sure the file path is correct and the file exists
+2. Check if the file path needs protocol handling:
+   - Android: Remove `file://` prefix if present
+   - iOS: Add `file://` prefix if missing
+
+You can use the built-in path normalization:
+
+```typescript
+import { normalizeFilePath } from 'react-native-essentia';
+
+const normalizedPath = normalizeFilePath('/path/to/audio.mp3');
+// Will handle platform-specific path formatting automatically
+```
+
+## API Reference
+
+### Core Methods
+
+- `initialize()`: Initialize the Essentia library
+- `getVersion()`: Get the Essentia version
+- `loadAudio(path, sampleRate)`: Load an audio file
+- `unloadAudio()`: Unload the current audio
+- `processAudio(frameSize, hopSize)`: Process the loaded audio
+- `executeAlgorithm(category, algorithm, params)`: Execute a specific algorithm
+
+### Helper Methods
+
+- `extractMFCCFromFile(options)`: One-step MFCC extraction from an audio file
+- `normalizeFilePath(path)`: Normalize file paths for cross-platform compatibility
+
+### Specialized Algorithm Categories
+
+- `spectral.mfcc(params)`: Extract MFCC features
+- `tonal.key(params)`: Analyze musical key
+- `rhythm.beatTracking(params)`: Detect beats
+
+## License
+
+MIT
 
 ## Requirements
 
 - React Native >= 0.63.0
 - iOS 11.0+ / Android API 21+
-
-## License
-
-This project is licensed under the AGPL-3.0 License - see the LICENSE file for details.
-
-## Troubleshooting
-
-### Audio Loading Issues
-
-If you encounter errors like "No audio loading algorithms available" or "Failed to load audio file", it may be due to missing audio codec support in your Essentia build.
-
-#### Solutions:
-
-1. **Check Essentia Initialization**: Make sure Essentia is properly initialized before attempting to load audio files.
-
-   ```typescript
-   const initialized = await essentiaAPI.initialize();
-   console.log('Essentia initialized:', initialized);
-   ```
-
-2. **Verify Audio File Path**: Ensure the audio file path is correct and accessible.
-
-3. **Audio Codec Support**: The default Essentia build might not include all audio codecs. You may need to rebuild Essentia with FFmpeg support:
-
-   ```bash
-   # In your native build process
-   ./waf configure --with-examples --with-python --with-ffmpeg
-   ```
-
-4. **Check Available Algorithms**: You can check which algorithms are available in your Essentia build:
-
-   ```typescript
-   // After initializing Essentia
-   const validation = await essentiaAPI.validateIntegration();
-   console.log('Available algorithms:', validation.algorithmResults);
-   ```
-
-5. **File Format Compatibility**: Try using WAV files instead of compressed formats if you're having issues.
-
-### Android-Specific Issues
-
-If you're experiencing issues on Android:
-
-1. Make sure the necessary codec libraries (libavcodec, libavformat, etc.) are included in your build.
-2. Check the Android logs for specific error messages from the Essentia wrapper.
-3. Ensure your app has proper file read permissions.
 
 ## Acknowledgments
 
