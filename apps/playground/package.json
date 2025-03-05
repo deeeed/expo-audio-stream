@@ -74,6 +74,7 @@
         "metro-react-native-babel-transformer": "^0.77.0",
         "onnxruntime-react-native": "^1.20.1",
         "onnxruntime-web": "^1.20.1",
+        "playgroundapi": "workspace:^",
         "react": "18.3.1",
         "react-dom": "18.3.1",
         "react-native": "0.76.7",
@@ -136,7 +137,7 @@
     "private": true,
     "expo": {
         "autolinking": {
-            "nativeModulesDir": "../../packages/expo-audio-studio/"
+            "nativeModulesDir": "./modules/"
         }
     },
     "packageManager": "yarn@4.2.2"
