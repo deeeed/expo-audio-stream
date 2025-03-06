@@ -361,3 +361,18 @@ export interface AudioFeaturesResult {
   // Allow for additional dynamic properties
   [key: string]: number | string | boolean | number[] | string[] | undefined;
 }
+
+/**
+ * Result from computing a mel spectrogram
+ */
+export interface MelSpectrogramResult {
+  success: boolean;
+  data?: {
+    bands: number[][];
+    sampleRate: number;
+    nMels: number;
+    timeSteps: number;
+    durationMs: number;
+  };
+  error?: { code: string; message: string; details?: string };
+}

@@ -28,6 +28,18 @@ export interface EssentiaInterface {
   setCacheEnabled(enabled: boolean): Promise<boolean>;
   isCacheEnabled(): Promise<boolean>;
   clearCache(): Promise<boolean>;
+
+  // New functionality
+  computeMelSpectrogram(
+    frameSize: number,
+    hopSize: number,
+    nMels: number,
+    fMin: number,
+    fMax: number,
+    windowType: string,
+    normalize: boolean,
+    logScale: boolean
+  ): Promise<MelSpectrogramResult>;
 }
 
 // Define feature configuration interface
@@ -110,5 +122,18 @@ export interface BatchProcessingResults {
 export interface EssentiaResult<T = Record<string, unknown>> {
   success: boolean;
   data?: T;
+  error?: { code: string; message: string; details?: string };
+}
+
+// Add this interface for the mel spectrogram result
+export interface MelSpectrogramResult {
+  success: boolean;
+  data?: {
+    bands: number[][];
+    sampleRate: number;
+    nMels: number;
+    timeSteps: number;
+    durationMs: number;
+  };
   error?: { code: string; message: string; details?: string };
 }

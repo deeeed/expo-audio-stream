@@ -59,6 +59,17 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   private external fun nativeGetAllAlgorithms(handle: Long): String
   private external fun nativeExtractFeatures(handle: Long, featuresJson: String): String
   private external fun getVersion(): String
+  private external fun nativeComputeMelSpectrogram(
+    handle: Long,
+    frameSize: Int,
+    hopSize: Int,
+    nMels: Int,
+    fMin: Float,
+    fMax: Float,
+    windowType: String,
+    normalize: Boolean,
+    logScale: Boolean
+  ): String
 
   /**
    * Helper method to ensure Essentia is initialized
@@ -847,6 +858,72 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       algorithmInfoCache.clear()
       allAlgorithmsCache = null
       Log.d("EssentiaModule", "Algorithm information cache cleared")
+    }
+  }
+
+  /**
+   * Computes a mel spectrogram directly from the loaded audio data
+   * @param frameSize Size of each frame in samples
+   * @param hopSize Hop size between frames in samples
+   * @param nMels Number of mel bands
+   * @param fMin Minimum frequency for mel bands
+   * @param fMax Maximum frequency for mel bands
+   * @param windowType Type of window to apply ("hann", "hamming", etc.)
+   * @param normalize Whether to normalize the mel bands
+   * @param logScale Whether to use log scale for the mel bands
+   * @param promise Promise that resolves to the mel spectrogram result
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun computeMelSpectrogram(
+    frameSize: Int,
+    hopSize: Int,
+    nMels: Int,
+    fMin: Float,
+    fMax: Float,
+    windowType: String,
+    normalize: Boolean,
+    logScale: Boolean,
+    promise: Promise
+  ) {
+    ensureInitialized(promise) {
+      // Validate inputs
+      if (frameSize <= 0 || hopSize <= 0 || nMels <= 0) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Frame size, hop size, and nMels must be positive")
+        return@ensureInitialized
+      }
+
+      if (fMin < 0 || fMax <= fMin) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "fMin must be non-negative and fMax must be greater than fMin")
+        return@ensureInitialized
+      }
+
+      Log.d("EssentiaModule", "Computing mel spectrogram with frame size: $frameSize, hop size: $hopSize, nMels: $nMels")
+
+      // Call the native method
+      val resultJsonString: String
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
+        }
+        resultJsonString = nativeComputeMelSpectrogram(
+          nativeHandle, frameSize, hopSize, nMels, fMin, fMax, windowType, normalize, logScale
+        )
+      }
+
+      Log.d("EssentiaModule", "Mel spectrogram computation result: ${resultJsonString.take(100)}...")
+
+      // Convert the JSON string to a WritableMap
+      val resultMap = convertJsonToWritableMap(resultJsonString)
+
+      // Check if there was an error using our helper
+      if (handleErrorInResultMap(resultMap, promise)) {
+        return@ensureInitialized
+      }
+
+      // Resolve the promise with the properly structured map
+      promise.resolve(resultMap)
     }
   }
 

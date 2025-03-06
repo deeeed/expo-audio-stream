@@ -6,6 +6,7 @@ import type {
   EssentiaInterface,
   EssentiaResult,
   FeatureConfig,
+  MelSpectrogramResult,
 } from './types/core.types';
 import type {
   AttackTimeResult,
@@ -828,6 +829,58 @@ class EssentiaAPI implements EssentiaInterface {
   private clearJSCache(): void {
     this.algorithmInfoCache.clear();
     this.allAlgorithmsCache = null;
+  }
+
+  /**
+   * Computes a mel spectrogram directly from loaded audio data.
+   * This is optimized for efficient computation by processing all frames in C++.
+   *
+   * @param frameSize Size of each frame in samples (should be power of 2 for efficient FFT)
+   * @param hopSize Hop size between frames in samples
+   * @param nMels Number of mel bands
+   * @param fMin Minimum frequency for mel bands
+   * @param fMax Maximum frequency for mel bands
+   * @param windowType Type of window to apply ("hann", "hamming", etc.)
+   * @param normalize Whether to normalize the mel bands
+   * @param logScale Whether to use log scale for the mel bands
+   * @returns A Promise that resolves to the mel spectrogram result
+   */
+  async computeMelSpectrogram(
+    frameSize: number,
+    hopSize: number,
+    nMels: number,
+    fMin: number,
+    fMax: number,
+    windowType: string,
+    normalize: boolean,
+    logScale: boolean
+  ): Promise<MelSpectrogramResult> {
+    try {
+      // Validate inputs
+      if (frameSize <= 0 || hopSize <= 0 || nMels <= 0) {
+        throw new Error('Frame size, hop size, and nMels must be positive');
+      }
+
+      if (fMin < 0 || fMax <= fMin) {
+        throw new Error(
+          'fMin must be non-negative and fMax must be greater than fMin'
+        );
+      }
+
+      return await Essentia.computeMelSpectrogram(
+        frameSize,
+        hopSize,
+        nMels,
+        fMin,
+        fMax,
+        windowType,
+        normalize,
+        logScale
+      );
+    } catch (error) {
+      console.error('Essentia computeMelSpectrogram error:', error);
+      throw error;
+    }
   }
 }
 
