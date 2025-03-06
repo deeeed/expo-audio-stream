@@ -7,6 +7,7 @@ import { AlgorithmExplorer } from '../components/AlgorithmExplorer';
 import AlgorithmSelector from '../components/AlgorithmSelector';
 import { AssetSourceType, SampleAudioFile, useSampleAudio } from '../hooks/useSampleAudio';
 import { sendDummyPCMData } from '../utils/essentiaUtils';
+import { MusicGenreClassifier } from '../components/MusicGenreClassifier';
 
 // Sample audio assets 
 // Use a more compatible type
@@ -720,6 +721,8 @@ function EssentiaScreen() {
             )}
           </Card.Content>
         </Card>
+
+        <MusicGenreClassifier showToast={showToast} />
         <View style={{ height: 100 }} />
 
     </ScreenWrapper>

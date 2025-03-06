@@ -47,6 +47,8 @@ import type {
   TuningFrequencyResult,
   ZeroCrossingRateResult,
 } from './types/results.types';
+import type { MusicGenreFeatures } from './types/piepleine.types';
+import { musicGenreClassificationPipeline } from './pipelines/musicGenreClassification';
 
 // Get the native module
 const Essentia = NativeModules.Essentia
@@ -1594,6 +1596,47 @@ class EssentiaAPI implements EssentiaInterface {
     } catch (error) {
       console.error('Essentia computeSpectrum error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Extract music genre features from the loaded audio using the predefined pipeline
+   * @param customConfig Optional custom pipeline configuration to override the default
+   * @returns A Promise that resolves to music genre features
+   */
+  async extractMusicGenreFeatures(
+    customConfig?: Partial<PipelineConfig>
+  ): Promise<EssentiaResult<MusicGenreFeatures>> {
+    try {
+      // Use the default pipeline configuration, but allow customization if provided
+      const config = customConfig
+        ? { ...musicGenreClassificationPipeline, ...customConfig }
+        : musicGenreClassificationPipeline;
+
+      const result = await this.executePipeline(config);
+
+      if (!result.success || !result.data) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_RESULT',
+            message:
+              result.error?.message ||
+              'Invalid result from music genre classification pipeline',
+          },
+        };
+      }
+
+      return result as EssentiaResult<MusicGenreFeatures>;
+    } catch (error) {
+      console.error('Music genre classification error:', error);
+      return {
+        success: false,
+        error: {
+          code: 'CLASSIFICATION_ERROR',
+          message: error instanceof Error ? error.message : String(error),
+        },
+      };
     }
   }
 }
