@@ -1,12 +1,12 @@
 import { AppTheme, ScreenWrapper, useThemePreferences } from '@siteed/design-system';
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View, ScrollView, ToastAndroid, Platform, Alert } from 'react-native';
+import { Alert, Platform, StyleSheet, ToastAndroid, View } from 'react-native';
 import EssentiaJS, { AlgorithmResult } from 'react-native-essentia';
-import { ActivityIndicator, Button, Card, Text, TouchableRipple, Chip } from 'react-native-paper';
+import { Button, Card, Text, TouchableRipple } from 'react-native-paper';
+import { AlgorithmExplorer } from '../components/AlgorithmExplorer';
+import AlgorithmSelector from '../components/AlgorithmSelector';
 import { AssetSourceType, SampleAudioFile, useSampleAudio } from '../hooks/useSampleAudio';
 import { sendDummyPCMData } from '../utils/essentiaUtils';
-import AlgorithmSelector from '../components/AlgorithmSelector';
-import { AlgorithmExplorer } from '../components/AlgorithmExplorer';
 
 // Sample audio assets 
 // Use a more compatible type
@@ -141,15 +141,6 @@ function EssentiaScreen() {
   const [isExtractingMFCC, setIsExtractingMFCC] = useState<boolean>(false);
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
   const [connectionTestResult, setConnectionTestResult] = useState<string | null>(null);
-
-  const [currentAlgorithm, setCurrentAlgorithm] = useState<string>('');
-  const [algorithmInfo, setAlgorithmInfo] = useState<AlgorithmInfo | null>(null);
-  const [isLoadingAlgoInfo, setIsLoadingAlgoInfo] = useState(false);
-  // No need to update these, so using a fixed array
-  const commonAlgorithms = [
-    'MFCC', 'Spectrum', 'Key', 'Energy', 'Loudness', 'ZeroCrossingRate',
-    'SpectralCentroid', 'SpectralRolloff', 'SpectrumCQ', 'Windowing', 'Onsets'
-  ];
 
   // Toast utility function
   const showToast = (message: string) => {
@@ -398,138 +389,6 @@ function EssentiaScreen() {
     }
   };
 
-  const getAlgorithmInfo = async (algorithmName: string) => {
-    setIsLoadingAlgoInfo(true);
-    try {
-      if (!isInitialized) {
-        showToast('Please initialize Essentia first');
-        return;
-      }
-      
-      console.log(`Fetching info for algorithm: ${algorithmName}`);
-      const result = await EssentiaJS.getAlgorithmInfo(algorithmName);
-      console.log('Algorithm info result:', result);
-      
-      if (result.success && result.data) {
-        setAlgorithmInfo(result.data as AlgorithmInfo);
-        setCurrentAlgorithm(algorithmName);
-      } else {
-        showToast(`Failed to get info for ${algorithmName}`);
-      }
-    } catch (error) {
-      console.error('Error getting algorithm info:', error);
-      showToast(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoadingAlgoInfo(false);
-    }
-  };
-  
-  const executeCurrentAlgorithm = async () => {
-    try {
-      if (!isInitialized) {
-        showToast('Please initialize Essentia first');
-        return;
-      }
-      
-      if (!selectedSample) {
-        showToast('Please select an audio sample first');
-        return;
-      }
-      
-      if (!currentAlgorithm) {
-        showToast('Please select an algorithm first');
-        return;
-      }
-      
-      // Execute with default parameters
-      const result = await EssentiaJS.executeAlgorithm(currentAlgorithm, {});
-      console.log(`${currentAlgorithm} execution result:`, result);
-      
-      if (result.success && result.data) {
-        // Update validation results with our algorithm execution
-        setValidationResult(prevResults => ({
-          ...prevResults,
-          success: true,
-          algorithmResults: {
-            ...prevResults?.algorithmResults,
-            [currentAlgorithm]: { name: currentAlgorithm, data: result.data, success: true }
-          }
-        }));
-        showToast(`Successfully executed ${currentAlgorithm}`);
-      } else {
-        showToast(`Failed to execute ${currentAlgorithm}`);
-      }
-    } catch (error) {
-      console.error(`Error executing ${currentAlgorithm}:`, error);
-      showToast(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  };
-  
-  const renderAlgorithmSelector = () => {
-    return (
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text style={styles.cardTitle}>Algorithm Information</Text>
-          <Text style={styles.cardContent}>
-            Select an algorithm to see its details and execute it
-          </Text>
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipContainer}>
-            {commonAlgorithms.map((algo) => (
-              <Chip
-                key={algo}
-                selected={currentAlgorithm === algo}
-                onPress={() => getAlgorithmInfo(algo)}
-                style={styles.chip}
-                mode="outlined"
-              >
-                {algo}
-              </Chip>
-            ))}
-          </ScrollView>
-          
-          {isLoadingAlgoInfo ? (
-            <ActivityIndicator style={{ marginTop: 16 }} />
-          ) : algorithmInfo ? (
-            <View style={{ marginTop: 16 }}>
-              <Text style={styles.sectionTitle}>Details for {algorithmInfo.name}</Text>
-              
-              <Text style={styles.subtitle}>Inputs:</Text>
-              {algorithmInfo.inputs.map((input, index) => (
-                <Text key={`input-${index}`} style={styles.item}>
-                  • {input.name}: {input.type}
-                </Text>
-              ))}
-              
-              <Text style={styles.subtitle}>Outputs:</Text>
-              {algorithmInfo.outputs.map((output, index) => (
-                <Text key={`output-${index}`} style={styles.item}>
-                  • {output.name}: {output.type}
-                </Text>
-              ))}
-              
-              <Text style={styles.subtitle}>Parameters:</Text>
-              {Object.entries(algorithmInfo.parameters).map(([key, value], index) => (
-                <Text key={`param-${index}`} style={styles.item}>
-                  • {key}: {JSON.stringify(value)}
-                </Text>
-              ))}
-              
-              <Button
-                mode="contained"
-                onPress={executeCurrentAlgorithm}
-                style={{ marginTop: 16 }}
-                disabled={!selectedSample || !isInitialized}
-              >
-                Execute {algorithmInfo.name}
-              </Button>
-            </View>
-          ) : null}
-        </Card.Content>
-      </Card>
-    );
-  };
-
   return (
     <ScreenWrapper contentContainerStyle={styles.container} withScrollView>
 
@@ -648,8 +507,6 @@ function EssentiaScreen() {
             </View>
           </Card.Content>
         </Card>
-
-        {isInitialized && renderAlgorithmSelector()}
 
         {isInitialized && (
           <AlgorithmExplorer

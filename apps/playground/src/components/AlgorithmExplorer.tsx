@@ -1,8 +1,8 @@
 import { AppTheme, useThemePreferences } from '@siteed/design-system';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View, ScrollView, TextInput } from 'react-native';
 import EssentiaJS from 'react-native-essentia';
-import { Button, Card, Text } from 'react-native-paper';
+import { Button, Card, Text, Chip, Divider, HelperText } from 'react-native-paper';
 
 // Define interfaces
 export interface AlgorithmExplorerProps {
@@ -11,12 +11,19 @@ export interface AlgorithmExplorerProps {
   onExecute?: (algorithmName: string, result: unknown) => void;
 }
 
+interface AlgorithmInfo {
+  name: string;
+  inputs: { name: string; type: string }[];
+  outputs: { name: string; type: string }[];
+  parameters: Record<string, Record<string, unknown>>;
+}
+
+interface ParameterValue {
+  [key: string]: string | number | boolean;
+}
+
 const getStyles = ({ theme }: { theme: AppTheme }) => {
   return StyleSheet.create({
-    container: {
-      paddingHorizontal: 16,
-      paddingVertical: 24,
-    },
     card: {
       marginBottom: 16,
     },
@@ -64,12 +71,11 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
     },
     chipContainer: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       marginVertical: 8,
-      maxHeight: 48,
     },
     chip: {
-      marginRight: 8,
-      marginBottom: 8,
+      margin: 4,
     },
     sectionTitle: {
       fontSize: 18,
@@ -98,19 +104,92 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
     algorithmCount: {
       marginTop: 8,
       fontStyle: 'italic',
-    }
+    },
+    parameterContainer: {
+      marginBottom: 12,
+      padding: 8,
+      backgroundColor: theme.colors.surfaceVariant,
+      borderRadius: 4,
+    },
+    parameterInput: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 4,
+      marginTop: 4,
+      paddingHorizontal: 8,
+      height: 40,
+    },
+    searchInput: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 4,
+      marginVertical: 8,
+      paddingHorizontal: 12,
+      height: 40,
+    },
+    resultContainer: {
+      padding: 8,
+      backgroundColor: theme.colors.primaryContainer,
+      borderRadius: 4,
+      marginTop: 12,
+    },
+    categoryTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      marginTop: 16,
+      marginBottom: 4,
+      color: theme.colors.primary,
+    },
   });
 };
 
-export function AlgorithmExplorer({ isInitialized, showToast }: AlgorithmExplorerProps) {
+// Add a safe text rendering utility function at the top of your component
+const safeRenderText = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return 'N/A';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return JSON.stringify(value);
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return String(value);
+};
+
+export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: AlgorithmExplorerProps) {
   const { theme } = useThemePreferences();
   const styles = useMemo(() => getStyles({ theme }), [theme]);
   
   // State for algorithms list
   const [algorithms, setAlgorithms] = useState<string[]>([]);
+  const [filteredAlgorithms, setFilteredAlgorithms] = useState<string[]>([]);
   const [isLoadingAlgorithms, setIsLoadingAlgorithms] = useState(false);
   const [algorithmError, setAlgorithmError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
+  // State for selected algorithm
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<string | null>(null);
+  const [algorithmInfo, setAlgorithmInfo] = useState<AlgorithmInfo | null>(null);
+  const [isLoadingAlgoInfo, setIsLoadingAlgoInfo] = useState(false);
+  
+  // State for parameter values and execution
+  const [parameterValues, setParameterValues] = useState<ParameterValue>({});
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [executionResult, setExecutionResult] = useState<Record<string, unknown> | null>(null);
+  
+  // Popular categories of algorithms for quick access
+  const algorithmCategories = useMemo(() => ({
+    'Audio Analysis': ['MFCC', 'Spectrum', 'SpectralCentroid', 'SpectralContrast', 'SpectralPeaks', 'BarkBands', 'ERBBands', 'MelBands', 'GFCC', 'BFCC'],
+    'Feature Extraction': ['Energy', 'RMS', 'ZeroCrossingRate', 'Loudness', 'Flux', 'Rolloff', 'Decrease', 'Envelope'],
+    'Music Features': ['Key', 'BpmHistogram', 'Rhythm', 'Pitch', 'PitchMelodia', 'Onsets', 'BeatTrackerMultiFeature'],
+    'Signal Processing': ['FFT', 'IFFT', 'DCT', 'IDCT', 'Windowing', 'FrameCutter', 'Magnitude', 'PowerSpectrum', 'CartesianToPolar'],
+    'Audio Effects': ['BandPass', 'HighPass', 'LowPass', 'Clipper', 'DCRemoval', 'EqualLoudness'],
+  }), []);
 
   // Function to load all available algorithms
   const loadAlgorithms = useCallback(async () => {
@@ -126,7 +205,9 @@ export function AlgorithmExplorer({ isInitialized, showToast }: AlgorithmExplore
       const result = await EssentiaJS.getAllAlgorithms();
       
       if (result.success && Array.isArray(result.data)) {
-        setAlgorithms(result.data);
+        const sortedAlgorithms = [...result.data].sort();
+        setAlgorithms(sortedAlgorithms);
+        setFilteredAlgorithms(sortedAlgorithms);
         console.log(`Loaded ${result.data.length} algorithms from Essentia`);
       } else {
         setAlgorithmError('Failed to load algorithms');
@@ -140,7 +221,6 @@ export function AlgorithmExplorer({ isInitialized, showToast }: AlgorithmExplore
     }
   }, [isInitialized, showToast]);
 
-
   // Load algorithms when initialized
   useEffect(() => {
     if (isInitialized) {
@@ -148,6 +228,210 @@ export function AlgorithmExplorer({ isInitialized, showToast }: AlgorithmExplore
     }
   }, [isInitialized, loadAlgorithms]);
   
+  // Filter algorithms based on search query
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredAlgorithms(algorithms);
+    } else {
+      const query = searchQuery.toLowerCase();
+      setFilteredAlgorithms(
+        algorithms.filter(algo => algo.toLowerCase().includes(query))
+      );
+    }
+  }, [searchQuery, algorithms]);
+  
+  // Get info for the selected algorithm
+  const getAlgorithmInfo = useCallback(async (algorithmName: string) => {
+    if (!isInitialized) {
+      showToast('Please initialize Essentia first');
+      return;
+    }
+    
+    setIsLoadingAlgoInfo(true);
+    setSelectedAlgorithm(algorithmName);
+    setParameterValues({});
+    setExecutionResult(null);
+    
+    try {
+      const result = await EssentiaJS.getAlgorithmInfo(algorithmName);
+      
+      if (result.success && result.data) {
+        const info = result.data as AlgorithmInfo;
+        setAlgorithmInfo(info);
+        
+        // Initialize default parameter values
+        const defaultParams: ParameterValue = {};
+        if (info.parameters) {
+          Object.entries(info.parameters).forEach(([key, value]) => {
+            if (value && typeof value === 'object' && 'defaultValue' in value) {
+              const defaultValue = value.defaultValue;
+              if (typeof defaultValue === 'string' || 
+                  typeof defaultValue === 'number' || 
+                  typeof defaultValue === 'boolean') {
+                defaultParams[key] = defaultValue;
+              }
+            }
+          });
+        }
+        
+        setParameterValues(defaultParams);
+      } else {
+        showToast(`Failed to get info for ${algorithmName}`);
+        setAlgorithmInfo(null);
+      }
+    } catch (error) {
+      console.error('Error getting algorithm info:', error);
+      showToast(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      setAlgorithmInfo(null);
+    } finally {
+      setIsLoadingAlgoInfo(false);
+    }
+  }, [isInitialized, showToast]);
+  
+  // Handle parameter value changes
+  const handleParameterChange = (paramName: string, value: string) => {
+    try {
+      let parsedValue: string | number | boolean = value;
+      
+      // Try to parse numbers and booleans
+      if (value.toLowerCase() === 'true') {
+        parsedValue = true;
+      } else if (value.toLowerCase() === 'false') {
+        parsedValue = false;
+      } else if (!isNaN(Number(value)) && value.trim() !== '') {
+        parsedValue = Number(value);
+      } else if (value.startsWith('[') && value.endsWith(']')) {
+        // Keep arrays as strings, they'll be parsed by Essentia
+        parsedValue = value;
+      }
+      
+      setParameterValues(prev => ({
+        ...prev,
+        [paramName]: parsedValue
+      }));
+    } catch (_error) {
+      // If parsing fails, keep as string
+      setParameterValues(prev => ({
+        ...prev,
+        [paramName]: value
+      }));
+    }
+  };
+  
+  // Execute the selected algorithm with the current parameter values
+  const executeAlgorithm = async () => {
+    if (!isInitialized || !selectedAlgorithm) {
+      showToast('Please initialize Essentia and select an algorithm first');
+      return;
+    }
+    
+    setIsExecuting(true);
+    setExecutionResult(null);
+    
+    try {
+      // Ensure audio data is available (using dummy data for this example)
+      const dummyPcmData = new Float32Array(4096);
+      for (let i = 0; i < dummyPcmData.length; i++) {
+        dummyPcmData[i] = Math.sin(i * 0.01);
+      }
+      
+      // Set the audio data
+      await EssentiaJS.setAudioData(dummyPcmData, 44100);
+      
+      // Execute the algorithm
+      const result = await EssentiaJS.executeAlgorithm(selectedAlgorithm, parameterValues);
+      
+      if (result.success && result.data) {
+        setExecutionResult(result.data);
+        showToast(`Successfully executed ${selectedAlgorithm}`);
+        
+        // Call the onExecute callback if provided
+        if (onExecute) {
+          onExecute(selectedAlgorithm, result);
+        }
+      } else {
+        showToast(`Failed to execute ${selectedAlgorithm}`);
+        console.error('Algorithm execution error:', result.error);
+      }
+    } catch (error) {
+      console.error(`Error executing ${selectedAlgorithm}:`, error);
+      showToast(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+  
+  // Render parameter inputs for the selected algorithm
+  const renderParameterInputs = () => {
+    if (!algorithmInfo || !algorithmInfo.parameters) {
+      return <Text>No parameters available for this algorithm</Text>;
+    }
+    
+    return Object.entries(algorithmInfo.parameters).map(([paramName, paramInfo]) => {
+      // First safely extract the description
+      let description = 'No description available';
+      if (paramInfo && typeof paramInfo === 'object') {
+        if ('description' in paramInfo) {
+          description = safeRenderText(paramInfo.description);
+        } else if ('defaultValue' in paramInfo) {
+          description = `Type: ${typeof paramInfo.defaultValue}`;
+        }
+      }
+      
+      // Safely extract default value
+      let defaultValue = 'N/A';
+      if (paramInfo && typeof paramInfo === 'object' && 'defaultValue' in paramInfo) {
+        defaultValue = safeRenderText(paramInfo.defaultValue);
+      }
+      
+      // Safely get parameter value for input
+      const paramValue = paramName in parameterValues 
+        ? safeRenderText(parameterValues[paramName]) 
+        : '';
+      
+      return (
+        <View key={paramName} style={styles.parameterContainer}>
+          <Text style={{ fontWeight: 'bold' }}>{paramName}</Text>
+          <Text style={{ fontSize: 12, marginBottom: 4 }}>{description}</Text>
+          <TextInput
+            style={styles.parameterInput}
+            value={paramValue}
+            onChangeText={(text) => handleParameterChange(paramName, text)}
+            placeholder={`Enter value for ${paramName}`}
+          />
+          <HelperText type="info">
+            Default: {defaultValue}
+          </HelperText>
+        </View>
+      );
+    });
+  };
+  
+  // Render quick access category chips
+  const renderCategories = () => {
+    return Object.entries(algorithmCategories).map(([category, algos]) => (
+      <View key={category}>
+        <Text style={styles.categoryTitle}>{category}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={{ flexDirection: 'row', flexWrap: 'nowrap' }}>
+            {algos.map(algo => algorithms.includes(algo) && (
+              <Chip
+                key={algo}
+                style={styles.chip}
+                selected={selectedAlgorithm === algo}
+                onPress={() => getAlgorithmInfo(algo)}
+                mode="outlined"
+              >
+                {algo}
+              </Chip>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+    ));
+  };
+
+  // Export algorithms to console (keeping existing functionality)
   const handleExportAlgorithmList = async () => {
     if (!isInitialized) {
       showToast('Please initialize Essentia first');
@@ -165,8 +449,7 @@ export function AlgorithmExplorer({ isInitialized, showToast }: AlgorithmExplore
       
       // List all algorithms alphabetically
       console.log('\nAll available algorithms (alphabetical):');
-      const sortedAlgorithms = [...algorithms].sort();
-      console.log(sortedAlgorithms.join(', '));
+      console.log(algorithms.join(', '));
       
       // For better performance, limit the detailed info to first 20 algorithms
       const algoSubset = algorithms.length > 20 ? algorithms.slice(0, 20) : algorithms;
@@ -232,17 +515,38 @@ export function AlgorithmExplorer({ isInitialized, showToast }: AlgorithmExplore
       <Card.Content>
         <Text style={[styles.cardTitle, { fontSize: 20 }]}>Algorithm Explorer</Text>
         
-        {/* Status information - simplified */}
+        {/* Status information */}
         <View style={{ marginBottom: 12 }}>
           <Text>Status: {isInitialized ? 'Ready ✅' : 'Not Initialized ❌'}</Text>
+          {algorithms.length > 0 && (
+            <Text style={styles.algorithmCount}>
+              {algorithms.length} algorithms available
+            </Text>
+          )}
         </View>
         
-        {/* Algorithm count */}
-        {algorithms.length > 0 && (
-          <Text style={styles.algorithmCount}>
-            {algorithms.length} algorithms available
-          </Text>
-        )}
+        {/* Control buttons */}
+        <View style={styles.buttonContainer}>
+          <Button 
+            mode="outlined"
+            onPress={loadAlgorithms}
+            disabled={!isInitialized || isLoadingAlgorithms}
+            icon="refresh"
+            style={styles.button}
+          >
+            Refresh List
+          </Button>
+          
+          <Button 
+            mode="outlined"
+            onPress={handleExportAlgorithmList}
+            disabled={!isInitialized || algorithms.length === 0 || isLoadingAlgorithms}
+            icon="export"
+            style={styles.button}
+          >
+            Export to Console
+          </Button>
+        </View>
         
         {/* Loading state */}
         {isLoadingAlgorithms && (
@@ -257,46 +561,121 @@ export function AlgorithmExplorer({ isInitialized, showToast }: AlgorithmExplore
           <Text style={styles.errorText}>{algorithmError}</Text>
         )}
         
-        {/* Refresh button */}
-        <Button 
-          mode="outlined"
-          onPress={loadAlgorithms}
-          disabled={!isInitialized || isLoadingAlgorithms}
-          icon="refresh"
-          style={{ marginTop: 8, marginBottom: 16 }}
-        >
-          Refresh Algorithm List
-        </Button>
+        {/* Search input */}
+        {!isLoadingAlgorithms && algorithms.length > 0 && (
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search algorithms..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        )}
         
-        {/* Export button */}
-        <View style={{ 
-          backgroundColor: theme.colors.primaryContainer, 
-          padding: 16, 
-          borderRadius: 8,
-          marginBottom: 16
-        }}>
-          <Text style={[styles.cardContent, { fontWeight: 'bold', marginBottom: 8 }]}>
-            Export all algorithms with their parameters:
-          </Text>
-          
-          <Button 
-            mode="contained"
-            onPress={handleExportAlgorithmList}
-            disabled={!isInitialized || algorithms.length === 0 || isLoadingAlgorithms}
-            icon="export"
-            labelStyle={{ fontSize: 16, fontWeight: 'bold' }}
-          >
-            EXPORT ALL ALGORITHMS TO CONSOLE
-          </Button>
-          
-          <Text style={{ marginTop: 8, fontStyle: 'italic', textAlign: 'center' }}>
-            {!isInitialized 
-              ? "Initialize Essentia first to enable export"
-              : algorithms.length === 0
-                ? "Load algorithms first"
-                : "👆 Click to view all algorithms in the console 👆"}
-          </Text>
-        </View>
+        {/* Quick access categories */}
+        {!isLoadingAlgorithms && algorithms.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Quick Access</Text>
+            {renderCategories()}
+          </>
+        )}
+        
+        {/* Algorithm browser */}
+        {!isLoadingAlgorithms && filteredAlgorithms.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Available Algorithms</Text>
+            <View style={styles.chipContainer}>
+              {filteredAlgorithms.map(algo => (
+                <Chip
+                  key={algo}
+                  style={styles.chip}
+                  selected={selectedAlgorithm === algo}
+                  onPress={() => getAlgorithmInfo(algo)}
+                >
+                  {algo}
+                </Chip>
+              ))}
+            </View>
+          </>
+        )}
+        
+        {/* Selected algorithm details */}
+        {selectedAlgorithm && (
+          <View>
+            <Divider style={{ marginVertical: 16 }} />
+            <Text style={styles.sectionTitle}>Algorithm: {selectedAlgorithm}</Text>
+            
+            {isLoadingAlgoInfo ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <Text style={{ marginTop: 8 }}>Loading algorithm info...</Text>
+              </View>
+            ) : algorithmInfo ? (
+              <View>
+                {/* Algorithm inputs */}
+                <Text style={styles.subtitle}>Inputs:</Text>
+                <View>
+                  {algorithmInfo.inputs && algorithmInfo.inputs.length > 0 ? (
+                    algorithmInfo.inputs.map((input, index) => (
+                      <Text key={`input-${index}-${input.name || 'unnamed'}`} style={styles.item}>
+                        {safeRenderText(input.name)} ({safeRenderText(input.type)})
+                      </Text>
+                    ))
+                  ) : (
+                    <Text style={styles.item}>None</Text>
+                  )}
+                </View>
+                
+                {/* Algorithm outputs */}
+                <Text style={styles.subtitle}>Outputs:</Text>
+                <View>
+                  {algorithmInfo.outputs && algorithmInfo.outputs.length > 0 ? (
+                    algorithmInfo.outputs.map((output, index) => (
+                      <Text key={`output-${index}-${output.name || 'unnamed'}`} style={styles.item}>
+                        {safeRenderText(output.name)} ({safeRenderText(output.type)})
+                      </Text>
+                    ))
+                  ) : (
+                    <Text style={styles.item}>None</Text>
+                  )}
+                </View>
+                
+                {/* Algorithm parameters */}
+                <Text style={styles.subtitle}>Parameters:</Text>
+                <View>
+                  {renderParameterInputs()}
+                </View>
+                
+                {/* Execute button */}
+                <Button
+                  mode="contained"
+                  onPress={executeAlgorithm}
+                  loading={isExecuting}
+                  disabled={isExecuting}
+                  icon="play"
+                  style={{ marginTop: 16 }}
+                >
+                  Execute Algorithm
+                </Button>
+                
+                {/* Execution results */}
+                {executionResult && (
+                  <View>
+                    <View style={styles.resultContainer}>
+                      <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Results:</Text>
+                      <ScrollView>
+                        <Text style={styles.resultText}>
+                          {safeRenderText(executionResult)}
+                        </Text>
+                      </ScrollView>
+                    </View>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <Text>Failed to load algorithm information</Text>
+            )}
+          </View>
+        )}
       </Card.Content>
     </Card>
   );
