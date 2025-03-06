@@ -98,6 +98,8 @@ export interface BatchProcessingResults {
     strength?: number;
     chords?: string[];
     hpcp?: number[];
+    chroma?: number[];
+    tonnetz?: number[];
     tuningFrequency?: number;
     tuningCents?: number;
     inharmonicity?: number;
@@ -110,6 +112,7 @@ export interface BatchProcessingResults {
     confidence?: number;
     danceability?: number;
     onsets?: number[];
+    noveltyCurve?: number[];
 
     // Other core features
     energy?: number;

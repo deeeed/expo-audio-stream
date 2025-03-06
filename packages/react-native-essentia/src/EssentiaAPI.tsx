@@ -22,6 +22,7 @@ import type {
   BarkBandsResult,
   BeatsResult,
   ChordsResult,
+  ChromaResult,
   DanceabilityResult,
   DissonanceResult,
   DynamicsResult,
@@ -34,12 +35,15 @@ import type {
   MelBandsResult,
   MelSpectrogramResult,
   MFCCResult,
+  NoveltyCurveResult,
   OnsetsResult,
   PitchResult,
   RhythmFeaturesResult,
   SilenceResult,
+  SpectralContrastResult,
   SpectralFeaturesResult,
   TempoResult,
+  TonnetzResult,
   TuningFrequencyResult,
   ZeroCrossingRateResult,
 } from './types/results.types';
@@ -956,6 +960,113 @@ class EssentiaAPI implements EssentiaInterface {
       console.error('Essentia computeMelSpectrogram error:', error);
       throw error;
     }
+  }
+
+  /**
+   * Extract Chroma features from the loaded audio
+   * Chroma features represent the energy distribution across pitch classes (e.g., C, C#, D),
+   * making them critical for chord recognition, key detection, and music genre classification.
+   *
+   * @param params - Optional parameters for the Chroma algorithm
+   * @returns Promise resolving to chroma features or error
+   */
+  async extractChroma(
+    params: AlgorithmParams = {}
+  ): Promise<ChromaResult | EssentiaResult<any>> {
+    if (!this.isCacheEnabledValue) {
+      await this.clearCache();
+    }
+
+    const result = await this.extractFeatures([{ name: 'Chroma', params }]);
+
+    if (result.success && result.data?.chroma) {
+      return {
+        chroma: result.data.chroma as number[],
+      } as ChromaResult;
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract Spectral Contrast features from the loaded audio
+   * Spectral Contrast measures the difference between peaks and valleys in the spectrum,
+   * useful for distinguishing harmonic vs. non-harmonic content.
+   *
+   * @param params - Optional parameters for the Spectral Contrast algorithm
+   * @returns Promise resolving to spectral contrast features or error
+   */
+  async extractSpectralContrast(
+    params: AlgorithmParams = {}
+  ): Promise<SpectralContrastResult | EssentiaResult<any>> {
+    if (!this.isCacheEnabledValue) {
+      await this.clearCache();
+    }
+
+    const result = await this.extractFeatures([
+      { name: 'SpectralContrast', params },
+    ]);
+
+    if (result.success && result.data?.spectralContrast) {
+      return {
+        spectralContrast: result.data.spectralContrast as number[],
+      } as SpectralContrastResult;
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract Tonnetz features from the loaded audio
+   * Tonnetz represents tonal centroids derived from the Harmonic Pitch Class Profile (HPCP),
+   * useful for harmonic analysis and music similarity tasks.
+   *
+   * @param params - Optional parameters for the Tonnetz algorithm
+   * @returns Promise resolving to tonnetz features or error
+   */
+  async extractTonnetz(
+    params: AlgorithmParams = {}
+  ): Promise<TonnetzResult | EssentiaResult<any>> {
+    if (!this.isCacheEnabledValue) {
+      await this.clearCache();
+    }
+
+    const result = await this.extractFeatures([{ name: 'Tonnetz', params }]);
+
+    if (result.success && result.data?.tonnetz) {
+      return {
+        tonnetz: result.data.tonnetz as number[],
+      } as TonnetzResult;
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract Novelty Curve from the loaded audio
+   * Novelty Curves are useful for audio segmentation and onset detection in classification tasks.
+   *
+   * @param params - Optional parameters for the NoveltyCurve algorithm
+   * @returns Promise resolving to novelty curve features or error
+   */
+  async extractNoveltyCurve(
+    params: AlgorithmParams = {}
+  ): Promise<NoveltyCurveResult | EssentiaResult<any>> {
+    if (!this.isCacheEnabledValue) {
+      await this.clearCache();
+    }
+
+    const result = await this.extractFeatures([
+      { name: 'NoveltyCurve', params },
+    ]);
+
+    if (result.success && result.data?.noveltyCurve) {
+      return {
+        noveltyCurve: result.data.noveltyCurve as number[],
+      } as NoveltyCurveResult;
+    }
+
+    return result;
   }
 }
 

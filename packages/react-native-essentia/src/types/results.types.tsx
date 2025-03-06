@@ -376,3 +376,31 @@ export interface MelSpectrogramResult {
   };
   error?: { code: string; message: string; details?: string };
 }
+
+/**
+ * Result type for Chroma feature extraction
+ */
+export interface ChromaResult {
+  chroma: number[];
+}
+
+/**
+ * Result type for Spectral Contrast feature extraction
+ */
+export interface SpectralContrastResult {
+  spectralContrast: number[];
+}
+
+/**
+ * Result type for Tonnetz feature extraction
+ */
+export interface TonnetzResult {
+  tonnetz: number[];
+}
+
+/**
+ * Result type for Novelty Curve feature extraction
+ */
+export interface NoveltyCurveResult {
+  noveltyCurve: number[];
+}
