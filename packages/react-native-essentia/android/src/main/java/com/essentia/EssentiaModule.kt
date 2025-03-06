@@ -299,6 +299,30 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   }
 
   /**
+   * Update this helper method to handle the new error structure with details
+   */
+  private fun handleErrorInResultMap(resultMap: WritableMap, promise: Promise): Boolean {
+    if (resultMap.hasKey("error")) {
+      val errorMap = resultMap.getMap("error")
+      if (errorMap != null) {
+        val code = errorMap.getString("code") ?: "UNKNOWN_ERROR"
+        val message = errorMap.getString("message") ?: "Unknown error occurred"
+        val details = errorMap.getString("details") ?: ""
+
+        if (details.isNotEmpty()) {
+          // If we have details, include them as the cause Exception
+          promise.reject(code, message, Exception(details))
+        } else {
+          // Otherwise, just use code and message
+          promise.reject(code, message)
+        }
+        return true // Indicates an error was found and handled
+      }
+    }
+    return false // No error found
+  }
+
+  /**
    * Executes a specified Essentia algorithm on the set audio data, using provided parameters.
    * @param algorithm Name of the Essentia algorithm (e.g., "MFCC", "Spectrum", "Key")
    * @param params An object containing key-value pairs for algorithm configuration
@@ -332,16 +356,9 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       // Convert the JSON string to a WritableMap
       val resultMap = convertJsonToWritableMap(resultJsonString)
 
-      // Check if there was an error
-      if (resultMap.hasKey("error")) {
-        val errorMap = resultMap.getMap("error")
-        if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-          promise.reject(
-            errorMap.getString("code") ?: "UNKNOWN_ERROR",
-            errorMap.getString("message") ?: "Unknown error occurred"
-          )
-          return@ensureInitialized
-        }
+      // Check if there was an error using our new helper
+      if (handleErrorInResultMap(resultMap, promise)) {
+        return@ensureInitialized
       }
 
       // Always resolves with a non-null value, so no need to check result
@@ -404,16 +421,9 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       // Convert the JSON string to a WritableMap
       val resultMap = convertJsonToWritableMap(resultJsonString)
 
-      // Check if there was an error
-      if (resultMap.hasKey("error")) {
-        val errorMap = resultMap.getMap("error")
-        if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-          promise.reject(
-            errorMap.getString("code") ?: "UNKNOWN_ERROR",
-            errorMap.getString("message") ?: "Unknown error occurred"
-          )
-          return@ensureInitialized
-        }
+      // Check if there was an error using our new helper
+      if (handleErrorInResultMap(resultMap, promise)) {
+        return@ensureInitialized
       }
 
       // Resolve the promise with the properly structured map
@@ -444,16 +454,9 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       // Convert the JSON string to a WritableMap
       val resultMap = convertJsonToWritableMap(resultJsonString)
 
-      // Check if there was an error
-      if (resultMap.hasKey("error")) {
-        val errorMap = resultMap.getMap("error")
-        if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-          promise.reject(
-            errorMap.getString("code") ?: "UNKNOWN_ERROR",
-            errorMap.getString("message") ?: "Unknown error occurred"
-          )
-          return@ensureInitialized
-        }
+      // Check if there was an error using our new helper
+      if (handleErrorInResultMap(resultMap, promise)) {
+        return@ensureInitialized
       }
 
       // Resolve the promise with the properly structured map
@@ -513,16 +516,9 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       // Convert the JSON string to a WritableMap
       val resultMap = convertJsonToWritableMap(resultJsonString)
 
-      // Check if there was an error
-      if (resultMap.hasKey("error")) {
-        val errorMap = resultMap.getMap("error")
-        if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-          promise.reject(
-            errorMap.getString("code") ?: "UNKNOWN_ERROR",
-            errorMap.getString("message") ?: "Unknown error occurred"
-          )
-          return@ensureInitialized
-        }
+      // Check if there was an error using our new helper
+      if (handleErrorInResultMap(resultMap, promise)) {
+        return@ensureInitialized
       }
 
       // Resolve the promise with the properly structured map
@@ -679,16 +675,9 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       // Convert the JSON string to a WritableMap
       val resultMap = convertJsonToWritableMap(resultJsonString)
 
-      // Check if there was an error
-      if (resultMap.hasKey("error")) {
-        val errorMap = resultMap.getMap("error")
-        if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-          promise.reject(
-            errorMap.getString("code") ?: "UNKNOWN_ERROR",
-            errorMap.getString("message") ?: "Unknown error occurred"
-          )
-          return@ensureInitialized
-        }
+      // Check if there was an error using our new helper
+      if (handleErrorInResultMap(resultMap, promise)) {
+        return@ensureInitialized
       }
 
       // Resolve the promise with the properly structured map

@@ -145,9 +145,9 @@ essentia::ParameterMap convertToParameterMap(const std::map<std::string, essenti
     return parameterMap;
 }
 
-// Improved error response with code and message
-std::string createErrorResponse(const std::string& errorMessage, const std::string& errorCode = "UNKNOWN_ERROR") {
-    return "{\"success\":false,\"error\":{\"code\":\"" + errorCode + "\",\"message\":\"" + errorMessage + "\"}}";
+// Improved error response with code, message, and details
+std::string createErrorResponse(const std::string& errorMessage, const std::string& errorCode = "UNKNOWN_ERROR", const std::string& details = "") {
+    return "{\"success\":false,\"error\":{\"code\":\"" + errorCode + "\",\"message\":\"" + errorMessage + "\",\"details\":\"" + details + "\"}}";
 }
 
 // EssentiaWrapper class to encapsulate state
