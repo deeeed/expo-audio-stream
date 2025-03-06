@@ -1166,7 +1166,29 @@ public:
         {"Energy", "energy"},
         {"RMS", "rms"},
         {"Windowing", "frame"},
-        {"ZeroCrossingRate", "zeroCrossingRate"}  // Add this line to use the correct output name
+        {"ZeroCrossingRate", "zeroCrossingRate"},
+        {"PitchYinFFT", "pitch"},
+        {"RollOff", "rollOff"},
+        {"BarkBands", "bands"},
+        {"BeatTrackerDegara", "ticks"},
+        {"BeatTrackerMultiFeature", "ticks"},
+        {"BeatsLoudness", "loudness"},
+        {"BinaryOperator", "array"},
+        {"BpmHistogram", "bpm"},
+        {"CentralMoments", "centralMoments"},
+        {"ChordsDetection", "chords"},
+        {"DCT", "dct"},
+        {"Envelope", "envelope"},
+        {"ERBBands", "bands"},
+        {"Flux", "flux"},
+        {"FrameCutter", "frame"},
+        {"FrequencyBands", "bands"},
+        {"GFCC", "gfcc"},
+        {"HFC", "hfc"},
+        {"HPCP", "hpcp"},
+        {"PitchYin", "pitch"},
+        {"PowerSpectrum", "spectrum"},
+        {"SpectralPeaks", "frequencies"}
     };
 
     /**
@@ -1546,6 +1568,33 @@ public:
                             algo->input(inputPortName).set(input);
                         }
 
+                        // Special handling for PitchYinFFT algorithm which has two outputs that must be bound
+                        if (featureName == "PitchYinFFT") {
+                            // Declare variables for both outputs
+                            essentia::Real pitchOutput;
+                            essentia::Real confidenceOutput;
+
+                            // Bind both outputs
+                            algo->output("pitch").set(pitchOutput);
+                            algo->output("pitchConfidence").set(confidenceOutput);
+
+                            // Compute algorithm
+                            algo->compute();
+
+                            // Store both outputs in the collectors
+                            if (featureCollectors.find(featureName) == featureCollectors.end()) {
+                                featureCollectors[featureName] = std::vector<std::vector<essentia::Real>>();
+                            }
+                            // Store pitch and confidence as a vector for each frame
+                            featureCollectors[featureName].push_back({pitchOutput, confidenceOutput});
+
+                            LOGI("Added feature '%s' output (pitch: %f, confidence: %f) to collectors",
+                                 featureName.c_str(), pitchOutput, confidenceOutput);
+
+                            // Skip the standard output processing
+                            continue;
+                        }
+
                         // Determine the output type
                         const essentia::standard::OutputBase& outputBase = algo->output(outputName);
                         std::string outputType = outputBase.typeInfo().name();
@@ -1591,12 +1640,12 @@ public:
                                 algo->output("spectralValley").set(valleyOutput);
 
                                 // Compute algorithm
-                            algo->compute();
+                                algo->compute();
 
                                 // Store both outputs in the collectors
-                            if (featureCollectors.find(featureName) == featureCollectors.end()) {
-                                featureCollectors[featureName] = std::vector<std::vector<essentia::Real>>();
-                            }
+                                if (featureCollectors.find(featureName) == featureCollectors.end()) {
+                                    featureCollectors[featureName] = std::vector<std::vector<essentia::Real>>();
+                                }
                                 featureCollectors[featureName].push_back(contrastOutput);
 
                                 // Also store the valley output with a different key
@@ -1607,8 +1656,8 @@ public:
 
                                 LOGI("Added feature '%s' output (size: %zu) and valley (size: %zu) to collectors",
                                      featureName.c_str(), contrastOutput.size(), valleyOutput.size());
-            }
-            else {
+                            }
+                            else {
                                 // Standard vector output
                                 std::vector<essentia::Real> vectorOutput;
                                 algo->output(outputName).set(vectorOutput);

@@ -1,6 +1,8 @@
 // packages/react-native-essentia/src/EssentiaAPI.ts
 import { NativeModules } from 'react-native';
 import { LINKING_ERROR } from './constants';
+import { musicGenreClassificationPipeline } from './pipelines/musicGenreClassification';
+import { speechEmotionRecognitionPipeline } from './pipelines/speechEmotionRecognition';
 import type {
   AlgorithmParams,
   EssentiaInterface,
@@ -17,6 +19,10 @@ import type {
   PitchParams,
   SilenceRateParams,
 } from './types/params.types';
+import type {
+  MusicGenreFeatures,
+  SpeechEmotionFeatures,
+} from './types/piepleine.types';
 import type {
   AttackTimeResult,
   BarkBandsResult,
@@ -47,8 +53,6 @@ import type {
   TuningFrequencyResult,
   ZeroCrossingRateResult,
 } from './types/results.types';
-import type { MusicGenreFeatures } from './types/piepleine.types';
-import { musicGenreClassificationPipeline } from './pipelines/musicGenreClassification';
 
 // Get the native module
 const Essentia = NativeModules.Essentia
@@ -497,6 +501,37 @@ class EssentiaAPI implements EssentiaInterface {
           code: 'INVALID_PARAMETERS',
           message: `Pipeline has invalid postProcess (must be an object)`,
         };
+      }
+
+      // Check if all algorithms exist in Essentia registry
+      const algorithmsResponse = await this.getAllAlgorithms();
+      if (!algorithmsResponse.success) {
+        throw {
+          code: 'ALGORITHM_LIST_ERROR',
+          message: 'Failed to retrieve the list of available algorithms',
+        };
+      }
+
+      const allAlgorithms = algorithmsResponse.data;
+
+      // Check preprocessing algorithms
+      for (const step of config.preprocess) {
+        if (!allAlgorithms.includes(step.name)) {
+          throw {
+            code: 'INVALID_ALGORITHM',
+            message: `Preprocessing algorithm '${step.name}' not found in Essentia registry`,
+          };
+        }
+      }
+
+      // Check feature algorithms
+      for (const feature of config.features) {
+        if (!allAlgorithms.includes(feature.name)) {
+          throw {
+            code: 'INVALID_ALGORITHM',
+            message: `Algorithm '${feature.name}' not found in Essentia registry`,
+          };
+        }
       }
 
       const pipelineJson = JSON.stringify(config);
@@ -1630,6 +1665,47 @@ class EssentiaAPI implements EssentiaInterface {
       return result as EssentiaResult<MusicGenreFeatures>;
     } catch (error) {
       console.error('Music genre classification error:', error);
+      return {
+        success: false,
+        error: {
+          code: 'CLASSIFICATION_ERROR',
+          message: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  }
+
+  /**
+   * Extract speech emotion features from the loaded audio using the predefined pipeline
+   * @param customConfig Optional custom pipeline configuration to override the default
+   * @returns A Promise that resolves to speech emotion features
+   */
+  async extractSpeechEmotionFeatures(
+    customConfig?: Partial<PipelineConfig>
+  ): Promise<EssentiaResult<SpeechEmotionFeatures>> {
+    try {
+      // Use the default pipeline configuration, but allow customization if provided
+      const config = customConfig
+        ? { ...speechEmotionRecognitionPipeline, ...customConfig }
+        : speechEmotionRecognitionPipeline;
+
+      const result = await this.executePipeline(config);
+
+      if (!result.success || !result.data) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_RESULT',
+            message:
+              result.error?.message ||
+              'Invalid result from speech emotion classification pipeline',
+          },
+        };
+      }
+
+      return result as EssentiaResult<SpeechEmotionFeatures>;
+    } catch (error) {
+      console.error('Speech emotion classification error:', error);
       return {
         success: false,
         error: {

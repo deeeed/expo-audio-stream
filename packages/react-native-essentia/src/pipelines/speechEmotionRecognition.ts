@@ -20,7 +20,7 @@ export const speechEmotionRecognitionPipeline: PipelineConfig = {
       postProcess: { mean: true },
     },
     {
-      name: 'SpectralRolloff',
+      name: 'RollOff', // Changed from 'SpectralRolloff'
       input: 'Spectrum',
       params: {},
       postProcess: { mean: true },

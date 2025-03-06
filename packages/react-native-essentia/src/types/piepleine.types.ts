@@ -4,3 +4,10 @@ export interface MusicGenreFeatures {
   SpectralCentroid: { mean: number };
   concatenatedFeatures: number[];
 }
+
+export interface SpeechEmotionFeatures {
+  MFCC: { mean: number[]; variance: number[] };
+  PitchYinFFT: { mean: [number, number] }; // [pitch_mean, confidence_mean]
+  RollOff: { mean: number };
+  concatenatedFeatures: number[];
+}
