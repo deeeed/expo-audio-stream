@@ -20,7 +20,7 @@ export interface UseSampleAudioOptions {
 }
 
 // Use the parameter type from Asset.fromModule directly
-type AssetSourceType = Parameters<typeof Asset.fromModule>[0]
+export type AssetSourceType = Parameters<typeof Asset.fromModule>[0]
 
 export function useSampleAudio(options?: UseSampleAudioOptions) {
   const [isLoading, setIsLoading] = useState(false)
@@ -61,6 +61,12 @@ export function useSampleAudio(options?: UseSampleAudioOptions) {
         })
         fileUri = destinationUri
         logger.debug('Copied sample audio to cache directory', { from: asset.localUri, to: fileUri })
+        
+        // For Essentia, remove the 'file://' prefix if it exists
+        if (fileUri.startsWith('file://')) {
+          fileUri = fileUri.substring(7) // Remove 'file://' prefix
+          logger.debug('Adjusted file path for Essentia', { path: fileUri })
+        }
       }
       
       // Get audio metadata using Expo AV
