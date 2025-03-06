@@ -1,4 +1,3 @@
-import { AppTheme, ScreenWrapper, useThemePreferences } from '@siteed/design-system';
 import React, { useMemo, useState, useEffect } from 'react';
 import { Alert, Platform, StyleSheet, ToastAndroid, View } from 'react-native';
 import EssentiaJS, { AlgorithmResult, EssentiaEvents, ProgressUpdate, BatchProcessingResults } from 'react-native-essentia';
@@ -7,6 +6,7 @@ import { AlgorithmExplorer } from '../components/AlgorithmExplorer';
 import AlgorithmSelector from '../components/AlgorithmSelector';
 import { AssetSourceType, SampleAudioFile, useSampleAudio } from '../hooks/useSampleAudio';
 import { sendDummyPCMData } from '../utils/essentiaUtils';
+import { AppTheme, ScreenWrapper, useThemePreferences } from '@siteed/design-system';
 
 // Sample audio assets 
 // Use a more compatible type
@@ -133,14 +133,16 @@ function EssentiaScreen() {
       'EssentiaProgress',
       (event: ProgressUpdate) => {
         setProgressValue(event.progress);
-        console.log(`Progress update: ${Math.round(event.progress * 100)}%`);
+        console.log(`Progress event received: ${Math.round(event.progress * 100)}%`);
       }
     );
     
     const setupListener = async () => {
       try {
+        console.log('Setting up progress listener...');
         await EssentiaJS.addProgressListener();
         setIsListeningToProgress(true);
+        console.log('Progress listener successfully registered');
       } catch (error) {
         console.error('Failed to set up progress listener:', error);
       }
@@ -149,6 +151,7 @@ function EssentiaScreen() {
     setupListener();
     
     return () => {
+      console.log('Cleaning up progress event listener');
       subscription.remove();
     };
   }, []);
@@ -436,6 +439,8 @@ function EssentiaScreen() {
     setBatchProcessingResults(null);
     setProgressValue(0);
     
+    console.log('Starting batch processing with progress tracking...');
+    
     try {
       // Create dummy PCM data
       const dummyPcmData = new Float32Array(4096);
@@ -447,6 +452,7 @@ function EssentiaScreen() {
       await EssentiaJS.setAudioData(dummyPcmData, 44100);
       
       // Execute multiple algorithms in batch
+      console.log('Executing batch algorithms...');
       const result = await EssentiaJS.executeBatch([
         { 
           name: 'MFCC', 
@@ -473,6 +479,7 @@ function EssentiaScreen() {
         }
       ]);
       
+      console.log('Batch processing completed successfully');
       console.log('Batch processing result:', result);
       setBatchProcessingResults(result.data);
       
@@ -578,26 +585,53 @@ function EssentiaScreen() {
 
   const testProgressUpdates = async () => {
     try {
-      // Register for progress updates
-      await EssentiaJS.addProgressListener();
-      setIsListeningToProgress(true);
+      console.log('===== TESTING PROGRESS UPDATES =====');
       
-      // Create dummy PCM data
-      const dummyPcmData = new Float32Array(4096);
-      for (let i = 0; i < dummyPcmData.length; i++) {
-        dummyPcmData[i] = Math.sin(i * 0.01) + Math.sin(i * 0.05);
+      // Only register if not already listening
+      if (!isListeningToProgress) {
+        console.log('Registering progress listener...');
+        await EssentiaJS.addProgressListener();
+        setIsListeningToProgress(true);
+        console.log('Progress listener registered');
+      } else {
+        console.log('Progress listener already registered');
       }
       
-      // Set audio data
+      // Create a much larger PCM data array to ensure processing takes longer
+      console.log('Creating large PCM dataset to generate more progress events...');
+      const dummyPcmData = new Float32Array(32768); // Larger dataset
+      for (let i = 0; i < dummyPcmData.length; i++) {
+        // More complex waveform with multiple harmonics
+        dummyPcmData[i] = Math.sin(i * 0.01) + 
+                         Math.sin(i * 0.05) + 
+                         Math.sin(i * 0.1) * 0.5 + 
+                         Math.sin(i * 0.2) * 0.25;
+      }
+      
+      console.log(`PCM data created with ${dummyPcmData.length} samples`);
+      console.log('Setting audio data...');
       await EssentiaJS.setAudioData(dummyPcmData, 44100);
       
-      // Execute batch processing - this should trigger progress events
+      // Execute a more complex batch with more algorithms to create more processing steps
+      console.log('Executing intensive batch algorithms...');
       setIsBatchProcessing(true);
+      setProgressValue(0);
+      
       const result = await EssentiaJS.executeBatch([
-        { name: 'MFCC', params: { numberCoefficients: 13 } },
-        { name: 'Spectrum', params: {} }
+        { name: 'MFCC', params: { numberCoefficients: 40, numberBands: 256 } },
+        { name: 'Spectrum', params: {} },
+        { name: 'Key', params: {} },
+        { name: 'MelBands', params: { numberBands: 512 } },
+        { name: 'Loudness', params: {} },
+        { name: 'SpectralContrast', params: {} },
+        { name: 'BarkBands', params: {} },
+        { name: 'SpectralPeaks', params: {} },
+        { name: 'Dissonance', params: {} },
+        { name: 'Inharmonicity', params: {} }
       ]);
       
+      console.log('Progress test completed successfully');
+      console.log('Result keys:', Object.keys(result.data));
       setBatchProcessingResults(result.data);
       showToast('Progress updates test completed');
     } catch (error) {
@@ -876,6 +910,37 @@ function EssentiaScreen() {
                 style={styles.button}
               >
                 Test Progress Updates
+              </Button>
+            </View>
+          </Card.Content>
+        </Card>
+
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text style={styles.cardTitle}>Progress Event Debugging</Text>
+            <View style={{ marginVertical: 12 }}>
+              <Text>Progress Listener Status: {isListeningToProgress ? '✅ Connected' : '❌ Not Connected'}</Text>
+              <Text>Current Progress Value: {Math.round(progressValue * 100)}%</Text>
+              <ProgressBar 
+                progress={progressValue} 
+                color={theme.colors.primary} 
+                style={{ marginTop: 8, height: 6 }} 
+              />
+            </View>
+            <View style={styles.buttonContainer}>
+              <Button
+                mode="outlined"
+                onPress={() => {
+                  console.log('Current progress state:', {
+                    isListeningToProgress,
+                    progressValue,
+                    progressPercent: Math.round(progressValue * 100)
+                  });
+                  showToast(`Progress state logged to console`);
+                }}
+                style={styles.button}
+              >
+                Log Progress State
               </Button>
             </View>
           </Card.Content>
