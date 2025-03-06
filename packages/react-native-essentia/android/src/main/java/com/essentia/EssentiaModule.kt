@@ -57,6 +57,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    * Initializes the Essentia library, preparing it for use.
    * @param promise Promise that resolves to a boolean indicating success or failure
    */
+  @Suppress("unused")
   @ReactMethod
   fun initialize(promise: Promise) {
     try {
@@ -111,6 +112,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    * @param sampleRate Sampling rate in Hz (e.g., 44100)
    * @param promise Promise that resolves to a boolean indicating success or failure
    */
+  @Suppress("unused")
   @ReactMethod
   fun setAudioData(pcmArray: ReadableArray, sampleRate: Double, promise: Promise) {
     synchronized(lock) {
@@ -148,7 +150,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
         try {
           while (i < arraySize) {
-            val end = Math.min(i + chunkSize, arraySize)
+            val end = kotlin.math.min(i + chunkSize, arraySize)
             Log.d("EssentiaModule", "Processing chunk $i to $end (size: ${end - i})")
 
             for (j in i until end) {
@@ -179,10 +181,13 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
           result = nativeSetAudioData(nativeHandle, pcmFloatArray, sampleRate)
         }
 
-        if (result) {
+        when (result) {
+          true -> {
           Log.d("EssentiaModule", "Successfully set PCM audio data in native layer")
-        } else {
+          }
+          false -> {
           Log.e("EssentiaModule", "Failed to set PCM audio data in native layer")
+          }
         }
         promise.resolve(result)
       }
@@ -217,9 +222,8 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
     while (keys.hasNext()) {
       val key = keys.next()
-      val value = jsonObject.get(key)
 
-      when (value) {
+      when (val value = jsonObject.get(key)) {
         is JSONObject -> map.putMap(key, convertJsonObjectToWritableMap(value))
         is JSONArray -> map.putArray(key, convertJsonArrayToWritableArray(value))
         is Boolean -> map.putBoolean(key, value)
@@ -241,9 +245,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     val array = Arguments.createArray()
 
     for (i in 0 until jsonArray.length()) {
-      val value = jsonArray.get(i)
-
-      when (value) {
+      when (val value = jsonArray.get(i)) {
         is JSONObject -> array.pushMap(convertJsonObjectToWritableMap(value))
         is JSONArray -> array.pushArray(convertJsonArrayToWritableArray(value))
         is Boolean -> array.pushBoolean(value)
@@ -264,6 +266,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    * @param params An object containing key-value pairs for algorithm configuration
    * @param promise Promise that resolves to an object containing the algorithm's output
    */
+  @Suppress("unused")
   @ReactMethod
   fun executeAlgorithm(algorithm: String, params: ReadableMap, promise: Promise) {
     synchronized(lock) {
@@ -300,23 +303,18 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         val resultMap = convertJsonToWritableMap(resultJsonString)
 
         // Check if there was an error
-        if (resultMap.hasKey("success") && !resultMap.getBoolean("success")) {
-          if (resultMap.hasKey("error")) {
-            val errorMap = resultMap.getMap("error")
-            if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-              promise.reject(
-                errorMap.getString("code") ?: "UNKNOWN_ERROR",
-                errorMap.getString("message") ?: "Unknown error occurred"
-              )
-              return@execute
-            }
+        if (resultMap.hasKey("error")) {
+          val errorMap = resultMap.getMap("error")
+          if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
+            promise.reject(
+              errorMap.getString("code") ?: "UNKNOWN_ERROR",
+              errorMap.getString("message") ?: "Unknown error occurred"
+            )
+            return@execute
           }
-          // Fallback if error structure is not as expected
-          promise.reject("ESSENTIA_ALGORITHM_ERROR", "Algorithm execution failed")
-          return@execute
         }
 
-        // Resolve the promise with the properly structured map
+        // Always resolves with a non-null value, so no need to check result
         promise.resolve(resultMap)
       }
     } catch (e: Exception) {
@@ -329,6 +327,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    * Simple test method to verify JNI connection is working
    * @param promise Promise that resolves to a string message
    */
+  @Suppress("unused")
   @ReactMethod
   fun testConnection(promise: Promise) {
     try {
@@ -354,6 +353,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    * @param algorithm Name of the Essentia algorithm to get information about
    * @param promise Promise that resolves to an object containing algorithm information
    */
+  @Suppress("unused")
   @ReactMethod
   fun getAlgorithmInfo(algorithm: String, promise: Promise) {
     synchronized(lock) {
@@ -387,20 +387,15 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         val resultMap = convertJsonToWritableMap(resultJsonString)
 
         // Check if there was an error
-        if (resultMap.hasKey("success") && !resultMap.getBoolean("success")) {
-          if (resultMap.hasKey("error")) {
-            val errorMap = resultMap.getMap("error")
-            if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-              promise.reject(
-                errorMap.getString("code") ?: "UNKNOWN_ERROR",
-                errorMap.getString("message") ?: "Unknown error occurred"
-              )
-              return@execute
-            }
+        if (resultMap.hasKey("error")) {
+          val errorMap = resultMap.getMap("error")
+          if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
+            promise.reject(
+              errorMap.getString("code") ?: "UNKNOWN_ERROR",
+              errorMap.getString("message") ?: "Unknown error occurred"
+            )
+            return@execute
           }
-          // Fallback if error structure is not as expected
-          promise.reject("ESSENTIA_ALGORITHM_ERROR", "Algorithm info request failed")
-          return@execute
         }
 
         // Resolve the promise with the properly structured map
@@ -416,6 +411,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    * Gets a list of all available Essentia algorithms.
    * @param promise Promise that resolves to an array of algorithm names
    */
+  @Suppress("unused")
   @ReactMethod
   fun getAllAlgorithms(promise: Promise) {
     synchronized(lock) {
@@ -443,20 +439,15 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         val resultMap = convertJsonToWritableMap(resultJsonString)
 
         // Check if there was an error
-        if (resultMap.hasKey("success") && !resultMap.getBoolean("success")) {
-          if (resultMap.hasKey("error")) {
-            val errorMap = resultMap.getMap("error")
-            if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-              promise.reject(
-                errorMap.getString("code") ?: "UNKNOWN_ERROR",
-                errorMap.getString("message") ?: "Unknown error occurred"
-              )
-              return@execute
-            }
+        if (resultMap.hasKey("error")) {
+          val errorMap = resultMap.getMap("error")
+          if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
+            promise.reject(
+              errorMap.getString("code") ?: "UNKNOWN_ERROR",
+              errorMap.getString("message") ?: "Unknown error occurred"
+            )
+            return@execute
           }
-          // Fallback if error structure is not as expected
-          promise.reject("ESSENTIA_ALGORITHM_ERROR", "Algorithm list request failed")
-          return@execute
         }
 
         // Resolve the promise with the properly structured map
@@ -473,6 +464,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    * @param featureList Array of feature configurations, each with a name and optional parameters
    * @param promise Promise that resolves to an object containing all extracted features
    */
+  @Suppress("unused")
   @ReactMethod
   fun extractFeatures(featureList: ReadableArray, promise: Promise) {
     synchronized(lock) {
@@ -492,8 +484,12 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
         // Validate each feature has required parameters
         for (i in 0 until featureList.size()) {
-          val feature = featureList.getMap(i)
-          if (feature == null || !feature.hasKey("name") || feature.getString("name").isNullOrEmpty()) {
+          val feature = featureList.getMap(i) ?: run {
+            promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i is missing")
+            return@execute
+          }
+
+          if (!feature.hasKey("name") || feature.getString("name").isNullOrEmpty()) {
             promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i is missing a valid name")
             return@execute
           }
@@ -524,20 +520,15 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         val resultMap = convertJsonToWritableMap(resultJsonString)
 
         // Check if there was an error
-        if (resultMap.hasKey("success") && !resultMap.getBoolean("success")) {
-          if (resultMap.hasKey("error")) {
-            val errorMap = resultMap.getMap("error")
-            if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-              promise.reject(
-                errorMap.getString("code") ?: "UNKNOWN_ERROR",
-                errorMap.getString("message") ?: "Unknown error occurred"
-              )
-              return@execute
-            }
+        if (resultMap.hasKey("error")) {
+          val errorMap = resultMap.getMap("error")
+          if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
+            promise.reject(
+              errorMap.getString("code") ?: "UNKNOWN_ERROR",
+              errorMap.getString("message") ?: "Unknown error occurred"
+            )
+            return@execute
           }
-          // Fallback if error structure is not as expected
-          promise.reject("ESSENTIA_FEATURE_EXTRACTION_ERROR", "Feature extraction failed")
-          return@execute
         }
 
         // Resolve the promise with the properly structured map
@@ -557,10 +548,8 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
     for (i in 0 until array.size()) {
       if (array.getType(i) == ReadableType.Map) {
-        val map = array.getMap(i)
-        if (map != null) {
-          val jsonObject = convertReadableMapToJsonObject(map)
-          jsonArray.put(jsonObject)
+        array.getMap(i)?.let { map ->
+          jsonArray.put(convertReadableMapToJsonObject(map))
         }
       }
     }
@@ -583,15 +572,13 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         ReadableType.Number -> jsonObject.put(key, map.getDouble(key))
         ReadableType.String -> jsonObject.put(key, map.getString(key))
         ReadableType.Map -> {
-          val value = map.getMap(key)
-          if (value != null) {
-            jsonObject.put(key, convertReadableMapToJsonObject(value))
+          map.getMap(key)?.let { mapValue ->
+            jsonObject.put(key, convertReadableMapToJsonObject(mapValue))
           }
         }
         ReadableType.Array -> {
-          val value = map.getArray(key)
-          if (value != null) {
-            jsonObject.put(key, convertReadableArrayToJsonArray(value))
+          map.getArray(key)?.let { arrayValue ->
+            jsonObject.put(key, convertReadableArrayToJsonArray(arrayValue))
           }
         }
       }
@@ -613,15 +600,13 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         ReadableType.Number -> jsonArray.put(array.getDouble(i))
         ReadableType.String -> jsonArray.put(array.getString(i))
         ReadableType.Map -> {
-          val value = array.getMap(i)
-          if (value != null) {
-            jsonArray.put(convertReadableMapToJsonObject(value))
+          array.getMap(i)?.let { mapValue ->
+            jsonArray.put(convertReadableMapToJsonObject(mapValue))
           }
         }
         ReadableType.Array -> {
-          val value = array.getArray(i)
-          if (value != null) {
-            jsonArray.put(convertReadableArrayToJsonArray(value))
+          array.getArray(i)?.let { arrayValue ->
+            jsonArray.put(convertReadableArrayToJsonArray(arrayValue))
           }
         }
       }
@@ -630,9 +615,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     return jsonArray
   }
 
-  override fun onCatalystInstanceDestroy() {
-    super.onCatalystInstanceDestroy()
-
+  override fun invalidate() {
     synchronized(lock) {
       if (nativeHandle != 0L) {
         try {
@@ -650,5 +633,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     } catch (e: Exception) {
       Log.e("EssentiaModule", "Error shutting down executor: ${e.message}", e)
     }
+
+    super.invalidate()
   }
 }
