@@ -463,16 +463,19 @@ public:
                 std::string key;
                 std::string scale;
                 essentia::Real strength;
+                essentia::Real firstToSecondRelativeStrength;
 
                 keyAlgo->input("pcp").set(hpcp);
                 keyAlgo->output("key").set(key);
                 keyAlgo->output("scale").set(scale);
                 keyAlgo->output("strength").set(strength);
+                keyAlgo->output("firstToSecondRelativeStrength").set(firstToSecondRelativeStrength);
                 keyAlgo->compute();
 
                 pool.set("key", key);
                 pool.set("scale", scale);
                 pool.set("strength", strength);
+                pool.set("firstToSecondRelativeStrength", firstToSecondRelativeStrength);
 
                 delete peaksAlgo;
                 delete hpcpAlgo;
@@ -666,7 +669,7 @@ public:
 
             // Create spectrum algorithm (computes magnitude spectrum directly from windowed frame)
             essentia::standard::Algorithm* spectrum = factory.create("Spectrum",
-                                                                   "size", 1024);
+                                                                 "size", 1024);
 
             // Input and output vectors
             std::vector<essentia::Real> audioFrame;
@@ -875,8 +878,7 @@ public:
                 try {
                     resultJson = json::parse(result);
                 } catch (const json::exception& e) {
-                    return createErrorResponse("Error parsing algorithm result: " + std::string(e.what()),
-                                           "PARSING_ERROR", result);
+                    return createErrorResponse("Error parsing algorithm result: " + std::string(e.what()), "PARSING_ERROR", result);
                 }
 
                 // Check for errors
@@ -933,12 +935,10 @@ public:
             return "{\"success\":true,\"data\":" + resultJson + "}";
         }
         catch (const json::exception& e) {
-            return createErrorResponse("Error parsing feature configuration: " + std::string(e.what()),
-                                   "JSON_PARSE_ERROR");
+            return createErrorResponse("Error parsing feature configuration: " + std::string(e.what()), "JSON_PARSE_ERROR");
         }
         catch (const std::exception& e) {
-            return createErrorResponse("Error extracting features: " + std::string(e.what()),
-                                   "EXTRACTION_ERROR", e.what());
+            return createErrorResponse("Error extracting features: " + std::string(e.what()), "EXTRACTION_ERROR", e.what());
         }
     }
 
@@ -1439,7 +1439,7 @@ public:
                         std::string outputName;
                         if (primaryOutputs.find(name) != primaryOutputs.end()) {
                             outputName = primaryOutputs.at(name);
-                            } else {
+                        } else {
                             outputName = name;
                             std::transform(outputName.begin(), outputName.end(), outputName.begin(), ::tolower);
                         }
