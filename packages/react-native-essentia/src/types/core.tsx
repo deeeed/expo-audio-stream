@@ -1,4 +1,4 @@
-// Define the base interface for algorithm parameters
+// packages/react-native-essentia/src/types/core.ts
 export interface AlgorithmParams {
   [key: string]: string | number | boolean | number[] | string[] | undefined;
 }
@@ -8,7 +8,7 @@ export interface EssentiaInterface {
   // Core functionality
   initialize(): Promise<boolean>;
   getVersion(): Promise<string>;
-  setAudioData(pcmData: Float32Array, sampleRate: number): Promise<boolean>;
+  setAudioData(pcmData: number[], sampleRate: number): Promise<boolean>;
   executeAlgorithm(algorithm: string, params: AlgorithmParams): Promise<any>;
   executeBatch(algorithms: FeatureConfig[]): Promise<any>;
   testConnection(): Promise<string>;
@@ -17,6 +17,11 @@ export interface EssentiaInterface {
   extractFeatures(features: FeatureConfig[]): Promise<any>;
   setThreadCount(count: number): Promise<boolean>;
   getThreadCount(): Promise<number>;
+
+  // Cache-related functionality
+  setCacheEnabled(enabled: boolean): Promise<boolean>;
+  isCacheEnabled(): Promise<boolean>;
+  clearCache(): Promise<boolean>;
 }
 
 // Define feature configuration interface

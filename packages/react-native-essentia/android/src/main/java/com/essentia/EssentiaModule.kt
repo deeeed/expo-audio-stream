@@ -25,6 +25,11 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   private var nativeHandle: Long = 0
   private val lock = Object()
 
+  // Add caches for algorithm information
+  private val algorithmInfoCache = mutableMapOf<String, WritableMap>()
+  private var allAlgorithmsCache: WritableMap? = null
+  private var isCacheEnabled: Boolean = true
+
   override fun getName(): String {
     return NAME
   }
@@ -393,6 +398,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
   /**
    * Gets information about an Essentia algorithm, including its inputs, outputs, and parameters.
+   * Uses a cache to avoid redundant native calls for improved performance.
    * @param algorithm Name of the Essentia algorithm to get information about
    * @param promise Promise that resolves to an object containing algorithm information
    */
@@ -406,7 +412,18 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         return@ensureInitialized
       }
 
-      // Get the algorithm info
+      // Check if we have this algorithm in cache
+      if (isCacheEnabled) {
+        synchronized(algorithmInfoCache) {
+          algorithmInfoCache[algorithm]?.let {
+            Log.d("EssentiaModule", "Returning cached algorithm info for $algorithm")
+            promise.resolve(it)
+            return@ensureInitialized
+          }
+        }
+      }
+
+      // Cache miss, get the algorithm info from native code
       val resultJsonString: String
       synchronized(lock) {
         if (nativeHandle == 0L) {
@@ -426,6 +443,13 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         return@ensureInitialized
       }
 
+      // Cache the result if caching is enabled
+      if (isCacheEnabled) {
+        synchronized(algorithmInfoCache) {
+          algorithmInfoCache[algorithm] = resultMap
+        }
+      }
+
       // Resolve the promise with the properly structured map
       promise.resolve(resultMap)
     }
@@ -433,13 +457,25 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
   /**
    * Gets a list of all available Essentia algorithms.
+   * Uses a cache to avoid redundant native calls for improved performance.
    * @param promise Promise that resolves to an array of algorithm names
    */
   @Suppress("unused")
   @ReactMethod
   fun getAllAlgorithms(promise: Promise) {
     ensureInitialized(promise) {
-      // Get all algorithms
+      // Check if we have the algorithms list in cache
+      if (isCacheEnabled) {
+        synchronized(allAlgorithmsCache) {
+          allAlgorithmsCache?.let {
+            Log.d("EssentiaModule", "Returning cached algorithm list")
+            promise.resolve(it)
+            return@ensureInitialized
+          }
+        }
+      }
+
+      // Cache miss, get all algorithms from native code
       val resultJsonString: String
       synchronized(lock) {
         if (nativeHandle == 0L) {
@@ -457,6 +493,13 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       // Check if there was an error using our new helper
       if (handleErrorInResultMap(resultMap, promise)) {
         return@ensureInitialized
+      }
+
+      // Cache the result if caching is enabled
+      if (isCacheEnabled) {
+        synchronized(allAlgorithmsCache) {
+          allAlgorithmsCache = resultMap
+        }
       }
 
       // Resolve the promise with the properly structured map
@@ -738,7 +781,75 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  /**
+   * Enables or disables the algorithm information cache
+   * @param enabled True to enable caching, false to disable
+   * @param promise Promise that resolves to a boolean indicating success
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun setCacheEnabled(enabled: Boolean, promise: Promise) {
+    try {
+      synchronized(algorithmInfoCache) {
+        isCacheEnabled = enabled
+        if (!enabled) {
+          // Clear caches if disabling
+          clearCache()
+        }
+      }
+      promise.resolve(true)
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Failed to set cache enabled: ${e.message}", e)
+      promise.reject("CACHE_ERROR", "Failed to set cache enabled: ${e.message}")
+    }
+  }
+
+  /**
+   * Checks if algorithm information caching is enabled
+   * @param promise Promise that resolves to a boolean indicating if caching is enabled
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun isCacheEnabled(promise: Promise) {
+    try {
+      promise.resolve(isCacheEnabled)
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Failed to get cache status: ${e.message}", e)
+      promise.reject("CACHE_ERROR", "Failed to get cache status: ${e.message}")
+    }
+  }
+
+  /**
+   * Clears the algorithm information cache
+   * @param promise Promise that resolves to a boolean indicating success
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun clearCache(promise: Promise) {
+    try {
+      clearCache()
+      promise.resolve(true)
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Failed to clear cache: ${e.message}", e)
+      promise.reject("CACHE_ERROR", "Failed to clear cache: ${e.message}")
+    }
+  }
+
+  /**
+   * Internal method to clear the cache
+   */
+  private fun clearCache() {
+    synchronized(algorithmInfoCache) {
+      algorithmInfoCache.clear()
+      allAlgorithmsCache = null
+      Log.d("EssentiaModule", "Algorithm information cache cleared")
+    }
+  }
+
   override fun invalidate() {
+    // Clear caches when module is invalidated
+    clearCache()
+
     synchronized(lock) {
       if (nativeHandle != 0L) {
         try {

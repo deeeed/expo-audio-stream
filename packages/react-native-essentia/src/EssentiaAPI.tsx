@@ -1,3 +1,4 @@
+// packages/react-native-essentia/src/EssentiaAPI.ts
 import { NativeModules } from 'react-native';
 import { LINKING_ERROR } from './constants';
 import type {
@@ -50,6 +51,11 @@ const Essentia = NativeModules.Essentia
 
 // Implement the API class
 class EssentiaAPI implements EssentiaInterface {
+  // JavaScript-side caching
+  private algorithmInfoCache: Map<string, any> = new Map();
+  private allAlgorithmsCache: any = null;
+  private isCacheEnabledValue: boolean = true;
+
   /**
    * Initializes the Essentia library, preparing it for use.
    * @returns A Promise that resolves to true on success or rejects with an error if initialization fails
@@ -78,18 +84,19 @@ class EssentiaAPI implements EssentiaInterface {
 
   /**
    * Sets the raw audio data (PCM samples) and sample rate for subsequent algorithm processing.
-   * @param pcmData Float32Array of audio samples
+   * @param pcmData Array of audio samples
    * @param sampleRate Sampling rate in Hz (e.g., 44100)
    * @returns A Promise that resolves to true on success or rejects with an error if data cannot be set
    */
   async setAudioData(
-    pcmData: Float32Array,
+    pcmData: number[] | Float32Array,
     sampleRate: number
   ): Promise<boolean> {
     try {
-      // Convert Float32Array to regular array for React Native bridge
-      const pcmArray = Array.from(pcmData);
-      return await Essentia.setAudioData(pcmArray, sampleRate);
+      // Convert Float32Array to regular array if needed
+      const data =
+        pcmData instanceof Float32Array ? Array.from(pcmData) : pcmData;
+      return await Essentia.setAudioData(data, sampleRate);
     } catch (error) {
       console.error('Essentia setAudioData error:', error);
       throw error;
@@ -142,12 +149,26 @@ class EssentiaAPI implements EssentiaInterface {
 
   /**
    * Gets information about an Essentia algorithm, including its inputs, outputs, and parameters.
+   * Uses both JavaScript and native caching for optimal performance.
    * @param algorithm Name of the Essentia algorithm to get information about
    * @returns A Promise that resolves to an object containing algorithm information
    */
   async getAlgorithmInfo(algorithm: string): Promise<any> {
     try {
-      return await Essentia.getAlgorithmInfo(algorithm);
+      // Check JavaScript-side cache first if enabled
+      if (this.isCacheEnabledValue && this.algorithmInfoCache.has(algorithm)) {
+        return this.algorithmInfoCache.get(algorithm);
+      }
+
+      // If not in JS cache, get from native (which may use its own cache)
+      const result = await Essentia.getAlgorithmInfo(algorithm);
+
+      // Store in JS cache if enabled
+      if (this.isCacheEnabledValue) {
+        this.algorithmInfoCache.set(algorithm, result);
+      }
+
+      return result;
     } catch (error) {
       console.error(`Essentia getAlgorithmInfo error (${algorithm}):`, error);
       throw error;
@@ -156,11 +177,25 @@ class EssentiaAPI implements EssentiaInterface {
 
   /**
    * Gets a list of all available Essentia algorithms.
+   * Uses both JavaScript and native caching for optimal performance.
    * @returns A Promise that resolves to an array of algorithm names
    */
   async getAllAlgorithms(): Promise<any> {
     try {
-      return await Essentia.getAllAlgorithms();
+      // Check JavaScript-side cache first if enabled
+      if (this.isCacheEnabledValue && this.allAlgorithmsCache) {
+        return this.allAlgorithmsCache;
+      }
+
+      // If not in JS cache, get from native (which may use its own cache)
+      const result = await Essentia.getAllAlgorithms();
+
+      // Store in JS cache if enabled
+      if (this.isCacheEnabledValue) {
+        this.allAlgorithmsCache = result;
+      }
+
+      return result;
     } catch (error) {
       console.error('Essentia getAllAlgorithms error:', error);
       throw error;
@@ -718,6 +753,77 @@ class EssentiaAPI implements EssentiaInterface {
       console.error('Essentia getThreadCount error:', error);
       throw error;
     }
+  }
+
+  /**
+   * Enable or disable algorithm information caching.
+   * Controls both JavaScript and native caching.
+   * @param enabled True to enable caching, false to disable
+   * @returns A Promise that resolves to true on success
+   */
+  async setCacheEnabled(enabled: boolean): Promise<boolean> {
+    try {
+      // Update JS-side caching
+      this.isCacheEnabledValue = enabled;
+
+      // If disabling, clear JS cache
+      if (!enabled) {
+        this.clearJSCache();
+      }
+
+      // Update native-side caching
+      return await Essentia.setCacheEnabled(enabled);
+    } catch (error) {
+      console.error('Essentia setCacheEnabled error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if algorithm information caching is enabled.
+   * @returns A Promise that resolves to true if caching is enabled
+   */
+  async isCacheEnabled(): Promise<boolean> {
+    try {
+      // Get native cache setting
+      const nativeCacheEnabled = await Essentia.isCacheEnabled();
+
+      // Synchronize JS and native settings if they differ
+      if (nativeCacheEnabled !== this.isCacheEnabledValue) {
+        await this.setCacheEnabled(nativeCacheEnabled);
+      }
+
+      return this.isCacheEnabledValue;
+    } catch (error) {
+      console.error('Essentia isCacheEnabled error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clear the algorithm information cache.
+   * Clears both JavaScript and native caches.
+   * @returns A Promise that resolves to true on success
+   */
+  async clearCache(): Promise<boolean> {
+    try {
+      // Clear JS cache
+      this.clearJSCache();
+
+      // Clear native cache
+      return await Essentia.clearCache();
+    } catch (error) {
+      console.error('Essentia clearCache error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Internal method to clear JavaScript-side cache
+   */
+  private clearJSCache(): void {
+    this.algorithmInfoCache.clear();
+    this.allAlgorithmsCache = null;
   }
 }
 
