@@ -71,3 +71,7 @@ playground/vendor/
 apps/playground/.env.development
 apps/playground/.env.production
 apps/playground/audioplayground-b0b0f366d11e.json
+
+# FFmpeg libraries and headers
+packages/react-native-essentia/android/src/main/jniLibs/**/ffmpeg/
+*.a
