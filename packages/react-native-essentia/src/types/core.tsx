@@ -8,13 +8,19 @@ export interface EssentiaInterface {
   // Core functionality
   initialize(): Promise<boolean>;
   getVersion(): Promise<string>;
-  setAudioData(pcmData: number[], sampleRate: number): Promise<boolean>;
-  executeAlgorithm(algorithm: string, params: AlgorithmParams): Promise<any>;
-  executeBatch(algorithms: FeatureConfig[]): Promise<any>;
+  setAudioData(
+    pcmData: number[] | Float32Array,
+    sampleRate: number
+  ): Promise<boolean>;
+  executeAlgorithm(
+    algorithm: string,
+    params: AlgorithmParams
+  ): Promise<AlgorithmResult>;
+  executeBatch(algorithms: FeatureConfig[]): Promise<BatchProcessingResults>;
   testConnection(): Promise<string>;
-  getAlgorithmInfo(algorithm: string): Promise<any>;
-  getAllAlgorithms(): Promise<any>;
-  extractFeatures(features: FeatureConfig[]): Promise<any>;
+  getAlgorithmInfo(algorithm: string): Promise<AlgorithmInfo>;
+  getAllAlgorithms(): Promise<{ algorithms: string[] }>;
+  extractFeatures(features: FeatureConfig[]): Promise<BatchProcessingResults>;
   setThreadCount(count: number): Promise<boolean>;
   getThreadCount(): Promise<number>;
 
@@ -41,27 +47,68 @@ export interface AlgorithmInfo {
 // Define result interfaces
 export interface AlgorithmResult {
   success: boolean;
-  data?: Record<string, number | string | number[]>;
-  error?: string;
+  data?: Record<string, number | string | number[] | string[]>;
+  error?: { code: string; message: string; details?: string };
 }
 
 // For batch processing results
 export interface BatchProcessingResults {
-  // Known specific feature fields
-  mfcc?: number[];
-  mfcc_bands?: number[];
-  spectrum?: number[];
-  key?: string;
-  scale?: string;
-  strength?: number;
-  mel_bands?: number[];
-  // Allow for additional dynamic properties
-  [key: string]: number | string | number[] | string[] | undefined;
+  success: boolean;
+  data?: {
+    // Time-domain features
+    duration?: number;
+    effectiveDuration?: number;
+    loudness?: number;
+    dynamicComplexity?: number;
+    logAttackTime?: number;
+
+    // Spectral features
+    mfcc?: number[];
+    bands?: number[];
+    barkBands?: number[];
+    melBands?: number[];
+    erbBands?: number[];
+    spectrum?: number[];
+    spectralContrast?: number[];
+    spectralCentroid?: number;
+    spectralRolloff?: number;
+    spectralFlux?: number;
+    spectralComplexity?: number;
+
+    // Tonal features
+    key?: string;
+    scale?: string;
+    strength?: number;
+    chords?: string[];
+    hpcp?: number[];
+    tuningFrequency?: number;
+    tuningCents?: number;
+    inharmonicity?: number;
+    dissonance?: number;
+
+    // Rhythm features
+    bpm?: number;
+    beats?: number[];
+    ticks?: number[];
+    confidence?: number;
+    danceability?: number;
+    onsets?: number[];
+
+    // Other core features
+    energy?: number;
+    rms?: number;
+    zeroCrossingRate?: number;
+    pitch?: number;
+
+    // Allow for any additional algorithm outputs
+    [key: string]: number | string | boolean | number[] | string[] | undefined;
+  };
+  error?: { code: string; message: string; details?: string };
 }
 
-// You could also export a more generic result type
+// Generic result type for algorithm operations
 export interface EssentiaResult<T = Record<string, unknown>> {
   success: boolean;
   data?: T;
-  error?: { code: string; message: string };
+  error?: { code: string; message: string; details?: string };
 }

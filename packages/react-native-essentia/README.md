@@ -13,7 +13,7 @@ A React Native module that provides access to the [Essentia audio analysis libra
 
 ## Platform Support
 
-**Currently, this module only supports Android.** iOS support is planned for future releases.
+**Currently, this module only supports Android.** iOS and Web support is planned for future releases.
 
 ## Installation
 
@@ -213,7 +213,35 @@ Key TypeScript interfaces:
 - **EssentiaResult<T>**: `{ success: boolean; data?: T; error?: { code: string; message: string } }`
   Generic result type for most operations.
 
-Specific result types (e.g., MFCCResult, KeyResult) are returned by convenience methods.
+- **BatchResult**: `{ success: boolean; data?: { [key: string]: any }; error?: { code: string; message: string } }`
+  Specific result type for batch operations like extractFeatures and executeBatch.
+
+Specific result types (e.g., MFCCResult, KeyResult) are returned by convenience methods alongside the generic EssentiaResult structure.
+
+### Return Type Consistency
+
+The module uses two patterns for result types:
+
+1. **Specific Result Types**: Methods like `extractMFCC()` return specialized types (e.g., `MFCCResult`) for better type safety and IDE autocompletion.
+
+2. **Generic Result Wrapper**: All responses are wrapped in the `EssentiaResult<T>` structure that includes `success` and possible `error` information.
+
+For example, when calling `extractMFCC()`:
+
+```typescript
+// The return type combines both patterns
+type MFCCResponse = MFCCResult & EssentiaResult<MFCCResult>;
+
+const result = await Essentia.extractMFCC();
+if (result.success) {
+  // Access typed fields directly
+  const coefficients = result.mfcc;
+  const bands = result.bands;
+} else {
+  // Handle errors
+  console.error(result.error?.message);
+}
+```
 
 ## Error Handling
 
@@ -239,6 +267,53 @@ Audio analysis can be resource-intensive:
 - Use batch operations (extractFeatures, executeBatch) to minimize redundant computations.
 - Adjust thread count based on device capabilities.
 - For large audio files, consider processing in chunks or running in the background.
+
+## Available Algorithms
+
+The module provides access to over 200 audio analysis algorithms from the Essentia library. Some key categories include:
+
+- **Spectral Analysis**: FFT, Spectrum, SpectralPeaks, SpectralContrast
+- **Feature Extraction**: MFCC, MelBands, BFCC, GFCC, BarkBands, ERBBands
+- **Musical Analysis**: Key, Tempo, BPM, Chords, Pitch, Scale
+- **Rhythm Analysis**: BeatTracker, Onsets, RhythmExtractor
+- **Signal Processing**: Filters (HighPass, LowPass, BandPass), Windowing, Normalization
+- **Audio Segmentation**: SilenceRate, Slicer, Onsets, RMS
+
+For a complete list of algorithms and their parameters, use the `getAllAlgorithms()` method.
+
+### Example Algorithm Parameters
+
+Here are commonly used parameter examples for popular algorithms:
+
+```typescript
+// MFCC with custom parameters
+const mfccParams = {
+  numberBands: 40,
+  numberCoefficients: 13,
+  lowFrequencyBound: 20,
+  highFrequencyBound: 20000,
+  sampleRate: 44100
+};
+
+// BarkBands extraction
+const barkBandsParams = {
+  sampleRate: 44100,
+  numberBands: 27
+};
+
+// Key detection
+const keyParams = {
+  profileType: "temperley",
+  usePolyphony: false,
+  useThreeChords: true
+};
+
+// Tempo/BPM detection
+const tempoParams = {
+  minTempo: 40,
+  maxTempo: 208
+};
+```
 
 ## Android-Specific Notes
 

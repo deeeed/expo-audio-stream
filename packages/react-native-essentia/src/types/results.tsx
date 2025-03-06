@@ -1,15 +1,121 @@
-// MFCC features result
+// Algorithm result interfaces for Essentia
+
+// AfterMaxToBeforeMaxEnergyRatio result
+export interface AfterMaxToBeforeMaxEnergyRatioResult {
+  afterMaxToBeforeMaxEnergyRatio: number;
+}
+
+// AllPass result
+export interface AllPassResult {
+  signal: number[];
+}
+
+// AudioOnsetsMarker result
+export interface AudioOnsetsMarkerResult {
+  signal: number[];
+}
+
+// AutoCorrelation result
+export interface AutoCorrelationResult {
+  autoCorrelation: number[];
+}
+
+// BFCC result
+export interface BFCCResult {
+  bands: number[];
+  bfcc: number[];
+}
+
+// BPF result
+export interface BPFResult {
+  y: number;
+}
+
+// BandPass and BandReject results
+export interface FilteredSignalResult {
+  signal: number[];
+}
+
+// BarkBands result
+export interface BarkBandsResult {
+  bands: number[];
+}
+
+// BeatTracker results
+export interface BeatTrackerResult {
+  ticks: number[];
+  confidence?: number;
+}
+
+// Beatogram result
+export interface BeatogramResult {
+  beatogram: number[][];
+}
+
+// BeatsLoudness result
+export interface BeatsLoudnessResult {
+  loudness: number[];
+  loudnessBandRatio: number[][];
+}
+
+// BinaryOperator result
+export interface BinaryOperatorResult {
+  array: number[];
+}
+
+// BpmHistogram result
+export interface BpmHistogramResult {
+  bpm: number;
+  bpmCandidates: number[];
+  bpmMagnitudes: number[];
+  tempogram: any; // Array2D type, would need custom definition
+  frameBpms: number[];
+  ticks: number[];
+  ticksMagnitude: number[];
+  sinusoid: number[];
+}
+
+// BpmHistogramDescriptors result
+export interface BpmHistogramDescriptorsResult {
+  firstPeakBPM: number;
+  firstPeakWeight: number;
+  firstPeakSpread: number;
+  secondPeakBPM: number;
+  secondPeakWeight: number;
+  secondPeakSpread: number;
+  histogram: number[];
+}
+
+// BpmRubato result
+export interface BpmRubatoResult {
+  rubatoStart: number[];
+  rubatoStop: number[];
+  rubatoNumber: number;
+}
+
+// CartesianToPolar result
+export interface CartesianToPolarResult {
+  magnitude: number[];
+  phase: number[];
+}
+
+// CentralMoments result
+export interface CentralMomentsResult {
+  centralMoments: number[];
+}
+
+// MFCC result
 export interface MFCCResult {
   mfcc: number[];
   bands?: number[];
 }
 
-// Mel bands result
+// MelBands result
 export interface MelBandsResult {
   melBands: number[];
 }
 
-// Musical key result
+// Key result
 export interface KeyResult {
   key: string;
   scale: string;
@@ -19,9 +125,10 @@ export interface KeyResult {
 // Tempo result
 export interface TempoResult {
   bpm: number;
+  confidence?: number;
 }
 
-// Beat tracking result
+// Beats result
 export interface BeatsResult {
   beats: number[];
   confidence: number;
@@ -30,6 +137,7 @@ export interface BeatsResult {
 // Loudness result
 export interface LoudnessResult {
   loudness: number;
+  loudnessDB?: number;
 }
 
 // Spectral features result
@@ -40,7 +148,7 @@ export interface SpectralFeaturesResult {
   complexity: number;
 }
 
-// Pitch detection result
+// Pitch result
 export interface PitchResult {
   pitch: number;
   confidence: number;
@@ -52,15 +160,16 @@ export interface RhythmFeaturesResult {
   danceability: number;
   beats: number[];
   onsets: number[];
+  beatLocations?: number[];
 }
 
-// Energy analysis result
+// Energy result
 export interface EnergyResult {
   energy: number;
   rms: number;
 }
 
-// Onset detection result
+// Onsets result
 export interface OnsetsResult {
   onsets: number[];
   onsetRate: number;
@@ -88,15 +197,10 @@ export interface ChordsResult {
   strength: number[];
 }
 
-// Silence detection result
+// Silence result
 export interface SilenceResult {
   silenceRate: number;
   threshold: number;
-}
-
-// Bark bands result
-export interface BarkBandsResult {
-  bands: number[];
 }
 
 // Danceability result
@@ -143,7 +247,7 @@ export interface TristimulusResult {
   tristimulus: number[];
 }
 
-// Odd to even harmonic energy ratio result
+// OddToEvenHarmonicEnergyRatio result
 export interface OddToEvenHarmonicEnergyRatioResult {
   oddToEvenHarmonicEnergyRatio: number;
 }
@@ -151,7 +255,12 @@ export interface OddToEvenHarmonicEnergyRatioResult {
 // Spectrum result
 export interface SpectrumResult {
   spectrum: number[];
-  frequencies: number[];
+  frequencies?: number[];
+}
+
+// FFT result
+export interface FFTResult {
+  fft: { real: number[]; imag: number[] };
 }
 
 // Novelty curve result
@@ -159,21 +268,47 @@ export interface NoveltyCurveResult {
   novelty: number[];
 }
 
-// Predominant melody result
+// PredominantMelody result
 export interface PredominantMelodyResult {
   pitch: number[];
   confidence: number[];
 }
 
-// Harmonic peaks result
+// HarmonicPeaks result
 export interface HarmonicPeaksResult {
   frequencies: number[];
   magnitudes: number[];
 }
 
-// Audio waveform result
+// Waveform result
 export interface WaveformResult {
   waveform: number[];
+}
+
+// GFCC result
+export interface GFCCResult {
+  gfcc: number[];
+  bands?: number[];
+}
+
+// HPCP result
+export interface HPCPResult {
+  hpcp: number[];
+}
+
+// HFC result
+export interface HFCResult {
+  hfc: number;
+}
+
+// RMS result
+export interface RMSResult {
+  rms: number;
+}
+
+// RollOff result
+export interface RollOffResult {
+  rollOff: number;
 }
 
 // Combined audio feature result
@@ -188,28 +323,41 @@ export interface AudioFeaturesResult {
   spectralRolloff?: number;
   spectralFlux?: number;
   spectralContrast?: number[];
+  spectrum?: number[];
+  mfcc?: number[];
+  melBands?: number[];
+  barkBands?: number[];
+  erbBands?: number[];
+  gfcc?: number[];
 
   // Tonal features
   key?: string;
   scale?: string;
   chords?: string[];
   tuningFrequency?: number;
+  hpcp?: number[];
+  inharmonicity?: number;
+  dissonance?: number;
 
   // Rhythm features
   bpm?: number;
   beats?: number[];
+  onsets?: number[];
   danceability?: number;
+  ticks?: number[];
 
   // Loudness and energy
   loudness?: number;
   energy?: number;
   rms?: number;
+  zeroCrossingRate?: number;
+  dynamicComplexity?: number;
 
   // Additional descriptors
-  onsets?: number[];
-  mfcc?: number[];
-  melBands?: number[];
+  pitch?: number;
+  pitchConfidence?: number;
+  logAttackTime?: number;
 
   // Allow for additional dynamic properties
-  [key: string]: number | string | number[] | string[] | undefined;
+  [key: string]: number | string | boolean | number[] | string[] | undefined;
 }
