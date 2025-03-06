@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { Button, Card, Text } from 'react-native-paper';
 import { AppTheme, useTheme } from '@siteed/design-system';
 import EssentiaJS from '@siteed/react-native-essentia';
-import type { MusicGenreFeatures } from '@siteed/react-native-essentia/src/types/piepleine.types';
+import type { MusicGenreFeatures } from '@siteed/react-native-essentia/src/types/pipeline.types';
 
 interface MusicGenreClassifierProps {
   showToast: (message: string) => void;

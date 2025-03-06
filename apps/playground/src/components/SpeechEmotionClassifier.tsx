@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Button, Card, Text } from 'react-native-paper';
 import { AppTheme, useTheme } from '@siteed/design-system';
 import EssentiaJS from '@siteed/react-native-essentia';
+import React, { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Button, Card, Text } from 'react-native-paper';
+import type { SpeechEmotionFeatures } from '@siteed/react-native-essentia';
 
 interface SpeechEmotionClassifierProps {
   showToast: (message: string) => void;
 }
 
 interface SpeechEmotionResult {
-  features?: Record<string, any>;
+  features?: SpeechEmotionFeatures;
   error?: string;
 }
 
