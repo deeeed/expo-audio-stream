@@ -2,6 +2,16 @@
 
 A React Native module that provides access to the [Essentia audio analysis library](https://essentia.upf.edu/) on Android devices. This module enables developers to perform advanced audio feature extraction and analysis directly within their React Native applications.
 
+> **⚠️ DEVELOPMENT PACKAGE - NOT READY FOR PRODUCTION**
+>
+> This package is currently under active development and is **NOT ready for use** in production applications or by external developers. The API is unstable and subject to breaking changes without notice. Please check back later for a stable release.
+
+## ROADMAP
+- Fully document the pipelline and batch processing features.
+- Split the code into smaller files for better readability.
+- Add support for iOS and Web platforms.
+
+
 ## Features
 
 - Access to Essentia's extensive set of audio analysis algorithms
