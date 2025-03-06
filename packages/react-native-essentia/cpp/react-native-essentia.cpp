@@ -94,7 +94,67 @@ std::map<std::string, essentia::Parameter> jsonToParamsMap(const std::string& js
             else if (it.value().is_string()) {
                 params.insert(std::make_pair(key, essentia::Parameter(it.value().get<std::string>())));
             }
-            // Could add support for arrays and nested objects if needed
+            // Add support for arrays (vectors)
+            else if (it.value().is_array()) {
+                // Check the type of array elements and create appropriate vector
+                if (!it.value().empty()) {
+                    const auto& firstItem = it.value()[0];
+
+                    // Vector of Real (most common type in Essentia)
+                    if (firstItem.is_number()) {
+                        std::vector<essentia::Real> vec;
+                        for (const auto& item : it.value()) {
+                            if (item.is_number()) {
+                                vec.push_back(static_cast<essentia::Real>(item.get<double>()));
+                            }
+                        }
+                        params.insert(std::make_pair(key, essentia::Parameter(vec)));
+                    }
+                    // Vector of strings
+                    else if (firstItem.is_string()) {
+                        std::vector<std::string> vec;
+                        for (const auto& item : it.value()) {
+                            if (item.is_string()) {
+                                vec.push_back(item.get<std::string>());
+                            }
+                        }
+                        params.insert(std::make_pair(key, essentia::Parameter(vec)));
+                    }
+                    // Vector of booleans
+                    else if (firstItem.is_boolean()) {
+                        std::vector<bool> vec;
+                        for (const auto& item : it.value()) {
+                            if (item.is_boolean()) {
+                                vec.push_back(item.get<bool>());
+                            }
+                        }
+                        // Essentia doesn't directly support vector<bool> in Parameter,
+                        // so convert it to a string representation
+                        std::stringstream ss;
+                        ss << "[";
+                        for (size_t i = 0; i < vec.size(); ++i) {
+                            ss << (vec[i] ? "true" : "false");
+                            if (i < vec.size() - 1) ss << ", ";
+                        }
+                        ss << "]";
+                        params.insert(std::make_pair(key, essentia::Parameter(ss.str())));
+                    }
+                } else {
+                    // Empty array - default to empty vector of Real
+                    std::vector<essentia::Real> emptyVec;
+                    params.insert(std::make_pair(key, essentia::Parameter(emptyVec)));
+                }
+            }
+            // Add basic support for nested objects
+            else if (it.value().is_object()) {
+                // Convert nested object to JSON string
+                std::string nestedJson = it.value().dump();
+                // Store as string parameter (algorithms that need nested objects
+                // will need to parse this string)
+                params.insert(std::make_pair(key, essentia::Parameter(nestedJson)));
+
+                LOGI("Nested object parameter %s: %s", key.c_str(), nestedJson.c_str());
+            }
         }
     }
     catch (const json::exception& e) {
