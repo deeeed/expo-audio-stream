@@ -3,9 +3,9 @@ import { trimAudio } from '@siteed/expo-audio-studio';
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Essentia, { essentiaAPI, EssentiaCategory } from 'react-native-essentia';
-import { Button, Text, TouchableRipple } from 'react-native-paper';
+import { Button, Card, Text, TouchableRipple } from 'react-native-paper';
 import { AssetSourceType, SampleAudioFile, useSampleAudio } from '../hooks/useSampleAudio';
-import { sendPCMToEssentia, sendDummyPCMData } from '../utils/essentiaUtils';
+import { sendDummyPCMData, sendPCMToEssentia } from '../utils/essentiaUtils';
 
 // Sample audio assets 
 // Use a more compatible type
@@ -36,6 +36,17 @@ interface ValidationResult {
 interface AlgorithmResult {
   success: boolean;
   data?: Record<string, number | string | number[]>;
+  error?: string;
+}
+
+// Define interface for algorithm list result
+interface AlgorithmListResult {
+  success: boolean;
+  totalCount?: number;
+  hasMonoLoader?: boolean;
+  hasAudioLoader?: boolean;
+  audioAlgorithms?: string[];
+  algorithms?: string[];
   error?: string;
 }
 
@@ -199,6 +210,8 @@ function EssentiaScreen() {
   // Add missing state variables
   const [isInitializing, setIsInitializing] = useState(false);
   const [isGettingVersion, setIsGettingVersion] = useState(false);
+  const [algorithmList, setAlgorithmList] = useState<AlgorithmListResult | null>(null);
+  const [isListingAlgorithms, setIsListingAlgorithms] = useState(false);
   
   // Computed property for if Essentia is initialized
   const isInitialized = useMemo(() => {
@@ -450,6 +463,24 @@ function EssentiaScreen() {
     }
   };
 
+
+  const listAvailableAlgorithms = async () => {
+    try {
+      setIsListingAlgorithms(true);
+      const result = await essentiaAPI.listAlgorithms();
+      setAlgorithmList(result);
+      console.log('Available algorithms:', result);
+    } catch (error) {
+      console.error('Error listing algorithms:', error);
+      setAlgorithmList({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsListingAlgorithms(false);
+    }
+  };
+
   const renderAlgorithmResults = (results: Record<string, AlgorithmResult>) => {
     return Object.entries(results).map(([algorithm, result]) => (
       <View key={algorithm} style={styles.algorithmResultsContainer}>
@@ -504,6 +535,47 @@ function EssentiaScreen() {
         ) : (
           <Text style={styles.noSamples}>No samples loaded. Click a button above to load.</Text>
         )}
+      </View>
+    );
+  };
+
+  const renderAlgorithmList = () => {
+    if (!algorithmList) return null;
+
+    return (
+      <View style={{ marginTop: 16 }}>
+        <Text style={styles.sectionTitle}>Available Algorithms</Text>
+        <Card style={{ marginTop: 8 }}>
+          <Card.Content>
+            <Text style={{ color: algorithmList.success ? 'green' : 'red' }}>
+              Status: {algorithmList.success ? 'Success' : 'Failed'}
+            </Text>
+            {algorithmList.totalCount !== undefined && (
+              <Text>Total Algorithms: {algorithmList.totalCount}</Text>
+            )}
+            {algorithmList.hasMonoLoader !== undefined && (
+              <Text style={{ color: algorithmList.hasMonoLoader ? 'green' : 'red' }}>
+                MonoLoader Available: {algorithmList.hasMonoLoader ? 'Yes' : 'No'}
+              </Text>
+            )}
+            {algorithmList.hasAudioLoader !== undefined && (
+              <Text style={{ color: algorithmList.hasAudioLoader ? 'green' : 'red' }}>
+                AudioLoader Available: {algorithmList.hasAudioLoader ? 'Yes' : 'No'}
+              </Text>
+            )}
+            {algorithmList.audioAlgorithms && algorithmList.audioAlgorithms.length > 0 && (
+              <View style={{ marginTop: 8 }}>
+                <Text>Audio-Related Algorithms:</Text>
+                {algorithmList.audioAlgorithms.map((algo, index) => (
+                  <Text key={index} style={{ marginLeft: 8 }}>• {algo}</Text>
+                ))}
+              </View>
+            )}
+            {algorithmList.error && (
+              <Text style={{ color: 'red', marginTop: 8 }}>Error: {algorithmList.error}</Text>
+            )}
+          </Card.Content>
+        </Card>
       </View>
     );
   };
@@ -626,6 +698,19 @@ function EssentiaScreen() {
             {isValidating ? 'Processing...' : 'Extract MFCC from Sample'}
           </Button>
         )}
+
+        {/* List Algorithms Button */}
+        <Button
+          mode="outlined"
+          onPress={listAvailableAlgorithms}
+          disabled={isListingAlgorithms || !isInitialized}
+          style={{ marginTop: 16 }}
+        >
+          {isListingAlgorithms ? 'Listing Algorithms...' : 'List Available Algorithms'}
+        </Button>
+
+        {/* Algorithm List Results */}
+        {renderAlgorithmList()}
       </View>
     </ScreenWrapper>
   );

@@ -43,6 +43,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   // Native methods that will be implemented in C++
   private external fun initializeEssentia(): Boolean
   private external fun getEssentiaVersion(): String
+  private external fun listAvailableAlgorithms(): String
   private external fun executeEssentiaAlgorithm(category: String, algorithm: String, paramsJson: String): String
   private external fun loadAudioFile(path: String, sampleRate: Double): Boolean
   private external fun unloadAudioFile(): Boolean
@@ -51,6 +52,9 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   private external fun nativeClearAudioBuffer()
   private external fun nativeSetAudioDataChunk(chunk: DoubleArray, startIdx: Int, totalSize: Int, sampleRate: Double): Boolean
   private external fun testMFCC(): String
+  private external fun testFFmpegIntegration(): String
+  private external fun extractFeatures(nMfcc: Int, nFft: Int, hopLength: Int, winLength: Int,
+                                      window: String, nChroma: Int, nMels: Int, nBands: Int, fmin: Double): String
 
   // Wrapper methods to expose to JavaScript
   @ReactMethod
@@ -258,6 +262,87 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     } catch (e: Exception) {
       Log.e("EssentiaModule", "Error in testMFCC: ${e.message}", e)
       promise.reject("ESSENTIA_TEST_ERROR", "Failed to run MFCC test: ${e.message}")
+    }
+  }
+
+  // Add FFmpeg integration test method
+  @ReactMethod
+  fun testFFmpegIntegration(promise: Promise) {
+    if (!isInitialized) {
+      promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
+      return
+    }
+
+    try {
+      executor.execute {
+        Log.d("EssentiaModule", "Testing FFmpeg integration")
+
+        // Call the native implementation
+        val result = testFFmpegIntegration()
+
+        // Create a result map
+        val resultMap = parseJsonToMap(result)
+
+        Log.d("EssentiaModule", "FFmpeg integration test result: $result")
+        promise.resolve(resultMap)
+      }
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Error in testFFmpegIntegration: ${e.message}", e)
+      promise.reject("ESSENTIA_FFMPEG_TEST_ERROR", "Failed to test FFmpeg integration: ${e.message}")
+    }
+  }
+
+  // Add method to list available algorithms
+  @ReactMethod
+  fun listAlgorithms(promise: Promise) {
+    if (!isInitialized) {
+      promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
+      return
+    }
+
+    try {
+      executor.execute {
+        Log.d("EssentiaModule", "Listing available algorithms")
+
+        // Call the native implementation
+        val result = listAvailableAlgorithms()
+
+        // Create a result map
+        val resultMap = parseJsonToMap(result)
+
+        Log.d("EssentiaModule", "Available algorithms result: $result")
+        promise.resolve(resultMap)
+      }
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Error listing algorithms: ${e.message}", e)
+      promise.reject("ESSENTIA_LIST_ALGORITHMS_ERROR", "Failed to list algorithms: ${e.message}")
+    }
+  }
+
+  @ReactMethod
+  fun extractAudioFeatures(nMfcc: Int, nFft: Int, hopLength: Int, winLength: Int,
+                          window: String, nChroma: Int, nMels: Int, nBands: Int, fmin: Double, promise: Promise) {
+    if (!isInitialized) {
+      promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
+      return
+    }
+
+    try {
+      executor.execute {
+        Log.d("EssentiaModule", "Extracting audio features with parameters: nMfcc=$nMfcc, nFft=$nFft, hopLength=$hopLength, winLength=$winLength, window=$window, nChroma=$nChroma, nMels=$nMels, nBands=$nBands, fmin=$fmin")
+
+        // Call the native implementation
+        val result = extractFeatures(nMfcc, nFft, hopLength, winLength, window, nChroma, nMels, nBands, fmin)
+
+        // Create a result map
+        val resultMap = parseJsonToMap(result)
+
+        Log.d("EssentiaModule", "Feature extraction result: $result")
+        promise.resolve(resultMap)
+      }
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Error in extractAudioFeatures: ${e.message}", e)
+      promise.reject("ESSENTIA_FEATURE_EXTRACTION_ERROR", "Failed to extract audio features: ${e.message}")
     }
   }
 

@@ -15,18 +15,15 @@ yarn add react-native-essentia
 - Access to Essentia's powerful audio analysis algorithms from React Native
 - Support for various categories of audio features:
   - Spectral analysis (MFCC, spectral centroid, etc.)
-  - Tonal analysis (key detection, chords, etc.)
+  - Tonal analysis (key detection, chroma, etc.)
   - Rhythm analysis (beat tracking, tempo, etc.)
   - High-level audio features
-  - Voice analysis
-- Audio file loading and processing
+- Audio data processing with PCM arrays
 - Both high-level API and low-level access to individual algorithms
 
 ## Usage
 
-### Basic Usage
-
-```typescript
+```js
 import { essentiaAPI } from 'react-native-essentia';
 
 // Initialize the library
@@ -36,86 +33,63 @@ await essentiaAPI.initialize();
 const version = await essentiaAPI.getVersion();
 console.log(`Essentia version: ${version}`);
 
-// Load an audio file
-const audioLoaded = await essentiaAPI.loadAudio('/path/to/audio.mp3', 44100);
+// Example: Process PCM data for feature extraction
+const pcmData = [...]; // Your PCM audio data as a number array
+const sampleRate = 44100; // Sample rate in Hz
 
-// Process the audio
-await essentiaAPI.processAudio(2048, 1024);
+// Convert PCM data to string format for processing
+const pcmString = JSON.stringify(pcmData);
 
-// Execute an algorithm
-const mfccResult = await essentiaAPI.spectral.mfcc({
-  numberCoefficients: 13,
-  numberBands: 40
+// Load the audio data
+await essentiaAPI.loadAudio(pcmString, sampleRate);
+
+// Extract features with custom parameters
+const features = await essentiaAPI.extractFeatures(pcmString, {
+  sampleRate: 44100,
+  nMfcc: 13,
+  nFft: 2048,
+  hopLength: 512,
+  winLength: 1024,
+  window: 'hann',
+  nChroma: 12,
+  nMels: 40,
+  nBands: 7,
+  fmin: 100
 });
 
-// Clean up
-await essentiaAPI.unloadAudio();
+console.log('Extracted features:', features);
 ```
 
-### Analyzing Audio Segments
+## Feature Extraction
 
-To analyze a specific segment of an audio file, you can use the `extractMFCCFromFile` method in combination with `trimAudio` from the `expo-audio-studio` package. This approach allows you to first trim the audio to the segment you want to analyze, and then extract features from that segment.
+The library provides a comprehensive feature extraction API that matches the parameters used in the Python implementation:
 
-```typescript
-import { essentiaAPI } from 'react-native-essentia';
-import { trimAudio } from 'expo-audio-studio';
+```js
+// Extract features from PCM data
+const features = await essentiaAPI.extractFeatures(pcmString, {
+  // All parameters are optional and have sensible defaults
+  sampleRate: 44100, // Sample rate of the audio
+  nMfcc: 13,        // Number of MFCC coefficients
+  nFft: 2048,       // FFT size
+  hopLength: 512,   // Hop length in samples
+  winLength: 1024,  // Window length in samples
+  window: 'hann',   // Window type (hann, hamming, blackman, etc.)
+  nChroma: 12,      // Number of chroma bins
+  nMels: 40,        // Number of mel bands
+  nBands: 7,        // Number of spectral contrast bands
+  fmin: 100         // Minimum frequency
+});
+```
 
-async function analyzeMFCCFromSegment(audioPath, startMs, endMs) {
-  try {
-    // First trim the audio to get just the segment we want
-    const trimResult = await trimAudio({
-      fileUri: audioPath,
-      mode: 'single',
-      startTimeMs: startMs,
-      endTimeMs: endMs
-    });
+The returned features object contains:
 
-    // Then extract MFCC features from the trimmed segment
-    const mfccResult = await essentiaAPI.extractMFCCFromFile({
-      audioPath: trimResult.uri,
-      sampleRate: 44100,
-      numCoeffs: 13,
-      numBands: 40,
-      cleanup: true // automatically unload audio when done
-    });
-
-    if (mfccResult.success) {
-      console.log('MFCC features extracted successfully:', mfccResult.features);
-      return mfccResult.features;
-    } else {
-      console.error('Failed to extract MFCC features:', mfccResult.error);
-      return null;
-    }
-  } catch (error) {
-    console.error('Error analyzing audio segment:', error);
-    return null;
-  }
+```js
+{
+  mfcc: [...],      // Array of MFCC coefficients (length: nMfcc)
+  mel: [...],       // Array of mel band energies (length: nMels)
+  chroma: [...],    // Array of chroma features (length: nChroma)
+  spectralContrast: [...],  // Array of spectral contrast features (length: nBands + 1)
 }
-
-// Usage
-analyzeMFCCFromSegment(
-  '/path/to/audio.mp3',  // Audio file path
-  5000,                  // Start time in milliseconds (5 seconds)
-  10000                  // End time in milliseconds (10 seconds)
-);
-```
-
-### Troubleshooting File Loading Issues
-
-If you're having trouble loading audio files, try these steps:
-
-1. Make sure the file path is correct and the file exists
-2. Check if the file path needs protocol handling:
-   - Android: Remove `file://` prefix if present
-   - iOS: Add `file://` prefix if missing
-
-You can use the built-in path normalization:
-
-```typescript
-import { normalizeFilePath } from 'react-native-essentia';
-
-const normalizedPath = normalizeFilePath('/path/to/audio.mp3');
-// Will handle platform-specific path formatting automatically
 ```
 
 ## API Reference
@@ -124,21 +98,20 @@ const normalizedPath = normalizeFilePath('/path/to/audio.mp3');
 
 - `initialize()`: Initialize the Essentia library
 - `getVersion()`: Get the Essentia version
-- `loadAudio(path, sampleRate)`: Load an audio file
-- `unloadAudio()`: Unload the current audio
-- `processAudio(frameSize, hopSize)`: Process the loaded audio
-- `executeAlgorithm(category, algorithm, params)`: Execute a specific algorithm
+- `listAlgorithms()`: List all available algorithms
 
-### Helper Methods
+### Audio Processing
 
-- `extractMFCCFromFile(options)`: One-step MFCC extraction from an audio file
-- `normalizeFilePath(path)`: Normalize file paths for cross-platform compatibility
+- `loadAudio(pcmString, sampleRate)`: Load audio data for processing
+- `processAudioFrames(frameSize, hopSize)`: Process the loaded audio with the specified frame and hop sizes
 
-### Specialized Algorithm Categories
+### Feature Extraction
 
-- `spectral.mfcc(params)`: Extract MFCC features
-- `tonal.key(params)`: Analyze musical key
-- `rhythm.beatTracking(params)`: Detect beats
+- `extractFeatures(pcmString, params)`: Extract features from PCM data with customizable parameters
+
+## Example
+
+See the [example directory](example/) for a complete sample application demonstrating how to use the feature extraction API.
 
 ## License
 

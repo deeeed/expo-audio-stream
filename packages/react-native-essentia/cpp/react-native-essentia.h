@@ -12,6 +12,7 @@ extern "C" {
 // Core functionality
 JNIEXPORT jboolean JNICALL Java_com_essentia_EssentiaModule_initializeEssentia(JNIEnv *env, jobject thiz);
 JNIEXPORT jstring JNICALL Java_com_essentia_EssentiaModule_getEssentiaVersion(JNIEnv *env, jobject thiz);
+JNIEXPORT jstring JNICALL Java_com_essentia_EssentiaModule_listAvailableAlgorithms(JNIEnv *env, jobject thiz);
 
 // Algorithm execution
 JNIEXPORT jstring JNICALL Java_com_essentia_EssentiaModule_executeEssentiaAlgorithm(
@@ -33,8 +34,15 @@ JNIEXPORT void JNICALL Java_com_essentia_EssentiaModule_nativeClearAudioBuffer(
 JNIEXPORT jboolean JNICALL Java_com_essentia_EssentiaModule_nativeSetAudioDataChunk(
     JNIEnv *env, jobject thiz, jdoubleArray chunk, jint startIdx, jint totalSize, jdouble sampleRate);
 
+// Feature extraction
+JNIEXPORT jstring JNICALL Java_com_essentia_EssentiaModule_extractFeatures(
+    JNIEnv *env, jobject thiz, jint nMfcc, jint nFft, jint hopLength, jint winLength,
+    jstring window, jint nChroma, jint nMels, jint nBands, jdouble fmin);
+
 // Testing methods
 JNIEXPORT jstring JNICALL Java_com_essentia_EssentiaModule_testMFCC(
+    JNIEnv *env, jobject thiz);
+JNIEXPORT jstring JNICALL Java_com_essentia_EssentiaModule_testFFmpegIntegration(
     JNIEnv *env, jobject thiz);
 
 #ifdef __cplusplus

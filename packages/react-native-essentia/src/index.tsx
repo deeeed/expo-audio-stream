@@ -28,6 +28,7 @@ interface EssentiaInterface {
   multiply(a: number, b: number): Promise<number>;
   initialize(): Promise<boolean>;
   getVersion(): Promise<string>;
+  listAlgorithms(): Promise<any>;
 
   // Algorithm execution
   executeAlgorithm(category: string, algorithm: string, params: AlgorithmParams): Promise<any>;
@@ -37,6 +38,19 @@ interface EssentiaInterface {
   unloadAudio(): Promise<boolean>;
   processAudio(frameSize: number, hopSize: number): Promise<boolean>;
   setAudioData(pcmData: number[], sampleRate: number): Promise<boolean>;
+
+  // Feature extraction
+  extractAudioFeatures(
+    nMfcc: number,
+    nFft: number,
+    hopLength: number,
+    winLength: number,
+    window: string,
+    nChroma: number,
+    nMels: number,
+    nBands: number,
+    fmin: number
+  ): Promise<any>;
 
   // Testing functions
   testMFCC(): Promise<any>;
@@ -80,10 +94,49 @@ export interface ValidationResult {
   error?: string;
 }
 
+export interface FeatureExtractionParams {
+  nMfcc?: number;
+  nFft?: number;
+  hopLength?: number;
+  winLength?: number;
+  window?: string;
+  nChroma?: number;
+  nMels?: number;
+  nBands?: number;
+  fmin?: number;
+  sampleRate?: number;
+}
+
+export interface FeatureExtractionResult {
+  success: boolean;
+  mfcc?: number[];
+  mel?: number[];
+  chroma?: number[];
+  contrast?: number[];
+  tonnetz?: number[];
+  featureCounts?: {
+    mfcc: number;
+    chroma: number;
+    mel: number;
+    contrast: number;
+    tonnetz: number;
+  };
+  error?: string;
+}
+
 export interface IEssentiaAPI {
   // Core functionality
   initialize(): Promise<boolean>;
   getVersion(): Promise<string>;
+  listAlgorithms(): Promise<{
+    success: boolean;
+    totalCount?: number;
+    hasMonoLoader?: boolean;
+    hasAudioLoader?: boolean;
+    audioAlgorithms?: string[];
+    algorithms?: string[];
+    error?: string;
+  }>;
 
   // Validation
   validateIntegration(): Promise<ValidationResult>;
@@ -99,6 +152,10 @@ export interface IEssentiaAPI {
   setAudioData(pcmData: number[], sampleRate: number): Promise<boolean>;
   testMFCC(): Promise<any>;
   getResults(): Promise<any>;
+
+  // Feature extraction
+  extractFeatures(pcmData: number[], params?: FeatureExtractionParams): Promise<FeatureExtractionResult>;
+  extractFeaturesFromBuffer(params?: FeatureExtractionParams): Promise<FeatureExtractionResult>;
 
   // Category-specific APIs
   spectral: {
@@ -122,12 +179,6 @@ export interface MFCCOptions {
   hopSize?: number;
   numCoeffs?: number;
   numBands?: number;
-}
-
-export interface FeatureExtractionResult {
-  success: boolean;
-  features?: any;
-  error?: string;
 }
 
 export interface MFCCExtractionOptions {
@@ -364,7 +415,7 @@ class EssentiaAPI {
 
       return {
         success: true,
-        features: mfccResults
+        mfcc: mfccResults.mfcc
       };
     } catch (error) {
       console.error("Error extracting MFCC:", error);
@@ -409,6 +460,103 @@ class EssentiaAPI {
       return await Essentia.testMFCC();
     } catch (error) {
       console.error('Error testing MFCC:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Extract audio features from PCM data
+   * @param pcmData The PCM audio data as an array of numbers
+   * @param params Parameters for feature extraction
+   * @returns Promise resolving to the extracted features
+   */
+  async extractFeatures(pcmData: number[], params: FeatureExtractionParams = {}): Promise<FeatureExtractionResult> {
+    try {
+      // Step 1: Initialize if not already
+      const initialized = await this.initialize();
+      if (!initialized) {
+        return {
+          success: false,
+          error: "Failed to initialize Essentia"
+        };
+      }
+
+      // Step 2: Set the audio data
+      const sampleRate = params.sampleRate || 16000;
+      const audioSet = await this.setAudioData(pcmData, sampleRate);
+      if (!audioSet) {
+        return {
+          success: false,
+          error: "Failed to set audio data"
+        };
+      }
+
+      // Step 3: Extract features
+      return this.extractFeaturesFromBuffer({
+        ...params,
+        sampleRate
+      });
+    } catch (error) {
+      console.error("Error extracting features:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  /**
+   * Extract audio features from the currently loaded audio buffer
+   * @param params Parameters for feature extraction
+   * @returns Promise resolving to the extracted features
+   */
+  async extractFeaturesFromBuffer(params: FeatureExtractionParams = {}): Promise<FeatureExtractionResult> {
+    try {
+      // Use default parameters if not provided
+      const nMfcc = params.nMfcc || 40;
+      const nFft = params.nFft || 1024;
+      const hopLength = params.hopLength || 160; // 10ms * 16kHz
+      const winLength = params.winLength || 400; // 25ms * 16kHz
+      const window = params.window || "hann";
+      const nChroma = params.nChroma || 12;
+      const nMels = params.nMels || 128;
+      const nBands = params.nBands || 7;
+      const fmin = params.fmin || 100;
+
+      console.log(`Extracting features with parameters: nMfcc=${nMfcc}, nFft=${nFft}, hopLength=${hopLength}, winLength=${winLength}, window=${window}, nChroma=${nChroma}, nMels=${nMels}, nBands=${nBands}, fmin=${fmin}`);
+
+      // Call the native method
+      const result = await Essentia.extractAudioFeatures(
+        nMfcc, nFft, hopLength, winLength, window, nChroma, nMels, nBands, fmin
+      );
+
+      return result;
+    } catch (error) {
+      console.error("Error extracting features from buffer:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  /**
+   * Lists all available algorithms in the Essentia library
+   * @returns Promise resolving to an object with information about available algorithms
+   */
+  async listAlgorithms(): Promise<{
+    success: boolean;
+    totalCount?: number;
+    hasMonoLoader?: boolean;
+    hasAudioLoader?: boolean;
+    audioAlgorithms?: string[];
+    algorithms?: string[];
+    error?: string;
+  }> {
+    try {
+      return await Essentia.listAlgorithms();
+    } catch (error) {
+      console.error('Error listing algorithms:', error);
       throw error;
     }
   }

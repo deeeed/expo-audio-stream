@@ -78,14 +78,13 @@ std::map<std::string, essentia::Parameter> jsonToParamsMap(const std::string& js
 }
 
 std::string poolToJson(const essentia::Pool& pool) {
-    // Convert the Essentia pool to a JSON string
-    // This is a placeholder for demonstration purposes
     std::string json = "{";
     bool first = true;
 
-    // Example: add a few descriptors from the pool if they exist
-    if (pool.contains<std::vector<essentia::Real>>("spectral.mfcc")) {
-        auto mfccs = pool.value<std::vector<essentia::Real>>("spectral.mfcc");
+    // Add MFCC coefficients if they exist
+    if (pool.contains<std::vector<essentia::Real>>("mfcc.coefficients")) {
+        if (!first) json += ",";
+        auto mfccs = pool.value<std::vector<essentia::Real>>("mfcc.coefficients");
         json += "\"mfcc\":[";
         for (size_t i = 0; i < mfccs.size(); ++i) {
             if (i > 0) json += ",";
@@ -95,7 +94,18 @@ std::string poolToJson(const essentia::Pool& pool) {
         first = false;
     }
 
-    // Add more descriptor handling as needed
+    // Add MFCC bands if they exist
+    if (pool.contains<std::vector<essentia::Real>>("mfcc.bands")) {
+        if (!first) json += ",";
+        auto bands = pool.value<std::vector<essentia::Real>>("mfcc.bands");
+        json += "\"mfccBands\":[";
+        for (size_t i = 0; i < bands.size(); ++i) {
+            if (i > 0) json += ",";
+            json += std::to_string(bands[i]);
+        }
+        json += "]";
+        first = false;
+    }
 
     json += "}";
     return json;
@@ -150,8 +160,87 @@ Java_com_essentia_EssentiaModule_initializeEssentia(JNIEnv *env, jobject thiz) {
 
 JNIEXPORT jstring JNICALL
 Java_com_essentia_EssentiaModule_getEssentiaVersion(JNIEnv *env, jobject thiz) {
-	std::string version = essentia::version;
-	return env->NewStringUTF(version.c_str());
+	return env->NewStringUTF(essentia::version);
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_essentia_EssentiaModule_listAvailableAlgorithms(JNIEnv *env, jobject thiz) {
+    if (!isEssentiaInitialized) {
+        return env->NewStringUTF("{\"success\":false,\"error\":\"Essentia not initialized\"}");
+    }
+
+    try {
+        essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
+        std::vector<std::string> availableAlgorithms = factory.keys();
+
+        // Group algorithms by category
+        std::map<std::string, std::vector<std::string>> algorithmsByCategory;
+
+        // Special category for audio-related algorithms
+        std::vector<std::string> audioAlgorithms;
+
+        for (const auto& algo : availableAlgorithms) {
+            // Check if it's an audio-related algorithm
+            if (algo.find("Audio") != std::string::npos ||
+                algo.find("audio") != std::string::npos ||
+                algo.find("Loader") != std::string::npos ||
+                algo == "MonoLoader" ||
+                algo == "AudioLoader") {
+                audioAlgorithms.push_back(algo);
+            }
+
+            // Try to categorize by prefix
+            std::string category = "Uncategorized";
+
+            if (algo.find("Spectral") != std::string::npos) category = "Spectral";
+            else if (algo.find("Tonal") != std::string::npos) category = "Tonal";
+            else if (algo.find("Rhythm") != std::string::npos) category = "Rhythm";
+            else if (algo.find("Beat") != std::string::npos) category = "Rhythm";
+            else if (algo.find("Pitch") != std::string::npos) category = "Pitch";
+            else if (algo.find("Audio") != std::string::npos) category = "Audio";
+
+            algorithmsByCategory[category].push_back(algo);
+        }
+
+        // Create JSON response
+        std::stringstream json;
+        json << "{";
+        json << "\"success\":true,";
+        json << "\"totalCount\":" << availableAlgorithms.size() << ",";
+
+        // Add flag for critical audio algorithms
+        bool hasMonoLoader = std::find(availableAlgorithms.begin(), availableAlgorithms.end(), "MonoLoader") != availableAlgorithms.end();
+        bool hasAudioLoader = std::find(availableAlgorithms.begin(), availableAlgorithms.end(), "AudioLoader") != availableAlgorithms.end();
+        json << "\"hasMonoLoader\":" << (hasMonoLoader ? "true" : "false") << ",";
+        json << "\"hasAudioLoader\":" << (hasAudioLoader ? "true" : "false") << ",";
+
+        // Add audio algorithms section
+        json << "\"audioAlgorithms\":[";
+        for (size_t i = 0; i < audioAlgorithms.size(); i++) {
+            json << "\"" << audioAlgorithms[i] << "\"";
+            if (i < audioAlgorithms.size() - 1) json << ",";
+        }
+        json << "],";
+
+        // Add all algorithms section
+        json << "\"algorithms\":[";
+        for (size_t i = 0; i < availableAlgorithms.size(); i++) {
+            json << "\"" << availableAlgorithms[i] << "\"";
+            if (i < availableAlgorithms.size() - 1) json << ",";
+        }
+        json << "]";
+
+        json << "}";
+
+        return env->NewStringUTF(json.str().c_str());
+    }
+    catch (const std::exception& e) {
+        std::string errorJson = "{\"success\":false,\"error\":\"" + std::string(e.what()) + "\"}";
+        return env->NewStringUTF(errorJson.c_str());
+    }
+    catch (...) {
+        return env->NewStringUTF("{\"success\":false,\"error\":\"Unknown error\"}");
+    }
 }
 
 // Execute an Essentia algorithm
@@ -235,24 +324,51 @@ Java_com_essentia_EssentiaModule_executeEssentiaAlgorithm(JNIEnv *env, jobject t
             if (!isAudioLoaded || audioBuffer.empty()) {
                 result = "{\"error\": \"No audio loaded for MFCC computation\"}";
             } else {
-                // Create a frame if processing the entire signal
-                std::vector<essentia::Real> frame = audioBuffer;
+                // Need to compute spectrum first - MFCC needs spectrum input, not raw audio
+                essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
 
-                // Configure inputs and outputs
+                // First create windowing algorithm
+                std::unique_ptr<essentia::standard::Algorithm> windowing(factory.create("Windowing"));
+                windowing->configure("type", "hann");
+
+                // Then create the spectrum algorithm
+                std::unique_ptr<essentia::standard::Algorithm> spectrum(factory.create("Spectrum"));
+
+                // Prepare the vectors for the data flow
+                std::vector<essentia::Real> windowedFrame;
+                std::vector<essentia::Real> spectrumOutput;
                 std::vector<essentia::Real> mfccCoeffs, mfccBands;
-                algo->input("spectrum").set(frame);
+
+                // Use audioBuffer as frame input
+                // Connect windowing algorithm
+                windowing->input("frame").set(audioBuffer);
+                windowing->output("frame").set(windowedFrame);
+
+                // Connect spectrum algorithm
+                spectrum->input("frame").set(windowedFrame);
+                spectrum->output("spectrum").set(spectrumOutput);
+
+                // Connect MFCC algorithm
+                algo->input("spectrum").set(spectrumOutput);
                 algo->output("bands").set(mfccBands);
                 algo->output("mfcc").set(mfccCoeffs);
 
-                // Compute
+                // Compute in sequence
+                windowing->compute();
+                spectrum->compute();
                 algo->compute();
 
                 // Store results in pool
                 pool.set("mfcc.coefficients", mfccCoeffs);
                 pool.set("mfcc.bands", mfccBands);
 
-                // Convert pool to JSON
-                result = poolToJson(pool);
+                // Improve the poolToJson function to handle vector data properly
+                result = "{\"mfcc\":[";
+                for (size_t i = 0; i < mfccCoeffs.size(); i++) {
+                    if (i > 0) result += ",";
+                    result += std::to_string(mfccCoeffs[i]);
+                }
+                result += "]}";
             }
         }
         else if (std::string(algorithm) == "Key") {
@@ -773,6 +889,321 @@ Java_com_essentia_EssentiaModule_testMFCC(JNIEnv *env, jobject thiz) {
         return env->NewStringUTF(errorJson.c_str());
     } catch (...) {
         LOGE("Unknown error in testMFCC");
+        return env->NewStringUTF("{\"success\":false,\"error\":\"Unknown error\"}");
+    }
+}
+
+// Feature extraction function that matches the Python implementation
+JNIEXPORT jstring JNICALL
+Java_com_essentia_EssentiaModule_extractFeatures(JNIEnv *env, jobject thiz, jint nMfcc, jint nFft,
+                                                jint hopLength, jint winLength, jstring jwindow,
+                                                jint nChroma, jint nMels, jint nBands, jdouble fmin) {
+    if (!isEssentiaInitialized) {
+        LOGE("Essentia not initialized!");
+        return env->NewStringUTF("{\"success\":false,\"error\":\"Essentia not initialized\"}");
+    }
+
+    if (!isAudioLoaded || audioBuffer.empty()) {
+        LOGE("No audio loaded!");
+        return env->NewStringUTF("{\"success\":false,\"error\":\"No audio data loaded\"}");
+    }
+
+    try {
+        LOGI("Extracting features with parameters: nMfcc=%d, nFft=%d, hopLength=%d, winLength=%d, nChroma=%d, nMels=%d, nBands=%d, fmin=%.1f",
+             nMfcc, nFft, hopLength, winLength, nChroma, nMels, nBands, fmin);
+
+        // Get the window type
+        const char* window = env->GetStringUTFChars(jwindow, 0);
+        std::string windowType(window);
+        env->ReleaseStringUTFChars(jwindow, window);
+
+        // Create a pool to store results
+        essentia::Pool pool;
+
+        // Get the factory instance
+        essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
+
+        // Create algorithms
+        std::unique_ptr<essentia::standard::Algorithm> windowing(factory.create("Windowing"));
+        std::unique_ptr<essentia::standard::Algorithm> spectrum(factory.create("Spectrum"));
+        std::unique_ptr<essentia::standard::Algorithm> mfcc(factory.create("MFCC"));
+        std::unique_ptr<essentia::standard::Algorithm> melBands(factory.create("MelBands"));
+        std::unique_ptr<essentia::standard::Algorithm> spectralContrast(factory.create("SpectralContrast"));
+        std::unique_ptr<essentia::standard::Algorithm> chromaAlgo(factory.create("Chromagram"));
+        std::unique_ptr<essentia::standard::Algorithm> tonnetz(factory.create("Tonnetz"));
+
+        // Configure algorithms
+        windowing->configure("size", winLength, "type", windowType);
+        spectrum->configure("size", nFft);
+        mfcc->configure("numberCoefficients", nMfcc, "numberBands", nMels, "inputSize", nFft/2+1,
+                        "sampleRate", currentSampleRate, "lowFrequencyBound", fmin, "highFrequencyBound", currentSampleRate/2);
+        melBands->configure("numberBands", nMels, "sampleRate", currentSampleRate,
+                           "lowFrequencyBound", fmin, "highFrequencyBound", currentSampleRate/2);
+        spectralContrast->configure("numberBands", nBands, "sampleRate", currentSampleRate,
+                                   "lowFrequencyBound", fmin, "highFrequencyBound", currentSampleRate/2);
+        chromaAlgo->configure("sampleRate", currentSampleRate, "numberBins", nChroma);
+        tonnetz->configure("sampleRate", currentSampleRate);
+
+        // Create a FrameCutter
+        std::unique_ptr<essentia::standard::Algorithm> frameCutter(factory.create("FrameCutter"));
+        frameCutter->configure("frameSize", winLength, "hopSize", hopLength);
+
+        // Connect the frameCutter to the audio buffer
+        frameCutter->input("signal").set(audioBuffer);
+
+        // Prepare vectors for intermediate results
+        std::vector<essentia::Real> frame, windowedFrame;
+        std::vector<essentia::Real> spectrumOutput;
+        std::vector<essentia::Real> mfccCoeffs, mfccBands;
+        std::vector<essentia::Real> melBandsOutput;
+        std::vector<essentia::Real> spectralContrastCoeffs, spectralContrastValleys;
+        std::vector<essentia::Real> chromaOutput;
+        std::vector<essentia::Real> tonnetzOutput;
+
+        // Connect algorithms
+        frameCutter->output("frame").set(frame);
+        windowing->input("frame").set(frame);
+        windowing->output("frame").set(windowedFrame);
+        spectrum->input("frame").set(windowedFrame);
+        spectrum->output("spectrum").set(spectrumOutput);
+        mfcc->input("spectrum").set(spectrumOutput);
+        mfcc->output("mfcc").set(mfccCoeffs);
+        mfcc->output("bands").set(mfccBands);
+        melBands->input("spectrum").set(spectrumOutput);
+        melBands->output("bands").set(melBandsOutput);
+        spectralContrast->input("spectrum").set(spectrumOutput);
+        spectralContrast->output("spectralContrast").set(spectralContrastCoeffs);
+        spectralContrast->output("spectralContrastValleys").set(spectralContrastValleys);
+        chromaAlgo->input("spectrum").set(spectrumOutput);
+        chromaAlgo->output("chromagram").set(chromaOutput);
+        tonnetz->input("pcp").set(chromaOutput);
+        tonnetz->output("tonnetz").set(tonnetzOutput);
+
+        // Vectors to store all frame results
+        std::vector<std::vector<essentia::Real>> allMfccs;
+        std::vector<std::vector<essentia::Real>> allMels;
+        std::vector<std::vector<essentia::Real>> allChromas;
+        std::vector<std::vector<essentia::Real>> allContrasts;
+        std::vector<std::vector<essentia::Real>> allTonnetz;
+
+        // Process all frames
+        int frameCount = 0;
+        while (true) {
+            // Get a frame
+            frameCutter->compute();
+
+            // If the frame is empty, we're done
+            if (frame.empty()) {
+                break;
+            }
+
+            // Apply window
+            windowing->compute();
+
+            // Compute spectrum
+            spectrum->compute();
+
+            // Compute MFCC
+            mfcc->compute();
+            allMfccs.push_back(mfccCoeffs);
+
+            // Compute Mel bands
+            melBands->compute();
+            allMels.push_back(melBandsOutput);
+
+            // Compute Spectral Contrast
+            spectralContrast->compute();
+
+            // Combine coefficients and valleys
+            std::vector<essentia::Real> combinedContrast;
+            combinedContrast.insert(combinedContrast.end(), spectralContrastCoeffs.begin(), spectralContrastCoeffs.end());
+            combinedContrast.insert(combinedContrast.end(), spectralContrastValleys.begin(), spectralContrastValleys.end());
+            allContrasts.push_back(combinedContrast);
+
+            // Compute Chroma
+            chromaAlgo->compute();
+            allChromas.push_back(chromaOutput);
+
+            // Compute Tonnetz
+            tonnetz->compute();
+            allTonnetz.push_back(tonnetzOutput);
+
+            frameCount++;
+        }
+
+        LOGI("Processed %d frames", frameCount);
+
+        // Calculate mean of each feature across frames
+        std::vector<essentia::Real> meanMfcc(nMfcc, 0.0);
+        std::vector<essentia::Real> meanMel(nMels, 0.0);
+        std::vector<essentia::Real> meanChroma(nChroma, 0.0);
+        std::vector<essentia::Real> meanContrast(nBands + 1, 0.0); // +1 for valleys
+        std::vector<essentia::Real> meanTonnetz(6, 0.0); // Tonnetz has 6 dimensions
+
+        // Calculate means
+        if (frameCount > 0) {
+            // MFCC
+            for (const auto& frame : allMfccs) {
+                for (size_t i = 0; i < std::min(frame.size(), meanMfcc.size()); ++i) {
+                    meanMfcc[i] += frame[i] / frameCount;
+                }
+            }
+
+            // Mel
+            for (const auto& frame : allMels) {
+                for (size_t i = 0; i < std::min(frame.size(), meanMel.size()); ++i) {
+                    meanMel[i] += frame[i] / frameCount;
+                }
+            }
+
+            // Chroma
+            for (const auto& frame : allChromas) {
+                for (size_t i = 0; i < std::min(frame.size(), meanChroma.size()); ++i) {
+                    meanChroma[i] += frame[i] / frameCount;
+                }
+            }
+
+            // Contrast
+            for (const auto& frame : allContrasts) {
+                for (size_t i = 0; i < std::min(frame.size(), meanContrast.size()); ++i) {
+                    meanContrast[i] += frame[i] / frameCount;
+                }
+            }
+
+            // Tonnetz
+            for (const auto& frame : allTonnetz) {
+                for (size_t i = 0; i < std::min(frame.size(), meanTonnetz.size()); ++i) {
+                    meanTonnetz[i] += frame[i] / frameCount;
+                }
+            }
+        }
+
+        // Store results in pool
+        pool.set("mfcc", meanMfcc);
+        pool.set("mel", meanMel);
+        pool.set("chroma", meanChroma);
+        pool.set("contrast", meanContrast);
+        pool.set("tonnetz", meanTonnetz);
+
+        // Create a JSON response with all features
+        std::stringstream json;
+        json << "{";
+        json << "\"success\":true,";
+
+        // Add MFCC
+        json << "\"mfcc\":[";
+        for (size_t i = 0; i < meanMfcc.size(); ++i) {
+            if (i > 0) json << ",";
+            json << meanMfcc[i];
+        }
+        json << "],";
+
+        // Add Mel
+        json << "\"mel\":[";
+        for (size_t i = 0; i < meanMel.size(); ++i) {
+            if (i > 0) json << ",";
+            json << meanMel[i];
+        }
+        json << "],";
+
+        // Add Chroma
+        json << "\"chroma\":[";
+        for (size_t i = 0; i < meanChroma.size(); ++i) {
+            if (i > 0) json << ",";
+            json << meanChroma[i];
+        }
+        json << "],";
+
+        // Add Contrast
+        json << "\"contrast\":[";
+        for (size_t i = 0; i < meanContrast.size(); ++i) {
+            if (i > 0) json << ",";
+            json << meanContrast[i];
+        }
+        json << "],";
+
+        // Add Tonnetz
+        json << "\"tonnetz\":[";
+        for (size_t i = 0; i < meanTonnetz.size(); ++i) {
+            if (i > 0) json << ",";
+            json << meanTonnetz[i];
+        }
+        json << "],";
+
+        // Add feature counts for verification
+        json << "\"featureCounts\":{";
+        json << "\"mfcc\":" << meanMfcc.size() << ",";
+        json << "\"chroma\":" << meanChroma.size() << ",";
+        json << "\"mel\":" << meanMel.size() << ",";
+        json << "\"contrast\":" << meanContrast.size() << ",";
+        json << "\"tonnetz\":" << meanTonnetz.size();
+        json << "}";
+
+        json << "}";
+
+        LOGI("Feature extraction complete: %s", json.str().c_str());
+        return env->NewStringUTF(json.str().c_str());
+    } catch (const std::exception& e) {
+        LOGE("Error extracting features: %s", e.what());
+        std::string errorJson = "{\"success\":false,\"error\":\"" + std::string(e.what()) + "\"}";
+        return env->NewStringUTF(errorJson.c_str());
+    } catch (...) {
+        LOGE("Unknown error in feature extraction");
+        return env->NewStringUTF("{\"success\":false,\"error\":\"Unknown error in feature extraction\"}");
+    }
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_essentia_EssentiaModule_testFFmpegIntegration(JNIEnv *env, jobject thiz) {
+    if (!isEssentiaInitialized) {
+        return env->NewStringUTF("{\"success\":false,\"error\":\"Essentia not initialized\"}");
+    }
+
+    try {
+        // Create a JSON response
+        std::stringstream json;
+        json << "{";
+        json << "\"success\":true,";
+
+        // Check for audio loading algorithms
+        essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
+        std::vector<std::string> availableAlgorithms = factory.keys();
+
+        bool hasMonoLoader = std::find(availableAlgorithms.begin(), availableAlgorithms.end(), "MonoLoader") != availableAlgorithms.end();
+        bool hasAudioLoader = std::find(availableAlgorithms.begin(), availableAlgorithms.end(), "AudioLoader") != availableAlgorithms.end();
+
+        json << "\"hasMonoLoader\":" << (hasMonoLoader ? "true" : "false") << ",";
+        json << "\"hasAudioLoader\":" << (hasAudioLoader ? "true" : "false") << ",";
+
+        // List all available audio-related algorithms
+        json << "\"audioAlgorithms\":[";
+        bool first = true;
+        for (const auto& algo : availableAlgorithms) {
+            if (algo.find("Audio") != std::string::npos ||
+                algo.find("audio") != std::string::npos ||
+                algo.find("Loader") != std::string::npos ||
+                algo.find("FFT") != std::string::npos ||
+                algo.find("Spectrum") != std::string::npos) {
+
+                if (!first) json << ",";
+                json << "\"" << algo << "\"";
+                first = false;
+            }
+        }
+        json << "]";
+
+        json << "}";
+
+        LOGI("FFmpeg integration test: %s", json.str().c_str());
+        return env->NewStringUTF(json.str().c_str());
+    }
+    catch (const std::exception& e) {
+        std::string errorJson = "{\"success\":false,\"error\":\"" + std::string(e.what()) + "\"}";
+        LOGE("Error in FFmpeg integration test: %s", e.what());
+        return env->NewStringUTF(errorJson.c_str());
+    }
+    catch (...) {
+        LOGE("Unknown error in FFmpeg integration test");
         return env->NewStringUTF("{\"success\":false,\"error\":\"Unknown error\"}");
     }
 }
