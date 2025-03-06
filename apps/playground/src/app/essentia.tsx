@@ -1,11 +1,12 @@
 import { AppTheme, ScreenWrapper, useThemePreferences } from '@siteed/design-system';
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, ScrollView, ToastAndroid, Platform, Alert } from 'react-native';
 import EssentiaJS, { AlgorithmResult } from 'react-native-essentia';
-import { Button, Card, Text, TouchableRipple } from 'react-native-paper';
+import { ActivityIndicator, Button, Card, Text, TouchableRipple, Chip } from 'react-native-paper';
 import { AssetSourceType, SampleAudioFile, useSampleAudio } from '../hooks/useSampleAudio';
 import { sendDummyPCMData } from '../utils/essentiaUtils';
 import AlgorithmSelector from '../components/AlgorithmSelector';
+import { AlgorithmExplorer } from './algorithm-explorer';
 
 // Sample audio assets 
 // Use a more compatible type
@@ -24,6 +25,30 @@ interface ValidationResult {
   message?: string;
   algorithmResults?: Record<string, AlgorithmResult>;
   error?: string;
+  isValidating?: boolean;
+  isLoadingSample?: boolean;
+}
+
+interface AlgorithmInfo {
+  name: string;
+  inputs: { name: string; type: string }[];
+  outputs: { name: string; type: string }[];
+  parameters: Record<string, Record<string, unknown>>;
+}
+
+// Enhanced EssentiaAPI type definition to include the new method
+declare module 'react-native-essentia' {
+  export interface EssentiaAPI {
+    initialize(): Promise<EssentiaInitResult>;
+    setAudioData(pcmData: number[], sampleRate: number): Promise<boolean>;
+    executeAlgorithm(algorithm: string, params: Record<string, unknown>): Promise<Record<string, unknown>>;
+    testConnection(): Promise<string>;
+    getAlgorithmInfo(algorithm: string): Promise<{
+      success: boolean;
+      data?: AlgorithmInfo;
+      error?: { code: string; message: string };
+    }>;
+  }
 }
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
@@ -69,45 +94,79 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
     sampleName: {
       fontSize: 16,
     },
+    chipContainer: {
+      flexDirection: 'row',
+      marginVertical: 8,
+      maxHeight: 48,
+    },
+    chip: {
+      marginRight: 8,
+      marginBottom: 8,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    item: {
+      fontSize: 14,
+      marginLeft: 8,
+      marginBottom: 2,
+    },
+    testResult: {
+      marginTop: 8,
+      padding: 8,
+      backgroundColor: theme.colors.surfaceVariant,
+      borderRadius: 4,
+    },
   });
 };
 
 function EssentiaScreen() {
   const { theme } = useThemePreferences();
   const styles = useMemo(() => getStyles({ theme }), [theme]);
+  const { loadSampleAudio } = useSampleAudio();
 
-  // State for initialization
+  const [selectedSample, setSelectedSample] = useState<SampleAudioFile | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [isInitializing, setIsInitializing] = useState<boolean>(false);
   const [initResult, setInitResult] = useState<EssentiaInitResult | null>(null);
-
-  // State for validation
-  const [isValidating, setIsValidating] = useState<boolean>(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
-
-  // State for sample audio
-  const { sampleFile: _sampleFile, loadSampleAudio } = useSampleAudio();
-  const [selectedSample, setSelectedSample] = useState<SampleAudioFile | null>(null);
-  const [isLoadingSample, setIsLoadingSample] = useState<boolean>(false);
-
-  // State for MFCC extraction
   const [isExtractingMFCC, setIsExtractingMFCC] = useState<boolean>(false);
-  const [mfccResult, setMfccResult] = useState<AlgorithmResult | null>(null);
-
-  // Add new state for test connection
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
   const [connectionTestResult, setConnectionTestResult] = useState<string | null>(null);
 
+  const [currentAlgorithm, setCurrentAlgorithm] = useState<string>('');
+  const [algorithmInfo, setAlgorithmInfo] = useState<AlgorithmInfo | null>(null);
+  const [isLoadingAlgoInfo, setIsLoadingAlgoInfo] = useState(false);
+  // No need to update these, so using a fixed array
+  const commonAlgorithms = [
+    'MFCC', 'Spectrum', 'Key', 'Energy', 'Loudness', 'ZeroCrossingRate',
+    'SpectralCentroid', 'SpectralRolloff', 'SpectrumCQ', 'Windowing', 'Onsets'
+  ];
+
+  // Toast utility function
+  const showToast = (message: string) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Message', message);
+    }
+  };
+
   const handleLoadSample = async (assetModule: AssetSourceType, index: number) => {
     try {
-      setIsLoadingSample(true);
       const sample = await loadSampleAudio(assetModule, `sample${index}`);
       setSelectedSample(sample);
       console.log('Loaded sample:', sample);
     } catch (error) {
       console.error('Error loading sample:', error);
-    } finally {
-      setIsLoadingSample(false);
     }
   };
 
@@ -133,7 +192,6 @@ function EssentiaScreen() {
   };
 
   const validateEssentiaIntegration = async () => {
-    setIsValidating(true);
     setValidationResult(null);
 
     try {
@@ -233,8 +291,6 @@ function EssentiaScreen() {
         success: false,
         error: error instanceof Error ? error.message : String(error),
       });
-    } finally {
-      setIsValidating(false);
     }
   };
 
@@ -245,7 +301,6 @@ function EssentiaScreen() {
     }
 
     setIsExtractingMFCC(true);
-    setMfccResult(null);
 
     try {
       // Initialize if not already
@@ -271,18 +326,22 @@ function EssentiaScreen() {
         highFrequencyBound: 22050
       });
       
-      setMfccResult({
+      setValidationResult(prevResults => ({
+        ...prevResults,
         success: true,
-        data: result.data
-      });
-      
-      console.log('MFCC extraction result:', result);
+        algorithmResults: {
+          ...prevResults?.algorithmResults,
+          MFCC: { name: 'MFCC', data: result.data, success: true }
+        }
+      }));
+      showToast(`Successfully extracted MFCC`);
     } catch (error) {
       console.error('MFCC extraction error:', error);
-      setMfccResult({
+      setValidationResult(prevResults => ({
+        ...prevResults,
         success: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
+        error: error instanceof Error ? error.message : String(error)
+      }));
     } finally {
       setIsExtractingMFCC(false);
     }
@@ -339,6 +398,138 @@ function EssentiaScreen() {
     }
   };
 
+  const getAlgorithmInfo = async (algorithmName: string) => {
+    setIsLoadingAlgoInfo(true);
+    try {
+      if (!isInitialized) {
+        showToast('Please initialize Essentia first');
+        return;
+      }
+      
+      console.log(`Fetching info for algorithm: ${algorithmName}`);
+      const result = await EssentiaJS.getAlgorithmInfo(algorithmName);
+      console.log('Algorithm info result:', result);
+      
+      if (result.success && result.data) {
+        setAlgorithmInfo(result.data as AlgorithmInfo);
+        setCurrentAlgorithm(algorithmName);
+      } else {
+        showToast(`Failed to get info for ${algorithmName}`);
+      }
+    } catch (error) {
+      console.error('Error getting algorithm info:', error);
+      showToast(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsLoadingAlgoInfo(false);
+    }
+  };
+  
+  const executeCurrentAlgorithm = async () => {
+    try {
+      if (!isInitialized) {
+        showToast('Please initialize Essentia first');
+        return;
+      }
+      
+      if (!selectedSample) {
+        showToast('Please select an audio sample first');
+        return;
+      }
+      
+      if (!currentAlgorithm) {
+        showToast('Please select an algorithm first');
+        return;
+      }
+      
+      // Execute with default parameters
+      const result = await EssentiaJS.executeAlgorithm(currentAlgorithm, {});
+      console.log(`${currentAlgorithm} execution result:`, result);
+      
+      if (result.success && result.data) {
+        // Update validation results with our algorithm execution
+        setValidationResult(prevResults => ({
+          ...prevResults,
+          success: true,
+          algorithmResults: {
+            ...prevResults?.algorithmResults,
+            [currentAlgorithm]: { name: currentAlgorithm, data: result.data, success: true }
+          }
+        }));
+        showToast(`Successfully executed ${currentAlgorithm}`);
+      } else {
+        showToast(`Failed to execute ${currentAlgorithm}`);
+      }
+    } catch (error) {
+      console.error(`Error executing ${currentAlgorithm}:`, error);
+      showToast(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+  
+  const renderAlgorithmSelector = () => {
+    return (
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text style={styles.cardTitle}>Algorithm Information</Text>
+          <Text style={styles.cardContent}>
+            Select an algorithm to see its details and execute it
+          </Text>
+          
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipContainer}>
+            {commonAlgorithms.map((algo) => (
+              <Chip
+                key={algo}
+                selected={currentAlgorithm === algo}
+                onPress={() => getAlgorithmInfo(algo)}
+                style={styles.chip}
+                mode="outlined"
+              >
+                {algo}
+              </Chip>
+            ))}
+          </ScrollView>
+          
+          {isLoadingAlgoInfo ? (
+            <ActivityIndicator style={{ marginTop: 16 }} />
+          ) : algorithmInfo ? (
+            <View style={{ marginTop: 16 }}>
+              <Text style={styles.sectionTitle}>Details for {algorithmInfo.name}</Text>
+              
+              <Text style={styles.subtitle}>Inputs:</Text>
+              {algorithmInfo.inputs.map((input, index) => (
+                <Text key={`input-${index}`} style={styles.item}>
+                  • {input.name}: {input.type}
+                </Text>
+              ))}
+              
+              <Text style={styles.subtitle}>Outputs:</Text>
+              {algorithmInfo.outputs.map((output, index) => (
+                <Text key={`output-${index}`} style={styles.item}>
+                  • {output.name}: {output.type}
+                </Text>
+              ))}
+              
+              <Text style={styles.subtitle}>Parameters:</Text>
+              {Object.entries(algorithmInfo.parameters).map(([key, value], index) => (
+                <Text key={`param-${index}`} style={styles.item}>
+                  • {key}: {JSON.stringify(value)}
+                </Text>
+              ))}
+              
+              <Button
+                mode="contained"
+                onPress={executeCurrentAlgorithm}
+                style={{ marginTop: 16 }}
+                disabled={!selectedSample || !isInitialized}
+              >
+                Execute {algorithmInfo.name}
+              </Button>
+            </View>
+          ) : null}
+        </Card.Content>
+      </Card>
+    );
+  };
+
   return (
     <ScreenWrapper contentContainerStyle={styles.container} withScrollView>
 
@@ -376,8 +567,8 @@ function EssentiaScreen() {
               <Button
                 mode="contained"
                 onPress={validateEssentiaIntegration}
-                loading={isValidating}
-                disabled={isValidating}
+                loading={validationResult?.isValidating}
+                disabled={validationResult?.isValidating}
                 style={styles.button}
               >
                 Validate Integration
@@ -417,8 +608,8 @@ function EssentiaScreen() {
                   key={index}
                   mode="outlined"
                   onPress={() => handleLoadSample(asset, index)}
-                  loading={isLoadingSample}
-                  disabled={isLoadingSample}
+                  loading={validationResult?.isLoadingSample}
+                  disabled={validationResult?.isLoadingSample}
                   style={styles.button}
                 >
                   Load Sample {index + 1}
@@ -430,7 +621,14 @@ function EssentiaScreen() {
         </Card>
 
         <AlgorithmSelector 
-          onExecute={(result) => setMfccResult(result)}
+          onExecute={(result) => setValidationResult(prevResults => ({
+            ...prevResults,
+            success: true,
+            algorithmResults: {
+              ...prevResults?.algorithmResults,
+              MFCC: { name: 'MFCC', data: result.data, success: true }
+            }
+          }))}
           isInitialized={isInitialized}
         />
 
@@ -448,17 +646,36 @@ function EssentiaScreen() {
                 Extract MFCC
               </Button>
             </View>
-            {mfccResult && (
-              <View style={{ marginTop: 8 }}>
-                <Text>Result: {mfccResult.success ? 'Success ✅' : 'Failed ❌'}</Text>
-                {mfccResult.error && <Text style={{ color: 'red' }}>{mfccResult.error}</Text>}
-                {mfccResult.data && (
-                  <Text style={styles.resultText}>{JSON.stringify(mfccResult.data, null, 2)}</Text>
-                )}
-              </View>
-            )}
           </Card.Content>
         </Card>
+
+        {isInitialized && renderAlgorithmSelector()}
+
+        {isInitialized && selectedSample && (
+          <AlgorithmExplorer
+            isInitialized={isInitialized}
+            hasAudioData={!!selectedSample}
+            showToast={showToast}
+            onExecute={(algorithmName: string, result: unknown) => {
+              // Update the validation results with the algorithm execution result
+              setValidationResult(prevResult => {
+                const currentResults = prevResult?.algorithmResults || {};
+                return {
+                  success: true,
+                  algorithmResults: {
+                    ...currentResults,
+                    [algorithmName]: {
+                      name: algorithmName,
+                      data: (result as { data?: Record<string, string | number | number[]> }).data || {},
+                      success: true
+                    }
+                  }
+                };
+              });
+            }}
+          />
+        )}
+        <View style={{ height: 100 }} />
 
     </ScreenWrapper>
   );

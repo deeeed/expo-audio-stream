@@ -33,7 +33,11 @@ interface EssentiaInterface {
   // Algorithm execution
   executeAlgorithm(algorithm: string, params: AlgorithmParams): Promise<any>;
 
+  // Testing
   testConnection(): Promise<string>;
+
+  // Algorithm information
+  getAlgorithmInfo(algorithm: string): Promise<any>;
 }
 
 // Get the native module
@@ -53,6 +57,14 @@ export interface AlgorithmResult {
   success: boolean;
   data?: Record<string, number | string | number[]>;
   error?: string;
+}
+
+// Define the algorithm info interface
+export interface AlgorithmInfo {
+  name: string;
+  inputs: Array<{ name: string; type: string }>;
+  outputs: Array<{ name: string; type: string }>;
+  parameters: Record<string, unknown>;
 }
 
 // Implement the API class
@@ -113,6 +125,20 @@ class EssentiaAPI implements EssentiaInterface {
       return await Essentia.testConnection();
     } catch (error) {
       console.error('Essentia testConnection error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Gets information about an Essentia algorithm, including its inputs, outputs, and parameters.
+   * @param algorithm Name of the Essentia algorithm to get information about
+   * @returns A Promise that resolves to an object containing algorithm information
+   */
+  async getAlgorithmInfo(algorithm: string): Promise<any> {
+    try {
+      return await Essentia.getAlgorithmInfo(algorithm);
+    } catch (error) {
+      console.error(`Essentia getAlgorithmInfo error (${algorithm}):`, error);
       throw error;
     }
   }

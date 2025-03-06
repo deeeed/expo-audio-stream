@@ -229,165 +229,376 @@ public:
 
             LOGI("Executing algorithm: %s with params: %s", algorithm.c_str(), paramsJson.c_str());
 
-            // Check if we have audio data
-            if (audioBuffer.empty() && algorithm != "TestAlgorithm") {
-                return createErrorResponse("No audio data loaded", "NO_AUDIO_DATA");
-            }
-
             // Create algorithm factory
             essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
-            essentia::Pool pool;
+
+            // Check if algorithm exists
+            essentia::standard::Algorithm* testAlgo = nullptr;
+            try {
+                testAlgo = factory.create(algorithm);
+                if (!testAlgo) {
+                    return createErrorResponse("Algorithm does not exist: " + algorithm, "ALGORITHM_NOT_FOUND");
+                }
+                delete testAlgo;
+            } catch (const std::exception& e) {
+                return createErrorResponse("Algorithm does not exist: " + algorithm, "ALGORITHM_NOT_FOUND");
+            }
 
             // Parse parameters from JSON
             std::map<std::string, essentia::Parameter> params = jsonToParamsMap(paramsJson);
 
-            // Handle different algorithm types with proper chaining
-            if (algorithm == "MFCC") {
-                // First compute the spectrum
-                essentia::standard::Algorithm* spectrumAlgo = factory.create("Spectrum");
-                std::vector<essentia::Real> spectrum;
-
-                spectrumAlgo->input("frame").set(audioBuffer);
-                spectrumAlgo->output("spectrum").set(spectrum);
-                spectrumAlgo->compute();
-
-                // Then compute MFCC using the spectrum
-                essentia::standard::Algorithm* mfccAlgo = factory.create("MFCC");
-
-                // Configure MFCC with parameters if provided
-                if (!params.empty()) {
-                    // Convert our map to ParameterMap
-                    essentia::ParameterMap parameterMap = convertToParameterMap(params);
-                    mfccAlgo->configure(parameterMap);
-                }
-
-                std::vector<essentia::Real> mfccCoeffs;
-                std::vector<essentia::Real> mfccBands;
-
-                mfccAlgo->input("spectrum").set(spectrum);
-                mfccAlgo->output("mfcc").set(mfccCoeffs);
-                mfccAlgo->output("bands").set(mfccBands);
-                mfccAlgo->compute();
-
-                // Store results in pool
-                pool.set("mfcc", mfccCoeffs);
-                pool.set("bands", mfccBands);
-
-                // Clean up
-                delete spectrumAlgo;
-                delete mfccAlgo;
-            } else if (algorithm == "Spectrum") {
-                // Create and configure the Spectrum algorithm
-                essentia::standard::Algorithm* spectrumAlgo = factory.create("Spectrum");
-
-                // Configure with parameters if provided
-                if (!params.empty()) {
-                    // Convert our map to ParameterMap
-                    essentia::ParameterMap parameterMap = convertToParameterMap(params);
-                    spectrumAlgo->configure(parameterMap);
-                }
-
-                std::vector<essentia::Real> spectrum;
-
-                spectrumAlgo->input("frame").set(audioBuffer);
-                spectrumAlgo->output("spectrum").set(spectrum);
-                spectrumAlgo->compute();
-
-                // Store results in pool
-                pool.set("spectrum", spectrum);
-
-                // Clean up
-                delete spectrumAlgo;
-            } else if (algorithm == "Key") {
-                // Key detection typically requires a multi-step process
-
-                // 1. Compute spectrum
-                essentia::standard::Algorithm* spectrumAlgo = factory.create("Spectrum");
-                std::vector<essentia::Real> spectrum;
-
-                spectrumAlgo->input("frame").set(audioBuffer);
-                spectrumAlgo->output("spectrum").set(spectrum);
-                spectrumAlgo->compute();
-
-                // 2. Compute spectral peaks
-                essentia::standard::Algorithm* peaksAlgo = factory.create("SpectralPeaks");
-                std::vector<essentia::Real> frequencies;
-                std::vector<essentia::Real> magnitudes;
-
-                peaksAlgo->input("spectrum").set(spectrum);
-                peaksAlgo->output("frequencies").set(frequencies);
-                peaksAlgo->output("magnitudes").set(magnitudes);
-                peaksAlgo->compute();
-
-                // 3. Compute HPCP (Harmonic Pitch Class Profile)
-                essentia::standard::Algorithm* hpcpAlgo = factory.create("HPCP");
-                std::vector<essentia::Real> hpcp;
-
-                hpcpAlgo->input("frequencies").set(frequencies);
-                hpcpAlgo->input("magnitudes").set(magnitudes);
-                hpcpAlgo->output("hpcp").set(hpcp);
-                hpcpAlgo->compute();
-
-                // 4. Compute key
-                essentia::standard::Algorithm* keyAlgo = factory.create("Key");
-                std::string key;
-                std::string scale;
-                essentia::Real strength;
-
-                keyAlgo->input("hpcp").set(hpcp);
-                keyAlgo->output("key").set(key);
-                keyAlgo->output("scale").set(scale);
-                keyAlgo->output("strength").set(strength);
-                keyAlgo->compute();
-
-                // Store results in pool
-                pool.set("key", key);
-                pool.set("scale", scale);
-                pool.set("strength", strength);
-
-                // Clean up
-                delete spectrumAlgo;
-                delete peaksAlgo;
-                delete hpcpAlgo;
-                delete keyAlgo;
-            } else {
-                // Generic approach for other algorithms
-                try {
-                    // Create the algorithm
-                    essentia::standard::Algorithm* algo = factory.create(algorithm);
-
-                    // Configure with parameters if provided
-                    if (!params.empty()) {
-                        // Convert our map to ParameterMap
-                        essentia::ParameterMap parameterMap = convertToParameterMap(params);
-                        algo->configure(parameterMap);
-                    }
-
-                    // Execute the algorithm (this is simplified - in reality, you'd need to
-                    // handle inputs and outputs based on the algorithm's requirements)
-                    algo->compute();
-
-                    // Clean up
-                    delete algo;
-
-                    // Since we don't know how to properly handle this algorithm yet,
-                    // return a message indicating limited support
-                    return "{\"success\":true,\"data\":{\"message\":\"Algorithm executed, but full output handling not implemented yet\"}}";
-                } catch (const std::exception& e) {
-                    std::string errorMsg = std::string("Unsupported algorithm or error: ") + e.what();
-                    return createErrorResponse(errorMsg, "UNSUPPORTED_ALGORITHM");
-                }
+            // For backward compatibility, still handle the specifically optimized algorithms
+            if (algorithm == "MFCC" || algorithm == "Spectrum" || algorithm == "Key") {
+                return executeSpecificAlgorithm(algorithm, params);
             }
 
-            // Convert results to JSON
-            std::string resultJson = poolToJson(pool);
-
-            // Return success with results
-            return "{\"success\":true,\"data\":" + resultJson + "}";
+            // Dynamic approach for other algorithms
+            return executeDynamicAlgorithm(algorithm, params);
         } catch (const std::exception& e) {
             std::string errorMsg = std::string("Error executing algorithm: ") + e.what();
             LOGE("%s", errorMsg.c_str());
             return createErrorResponse(errorMsg, "ALGORITHM_EXECUTION_ERROR");
+        }
+    }
+
+    // Handle the specific optimized algorithms (MFCC, Spectrum, Key)
+    std::string executeSpecificAlgorithm(const std::string& algorithm, const std::map<std::string, essentia::Parameter>& params) {
+        essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
+        essentia::Pool pool;
+
+        // Check if we have audio data
+        if (audioBuffer.empty()) {
+            return createErrorResponse("No audio data loaded", "NO_AUDIO_DATA");
+        }
+
+        if (algorithm == "MFCC") {
+            // First compute the spectrum
+            essentia::standard::Algorithm* spectrumAlgo = factory.create("Spectrum");
+            std::vector<essentia::Real> spectrum;
+
+            spectrumAlgo->input("frame").set(audioBuffer);
+            spectrumAlgo->output("spectrum").set(spectrum);
+            spectrumAlgo->compute();
+
+            // Then compute MFCC using the spectrum
+            essentia::standard::Algorithm* mfccAlgo = factory.create("MFCC");
+
+            // Configure MFCC with parameters if provided
+            if (!params.empty()) {
+                // Convert our map to ParameterMap
+                essentia::ParameterMap parameterMap = convertToParameterMap(params);
+                mfccAlgo->configure(parameterMap);
+            }
+
+            std::vector<essentia::Real> mfccCoeffs;
+            std::vector<essentia::Real> mfccBands;
+
+            mfccAlgo->input("spectrum").set(spectrum);
+            mfccAlgo->output("mfcc").set(mfccCoeffs);
+            mfccAlgo->output("bands").set(mfccBands);
+            mfccAlgo->compute();
+
+            // Store results in pool
+            pool.set("mfcc", mfccCoeffs);
+            pool.set("bands", mfccBands);
+
+            // Clean up
+            delete spectrumAlgo;
+            delete mfccAlgo;
+        } else if (algorithm == "Spectrum") {
+            // Create and configure the Spectrum algorithm
+            essentia::standard::Algorithm* spectrumAlgo = factory.create("Spectrum");
+
+            // Configure with parameters if provided
+            if (!params.empty()) {
+                // Convert our map to ParameterMap
+                essentia::ParameterMap parameterMap = convertToParameterMap(params);
+                spectrumAlgo->configure(parameterMap);
+            }
+
+            std::vector<essentia::Real> spectrum;
+
+            spectrumAlgo->input("frame").set(audioBuffer);
+            spectrumAlgo->output("spectrum").set(spectrum);
+            spectrumAlgo->compute();
+
+            // Store results in pool
+            pool.set("spectrum", spectrum);
+
+            // Clean up
+            delete spectrumAlgo;
+        } else if (algorithm == "Key") {
+            // Key detection typically requires a multi-step process
+
+            // 1. Compute spectrum
+            essentia::standard::Algorithm* spectrumAlgo = factory.create("Spectrum");
+            std::vector<essentia::Real> spectrum;
+
+            spectrumAlgo->input("frame").set(audioBuffer);
+            spectrumAlgo->output("spectrum").set(spectrum);
+            spectrumAlgo->compute();
+
+            // 2. Compute spectral peaks
+            essentia::standard::Algorithm* peaksAlgo = factory.create("SpectralPeaks");
+            std::vector<essentia::Real> frequencies;
+            std::vector<essentia::Real> magnitudes;
+
+            peaksAlgo->input("spectrum").set(spectrum);
+            peaksAlgo->output("frequencies").set(frequencies);
+            peaksAlgo->output("magnitudes").set(magnitudes);
+            peaksAlgo->compute();
+
+            // 3. Compute HPCP (Harmonic Pitch Class Profile)
+            essentia::standard::Algorithm* hpcpAlgo = factory.create("HPCP");
+            std::vector<essentia::Real> hpcp;
+
+            hpcpAlgo->input("frequencies").set(frequencies);
+            hpcpAlgo->input("magnitudes").set(magnitudes);
+            hpcpAlgo->output("hpcp").set(hpcp);
+            hpcpAlgo->compute();
+
+            // 4. Compute key
+            essentia::standard::Algorithm* keyAlgo = factory.create("Key");
+            std::string key;
+            std::string scale;
+            essentia::Real strength;
+
+            keyAlgo->input("hpcp").set(hpcp);
+            keyAlgo->output("key").set(key);
+            keyAlgo->output("scale").set(scale);
+            keyAlgo->output("strength").set(strength);
+            keyAlgo->compute();
+
+            // Store results in pool
+            pool.set("key", key);
+            pool.set("scale", scale);
+            pool.set("strength", strength);
+
+            // Clean up
+            delete spectrumAlgo;
+            delete peaksAlgo;
+            delete hpcpAlgo;
+            delete keyAlgo;
+        }
+
+        // Convert results to JSON
+        std::string resultJson = poolToJson(pool);
+
+        // Return success with results
+        return "{\"success\":true,\"data\":" + resultJson + "}";
+    }
+
+    // Handle any algorithm dynamically by inspecting its inputs/outputs
+    std::string executeDynamicAlgorithm(const std::string& algorithm, const std::map<std::string, essentia::Parameter>& params) {
+        essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
+        essentia::Pool pool;
+
+        // Create the algorithm
+        essentia::standard::Algorithm* algo = factory.create(algorithm);
+
+        // Configure with parameters if provided
+        if (!params.empty()) {
+            essentia::ParameterMap parameterMap = convertToParameterMap(params);
+            algo->configure(parameterMap);
+        }
+
+        // Prepare storage for inputs and outputs
+        std::map<std::string, void*> inputPointers;
+        std::map<std::string, void*> outputPointers;
+
+        // Set up inputs based on their type
+        for (const auto& input : algo->inputs()) {
+            std::string inputName = input.first;
+            std::string inputType = input.second->typeInfo().name();
+
+            LOGI("Setting up input: %s of type %s", inputName.c_str(), inputType.c_str());
+
+            // Handle different input types
+            if (inputType.find("std::vector<essentia::Real>") != std::string::npos) {
+                if (inputName == "frame" || inputName == "signal" || inputName == "audio") {
+                    // Use our audio buffer for these common input names
+                    if (audioBuffer.empty()) {
+                        delete algo;
+                        return createErrorResponse("No audio data loaded for input: " + inputName, "NO_AUDIO_DATA");
+                    }
+                    algo->input(inputName).set(audioBuffer);
+                } else {
+                    // For other vector inputs, create an empty vector
+                    // In a more complete implementation, these would come from params or previous algorithm outputs
+                    std::vector<essentia::Real>* vec = new std::vector<essentia::Real>();
+                    inputPointers[inputName] = vec;
+                    algo->input(inputName).set(*vec);
+                }
+            } else if (inputType.find("essentia::Real") != std::string::npos) {
+                // For single Real inputs, use 0.0 as default or sample rate for sampleRate input
+                essentia::Real* val = new essentia::Real;
+                *val = (inputName == "sampleRate") ? sampleRate : 0.0;
+                inputPointers[inputName] = val;
+                algo->input(inputName).set(*val);
+            } else if (inputType.find("std::string") != std::string::npos) {
+                // For string inputs, use empty string
+                std::string* str = new std::string("");
+                inputPointers[inputName] = str;
+                algo->input(inputName).set(*str);
+            } else {
+                // For unsupported types, we'll skip and log
+                LOGW("Unsupported input type: %s for input %s", inputType.c_str(), inputName.c_str());
+            }
+        }
+
+        // Set up outputs based on their type
+        for (const auto& output : algo->outputs()) {
+            std::string outputName = output.first;
+            std::string outputType = output.second->typeInfo().name();
+
+            LOGI("Setting up output: %s of type %s", outputName.c_str(), outputType.c_str());
+
+            // Handle different output types
+            if (outputType.find("std::vector<essentia::Real>") != std::string::npos) {
+                std::vector<essentia::Real>* vec = new std::vector<essentia::Real>();
+                outputPointers[outputName] = vec;
+                algo->output(outputName).set(*vec);
+            } else if (outputType.find("essentia::Real") != std::string::npos) {
+                essentia::Real* val = new essentia::Real;
+                outputPointers[outputName] = val;
+                algo->output(outputName).set(*val);
+            } else if (outputType.find("std::string") != std::string::npos) {
+                std::string* str = new std::string();
+                outputPointers[outputName] = str;
+                algo->output(outputName).set(*str);
+            } else {
+                // For unsupported types, we'll skip and log
+                LOGW("Unsupported output type: %s for output %s", outputType.c_str(), outputName.c_str());
+            }
+        }
+
+        // Compute the algorithm
+        LOGI("Computing algorithm: %s", algorithm.c_str());
+        algo->compute();
+
+        // Collect the outputs into the pool
+        for (const auto& output : algo->outputs()) {
+            std::string outputName = output.first;
+            std::string outputType = output.second->typeInfo().name();
+
+            if (outputPointers.find(outputName) != outputPointers.end()) {
+                if (outputType.find("std::vector<essentia::Real>") != std::string::npos) {
+                    std::vector<essentia::Real>* vec = static_cast<std::vector<essentia::Real>*>(outputPointers[outputName]);
+                    pool.set(outputName, *vec);
+                    delete vec;
+                } else if (outputType.find("essentia::Real") != std::string::npos) {
+                    essentia::Real* val = static_cast<essentia::Real*>(outputPointers[outputName]);
+                    pool.set(outputName, *val);
+                    delete val;
+                } else if (outputType.find("std::string") != std::string::npos) {
+                    std::string* str = static_cast<std::string*>(outputPointers[outputName]);
+                    pool.set(outputName, *str);
+                    delete str;
+                }
+            }
+        }
+
+        // Clean up remaining input pointers
+        for (auto& inputPair : inputPointers) {
+            if (inputPair.second) {
+                // Handle different types
+                const char* typeInfoName = algo->input(inputPair.first).typeInfo().name();
+                std::string typeStr(typeInfoName); // Convert to std::string first
+
+                if (typeStr.find("std::vector<essentia::Real>") != std::string::npos) {
+                    delete static_cast<std::vector<essentia::Real>*>(inputPair.second);
+                } else if (typeStr.find("essentia::Real") != std::string::npos) {
+                    delete static_cast<essentia::Real*>(inputPair.second);
+                } else if (typeStr.find("std::string") != std::string::npos) {
+                    delete static_cast<std::string*>(inputPair.second);
+                }
+            }
+        }
+
+        // Clean up the algorithm
+        delete algo;
+
+        // Convert results to JSON
+        std::string resultJson = poolToJson(pool);
+
+        // Return success with results
+        return "{\"success\":true,\"data\":" + resultJson + "}";
+    }
+
+    // Get algorithm information
+    std::string getAlgorithmInfo(const std::string& algorithm) {
+        try {
+            if (!mIsInitialized) {
+                return createErrorResponse("Essentia not initialized", "NOT_INITIALIZED");
+            }
+
+            // Validate algorithm name
+            if (algorithm.empty()) {
+                return createErrorResponse("Algorithm name cannot be empty", "INVALID_ALGORITHM");
+            }
+
+            LOGI("Getting information for algorithm: %s", algorithm.c_str());
+
+            essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
+
+            // Check if algorithm exists by attempting to create it
+            essentia::standard::Algorithm* testAlgo = nullptr;
+            try {
+                testAlgo = factory.create(algorithm);
+                if (!testAlgo) {
+                    return createErrorResponse("Algorithm does not exist: " + algorithm, "ALGORITHM_NOT_FOUND");
+                }
+                delete testAlgo;
+            } catch (const std::exception& e) {
+                return createErrorResponse("Algorithm does not exist: " + algorithm, "ALGORITHM_NOT_FOUND");
+            }
+
+            // Create algorithm to inspect its properties
+            essentia::standard::Algorithm* algo = factory.create(algorithm);
+
+            // Build the result manually as a string to avoid JSON parsing issues
+            std::string result = "{\"name\":\"" + algorithm + "\",\"inputs\":[";
+
+            // Get inputs
+            bool firstInput = true;
+            for (const auto& input : algo->inputs()) {
+                if (!firstInput) {
+                    result += ",";
+                }
+                result += "{\"name\":\"" + input.first + "\",\"type\":\"" + input.second->typeInfo().name() + "\"}";
+                firstInput = false;
+            }
+
+            result += "],\"outputs\":[";
+
+            // Get outputs
+            bool firstOutput = true;
+            for (const auto& output : algo->outputs()) {
+                if (!firstOutput) {
+                    result += ",";
+                }
+                result += "{\"name\":\"" + output.first + "\",\"type\":\"" + output.second->typeInfo().name() + "\"}";
+                firstOutput = false;
+            }
+
+            result += "],\"parameters\":";
+
+            // Get parameters
+            std::map<std::string, essentia::Parameter> params = algo->defaultParameters();
+            std::string paramsJsonStr = paramsMapToJson(params);
+            result += paramsJsonStr;
+
+            result += "}";
+
+            // Clean up
+            delete algo;
+
+            // Return success with results
+            return "{\"success\":true,\"data\":" + result + "}";
+        } catch (const std::exception& e) {
+            std::string errorMsg = std::string("Error getting algorithm info: ") + e.what();
+            LOGE("%s", errorMsg.c_str());
+            return createErrorResponse(errorMsg, "ALGORITHM_INFO_ERROR");
         }
     }
 
@@ -516,6 +727,31 @@ static jstring testJniConnection(JNIEnv* env, jobject thiz) {
     return env->NewStringUTF("JNI connection successful");
 }
 
+// Add this after the existing JNI methods (around line 514)
+static jstring getAlgorithmInfo(JNIEnv* env, jobject thiz, jlong handle, jstring jalgorithm) {
+    if (handle == 0) {
+        return env->NewStringUTF(createErrorResponse("Invalid Essentia instance").c_str());
+    }
+
+    if (jalgorithm == nullptr) {
+        return env->NewStringUTF(createErrorResponse("Invalid algorithm name").c_str());
+    }
+
+    EssentiaWrapper* wrapper = reinterpret_cast<EssentiaWrapper*>(handle);
+
+    // Convert Java string to C++ string
+    const char* algorithmCStr = env->GetStringUTFChars(jalgorithm, nullptr);
+    std::string algorithm(algorithmCStr);
+
+    // Release Java string
+    env->ReleaseStringUTFChars(jalgorithm, algorithmCStr);
+
+    // Get the algorithm info
+    std::string result = wrapper->getAlgorithmInfo(algorithm);
+
+    return env->NewStringUTF(result.c_str());
+}
+
 // JNI method registration
 static JNINativeMethod methods[] = {
     {"nativeCreateEssentiaWrapper", "()J", (void*)createEssentiaWrapper},
@@ -523,7 +759,8 @@ static JNINativeMethod methods[] = {
     {"nativeInitializeEssentia", "(J)Z", (void*)initializeEssentia},
     {"nativeSetAudioData", "(J[FD)Z", (void*)setAudioData},
     {"nativeExecuteAlgorithm", "(JLjava/lang/String;Ljava/lang/String;)Ljava/lang/String;", (void*)executeAlgorithm},
-    {"testJniConnection", "()Ljava/lang/String;", (void*)testJniConnection}
+    {"testJniConnection", "()Ljava/lang/String;", (void*)testJniConnection},
+    {"nativeGetAlgorithmInfo", "(JLjava/lang/String;)Ljava/lang/String;", (void*)getAlgorithmInfo}
 };
 
 // Add this function to register the native methods

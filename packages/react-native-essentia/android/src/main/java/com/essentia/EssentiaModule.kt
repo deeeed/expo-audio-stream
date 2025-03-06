@@ -49,6 +49,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   private external fun nativeSetAudioData(handle: Long, pcmData: FloatArray, sampleRate: Double): Boolean
   private external fun nativeExecuteAlgorithm(handle: Long, algorithm: String, paramsJson: String): String
   private external fun testJniConnection(): String
+  private external fun nativeGetAlgorithmInfo(handle: Long, algorithm: String): String
 
   /**
    * Initializes the Essentia library, preparing it for use.
@@ -343,6 +344,69 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     } catch (e: Exception) {
       Log.e("EssentiaModule", "Test connection error: ${e.message}", e)
       promise.reject("TEST_ERROR", "Test connection error: ${e.message}")
+    }
+  }
+
+  /**
+   * Gets information about an Essentia algorithm, including its inputs, outputs, and parameters.
+   * @param algorithm Name of the Essentia algorithm to get information about
+   * @param promise Promise that resolves to an object containing algorithm information
+   */
+  @ReactMethod
+  fun getAlgorithmInfo(algorithm: String, promise: Promise) {
+    synchronized(lock) {
+      if (nativeHandle == 0L) {
+        promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
+        return
+      }
+    }
+
+    try {
+      executor.execute {
+        // Validate inputs
+        if (algorithm.isEmpty()) {
+          promise.reject("ESSENTIA_INVALID_INPUT", "Algorithm name cannot be empty")
+          return@execute
+        }
+
+        // Get the algorithm info
+        val resultJsonString: String
+        synchronized(lock) {
+          if (nativeHandle == 0L) {
+            promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+            return@execute
+          }
+          resultJsonString = nativeGetAlgorithmInfo(nativeHandle, algorithm)
+        }
+
+        Log.d("EssentiaModule", "Algorithm info from C++ for $algorithm: $resultJsonString")
+
+        // Convert the JSON string to a WritableMap
+        val resultMap = convertJsonToWritableMap(resultJsonString)
+
+        // Check if there was an error
+        if (resultMap.hasKey("success") && !resultMap.getBoolean("success")) {
+          if (resultMap.hasKey("error")) {
+            val errorMap = resultMap.getMap("error")
+            if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
+              promise.reject(
+                errorMap.getString("code") ?: "UNKNOWN_ERROR",
+                errorMap.getString("message") ?: "Unknown error occurred"
+              )
+              return@execute
+            }
+          }
+          // Fallback if error structure is not as expected
+          promise.reject("ESSENTIA_ALGORITHM_ERROR", "Algorithm info request failed")
+          return@execute
+        }
+
+        // Resolve the promise with the properly structured map
+        promise.resolve(resultMap)
+      }
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Error getting algorithm info: ${e.message}", e)
+      promise.reject("ESSENTIA_ALGORITHM_ERROR", "Failed to get algorithm info: ${e.message}")
     }
   }
 
