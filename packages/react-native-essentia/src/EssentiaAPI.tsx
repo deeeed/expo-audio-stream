@@ -3,39 +3,43 @@ import { NativeModules } from 'react-native';
 import { LINKING_ERROR } from './constants';
 import type {
   AlgorithmParams,
+  EssentiaInterface,
+  EssentiaResult,
+  FeatureConfig,
+} from './types/core.types';
+import type {
   AttackTimeResult,
-  BarkBandsParams,
   BarkBandsResult,
   BeatsResult,
   ChordsResult,
   DanceabilityResult,
   DissonanceResult,
   DynamicsResult,
-  ERBBandsParams,
-  ERBBandsResult,
   EnergyResult,
-  EssentiaInterface,
-  EssentiaResult,
-  FeatureConfig,
+  ERBBandsResult,
   HarmonicsResult,
   InharmonicityResult,
   KeyResult,
   LoudnessResult,
-  MFCCParams,
-  MFCCResult,
-  MelBandsParams,
   MelBandsResult,
+  MFCCResult,
   OnsetsResult,
-  PitchParams,
   PitchResult,
   RhythmFeaturesResult,
-  SilenceRateParams,
   SilenceResult,
   SpectralFeaturesResult,
   TempoResult,
   TuningFrequencyResult,
   ZeroCrossingRateResult,
-} from './types';
+} from './types/results.types';
+import type {
+  BarkBandsParams,
+  ERBBandsParams,
+  MelBandsParams,
+  MFCCParams,
+  PitchParams,
+  SilenceRateParams,
+} from './types/params.types';
 
 // Get the native module
 const Essentia = NativeModules.Essentia

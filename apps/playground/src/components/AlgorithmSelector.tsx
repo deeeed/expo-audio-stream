@@ -206,7 +206,10 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
       console.error('Error executing algorithm:', error);
       setResult({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: {
+          code: 'ALGORITHM_ERROR',
+          message: error instanceof Error ? error.message : String(error)
+        },
       });
     } finally {
       setIsExecuting(false);
@@ -279,7 +282,9 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
             <Text style={{ fontWeight: 'bold' }}>
               Result: {result.success ? 'Success ✅' : 'Failed ❌'}
             </Text>
-            {result.error && <Text style={{ color: 'red' }}>{result.error}</Text>}
+            {result.error && <Text style={{ color: 'red' }}>
+              {result.error.message || JSON.stringify(result.error)}
+            </Text>}
             {result.data && (
               <Text style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 8 }}>
                 {JSON.stringify(result.data, null, 2)}

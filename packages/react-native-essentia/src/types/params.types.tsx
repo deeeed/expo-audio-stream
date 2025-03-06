@@ -1,4 +1,4 @@
-import type { AlgorithmParams } from './core';
+import type { AlgorithmParams } from './core.types';
 
 // Common parameter interfaces
 export interface SampleRateParam {

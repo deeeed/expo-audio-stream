@@ -16,7 +16,7 @@ const SAMPLE_ASSETS = [
 
 interface EssentiaInitResult {
   success: boolean;
-  error?: string;
+  error?: { code: string; message: string; details?: string };
 }
 
 interface ValidationResult {
@@ -24,7 +24,7 @@ interface ValidationResult {
   initialized?: boolean;
   message?: string;
   algorithmResults?: Record<string, AlgorithmResult>;
-  error?: string;
+  error?: { code: string; message: string; details?: string };
   isValidating?: boolean;
   isLoadingSample?: boolean;
 }
@@ -155,7 +155,10 @@ function EssentiaScreen() {
       console.error('Essentia initialization error:', error);
       setInitResult({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: {
+          code: 'INIT_ERROR',
+          message: error instanceof Error ? error.message : String(error),
+        },
       });
     } finally {
       setIsInitializing(false);
@@ -176,7 +179,10 @@ function EssentiaScreen() {
         setValidationResult({
           success: false,
           initialized: false,
-          error: 'Failed to initialize Essentia',
+          error: {
+            code: 'INIT_ERROR',
+            message: 'Failed to initialize Essentia',
+          },
         });
         return;
       }
@@ -217,7 +223,10 @@ function EssentiaScreen() {
         console.error('Error in direct MFCC test:', error);
         algorithmResults['directMFCCTest'] = {
           success: false,
-          error: error instanceof Error ? error.message : String(error)
+          error: {
+            code: 'ALGORITHM_ERROR',
+            message: error instanceof Error ? error.message : String(error)
+          }
         };
       }
 
@@ -241,14 +250,20 @@ function EssentiaScreen() {
             console.log('PCM-based audio loading failed, skipping extraction');
             algorithmResults['loadAudioViaPCM'] = {
               success: false,
-              error: "Failed to load PCM data"
+              error: {
+                code: 'PCM_LOAD_ERROR',
+                message: 'Failed to load PCM data'
+              }
             };
           }
         } catch (error) {
           console.error('Error in PCM-based audio loading:', error);
           algorithmResults['loadAudioViaPCM'] = {
             success: false,
-            error: error instanceof Error ? error.message : String(error)
+            error: {
+              code: 'PCM_LOAD_ERROR',
+              message: error instanceof Error ? error.message : String(error)
+            }
           };
         }
       }
@@ -264,7 +279,10 @@ function EssentiaScreen() {
       console.error('Validation error:', error);
       setValidationResult({
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: error instanceof Error ? error.message : String(error),
+        },
       });
     }
   };
@@ -315,7 +333,10 @@ function EssentiaScreen() {
       setValidationResult(prevResults => ({
         ...prevResults,
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: {
+          code: 'EXTRACT_ERROR',
+          message: error instanceof Error ? error.message : String(error)
+        }
       }));
     } finally {
       setIsExtractingMFCC(false);
@@ -391,7 +412,10 @@ function EssentiaScreen() {
       setValidationResult(prevResults => ({
         ...prevResults,
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: {
+          code: 'EXTRACT_ERROR',
+          message: error instanceof Error ? error.message : String(error)
+        }
       }));
       showToast('Failed to extract batch features');
     } finally {
@@ -465,7 +489,9 @@ function EssentiaScreen() {
     return Object.entries(results).map(([key, result]) => (
       <View key={key} style={{ marginBottom: 8 }}>
         <Text style={{ fontWeight: 'bold' }}>{key}: {result.success ? '✅' : '❌'}</Text>
-        {result.error && <Text style={{ color: 'red' }}>{result.error}</Text>}
+        {result.error && <Text style={{ color: 'red' }}>
+          {result.error.message || JSON.stringify(result.error)}
+        </Text>}
         {result.data && <Text style={styles.resultText}>{JSON.stringify(result.data, null, 2)}</Text>}
       </View>
     ));
@@ -565,7 +591,9 @@ function EssentiaScreen() {
             {initResult && (
               <View>
                 <Text>Result: {initResult.success ? 'Success ✅' : 'Failed ❌'}</Text>
-                {initResult.error && <Text style={{ color: 'red' }}>{initResult.error}</Text>}
+                {initResult.error && <Text style={{ color: 'red' }}>
+                  {initResult.error.message || JSON.stringify(initResult.error)}
+                </Text>}
               </View>
             )}
             <View style={styles.buttonContainer}>
@@ -633,7 +661,9 @@ function EssentiaScreen() {
                 Status: {validationResult.success ? 'Success ✅' : 'Failed ❌'}
               </Text>
               {validationResult.message && <Text>{validationResult.message}</Text>}
-              {validationResult.error && <Text style={{ color: 'red' }}>{validationResult.error}</Text>}
+              {validationResult.error && <Text style={{ color: 'red' }}>
+                {validationResult.error.message || JSON.stringify(validationResult.error)}
+              </Text>}
               {validationResult.algorithmResults && renderAlgorithmResults(validationResult.algorithmResults)}
             </Card.Content>
           </Card>
