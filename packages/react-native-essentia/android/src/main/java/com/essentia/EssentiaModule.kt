@@ -21,7 +21,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 class EssentiaModule(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
 
-  private val executor: ExecutorService = Executors.newSingleThreadExecutor()
+  private val executor: ExecutorService = Executors.newFixedThreadPool(4)
   private var nativeHandle: Long = 0
   private val lock = Object()
 
@@ -37,6 +37,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   private val progressCallback = object : ProgressCallback {
     override fun onProgress(progress: Float) {
       try {
+        Log.d("EssentiaModule", "Progress event received: $progress")
         // Send the progress to JavaScript via DeviceEventEmitter
         val params = Arguments.createMap()
         params.putDouble("progress", progress.toDouble())
