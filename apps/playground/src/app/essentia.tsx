@@ -51,6 +51,20 @@ declare module 'react-native-essentia' {
   }
 }
 
+// Define a more specific type with an index signature to allow string indexing
+interface BatchExtractionResults {
+  // Known specific feature fields
+  mfcc?: number[];
+  mfcc_bands?: number[];
+  spectrum?: number[];
+  key?: string;
+  scale?: string;
+  strength?: number;
+  mel_bands?: number[];
+  // Allow for additional dynamic properties
+  [key: string]: number | string | number[] | string[] | undefined;
+}
+
 const getStyles = ({ theme }: { theme: AppTheme }) => {
   return StyleSheet.create({
     container: {
@@ -141,6 +155,8 @@ function EssentiaScreen() {
   const [isExtractingMFCC, setIsExtractingMFCC] = useState<boolean>(false);
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
   const [connectionTestResult, setConnectionTestResult] = useState<string | null>(null);
+  const [isExtractingBatch, setIsExtractingBatch] = useState<boolean>(false);
+  const [batchResults, setBatchResults] = useState<BatchExtractionResults | null>(null);
 
   // Toast utility function
   const showToast = (message: string) => {
@@ -338,6 +354,83 @@ function EssentiaScreen() {
     }
   };
 
+  const handleBatchFeatureExtraction = async () => {
+    if (!isInitialized) {
+      showToast('Please initialize Essentia first');
+      return;
+    }
+
+    setIsExtractingBatch(true);
+    setBatchResults(null);
+
+    try {
+      // Create dummy PCM data
+      const dummyPcmData = new Float32Array(4096);
+      for (let i = 0; i < dummyPcmData.length; i++) {
+        dummyPcmData[i] = Math.sin(i * 0.01) + Math.sin(i * 0.05);  // Add some harmonic content
+      }
+      
+      // Set the audio data
+      await EssentiaJS.setAudioData(dummyPcmData, 44100);
+      
+      // Extract multiple features in a single call
+      const result = await EssentiaJS.extractFeatures([
+        { 
+          name: 'MFCC', 
+          params: { 
+            numberCoefficients: 13, 
+            numberBands: 40,
+            lowFrequencyBound: 0,
+            highFrequencyBound: 22050
+          } 
+        },
+        {
+          name: 'Spectrum',
+          params: {}
+        },
+        {
+          name: 'Key',
+          params: {}
+        },
+        {
+          name: 'MelBands',
+          params: {
+            numberBands: 128
+          }
+        }
+      ]);
+      
+      console.log('Batch feature extraction result:', result);
+      // Type cast to ensure we get the right type
+      setBatchResults(result.data as BatchExtractionResults);
+      
+      setValidationResult(prevResults => ({
+        ...prevResults,
+        success: true,
+        algorithmResults: {
+          ...prevResults?.algorithmResults,
+          batchExtraction: { 
+            name: 'BatchExtraction', 
+            data: result.data, 
+            success: true 
+          }
+        }
+      }));
+      
+      showToast('Successfully extracted multiple features in batch');
+    } catch (error) {
+      console.error('Batch feature extraction error:', error);
+      setValidationResult(prevResults => ({
+        ...prevResults,
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      }));
+      showToast('Failed to extract batch features');
+    } finally {
+      setIsExtractingBatch(false);
+    }
+  };
+
   const renderAlgorithmResults = (results: Record<string, AlgorithmResult>) => {
     return Object.entries(results).map(([key, result]) => (
       <View key={key} style={{ marginBottom: 8 }}>
@@ -387,6 +480,28 @@ function EssentiaScreen() {
     } finally {
       setIsTestingConnection(false);
     }
+  };
+
+  const renderBatchResults = () => {
+    if (!batchResults) return null;
+    
+    return (
+      <View>
+        <Text style={styles.subtitle}>Batch Extraction Results:</Text>
+        {Object.entries(batchResults).map(([key, value]) => (
+          <View key={key} style={{ marginBottom: 12 }}>
+            <Text style={[styles.item, { fontWeight: 'bold' }]}>
+              {key}:
+            </Text>
+            <Text style={styles.resultText}>
+              {Array.isArray(value) 
+                ? JSON.stringify(value, null, 2).substring(0, 300) + '...' 
+                : String(value)}
+            </Text>
+          </View>
+        ))}
+      </View>
+    );
   };
 
   return (
@@ -504,7 +619,27 @@ function EssentiaScreen() {
               >
                 Extract MFCC
               </Button>
+              
+              <Button
+                mode="contained"
+                onPress={handleBatchFeatureExtraction}
+                loading={isExtractingBatch}
+                disabled={isExtractingBatch || !isInitialized}
+                style={styles.button}
+              >
+                Batch Extract Features
+              </Button>
             </View>
+            
+            {batchResults && (
+              <View style={styles.testResult}>
+                <Text style={{ fontWeight: 'bold' }}>Batch Extraction Completed</Text>
+                <Text>
+                  Successfully extracted {Object.keys(batchResults).length} features in one call.
+                </Text>
+                {renderBatchResults()}
+              </View>
+            )}
           </Card.Content>
         </Card>
 

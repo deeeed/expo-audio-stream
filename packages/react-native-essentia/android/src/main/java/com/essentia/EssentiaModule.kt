@@ -51,6 +51,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   private external fun testJniConnection(): String
   private external fun nativeGetAlgorithmInfo(handle: Long, algorithm: String): String
   private external fun nativeGetAllAlgorithms(handle: Long): String
+  private external fun nativeExtractFeatures(handle: Long, featuresJson: String): String
 
   /**
    * Initializes the Essentia library, preparing it for use.
@@ -465,6 +466,168 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       Log.e("EssentiaModule", "Error getting algorithm list: ${e.message}", e)
       promise.reject("ESSENTIA_ALGORITHM_ERROR", "Failed to get algorithm list: ${e.message}")
     }
+  }
+
+  /**
+   * Extracts multiple audio features in a single call, based on a configurable feature list.
+   * @param featureList Array of feature configurations, each with a name and optional parameters
+   * @param promise Promise that resolves to an object containing all extracted features
+   */
+  @ReactMethod
+  fun extractFeatures(featureList: ReadableArray, promise: Promise) {
+    synchronized(lock) {
+      if (nativeHandle == 0L) {
+        promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
+        return
+      }
+    }
+
+    try {
+      executor.execute {
+        // Validate input
+        if (featureList.size() == 0) {
+          promise.reject("ESSENTIA_INVALID_INPUT", "Feature list cannot be empty")
+          return@execute
+        }
+
+        // Validate each feature has required parameters
+        for (i in 0 until featureList.size()) {
+          val feature = featureList.getMap(i)
+          if (feature == null || !feature.hasKey("name") || feature.getString("name").isNullOrEmpty()) {
+            promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i is missing a valid name")
+            return@execute
+          }
+
+          if (feature.hasKey("params") && feature.getType("params") != ReadableType.Map) {
+            promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i has invalid params (must be an object)")
+            return@execute
+          }
+        }
+
+        // Convert ReadableArray to JSON string for passing to native code
+        val featuresJson = convertReadableArrayToJson(featureList)
+        Log.d("EssentiaModule", "Extracting features with config: $featuresJson")
+
+        // Call the native method
+        val resultJsonString: String
+        synchronized(lock) {
+          if (nativeHandle == 0L) {
+            promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+            return@execute
+          }
+          resultJsonString = nativeExtractFeatures(nativeHandle, featuresJson)
+        }
+
+        Log.d("EssentiaModule", "Feature extraction result: $resultJsonString")
+
+        // Convert the JSON string to a WritableMap
+        val resultMap = convertJsonToWritableMap(resultJsonString)
+
+        // Check if there was an error
+        if (resultMap.hasKey("success") && !resultMap.getBoolean("success")) {
+          if (resultMap.hasKey("error")) {
+            val errorMap = resultMap.getMap("error")
+            if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
+              promise.reject(
+                errorMap.getString("code") ?: "UNKNOWN_ERROR",
+                errorMap.getString("message") ?: "Unknown error occurred"
+              )
+              return@execute
+            }
+          }
+          // Fallback if error structure is not as expected
+          promise.reject("ESSENTIA_FEATURE_EXTRACTION_ERROR", "Feature extraction failed")
+          return@execute
+        }
+
+        // Resolve the promise with the properly structured map
+        promise.resolve(resultMap)
+      }
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Error extracting features: ${e.message}", e)
+      promise.reject("ESSENTIA_FEATURE_EXTRACTION_ERROR", "Failed to extract features: ${e.message}")
+    }
+  }
+
+  /**
+   * Converts a ReadableArray to a JSON string
+   */
+  private fun convertReadableArrayToJson(array: ReadableArray): String {
+    val jsonArray = JSONArray()
+
+    for (i in 0 until array.size()) {
+      if (array.getType(i) == ReadableType.Map) {
+        val map = array.getMap(i)
+        if (map != null) {
+          val jsonObject = convertReadableMapToJsonObject(map)
+          jsonArray.put(jsonObject)
+        }
+      }
+    }
+
+    return jsonArray.toString()
+  }
+
+  /**
+   * Converts a ReadableMap to a JSONObject
+   */
+  private fun convertReadableMapToJsonObject(map: ReadableMap): JSONObject {
+    val jsonObject = JSONObject()
+    val iterator = map.keySetIterator()
+
+    while (iterator.hasNextKey()) {
+      val key = iterator.nextKey()
+      when (map.getType(key)) {
+        ReadableType.Null -> jsonObject.put(key, JSONObject.NULL)
+        ReadableType.Boolean -> jsonObject.put(key, map.getBoolean(key))
+        ReadableType.Number -> jsonObject.put(key, map.getDouble(key))
+        ReadableType.String -> jsonObject.put(key, map.getString(key))
+        ReadableType.Map -> {
+          val value = map.getMap(key)
+          if (value != null) {
+            jsonObject.put(key, convertReadableMapToJsonObject(value))
+          }
+        }
+        ReadableType.Array -> {
+          val value = map.getArray(key)
+          if (value != null) {
+            jsonObject.put(key, convertReadableArrayToJsonArray(value))
+          }
+        }
+      }
+    }
+
+    return jsonObject
+  }
+
+  /**
+   * Converts a ReadableArray to a JSONArray
+   */
+  private fun convertReadableArrayToJsonArray(array: ReadableArray): JSONArray {
+    val jsonArray = JSONArray()
+
+    for (i in 0 until array.size()) {
+      when (array.getType(i)) {
+        ReadableType.Null -> jsonArray.put(JSONObject.NULL)
+        ReadableType.Boolean -> jsonArray.put(array.getBoolean(i))
+        ReadableType.Number -> jsonArray.put(array.getDouble(i))
+        ReadableType.String -> jsonArray.put(array.getString(i))
+        ReadableType.Map -> {
+          val value = array.getMap(i)
+          if (value != null) {
+            jsonArray.put(convertReadableMapToJsonObject(value))
+          }
+        }
+        ReadableType.Array -> {
+          val value = array.getArray(i)
+          if (value != null) {
+            jsonArray.put(convertReadableArrayToJsonArray(value))
+          }
+        }
+      }
+    }
+
+    return jsonArray
   }
 
   override fun onCatalystInstanceDestroy() {

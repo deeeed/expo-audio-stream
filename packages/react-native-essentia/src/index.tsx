@@ -41,6 +41,9 @@ interface EssentiaInterface {
 
   // Get all available algorithms
   getAllAlgorithms(): Promise<any>;
+
+  // Feature extraction
+  extractFeatures(features: FeatureConfig[]): Promise<any>;
 }
 
 // Get the native module
@@ -68,6 +71,12 @@ export interface AlgorithmInfo {
   inputs: Array<{ name: string; type: string }>;
   outputs: Array<{ name: string; type: string }>;
   parameters: Record<string, unknown>;
+}
+
+// Define feature configuration interface
+export interface FeatureConfig {
+  name: string;
+  params?: AlgorithmParams;
 }
 
 // Implement the API class
@@ -157,6 +166,91 @@ class EssentiaAPI implements EssentiaInterface {
       console.error('Essentia getAllAlgorithms error:', error);
       throw error;
     }
+  }
+
+  /**
+   * Extracts multiple audio features in a single batch operation.
+   * @param features Array of feature configurations, each with a name and optional parameters
+   * @returns A Promise that resolves to an object containing all extracted features
+   */
+  async extractFeatures(features: FeatureConfig[]): Promise<any> {
+    try {
+      if (!features || features.length === 0) {
+        throw new Error('Feature list cannot be empty');
+      }
+
+      // Validate feature configurations
+      features.forEach((feature) => {
+        if (!feature.name) {
+          throw new Error('Each feature must have a name');
+        }
+      });
+
+      return await Essentia.extractFeatures(features);
+    } catch (error) {
+      console.error('Essentia feature extraction error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Convenience method to extract MFCC features.
+   * @param params Optional parameters for MFCC extraction
+   * @returns A Promise that resolves to the MFCC features
+   */
+  async extractMFCC(params: AlgorithmParams = {}): Promise<any> {
+    const result = await this.extractFeatures([
+      {
+        name: 'MFCC',
+        params,
+      },
+    ]);
+
+    return result.data?.mfcc
+      ? { mfcc: result.data.mfcc, bands: result.data.mfcc_bands }
+      : result;
+  }
+
+  /**
+   * Convenience method to extract Mel spectrogram.
+   * @param params Optional parameters for Mel extraction
+   * @returns A Promise that resolves to the Mel bands
+   */
+  async extractMelBands(params: AlgorithmParams = {}): Promise<any> {
+    const result = await this.extractFeatures([
+      {
+        name: 'MelBands',
+        params,
+      },
+    ]);
+
+    return result.data?.mel_bands
+      ? { melBands: result.data.mel_bands }
+      : result;
+  }
+
+  /**
+   * Convenience method to extract musical key.
+   * @param params Optional parameters for key detection
+   * @returns A Promise that resolves to the detected key information
+   */
+  async extractKey(params: AlgorithmParams = {}): Promise<any> {
+    const result = await this.extractFeatures([
+      {
+        name: 'Key',
+        params,
+      },
+    ]);
+
+    if (result.data?.key && result.data?.scale && result.data?.strength) {
+      return {
+        key: result.data.key,
+        scale: result.data.scale,
+        strength: result.data.strength,
+      };
+    }
+
+    return result;
   }
 }
 
