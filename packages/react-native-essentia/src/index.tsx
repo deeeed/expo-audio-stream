@@ -1,4 +1,4 @@
-import { NativeModules, Platform, NativeEventEmitter } from 'react-native';
+import { NativeEventEmitter, NativeModules, Platform } from 'react-native';
 
 const LINKING_ERROR =
   `The package 'react-native-essentia' doesn't seem to be linked. Make sure: \n\n` +
@@ -22,11 +22,6 @@ export interface AlgorithmParams {
   [key: string]: string | number | boolean | number[] | string[];
 }
 
-// Progress update interface
-export interface ProgressUpdate {
-  progress: number;
-}
-
 // Define the base interface for the native module
 interface EssentiaInterface {
   // Core functionality
@@ -43,9 +38,6 @@ interface EssentiaInterface {
 
   // Batch algorithm execution
   executeBatch(algorithms: FeatureConfig[]): Promise<any>;
-
-  // Progress updates registration
-  addProgressListener(): Promise<boolean>;
 
   // Testing
   testConnection(): Promise<string>;
@@ -197,19 +189,6 @@ class EssentiaAPI implements EssentiaInterface {
       return await Essentia.executeBatch(algorithms);
     } catch (error) {
       console.error('Essentia batch execution error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Registers for progress updates from the native module
-   * @returns A Promise that resolves to true when successfully registered
-   */
-  async addProgressListener(): Promise<boolean> {
-    try {
-      return await Essentia.addProgressListener();
-    } catch (error) {
-      console.error('Essentia progress listener error:', error);
       throw error;
     }
   }

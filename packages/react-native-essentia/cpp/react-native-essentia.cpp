@@ -161,24 +161,13 @@ private:
     bool spectrumComputed;
     std::vector<essentia::Real> cachedSpectrum;
 
-    // Add progress callback fields
-    jobject progressCallback;
-    JNIEnv* callbackEnv;
-
 public:
-    EssentiaWrapper() : mIsInitialized(false), sampleRate(44100.0), spectrumComputed(false),
-                       progressCallback(nullptr), callbackEnv(nullptr) {}
+    EssentiaWrapper() : mIsInitialized(false), sampleRate(44100.0), spectrumComputed(false) {}
 
     ~EssentiaWrapper() {
         if (mIsInitialized) {
             essentia::shutdown();
             mIsInitialized = false;
-        }
-
-        // Clean up the progress callback reference if it exists
-        if (progressCallback != nullptr && callbackEnv != nullptr) {
-            callbackEnv->DeleteGlobalRef(progressCallback);
-            progressCallback = nullptr;
         }
     }
 
@@ -235,39 +224,6 @@ public:
         }
     }
 
-    void setProgressCallback(JNIEnv* env, jobject callback) {
-        // Remove existing callback if there is one
-        if (progressCallback != nullptr && callbackEnv != nullptr) {
-            callbackEnv->DeleteGlobalRef(progressCallback);
-            progressCallback = nullptr;
-        }
-
-        if (callback != nullptr) {
-            // Store the callback as a global reference
-            progressCallback = env->NewGlobalRef(callback);
-            callbackEnv = env;
-        }
-    }
-
-    void reportProgress(float progress) {
-        if (progressCallback != nullptr && callbackEnv != nullptr) {
-            // Find the method to call on the callback object
-            jclass callbackClass = callbackEnv->GetObjectClass(progressCallback);
-            jmethodID onProgressMethod = callbackEnv->GetMethodID(callbackClass, "onProgress", "(F)V");
-
-            if (onProgressMethod != nullptr) {
-                // Call the method with the progress value
-                callbackEnv->CallVoidMethod(progressCallback, onProgressMethod, progress);
-            }
-
-            // Check for exceptions
-            if (callbackEnv->ExceptionCheck()) {
-                callbackEnv->ExceptionDescribe();
-                callbackEnv->ExceptionClear();
-            }
-        }
-    }
-
     std::string executeAlgorithm(const std::string& algorithm, const std::string& paramsJson) {
         try {
             if (!mIsInitialized) {
@@ -303,33 +259,23 @@ public:
             if (algorithm == "MFCC" || algorithm == "MelBands" || algorithm == "Spectrum" ||
                 algorithm == "SpectralCentroid" || algorithm == "SpectralFlatness") {
 
-                reportProgress(0.1f); // Report initial progress
-
                 if (!spectrumComputed) {
                     LOGI("Computing spectrum for algorithm: %s", algorithm.c_str());
                     computeSpectrum();
                     if (!spectrumComputed) {
                         return createErrorResponse("Failed to compute spectrum", "SPECTRUM_COMPUTATION_ERROR");
                     }
-                } else {
-                    LOGI("Using cached spectrum for algorithm: %s", algorithm.c_str());
                 }
-
-                reportProgress(0.3f); // Report progress after spectrum computation
             }
 
             // For backward compatibility, still handle the specifically optimized algorithms
             if (algorithm == "MFCC" || algorithm == "Spectrum" || algorithm == "Key") {
-                reportProgress(0.5f);
                 auto result = executeSpecificAlgorithm(algorithm, params);
-                reportProgress(1.0f); // Complete
                 return result;
             }
 
             // Dynamic approach for other algorithms
-            reportProgress(0.5f);
             auto result = executeDynamicAlgorithm(algorithm, params);
-            reportProgress(1.0f); // Complete
             return result;
         } catch (const std::exception& e) {
             std::string errorMsg = std::string("Error executing algorithm: ") + e.what();
@@ -1304,19 +1250,6 @@ static jstring getVersion(JNIEnv* env, jobject thiz) {
     // Access version directly from essentia namespace
     std::string version = essentia::version;
     return env->NewStringUTF(version.c_str());
-}
-
-// Add this JNI method to set the progress callback
-extern "C" JNIEXPORT void JNICALL
-Java_com_essentia_EssentiaModule_nativeSetProgressCallback(
-    JNIEnv* env, jobject thiz, jlong handle, jobject callback) {
-
-    if (handle == 0) {
-        return;
-    }
-
-    EssentiaWrapper* wrapper = reinterpret_cast<EssentiaWrapper*>(handle);
-    wrapper->setProgressCallback(env, callback);
 }
 
 // JNI method registration
