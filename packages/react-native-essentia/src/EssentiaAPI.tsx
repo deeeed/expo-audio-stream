@@ -6,12 +6,23 @@ import type {
   EssentiaInterface,
   EssentiaResult,
   FeatureConfig,
+  PipelineConfig,
+  PipelineResult,
 } from './types/core.types';
+import type {
+  BarkBandsParams,
+  ERBBandsParams,
+  MelBandsParams,
+  MFCCParams,
+  PitchParams,
+  SilenceRateParams,
+} from './types/params.types';
 import type {
   AttackTimeResult,
   BarkBandsResult,
   BeatsResult,
   ChordsResult,
+  ChromaResult,
   DanceabilityResult,
   DissonanceResult,
   DynamicsResult,
@@ -22,24 +33,20 @@ import type {
   KeyResult,
   LoudnessResult,
   MelBandsResult,
+  MelSpectrogramResult,
   MFCCResult,
+  NoveltyCurveResult,
   OnsetsResult,
   PitchResult,
   RhythmFeaturesResult,
   SilenceResult,
+  SpectralContrastResult,
   SpectralFeaturesResult,
   TempoResult,
+  TonnetzResult,
   TuningFrequencyResult,
   ZeroCrossingRateResult,
 } from './types/results.types';
-import type {
-  BarkBandsParams,
-  ERBBandsParams,
-  MelBandsParams,
-  MFCCParams,
-  PitchParams,
-  SilenceRateParams,
-} from './types/params.types';
 
 // Get the native module
 const Essentia = NativeModules.Essentia
@@ -97,6 +104,46 @@ class EssentiaAPI implements EssentiaInterface {
     sampleRate: number
   ): Promise<boolean> {
     try {
+      // Validate inputs
+      if (
+        !pcmData ||
+        (Array.isArray(pcmData) && pcmData.length === 0) ||
+        (pcmData instanceof Float32Array && pcmData.length === 0)
+      ) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'PCM data cannot be empty',
+        };
+      }
+
+      if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Sample rate must be a positive number',
+        };
+      }
+
+      // Check for NaN or Infinity values in pcmData
+      if (Array.isArray(pcmData)) {
+        for (let i = 0; i < pcmData.length; i++) {
+          if (!Number.isFinite(pcmData[i])) {
+            throw {
+              code: 'INVALID_PARAMETERS',
+              message: `PCM data contains non-finite value at index ${i}: ${pcmData[i]}`,
+            };
+          }
+        }
+      } else {
+        for (let i = 0; i < pcmData.length; i++) {
+          if (!Number.isFinite(pcmData[i])) {
+            throw {
+              code: 'INVALID_PARAMETERS',
+              message: `PCM data contains non-finite value at index ${i}: ${pcmData[i]}`,
+            };
+          }
+        }
+      }
+
       // Convert Float32Array to regular array if needed
       const data =
         pcmData instanceof Float32Array ? Array.from(pcmData) : pcmData;
@@ -118,9 +165,342 @@ class EssentiaAPI implements EssentiaInterface {
     params: AlgorithmParams = {}
   ): Promise<any> {
     try {
+      // Validate algorithm name
+      if (!algorithm || !algorithm.trim()) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Algorithm name must be a non-empty string',
+        };
+      }
+
+      // Validate params is an object
+      if (typeof params !== 'object' || params === null) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Params must be an object',
+        };
+      }
+
+      // Validate specific parameters based on algorithm type
+      this.validateAlgorithmParams(algorithm, params);
+
       return await Essentia.executeAlgorithm(algorithm, params);
     } catch (error) {
       console.error(`Essentia algorithm error (${algorithm}):`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Validates parameters for specific algorithms to prevent native crashes
+   * @param algorithm Name of the algorithm
+   * @param params Parameters to validate
+   * @throws Error if parameters are invalid
+   */
+  private validateAlgorithmParams(
+    algorithm: string,
+    params: AlgorithmParams
+  ): void {
+    // Common numeric parameter validation
+    for (const [key, value] of Object.entries(params)) {
+      if (typeof value === 'number') {
+        // Check for NaN or Infinity
+        if (!Number.isFinite(value)) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: `Parameter '${key}' must be a finite number, got ${value}`,
+          };
+        }
+      }
+    }
+
+    // Algorithm-specific validations
+    switch (algorithm) {
+      case 'MFCC':
+        if (
+          params.numberBands !== undefined &&
+          (typeof params.numberBands !== 'number' ||
+            params.numberBands <= 0 ||
+            !Number.isInteger(params.numberBands))
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: 'numberBands must be a positive integer',
+          };
+        }
+        if (
+          params.numberCoefficients !== undefined &&
+          (typeof params.numberCoefficients !== 'number' ||
+            params.numberCoefficients <= 0 ||
+            !Number.isInteger(params.numberCoefficients))
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: 'numberCoefficients must be a positive integer',
+          };
+        }
+        break;
+
+      case 'MelBands':
+      case 'BarkBands':
+      case 'ERBBands':
+        if (
+          params.numberBands !== undefined &&
+          (typeof params.numberBands !== 'number' ||
+            params.numberBands <= 0 ||
+            !Number.isInteger(params.numberBands))
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: 'numberBands must be a positive integer',
+          };
+        }
+        break;
+
+      case 'Windowing':
+        if (params.type !== undefined && typeof params.type !== 'string') {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: 'Window type must be a string',
+          };
+        }
+        break;
+
+      case 'FrameCutter':
+        if (
+          params.frameSize !== undefined &&
+          (typeof params.frameSize !== 'number' ||
+            params.frameSize <= 0 ||
+            !Number.isInteger(params.frameSize))
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: 'frameSize must be a positive integer',
+          };
+        }
+        if (
+          params.hopSize !== undefined &&
+          (typeof params.hopSize !== 'number' ||
+            params.hopSize <= 0 ||
+            !Number.isInteger(params.hopSize))
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: 'hopSize must be a positive integer',
+          };
+        }
+        break;
+
+      case 'Spectrum':
+      case 'FFT':
+        if (
+          params.size !== undefined &&
+          (typeof params.size !== 'number' ||
+            params.size <= 0 ||
+            !Number.isInteger(params.size) ||
+            !this.isPowerOfTwo(params.size))
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: 'size must be a positive integer power of 2',
+          };
+        }
+        break;
+
+      case 'PitchYinFFT':
+      case 'PitchYin':
+        if (
+          params.minFrequency !== undefined &&
+          (typeof params.minFrequency !== 'number' || params.minFrequency < 0)
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: 'minFrequency must be a non-negative number',
+          };
+        }
+        if (
+          params.maxFrequency !== undefined &&
+          (typeof params.maxFrequency !== 'number' || params.maxFrequency <= 0)
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: 'maxFrequency must be a positive number',
+          };
+        }
+        if (
+          params.minFrequency !== undefined &&
+          params.maxFrequency !== undefined &&
+          params.minFrequency >= params.maxFrequency
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: 'maxFrequency must be greater than minFrequency',
+          };
+        }
+        break;
+    }
+  }
+
+  /**
+   * Checks if a number is a power of two
+   * @param n Number to check
+   * @returns True if n is a power of two
+   */
+  private isPowerOfTwo(n: number): boolean {
+    // Using a non-bitwise approach to avoid ESLint warning
+    return n > 0 && Math.log2(n) % 1 === 0;
+  }
+
+  /**
+   * Executes an audio processing pipeline with customizable preprocessing,
+   * feature extraction, and post-processing steps as defined in the configuration.
+   *
+   * @param config Configuration object defining the pipeline steps
+   * @returns A Promise that resolves to the results of the pipeline execution
+   */
+  async executePipeline(config: PipelineConfig): Promise<PipelineResult> {
+    try {
+      // Validate the pipeline configuration
+      if (!config || typeof config !== 'object' || config === null) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Pipeline configuration must be an object',
+        };
+      }
+
+      if (
+        !config.preprocess ||
+        !Array.isArray(config.preprocess) ||
+        config.preprocess.length === 0
+      ) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message:
+            'Pipeline configuration must include at least one preprocessing step',
+        };
+      }
+
+      if (
+        !config.features ||
+        !Array.isArray(config.features) ||
+        config.features.length === 0
+      ) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message:
+            'Pipeline configuration must include at least one feature extraction step',
+        };
+      }
+
+      // Validate preprocessing steps
+      for (let i = 0; i < config.preprocess.length; i++) {
+        const step = config.preprocess[i];
+        // TypeScript safety check
+        if (!step) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: `Preprocessing step at index ${i} is undefined`,
+          };
+        }
+
+        if (!step.name || typeof step.name !== 'string' || !step.name.trim()) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: `Preprocessing step at index ${i} must have a valid name`,
+          };
+        }
+
+        if (
+          step.params !== undefined &&
+          (typeof step.params !== 'object' || step.params === null)
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: `Preprocessing step '${step.name}' has invalid params (must be an object)`,
+          };
+        }
+
+        // Validate algorithm-specific parameters
+        if (step.params) {
+          this.validateAlgorithmParams(step.name, step.params);
+        }
+      }
+
+      // Validate feature extraction steps
+      for (let i = 0; i < config.features.length; i++) {
+        const feature = config.features[i];
+        // TypeScript safety check
+        if (!feature) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: `Feature at index ${i} is undefined`,
+          };
+        }
+
+        if (
+          !feature.name ||
+          typeof feature.name !== 'string' ||
+          !feature.name.trim()
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: `Feature at index ${i} must have a valid name`,
+          };
+        }
+
+        if (
+          !feature.input ||
+          typeof feature.input !== 'string' ||
+          !feature.input.trim()
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: `Feature '${feature.name}' is missing required 'input' field`,
+          };
+        }
+
+        if (
+          feature.params !== undefined &&
+          (typeof feature.params !== 'object' || feature.params === null)
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: `Feature '${feature.name}' has invalid params (must be an object)`,
+          };
+        }
+
+        if (
+          feature.postProcess !== undefined &&
+          (typeof feature.postProcess !== 'object' ||
+            feature.postProcess === null)
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: `Feature '${feature.name}' has invalid postProcess (must be an object)`,
+          };
+        }
+
+        // Validate algorithm-specific parameters
+        if (feature.params) {
+          this.validateAlgorithmParams(feature.name, feature.params);
+        }
+      }
+
+      // Validate post-processing options if present
+      if (
+        config.postProcess !== undefined &&
+        (typeof config.postProcess !== 'object' || config.postProcess === null)
+      ) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: `Pipeline has invalid postProcess (must be an object)`,
+        };
+      }
+
+      const pipelineJson = JSON.stringify(config);
+      return await Essentia.executePipeline(pipelineJson);
+    } catch (error) {
+      console.error('Essentia executePipeline error:', error);
       throw error;
     }
   }
@@ -132,9 +512,56 @@ class EssentiaAPI implements EssentiaInterface {
    */
   async executeBatch(algorithms: FeatureConfig[]): Promise<any> {
     try {
-      if (!algorithms || algorithms.length === 0) {
-        throw new Error('Algorithm list cannot be empty');
+      // Validate input
+      if (
+        !algorithms ||
+        !Array.isArray(algorithms) ||
+        algorithms.length === 0
+      ) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Algorithm list cannot be empty',
+        };
       }
+
+      // Validate each algorithm configuration
+      for (let i = 0; i < algorithms.length; i++) {
+        const config = algorithms[i];
+        // TypeScript safety check
+        if (!config) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: `Algorithm at index ${i} is undefined`,
+          };
+        }
+
+        if (
+          !config.name ||
+          typeof config.name !== 'string' ||
+          !config.name.trim()
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: `Algorithm at index ${i} must have a valid name`,
+          };
+        }
+
+        if (
+          config.params !== undefined &&
+          (typeof config.params !== 'object' || config.params === null)
+        ) {
+          throw {
+            code: 'INVALID_PARAMETERS',
+            message: `Algorithm '${config.name}' has invalid params (must be an object)`,
+          };
+        }
+
+        // Validate algorithm-specific parameters
+        if (config.params) {
+          this.validateAlgorithmParams(config.name, config.params);
+        }
+      }
+
       return await Essentia.executeBatch(algorithms);
     } catch (error) {
       console.error('Essentia batch execution error:', error);
@@ -221,8 +648,17 @@ class EssentiaAPI implements EssentiaInterface {
         if (!feature.name) {
           throw new Error('Each feature must have a name');
         }
+        // Only add framewise for algorithms that explicitly support it
+        if (
+          ['Chroma', 'SpectralCentroid', 'SpectralContrast'].includes(
+            feature.name
+          ) &&
+          !feature.params?.hasOwnProperty('framewise')
+        ) {
+          feature.params = { ...feature.params, framewise: true };
+        }
       });
-      return await Essentia.extractFeatures(features);
+      return await Essentia.extractFeatures(JSON.stringify(features));
     } catch (error) {
       console.error('Essentia feature extraction error:', error);
       throw error;
@@ -256,15 +692,31 @@ class EssentiaAPI implements EssentiaInterface {
   async extractMelBands(
     params: MelBandsParams = {}
   ): Promise<MelBandsResult | EssentiaResult<any>> {
+    const framewise = params.framewise !== false; // Default to true
     const result = await this.extractFeatures([
       {
         name: 'MelBands',
-        params,
+        params: {
+          ...params,
+          framewise,
+        },
       },
     ]);
-    return result.data?.mel_bands
-      ? { melBands: result.data.mel_bands }
-      : result;
+
+    if (result.success && result.data) {
+      // Handle both frame-wise and single-frame results
+      const isFrameWise =
+        Array.isArray(result.data.mel_bands) &&
+        result.data.mel_bands.length > 0 &&
+        Array.isArray(result.data.mel_bands[0]);
+
+      return {
+        melBands: result.data.mel_bands,
+        isFrameWise,
+      } as MelBandsResult;
+    }
+
+    return result;
   }
 
   /**
@@ -275,18 +727,35 @@ class EssentiaAPI implements EssentiaInterface {
   async extractKey(
     params: AlgorithmParams = {}
   ): Promise<KeyResult | EssentiaResult<any>> {
+    const framewise = params.framewise !== false; // Default to true
     const result = await this.extractFeatures([
       {
         name: 'Key',
-        params,
+        params: {
+          ...params,
+          framewise,
+        },
       },
     ]);
-    if (result.data?.key && result.data?.scale && result.data?.strength) {
-      return {
-        key: result.data.key,
-        scale: result.data.scale,
-        strength: result.data.strength,
-      };
+
+    if (result.success && result.data) {
+      if (framewise && result.data.key_values) {
+        // Frame-wise results
+        return {
+          key: result.data.key_values,
+          scale: result.data.scale_values,
+          strength: result.data.strength_values,
+          isFrameWise: true,
+        } as KeyResult;
+      } else if (result.data.key) {
+        // Single result
+        return {
+          key: result.data.key,
+          scale: result.data.scale,
+          strength: result.data.strength,
+          isFrameWise: false,
+        } as KeyResult;
+      }
     }
 
     return result;
@@ -828,6 +1297,304 @@ class EssentiaAPI implements EssentiaInterface {
   private clearJSCache(): void {
     this.algorithmInfoCache.clear();
     this.allAlgorithmsCache = null;
+  }
+
+  /**
+   * Computes a mel spectrogram directly from loaded audio data.
+   * This is optimized for efficient computation by processing all frames in C++.
+   *
+   * @param frameSize Size of each frame in samples (should be power of 2 for efficient FFT)
+   * @param hopSize Hop size between frames in samples
+   * @param nMels Number of mel bands
+   * @param fMin Minimum frequency for mel bands
+   * @param fMax Maximum frequency for mel bands
+   * @param windowType Type of window to apply ("hann", "hamming", etc.)
+   * @param normalize Whether to normalize the mel bands
+   * @param logScale Whether to use log scale for the mel bands
+   * @returns A Promise that resolves to the mel spectrogram result
+   */
+  async computeMelSpectrogram(
+    frameSize: number,
+    hopSize: number,
+    nMels: number,
+    fMin: number,
+    fMax: number,
+    windowType: string,
+    normalize: boolean,
+    logScale: boolean
+  ): Promise<MelSpectrogramResult> {
+    try {
+      // Validate inputs
+      if (
+        !Number.isFinite(frameSize) ||
+        frameSize <= 0 ||
+        !Number.isInteger(frameSize)
+      ) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Frame size must be a positive integer',
+        };
+      }
+
+      if (!this.isPowerOfTwo(frameSize)) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message:
+            'Frame size should be a power of 2 for efficient FFT processing',
+        };
+      }
+
+      if (
+        !Number.isFinite(hopSize) ||
+        hopSize <= 0 ||
+        !Number.isInteger(hopSize)
+      ) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Hop size must be a positive integer',
+        };
+      }
+
+      if (!Number.isFinite(nMels) || nMels <= 0 || !Number.isInteger(nMels)) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Number of mel bands must be a positive integer',
+        };
+      }
+
+      if (!Number.isFinite(fMin) || fMin < 0) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Minimum frequency must be non-negative',
+        };
+      }
+
+      if (!Number.isFinite(fMax) || fMax <= fMin) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Maximum frequency must be greater than minimum frequency',
+        };
+      }
+
+      if (!windowType || typeof windowType !== 'string' || !windowType.trim()) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Window type must be a non-empty string',
+        };
+      }
+
+      if (typeof normalize !== 'boolean') {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Normalize parameter must be a boolean',
+        };
+      }
+
+      if (typeof logScale !== 'boolean') {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'LogScale parameter must be a boolean',
+        };
+      }
+
+      return await Essentia.computeMelSpectrogram(
+        frameSize,
+        hopSize,
+        nMels,
+        fMin,
+        fMax,
+        windowType,
+        normalize,
+        logScale
+      );
+    } catch (error) {
+      console.error('Essentia computeMelSpectrogram error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Extract Chroma features from the loaded audio with optional frame-wise processing
+   * @param params Parameters for Chroma algorithm
+   * @returns A Promise that resolves to chroma features
+   */
+  async extractChroma(
+    params: AlgorithmParams = {}
+  ): Promise<ChromaResult | EssentiaResult<any>> {
+    const framewise = params.framewise !== false; // Default to true
+    const result = await this.extractFeatures([
+      {
+        name: 'Chroma',
+        params: {
+          ...params,
+          framewise,
+        },
+      },
+    ]);
+
+    if (result.success && result.data) {
+      // Check if we have frame-wise or single-frame results
+      if (
+        Array.isArray(result.data.chroma) &&
+        result.data.chroma.length > 0 &&
+        Array.isArray(result.data.chroma[0])
+      ) {
+        // Frame-wise results
+        return {
+          chroma: result.data.chroma,
+          isFrameWise: true,
+        } as ChromaResult;
+      } else if (Array.isArray(result.data.chroma)) {
+        // Single-frame result
+        return {
+          chroma: result.data.chroma,
+          isFrameWise: false,
+        } as ChromaResult;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract Spectral Contrast features with optional frame-wise processing
+   * @param params Parameters for Spectral Contrast algorithm
+   * @returns A Promise that resolves to spectral contrast features
+   */
+  async extractSpectralContrast(
+    params: AlgorithmParams = {}
+  ): Promise<SpectralContrastResult | EssentiaResult<any>> {
+    const framewise = params.framewise !== false; // Default to true
+    const result = await this.extractFeatures([
+      {
+        name: 'SpectralContrast',
+        params: {
+          ...params,
+          framewise,
+        },
+      },
+    ]);
+
+    if (result.success && result.data) {
+      // Handle both frame-wise and single-frame results
+      const isFrameWise =
+        Array.isArray(result.data.spectral_contrast) &&
+        result.data.spectral_contrast.length > 0 &&
+        Array.isArray(result.data.spectral_contrast[0]);
+
+      return {
+        contrast: result.data.spectral_contrast,
+        valleys: result.data.spectral_valley,
+        isFrameWise,
+      } as SpectralContrastResult;
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract Tonnetz features from the loaded audio
+   * Tonnetz represents tonal centroids derived from the Harmonic Pitch Class Profile (HPCP),
+   * useful for harmonic analysis and music similarity tasks.
+   *
+   * @param params - Optional parameters for the Tonnetz algorithm
+   * @returns Promise resolving to tonnetz features or error
+   */
+  async extractTonnetz(
+    params: AlgorithmParams = {}
+  ): Promise<TonnetzResult | EssentiaResult<any>> {
+    if (!this.isCacheEnabledValue) {
+      await this.clearCache();
+    }
+
+    const result = await this.extractFeatures([{ name: 'Tonnetz', params }]);
+
+    if (result.success && result.data?.tonnetz) {
+      return {
+        tonnetz: result.data.tonnetz as number[],
+      } as TonnetzResult;
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract Novelty Curve from the loaded audio
+   * Novelty Curves are useful for audio segmentation and onset detection in classification tasks.
+   *
+   * @param params - Optional parameters for the NoveltyCurve algorithm
+   * @returns Promise resolving to novelty curve features or error
+   */
+  async extractNoveltyCurve(
+    params: AlgorithmParams = {}
+  ): Promise<NoveltyCurveResult | EssentiaResult<any>> {
+    if (!this.isCacheEnabledValue) {
+      await this.clearCache();
+    }
+
+    const result = await this.extractFeatures([
+      { name: 'NoveltyCurve', params },
+    ]);
+
+    if (result.success && result.data?.noveltyCurve) {
+      return {
+        noveltyCurve: result.data.noveltyCurve as number[],
+      } as NoveltyCurveResult;
+    }
+
+    return result;
+  }
+
+  /**
+   * Computes the spectrum with specified frame size and hop size.
+   * This ensures spectrum has appropriate resolution for subsequent algorithms,
+   * particularly when using high number of mel bands.
+   *
+   * @param frameSize Size of each frame in samples (should be power of 2 for efficient FFT)
+   * @param hopSize Hop size between frames in samples
+   * @returns A Promise that resolves to true on success
+   */
+  async computeSpectrum(
+    frameSize: number = 1024,
+    hopSize: number = Math.floor(frameSize / 2)
+  ): Promise<boolean> {
+    try {
+      // Validate inputs
+      if (
+        !Number.isFinite(frameSize) ||
+        frameSize <= 0 ||
+        !Number.isInteger(frameSize)
+      ) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Frame size must be a positive integer',
+        };
+      }
+
+      if (!this.isPowerOfTwo(frameSize)) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message:
+            'Frame size should be a power of 2 for efficient FFT processing',
+        };
+      }
+
+      if (
+        !Number.isFinite(hopSize) ||
+        hopSize <= 0 ||
+        !Number.isInteger(hopSize)
+      ) {
+        throw {
+          code: 'INVALID_PARAMETERS',
+          message: 'Hop size must be a positive integer',
+        };
+      }
+
+      return await Essentia.computeSpectrum(frameSize, hopSize);
+    } catch (error) {
+      console.error('Essentia computeSpectrum error:', error);
+      throw error;
+    }
   }
 }
 

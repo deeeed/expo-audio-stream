@@ -3,13 +3,14 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { AppTheme, useTheme } from '@siteed/design-system'
 import { AudioAnalysis, ExtractedAudioData, extractMelSpectrogram, MelSpectrogram, TranscriberData } from '@siteed/expo-audio-studio'
 import React, { useCallback, useEffect, useState } from 'react'
-import { StyleSheet, View, Platform } from 'react-native'
+import { Platform, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { TranscriptionResults } from '../../components/TranscriptionResults'
 import { baseLogger } from '../../config'
 import { LANGUAGE_NAMES, useLanguageDetection } from '../../hooks/useLanguageDetection'
 import { useSileroVAD } from '../../hooks/useSileroVAD'
 import { useTranscriptionAnalyzer } from '../../hooks/useTranscriptionAnalyzer'
+import { extractMelSpectrogramWithEssentia } from '../../utils/essentiaUtils'
 import { isWeb } from '../../utils/utils'
 
 
@@ -37,11 +38,22 @@ export function SpeechAnalyzer({
     const [transcriptionError, setTranscriptionError] = useState<string | null>(null)
 
     // State for mel spectrogram
-    const [melSpectrogramData, setMelSpectrogramData] = useState<MelSpectrogram | null>(null)
+    // const [melSpectrogramData, setMelSpectrogramData] = useState<MelSpectrogram | null>(null)
     const [isExtractingMelSpectrogram, setIsExtractingMelSpectrogram] = useState(false)
     const [melSpectrogramError, setMelSpectrogramError] = useState<string | null>(null)
 
     const [languageDetectionResults, setLanguageDetectionResults] = useState<Record<string, number>>({})
+
+    // Update state for dual implementation comparison
+    const [melResults, setMelResults] = useState<{
+        current: MelSpectrogram | null,
+        essentia: MelSpectrogram | null,
+        difference: number | null
+    }>({
+        current: null,
+        essentia: null,
+        difference: null
+    })
 
     const { isModelLoading, isProcessing, processAudioSegment } = useSileroVAD({
         onError: (error) => {
@@ -140,7 +152,7 @@ export function SpeechAnalyzer({
     }, [audioData, sampleRate, isModelLoading, hasEnoughData, handleVAD])
 
     const handleExtractMelSpectrogram = useCallback(async () => {
-        if (!fileUri || !sampleRate || !analysis.dataPoints.length) {
+        if (!fileUri || !sampleRate || !analysis.dataPoints.length || !audioData?.normalizedData) {
             return
         }
         
@@ -148,30 +160,73 @@ export function SpeechAnalyzer({
         setMelSpectrogramError(null)
         
         try {
-            const result = await extractMelSpectrogram({
-                fileUri: fileUri,
-                windowSizeMs: 25, // 25ms window size is common for speech analysis
-                hopLengthMs: 10,  // 10ms hop length
-                nMels: 40,        // 40 mel bands
+            // Common parameters for both implementations
+            const spectrogramParams = {
+                windowSizeMs: 25,
+                hopLengthMs: 10,
+                nMels: 40,
                 fMin: 0,
                 fMax: sampleRate ? sampleRate / 2 : 8000,
-                windowType: 'hann',
+                windowType: 'hann' as const,
                 normalize: true,
                 logScale: true,
-                // If we have a selected data point, use its time range
                 startTimeMs: (analysis.dataPoints[0]?.startTime ?? 0) * 1000,
                 endTimeMs: (analysis.dataPoints[analysis.dataPoints.length - 1]?.endTime ?? 0) * 1000,
+            }
+            
+            // Run current implementation
+            logger.log('Running current implementation...')
+            const currentResult = await extractMelSpectrogram({
+                fileUri: fileUri,
+                ...spectrogramParams,
                 decodingOptions: {
                     targetSampleRate: sampleRate,
                     normalizeAudio: true
                 }
             })
             
-            setMelSpectrogramData(result)
-            logger.log('Mel Spectrogram extracted:', {
-                timeSteps: result.timeSteps,
-                nMels: result.nMels,
-                durationMs: result.durationMs
+            // Run Essentia implementation with the same data
+            logger.log('Running Essentia implementation...')
+            const essentiaResult = await extractMelSpectrogramWithEssentia(
+                audioData.normalizedData,
+                sampleRate,
+                spectrogramParams
+            )
+            
+            // Calculate average difference between matrices
+            let totalDiff = 0
+            let count = 0
+            
+            const minTimeSteps = Math.min(currentResult.spectrogram.length, essentiaResult.spectrogram.length)
+            const minMels = Math.min(
+                currentResult.spectrogram[0]?.length || 0, 
+                essentiaResult.spectrogram[0]?.length || 0
+            )
+            
+            for (let i = 0; i < minTimeSteps; i++) {
+                for (let j = 0; j < minMels; j++) {
+                    const diff = Math.abs(
+                        (currentResult.spectrogram[i][j] || 0) - 
+                        (essentiaResult.spectrogram[i][j] || 0)
+                    )
+                    totalDiff += diff
+                    count++
+                }
+            }
+            
+            const avgDifference = count > 0 ? totalDiff / count : null
+            
+            // Store both results for comparison
+            setMelResults({
+                current: currentResult,
+                essentia: essentiaResult,
+                difference: avgDifference
+            })
+            
+            logger.log('Mel Spectrogram comparison results:', {
+                currentShape: [currentResult.timeSteps, currentResult.nMels],
+                essentiaShape: [essentiaResult.timeSteps, essentiaResult.nMels],
+                avgDifference
             })
         } catch (error) {
             console.error('Error extracting mel spectrogram:', error)
@@ -179,7 +234,7 @@ export function SpeechAnalyzer({
         } finally {
             setIsExtractingMelSpectrogram(false)
         }
-    }, [fileUri, sampleRate, analysis.dataPoints])
+    }, [fileUri, sampleRate, analysis.dataPoints, audioData])
 
     const handleDetectLanguage = useCallback(async () => {
         if (!fileUri || !sampleRate) {
@@ -203,7 +258,10 @@ export function SpeechAnalyzer({
                 
                 // If we want to cache the spectrogram for other uses
                 if (result.melSpectrogram) {
-                    setMelSpectrogramData(result.melSpectrogram);
+                    setMelResults(prevState => ({
+                        ...prevState,
+                        current: result.melSpectrogram || null
+                    }));
                 }
                 
                 logger.log('Language detection results:', {
@@ -383,7 +441,7 @@ export function SpeechAnalyzer({
                     <Button
                         mode="contained-tonal"
                         onPress={handleExtractMelSpectrogram}
-                        disabled={!hasEnoughData || isExtractingMelSpectrogram || !fileUri}
+                        disabled={!hasEnoughData || isExtractingMelSpectrogram || !fileUri || !audioData?.normalizedData}
                         loading={isExtractingMelSpectrogram}
                         style={styles.actionButton}
                         icon={() => (
@@ -394,21 +452,39 @@ export function SpeechAnalyzer({
                             />
                         )}
                     >
-                        Extract Mel Spectrogram
+                        Extract & Compare Mel Spectrograms
                     </Button>
                     
-                    {melSpectrogramData && (
+                    {melResults.current && melResults.essentia && (
                         <View style={styles.resultCard}>
-                            <Text variant="bodyMedium" style={styles.subsectionTitle}>Mel Spectrogram Results</Text>
-                            <Text>Time Steps: {melSpectrogramData.timeSteps}</Text>
-                            <Text>Mel Bands: {melSpectrogramData.nMels}</Text>
-                            <Text>Duration: {melSpectrogramData.durationMs}ms</Text>
-                            <Text>Sample Rate: {melSpectrogramData.sampleRate}Hz</Text>
-                            <Text style={styles.note}>
-                                Spectrogram data: {melSpectrogramData.spectrogram.length} × {
-                                    melSpectrogramData.spectrogram[0]?.length || 0
-                                } matrix
-                            </Text>
+                            <Text variant="bodyMedium" style={styles.subsectionTitle}>Mel Spectrogram Comparison</Text>
+                            
+                            <View style={styles.comparisonRow}>
+                                <View style={styles.comparisonColumn}>
+                                    <Text variant="bodySmall" style={styles.comparisonTitle}>Current Implementation</Text>
+                                    <Text>Time Steps: {melResults.current.timeSteps}</Text>
+                                    <Text>Mel Bands: {melResults.current.nMels}</Text>
+                                    <Text>Duration: {melResults.current.durationMs}ms</Text>
+                                </View>
+                                
+                                <View style={styles.comparisonColumn}>
+                                    <Text variant="bodySmall" style={styles.comparisonTitle}>Essentia Implementation</Text>
+                                    <Text>Time Steps: {melResults.essentia.timeSteps}</Text>
+                                    <Text>Mel Bands: {melResults.essentia.nMels}</Text>
+                                    <Text>Duration: {melResults.essentia.durationMs}ms</Text>
+                                </View>
+                            </View>
+                            
+                            <View style={styles.diffSection}>
+                                <Text variant="bodyMedium" style={[styles.label, { marginTop: theme.margin.m }]}>
+                                    Difference Analysis:
+                                </Text>
+                                <Text>Average Value Difference: {melResults.difference?.toFixed(6) || 'N/A'}</Text>
+                                <Text>Shape Difference: {melResults.current.timeSteps - melResults.essentia.timeSteps} time steps</Text>
+                                <Text style={styles.note}>
+                                    Lower difference values indicate more similar results
+                                </Text>
+                            </View>
                         </View>
                     )}
                     
@@ -529,5 +605,27 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
         color: theme.colors.onSurfaceVariant,
         fontWeight: '500',
         marginBottom: theme.margin.s,
+    },
+    comparisonRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: theme.spacing.gap,
+    },
+    comparisonColumn: {
+        flex: 1,
+        padding: theme.padding.s,
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.roundness / 2,
+    },
+    comparisonTitle: {
+        fontWeight: 'bold',
+        marginBottom: theme.margin.s,
+        color: theme.colors.primary,
+    },
+    diffSection: {
+        marginTop: theme.margin.m,
+        padding: theme.padding.s,
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.roundness / 2,
     },
 })

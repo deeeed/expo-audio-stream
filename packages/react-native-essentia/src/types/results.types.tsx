@@ -238,8 +238,9 @@ export interface InharmonicityResult {
 
 // Spectral contrast result
 export interface SpectralContrastResult {
-  contrast: number[];
-  valleys: number[];
+  contrast: number[] | number[][];
+  valleys: number[] | number[][];
+  isFrameWise?: boolean;
 }
 
 // Tristimulus result
@@ -360,4 +361,49 @@ export interface AudioFeaturesResult {
 
   // Allow for additional dynamic properties
   [key: string]: number | string | boolean | number[] | string[] | undefined;
+}
+
+/**
+ * Result from computing a mel spectrogram
+ */
+export interface MelSpectrogramResult {
+  success: boolean;
+  data?: {
+    bands: number[][];
+    sampleRate: number;
+    nMels: number;
+    timeSteps: number;
+    durationMs: number;
+  };
+  error?: { code: string; message: string; details?: string };
+}
+
+/**
+ * Result type for Chroma feature extraction
+ */
+export interface ChromaResult {
+  chroma: number[];
+}
+
+/**
+ * Result type for Spectral Contrast feature extraction
+ */
+export interface SpectralContrastResult {
+  contrast: number[] | number[][];
+  valleys: number[] | number[][];
+  isFrameWise?: boolean;
+}
+
+/**
+ * Result type for Tonnetz feature extraction
+ */
+export interface TonnetzResult {
+  tonnetz: number[];
+}
+
+/**
+ * Result type for Novelty Curve feature extraction
+ */
+export interface NoveltyCurveResult {
+  noveltyCurve: number[];
 }

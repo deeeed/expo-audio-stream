@@ -16,7 +16,7 @@ import {
 
 /**
  * Extracts a mel spectrogram from audio data
- * 
+ *
  * @experimental This feature is experimental and currently only available on Android.
  * The iOS implementation will throw an "UNSUPPORTED_PLATFORM" error.
  * The web implementation is a placeholder that returns dummy data.
@@ -105,7 +105,7 @@ export async function extractMelSpectrogram(
 
 /**
  * Computes a mel spectrogram from audio data
- * 
+ *
  * @experimental This is a placeholder implementation that returns dummy data.
  * The actual implementation will be added in a future version.
  */

@@ -7,6 +7,7 @@ A React Native module that provides access to the [Essentia audio analysis libra
 - Access to Essentia's extensive set of audio analysis algorithms
 - Convenience methods for common features (e.g., MFCC, key, tempo)
 - Batch processing for efficient multi-feature extraction
+- Flexible audio processing pipelines with custom preprocessing and post-processing
 - Caching of algorithm information for faster access
 - Multi-threading support for performance optimization
 - TypeScript support for improved developer experience
@@ -49,8 +50,8 @@ Here's how to initialize the module, set audio data, and extract features:
 ```typescript
 import Essentia from '@siteed/react-native-essentia';
 
-// Initialize Essentia
-await Essentia.initialize();
+// Note: Explicit initialization is optional as the library implements lazy initialization
+// await Essentia.initialize();
 
 // Set audio data (PCM samples as Float32Array)
 const audioData = new Float32Array([/* your audio samples */]);
@@ -68,6 +69,28 @@ const features = await Essentia.extractFeatures([
 ]);
 console.log('Features:', features.data.mfcc, features.data.spectrum);
 ```
+
+### Core Methods
+
+The module provides the following core methods for basic operation and more advanced control:
+
+- **initialize(): Promise\<boolean>**
+  Initializes the Essentia library. Note: Explicit initialization is optional as the library implements lazy initialization and will automatically initialize when needed.
+
+- **setAudioData(pcmData: number[] | Float32Array, sampleRate: number): Promise\<boolean>**
+  Sets the audio data to be analyzed.
+
+- **executeAlgorithm(algorithm: string, params?: AlgorithmParams): Promise\<AlgorithmResult>**
+  Executes a single Essentia algorithm with custom parameters.
+
+- **executeBatch(algorithms: FeatureConfig[]): Promise\<BatchProcessingResults>**
+  Runs multiple algorithms in a batch for efficient processing.
+
+- **executePipeline(config: PipelineConfig): Promise\<PipelineResult>**
+  Creates a full audio processing pipeline with preprocessing, feature extraction, and post-processing steps.
+
+- **extractFeatures(features: FeatureConfig[]): Promise\<BatchProcessingResults>**
+  Extracts multiple audio features with optimized execution.
 
 ### Available Convenience Methods
 
@@ -153,6 +176,47 @@ const result = await Essentia.executeAlgorithm('SpectralCentroidTime', { sampleR
 console.log('Centroid:', result);
 ```
 
+### Audio Processing Pipeline
+
+Define customizable audio processing pipelines with the `executePipeline` method:
+
+```typescript
+const pipelineResult = await Essentia.executePipeline({
+  preprocess: [
+    { name: "FrameCutter", params: { frameSize: 2048, hopSize: 1024 } },
+    { name: "Windowing", params: { type: "hann" } },
+    { name: "Spectrum", params: { size: 2048 } }
+  ],
+  features: [
+    {
+      name: "MFCC",
+      input: "Spectrum",
+      params: { numberCoefficients: 13 },
+      postProcess: { mean: true }
+    },
+    {
+      name: "MelBands",
+      input: "Spectrum",
+      params: { numberBands: 40 },
+      postProcess: { mean: true }
+    }
+  ],
+  postProcess: { concatenate: true }
+});
+
+// Access results
+console.log('MFCC:', pipelineResult.data.MFCC);
+console.log('MelBands:', pipelineResult.data.MelBands);
+console.log('Concatenated features:', pipelineResult.data.concatenatedFeatures);
+```
+
+The pipeline configuration allows you to:
+- Define preprocessing steps including frame cutting and windowing
+- Extract multiple features in sequence
+- Specify the input for each feature (e.g., connecting a feature to a preprocessing step)
+- Apply post-processing such as frame averaging or feature concatenation
+- Create both frame-based and signal-based processing workflows
+
 ### Batch Processing
 
 Run multiple algorithms in a batch with executeBatch:
@@ -210,6 +274,24 @@ Key TypeScript interfaces:
 - **FeatureConfig**: `{ name: string; params?: AlgorithmParams }`
   Defines a feature to extract.
 
+- **PipelineConfig**:
+  ```typescript
+  {
+    preprocess: Array<{ name: string; params?: AlgorithmParams }>;
+    features: Array<{
+      name: string;
+      input: string; // Source of input data (e.g., "Spectrum")
+      params?: AlgorithmParams;
+      postProcess?: { mean?: boolean };
+    }>;
+    postProcess?: { concatenate?: boolean };
+  }
+  ```
+  Configures an audio processing pipeline with preprocessing, feature extraction, and post-processing steps.
+
+- **PipelineResult**: `{ success: boolean; data?: Record<string, number | number[]>; error?: { code: string; message: string; details?: string } }`
+  Result type for pipeline operations, containing the extracted features.
+
 - **EssentiaResult<T>**: `{ success: boolean; data?: T; error?: { code: string; message: string } }`
   Generic result type for most operations.
 
@@ -265,6 +347,7 @@ try {
 Audio analysis can be resource-intensive:
 
 - Use batch operations (extractFeatures, executeBatch) to minimize redundant computations.
+- Take advantage of the automatic lazy initialization feature, which ensures the library is initialized only when needed.
 - Adjust thread count based on device capabilities.
 - For large audio files, consider processing in chunks or running in the background.
 
