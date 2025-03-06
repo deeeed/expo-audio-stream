@@ -1,4 +1,6 @@
 // packages/react-native-essentia/src/types/core.ts
+import type { MelSpectrogramResult } from './results.types';
+
 export interface AlgorithmParams {
   [key: string]: string | number | boolean | number[] | string[] | undefined;
 }
@@ -40,6 +42,9 @@ export interface EssentiaInterface {
     normalize: boolean,
     logScale: boolean
   ): Promise<MelSpectrogramResult>;
+
+  // Pipeline functionality
+  executePipeline(config: PipelineConfig): Promise<PipelineResult>;
 }
 
 // Define feature configuration interface
@@ -125,15 +130,35 @@ export interface EssentiaResult<T = Record<string, unknown>> {
   error?: { code: string; message: string; details?: string };
 }
 
-// Add this interface for the mel spectrogram result
-export interface MelSpectrogramResult {
-  success: boolean;
-  data?: {
-    bands: number[][];
-    sampleRate: number;
-    nMels: number;
-    timeSteps: number;
-    durationMs: number;
+// Removed MelSpectrogramResult interface - now only defined in results.types.tsx
+
+// Pipeline-related interfaces
+export interface PipelinePreprocessStep {
+  name: string;
+  params?: AlgorithmParams;
+}
+
+export interface PipelineFeatureStep {
+  name: string;
+  input: string;
+  params?: AlgorithmParams;
+  postProcess?: {
+    mean?: boolean;
   };
+}
+
+export interface PipelinePostProcessing {
+  concatenate?: boolean;
+}
+
+export interface PipelineConfig {
+  preprocess: PipelinePreprocessStep[];
+  features: PipelineFeatureStep[];
+  postProcess?: PipelinePostProcessing;
+}
+
+export interface PipelineResult {
+  success: boolean;
+  data?: Record<string, number | number[]>;
   error?: { code: string; message: string; details?: string };
 }

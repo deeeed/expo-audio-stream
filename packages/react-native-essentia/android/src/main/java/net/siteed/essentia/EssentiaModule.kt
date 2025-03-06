@@ -70,6 +70,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     normalize: Boolean,
     logScale: Boolean
   ): String
+  private external fun nativeExecutePipeline(handle: Long, pipelineJson: String): String
 
   /**
    * Helper method to ensure Essentia is initialized
@@ -913,6 +914,51 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       }
 
       Log.d("EssentiaModule", "Mel spectrogram computation result: ${resultJsonString.take(100)}...")
+
+      // Convert the JSON string to a WritableMap
+      val resultMap = convertJsonToWritableMap(resultJsonString)
+
+      // Check if there was an error using our helper
+      if (handleErrorInResultMap(resultMap, promise)) {
+        return@ensureInitialized
+      }
+
+      // Resolve the promise with the properly structured map
+      promise.resolve(resultMap)
+    }
+  }
+
+  /**
+   * Executes an audio processing pipeline with configurable preprocessing, feature extraction,
+   * and post-processing steps.
+   *
+   * @param pipelineJson JSON string containing pipeline configuration with preprocessing steps,
+   *                     feature extraction algorithms, and post-processing options
+   * @param promise Promise that resolves to an object containing all extracted features
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun executePipeline(pipelineJson: String, promise: Promise) {
+    ensureInitialized(promise) {
+      // Validate the pipeline JSON is not empty
+      if (pipelineJson.isEmpty()) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Pipeline configuration cannot be empty")
+        return@ensureInitialized
+      }
+
+      Log.d("EssentiaModule", "Executing pipeline with configuration: ${pipelineJson.take(200)}...")
+
+      // Call the native method
+      val resultJsonString: String
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
+        }
+        resultJsonString = nativeExecutePipeline(nativeHandle, pipelineJson)
+      }
+
+      Log.d("EssentiaModule", "Pipeline execution result: ${resultJsonString.take(100)}...")
 
       // Convert the JSON string to a WritableMap
       val resultMap = convertJsonToWritableMap(resultJsonString)

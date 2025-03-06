@@ -1131,6 +1131,501 @@ public:
             return createErrorResponse(errorMsg, "MEL_SPECTROGRAM_ERROR");
         }
     }
+
+    // Map of primary output names for common Essentia algorithms
+    const std::map<std::string, std::string> primaryOutputs = {
+        {"MFCC", "mfcc"},
+        {"MelBands", "bands"},
+        {"Chroma", "chroma"},
+        {"Tonnetz", "tonnetz"},
+        {"Spectrum", "spectrum"},
+        {"SpectralCentroid", "centroid"},
+        {"SpectralContrast", "spectralContrast"},
+        {"SpectralFlatness", "flatness"},
+        {"Energy", "energy"},
+        {"RMS", "rms"}
+        // Add more mappings as needed
+    };
+
+    /**
+     * Executes a configurable audio processing pipeline defined by a JSON configuration
+     * @param pipelineJson JSON string containing pipeline configuration
+     * @return JSON string with results or error message
+     */
+    std::string executePipeline(const std::string& pipelineJson) {
+        try {
+            if (!mIsInitialized) {
+                return createErrorResponse("Essentia not initialized", "NOT_INITIALIZED");
+            }
+
+            if (audioBuffer.empty()) {
+                return createErrorResponse("No audio data loaded", "NO_AUDIO_DATA");
+            }
+
+            // Parse the JSON configuration
+            json config;
+            try {
+                config = json::parse(pipelineJson);
+            } catch (const json::exception& e) {
+                return createErrorResponse(std::string("Invalid JSON configuration: ") + e.what(), "INVALID_CONFIG");
+            }
+
+            // Validate configuration
+            if (!config.contains("preprocess") || !config["preprocess"].is_array()) {
+                return createErrorResponse("Invalid configuration: 'preprocess' must be an array", "INVALID_CONFIG");
+            }
+            if (!config.contains("features") || !config["features"].is_array()) {
+                return createErrorResponse("Invalid configuration: 'features' must be an array", "INVALID_CONFIG");
+            }
+
+            essentia::Pool finalPool;
+            bool isFrameBased = false;
+            size_t frameCutterIndex = std::numeric_limits<size_t>::max();
+
+            // Determine if the pipeline is frame-based
+            for (size_t i = 0; i < config["preprocess"].size(); ++i) {
+                if (config["preprocess"][i]["name"].get<std::string>() == "FrameCutter") {
+                    isFrameBased = true;
+                    frameCutterIndex = i;
+                    break;
+                }
+            }
+
+            LOGI("Executing pipeline (frame-based: %s)", isFrameBased ? "true" : "false");
+
+            essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
+
+            if (isFrameBased) {
+                // Frame-based processing
+                if (frameCutterIndex >= config["preprocess"].size()) {
+                    return createErrorResponse("FrameCutter not found in preprocessing steps", "INVALID_CONFIG");
+                }
+
+                // Create FrameCutter
+                json frameCutterConfig = config["preprocess"][frameCutterIndex];
+                if (!frameCutterConfig.contains("params") ||
+                    !frameCutterConfig["params"].contains("frameSize") ||
+                    !frameCutterConfig["params"].contains("hopSize")) {
+                    return createErrorResponse("FrameCutter requires frameSize and hopSize parameters", "INVALID_CONFIG");
+                }
+
+                // Configure FrameCutter
+                essentia::standard::Algorithm* frameCutter = factory.create("FrameCutter",
+                    "frameSize", frameCutterConfig["params"]["frameSize"].get<int>(),
+                    "hopSize", frameCutterConfig["params"]["hopSize"].get<int>()
+                );
+
+                std::vector<essentia::Real> frame;
+                frameCutter->input("signal").set(audioBuffer);
+                frameCutter->output("frame").set(frame);
+
+                // Map to store feature outputs across frames
+                std::map<std::string, std::vector<std::vector<essentia::Real>>> featureCollectors;
+
+                // Create and configure preprocessing algorithms (after FrameCutter)
+                std::vector<essentia::standard::Algorithm*> preprocessAlgos;
+                std::vector<std::vector<essentia::Real>> preprocessOutputs;
+                std::vector<std::string> preprocessOutputNames;
+
+                for (size_t i = frameCutterIndex + 1; i < config["preprocess"].size(); ++i) {
+                    json step = config["preprocess"][i];
+                    std::string name = step["name"].get<std::string>();
+
+                    try {
+                        essentia::standard::Algorithm* algo = factory.create(name);
+
+                        // Configure algorithm parameters
+                        if (step.contains("params")) {
+                            json params = step["params"];
+                            for (auto& [key, value] : params.items()) {
+                                if (value.is_number_integer()) {
+                                    algo->configure(key, value.get<int>());
+                                }
+                                else if (value.is_number_float()) {
+                                    algo->configure(key, value.get<float>());
+                                }
+                                else if (value.is_string()) {
+                                    algo->configure(key, value.get<std::string>());
+                                }
+                                else if (value.is_boolean()) {
+                                    algo->configure(key, value.get<bool>());
+                                }
+                            }
+                        }
+
+                        preprocessAlgos.push_back(algo);
+                        preprocessOutputs.push_back(std::vector<essentia::Real>());
+                        preprocessOutputNames.push_back(name);
+                    }
+                    catch (const std::exception& e) {
+                        // Clean up already created algorithms
+                        for (auto* algo : preprocessAlgos) {
+                            delete algo;
+                        }
+                        return createErrorResponse(std::string("Error creating algorithm '") + name + "': " + e.what(), "ALGORITHM_ERROR");
+                    }
+                }
+
+                // Create and configure feature algorithms
+                std::vector<essentia::standard::Algorithm*> featureAlgos;
+                std::vector<std::vector<essentia::Real>> featureOutputs;
+                std::vector<std::string> featureNames;
+                std::vector<std::string> featureInputs;
+                std::vector<std::string> featureOutputNames;
+                std::vector<bool> featureUseMean;
+
+                for (const auto& feature : config["features"]) {
+                    std::string name = feature["name"].get<std::string>();
+
+                    if (!feature.contains("input")) {
+                        // Clean up resources
+                        for (auto* algo : preprocessAlgos) delete algo;
+                        for (auto* algo : featureAlgos) delete algo;
+                        return createErrorResponse(std::string("Feature '") + name + "' is missing required 'input' field", "INVALID_CONFIG");
+                    }
+
+                    std::string inputName = feature["input"].get<std::string>();
+
+                    try {
+                        essentia::standard::Algorithm* algo = factory.create(name);
+
+                        // Configure algorithm parameters
+                        if (feature.contains("params")) {
+                            json params = feature["params"];
+                            for (auto& [key, value] : params.items()) {
+                                if (value.is_number_integer()) {
+                                    algo->configure(key, value.get<int>());
+                                }
+                                else if (value.is_number_float()) {
+                                    algo->configure(key, value.get<float>());
+                                }
+                                else if (value.is_string()) {
+                                    algo->configure(key, value.get<std::string>());
+                                }
+                                else if (value.is_boolean()) {
+                                    algo->configure(key, value.get<bool>());
+                                }
+                            }
+                        }
+
+                        featureAlgos.push_back(algo);
+                        featureOutputs.push_back(std::vector<essentia::Real>());
+                        featureNames.push_back(name);
+                        featureInputs.push_back(inputName);
+
+                        // Determine the primary output name for this algorithm
+                        std::string outputName;
+                        if (primaryOutputs.find(name) != primaryOutputs.end()) {
+                            outputName = primaryOutputs.at(name);
+                        } else {
+                            // Default to algorithm name in lowercase
+                            outputName = name;
+                            std::transform(outputName.begin(), outputName.end(), outputName.begin(), ::tolower);
+                        }
+                        featureOutputNames.push_back(outputName);
+
+                        // Check if we should compute mean for this feature
+                        bool useMean = false;
+                        if (feature.contains("postProcess") && feature["postProcess"].contains("mean")) {
+                            useMean = feature["postProcess"]["mean"].get<bool>();
+                        }
+                        featureUseMean.push_back(useMean);
+                    }
+                    catch (const std::exception& e) {
+                        // Clean up resources
+                        for (auto* algo : preprocessAlgos) delete algo;
+                        for (auto* algo : featureAlgos) delete algo;
+                        return createErrorResponse(std::string("Error creating algorithm '") + name + "': " + e.what(), "ALGORITHM_ERROR");
+                    }
+                }
+
+                // Create intermediate pools for feature computation
+                essentia::Pool framePool;
+                int frameCount = 0;
+
+                // Process frames
+                while (true) {
+                    // Extract frame
+                    frameCutter->compute();
+                    if (frame.empty()) break; // No more frames
+
+                    frameCount++;
+
+                    // Store the frame in the pool
+                    framePool.remove("frame");
+                    framePool.add("frame", frame);
+
+                    // Apply preprocessing steps
+                    for (size_t i = 0; i < preprocessAlgos.size(); ++i) {
+                        auto* algo = preprocessAlgos[i];
+                        std::string inputName = (i == 0) ? "frame" : preprocessOutputNames[i-1];
+                        std::vector<essentia::Real>& output = preprocessOutputs[i];
+
+                        // Connect input from previous step's output
+                        algo->input("frame").set(framePool.value<std::vector<essentia::Real>>(inputName));
+                        algo->output(primaryOutputs.count(preprocessOutputNames[i]) ?
+                                   primaryOutputs.at(preprocessOutputNames[i]) : preprocessOutputNames[i]).set(output);
+
+                        // Compute algorithm
+                        algo->compute();
+
+                        // Store result in the pool
+                        framePool.remove(preprocessOutputNames[i]);
+                        framePool.add(preprocessOutputNames[i], output);
+                    }
+
+                    // Compute features
+                    for (size_t i = 0; i < featureAlgos.size(); ++i) {
+                        auto* algo = featureAlgos[i];
+                        std::string inputName = featureInputs[i];
+                        std::vector<essentia::Real>& output = featureOutputs[i];
+
+                        // Get the correct input data from the pool
+                        if (!framePool.contains<std::vector<essentia::Real>>(inputName)) {
+                            LOGW("Input '%s' for feature '%s' not found in pool, skipping",
+                                 inputName.c_str(), featureNames[i].c_str());
+                            continue;
+                        }
+
+                        // Connect input and output
+                        const std::vector<essentia::Real>& input = framePool.value<std::vector<essentia::Real>>(inputName);
+
+                        // Get the appropriate input port name - typically "spectrum" for spectral features
+                        std::string inputPortName = "frame";
+                        if (inputName == "Spectrum" || inputName == "spectrum") {
+                            inputPortName = "spectrum";
+                        }
+
+                        algo->input(inputPortName).set(input);
+                        algo->output(featureOutputNames[i]).set(output);
+
+                        // Compute algorithm
+                        algo->compute();
+
+                        // Store output for this frame
+                        if (featureCollectors.find(featureNames[i]) == featureCollectors.end()) {
+                            featureCollectors[featureNames[i]] = std::vector<std::vector<essentia::Real>>();
+                        }
+                        featureCollectors[featureNames[i]].push_back(output);
+                    }
+                }
+
+                // Process feature data
+                for (size_t i = 0; i < featureNames.size(); ++i) {
+                    const std::string& name = featureNames[i];
+                    const auto& outputs = featureCollectors[name];
+
+                    // Skip features that weren't computed successfully
+                    if (outputs.empty()) continue;
+
+                    if (featureUseMean[i]) {
+                        // Compute mean across frames
+                        std::vector<essentia::Real> meanOutput(outputs[0].size(), 0.0);
+                        for (const auto& frameOutput : outputs) {
+                            for (size_t j = 0; j < frameOutput.size(); ++j) {
+                                meanOutput[j] += frameOutput[j];
+                            }
+                        }
+
+                        // Divide by frame count
+                        for (auto& val : meanOutput) {
+                            val /= outputs.size();
+                        }
+
+                        finalPool.add(name, meanOutput);
+                    } else {
+                        // Store all frame data
+                        for (const auto& frameOutput : outputs) {
+                            finalPool.add(name, frameOutput);
+                        }
+                    }
+                }
+
+                // Clean up resources
+                delete frameCutter;
+                for (auto* algo : preprocessAlgos) delete algo;
+                for (auto* algo : featureAlgos) delete algo;
+
+                LOGI("Processed %d frames", frameCount);
+            }
+            else {
+                // Signal-based processing
+                essentia::Pool signalPool;
+                signalPool.add("signal", audioBuffer);
+
+                // Apply preprocessing steps
+                std::string currentOutput = "signal";
+
+                for (const auto& step : config["preprocess"]) {
+                    std::string name = step["name"].get<std::string>();
+
+                    try {
+                        essentia::standard::Algorithm* algo = factory.create(name);
+
+                        // Configure algorithm parameters
+                        if (step.contains("params")) {
+                            json params = step["params"];
+                            for (auto& [key, value] : params.items()) {
+                                if (value.is_number_integer()) {
+                                    algo->configure(key, value.get<int>());
+                                }
+                                else if (value.is_number_float()) {
+                                    algo->configure(key, value.get<float>());
+                                }
+                                else if (value.is_string()) {
+                                    algo->configure(key, value.get<std::string>());
+                                }
+                                else if (value.is_boolean()) {
+                                    algo->configure(key, value.get<bool>());
+                                }
+                            }
+                        }
+
+                        // Connect input from previous step's output
+                        algo->input("signal").set(signalPool.value<std::vector<essentia::Real>>(currentOutput));
+
+                        // Determine the output name
+                        std::string outputName;
+                        if (primaryOutputs.find(name) != primaryOutputs.end()) {
+                            outputName = primaryOutputs.at(name);
+                        } else {
+                            outputName = name;
+                            std::transform(outputName.begin(), outputName.end(), outputName.begin(), ::tolower);
+                        }
+
+                        std::vector<essentia::Real> output;
+                        algo->output(outputName).set(output);
+
+                        // Compute algorithm
+                        algo->compute();
+
+                        // Store result in the pool
+                        signalPool.add(name, output);
+
+                        // Update current output for next iteration
+                        currentOutput = name;
+
+                        // Clean up
+                        delete algo;
+                    }
+                    catch (const std::exception& e) {
+                        return createErrorResponse(std::string("Error in preprocessing step '") + name + "': " + e.what(), "ALGORITHM_ERROR");
+                    }
+                }
+
+                // Compute features
+                for (const auto& feature : config["features"]) {
+                    std::string name = feature["name"].get<std::string>();
+
+                    if (!feature.contains("input")) {
+                        return createErrorResponse(std::string("Feature '") + name + "' is missing required 'input' field", "INVALID_CONFIG");
+                    }
+
+                    std::string inputName = feature["input"].get<std::string>();
+
+                    try {
+                        essentia::standard::Algorithm* algo = factory.create(name);
+
+                        // Configure algorithm parameters
+                        if (feature.contains("params")) {
+                            json params = feature["params"];
+                            for (auto& [key, value] : params.items()) {
+                                if (value.is_number_integer()) {
+                                    algo->configure(key, value.get<int>());
+                                }
+                                else if (value.is_number_float()) {
+                                    algo->configure(key, value.get<float>());
+                                }
+                                else if (value.is_string()) {
+                                    algo->configure(key, value.get<std::string>());
+                                }
+                                else if (value.is_boolean()) {
+                                    algo->configure(key, value.get<bool>());
+                                }
+                            }
+                        }
+
+                        // Make sure the input exists in the pool
+                        if (!signalPool.contains<std::vector<essentia::Real>>(inputName)) {
+                            delete algo;
+                            return createErrorResponse(std::string("Input '") + inputName + "' for feature '" + name + "' not found in pool", "INVALID_CONFIG");
+                        }
+
+                        // Get the appropriate input port name
+                        std::string inputPortName = "signal";
+                        if (inputName == "Spectrum" || inputName == "spectrum") {
+                            inputPortName = "spectrum";
+                        }
+
+                        const std::vector<essentia::Real>& input = signalPool.value<std::vector<essentia::Real>>(inputName);
+
+                        // Determine the output name
+                        std::string outputName;
+                        if (primaryOutputs.find(name) != primaryOutputs.end()) {
+                            outputName = primaryOutputs.at(name);
+                        } else {
+                            outputName = name;
+                            std::transform(outputName.begin(), outputName.end(), outputName.begin(), ::tolower);
+                        }
+
+                        // Connect I/O
+                        std::vector<essentia::Real> output;
+                        algo->input(inputPortName).set(input);
+                        algo->output(outputName).set(output);
+
+                        // Compute algorithm
+                        algo->compute();
+
+                        // Add to final pool
+                        finalPool.add(name, output);
+
+                        // Clean up
+                        delete algo;
+                    }
+                    catch (const std::exception& e) {
+                        return createErrorResponse(std::string("Error in feature extraction '") + name + "': " + e.what(), "ALGORITHM_ERROR");
+                    }
+                }
+            }
+
+            // Apply global post-processing
+            if (config.contains("postProcess")) {
+                if (config["postProcess"].contains("concatenate") &&
+                    config["postProcess"]["concatenate"].get<bool>()) {
+
+                    // Concatenate all feature vectors
+                    std::vector<essentia::Real> concatenated;
+                    for (const auto& descName : finalPool.descriptorNames()) {
+                        const auto& values = finalPool.value<std::vector<essentia::Real>>(descName);
+                        concatenated.insert(concatenated.end(), values.begin(), values.end());
+                    }
+
+                    finalPool.add("concatenatedFeatures", concatenated);
+                }
+
+                // Add more post-processing options as needed
+            }
+
+            // Convert the pool to JSON
+            json result;
+            for (const auto& descName : finalPool.descriptorNames()) {
+                try {
+                    const auto& values = finalPool.value<std::vector<essentia::Real>>(descName);
+                    result[descName] = values;
+                } catch (const std::exception& e) {
+                    LOGW("Failed to convert descriptor '%s' to JSON: %s", descName.c_str(), e.what());
+                    // Skip descriptors that can't be converted
+                }
+            }
+
+            return "{\"success\":true,\"data\":" + result.dump() + "}";
+        }
+        catch (const std::exception& e) {
+            std::string errorMsg = std::string("Error executing pipeline: ") + e.what();
+            LOGE("%s", errorMsg.c_str());
+            return createErrorResponse(errorMsg, "PIPELINE_EXECUTION_ERROR");
+        }
+    }
 };
 
 // JNI Implementation with EssentiaWrapper
@@ -1316,9 +1811,7 @@ static jstring extractFeatures(JNIEnv* env, jobject thiz, jlong handle, jstring 
 
 // Add near the end, with other JNI methods
 static jstring getVersion(JNIEnv* env, jobject thiz) {
-    // Access version directly from essentia namespace
-    std::string version = essentia::version;
-    return env->NewStringUTF(version.c_str());
+    return env->NewStringUTF(essentia::version);
 }
 
 // Add this JNI method
@@ -1346,41 +1839,67 @@ static jstring nativeComputeMelSpectrogram(JNIEnv* env, jobject thiz, jlong hand
     return env->NewStringUTF(result.c_str());
 }
 
-// JNI method registration
-static JNINativeMethod methods[] = {
-    {"nativeCreateEssentiaWrapper", "()J", (void*)createEssentiaWrapper},
-    {"nativeDestroyEssentiaWrapper", "(J)V", (void*)destroyEssentiaWrapper},
-    {"nativeInitializeEssentia", "(J)Z", (void*)initializeEssentia},
-    {"nativeSetAudioData", "(J[FD)Z", (void*)setAudioData},
-    {"nativeExecuteAlgorithm", "(JLjava/lang/String;Ljava/lang/String;)Ljava/lang/String;", (void*)executeAlgorithm},
-    {"testJniConnection", "()Ljava/lang/String;", (void*)testJniConnection},
-    {"nativeGetAlgorithmInfo", "(JLjava/lang/String;)Ljava/lang/String;", (void*)getAlgorithmInfo},
-    {"nativeGetAllAlgorithms", "(J)Ljava/lang/String;", (void*)getAllAlgorithms},
-    {"nativeExtractFeatures", "(JLjava/lang/String;)Ljava/lang/String;", (void*)extractFeatures},
-    {"getVersion", "()Ljava/lang/String;", (void*)getVersion},
-    {"nativeComputeMelSpectrogram", "(JIIIFFLjava/lang/String;ZZ)Ljava/lang/String;", (void*)nativeComputeMelSpectrogram}
-};
+/**
+ * Executes an audio processing pipeline based on a JSON configuration
+ */
+static jstring nativeExecutePipeline(JNIEnv* env, jobject thiz, jlong handle, jstring jpipelineJson) {
+    if (handle == 0) {
+        return env->NewStringUTF(createErrorResponse("Invalid Essentia instance", "INVALID_HANDLE").c_str());
+    }
 
-// Add this function to register the native methods
+    EssentiaWrapper* wrapper = reinterpret_cast<EssentiaWrapper*>(handle);
+
+    const char* pipelineJsonCStr = env->GetStringUTFChars(jpipelineJson, nullptr);
+    if (pipelineJsonCStr == nullptr) {
+        return env->NewStringUTF(createErrorResponse("Failed to get pipeline JSON string", "STRING_CONVERSION_ERROR").c_str());
+    }
+
+    std::string pipelineJson(pipelineJsonCStr);
+    env->ReleaseStringUTFChars(jpipelineJson, pipelineJsonCStr);
+
+    try {
+        std::string result = wrapper->executePipeline(pipelineJson);
+        return env->NewStringUTF(result.c_str());
+    } catch (const std::exception& e) {
+        std::string errorMsg = std::string("Exception in nativeExecutePipeline: ") + e.what();
+        LOGE("%s", errorMsg.c_str());
+        return env->NewStringUTF(createErrorResponse(errorMsg, "NATIVE_EXCEPTION").c_str());
+    }
+}
+
+// JNI method registration
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     JNIEnv* env;
     if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {
         return JNI_ERR;
     }
 
-    // Find the Essentia module class
     jclass clazz = env->FindClass("net/siteed/essentia/EssentiaModule");
     if (clazz == nullptr) {
         return JNI_ERR;
     }
 
-    // Register the methods
-    if (env->RegisterNatives(clazz, methods, sizeof(methods) / sizeof(methods[0])) < 0) {
-        LOGE("Failed to register native methods");
+    static const JNINativeMethod methods[] = {
+        {"nativeCreateEssentiaWrapper", "()J", (void*)createEssentiaWrapper},
+        {"nativeDestroyEssentiaWrapper", "(J)V", (void*)destroyEssentiaWrapper},
+        {"nativeInitializeEssentia", "(J)Z", (void*)initializeEssentia},
+        {"nativeSetAudioData", "(J[FD)Z", (void*)setAudioData},
+        {"nativeExecuteAlgorithm", "(JLjava/lang/String;Ljava/lang/String;)Ljava/lang/String;", (void*)executeAlgorithm},
+        {"testJniConnection", "()Ljava/lang/String;", (void*)testJniConnection},
+        {"nativeGetAlgorithmInfo", "(JLjava/lang/String;)Ljava/lang/String;", (void*)getAlgorithmInfo},
+        {"nativeGetAllAlgorithms", "(J)Ljava/lang/String;", (void*)getAllAlgorithms},
+        {"nativeExtractFeatures", "(JLjava/lang/String;)Ljava/lang/String;", (void*)extractFeatures},
+        {"getVersion", "()Ljava/lang/String;", (void*)getVersion},
+        {"nativeComputeMelSpectrogram", "(JIIIFFLjava/lang/String;ZZ)Ljava/lang/String;", (void*)nativeComputeMelSpectrogram},
+        {"nativeExecutePipeline", "(JLjava/lang/String;)Ljava/lang/String;", (void*)nativeExecutePipeline}
+    };
+
+    int rc = env->RegisterNatives(clazz, methods, sizeof(methods) / sizeof(methods[0]));
+    if (rc != JNI_OK) {
         return JNI_ERR;
     }
 
-    LOGI("Successfully registered native methods");
+    // If everything went well, return the JNI version
     return JNI_VERSION_1_6;
 }
 

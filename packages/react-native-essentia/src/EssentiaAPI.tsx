@@ -6,8 +6,17 @@ import type {
   EssentiaInterface,
   EssentiaResult,
   FeatureConfig,
-  MelSpectrogramResult,
+  PipelineConfig,
+  PipelineResult,
 } from './types/core.types';
+import type {
+  BarkBandsParams,
+  ERBBandsParams,
+  MelBandsParams,
+  MFCCParams,
+  PitchParams,
+  SilenceRateParams,
+} from './types/params.types';
 import type {
   AttackTimeResult,
   BarkBandsResult,
@@ -23,6 +32,7 @@ import type {
   KeyResult,
   LoudnessResult,
   MelBandsResult,
+  MelSpectrogramResult,
   MFCCResult,
   OnsetsResult,
   PitchResult,
@@ -33,14 +43,6 @@ import type {
   TuningFrequencyResult,
   ZeroCrossingRateResult,
 } from './types/results.types';
-import type {
-  BarkBandsParams,
-  ERBBandsParams,
-  MelBandsParams,
-  MFCCParams,
-  PitchParams,
-  SilenceRateParams,
-} from './types/params.types';
 
 // Get the native module
 const Essentia = NativeModules.Essentia
@@ -122,6 +124,79 @@ class EssentiaAPI implements EssentiaInterface {
       return await Essentia.executeAlgorithm(algorithm, params);
     } catch (error) {
       console.error(`Essentia algorithm error (${algorithm}):`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Executes an audio processing pipeline with customizable preprocessing,
+   * feature extraction, and post-processing steps as defined in the configuration.
+   *
+   * @param config Configuration object defining the pipeline steps
+   * @returns A Promise that resolves to the results of the pipeline execution
+   * @example
+   * ```typescript
+   * // Example: Extract MFCC and mel bands using frame-based processing
+   * const result = await essentiaAPI.executePipeline({
+   *   preprocess: [
+   *     { name: "FrameCutter", params: { frameSize: 2048, hopSize: 1024 } },
+   *     { name: "Windowing", params: { type: "hann" } },
+   *     { name: "Spectrum", params: { size: 2048 } }
+   *   ],
+   *   features: [
+   *     {
+   *       name: "MFCC",
+   *       input: "Spectrum",
+   *       params: { numberCoefficients: 13 },
+   *       postProcess: { mean: true }
+   *     },
+   *     {
+   *       name: "MelBands",
+   *       input: "Spectrum",
+   *       params: { numberBands: 40 },
+   *       postProcess: { mean: true }
+   *     }
+   *   ],
+   *   postProcess: { concatenate: true }
+   * });
+   * ```
+   */
+  async executePipeline(config: PipelineConfig): Promise<PipelineResult> {
+    try {
+      // Validate the pipeline configuration
+      if (
+        !config.preprocess ||
+        !Array.isArray(config.preprocess) ||
+        config.preprocess.length === 0
+      ) {
+        throw new Error(
+          'Pipeline configuration must include at least one preprocessing step'
+        );
+      }
+
+      if (
+        !config.features ||
+        !Array.isArray(config.features) ||
+        config.features.length === 0
+      ) {
+        throw new Error(
+          'Pipeline configuration must include at least one feature extraction step'
+        );
+      }
+
+      // Validate that each feature has an input field
+      for (const feature of config.features) {
+        if (!feature.input) {
+          throw new Error(
+            `Feature '${feature.name}' is missing required 'input' field`
+          );
+        }
+      }
+
+      const pipelineJson = JSON.stringify(config);
+      return await Essentia.executePipeline(pipelineJson);
+    } catch (error) {
+      console.error('Essentia executePipeline error:', error);
       throw error;
     }
   }
