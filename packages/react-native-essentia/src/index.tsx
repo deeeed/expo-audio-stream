@@ -50,6 +50,10 @@ interface EssentiaInterface {
 
   // Feature extraction
   extractFeatures(features: FeatureConfig[]): Promise<any>;
+
+  // Thread pool configuration
+  setThreadCount(count: number): Promise<boolean>;
+  getThreadCount(): Promise<number>;
 }
 
 // Get the native module
@@ -312,6 +316,39 @@ class EssentiaAPI implements EssentiaInterface {
     }
 
     return result;
+  }
+
+  /**
+   * Sets the number of threads used by the native thread pool.
+   * Higher values may improve performance on high-end devices,
+   * while lower values may be better for low-end devices.
+   *
+   * @param count Number of threads (minimum 1)
+   * @returns A Promise that resolves to true on success
+   */
+  async setThreadCount(count: number): Promise<boolean> {
+    try {
+      if (!Number.isInteger(count) || count < 1) {
+        throw new Error('Thread count must be a positive integer');
+      }
+      return await Essentia.setThreadCount(count);
+    } catch (error) {
+      console.error('Essentia setThreadCount error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Gets the current thread count used by the native thread pool.
+   * @returns A Promise that resolves to the current thread count
+   */
+  async getThreadCount(): Promise<number> {
+    try {
+      return await Essentia.getThreadCount();
+    } catch (error) {
+      console.error('Essentia getThreadCount error:', error);
+      throw error;
+    }
   }
 }
 

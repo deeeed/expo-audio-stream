@@ -20,7 +20,8 @@ import com.facebook.react.bridge.ReadableType
 class EssentiaModule(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
 
-  private val executor: ExecutorService = Executors.newFixedThreadPool(4)
+  private var threadCount: Int = 4 // Default thread count
+  private var executor: ExecutorService = Executors.newFixedThreadPool(threadCount)
   private var nativeHandle: Long = 0
   private val lock = Object()
 
@@ -692,6 +693,59 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
       // Resolve the promise with the properly structured map
       promise.resolve(resultMap)
+    }
+  }
+
+  /**
+   * Sets the number of threads in the executor thread pool
+   * @param count The number of threads to use
+   * @param promise Promise that resolves to a boolean indicating success
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun setThreadCount(count: Int, promise: Promise) {
+    try {
+      if (count <= 0) {
+        promise.reject("INVALID_THREAD_COUNT", "Thread count must be greater than 0")
+        return
+      }
+
+      synchronized(lock) {
+        // Only rebuild the thread pool if the count has changed
+        if (count != threadCount) {
+          Log.d("EssentiaModule", "Changing thread pool size from $threadCount to $count")
+
+          // Shutdown existing executor (but don't interrupt running tasks)
+          val oldExecutor = executor
+
+          // Create new executor with the new thread count
+          threadCount = count
+          executor = Executors.newFixedThreadPool(threadCount)
+
+          // Shutdown old executor after creating the new one
+          oldExecutor.shutdown()
+        }
+      }
+
+      promise.resolve(true)
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Failed to set thread count: ${e.message}", e)
+      promise.reject("THREAD_COUNT_ERROR", "Failed to set thread count: ${e.message}")
+    }
+  }
+
+  /**
+   * Gets the current thread count
+   * @param promise Promise that resolves to the current thread count
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun getThreadCount(promise: Promise) {
+    try {
+      promise.resolve(threadCount)
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Failed to get thread count: ${e.message}", e)
+      promise.reject("THREAD_COUNT_ERROR", "Failed to get thread count: ${e.message}")
     }
   }
 
