@@ -4,7 +4,10 @@ import {
     extractRawWavAnalysis,
     extractAudioAnalysis,
 } from './AudioAnalysis/extractAudioAnalysis'
-import { extractAudioData } from './AudioAnalysis/extractAudioData'
+import { 
+    extractAudioData,
+    sendPCMToEssentia
+} from './AudioAnalysis/extractAudioData'
 import { extractMelSpectrogram } from './AudioAnalysis/extractMelSpectrogram'
 import { extractPreview } from './AudioAnalysis/extractPreview'
 import {
@@ -27,6 +30,7 @@ export {
     extractPreview,
     trimAudio,
     extractAudioData,
+    sendPCMToEssentia,
     extractMelSpectrogram,
     useAudioRecorder,
     useSharedAudioRecorder,
