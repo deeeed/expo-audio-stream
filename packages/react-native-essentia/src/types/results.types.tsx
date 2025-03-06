@@ -238,8 +238,9 @@ export interface InharmonicityResult {
 
 // Spectral contrast result
 export interface SpectralContrastResult {
-  contrast: number[];
-  valleys: number[];
+  contrast: number[] | number[][];
+  valleys: number[] | number[][];
+  isFrameWise?: boolean;
 }
 
 // Tristimulus result
@@ -388,7 +389,9 @@ export interface ChromaResult {
  * Result type for Spectral Contrast feature extraction
  */
 export interface SpectralContrastResult {
-  spectralContrast: number[];
+  contrast: number[] | number[][];
+  valleys: number[] | number[][];
+  isFrameWise?: boolean;
 }
 
 /**

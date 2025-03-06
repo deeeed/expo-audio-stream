@@ -131,6 +131,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun initialize(promise: Promise) {
+    Log.d("EssentiaModule", "Entering initialize method")
     try {
       Log.d("EssentiaModule", "Starting initialization")
       executor.execute {
@@ -186,6 +187,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun setAudioData(pcmArray: ReadableArray, sampleRate: Double, promise: Promise) {
+    Log.d("EssentiaModule", "Entering setAudioData with pcmArray size: ${pcmArray.size()}, sampleRate: $sampleRate")
     ensureInitialized(promise) {
       // Validate inputs
       if (pcmArray.size() == 0) {
@@ -349,6 +351,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun executeAlgorithm(algorithm: String, params: ReadableMap, promise: Promise) {
+    Log.d("EssentiaModule", "Entering executeAlgorithm with algorithm: $algorithm")
     ensureInitialized(promise) {
       // Validate inputs
       if (algorithm.isEmpty()) {
@@ -391,6 +394,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun testConnection(promise: Promise) {
+    Log.d("EssentiaModule", "Entering testConnection method")
     try {
       Log.d("EssentiaModule", "Testing JNI connection")
       executor.execute {
@@ -418,6 +422,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun getAlgorithmInfo(algorithm: String, promise: Promise) {
+    Log.d("EssentiaModule", "Entering getAlgorithmInfo for algorithm: $algorithm")
     ensureInitialized(promise) {
       // Validate inputs
       if (algorithm.isEmpty()) {
@@ -476,6 +481,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun getAllAlgorithms(promise: Promise) {
+    Log.d("EssentiaModule", "Entering getAllAlgorithms method")
     ensureInitialized(promise) {
       // Check if we have the algorithms list in cache
       if (isCacheEnabled) {
@@ -532,6 +538,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun extractFeatures(featureList: ReadableArray, promise: Promise) {
+    Log.d("EssentiaModule", "Entering extractFeatures with featureList size: ${featureList.size()}")
     ensureInitialized(promise) {
       // Validate input
       if (featureList.size() == 0) {
@@ -668,6 +675,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun getVersion(promise: Promise) {
+    Log.d("EssentiaModule", "Entering getVersion method")
     try {
       val version = getVersion()
       promise.resolve(version)
@@ -684,6 +692,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    */
   @ReactMethod
   fun executeBatch(algorithms: ReadableArray, promise: Promise) {
+    Log.d("EssentiaModule", "Entering executeBatch with algorithms size: ${algorithms.size()}")
     ensureInitialized(promise) {
       // Validate input
       if (algorithms.size() == 0) {
@@ -753,6 +762,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun setThreadCount(count: Int, promise: Promise) {
+    Log.d("EssentiaModule", "Entering setThreadCount with count: $count")
     try {
       if (count <= 0) {
         promise.reject("INVALID_THREAD_COUNT", "Thread count must be greater than 0")
@@ -790,6 +800,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun getThreadCount(promise: Promise) {
+    Log.d("EssentiaModule", "Entering getThreadCount method")
     try {
       promise.resolve(threadCount)
     } catch (e: Exception) {
@@ -806,6 +817,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun setCacheEnabled(enabled: Boolean, promise: Promise) {
+    Log.d("EssentiaModule", "Entering setCacheEnabled with enabled: $enabled")
     try {
       synchronized(algorithmInfoCache) {
         isCacheEnabled = enabled
@@ -828,6 +840,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun isCacheEnabled(promise: Promise) {
+    Log.d("EssentiaModule", "Entering isCacheEnabled method")
     try {
       promise.resolve(isCacheEnabled)
     } catch (e: Exception) {
@@ -843,6 +856,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun clearCache(promise: Promise) {
+    Log.d("EssentiaModule", "Entering clearCache method")
     try {
       clearCache()
       promise.resolve(true)
@@ -888,6 +902,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     logScale: Boolean,
     promise: Promise
   ) {
+    Log.d("EssentiaModule", "Entering computeMelSpectrogram with frameSize: $frameSize, hopSize: $hopSize, nMels: $nMels")
     ensureInitialized(promise) {
       // Validate inputs
       if (frameSize <= 0 || hopSize <= 0 || nMels <= 0) {
@@ -940,6 +955,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun executePipeline(pipelineJson: String, promise: Promise) {
+    Log.d("EssentiaModule", "Entering executePipeline with pipelineJson length: ${pipelineJson.length}")
     ensureInitialized(promise) {
       // Validate the pipeline JSON is not empty
       if (pipelineJson.isEmpty()) {
@@ -984,6 +1000,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun computeSpectrum(frameSize: Int, hopSize: Int, promise: Promise) {
+    Log.d("EssentiaModule", "Entering computeSpectrum with frameSize: $frameSize, hopSize: $hopSize")
     ensureInitialized(promise) {
       // Validate inputs
       if (frameSize <= 0 || hopSize <= 0) {

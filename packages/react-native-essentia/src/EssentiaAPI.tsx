@@ -301,8 +301,17 @@ class EssentiaAPI implements EssentiaInterface {
         if (!feature.name) {
           throw new Error('Each feature must have a name');
         }
+        // Only add framewise for algorithms that explicitly support it
+        if (
+          ['Chroma', 'SpectralCentroid', 'SpectralContrast'].includes(
+            feature.name
+          ) &&
+          !feature.params?.hasOwnProperty('framewise')
+        ) {
+          feature.params = { ...feature.params, framewise: true };
+        }
       });
-      return await Essentia.extractFeatures(features);
+      return await Essentia.extractFeatures(JSON.stringify(features));
     } catch (error) {
       console.error('Essentia feature extraction error:', error);
       throw error;
@@ -336,15 +345,31 @@ class EssentiaAPI implements EssentiaInterface {
   async extractMelBands(
     params: MelBandsParams = {}
   ): Promise<MelBandsResult | EssentiaResult<any>> {
+    const framewise = params.framewise !== false; // Default to true
     const result = await this.extractFeatures([
       {
         name: 'MelBands',
-        params,
+        params: {
+          ...params,
+          framewise,
+        },
       },
     ]);
-    return result.data?.mel_bands
-      ? { melBands: result.data.mel_bands }
-      : result;
+
+    if (result.success && result.data) {
+      // Handle both frame-wise and single-frame results
+      const isFrameWise =
+        Array.isArray(result.data.mel_bands) &&
+        result.data.mel_bands.length > 0 &&
+        Array.isArray(result.data.mel_bands[0]);
+
+      return {
+        melBands: result.data.mel_bands,
+        isFrameWise,
+      } as MelBandsResult;
+    }
+
+    return result;
   }
 
   /**
@@ -355,18 +380,35 @@ class EssentiaAPI implements EssentiaInterface {
   async extractKey(
     params: AlgorithmParams = {}
   ): Promise<KeyResult | EssentiaResult<any>> {
+    const framewise = params.framewise !== false; // Default to true
     const result = await this.extractFeatures([
       {
         name: 'Key',
-        params,
+        params: {
+          ...params,
+          framewise,
+        },
       },
     ]);
-    if (result.data?.key && result.data?.scale && result.data?.strength) {
-      return {
-        key: result.data.key,
-        scale: result.data.scale,
-        strength: result.data.strength,
-      };
+
+    if (result.success && result.data) {
+      if (framewise && result.data.key_values) {
+        // Frame-wise results
+        return {
+          key: result.data.key_values,
+          scale: result.data.scale_values,
+          strength: result.data.strength_values,
+          isFrameWise: true,
+        } as KeyResult;
+      } else if (result.data.key) {
+        // Single result
+        return {
+          key: result.data.key,
+          scale: result.data.scale,
+          strength: result.data.strength,
+          isFrameWise: false,
+        } as KeyResult;
+      }
     }
 
     return result;
@@ -963,53 +1005,78 @@ class EssentiaAPI implements EssentiaInterface {
   }
 
   /**
-   * Extract Chroma features from the loaded audio
-   * Chroma features represent the energy distribution across pitch classes (e.g., C, C#, D),
-   * making them critical for chord recognition, key detection, and music genre classification.
-   *
-   * @param params - Optional parameters for the Chroma algorithm
-   * @returns Promise resolving to chroma features or error
+   * Extract Chroma features from the loaded audio with optional frame-wise processing
+   * @param params Parameters for Chroma algorithm
+   * @returns A Promise that resolves to chroma features
    */
   async extractChroma(
     params: AlgorithmParams = {}
   ): Promise<ChromaResult | EssentiaResult<any>> {
-    if (!this.isCacheEnabledValue) {
-      await this.clearCache();
-    }
+    const framewise = params.framewise !== false; // Default to true
+    const result = await this.extractFeatures([
+      {
+        name: 'Chroma',
+        params: {
+          ...params,
+          framewise,
+        },
+      },
+    ]);
 
-    const result = await this.extractFeatures([{ name: 'Chroma', params }]);
-
-    if (result.success && result.data?.chroma) {
-      return {
-        chroma: result.data.chroma as number[],
-      } as ChromaResult;
+    if (result.success && result.data) {
+      // Check if we have frame-wise or single-frame results
+      if (
+        Array.isArray(result.data.chroma) &&
+        result.data.chroma.length > 0 &&
+        Array.isArray(result.data.chroma[0])
+      ) {
+        // Frame-wise results
+        return {
+          chroma: result.data.chroma,
+          isFrameWise: true,
+        } as ChromaResult;
+      } else if (Array.isArray(result.data.chroma)) {
+        // Single-frame result
+        return {
+          chroma: result.data.chroma,
+          isFrameWise: false,
+        } as ChromaResult;
+      }
     }
 
     return result;
   }
 
   /**
-   * Extract Spectral Contrast features from the loaded audio
-   * Spectral Contrast measures the difference between peaks and valleys in the spectrum,
-   * useful for distinguishing harmonic vs. non-harmonic content.
-   *
-   * @param params - Optional parameters for the Spectral Contrast algorithm
-   * @returns Promise resolving to spectral contrast features or error
+   * Extract Spectral Contrast features with optional frame-wise processing
+   * @param params Parameters for Spectral Contrast algorithm
+   * @returns A Promise that resolves to spectral contrast features
    */
   async extractSpectralContrast(
     params: AlgorithmParams = {}
   ): Promise<SpectralContrastResult | EssentiaResult<any>> {
-    if (!this.isCacheEnabledValue) {
-      await this.clearCache();
-    }
-
+    const framewise = params.framewise !== false; // Default to true
     const result = await this.extractFeatures([
-      { name: 'SpectralContrast', params },
+      {
+        name: 'SpectralContrast',
+        params: {
+          ...params,
+          framewise,
+        },
+      },
     ]);
 
-    if (result.success && result.data?.spectralContrast) {
+    if (result.success && result.data) {
+      // Handle both frame-wise and single-frame results
+      const isFrameWise =
+        Array.isArray(result.data.spectral_contrast) &&
+        result.data.spectral_contrast.length > 0 &&
+        Array.isArray(result.data.spectral_contrast[0]);
+
       return {
-        spectralContrast: result.data.spectralContrast as number[],
+        contrast: result.data.spectral_contrast,
+        valleys: result.data.spectral_valley,
+        isFrameWise,
       } as SpectralContrastResult;
     }
 
@@ -1078,7 +1145,10 @@ class EssentiaAPI implements EssentiaInterface {
    * @param hopSize Hop size between frames in samples
    * @returns A Promise that resolves to true on success
    */
-  async computeSpectrum(frameSize: number = 1024, hopSize: number = Math.floor(frameSize / 2)): Promise<boolean> {
+  async computeSpectrum(
+    frameSize: number = 1024,
+    hopSize: number = Math.floor(frameSize / 2)
+  ): Promise<boolean> {
     try {
       // Validate inputs
       if (frameSize <= 0 || hopSize <= 0) {
