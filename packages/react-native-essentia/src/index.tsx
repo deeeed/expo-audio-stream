@@ -1,4 +1,4 @@
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules, Platform, NativeEventEmitter } from 'react-native';
 
 const LINKING_ERROR =
   `The package 'react-native-essentia' doesn't seem to be linked. Make sure: \n\n` +
@@ -22,6 +22,11 @@ export interface AlgorithmParams {
   [key: string]: string | number | boolean | number[] | string[];
 }
 
+// Progress update interface
+export interface ProgressUpdate {
+  progress: number;
+}
+
 // Define the base interface for the native module
 interface EssentiaInterface {
   // Core functionality
@@ -35,6 +40,12 @@ interface EssentiaInterface {
 
   // Algorithm execution
   executeAlgorithm(algorithm: string, params: AlgorithmParams): Promise<any>;
+
+  // Batch algorithm execution
+  executeBatch(algorithms: FeatureConfig[]): Promise<any>;
+
+  // Progress updates registration
+  addProgressListener(): Promise<boolean>;
 
   // Testing
   testConnection(): Promise<string>;
@@ -61,6 +72,9 @@ const Essentia = NativeModules.Essentia
       }
     );
 
+// Create an event emitter for progress updates
+export const EssentiaEvents = new NativeEventEmitter(Essentia);
+
 // Define result interfaces
 export interface AlgorithmResult {
   success: boolean;
@@ -80,6 +94,27 @@ export interface AlgorithmInfo {
 export interface FeatureConfig {
   name: string;
   params?: AlgorithmParams;
+}
+
+// For batch processing results
+export interface BatchProcessingResults {
+  // Known specific feature fields
+  mfcc?: number[];
+  mfcc_bands?: number[];
+  spectrum?: number[];
+  key?: string;
+  scale?: string;
+  strength?: number;
+  mel_bands?: number[];
+  // Allow for additional dynamic properties
+  [key: string]: number | string | number[] | string[] | undefined;
+}
+
+// You could also export a more generic result type
+export interface EssentiaResult<T = Record<string, unknown>> {
+  success: boolean;
+  data?: T;
+  error?: { code: string; message: string };
 }
 
 // Implement the API class
@@ -144,6 +179,37 @@ class EssentiaAPI implements EssentiaInterface {
       return await Essentia.executeAlgorithm(algorithm, params);
     } catch (error) {
       console.error(`Essentia algorithm error (${algorithm}):`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Executes multiple algorithms as a batch, optimizing by reusing intermediate results.
+   * @param algorithms Array of algorithm configurations to execute
+   * @returns A Promise that resolves to an object containing all algorithms' outputs
+   */
+  async executeBatch(algorithms: FeatureConfig[]): Promise<any> {
+    try {
+      if (!algorithms || algorithms.length === 0) {
+        throw new Error('Algorithm list cannot be empty');
+      }
+
+      return await Essentia.executeBatch(algorithms);
+    } catch (error) {
+      console.error('Essentia batch execution error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Registers for progress updates from the native module
+   * @returns A Promise that resolves to true when successfully registered
+   */
+  async addProgressListener(): Promise<boolean> {
+    try {
+      return await Essentia.addProgressListener();
+    } catch (error) {
+      console.error('Essentia progress listener error:', error);
       throw error;
     }
   }

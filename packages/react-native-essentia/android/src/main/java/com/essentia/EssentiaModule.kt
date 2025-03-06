@@ -16,6 +16,7 @@ import org.json.JSONObject
 import org.json.JSONArray
 import org.json.JSONException
 import com.facebook.react.bridge.ReadableType
+import com.facebook.react.modules.core.DeviceEventManagerModule
 
 class EssentiaModule(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
@@ -23,6 +24,29 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   private val executor: ExecutorService = Executors.newSingleThreadExecutor()
   private var nativeHandle: Long = 0
   private val lock = Object()
+
+  // Add a new interface for the progress callback
+  interface ProgressCallback {
+    fun onProgress(progress: Float)
+  }
+
+  // Add the native method for setting progress callback
+  private external fun nativeSetProgressCallback(handle: Long, callback: ProgressCallback)
+
+  // Create the progress callback object
+  private val progressCallback = object : ProgressCallback {
+    override fun onProgress(progress: Float) {
+      try {
+        // Send the progress to JavaScript via DeviceEventEmitter
+        val params = Arguments.createMap()
+        params.putDouble("progress", progress.toDouble())
+        reactApplicationContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+          .emit("EssentiaProgress", params)
+      } catch (e: Exception) {
+        Log.e("EssentiaModule", "Error sending progress event: ${e.message}", e)
+      }
+    }
+  }
 
   override fun getName(): String {
     return NAME
@@ -82,6 +106,15 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
                 return@execute
               }
 
+              // Set the progress callback after initialization
+              try {
+                nativeSetProgressCallback(nativeHandle, progressCallback)
+                Log.d("EssentiaModule", "Progress callback registered")
+              } catch (e: Exception) {
+                Log.e("EssentiaModule", "Failed to set progress callback: ${e.message}", e)
+                // Continue anyway - this is not critical
+              }
+
               Log.d("EssentiaModule", "Lazy initialization successful")
             }
 
@@ -137,6 +170,15 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
               nativeHandle = 0L
               promise.reject("ESSENTIA_INIT_ERROR", "Failed to initialize Essentia")
               return@execute
+            }
+
+            // Set the progress callback after initialization
+            try {
+              nativeSetProgressCallback(nativeHandle, progressCallback)
+              Log.d("EssentiaModule", "Progress callback registered")
+            } catch (e: Exception) {
+              Log.e("EssentiaModule", "Failed to set progress callback: ${e.message}", e)
+              // Continue anyway - this is not critical
             }
 
             promise.resolve(result)
@@ -617,6 +659,101 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     } catch (e: Exception) {
       Log.e("EssentiaModule", "Error getting version: ${e.message}", e)
       promise.reject("ESSENTIA_VERSION_ERROR", "Failed to get Essentia version: ${e.message}")
+    }
+  }
+
+  /**
+   * Register an event listener for progress updates
+   * @param promise Promise that resolves when the listener is registered
+   */
+  @ReactMethod
+  fun addProgressListener(promise: Promise) {
+    try {
+      // Just verify that we can send events by sending a test event
+      val params = Arguments.createMap()
+      params.putDouble("progress", 0.0)
+      reactApplicationContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+        .emit("EssentiaProgress", params)
+
+      promise.resolve(true)
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Failed to add progress listener: ${e.message}", e)
+      promise.reject("PROGRESS_LISTENER_ERROR", "Failed to add progress listener: ${e.message}")
+    }
+  }
+
+  /**
+   * Execute a batch of algorithms that can share intermediate results
+   * @param algorithms Array of algorithm configurations
+   * @param promise Promise that resolves to an object containing all algorithm outputs
+   */
+  @ReactMethod
+  fun executeBatch(algorithms: ReadableArray, promise: Promise) {
+    ensureInitialized(promise) {
+      // Validate input
+      if (algorithms.size() == 0) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Algorithm list cannot be empty")
+        return@ensureInitialized
+      }
+
+      // Convert ReadableArray to a list of algorithm configs
+      val algorithmConfigs = mutableListOf<Pair<String, ReadableMap>>()
+      for (i in 0 until algorithms.size()) {
+        val config = algorithms.getMap(i) ?: run {
+          promise.reject("ESSENTIA_INVALID_INPUT", "Algorithm config at index $i is invalid")
+          return@ensureInitialized
+        }
+
+        val name = config.getString("name") ?: run {
+          promise.reject("ESSENTIA_INVALID_INPUT", "Algorithm at index $i is missing name")
+          return@ensureInitialized
+        }
+
+        val params = if (config.hasKey("params")) config.getMap("params") ?: Arguments.createMap() else Arguments.createMap()
+
+        algorithmConfigs.add(Pair(name, params))
+      }
+
+      // Create feature extraction config using the algorithm list
+      val featuresJson = JSONArray()
+      for ((name, params) in algorithmConfigs) {
+        val configJson = JSONObject()
+        configJson.put("name", name)
+        configJson.put("params", convertReadableMapToJsonObject(params))
+        featuresJson.put(configJson)
+      }
+
+      Log.d("EssentiaModule", "Executing batch algorithms: ${featuresJson.toString()}")
+
+      // Use extractFeatures as it already handles caching and shared computation
+      val resultJsonString: String
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
+        }
+        resultJsonString = nativeExtractFeatures(nativeHandle, featuresJson.toString())
+      }
+
+      Log.d("EssentiaModule", "Batch execution result: $resultJsonString")
+
+      // Convert the JSON string to a WritableMap
+      val resultMap = convertJsonToWritableMap(resultJsonString)
+
+      // Check if there was an error
+      if (resultMap.hasKey("error")) {
+        val errorMap = resultMap.getMap("error")
+        if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
+          promise.reject(
+            errorMap.getString("code") ?: "UNKNOWN_ERROR",
+            errorMap.getString("message") ?: "Unknown error occurred"
+          )
+          return@ensureInitialized
+        }
+      }
+
+      // Resolve the promise with the properly structured map
+      promise.resolve(resultMap)
     }
   }
 

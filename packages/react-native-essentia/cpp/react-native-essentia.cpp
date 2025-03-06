@@ -157,13 +157,28 @@ private:
     std::vector<essentia::Real> audioBuffer;
     double sampleRate;
 
+    // Add cached computation fields
+    bool spectrumComputed;
+    std::vector<essentia::Real> cachedSpectrum;
+
+    // Add progress callback fields
+    jobject progressCallback;
+    JNIEnv* callbackEnv;
+
 public:
-    EssentiaWrapper() : mIsInitialized(false), sampleRate(44100.0) {}
+    EssentiaWrapper() : mIsInitialized(false), sampleRate(44100.0), spectrumComputed(false),
+                       progressCallback(nullptr), callbackEnv(nullptr) {}
 
     ~EssentiaWrapper() {
         if (mIsInitialized) {
             essentia::shutdown();
             mIsInitialized = false;
+        }
+
+        // Clean up the progress callback reference if it exists
+        if (progressCallback != nullptr && callbackEnv != nullptr) {
+            callbackEnv->DeleteGlobalRef(progressCallback);
+            progressCallback = nullptr;
         }
     }
 
@@ -208,11 +223,48 @@ public:
             audioBuffer = data;
             sampleRate = rate;
 
+            // Reset cached computation flags when new audio is set
+            spectrumComputed = false;
+            cachedSpectrum.clear();
+
             LOGI("Audio data set successfully: %zu samples at %f Hz", audioBuffer.size(), sampleRate);
             return true;
         } catch (const std::exception& e) {
             LOGE("Error setting audio data: %s", e.what());
             return false;
+        }
+    }
+
+    void setProgressCallback(JNIEnv* env, jobject callback) {
+        // Remove existing callback if there is one
+        if (progressCallback != nullptr && callbackEnv != nullptr) {
+            callbackEnv->DeleteGlobalRef(progressCallback);
+            progressCallback = nullptr;
+        }
+
+        if (callback != nullptr) {
+            // Store the callback as a global reference
+            progressCallback = env->NewGlobalRef(callback);
+            callbackEnv = env;
+        }
+    }
+
+    void reportProgress(float progress) {
+        if (progressCallback != nullptr && callbackEnv != nullptr) {
+            // Find the method to call on the callback object
+            jclass callbackClass = callbackEnv->GetObjectClass(progressCallback);
+            jmethodID onProgressMethod = callbackEnv->GetMethodID(callbackClass, "onProgress", "(F)V");
+
+            if (onProgressMethod != nullptr) {
+                // Call the method with the progress value
+                callbackEnv->CallVoidMethod(progressCallback, onProgressMethod, progress);
+            }
+
+            // Check for exceptions
+            if (callbackEnv->ExceptionCheck()) {
+                callbackEnv->ExceptionDescribe();
+                callbackEnv->ExceptionClear();
+            }
         }
     }
 
@@ -247,13 +299,38 @@ public:
             // Parse parameters from JSON
             std::map<std::string, essentia::Parameter> params = jsonToParamsMap(paramsJson);
 
+            // For algorithms that use spectrum, check if we need to compute it
+            if (algorithm == "MFCC" || algorithm == "MelBands" || algorithm == "Spectrum" ||
+                algorithm == "SpectralCentroid" || algorithm == "SpectralFlatness") {
+
+                reportProgress(0.1f); // Report initial progress
+
+                if (!spectrumComputed) {
+                    LOGI("Computing spectrum for algorithm: %s", algorithm.c_str());
+                    computeSpectrum();
+                    if (!spectrumComputed) {
+                        return createErrorResponse("Failed to compute spectrum", "SPECTRUM_COMPUTATION_ERROR");
+                    }
+                } else {
+                    LOGI("Using cached spectrum for algorithm: %s", algorithm.c_str());
+                }
+
+                reportProgress(0.3f); // Report progress after spectrum computation
+            }
+
             // For backward compatibility, still handle the specifically optimized algorithms
             if (algorithm == "MFCC" || algorithm == "Spectrum" || algorithm == "Key") {
-                return executeSpecificAlgorithm(algorithm, params);
+                reportProgress(0.5f);
+                auto result = executeSpecificAlgorithm(algorithm, params);
+                reportProgress(1.0f); // Complete
+                return result;
             }
 
             // Dynamic approach for other algorithms
-            return executeDynamicAlgorithm(algorithm, params);
+            reportProgress(0.5f);
+            auto result = executeDynamicAlgorithm(algorithm, params);
+            reportProgress(1.0f); // Complete
+            return result;
         } catch (const std::exception& e) {
             std::string errorMsg = std::string("Error executing algorithm: ") + e.what();
             LOGE("%s", errorMsg.c_str());
@@ -272,13 +349,10 @@ public:
         }
 
         if (algorithm == "MFCC") {
-            // First compute the spectrum
-            std::unique_ptr<essentia::standard::Algorithm> spectrumAlgo(factory.create("Spectrum"));
-            std::vector<essentia::Real> spectrum;
-
-            spectrumAlgo->input("frame").set(audioBuffer);
-            spectrumAlgo->output("spectrum").set(spectrum);
-            spectrumAlgo->compute();
+            // Use cached spectrum if available
+            const std::vector<essentia::Real>& spectrum = spectrumComputed ?
+                                                        cachedSpectrum :
+                                                        computeSpectrumForMFCC();
 
             // Then compute MFCC using the spectrum
             essentia::standard::Algorithm* mfccAlgo = factory.create("MFCC");
@@ -305,24 +379,13 @@ public:
             // Clean up
             delete mfccAlgo;
         } else if (algorithm == "Spectrum") {
-            // Create and configure the Spectrum algorithm
-            std::unique_ptr<essentia::standard::Algorithm> spectrumAlgo(factory.create("Spectrum"));
-
-            // Configure with parameters if provided
-            if (!params.empty()) {
-                // Convert our map to ParameterMap
-                essentia::ParameterMap parameterMap = convertToParameterMap(params);
-                spectrumAlgo->configure(parameterMap);
+            // Just use the cached spectrum if available, otherwise compute it
+            if (!spectrumComputed) {
+                computeSpectrum();
             }
 
-            std::vector<essentia::Real> spectrum;
-
-            spectrumAlgo->input("frame").set(audioBuffer);
-            spectrumAlgo->output("spectrum").set(spectrum);
-            spectrumAlgo->compute();
-
             // Store results in pool
-            pool.set("spectrum", spectrum);
+            pool.set("spectrum", cachedSpectrum);
         } else if (algorithm == "Key") {
             // Key detection typically requires a multi-step process
 
@@ -384,6 +447,14 @@ public:
 
         // Return success with results
         return "{\"success\":true,\"data\":" + resultJson + "}";
+    }
+
+    // Helper for MFCC case to avoid duplicating code
+    const std::vector<essentia::Real>& computeSpectrumForMFCC() {
+        if (!spectrumComputed) {
+            computeSpectrum();
+        }
+        return cachedSpectrum;
     }
 
     // Handle any algorithm dynamically by inspecting its inputs/outputs
@@ -521,6 +592,37 @@ public:
 
         // Return success with results
         return "{\"success\":true,\"data\":" + resultJson + "}";
+    }
+
+    // Add a method to compute and cache the spectrum
+    void computeSpectrum() {
+        if (spectrumComputed) {
+            return; // Already computed
+        }
+
+        if (audioBuffer.empty()) {
+            LOGE("Cannot compute spectrum: No audio data loaded");
+            return;
+        }
+
+        try {
+            // Create algorithm factory
+            essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
+
+            // Create and run the Spectrum algorithm
+            std::unique_ptr<essentia::standard::Algorithm> spectrumAlgo(factory.create("Spectrum"));
+
+            cachedSpectrum.clear();
+            spectrumAlgo->input("frame").set(audioBuffer);
+            spectrumAlgo->output("spectrum").set(cachedSpectrum);
+            spectrumAlgo->compute();
+
+            spectrumComputed = true;
+            LOGI("Spectrum computed and cached: %zu points", cachedSpectrum.size());
+        } catch (const std::exception& e) {
+            LOGE("Error computing spectrum: %s", e.what());
+            spectrumComputed = false;
+        }
     }
 
     // Get algorithm information
@@ -1202,6 +1304,19 @@ static jstring getVersion(JNIEnv* env, jobject thiz) {
     // Access version directly from essentia namespace
     std::string version = essentia::version;
     return env->NewStringUTF(version.c_str());
+}
+
+// Add this JNI method to set the progress callback
+extern "C" JNIEXPORT void JNICALL
+Java_com_essentia_EssentiaModule_nativeSetProgressCallback(
+    JNIEnv* env, jobject thiz, jlong handle, jobject callback) {
+
+    if (handle == 0) {
+        return;
+    }
+
+    EssentiaWrapper* wrapper = reinterpret_cast<EssentiaWrapper*>(handle);
+    wrapper->setProgressCallback(env, callback);
 }
 
 // JNI method registration

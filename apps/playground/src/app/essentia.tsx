@@ -1,8 +1,8 @@
 import { AppTheme, ScreenWrapper, useThemePreferences } from '@siteed/design-system';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Alert, Platform, StyleSheet, ToastAndroid, View } from 'react-native';
-import EssentiaJS, { AlgorithmResult } from 'react-native-essentia';
-import { Button, Card, Text, TouchableRipple } from 'react-native-paper';
+import EssentiaJS, { AlgorithmResult, EssentiaEvents, ProgressUpdate, BatchProcessingResults } from 'react-native-essentia';
+import { Button, Card, Text, TouchableRipple, ProgressBar } from 'react-native-paper';
 import { AlgorithmExplorer } from '../components/AlgorithmExplorer';
 import AlgorithmSelector from '../components/AlgorithmSelector';
 import { AssetSourceType, SampleAudioFile, useSampleAudio } from '../hooks/useSampleAudio';
@@ -27,43 +27,6 @@ interface ValidationResult {
   error?: string;
   isValidating?: boolean;
   isLoadingSample?: boolean;
-}
-
-interface AlgorithmInfo {
-  name: string;
-  inputs: { name: string; type: string }[];
-  outputs: { name: string; type: string }[];
-  parameters: Record<string, Record<string, unknown>>;
-}
-
-// Enhanced EssentiaAPI type definition to include the new method
-declare module 'react-native-essentia' {
-  export interface EssentiaAPI {
-    initialize(): Promise<EssentiaInitResult>;
-    setAudioData(pcmData: number[], sampleRate: number): Promise<boolean>;
-    executeAlgorithm(algorithm: string, params: Record<string, unknown>): Promise<Record<string, unknown>>;
-    testConnection(): Promise<string>;
-    getAlgorithmInfo(algorithm: string): Promise<{
-      success: boolean;
-      data?: AlgorithmInfo;
-      error?: { code: string; message: string };
-    }>;
-    getVersion(): Promise<string>;
-  }
-}
-
-// Define a more specific type with an index signature to allow string indexing
-interface BatchExtractionResults {
-  // Known specific feature fields
-  mfcc?: number[];
-  mfcc_bands?: number[];
-  spectrum?: number[];
-  key?: string;
-  scale?: string;
-  strength?: number;
-  mel_bands?: number[];
-  // Allow for additional dynamic properties
-  [key: string]: number | string | number[] | string[] | undefined;
 }
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
@@ -157,9 +120,38 @@ function EssentiaScreen() {
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
   const [connectionTestResult, setConnectionTestResult] = useState<string | null>(null);
   const [isExtractingBatch, setIsExtractingBatch] = useState<boolean>(false);
-  const [batchResults, setBatchResults] = useState<BatchExtractionResults | null>(null);
+  const [batchResults, setBatchResults] = useState<BatchProcessingResults | null>(null);
   const [isGettingVersion, setIsGettingVersion] = useState<boolean>(false);
   const [versionInfo, setVersionInfo] = useState<string | null>(null);
+  const [progressValue, setProgressValue] = useState<number>(0);
+  const [isListeningToProgress, setIsListeningToProgress] = useState<boolean>(false);
+  const [isBatchProcessing, setIsBatchProcessing] = useState<boolean>(false);
+  const [batchProcessingResults, setBatchProcessingResults] = useState<BatchProcessingResults | null>(null);
+
+  useEffect(() => {
+    const subscription = EssentiaEvents.addListener(
+      'EssentiaProgress',
+      (event: ProgressUpdate) => {
+        setProgressValue(event.progress);
+        console.log(`Progress update: ${Math.round(event.progress * 100)}%`);
+      }
+    );
+    
+    const setupListener = async () => {
+      try {
+        await EssentiaJS.addProgressListener();
+        setIsListeningToProgress(true);
+      } catch (error) {
+        console.error('Failed to set up progress listener:', error);
+      }
+    };
+    
+    setupListener();
+    
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   // Toast utility function
   const showToast = (message: string) => {
@@ -405,7 +397,7 @@ function EssentiaScreen() {
       
       console.log('Batch feature extraction result:', result);
       // Type cast to ensure we get the right type
-      setBatchResults(result.data as BatchExtractionResults);
+      setBatchResults(result.data as BatchProcessingResults);
       
       setValidationResult(prevResults => ({
         ...prevResults,
@@ -431,6 +423,65 @@ function EssentiaScreen() {
       showToast('Failed to extract batch features');
     } finally {
       setIsExtractingBatch(false);
+    }
+  };
+
+  const handleBatchProcessing = async () => {
+    if (!isInitialized) {
+      showToast('Please initialize Essentia first');
+      return;
+    }
+    
+    setIsBatchProcessing(true);
+    setBatchProcessingResults(null);
+    setProgressValue(0);
+    
+    try {
+      // Create dummy PCM data
+      const dummyPcmData = new Float32Array(4096);
+      for (let i = 0; i < dummyPcmData.length; i++) {
+        dummyPcmData[i] = Math.sin(i * 0.01) + Math.sin(i * 0.05);  // Add some harmonic content
+      }
+      
+      // Set the audio data
+      await EssentiaJS.setAudioData(dummyPcmData, 44100);
+      
+      // Execute multiple algorithms in batch
+      const result = await EssentiaJS.executeBatch([
+        { 
+          name: 'MFCC', 
+          params: { 
+            numberCoefficients: 13, 
+            numberBands: 40,
+            lowFrequencyBound: 0,
+            highFrequencyBound: 22050
+          } 
+        },
+        {
+          name: 'Spectrum',
+          params: {}
+        },
+        {
+          name: 'Key',
+          params: {}
+        },
+        {
+          name: 'MelBands',
+          params: {
+            numberBands: 128
+          }
+        }
+      ]);
+      
+      console.log('Batch processing result:', result);
+      setBatchProcessingResults(result.data);
+      
+      showToast('Batch processing completed successfully');
+    } catch (error) {
+      console.error('Batch processing error:', error);
+      showToast('Batch processing failed: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setIsBatchProcessing(false);
     }
   };
 
@@ -486,12 +537,12 @@ function EssentiaScreen() {
   };
 
   const renderBatchResults = () => {
-    if (!batchResults) return null;
+    if (!batchProcessingResults) return null;
     
     return (
       <View>
-        <Text style={styles.subtitle}>Batch Extraction Results:</Text>
-        {Object.entries(batchResults).map(([key, value]) => (
+        <Text style={styles.subtitle}>Batch Processing Results:</Text>
+        {Object.entries(batchProcessingResults).map(([key, value]) => (
           <View key={key} style={{ marginBottom: 12 }}>
             <Text style={[styles.item, { fontWeight: 'bold' }]}>
               {key}:
@@ -522,6 +573,38 @@ function EssentiaScreen() {
       setVersionInfo(`Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsGettingVersion(false);
+    }
+  };
+
+  const testProgressUpdates = async () => {
+    try {
+      // Register for progress updates
+      await EssentiaJS.addProgressListener();
+      setIsListeningToProgress(true);
+      
+      // Create dummy PCM data
+      const dummyPcmData = new Float32Array(4096);
+      for (let i = 0; i < dummyPcmData.length; i++) {
+        dummyPcmData[i] = Math.sin(i * 0.01) + Math.sin(i * 0.05);
+      }
+      
+      // Set audio data
+      await EssentiaJS.setAudioData(dummyPcmData, 44100);
+      
+      // Execute batch processing - this should trigger progress events
+      setIsBatchProcessing(true);
+      const result = await EssentiaJS.executeBatch([
+        { name: 'MFCC', params: { numberCoefficients: 13 } },
+        { name: 'Spectrum', params: {} }
+      ]);
+      
+      setBatchProcessingResults(result.data);
+      showToast('Progress updates test completed');
+    } catch (error) {
+      console.error('Progress test error:', error);
+      showToast('Progress test failed: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setIsBatchProcessing(false);
     }
   };
 
@@ -725,6 +808,76 @@ function EssentiaScreen() {
                 <Text>{versionInfo}</Text>
               </View>
             )}
+          </Card.Content>
+        </Card>
+
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text style={styles.cardTitle}>Optimized Processing & Progress</Text>
+            
+            <View style={{ marginVertical: 12 }}>
+              <Text>Progress Listener Status: {isListeningToProgress ? '✅ Connected' : '❌ Not Connected'}</Text>
+              <Text>Progress: {Math.round(progressValue * 100)}%</Text>
+              <ProgressBar 
+                progress={progressValue} 
+                color={theme.colors.primary} 
+                style={{ marginTop: 8, height: 6 }} 
+              />
+            </View>
+            
+            <View style={styles.buttonContainer}>
+              <Button
+                mode="contained"
+                onPress={handleBatchProcessing}
+                loading={isBatchProcessing}
+                disabled={isBatchProcessing || !isInitialized}
+                style={styles.button}
+              >
+                Run Batch Processing
+              </Button>
+              
+              <Button
+                mode="outlined"
+                onPress={async () => {
+                  try {
+                    await EssentiaJS.addProgressListener();
+                    setIsListeningToProgress(true);
+                    showToast('Progress listener connected successfully');
+                  } catch (error) {
+                    console.error('Failed to connect progress listener:', error);
+                    showToast('Failed to connect progress listener');
+                  }
+                }}
+                disabled={isListeningToProgress}
+                style={styles.button}
+              >
+                Connect Progress Listener
+              </Button>
+            </View>
+            
+            {batchProcessingResults && (
+              <View style={{ marginTop: 16 }}>
+                <Text style={{ fontWeight: 'bold' }}>Batch Processing Completed</Text>
+                <Text>Successfully processed multiple algorithms with shared computations.</Text>
+                {renderBatchResults()}
+              </View>
+            )}
+          </Card.Content>
+        </Card>
+
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text style={styles.cardTitle}>Progress Updates Test</Text>
+            <View style={styles.buttonContainer}>
+              <Button
+                mode="contained"
+                onPress={testProgressUpdates}
+                disabled={isBatchProcessing}
+                style={styles.button}
+              >
+                Test Progress Updates
+              </Button>
+            </View>
           </Card.Content>
         </Card>
 
