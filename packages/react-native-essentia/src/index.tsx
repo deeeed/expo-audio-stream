@@ -38,6 +38,9 @@ interface EssentiaInterface {
 
   // Algorithm information
   getAlgorithmInfo(algorithm: string): Promise<any>;
+
+  // Get all available algorithms
+  getAllAlgorithms(): Promise<any>;
 }
 
 // Get the native module
@@ -139,6 +142,19 @@ class EssentiaAPI implements EssentiaInterface {
       return await Essentia.getAlgorithmInfo(algorithm);
     } catch (error) {
       console.error(`Essentia getAlgorithmInfo error (${algorithm}):`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Gets a list of all available Essentia algorithms.
+   * @returns A Promise that resolves to an array of algorithm names
+   */
+  async getAllAlgorithms(): Promise<any> {
+    try {
+      return await Essentia.getAllAlgorithms();
+    } catch (error) {
+      console.error('Essentia getAllAlgorithms error:', error);
       throw error;
     }
   }

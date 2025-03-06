@@ -602,6 +602,32 @@ public:
         }
     }
 
+    std::string getAllAlgorithms() {
+        try {
+            if (!mIsInitialized) {
+                return createErrorResponse("Essentia not initialized", "NOT_INITIALIZED");
+            }
+
+            LOGI("Getting list of all available algorithms");
+
+            essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
+            std::vector<std::string> algos = factory.keys();
+
+            // Create a JSON array of algorithm names
+            json result = json::array();
+            for (const auto& algo : algos) {
+                result.push_back(algo);
+            }
+
+            // Return success with results
+            return "{\"success\":true,\"data\":" + result.dump() + "}";
+        } catch (const std::exception& e) {
+            std::string errorMsg = std::string("Error getting algorithm list: ") + e.what();
+            LOGE("%s", errorMsg.c_str());
+            return createErrorResponse(errorMsg, "ALGORITHM_LIST_ERROR");
+        }
+    }
+
     bool isInitialized() const {
         return mIsInitialized;
     }
@@ -752,6 +778,17 @@ static jstring getAlgorithmInfo(JNIEnv* env, jobject thiz, jlong handle, jstring
     return env->NewStringUTF(result.c_str());
 }
 
+// Add this JNI method after getAlgorithmInfo (around line 552)
+static jstring getAllAlgorithms(JNIEnv* env, jobject thiz, jlong handle) {
+    if (handle == 0) {
+        return env->NewStringUTF(createErrorResponse("Invalid Essentia instance").c_str());
+    }
+
+    EssentiaWrapper* wrapper = reinterpret_cast<EssentiaWrapper*>(handle);
+    std::string result = wrapper->getAllAlgorithms();
+    return env->NewStringUTF(result.c_str());
+}
+
 // JNI method registration
 static JNINativeMethod methods[] = {
     {"nativeCreateEssentiaWrapper", "()J", (void*)createEssentiaWrapper},
@@ -760,7 +797,8 @@ static JNINativeMethod methods[] = {
     {"nativeSetAudioData", "(J[FD)Z", (void*)setAudioData},
     {"nativeExecuteAlgorithm", "(JLjava/lang/String;Ljava/lang/String;)Ljava/lang/String;", (void*)executeAlgorithm},
     {"testJniConnection", "()Ljava/lang/String;", (void*)testJniConnection},
-    {"nativeGetAlgorithmInfo", "(JLjava/lang/String;)Ljava/lang/String;", (void*)getAlgorithmInfo}
+    {"nativeGetAlgorithmInfo", "(JLjava/lang/String;)Ljava/lang/String;", (void*)getAlgorithmInfo},
+    {"nativeGetAllAlgorithms", "(J)Ljava/lang/String;", (void*)getAllAlgorithms}
 };
 
 // Add this function to register the native methods

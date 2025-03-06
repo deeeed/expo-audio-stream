@@ -6,7 +6,7 @@ import { ActivityIndicator, Button, Card, Text, TouchableRipple, Chip } from 're
 import { AssetSourceType, SampleAudioFile, useSampleAudio } from '../hooks/useSampleAudio';
 import { sendDummyPCMData } from '../utils/essentiaUtils';
 import AlgorithmSelector from '../components/AlgorithmSelector';
-import { AlgorithmExplorer } from './algorithm-explorer';
+import { AlgorithmExplorer } from '../components/AlgorithmExplorer';
 
 // Sample audio assets 
 // Use a more compatible type
@@ -651,10 +651,9 @@ function EssentiaScreen() {
 
         {isInitialized && renderAlgorithmSelector()}
 
-        {isInitialized && selectedSample && (
+        {isInitialized && (
           <AlgorithmExplorer
             isInitialized={isInitialized}
-            hasAudioData={!!selectedSample}
             showToast={showToast}
             onExecute={(algorithmName: string, result: unknown) => {
               // Update the validation results with the algorithm execution result
