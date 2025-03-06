@@ -11,10 +11,10 @@
             "@siteed/expo-audio-studio/*": [
                 "../../packages/expo-audio-studio/src/*"
             ],
-            "react-native-essentia": [
+            "@siteed/react-native-essentia": [
                 "../../packages/react-native-essentia/src/index"
             ],
-            "react-native-essentia/*": [
+            "@siteed/react-native-essentia/*": [
                 "../../packages/react-native-essentia/src/*"
             ],
             "@siteed/expo-audio-ui": ["../../packages/expo-audio-ui/src/index"],

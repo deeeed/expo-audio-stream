@@ -18,7 +18,7 @@ buildscript {
 
 def reactNativeArchitectures() {
   def value = rootProject.getProperties().get("reactNativeArchitectures")
-  return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
+  return value ? value.split(",") : ["x86", "x86_64", "arm64-v8a"]
 }
 
 def isNewArchitectureEnabled() {
@@ -27,6 +27,7 @@ def isNewArchitectureEnabled() {
 
 apply plugin: "com.android.library"
 apply plugin: "kotlin-android"
+apply plugin: "maven-publish"
 
 if (isNewArchitectureEnabled()) {
   apply plugin: "com.facebook.react"
@@ -47,7 +48,7 @@ def supportsNamespace() {
 
 android {
   if (supportsNamespace()) {
-    namespace "com.essentia"
+    namespace "net.siteed.essentia"
 
     sourceSets {
       main {
@@ -101,6 +102,10 @@ android {
     sourceCompatibility JavaVersion.VERSION_1_8
     targetCompatibility JavaVersion.VERSION_1_8
   }
+
+  kotlinOptions {
+    jvmTarget = '1.8'
+  }
 }
 
 repositories {
@@ -108,10 +113,32 @@ repositories {
   google()
 }
 
-def kotlin_version = getExtOrDefault("kotlinVersion")
+def kotlin_version = getExtOrDefault("kotlinVersion") ?: "1.9.25"
 
 dependencies {
   implementation "com.facebook.react:react-android"
+
+  // Enhanced Kotlin dependencies
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+  implementation "org.jetbrains.kotlin:kotlin-stdlib-common:$kotlin_version"
+  implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+
+  // Android dependencies
+  implementation "androidx.core:core-ktx:1.12.0"
+}
+
+// Add publishing configuration to make the module available as a dependency
+afterEvaluate {
+  publishing {
+    publications {
+      release(MavenPublication) {
+        from components.release
+        groupId = 'net.siteed.essentia'
+        artifactId = 'react-native-essentia'
+        version = '0.1.0'
+      }
+    }
+  }
 }
 

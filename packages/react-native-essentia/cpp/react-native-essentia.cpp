@@ -1333,10 +1333,9 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
         return JNI_ERR;
     }
 
-    // Find the Java class
-    jclass clazz = env->FindClass("com/essentia/EssentiaModule");
+    // Find the Essentia module class
+    jclass clazz = env->FindClass("net/siteed/essentia/EssentiaModule");
     if (clazz == nullptr) {
-        LOGE("Failed to find EssentiaModule class");
         return JNI_ERR;
     }
 

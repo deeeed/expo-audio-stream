@@ -1,5 +1,5 @@
 {
-  "name": "react-native-essentia",
+  "name": "@siteed/react-native-essentia",
   "version": "0.1.0",
   "description": "RN jni bindings for essentia",
   "source": "./src/index.tsx",
@@ -61,6 +61,12 @@
   "homepage": "https://github.com/deeeed/expo-audio-stream/#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
+  },
+  "nativePackage": true,
+  "codegenConfig": {
+    "name": "RNEssentiaSpec",
+    "type": "modules",
+    "jsSrcsDir": "src"
   },
   "devDependencies": {
     "@commitlint/config-conventional": "^17.0.2",

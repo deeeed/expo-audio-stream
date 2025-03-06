@@ -1,4 +1,4 @@
-package com.essentia
+package net.siteed.essentia
 
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -466,11 +466,13 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     ensureInitialized(promise) {
       // Check if we have the algorithms list in cache
       if (isCacheEnabled) {
-        synchronized(allAlgorithmsCache) {
-          allAlgorithmsCache?.let {
-            Log.d("EssentiaModule", "Returning cached algorithm list")
-            promise.resolve(it)
-            return@ensureInitialized
+        allAlgorithmsCache?.let {
+          synchronized(it) {
+            allAlgorithmsCache?.let {
+                Log.d("EssentiaModule", "Returning cached algorithm list")
+                promise.resolve(it)
+                return@ensureInitialized
+            }
           }
         }
       }
@@ -497,8 +499,10 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
       // Cache the result if caching is enabled
       if (isCacheEnabled) {
-        synchronized(allAlgorithmsCache) {
-          allAlgorithmsCache = resultMap
+        allAlgorithmsCache?.let {
+          synchronized(it) {
+            allAlgorithmsCache = resultMap
+          }
         }
       }
 

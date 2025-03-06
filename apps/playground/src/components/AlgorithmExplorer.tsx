@@ -1,14 +1,15 @@
-import { AppTheme, useThemePreferences } from '@siteed/design-system';
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import EssentiaJS from 'react-native-essentia';
+import EssentiaJS from '@siteed/react-native-essentia';
 import { Button, Card, Chip, Divider, HelperText, Searchbar, SegmentedButtons, Text } from 'react-native-paper';
+import { AppTheme , useThemePreferences } from '@siteed/design-system';
 
 // Define interfaces
 export interface AlgorithmExplorerProps {
   isInitialized: boolean;
   showToast: (message: string) => void;
-  onExecute?: (algorithmName: string, result: unknown) => void;
+  onFavoritesChange?: (favorites: string[]) => void;
 }
 
 interface AlgorithmInfo {
@@ -191,7 +192,7 @@ const safeRenderText = (value: unknown): string => {
   return String(value);
 };
 
-export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: AlgorithmExplorerProps) {
+export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange }: AlgorithmExplorerProps) {
   const { theme } = useThemePreferences();
   const styles = useMemo(() => getStyles({ theme }), [theme]);
   
@@ -207,15 +208,16 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
   const [algorithmInfo, setAlgorithmInfo] = useState<AlgorithmInfo | null>(null);
   const [isLoadingAlgoInfo, setIsLoadingAlgoInfo] = useState(false);
   
-  // State for parameter values and execution
+  // State for parameter values - keep for display purposes only
   const [parameterValues, setParameterValues] = useState<ParameterValue>({});
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [executionResult, setExecutionResult] = useState<Record<string, unknown> | null>(null);
   
   // Add new state for UX improvements
   const [favoriteAlgorithms, setFavoriteAlgorithms] = useState<string[]>([]);
   const [recentlyUsed, setRecentlyUsed] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('favorites');
+  
+  // Add loading state for category switching
+  const [isLoadingCategory, setIsLoadingCategory] = useState(false);
   
   // Expand the algorithm categories with icons for better visual hierarchy
   const algorithmCategories = useMemo<AlgorithmCategory[]>(() => [
@@ -305,7 +307,6 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
     setIsLoadingAlgoInfo(true);
     setSelectedAlgorithm(algorithmName);
     setParameterValues({});
-    setExecutionResult(null);
     
     try {
       const result = await EssentiaJS.getAlgorithmInfo(algorithmName);
@@ -343,7 +344,7 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
     }
   }, [isInitialized, showToast]);
   
-  // Handle parameter value changes
+  // Handle parameter value changes - keep for display purposes only
   const handleParameterChange = (paramName: string, value: string) => {
     try {
       let parsedValue: string | number | boolean = value;
@@ -373,95 +374,6 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
     }
   };
   
-  // Execute the selected algorithm with the current parameter values
-  const executeAlgorithm = async () => {
-    if (!isInitialized || !selectedAlgorithm) {
-      showToast('Please initialize Essentia and select an algorithm first');
-      return;
-    }
-    
-    setIsExecuting(true);
-    setExecutionResult(null);
-    
-    try {
-      // Ensure audio data is available (using dummy data for this example)
-      const dummyPcmData = new Float32Array(4096);
-      for (let i = 0; i < dummyPcmData.length; i++) {
-        dummyPcmData[i] = Math.sin(i * 0.01);
-      }
-      
-      // Set the audio data
-      await EssentiaJS.setAudioData(dummyPcmData, 44100);
-      
-      // Execute the algorithm
-      const result = await EssentiaJS.executeAlgorithm(selectedAlgorithm, parameterValues);
-      
-      if (result.success && result.data) {
-        setExecutionResult(result.data);
-        showToast(`Successfully executed ${selectedAlgorithm}`);
-        
-        // Call the onExecute callback if provided
-        if (onExecute) {
-          onExecute(selectedAlgorithm, result);
-        }
-      } else {
-        showToast(`Failed to execute ${selectedAlgorithm}`);
-        console.error('Algorithm execution error:', result.error);
-      }
-    } catch (error) {
-      console.error(`Error executing ${selectedAlgorithm}:`, error);
-      showToast(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsExecuting(false);
-    }
-  };
-  
-  // Render parameter inputs for the selected algorithm
-  const renderParameterInputs = () => {
-    if (!algorithmInfo || !algorithmInfo.parameters) {
-      return <Text>No parameters available for this algorithm</Text>;
-    }
-    
-    return Object.entries(algorithmInfo.parameters).map(([paramName, paramInfo]) => {
-      // First safely extract the description
-      let description = 'No description available';
-      if (paramInfo && typeof paramInfo === 'object') {
-        if ('description' in paramInfo) {
-          description = safeRenderText(paramInfo.description);
-        } else if ('defaultValue' in paramInfo) {
-          description = `Type: ${typeof paramInfo.defaultValue}`;
-        }
-      }
-      
-      // Safely extract default value
-      let defaultValue = 'N/A';
-      if (paramInfo && typeof paramInfo === 'object' && 'defaultValue' in paramInfo) {
-        defaultValue = safeRenderText(paramInfo.defaultValue);
-      }
-      
-      // Safely get parameter value for input
-      const paramValue = paramName in parameterValues 
-        ? safeRenderText(parameterValues[paramName]) 
-        : '';
-      
-      return (
-        <View key={paramName} style={styles.parameterContainer}>
-          <Text style={{ fontWeight: 'bold' }}>{paramName}</Text>
-          <Text style={{ fontSize: 12, marginBottom: 4 }}>{description}</Text>
-          <TextInput
-            style={styles.parameterInput}
-            value={paramValue}
-            onChangeText={(text) => handleParameterChange(paramName, text)}
-            placeholder={`Enter value for ${paramName}`}
-          />
-          <HelperText type="info">
-            Default: {defaultValue}
-          </HelperText>
-        </View>
-      );
-    });
-  };
-  
   // Update recently used when selecting an algorithm
   const handleSelectAlgorithm = useCallback((algorithmName: string) => {
     // Update recently used
@@ -477,23 +389,18 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
   // Toggle favorite status for an algorithm
   const toggleFavorite = useCallback((algorithmName: string) => {
     setFavoriteAlgorithms(prev => {
-      return prev.includes(algorithmName) 
+      const updatedFavorites = prev.includes(algorithmName) 
         ? prev.filter(item => item !== algorithmName)
         : [...prev, algorithmName];
+      
+      // Call the callback with updated favorites if provided
+      if (onFavoritesChange) {
+        onFavoritesChange(updatedFavorites);
+      }
+      
+      return updatedFavorites;
     });
-  }, []);
-
-  // Execute algorithm with tracking
-  const handleExecuteAlgorithm = async () => {
-    await executeAlgorithm();
-    // Add to recently used if not already at the top
-    if (selectedAlgorithm && (recentlyUsed.length === 0 || recentlyUsed[0] !== selectedAlgorithm)) {
-      setRecentlyUsed(prev => {
-        const newList = prev.filter(item => item !== selectedAlgorithm);
-        return [selectedAlgorithm, ...newList].slice(0, 10);
-      });
-    }
-  };
+  }, [onFavoritesChange]);
 
   // Render a consistent algorithm chip with favorite option
   const renderAlgorithmChip = useCallback((algo: string) => {
@@ -521,8 +428,29 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
     );
   }, [favoriteAlgorithms, selectedAlgorithm, handleSelectAlgorithm, toggleFavorite, theme, styles]);
 
+  // Handle category change with loading state
+  const handleCategoryChange = useCallback((newCategory: string) => {
+    setIsLoadingCategory(true);
+    setSelectedCategory(newCategory);
+    
+    // Use setTimeout to allow the UI to update before rendering the new category content
+    setTimeout(() => {
+      setIsLoadingCategory(false);
+    }, 300); // Small delay to show loading indicator
+  }, []);
+
   // Render current category content
   const renderCategoryContent = useCallback(() => {
+    // Show loading indicator when switching categories
+    if (isLoadingCategory) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <Text style={{ marginTop: 8 }}>Loading category...</Text>
+        </View>
+      );
+    }
+    
     // Favorites view
     if (selectedCategory === 'favorites') {
       if (favoriteAlgorithms.length === 0) {
@@ -591,7 +519,7 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
     }
     
     return null;
-  }, [selectedCategory, favoriteAlgorithms, recentlyUsed, filteredAlgorithms, algorithms, algorithmCategories, renderAlgorithmChip, styles]);
+  }, [selectedCategory, favoriteAlgorithms, recentlyUsed, filteredAlgorithms, algorithms, algorithmCategories, renderAlgorithmChip, styles, isLoadingCategory, theme.colors.primary]);
 
   // Create segmented buttons options for categories
   const segmentedButtonItems = useMemo(() => {
@@ -688,6 +616,53 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
     }
   };
   
+  // Render parameter inputs for the selected algorithm
+  const renderParameterInputs = () => {
+    if (!algorithmInfo || !algorithmInfo.parameters) {
+      return <Text>No parameters available for this algorithm</Text>;
+    }
+    
+    return Object.entries(algorithmInfo.parameters).map(([paramName, paramInfo]) => {
+      // First safely extract the description
+      let description = 'No description available';
+      if (paramInfo && typeof paramInfo === 'object') {
+        if ('description' in paramInfo) {
+          description = safeRenderText(paramInfo.description);
+        } else if ('defaultValue' in paramInfo) {
+          description = `Type: ${typeof paramInfo.defaultValue}`;
+        }
+      }
+      
+      // Safely extract default value
+      let defaultValue = 'N/A';
+      if (paramInfo && typeof paramInfo === 'object' && 'defaultValue' in paramInfo) {
+        defaultValue = safeRenderText(paramInfo.defaultValue);
+      }
+      
+      // Safely get parameter value for input
+      const paramValue = paramName in parameterValues 
+        ? safeRenderText(parameterValues[paramName]) 
+        : '';
+      
+      return (
+        <View key={paramName} style={styles.parameterContainer}>
+          <Text style={{ fontWeight: 'bold' }}>{paramName}</Text>
+          <Text style={{ fontSize: 12, marginBottom: 4 }}>{description}</Text>
+          <TextInput
+            style={styles.parameterInput}
+            value={paramValue}
+            onChangeText={(text) => handleParameterChange(paramName, text)}
+            placeholder={`Default: ${defaultValue}`}
+            editable={false}
+          />
+          <HelperText type="info">
+            Default: {defaultValue}
+          </HelperText>
+        </View>
+      );
+    });
+  };
+
   return (
     <Card style={[styles.card, { borderWidth: 2, borderColor: theme.colors.primary }]}>
       <Card.Content>
@@ -758,14 +733,14 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
             >
               <SegmentedButtons
                 value={selectedCategory}
-                onValueChange={setSelectedCategory}
+                onValueChange={handleCategoryChange}
                 buttons={segmentedButtonItems}
                 density="small"
                 multiSelect={false}
               />
             </ScrollView>
             
-            <View style={styles.tabContent}>
+            <View style={[styles.tabContent, { minHeight: 150 }]}>
               {renderCategoryContent()}
             </View>
           </>
@@ -832,32 +807,6 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
                     {renderParameterInputs()}
                   </Card.Content>
                 </Card>
-                
-                {/* Execute button */}
-                <Button
-                  mode="contained"
-                  onPress={handleExecuteAlgorithm}
-                  loading={isExecuting}
-                  disabled={isExecuting}
-                  icon="play"
-                  style={{ marginTop: 16 }}
-                >
-                  Execute Algorithm
-                </Button>
-                
-                {/* Execution results */}
-                {executionResult && (
-                  <View>
-                    <View style={styles.resultContainer}>
-                      <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Results:</Text>
-                      <ScrollView>
-                        <Text style={styles.resultText}>
-                          {safeRenderText(executionResult)}
-                        </Text>
-                      </ScrollView>
-                    </View>
-                  </View>
-                )}
               </View>
             ) : (
               <Text>Failed to load algorithm information</Text>

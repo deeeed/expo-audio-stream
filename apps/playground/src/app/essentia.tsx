@@ -1,7 +1,8 @@
-import { AppTheme, ScreenWrapper, useThemePreferences } from '@siteed/design-system';
-import React, { useMemo, useState } from 'react';
+
+import { AppTheme, ScreenWrapper, useTheme } from '@siteed/design-system';
+import EssentiaJS, { AlgorithmResult, BatchProcessingResults } from '@siteed/react-native-essentia';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Platform, StyleSheet, ToastAndroid, View } from 'react-native';
-import EssentiaJS, { AlgorithmResult, BatchProcessingResults } from 'react-native-essentia';
 import { Button, Card, Text, TouchableRipple } from 'react-native-paper';
 import { AlgorithmExplorer } from '../components/AlgorithmExplorer';
 import AlgorithmSelector from '../components/AlgorithmSelector';
@@ -13,11 +14,6 @@ import { sendDummyPCMData } from '../utils/essentiaUtils';
 const SAMPLE_ASSETS = [
   require('@assets/jfk.mp3'),
 ];
-
-interface EssentiaInitResult {
-  success: boolean;
-  error?: { code: string; message: string; details?: string };
-}
 
 interface ValidationResult {
   success: boolean;
@@ -107,14 +103,11 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
 };
 
 function EssentiaScreen() {
-  const { theme } = useThemePreferences();
+  const theme=   useTheme();
   const styles = useMemo(() => getStyles({ theme }), [theme]);
   const { loadSampleAudio } = useSampleAudio();
 
   const [selectedSample, setSelectedSample] = useState<SampleAudioFile | null>(null);
-  const [isInitialized, setIsInitialized] = useState<boolean>(false);
-  const [isInitializing, setIsInitializing] = useState<boolean>(false);
-  const [initResult, setInitResult] = useState<EssentiaInitResult | null>(null);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [isExtractingMFCC, setIsExtractingMFCC] = useState<boolean>(false);
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
@@ -125,6 +118,11 @@ function EssentiaScreen() {
   const [versionInfo, setVersionInfo] = useState<string | null>(null);
   const [isBatchProcessing, setIsBatchProcessing] = useState<boolean>(false);
   const [batchProcessingResults, setBatchProcessingResults] = useState<BatchProcessingResults | null>(null);
+
+  // Simple callback to log favorites changes
+  const handleFavoritesChange = useCallback((favorites: string[]) => {
+    console.log('Favorite algorithms updated:', favorites);
+  }, []);
 
   // Toast utility function
   const showToast = (message: string) => {
@@ -145,26 +143,6 @@ function EssentiaScreen() {
     }
   };
 
-  const handleInitialize = async () => {
-    try {
-      setIsInitializing(true);
-      const success = await EssentiaJS.initialize();
-      setInitResult({ success });
-      setIsInitialized(success);
-    } catch (error) {
-      console.error('Essentia initialization error:', error);
-      setInitResult({
-        success: false,
-        error: {
-          code: 'INIT_ERROR',
-          message: error instanceof Error ? error.message : String(error),
-        },
-      });
-    } finally {
-      setIsInitializing(false);
-    }
-  };
-
   const handleSelectSample = (sample: SampleAudioFile) => {
     setSelectedSample(sample);
   };
@@ -173,22 +151,7 @@ function EssentiaScreen() {
     setValidationResult(null);
 
     try {
-      // Step 1: Initialize Essentia
-      const initialized = await EssentiaJS.initialize();
-      if (!initialized) {
-        setValidationResult({
-          success: false,
-          initialized: false,
-          error: {
-            code: 'INIT_ERROR',
-            message: 'Failed to initialize Essentia',
-          },
-        });
-        return;
-      }
-
-      setIsInitialized(true);
-
+      // No need to explicitly initialize Essentia
       // Create an object to store algorithm results
       const algorithmResults: Record<string, AlgorithmResult> = {};
 
@@ -296,12 +259,8 @@ function EssentiaScreen() {
     setIsExtractingMFCC(true);
 
     try {
-      // Initialize if not already
-      if (!isInitialized) {
-        await EssentiaJS.initialize();
-        setIsInitialized(true);
-      }
-
+      // No need to check for initialization
+      
       // Create dummy PCM data
       const dummyPcmData = new Float32Array(4096);
       for (let i = 0; i < dummyPcmData.length; i++) {
@@ -344,11 +303,7 @@ function EssentiaScreen() {
   };
 
   const handleBatchFeatureExtraction = async () => {
-    if (!isInitialized) {
-      showToast('Please initialize Essentia first');
-      return;
-    }
-
+    // Remove initialization check
     setIsExtractingBatch(true);
     setBatchResults(null);
 
@@ -424,11 +379,7 @@ function EssentiaScreen() {
   };
 
   const handleBatchProcessing = async () => {
-    if (!isInitialized) {
-      showToast('Please initialize Essentia first');
-      return;
-    }
-    
+    // Remove initialization check
     setIsBatchProcessing(true);
     setBatchProcessingResults(null);
     
@@ -584,18 +535,11 @@ function EssentiaScreen() {
 
         <Card style={styles.card}>
           <Card.Content>
-            <Text style={styles.cardTitle}>Essentia Initialization</Text>
+            <Text style={styles.cardTitle}>Essentia Status</Text>
             <Text style={styles.cardContent}>
-              Status: {isInitialized ? 'Initialized ✅' : 'Not Initialized ❌'}
+              Essentia initializes automatically when needed
             </Text>
-            {initResult && (
-              <View>
-                <Text>Result: {initResult.success ? 'Success ✅' : 'Failed ❌'}</Text>
-                {initResult.error && <Text style={{ color: 'red' }}>
-                  {initResult.error.message || JSON.stringify(initResult.error)}
-                </Text>}
-              </View>
-            )}
+            
             <View style={styles.buttonContainer}>
               <Button
                 mode="outlined"
@@ -606,15 +550,7 @@ function EssentiaScreen() {
               >
                 Test JNI Connection
               </Button>
-              <Button
-                mode="contained"
-                onPress={handleInitialize}
-                loading={isInitializing}
-                disabled={isInitializing}
-                style={styles.button}
-              >
-                Initialize Essentia
-              </Button>
+              
               <Button
                 mode="contained"
                 onPress={validateEssentiaIntegration}
@@ -624,6 +560,7 @@ function EssentiaScreen() {
               >
                 Validate Integration
               </Button>
+              
               <Button
                 mode="outlined"
                 onPress={handleGetVersion}
@@ -699,7 +636,7 @@ function EssentiaScreen() {
               MFCC: { name: 'MFCC', data: result.data, success: true }
             }
           }))}
-          isInitialized={isInitialized}
+          isInitialized={true}
         />
         <Card style={styles.card}>
           <Card.Content>
@@ -709,7 +646,7 @@ function EssentiaScreen() {
                 mode="contained"
                 onPress={extractMFCCFromSegment}
                 loading={isExtractingMFCC}
-                disabled={isExtractingMFCC || !isInitialized}
+                disabled={isExtractingMFCC}
                 style={styles.button}
               >
                 Extract MFCC
@@ -719,7 +656,7 @@ function EssentiaScreen() {
                 mode="contained"
                 onPress={handleBatchFeatureExtraction}
                 loading={isExtractingBatch}
-                disabled={isExtractingBatch || !isInitialized}
+                disabled={isExtractingBatch}
                 style={styles.button}
               >
                 Batch Extract Features
@@ -738,52 +675,11 @@ function EssentiaScreen() {
           </Card.Content>
         </Card>
 
-        {isInitialized && (
-          <AlgorithmExplorer
-            isInitialized={isInitialized}
-            showToast={showToast}
-            onExecute={(algorithmName: string, result: unknown) => {
-              // Update the validation results with the algorithm execution result
-              setValidationResult(prevResult => {
-                const currentResults = prevResult?.algorithmResults || {};
-                return {
-                  success: true,
-                  algorithmResults: {
-                    ...currentResults,
-                    [algorithmName]: {
-                      name: algorithmName,
-                      data: (result as { data?: Record<string, string | number | number[]> }).data || {},
-                      success: true
-                    }
-                  }
-                };
-              });
-            }}
-          />
-        )}
-
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.cardTitle}>Version Information</Text>
-            <View style={styles.buttonContainer}>
-              <Button
-                mode="contained"
-                onPress={handleGetVersion}
-                loading={isGettingVersion}
-                disabled={isGettingVersion}
-                style={styles.button}
-              >
-                Get Essentia Version
-              </Button>
-            </View>
-            {versionInfo && (
-              <View style={{ marginTop: 8, padding: 8, backgroundColor: theme.colors.surfaceVariant, borderRadius: 4 }}>
-                <Text style={{ fontWeight: 'bold' }}>Essentia Version:</Text>
-                <Text>{versionInfo}</Text>
-              </View>
-            )}
-          </Card.Content>
-        </Card>
+        <AlgorithmExplorer
+          isInitialized={true}
+          showToast={showToast}
+          onFavoritesChange={handleFavoritesChange}
+        />
 
         <Card style={styles.card}>
           <Card.Content>
@@ -793,7 +689,7 @@ function EssentiaScreen() {
                 mode="contained"
                 onPress={handleBatchProcessing}
                 loading={isBatchProcessing}
-                disabled={isBatchProcessing || !isInitialized}
+                disabled={isBatchProcessing}
                 style={styles.button}
               >
                 Run Batch Processing

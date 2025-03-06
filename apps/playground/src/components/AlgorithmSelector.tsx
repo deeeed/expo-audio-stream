@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Button, Card, Text, SegmentedButtons, TextInput } from 'react-native-paper';
 import { AppTheme, useThemePreferences } from '@siteed/design-system';
-import EssentiaJS, { AlgorithmResult } from 'react-native-essentia';
+import EssentiaJS, { AlgorithmResult } from '@siteed/react-native-essentia';
 
 // Define available algorithms and their default parameters
 interface AlgorithmConfig {

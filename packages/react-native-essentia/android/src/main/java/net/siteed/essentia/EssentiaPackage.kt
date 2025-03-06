@@ -1,4 +1,4 @@
-package com.essentia
+package net.siteed.essentia
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
