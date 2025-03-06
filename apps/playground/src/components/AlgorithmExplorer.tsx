@@ -1,8 +1,8 @@
 import { AppTheme, useThemePreferences } from '@siteed/design-system';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View, ScrollView, TextInput } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import EssentiaJS from 'react-native-essentia';
-import { Button, Card, Text, Chip, Divider, HelperText } from 'react-native-paper';
+import { Button, Card, Chip, Divider, HelperText, Searchbar, SegmentedButtons, Text } from 'react-native-paper';
 
 // Define interfaces
 export interface AlgorithmExplorerProps {
@@ -20,6 +20,13 @@ interface AlgorithmInfo {
 
 interface ParameterValue {
   [key: string]: string | number | boolean;
+}
+
+// Add this interface for favorites
+interface AlgorithmCategory {
+  name: string;
+  algorithms: string[];
+  icon: string;
 }
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
@@ -138,6 +145,29 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
       marginBottom: 4,
       color: theme.colors.primary,
     },
+    tabContent: {
+      marginTop: 16,
+      marginBottom: 16,
+    },
+    categoryHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    emptyState: {
+      textAlign: 'center',
+      marginTop: 20,
+      marginBottom: 20,
+      fontStyle: 'italic',
+    },
+    favoriteButton: {
+      marginLeft: 4, 
+    },
+    algorithmItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 2,
+    }
   });
 };
 
@@ -182,14 +212,39 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResult, setExecutionResult] = useState<Record<string, unknown> | null>(null);
   
-  // Popular categories of algorithms for quick access
-  const algorithmCategories = useMemo(() => ({
-    'Audio Analysis': ['MFCC', 'Spectrum', 'SpectralCentroid', 'SpectralContrast', 'SpectralPeaks', 'BarkBands', 'ERBBands', 'MelBands', 'GFCC', 'BFCC'],
-    'Feature Extraction': ['Energy', 'RMS', 'ZeroCrossingRate', 'Loudness', 'Flux', 'Rolloff', 'Decrease', 'Envelope'],
-    'Music Features': ['Key', 'BpmHistogram', 'Rhythm', 'Pitch', 'PitchMelodia', 'Onsets', 'BeatTrackerMultiFeature'],
-    'Signal Processing': ['FFT', 'IFFT', 'DCT', 'IDCT', 'Windowing', 'FrameCutter', 'Magnitude', 'PowerSpectrum', 'CartesianToPolar'],
-    'Audio Effects': ['BandPass', 'HighPass', 'LowPass', 'Clipper', 'DCRemoval', 'EqualLoudness'],
-  }), []);
+  // Add new state for UX improvements
+  const [favoriteAlgorithms, setFavoriteAlgorithms] = useState<string[]>([]);
+  const [recentlyUsed, setRecentlyUsed] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState('favorites');
+  
+  // Expand the algorithm categories with icons for better visual hierarchy
+  const algorithmCategories = useMemo<AlgorithmCategory[]>(() => [
+    {
+      name: 'Audio Analysis',
+      algorithms: ['MFCC', 'Spectrum', 'SpectralCentroid', 'SpectralContrast', 'SpectralPeaks', 'BarkBands', 'ERBBands', 'MelBands', 'GFCC', 'BFCC'],
+      icon: 'waveform'
+    },
+    {
+      name: 'Feature Extraction',
+      algorithms: ['Energy', 'RMS', 'ZeroCrossingRate', 'Loudness', 'Flux', 'Rolloff', 'Decrease', 'Envelope'],
+      icon: 'chart-bar'
+    },
+    {
+      name: 'Music Features',
+      algorithms: ['Key', 'BpmHistogram', 'Rhythm', 'Pitch', 'PitchMelodia', 'Onsets', 'BeatTrackerMultiFeature'],
+      icon: 'music'
+    },
+    {
+      name: 'Signal Processing',
+      algorithms: ['FFT', 'IFFT', 'DCT', 'IDCT', 'Windowing', 'FrameCutter', 'Magnitude', 'PowerSpectrum', 'CartesianToPolar'],
+      icon: 'sine-wave'
+    },
+    {
+      name: 'Audio Effects',
+      algorithms: ['BandPass', 'HighPass', 'LowPass', 'Clipper', 'DCRemoval', 'EqualLoudness'],
+      icon: 'equalizer'
+    },
+  ], []);
 
   // Function to load all available algorithms
   const loadAlgorithms = useCallback(async () => {
@@ -407,29 +462,152 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
     });
   };
   
-  // Render quick access category chips
-  const renderCategories = () => {
-    return Object.entries(algorithmCategories).map(([category, algos]) => (
-      <View key={category}>
-        <Text style={styles.categoryTitle}>{category}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ flexDirection: 'row', flexWrap: 'nowrap' }}>
-            {algos.map(algo => algorithms.includes(algo) && (
-              <Chip
-                key={algo}
-                style={styles.chip}
-                selected={selectedAlgorithm === algo}
-                onPress={() => getAlgorithmInfo(algo)}
-                mode="outlined"
-              >
-                {algo}
-              </Chip>
-            ))}
+  // Update recently used when selecting an algorithm
+  const handleSelectAlgorithm = useCallback((algorithmName: string) => {
+    // Update recently used
+    setRecentlyUsed(prev => {
+      const newList = prev.filter(item => item !== algorithmName);
+      return [algorithmName, ...newList].slice(0, 10); // Keep only the 10 most recent
+    });
+
+    // Call the existing function
+    getAlgorithmInfo(algorithmName);
+  }, [getAlgorithmInfo]);
+
+  // Toggle favorite status for an algorithm
+  const toggleFavorite = useCallback((algorithmName: string) => {
+    setFavoriteAlgorithms(prev => {
+      return prev.includes(algorithmName) 
+        ? prev.filter(item => item !== algorithmName)
+        : [...prev, algorithmName];
+    });
+  }, []);
+
+  // Execute algorithm with tracking
+  const handleExecuteAlgorithm = async () => {
+    await executeAlgorithm();
+    // Add to recently used if not already at the top
+    if (selectedAlgorithm && (recentlyUsed.length === 0 || recentlyUsed[0] !== selectedAlgorithm)) {
+      setRecentlyUsed(prev => {
+        const newList = prev.filter(item => item !== selectedAlgorithm);
+        return [selectedAlgorithm, ...newList].slice(0, 10);
+      });
+    }
+  };
+
+  // Render a consistent algorithm chip with favorite option
+  const renderAlgorithmChip = useCallback((algo: string) => {
+    const isFavorite = favoriteAlgorithms.includes(algo);
+    
+    return (
+      <View key={algo} style={styles.algorithmItem}>
+        <Chip
+          style={[styles.chip, isFavorite && { borderColor: theme.colors.primary, borderWidth: 1 }]}
+          selected={selectedAlgorithm === algo}
+          onPress={() => handleSelectAlgorithm(algo)}
+          mode="outlined"
+        >
+          {algo}
+        </Chip>
+        <Button
+          icon={isFavorite ? 'star' : 'star-outline'}
+          mode="text"
+          onPress={() => toggleFavorite(algo)}
+          style={styles.favoriteButton}
+        >
+          {''}
+        </Button>
+      </View>
+    );
+  }, [favoriteAlgorithms, selectedAlgorithm, handleSelectAlgorithm, toggleFavorite, theme, styles]);
+
+  // Render current category content
+  const renderCategoryContent = useCallback(() => {
+    // Favorites view
+    if (selectedCategory === 'favorites') {
+      if (favoriteAlgorithms.length === 0) {
+        return (
+          <Text style={styles.emptyState}>
+            No favorite algorithms yet. Star algorithms to add them here.
+          </Text>
+        );
+      }
+      
+      return (
+        <View style={styles.chipContainer}>
+          {favoriteAlgorithms
+            .filter(algo => filteredAlgorithms.includes(algo))
+            .map(renderAlgorithmChip)}
+        </View>
+      );
+    }
+    
+    // Recent view
+    if (selectedCategory === 'recent') {
+      if (recentlyUsed.length === 0) {
+        return (
+          <Text style={styles.emptyState}>
+            No recently used algorithms. Select some algorithms to see them here.
+          </Text>
+        );
+      }
+      
+      return (
+        <View style={styles.chipContainer}>
+          {recentlyUsed
+            .filter(algo => filteredAlgorithms.includes(algo))
+            .map(renderAlgorithmChip)}
+        </View>
+      );
+    }
+    
+    // All view
+    if (selectedCategory === 'all') {
+      return (
+        <ScrollView style={{ maxHeight: 200 }}>
+          <View style={styles.chipContainer}>
+            {filteredAlgorithms.map(renderAlgorithmChip)}
           </View>
         </ScrollView>
-      </View>
-    ));
-  };
+      );
+    }
+    
+    // Category view
+    const category = algorithmCategories.find(c => c.name === selectedCategory);
+    if (category) {
+      return (
+        <View style={styles.chipContainer}>
+          {category.algorithms
+            .filter(algo => filteredAlgorithms.includes(algo) && algorithms.includes(algo))
+            .map(renderAlgorithmChip)}
+          <Divider style={{ marginVertical: 8, width: '100%' }} />
+          <Text style={{ marginBottom: 8 }}>Other algorithms in this category:</Text>
+          {filteredAlgorithms
+            .filter(algo => !category.algorithms.includes(algo) && 
+                          algo.toLowerCase().includes(category.name.toLowerCase()))
+            .map(renderAlgorithmChip)}
+        </View>
+      );
+    }
+    
+    return null;
+  }, [selectedCategory, favoriteAlgorithms, recentlyUsed, filteredAlgorithms, algorithms, algorithmCategories, renderAlgorithmChip, styles]);
+
+  // Create segmented buttons options for categories
+  const segmentedButtonItems = useMemo(() => {
+    const items = [
+      { value: 'favorites', label: 'Favorites' },
+      { value: 'recent', label: 'Recent' },
+      { value: 'all', label: 'All' }
+    ];
+    
+    // Add category items
+    algorithmCategories.forEach(category => {
+      items.push({ value: category.name, label: category.name });
+    });
+    
+    return items;
+  }, [algorithmCategories]);
 
   // Export algorithms to console (keeping existing functionality)
   const handleExportAlgorithmList = async () => {
@@ -561,39 +739,34 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
           <Text style={styles.errorText}>{algorithmError}</Text>
         )}
         
-        {/* Search input */}
-        {!isLoadingAlgorithms && algorithms.length > 0 && (
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search algorithms..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        )}
-        
-        {/* Quick access categories */}
+        {/* Algorithm Navigation */}
         {!isLoadingAlgorithms && algorithms.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Quick Access</Text>
-            {renderCategories()}
-          </>
-        )}
-        
-        {/* Algorithm browser */}
-        {!isLoadingAlgorithms && filteredAlgorithms.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Available Algorithms</Text>
-            <View style={styles.chipContainer}>
-              {filteredAlgorithms.map(algo => (
-                <Chip
-                  key={algo}
-                  style={styles.chip}
-                  selected={selectedAlgorithm === algo}
-                  onPress={() => getAlgorithmInfo(algo)}
-                >
-                  {algo}
-                </Chip>
-              ))}
+            <Searchbar
+              placeholder="Search algorithms..."
+              onChangeText={setSearchQuery}
+              value={searchQuery}
+              style={{ marginVertical: 10 }}
+            />
+            
+            {/* Wrap SegmentedButtons in a horizontal ScrollView */}
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={true}
+              style={{ marginTop: 10 }}
+              contentContainerStyle={{ paddingBottom: 5 }}
+            >
+              <SegmentedButtons
+                value={selectedCategory}
+                onValueChange={setSelectedCategory}
+                buttons={segmentedButtonItems}
+                density="small"
+                multiSelect={false}
+              />
+            </ScrollView>
+            
+            <View style={styles.tabContent}>
+              {renderCategoryContent()}
             </View>
           </>
         )}
@@ -602,7 +775,16 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
         {selectedAlgorithm && (
           <View>
             <Divider style={{ marginVertical: 16 }} />
-            <Text style={styles.sectionTitle}>Algorithm: {selectedAlgorithm}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={styles.sectionTitle}>Algorithm: {selectedAlgorithm}</Text>
+              <Button
+                icon={favoriteAlgorithms.includes(selectedAlgorithm) ? 'star' : 'star-outline'}
+                mode="text"
+                onPress={() => toggleFavorite(selectedAlgorithm)}
+              >
+                {favoriteAlgorithms.includes(selectedAlgorithm) ? 'Favorited' : 'Add to Favorites'}
+              </Button>
+            </View>
             
             {isLoadingAlgoInfo ? (
               <View style={styles.loadingContainer}>
@@ -612,43 +794,49 @@ export function AlgorithmExplorer({ isInitialized, showToast, onExecute }: Algor
             ) : algorithmInfo ? (
               <View>
                 {/* Algorithm inputs */}
-                <Text style={styles.subtitle}>Inputs:</Text>
-                <View>
-                  {algorithmInfo.inputs && algorithmInfo.inputs.length > 0 ? (
-                    algorithmInfo.inputs.map((input, index) => (
-                      <Text key={`input-${index}-${input.name || 'unnamed'}`} style={styles.item}>
-                        {safeRenderText(input.name)} ({safeRenderText(input.type)})
-                      </Text>
-                    ))
-                  ) : (
-                    <Text style={styles.item}>None</Text>
-                  )}
-                </View>
+                <Card style={{ marginVertical: 8, backgroundColor: theme.colors.surfaceVariant }}>
+                  <Card.Title title="Inputs" />
+                  <Card.Content>
+                    {algorithmInfo.inputs && algorithmInfo.inputs.length > 0 ? (
+                      algorithmInfo.inputs.map((input, index) => (
+                        <Text key={`input-${index}-${input.name || 'unnamed'}`} style={styles.item}>
+                          {safeRenderText(input.name)} ({safeRenderText(input.type)})
+                        </Text>
+                      ))
+                    ) : (
+                      <Text style={styles.item}>None</Text>
+                    )}
+                  </Card.Content>
+                </Card>
                 
                 {/* Algorithm outputs */}
-                <Text style={styles.subtitle}>Outputs:</Text>
-                <View>
-                  {algorithmInfo.outputs && algorithmInfo.outputs.length > 0 ? (
-                    algorithmInfo.outputs.map((output, index) => (
-                      <Text key={`output-${index}-${output.name || 'unnamed'}`} style={styles.item}>
-                        {safeRenderText(output.name)} ({safeRenderText(output.type)})
-                      </Text>
-                    ))
-                  ) : (
-                    <Text style={styles.item}>None</Text>
-                  )}
-                </View>
+                <Card style={{ marginVertical: 8, backgroundColor: theme.colors.surfaceVariant }}>
+                  <Card.Title title="Outputs" />
+                  <Card.Content>
+                    {algorithmInfo.outputs && algorithmInfo.outputs.length > 0 ? (
+                      algorithmInfo.outputs.map((output, index) => (
+                        <Text key={`output-${index}-${output.name || 'unnamed'}`} style={styles.item}>
+                          {safeRenderText(output.name)} ({safeRenderText(output.type)})
+                        </Text>
+                      ))
+                    ) : (
+                      <Text style={styles.item}>None</Text>
+                    )}
+                  </Card.Content>
+                </Card>
                 
                 {/* Algorithm parameters */}
-                <Text style={styles.subtitle}>Parameters:</Text>
-                <View>
-                  {renderParameterInputs()}
-                </View>
+                <Card style={{ marginVertical: 8, backgroundColor: theme.colors.surfaceVariant }}>
+                  <Card.Title title="Parameters" />
+                  <Card.Content>
+                    {renderParameterInputs()}
+                  </Card.Content>
+                </Card>
                 
                 {/* Execute button */}
                 <Button
                   mode="contained"
-                  onPress={executeAlgorithm}
+                  onPress={handleExecuteAlgorithm}
                   loading={isExecuting}
                   disabled={isExecuting}
                   icon="play"
