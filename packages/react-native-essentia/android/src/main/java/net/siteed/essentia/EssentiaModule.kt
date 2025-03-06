@@ -71,6 +71,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     logScale: Boolean
   ): String
   private external fun nativeExecutePipeline(handle: Long, pipelineJson: String): String
+  private external fun nativeComputeSpectrum(handle: Long, frameSize: Int, hopSize: Int): Boolean
 
   /**
    * Helper method to ensure Essentia is initialized
@@ -970,6 +971,40 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
       // Resolve the promise with the properly structured map
       promise.resolve(resultMap)
+    }
+  }
+
+  /**
+   * Computes the spectrum with specified frame size and hop size.
+   * This ensures spectrum has appropriate size for subsequent algorithms.
+   * @param frameSize Size of each frame in samples (should be power of 2 for efficient FFT)
+   * @param hopSize Hop size between frames in samples
+   * @param promise Promise that resolves to a boolean indicating success
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun computeSpectrum(frameSize: Int, hopSize: Int, promise: Promise) {
+    ensureInitialized(promise) {
+      // Validate inputs
+      if (frameSize <= 0 || hopSize <= 0) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Frame size and hop size must be positive")
+        return@ensureInitialized
+      }
+
+      Log.d("EssentiaModule", "Computing spectrum with frame size: $frameSize, hop size: $hopSize")
+
+      // Call the native method
+      val result: Boolean
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
+        }
+        result = nativeComputeSpectrum(nativeHandle, frameSize, hopSize)
+      }
+
+      Log.d("EssentiaModule", "Spectrum computation result: $result")
+      promise.resolve(result)
     }
   }
 

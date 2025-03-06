@@ -284,6 +284,7 @@ private:
     // Add cached computation fields
     bool spectrumComputed;
     std::vector<essentia::Real> cachedSpectrum;
+    std::vector<std::vector<essentia::Real>> allSpectra; // Added to store all frame spectra
 
 public:
     EssentiaWrapper() : mIsInitialized(false), sampleRate(44100.0), spectrumComputed(false) {}
@@ -326,6 +327,7 @@ public:
             audioBuffer.clear();
             spectrumComputed = false;
             cachedSpectrum.clear();
+            allSpectra.clear();
 
             // Copy data to internal buffer
             audioBuffer = data;
@@ -383,112 +385,102 @@ public:
 
     // Handle the specific optimized algorithms (MFCC, Spectrum, Key)
     std::string executeSpecificAlgorithm(const std::string& algorithm, const std::map<std::string, essentia::Parameter>& params) {
-        essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
         essentia::Pool pool;
+        essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
 
-        if (audioBuffer.empty()) {
-            return createErrorResponse("No audio data loaded", "NO_AUDIO_DATA");
-        }
+        if (algorithm == "MelBands") {
+            int numberBands = params.count("numberBands") ? params.at("numberBands").toInt() : 24;
+            int frameSize = (numberBands <= 40) ? 1024 : 2048; // Adjust based on bands
+            if (!spectrumComputed) computeSpectrum(frameSize, frameSize / 2);
 
-        try {
-            if (algorithm == "MFCC") {
-                if (!spectrumComputed) {
-                    computeSpectrum(); // Ensure spectrum is computed
-                }
+            essentia::ParameterMap algoParams = convertToParameterMap(params);
+            algoParams.add("inputSize", essentia::Parameter(static_cast<int>(cachedSpectrum.size())));
 
-                essentia::standard::Algorithm* mfccAlgo = factory.create("MFCC");
-                if (!params.empty()) {
-                    essentia::ParameterMap parameterMap = convertToParameterMap(params);
-                    mfccAlgo->configure(parameterMap);
-                }
+            essentia::standard::Algorithm* melBandsAlgo = factory.create("MelBands");
+            melBandsAlgo->configure(algoParams);
 
-                std::vector<essentia::Real> mfccCoeffs;
-                std::vector<essentia::Real> mfccBands;
+            std::vector<essentia::Real> melBands;
+            melBandsAlgo->input("spectrum").set(cachedSpectrum);
+            melBandsAlgo->output("bands").set(melBands);
+            melBandsAlgo->compute();
 
-                mfccAlgo->input("spectrum").set(cachedSpectrum);
-                mfccAlgo->output("mfcc").set(mfccCoeffs);
-                mfccAlgo->output("bands").set(mfccBands);
-                mfccAlgo->compute();
+            pool.set("melBands", melBands);
+            delete melBandsAlgo;
+        } else if (algorithm == "MFCC") {
+            int numberBands = params.count("numberBands") ? params.at("numberBands").toInt() : 40;
+            int frameSize = (numberBands <= 40) ? 1024 : 2048; // Adjust based on bands
+            if (!spectrumComputed) computeSpectrum(frameSize, frameSize / 2);
 
-                pool.set("mfcc", mfccCoeffs);
-                pool.set("bands", mfccBands);
-                delete mfccAlgo;
-            } else if (algorithm == "Spectrum") {
-                if (!spectrumComputed) {
-                    computeSpectrum();
-                }
-                pool.set("spectrum", cachedSpectrum);
-            } else if (algorithm == "MelBands") {
-                if (!spectrumComputed) {
-                    computeSpectrum();
-                }
+            essentia::ParameterMap algoParams = convertToParameterMap(params);
+            algoParams.add("inputSize", essentia::Parameter(static_cast<int>(cachedSpectrum.size())));
 
-                essentia::standard::Algorithm* melBandsAlgo = factory.create("MelBands");
-                if (!params.empty()) {
-                    essentia::ParameterMap parameterMap = convertToParameterMap(params);
-                    melBandsAlgo->configure(parameterMap);
-                }
+            essentia::standard::Algorithm* mfccAlgo = factory.create("MFCC");
+            mfccAlgo->configure(algoParams);
 
-                std::vector<essentia::Real> melBands;
-                melBandsAlgo->input("spectrum").set(cachedSpectrum);
-                melBandsAlgo->output("bands").set(melBands);
-                melBandsAlgo->compute();
+            std::vector<essentia::Real> mfccCoeffs, mfccBands;
+            mfccAlgo->input("spectrum").set(cachedSpectrum);
+            mfccAlgo->output("mfcc").set(mfccCoeffs);
+            mfccAlgo->output("bands").set(mfccBands);
+            mfccAlgo->compute();
 
-                pool.set("melBands", melBands);
-                delete melBandsAlgo;
-            } else if (algorithm == "Key") {
-                // Key algorithm requires a more complex pipeline
-                if (!spectrumComputed) {
-                    computeSpectrum();
-                }
-
-                essentia::standard::Algorithm* peaksAlgo = factory.create("SpectralPeaks");
-                std::vector<essentia::Real> frequencies;
-                std::vector<essentia::Real> magnitudes;
-
-                peaksAlgo->input("spectrum").set(cachedSpectrum);
-                peaksAlgo->output("frequencies").set(frequencies);
-                peaksAlgo->output("magnitudes").set(magnitudes);
-                peaksAlgo->compute();
-
-                essentia::standard::Algorithm* hpcpAlgo = factory.create("HPCP");
-                std::vector<essentia::Real> hpcp;
-
-                hpcpAlgo->input("frequencies").set(frequencies);
-                hpcpAlgo->input("magnitudes").set(magnitudes);
-                hpcpAlgo->output("hpcp").set(hpcp);
-                hpcpAlgo->compute();
-
-                essentia::standard::Algorithm* keyAlgo = factory.create("Key");
-                std::string key;
-                std::string scale;
-                essentia::Real strength;
-                essentia::Real firstToSecondRelativeStrength;
-
-                keyAlgo->input("pcp").set(hpcp);
-                keyAlgo->output("key").set(key);
-                keyAlgo->output("scale").set(scale);
-                keyAlgo->output("strength").set(strength);
-                keyAlgo->output("firstToSecondRelativeStrength").set(firstToSecondRelativeStrength);
-                keyAlgo->compute();
-
-                pool.set("key", key);
-                pool.set("scale", scale);
-                pool.set("strength", strength);
-                pool.set("firstToSecondRelativeStrength", firstToSecondRelativeStrength);
-
-                delete peaksAlgo;
-                delete hpcpAlgo;
-                delete keyAlgo;
-            } else {
-                return executeDynamicAlgorithm(algorithm, params);
+            pool.set("mfcc", mfccCoeffs);
+            pool.set("mfcc_bands", mfccBands);
+            delete mfccAlgo;
+        } else if (algorithm == "Spectrum") {
+            if (!spectrumComputed) {
+                computeSpectrum();
+            }
+            pool.set("spectrum", cachedSpectrum);
+        } else if (algorithm == "Key") {
+            // Key algorithm requires a more complex pipeline
+            if (!spectrumComputed) {
+                computeSpectrum();
             }
 
-            std::string resultJson = poolToJson(pool);
-            return "{\"success\":true,\"data\":" + resultJson + "}";
-        } catch (const std::exception& e) {
-            return createErrorResponse(e.what(), "ALGORITHM_ERROR");
+            essentia::standard::Algorithm* peaksAlgo = factory.create("SpectralPeaks");
+            std::vector<essentia::Real> frequencies;
+            std::vector<essentia::Real> magnitudes;
+
+            peaksAlgo->input("spectrum").set(cachedSpectrum);
+            peaksAlgo->output("frequencies").set(frequencies);
+            peaksAlgo->output("magnitudes").set(magnitudes);
+            peaksAlgo->compute();
+
+            essentia::standard::Algorithm* hpcpAlgo = factory.create("HPCP");
+            std::vector<essentia::Real> hpcp;
+
+            hpcpAlgo->input("frequencies").set(frequencies);
+            hpcpAlgo->input("magnitudes").set(magnitudes);
+            hpcpAlgo->output("hpcp").set(hpcp);
+            hpcpAlgo->compute();
+
+            essentia::standard::Algorithm* keyAlgo = factory.create("Key");
+            std::string key;
+            std::string scale;
+            essentia::Real strength;
+            essentia::Real firstToSecondRelativeStrength;
+
+            keyAlgo->input("pcp").set(hpcp);
+            keyAlgo->output("key").set(key);
+            keyAlgo->output("scale").set(scale);
+            keyAlgo->output("strength").set(strength);
+            keyAlgo->output("firstToSecondRelativeStrength").set(firstToSecondRelativeStrength);
+            keyAlgo->compute();
+
+            pool.set("key", key);
+            pool.set("scale", scale);
+            pool.set("strength", strength);
+            pool.set("firstToSecondRelativeStrength", firstToSecondRelativeStrength);
+
+            delete peaksAlgo;
+            delete hpcpAlgo;
+            delete keyAlgo;
+        } else {
+            return executeDynamicAlgorithm(algorithm, params);
         }
+
+        std::string resultJson = poolToJson(pool);
+        return "{\"success\":true,\"data\":" + resultJson + "}";
     }
 
     // Handle any algorithm dynamically by inspecting its inputs/outputs
@@ -649,73 +641,41 @@ public:
     }
 
     // Add a method to compute and cache the spectrum
-    void computeSpectrum() {
-        if (spectrumComputed) {
-            return; // Spectrum already computed
-        }
+    void computeSpectrum(int frameSize = 1024, int hopSize = 512) {
+        if (spectrumComputed) return;
+        if (audioBuffer.empty()) throw std::runtime_error("No audio data available");
 
-        if (audioBuffer.empty()) {
-            throw std::runtime_error("No audio data available for spectrum computation");
-        }
+        essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
+        essentia::standard::Algorithm* window = factory.create("Windowing", "type", "hann", "size", frameSize);
+        essentia::standard::Algorithm* spectrum = factory.create("Spectrum", "size", frameSize);
 
-        try {
-            // Create algorithm factory
-            essentia::standard::AlgorithmFactory& factory = essentia::standard::AlgorithmFactory::instance();
+        std::vector<std::vector<essentia::Real>> allSpectra; // Store spectra for all frames
+        std::vector<essentia::Real> audioFrame, windowedFrame, spectrumFrame;
 
-            // Create windowing algorithm
-            essentia::standard::Algorithm* window = factory.create("Windowing",
-                                                                 "type", "hann",
-                                                                 "size", 1024);
-
-            // Create spectrum algorithm (computes magnitude spectrum directly from windowed frame)
-            essentia::standard::Algorithm* spectrum = factory.create("Spectrum",
-                                                                 "size", 1024);
-
-            // Input and output vectors
-            std::vector<essentia::Real> audioFrame;
-            std::vector<essentia::Real> windowedFrame;
-            std::vector<essentia::Real> spectrumFrame;
-
-            // Process audio in frames
-            for (size_t i = 0; i < audioBuffer.size(); i += 512) {
-                // Ensure we have enough samples for a frame
-                if (i + 1024 > audioBuffer.size()) {
-                    // Pad the frame with zeros if needed to ensure even size for FFT
-                    audioFrame.resize(1024, 0.0);
-                    size_t remainingSamples = audioBuffer.size() - i;
-                    std::copy(audioBuffer.begin() + i, audioBuffer.end(), audioFrame.begin());
-                } else {
-                    // Extract frame
-                    audioFrame.assign(audioBuffer.begin() + i, audioBuffer.begin() + i + 1024);
-                }
-
-                // Ensure frame size is even for FFT
-                if (audioFrame.size() % 2 != 0) {
-                    audioFrame.push_back(0.0); // Pad with zero to make it even
-                }
-
-                // Apply window
-                window->input("frame").set(audioFrame);
-                window->output("frame").set(windowedFrame);
-                window->compute();
-
-                // Compute spectrum directly from windowed frame
-                spectrum->input("frame").set(windowedFrame);  // Use windowed frame, not FFT
-                spectrum->output("spectrum").set(spectrumFrame);
-                spectrum->compute();
-
-                // Store the result
-                cachedSpectrum = spectrumFrame;  // Just store the last frame for now
+        for (size_t i = 0; i < audioBuffer.size(); i += hopSize) {
+            if (i + frameSize > audioBuffer.size()) {
+                audioFrame.resize(frameSize, 0.0);
+                size_t remaining = audioBuffer.size() - i;
+                std::copy(audioBuffer.begin() + i, audioBuffer.end(), audioFrame.begin());
+            } else {
+                audioFrame.assign(audioBuffer.begin() + i, audioBuffer.begin() + i + frameSize);
             }
-
-            // Clean up
-            delete window;
-            delete spectrum;
-
-            spectrumComputed = true;
-        } catch (const std::exception& e) {
-            throw std::runtime_error(std::string("Error computing spectrum: ") + e.what());
+            window->input("frame").set(audioFrame);
+            window->output("frame").set(windowedFrame);
+            window->compute();
+            spectrum->input("frame").set(windowedFrame);
+            spectrum->output("spectrum").set(spectrumFrame);
+            spectrum->compute();
+            allSpectra.push_back(spectrumFrame);
         }
+
+        // For now, cache the last spectrum for compatibility; later, handle frame-wise processing
+        if (!allSpectra.empty()) cachedSpectrum = allSpectra.back();
+        allSpectra.clear();
+
+        delete window;
+        delete spectrum;
+        spectrumComputed = true;
     }
 
     // Get algorithm information
@@ -837,6 +797,7 @@ public:
         // Reset spectrum cache to ensure fresh computation for each feature extraction
         spectrumComputed = false;
         cachedSpectrum.clear();
+        allSpectra.clear();
 
         essentia::Pool pool;
 
@@ -845,6 +806,25 @@ public:
             json featureConfigs = json::parse(featuresJson);
             if (!featureConfigs.is_array()) {
                 return createErrorResponse("Features must be an array of configurations", "INVALID_FORMAT");
+            }
+
+            // Determine maximum required frame size
+            int maxFrameSize = 1024;
+            for (const auto& config : featureConfigs) {
+                std::string name = config["name"];
+                if ((name == "MelBands" || name == "MFCC") && config.contains("params")) {
+                    int nb = 40; // Default
+                    if (config["params"].contains("numberBands")) {
+                        nb = config["params"]["numberBands"];
+                    }
+                    int requiredFrameSize = (nb <= 40) ? 1024 : 2048;
+                    maxFrameSize = std::max(maxFrameSize, requiredFrameSize);
+                }
+            }
+
+            // Compute spectrum if needed with appropriate size
+            if (!spectrumComputed) {
+                computeSpectrum(maxFrameSize, maxFrameSize / 2);
             }
 
             // Process each feature configuration
@@ -1818,6 +1798,22 @@ static jstring nativeExecutePipeline(JNIEnv* env, jobject thiz, jlong handle, js
     }
 }
 
+static jboolean nativeComputeSpectrum(JNIEnv* env, jobject thiz, jlong handle, jint frameSize, jint hopSize) {
+    if (handle == 0) {
+        return JNI_FALSE;
+    }
+
+    try {
+        EssentiaWrapper* wrapper = reinterpret_cast<EssentiaWrapper*>(handle);
+        wrapper->computeSpectrum(frameSize, hopSize);
+        return JNI_TRUE;
+    }
+    catch (const std::exception& e) {
+        // Log error
+        return JNI_FALSE;
+    }
+}
+
 // JNI method registration
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     JNIEnv* env;
@@ -1842,7 +1838,8 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
         {"nativeExtractFeatures", "(JLjava/lang/String;)Ljava/lang/String;", (void*)extractFeatures},
         {"getVersion", "()Ljava/lang/String;", (void*)getVersion},
         {"nativeComputeMelSpectrogram", "(JIIIFFLjava/lang/String;ZZ)Ljava/lang/String;", (void*)nativeComputeMelSpectrogram},
-        {"nativeExecutePipeline", "(JLjava/lang/String;)Ljava/lang/String;", (void*)nativeExecutePipeline}
+        {"nativeExecutePipeline", "(JLjava/lang/String;)Ljava/lang/String;", (void*)nativeExecutePipeline},
+        {"nativeComputeSpectrum", "(JII)Z", (void*)nativeComputeSpectrum}
     };
 
     int rc = env->RegisterNatives(clazz, methods, sizeof(methods) / sizeof(methods[0]));

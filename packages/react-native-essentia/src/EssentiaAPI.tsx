@@ -1068,6 +1068,29 @@ class EssentiaAPI implements EssentiaInterface {
 
     return result;
   }
+
+  /**
+   * Computes the spectrum with specified frame size and hop size.
+   * This ensures spectrum has appropriate resolution for subsequent algorithms,
+   * particularly when using high number of mel bands.
+   *
+   * @param frameSize Size of each frame in samples (should be power of 2 for efficient FFT)
+   * @param hopSize Hop size between frames in samples
+   * @returns A Promise that resolves to true on success
+   */
+  async computeSpectrum(frameSize: number = 1024, hopSize: number = Math.floor(frameSize / 2)): Promise<boolean> {
+    try {
+      // Validate inputs
+      if (frameSize <= 0 || hopSize <= 0) {
+        throw new Error('Frame size and hop size must be positive');
+      }
+
+      return await Essentia.computeSpectrum(frameSize, hopSize);
+    } catch (error) {
+      console.error('Essentia computeSpectrum error:', error);
+      throw error;
+    }
+  }
 }
 
 export default EssentiaAPI;
