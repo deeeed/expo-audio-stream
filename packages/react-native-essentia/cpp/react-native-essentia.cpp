@@ -30,174 +30,110 @@ static bool gIsInitialized = false;
 static std::vector<essentia::Real> gAudioBuffer;
 static double gSampleRate = 44100.0;
 
+// Replace the manual JSON parsing with nlohmann/json
+#include "nlohmann/json.hpp"
+
+// Use the json library with a namespace alias for convenience
+using json = nlohmann::json;
+
 // Helper functions for JSON conversion
 std::string paramsMapToJson(const std::map<std::string, essentia::Parameter>& params) {
-    std::stringstream ss;
-    ss << "{";
+    json result;
 
-    bool first = true;
     for (const auto& pair : params) {
-        if (!first) ss << ",";
-        first = false;
-
-        ss << "\"" << pair.first << "\":";
-
-        // Handle different parameter types based on the ParamType enum
         essentia::Parameter::ParamType type = pair.second.type();
 
         try {
             switch (type) {
                 case essentia::Parameter::INT:
-                    ss << pair.second.toInt();
+                    result[pair.first] = pair.second.toInt();
                     break;
-
                 case essentia::Parameter::REAL:
-                    ss << pair.second.toReal();
+                    result[pair.first] = pair.second.toReal();
                     break;
-
                 case essentia::Parameter::STRING:
-                    ss << "\"" << pair.second.toString() << "\"";
+                    result[pair.first] = pair.second.toString();
                     break;
-
                 case essentia::Parameter::BOOL:
-                    ss << (pair.second.toBool() ? "true" : "false");
+                    result[pair.first] = pair.second.toBool();
                     break;
-
                 default:
-                    // For other types, use string representation
-                    ss << "\"" << pair.second.toString() << "\"";
+                    result[pair.first] = pair.second.toString();
                     break;
             }
         }
         catch (const std::exception& e) {
-            // If conversion fails, output as unknown
-            ss << "\"unknown_type\"";
+            result[pair.first] = "unknown_type";
         }
     }
 
-    ss << "}";
-    return ss.str();
+    return result.dump();
 }
 
-std::map<std::string, essentia::Parameter> jsonToParamsMap(const std::string& json) {
+std::map<std::string, essentia::Parameter> jsonToParamsMap(const std::string& jsonStr) {
     std::map<std::string, essentia::Parameter> params;
 
-    // Simple JSON parsing - in a real implementation, use a proper JSON library
-    // This is a basic implementation that handles simple key-value pairs
+    try {
+        // Parse the JSON string
+        json j = json::parse(jsonStr);
 
-    size_t pos = 0;
-    size_t end = json.length();
+        // Iterate through all key-value pairs
+        for (auto it = j.begin(); it != j.end(); ++it) {
+            const std::string& key = it.key();
 
-    // Skip opening brace
-    if (pos < end && json[pos] == '{') pos++;
-
-    while (pos < end && json[pos] != '}') {
-        // Skip whitespace
-        while (pos < end && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '\n' || json[pos] == '\r')) pos++;
-
-        // Check for end of object
-        if (pos < end && json[pos] == '}') break;
-
-        // Parse key (must be in quotes)
-        if (pos < end && json[pos] == '"') {
-            pos++; // Skip opening quote
-            size_t keyStart = pos;
-            while (pos < end && json[pos] != '"') pos++;
-            std::string key = json.substr(keyStart, pos - keyStart);
-            pos++; // Skip closing quote
-
-            // Skip colon and whitespace
-            while (pos < end && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == ':')) pos++;
-
-            // Parse value
-            if (pos < end) {
-                if (json[pos] == '"') {
-                    // String value
-                    pos++; // Skip opening quote
-                    size_t valueStart = pos;
-                    while (pos < end && json[pos] != '"') pos++;
-                    std::string value = json.substr(valueStart, pos - valueStart);
-                    pos++; // Skip closing quote
-
-                    params.insert(std::make_pair(key, essentia::Parameter(value)));
-                } else if (json[pos] == 't' && pos + 3 < end && json.substr(pos, 4) == "true") {
-                    // Boolean true
-                    params.insert(std::make_pair(key, essentia::Parameter(true)));
-                    pos += 4;
-                } else if (json[pos] == 'f' && pos + 4 < end && json.substr(pos, 5) == "false") {
-                    // Boolean false
-                    params.insert(std::make_pair(key, essentia::Parameter(false)));
-                    pos += 5;
-                } else if ((json[pos] >= '0' && json[pos] <= '9') || json[pos] == '-') {
-                    // Number value
-                    size_t valueStart = pos;
-                    bool isFloat = false;
-
-                    while (pos < end && ((json[pos] >= '0' && json[pos] <= '9') ||
-                           json[pos] == '.' || json[pos] == '-' || json[pos] == 'e' || json[pos] == 'E' || json[pos] == '+')) {
-                        if (json[pos] == '.') isFloat = true;
-                        pos++;
-                    }
-
-                    std::string valueStr = json.substr(valueStart, pos - valueStart);
-
-                    if (isFloat) {
-                        float value = std::stof(valueStr);
-                        params.insert(std::make_pair(key, essentia::Parameter(value)));
-                    } else {
-                        int value = std::stoi(valueStr);
-                        params.insert(std::make_pair(key, essentia::Parameter(value)));
-                    }
-                }
+            // Handle different value types
+            if (it.value().is_number_integer()) {
+                params.insert(std::make_pair(key, essentia::Parameter(static_cast<int>(it.value()))));
             }
-
-            // Skip comma and whitespace
-            while (pos < end && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == ',' || json[pos] == '\n' || json[pos] == '\r')) pos++;
-        } else {
-            // Invalid JSON, skip character
-            pos++;
+            else if (it.value().is_number_float()) {
+                params.insert(std::make_pair(key, essentia::Parameter(static_cast<float>(it.value()))));
+            }
+            else if (it.value().is_boolean()) {
+                params.insert(std::make_pair(key, essentia::Parameter(it.value().get<bool>())));
+            }
+            else if (it.value().is_string()) {
+                params.insert(std::make_pair(key, essentia::Parameter(it.value().get<std::string>())));
+            }
+            // Could add support for arrays and nested objects if needed
         }
+    }
+    catch (const json::exception& e) {
+        LOGE("JSON parsing error: %s", e.what());
+        // Return empty map on error
     }
 
     return params;
 }
 
 std::string poolToJson(const essentia::Pool& pool) {
-    std::stringstream ss;
-    ss << "{";
+    json result;
 
-    bool firstKey = true;
     for (const auto& key : pool.descriptorNames()) {
-        if (!firstKey) ss << ",";
-        firstKey = false;
-
-        ss << "\"" << key << "\":";
-
         try {
             if (pool.contains<std::vector<essentia::Real>>(key)) {
                 const auto& values = pool.value<std::vector<essentia::Real>>(key);
-                ss << "[";
-                bool firstVal = true;
+                json array = json::array();
                 for (const auto& val : values) {
-                    if (!firstVal) ss << ",";
-                    firstVal = false;
-                    ss << val;
+                    array.push_back(val);
                 }
-                ss << "]";
-            } else if (pool.contains<essentia::Real>(key)) {
-                ss << pool.value<essentia::Real>(key);
-            } else if (pool.contains<std::string>(key)) {
-                ss << "\"" << pool.value<std::string>(key) << "\"";
-            } else {
-                ss << "\"unsupported_type\"";
+                result[key] = array;
             }
-        } catch (const std::exception& e) {
-            ss << "\"error_reading_value\"";
+            else if (pool.contains<essentia::Real>(key)) {
+                result[key] = pool.value<essentia::Real>(key);
+            }
+            else if (pool.contains<std::string>(key)) {
+                result[key] = pool.value<std::string>(key);
+            }
+            else {
+                result[key] = "unsupported_type";
+            }
+        }
+        catch (const std::exception& e) {
+            result[key] = "error_reading_value";
         }
     }
 
-    ss << "}";
-    return ss.str();
+    return result.dump();
 }
 
 // Helper function to convert our map to a ParameterMap

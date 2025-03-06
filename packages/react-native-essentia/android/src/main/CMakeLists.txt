@@ -7,9 +7,29 @@ set(CMAKE_CXX_STANDARD 14)
 # Define the source files directory
 set(RNESSENTIA_LIB_DIR ${CMAKE_SOURCE_DIR}/../../../cpp)
 
-# Add include directories for Essentia headers
+# Create third_party directory if it doesn't exist
+file(MAKE_DIRECTORY ${RNESSENTIA_LIB_DIR}/third_party/nlohmann)
+
+# Download nlohmann/json if not already present
+if(NOT EXISTS ${RNESSENTIA_LIB_DIR}/third_party/nlohmann/json.hpp)
+    message(STATUS "Downloading nlohmann/json library...")
+    file(DOWNLOAD
+        https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp
+        ${RNESSENTIA_LIB_DIR}/third_party/nlohmann/json.hpp
+        SHOW_PROGRESS
+        STATUS download_status
+    )
+    list(GET download_status 0 status_code)
+    if(NOT status_code EQUAL 0)
+        message(FATAL_ERROR "Failed to download nlohmann/json library")
+    endif()
+    message(STATUS "nlohmann/json library downloaded successfully")
+endif()
+
+# Add include directories for Essentia headers and third-party libraries
 include_directories(
     ../../../cpp/include  # Essentia headers in cpp/include/essentia
+    ${RNESSENTIA_LIB_DIR}/third_party  # Path to third-party libraries
 )
 
 # Add the react-native-essentia shared library
