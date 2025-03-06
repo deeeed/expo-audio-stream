@@ -8,6 +8,8 @@ export * from './types/params.types';
 // Explicitly don't re-export MelSpectrogramResult from results.types since it's already in core.types
 export * from './types/results.types';
 
+export * from './types/pipeline.types';
+
 export { EssentiaCategory };
 
 // Export the API instance

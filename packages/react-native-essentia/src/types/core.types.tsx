@@ -147,6 +147,8 @@ export interface PipelineFeatureStep {
   params?: AlgorithmParams;
   postProcess?: {
     mean?: boolean;
+    variance?: boolean;
+    // Optional: add other statistics like stddev, min, max in the future if needed
   };
 }
 
@@ -162,6 +164,13 @@ export interface PipelineConfig {
 
 export interface PipelineResult {
   success: boolean;
-  data?: Record<string, number | number[]>;
+  data?: Record<
+    string,
+    {
+      mean?: number | number[];
+      variance?: number | number[];
+      // Add a raw field if needed, e.g., raw?: number[][] for frame-wise data
+    }
+  >;
   error?: { code: string; message: string; details?: string };
 }

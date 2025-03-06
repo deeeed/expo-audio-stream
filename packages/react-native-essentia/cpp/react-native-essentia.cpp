@@ -1164,8 +1164,31 @@ public:
         {"SpectralContrast", "spectralContrast"},
         {"SpectralFlatness", "flatness"},
         {"Energy", "energy"},
-        {"RMS", "rms"}
-        // Add more mappings as needed
+        {"RMS", "rms"},
+        {"Windowing", "frame"},
+        {"ZeroCrossingRate", "zeroCrossingRate"},
+        {"PitchYinFFT", "pitch"},
+        {"RollOff", "rollOff"},
+        {"BarkBands", "bands"},
+        {"BeatTrackerDegara", "ticks"},
+        {"BeatTrackerMultiFeature", "ticks"},
+        {"BeatsLoudness", "loudness"},
+        {"BinaryOperator", "array"},
+        {"BpmHistogram", "bpm"},
+        {"CentralMoments", "centralMoments"},
+        {"ChordsDetection", "chords"},
+        {"DCT", "dct"},
+        {"Envelope", "envelope"},
+        {"ERBBands", "bands"},
+        {"Flux", "flux"},
+        {"FrameCutter", "frame"},
+        {"FrequencyBands", "bands"},
+        {"GFCC", "gfcc"},
+        {"HFC", "hfc"},
+        {"HPCP", "hpcp"},
+        {"PitchYin", "pitch"},
+        {"PowerSpectrum", "spectrum"},
+        {"SpectralPeaks", "frequencies"}
     };
 
     /**
@@ -1294,6 +1317,7 @@ public:
                 std::vector<std::string> featureInputs;
                 std::vector<std::string> featureOutputNames;
                 std::vector<bool> featureUseMean;
+                std::vector<bool> featureUseVariance; // Add this to track variance requests
 
                 for (const auto& feature : config["features"]) {
                     std::string name = feature["name"].get<std::string>();
@@ -1345,12 +1369,19 @@ public:
                         }
                         featureOutputNames.push_back(outputName);
 
-                        // Check if we should compute mean for this feature
+                        // Check if we should compute mean and variance for this feature
                         bool useMean = false;
-                        if (feature.contains("postProcess") && feature["postProcess"].contains("mean")) {
-                            useMean = feature["postProcess"]["mean"].get<bool>();
+                        bool useVariance = false;
+                        if (feature.contains("postProcess")) {
+                            if (feature["postProcess"].contains("mean")) {
+                                useMean = feature["postProcess"]["mean"].get<bool>();
+                            }
+                            if (feature["postProcess"].contains("variance")) {
+                                useVariance = feature["postProcess"]["variance"].get<bool>();
+                            }
                         }
                         featureUseMean.push_back(useMean);
+                        featureUseVariance.push_back(useVariance);
                     }
                     catch (const std::exception& e) {
                         // Clean up resources
@@ -1366,68 +1397,301 @@ public:
 
                 // Process frames
                 while (true) {
+                    // Reset frame for next input
+                    frame.clear();
+
                     // Extract frame
                     frameCutter->compute();
                     if (frame.empty()) break; // No more frames
 
                     frameCount++;
 
-                    // Store the frame in the pool
-                    framePool.remove("frame");
-                    framePool.add("frame", frame);
+                    LOGI("Extracted frame %d with size: %zu", frameCount, frame.size());
+
+                    // Clear the pool for this frame iteration to ensure a clean slate
+                    framePool.clear();
+
+                    // Add the frame to the pool with the name "frame"
+                    if (!frame.empty()) {
+                        framePool.set("frame", frame);
+                        LOGI("Added frame to pool with name 'frame' (size: %zu)", frame.size());
+                    }
 
                     // Apply preprocessing steps
-                    for (size_t i = 0; i < preprocessAlgos.size(); ++i) {
-                        auto* algo = preprocessAlgos[i];
-                        std::string inputName = (i == 0) ? "frame" : preprocessOutputNames[i-1];
-                        std::vector<essentia::Real>& output = preprocessOutputs[i];
+                    if (!preprocessAlgos.empty()) {
+                        // Directly set the frame as input to the first preprocessing algorithm
+                        auto* firstAlgo = preprocessAlgos[0]; // Windowing
+                        std::vector<essentia::Real>& firstOutput = preprocessOutputs[0];
 
-                        // Connect input from previous step's output
-                        algo->input("frame").set(framePool.value<std::vector<essentia::Real>>(inputName));
-                        algo->output(primaryOutputs.count(preprocessOutputNames[i]) ?
-                                   primaryOutputs.at(preprocessOutputNames[i]) : preprocessOutputNames[i]).set(output);
+                        // Connect the frame directly to the first algorithm
+                        firstAlgo->input("frame").set(frame);
+                        firstAlgo->output(primaryOutputs.count(preprocessOutputNames[0]) ?
+                                       primaryOutputs.at(preprocessOutputNames[0]) :
+                                       preprocessOutputNames[0]).set(firstOutput);
 
-                        // Compute algorithm
-                        algo->compute();
+                        // Compute the first algorithm
+                        firstAlgo->compute();
 
-                        // Store result in the pool
-                        framePool.remove(preprocessOutputNames[i]);
-                        framePool.add(preprocessOutputNames[i], output);
+                        // Use set instead of add for storing the output in the pool
+                        framePool.set(preprocessOutputNames[0], firstOutput);
+
+                        LOGI("Processed first preprocessing step '%s' directly from frame (output size: %zu)",
+                             preprocessOutputNames[0].c_str(), firstOutput.size());
+
+                        // Process remaining preprocessing steps (starting from index 1)
+                        for (size_t i = 1; i < preprocessAlgos.size(); ++i) {
+                            auto* algo = preprocessAlgos[i]; // Spectrum
+                            std::string inputName = preprocessOutputNames[i-1]; // "Windowing"
+                            std::vector<essentia::Real>& output = preprocessOutputs[i];
+
+                            // Check if the input key exists in the pool
+                            auto descriptors = framePool.descriptorNames();
+                            if (std::find(descriptors.begin(), descriptors.end(), inputName) == descriptors.end()) {
+                                LOGE("Input '%s' not found in pool for preprocessing step %zu",
+                                     inputName.c_str(), i);
+                                // Clean up resources
+                                for (auto* algo : preprocessAlgos) delete algo;
+                                for (auto* algo : featureAlgos) delete algo;
+                                return createErrorResponse("Input '" + inputName + "' not found in pool", "POOL_ERROR");
+                            }
+
+                            // Retrieve the input from the pool
+                            const auto& input = framePool.value<std::vector<essentia::Real>>(inputName);
+                            LOGI("Using input '%s' (size: %zu) for preprocessing step %zu",
+                                 inputName.c_str(), input.size(), i);
+
+                            // Find the correct input port name for the algorithm
+                            std::string inputPortName = "frame";
+                            if (inputName == "Spectrum" || inputName == "spectrum") {
+                                inputPortName = "spectrum";
+                            }
+
+                            algo->input(inputPortName).set(input);
+                            algo->output(primaryOutputs.count(preprocessOutputNames[i]) ?
+                                       primaryOutputs.at(preprocessOutputNames[i]) :
+                                       preprocessOutputNames[i]).set(output);
+
+                            // Compute algorithm
+                            algo->compute();
+
+                            // Use set instead of add for storing the result in the pool
+                            framePool.set(preprocessOutputNames[i], output);
+                            LOGI("Set '%s' in pool (size: %zu)",
+                                 preprocessOutputNames[i].c_str(), output.size());
+                        }
+                    }
+                    else if (featureAlgos.size() > 0) {
+                        // If there are no preprocessing steps but we have feature algorithms,
+                        // add the frame directly to the pool for feature extraction
+                        framePool.add("frame", frame);
+                        LOGI("No preprocessing steps, added frame directly to pool for feature extraction");
                     }
 
                     // Compute features
                     for (size_t i = 0; i < featureAlgos.size(); ++i) {
                         auto* algo = featureAlgos[i];
                         std::string inputName = featureInputs[i];
-                        std::vector<essentia::Real>& output = featureOutputs[i];
+                        std::string featureName = featureNames[i];
+                        std::string outputName = featureOutputNames[i];
 
-                        // Get the correct input data from the pool
-                        if (!framePool.contains<std::vector<essentia::Real>>(inputName)) {
-                            LOGW("Input '%s' for feature '%s' not found in pool, skipping",
-                                 inputName.c_str(), featureNames[i].c_str());
+                        // Special case: if the input is "frame" and we have no preprocessing steps,
+                        // use the frame directly
+                        if (inputName == "frame" && preprocessAlgos.empty()) {
+                            LOGI("Using frame directly for feature '%s'", featureNames[i].c_str());
+                            algo->input("frame").set(frame);
+                        }
+                        else {
+                            // Get the correct input data from the pool
+                            if (!framePool.contains<std::vector<essentia::Real>>(inputName)) {
+                                LOGW("Input '%s' for feature '%s' not found in pool, skipping",
+                                     inputName.c_str(), featureNames[i].c_str());
+                                continue;
+                            }
+
+                            // Connect input and output
+                            const std::vector<essentia::Real>& input = framePool.value<std::vector<essentia::Real>>(inputName);
+                            LOGI("Using input '%s' (size: %zu) for feature '%s'",
+                                 inputName.c_str(), input.size(), featureNames[i].c_str());
+
+                            // Dynamically determine the input port name
+                            std::string inputPortName;
+                            auto inputs = algo->inputs();
+
+                            // Check if the algorithm has a "spectrum" input and the input is from Spectrum
+                            bool hasSpectrumInput = false;
+                            for (const auto& input : inputs) {
+                                if (input.first == "spectrum") {
+                                    hasSpectrumInput = true;
+                                    break;
+                                }
+                            }
+
+                            if (hasSpectrumInput && (inputName == "Spectrum" || inputName == "spectrum")) {
+                                inputPortName = "spectrum";
+                            }
+                            // Check for other common input names
+                            else {
+                                bool hasArrayInput = false;
+                                bool hasSignalInput = false;
+
+                                for (const auto& input : inputs) {
+                                    if (input.first == "array") {
+                                        hasArrayInput = true;
+                                    }
+                                    else if (input.first == "signal") {
+                                        hasSignalInput = true;
+                                    }
+                                }
+
+                                if (hasArrayInput) {
+                                    inputPortName = "array";
+                                }
+                                else if (hasSignalInput) {
+                                    inputPortName = "signal";
+                                }
+                                else if (!inputs.empty()) {
+                                    // Use the first available input name as fallback
+                                    inputPortName = inputs.begin()->first;
+                                }
+                                else {
+                                    LOGE("Algorithm '%s' has no inputs", featureName.c_str());
+                                    // Clean up resources
+                                    for (auto* algo : preprocessAlgos) delete algo;
+                                    for (auto* algo : featureAlgos) delete algo;
+                                    return createErrorResponse(std::string("Algorithm '") + featureName +
+                                                              "' has no inputs", "ALGORITHM_ERROR");
+                                }
+                            }
+
+                            LOGI("Using input port '%s' for algorithm '%s'",
+                                 inputPortName.c_str(), featureName.c_str());
+                            algo->input(inputPortName).set(input);
+                        }
+
+                        // Special handling for PitchYinFFT algorithm which has two outputs that must be bound
+                        if (featureName == "PitchYinFFT") {
+                            // Declare variables for both outputs
+                            essentia::Real pitchOutput;
+                            essentia::Real confidenceOutput;
+
+                            // Bind both outputs
+                            algo->output("pitch").set(pitchOutput);
+                            algo->output("pitchConfidence").set(confidenceOutput);
+
+                            // Compute algorithm
+                            algo->compute();
+
+                            // Store both outputs in the collectors
+                            if (featureCollectors.find(featureName) == featureCollectors.end()) {
+                                featureCollectors[featureName] = std::vector<std::vector<essentia::Real>>();
+                            }
+                            // Store pitch and confidence as a vector for each frame
+                            featureCollectors[featureName].push_back({pitchOutput, confidenceOutput});
+
+                            LOGI("Added feature '%s' output (pitch: %f, confidence: %f) to collectors",
+                                 featureName.c_str(), pitchOutput, confidenceOutput);
+
+                            // Skip the standard output processing
                             continue;
                         }
 
-                        // Connect input and output
-                        const std::vector<essentia::Real>& input = framePool.value<std::vector<essentia::Real>>(inputName);
+                        // Determine the output type
+                        const essentia::standard::OutputBase& outputBase = algo->output(outputName);
+                        std::string outputType = outputBase.typeInfo().name();
 
-                        // Get the appropriate input port name - typically "spectrum" for spectral features
-                        std::string inputPortName = "frame";
-                        if (inputName == "Spectrum" || inputName == "spectrum") {
-                            inputPortName = "spectrum";
+                        LOGI("Output type for feature '%s': %s", featureName.c_str(), outputType.c_str());
+
+                        if (outputType.find("vector") != std::string::npos) {
+                            // Vector output (e.g., MelBands)
+                            if (featureName == "MFCC") {
+                                // Special handling for MFCC which has two outputs
+                                std::vector<essentia::Real> mfccOutput;
+                                std::vector<essentia::Real> bandsOutput;
+
+                                // Set both outputs
+                                algo->output("mfcc").set(mfccOutput);
+                                algo->output("bands").set(bandsOutput);
+
+                                // Compute algorithm
+                                algo->compute();
+
+                                // Store both outputs in the collectors
+                                if (featureCollectors.find(featureName) == featureCollectors.end()) {
+                                    featureCollectors[featureName] = std::vector<std::vector<essentia::Real>>();
+                                }
+                                featureCollectors[featureName].push_back(mfccOutput);
+
+                                // Also store the bands output with a different key
+                                if (featureCollectors.find(featureName + "_bands") == featureCollectors.end()) {
+                                    featureCollectors[featureName + "_bands"] = std::vector<std::vector<essentia::Real>>();
+                                }
+                                featureCollectors[featureName + "_bands"].push_back(bandsOutput);
+
+                                LOGI("Added feature '%s' output (size: %zu) and bands (size: %zu) to collectors",
+                                     featureName.c_str(), mfccOutput.size(), bandsOutput.size());
+                            }
+                            else if (featureName == "SpectralContrast") {
+                                // Special handling for SpectralContrast which also has two outputs
+                                std::vector<essentia::Real> contrastOutput;
+                                std::vector<essentia::Real> valleyOutput;
+
+                                // Set both outputs
+                                algo->output("spectralContrast").set(contrastOutput);
+                                algo->output("spectralValley").set(valleyOutput);
+
+                                // Compute algorithm
+                                algo->compute();
+
+                                // Store both outputs in the collectors
+                                if (featureCollectors.find(featureName) == featureCollectors.end()) {
+                                    featureCollectors[featureName] = std::vector<std::vector<essentia::Real>>();
+                                }
+                                featureCollectors[featureName].push_back(contrastOutput);
+
+                                // Also store the valley output with a different key
+                                if (featureCollectors.find(featureName + "_valley") == featureCollectors.end()) {
+                                    featureCollectors[featureName + "_valley"] = std::vector<std::vector<essentia::Real>>();
+                                }
+                                featureCollectors[featureName + "_valley"].push_back(valleyOutput);
+
+                                LOGI("Added feature '%s' output (size: %zu) and valley (size: %zu) to collectors",
+                                     featureName.c_str(), contrastOutput.size(), valleyOutput.size());
+                            }
+                            else {
+                                // Standard vector output
+                                std::vector<essentia::Real> vectorOutput;
+                                algo->output(outputName).set(vectorOutput);
+                                algo->compute();
+
+                                // Store vector output
+                                if (featureCollectors.find(featureName) == featureCollectors.end()) {
+                                    featureCollectors[featureName] = std::vector<std::vector<essentia::Real>>();
+                                }
+                                featureCollectors[featureName].push_back(vectorOutput);
+                                LOGI("Added vector feature '%s' output (size: %zu) to collectors",
+                                     featureName.c_str(), vectorOutput.size());
+                            }
                         }
+                        else if (outputType.find("Real") != std::string::npos || outputType == "f") {
+                            // Scalar output (e.g., Centroid)
+                            essentia::Real scalarOutput;
+                            algo->output(outputName).set(scalarOutput);
+                            algo->compute();
 
-                        algo->input(inputPortName).set(input);
-                        algo->output(featureOutputNames[i]).set(output);
-
-                        // Compute algorithm
-                        algo->compute();
-
-                        // Store output for this frame
-                        if (featureCollectors.find(featureNames[i]) == featureCollectors.end()) {
-                            featureCollectors[featureNames[i]] = std::vector<std::vector<essentia::Real>>();
+                            // Store scalar output for this frame
+                            if (featureCollectors.find(featureName) == featureCollectors.end()) {
+                                featureCollectors[featureName] = std::vector<std::vector<essentia::Real>>();
+                            }
+                            // Wrap scalar in a vector for consistency
+                            featureCollectors[featureName].push_back({scalarOutput});
+                            LOGI("Added scalar feature '%s' output: %f to collectors",
+                                 featureName.c_str(), scalarOutput);
                         }
-                        featureCollectors[featureNames[i]].push_back(output);
+                        else {
+                            LOGE("Unsupported output type for feature '%s': %s",
+                                 featureName.c_str(), outputType.c_str());
+                            continue; // Skip unsupported types
+                        }
                     }
                 }
 
@@ -1439,23 +1703,86 @@ public:
                     // Skip features that weren't computed successfully
                     if (outputs.empty()) continue;
 
-                    if (featureUseMean[i]) {
-                        // Compute mean across frames
-                        std::vector<essentia::Real> meanOutput(outputs[0].size(), 0.0);
+                    size_t numFrames = outputs.size();
+                    size_t featureSize = outputs[0].size();
+
+                    if (featureSize == 1) {
+                        // Scalar feature (e.g., Centroid, ZeroCrossingRate)
+                        std::vector<essentia::Real> allValues;
                         for (const auto& frameOutput : outputs) {
-                            for (size_t j = 0; j < frameOutput.size(); ++j) {
-                                meanOutput[j] += frameOutput[j];
+                            allValues.push_back(frameOutput[0]); // Extract the scalar value
+                        }
+
+                        if (featureUseMean[i]) {
+                            // Compute scalar mean
+                            essentia::Real mean = 0.0;
+                            for (const auto& val : allValues) {
+                                mean += val;
+                            }
+                            mean /= allValues.size();
+
+                            finalPool.set(name + ".mean", mean); // Store as a single Real value
+                            LOGI("Stored scalar mean for '%s': %f", name.c_str(), mean);
+                        }
+
+                        if (featureUseVariance[i]) {
+                            // Compute scalar variance
+                            essentia::Real mean = 0.0;
+                            for (const auto& val : allValues) {
+                                mean += val;
+                            }
+                            mean /= allValues.size();
+
+                            essentia::Real variance = 0.0;
+                            for (const auto& val : allValues) {
+                                essentia::Real diff = val - mean;
+                                variance += diff * diff;
+                            }
+                            variance /= allValues.size();
+
+                            finalPool.set(name + ".variance", variance); // Store as a single Real value
+                            LOGI("Stored scalar variance for '%s': %f", name.c_str(), variance);
+                        }
+                    } else {
+                        // Vector feature (e.g., MFCC, MelBands)
+                        // Compute mean
+                        std::vector<essentia::Real> mean(featureSize, 0.0);
+                        if (featureUseMean[i] || featureUseVariance[i]) { // Mean is needed for variance too
+                            for (const auto& frameOutput : outputs) {
+                                for (size_t j = 0; j < featureSize; ++j) {
+                                    mean[j] += frameOutput[j];
+                                }
+                            }
+                            for (auto& val : mean) {
+                                val /= numFrames;
+                            }
+                            if (featureUseMean[i]) {
+                                // Fix: use set instead of add for vector means
+                                finalPool.set(name + ".mean", mean);
+                                LOGI("Stored vector mean for '%s' (size: %zu)", name.c_str(), mean.size());
                             }
                         }
 
-                        // Divide by frame count
-                        for (auto& val : meanOutput) {
-                            val /= outputs.size();
+                        // Compute variance
+                        if (featureUseVariance[i]) {
+                            std::vector<essentia::Real> variance(featureSize, 0.0);
+                            for (const auto& frameOutput : outputs) {
+                                for (size_t j = 0; j < featureSize; ++j) {
+                                    essentia::Real diff = frameOutput[j] - mean[j];
+                                    variance[j] += diff * diff;
+                                }
+                            }
+                            for (auto& val : variance) {
+                                val /= numFrames;
+                            }
+                            // Fix: use set instead of add for vector variance
+                            finalPool.set(name + ".variance", variance);
+                            LOGI("Stored vector variance for '%s' (size: %zu)", name.c_str(), variance.size());
                         }
+                    }
 
-                        finalPool.add(name, meanOutput);
-                    } else {
-                        // Store all frame data
+                    // If neither mean nor variance is requested, store raw frame data
+                    if (!featureUseMean[i] && !featureUseVariance[i]) {
                         for (const auto& frameOutput : outputs) {
                             finalPool.add(name, frameOutput);
                         }
@@ -1614,14 +1941,27 @@ public:
                 if (config["postProcess"].contains("concatenate") &&
                     config["postProcess"]["concatenate"].get<bool>()) {
 
-                    // Concatenate all feature vectors
+                    // Concatenate all feature vectors and scalars
                     std::vector<essentia::Real> concatenated;
                     for (const auto& descName : finalPool.descriptorNames()) {
-                        const auto& values = finalPool.value<std::vector<essentia::Real>>(descName);
-                        concatenated.insert(concatenated.end(), values.begin(), values.end());
+                        if (finalPool.contains<std::vector<essentia::Real>>(descName)) {
+                            // Vector descriptor
+                            const auto& values = finalPool.value<std::vector<essentia::Real>>(descName);
+                            concatenated.insert(concatenated.end(), values.begin(), values.end());
+                            LOGI("Concatenated vector '%s' (size: %zu)", descName.c_str(), values.size());
+                        } else if (finalPool.contains<essentia::Real>(descName)) {
+                            // Scalar descriptor
+                            essentia::Real value = finalPool.value<essentia::Real>(descName);
+                            concatenated.push_back(value);
+                            LOGI("Concatenated scalar '%s' (value: %f)", descName.c_str(), value);
+                        } else {
+                            // Skip unsupported types
+                            LOGW("Ignoring descriptor '%s' of unsupported type for concatenation", descName.c_str());
+                        }
                     }
 
                     finalPool.add("concatenatedFeatures", concatenated);
+                    LOGI("Stored concatenatedFeatures (total size: %zu)", concatenated.size());
                 }
 
                 // Add more post-processing options as needed
@@ -1631,8 +1971,26 @@ public:
             json result;
             for (const auto& descName : finalPool.descriptorNames()) {
                 try {
-                    const auto& values = finalPool.value<std::vector<essentia::Real>>(descName);
-                    result[descName] = values;
+                    // Check if this is a scalar (Real) value first
+                    if (finalPool.contains<essentia::Real>(descName)) {
+                        // For scalar values, directly store in the result
+                        result[descName] = finalPool.value<essentia::Real>(descName);
+                        LOGI("Added scalar value '%s' to result", descName.c_str());
+                    }
+                    // If not scalar, try vector type
+                    else if (finalPool.contains<std::vector<essentia::Real>>(descName)) {
+                        const auto& values = finalPool.value<std::vector<essentia::Real>>(descName);
+                        result[descName] = values;
+                        LOGI("Added vector '%s' to result (size: %zu)", descName.c_str(), values.size());
+                    }
+                    // Handle other types (strings, etc.) if needed
+                    else if (finalPool.contains<std::string>(descName)) {
+                        result[descName] = finalPool.value<std::string>(descName);
+                        LOGI("Added string '%s' to result", descName.c_str());
+                    }
+                    else {
+                        LOGW("Unknown type for descriptor '%s', skipping", descName.c_str());
+                    }
                 } catch (const std::exception& e) {
                     LOGW("Failed to convert descriptor '%s' to JSON: %s", descName.c_str(), e.what());
                     // Skip descriptors that can't be converted
@@ -1937,4 +2295,5 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     // If everything went well, return the JNI version
     return JNI_VERSION_1_6;
 }
+
 
