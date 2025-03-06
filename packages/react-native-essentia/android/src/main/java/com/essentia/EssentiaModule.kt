@@ -8,9 +8,13 @@ import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.WritableArray
 import java.util.concurrent.Executors
 import java.util.concurrent.ExecutorService
 import android.util.Log
+import org.json.JSONObject
+import org.json.JSONArray
+import org.json.JSONException
 
 class EssentiaModule(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
@@ -108,6 +112,72 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   }
 
   /**
+   * Converts a JSON string to a WritableMap that can be sent to JavaScript
+   */
+  private fun convertJsonToWritableMap(jsonString: String): WritableMap {
+    try {
+      val jsonObject = JSONObject(jsonString)
+      return convertJsonObjectToWritableMap(jsonObject)
+    } catch (e: JSONException) {
+      Log.e("EssentiaModule", "Error parsing JSON: ${e.message}", e)
+      val errorMap = Arguments.createMap()
+      errorMap.putBoolean("success", false)
+      errorMap.putString("error", "Failed to parse JSON result: ${e.message}")
+      return errorMap
+    }
+  }
+
+  /**
+   * Recursively converts a JSONObject to a WritableMap
+   */
+  private fun convertJsonObjectToWritableMap(jsonObject: JSONObject): WritableMap {
+    val map = Arguments.createMap()
+    val keys = jsonObject.keys()
+
+    while (keys.hasNext()) {
+      val key = keys.next()
+      val value = jsonObject.get(key)
+
+      when (value) {
+        is JSONObject -> map.putMap(key, convertJsonObjectToWritableMap(value))
+        is JSONArray -> map.putArray(key, convertJsonArrayToWritableArray(value))
+        is Boolean -> map.putBoolean(key, value)
+        is Int -> map.putInt(key, value)
+        is Double -> map.putDouble(key, value)
+        is Long -> map.putDouble(key, value.toDouble())
+        is String -> map.putString(key, value)
+        else -> map.putString(key, value.toString())
+      }
+    }
+
+    return map
+  }
+
+  /**
+   * Recursively converts a JSONArray to a WritableArray
+   */
+  private fun convertJsonArrayToWritableArray(jsonArray: JSONArray): WritableArray {
+    val array = Arguments.createArray()
+
+    for (i in 0 until jsonArray.length()) {
+      val value = jsonArray.get(i)
+
+      when (value) {
+        is JSONObject -> array.pushMap(convertJsonObjectToWritableMap(value))
+        is JSONArray -> array.pushArray(convertJsonArrayToWritableArray(value))
+        is Boolean -> array.pushBoolean(value)
+        is Int -> array.pushInt(value)
+        is Double -> array.pushDouble(value)
+        is Long -> array.pushDouble(value.toDouble())
+        is String -> array.pushString(value)
+        else -> array.pushString(value.toString())
+      }
+    }
+
+    return array
+  }
+
+  /**
    * Executes a specified Essentia algorithm on the set audio data, using provided parameters.
    * @param algorithm Name of the Essentia algorithm (e.g., "MFCC", "Spectrum", "Key")
    * @param params An object containing key-value pairs for algorithm configuration
@@ -124,24 +194,21 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       executor.execute {
         // Convert params to JSON string
         val paramsJson = params.toString()
-        val result = executeEssentiaAlgorithm(algorithm, paramsJson)
 
-        // Convert result string back to a map and resolve
-        val resultMap = parseJsonToMap(result)
+        // Execute the algorithm and get the JSON result
+        val resultJsonString = executeEssentiaAlgorithm(algorithm, paramsJson)
+        Log.d("EssentiaModule", "Raw result from C++: $resultJsonString")
+
+        // Convert the JSON string to a WritableMap
+        val resultMap = convertJsonToWritableMap(resultJsonString)
+
+        // Resolve the promise with the properly structured map
         promise.resolve(resultMap)
       }
     } catch (e: Exception) {
+      Log.e("EssentiaModule", "Error executing algorithm: ${e.message}", e)
       promise.reject("ESSENTIA_ALGORITHM_ERROR", "Failed to execute algorithm: ${e.message}")
     }
-  }
-
-  // Helper function to parse JSON to WritableMap
-  private fun parseJsonToMap(jsonStr: String): WritableMap {
-    // This is a placeholder - implement actual JSON parsing
-    // For a real implementation, use a JSON library like Gson or Moshi
-    val map = Arguments.createMap()
-    map.putString("result", jsonStr)
-    return map
   }
 
   override fun onCatalystInstanceDestroy() {

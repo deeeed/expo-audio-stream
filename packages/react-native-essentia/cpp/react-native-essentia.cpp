@@ -205,7 +205,7 @@ Java_com_essentia_EssentiaModule_executeEssentiaAlgorithm(JNIEnv *env, jobject t
         // Convert results to JSON
         std::string resultJson = poolToJson(pool);
 
-        // Return success with results
+        // Return success with results - DIRECTLY return the data JSON without nesting
         return env->NewStringUTF(("{\"success\":true,\"data\":" + resultJson + "}").c_str());
     } catch (const std::exception& e) {
         std::string errorMsg = std::string("Error executing algorithm: ") + e.what();
