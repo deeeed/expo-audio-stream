@@ -59,6 +59,19 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   private external fun nativeGetAllAlgorithms(handle: Long): String
   private external fun nativeExtractFeatures(handle: Long, featuresJson: String): String
   private external fun getVersion(): String
+  private external fun nativeComputeMelSpectrogram(
+    handle: Long,
+    frameSize: Int,
+    hopSize: Int,
+    nMels: Int,
+    fMin: Float,
+    fMax: Float,
+    windowType: String,
+    normalize: Boolean,
+    logScale: Boolean
+  ): String
+  private external fun nativeExecutePipeline(handle: Long, pipelineJson: String): String
+  private external fun nativeComputeSpectrum(handle: Long, frameSize: Int, hopSize: Int): Boolean
 
   /**
    * Helper method to ensure Essentia is initialized
@@ -118,6 +131,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun initialize(promise: Promise) {
+    Log.d("EssentiaModule", "Entering initialize method")
     try {
       Log.d("EssentiaModule", "Starting initialization")
       executor.execute {
@@ -173,6 +187,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun setAudioData(pcmArray: ReadableArray, sampleRate: Double, promise: Promise) {
+    Log.d("EssentiaModule", "Entering setAudioData with pcmArray size: ${pcmArray.size()}, sampleRate: $sampleRate")
     ensureInitialized(promise) {
       // Validate inputs
       if (pcmArray.size() == 0) {
@@ -336,6 +351,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun executeAlgorithm(algorithm: String, params: ReadableMap, promise: Promise) {
+    Log.d("EssentiaModule", "Entering executeAlgorithm with algorithm: $algorithm")
     ensureInitialized(promise) {
       // Validate inputs
       if (algorithm.isEmpty()) {
@@ -378,6 +394,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun testConnection(promise: Promise) {
+    Log.d("EssentiaModule", "Entering testConnection method")
     try {
       Log.d("EssentiaModule", "Testing JNI connection")
       executor.execute {
@@ -405,6 +422,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun getAlgorithmInfo(algorithm: String, promise: Promise) {
+    Log.d("EssentiaModule", "Entering getAlgorithmInfo for algorithm: $algorithm")
     ensureInitialized(promise) {
       // Validate inputs
       if (algorithm.isEmpty()) {
@@ -463,6 +481,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun getAllAlgorithms(promise: Promise) {
+    Log.d("EssentiaModule", "Entering getAllAlgorithms method")
     ensureInitialized(promise) {
       // Check if we have the algorithms list in cache
       if (isCacheEnabled) {
@@ -519,6 +538,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun extractFeatures(featureList: ReadableArray, promise: Promise) {
+    Log.d("EssentiaModule", "Entering extractFeatures with featureList size: ${featureList.size()}")
     ensureInitialized(promise) {
       // Validate input
       if (featureList.size() == 0) {
@@ -655,6 +675,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun getVersion(promise: Promise) {
+    Log.d("EssentiaModule", "Entering getVersion method")
     try {
       val version = getVersion()
       promise.resolve(version)
@@ -671,6 +692,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    */
   @ReactMethod
   fun executeBatch(algorithms: ReadableArray, promise: Promise) {
+    Log.d("EssentiaModule", "Entering executeBatch with algorithms size: ${algorithms.size()}")
     ensureInitialized(promise) {
       // Validate input
       if (algorithms.size() == 0) {
@@ -740,6 +762,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun setThreadCount(count: Int, promise: Promise) {
+    Log.d("EssentiaModule", "Entering setThreadCount with count: $count")
     try {
       if (count <= 0) {
         promise.reject("INVALID_THREAD_COUNT", "Thread count must be greater than 0")
@@ -777,6 +800,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun getThreadCount(promise: Promise) {
+    Log.d("EssentiaModule", "Entering getThreadCount method")
     try {
       promise.resolve(threadCount)
     } catch (e: Exception) {
@@ -793,6 +817,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun setCacheEnabled(enabled: Boolean, promise: Promise) {
+    Log.d("EssentiaModule", "Entering setCacheEnabled with enabled: $enabled")
     try {
       synchronized(algorithmInfoCache) {
         isCacheEnabled = enabled
@@ -815,6 +840,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun isCacheEnabled(promise: Promise) {
+    Log.d("EssentiaModule", "Entering isCacheEnabled method")
     try {
       promise.resolve(isCacheEnabled)
     } catch (e: Exception) {
@@ -830,6 +856,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun clearCache(promise: Promise) {
+    Log.d("EssentiaModule", "Entering clearCache method")
     try {
       clearCache()
       promise.resolve(true)
@@ -847,6 +874,154 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       algorithmInfoCache.clear()
       allAlgorithmsCache = null
       Log.d("EssentiaModule", "Algorithm information cache cleared")
+    }
+  }
+
+  /**
+   * Computes a mel spectrogram directly from the loaded audio data
+   * @param frameSize Size of each frame in samples
+   * @param hopSize Hop size between frames in samples
+   * @param nMels Number of mel bands
+   * @param fMin Minimum frequency for mel bands
+   * @param fMax Maximum frequency for mel bands
+   * @param windowType Type of window to apply ("hann", "hamming", etc.)
+   * @param normalize Whether to normalize the mel bands
+   * @param logScale Whether to use log scale for the mel bands
+   * @param promise Promise that resolves to the mel spectrogram result
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun computeMelSpectrogram(
+    frameSize: Int,
+    hopSize: Int,
+    nMels: Int,
+    fMin: Float,
+    fMax: Float,
+    windowType: String,
+    normalize: Boolean,
+    logScale: Boolean,
+    promise: Promise
+  ) {
+    Log.d("EssentiaModule", "Entering computeMelSpectrogram with frameSize: $frameSize, hopSize: $hopSize, nMels: $nMels")
+    ensureInitialized(promise) {
+      // Validate inputs
+      if (frameSize <= 0 || hopSize <= 0 || nMels <= 0) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Frame size, hop size, and nMels must be positive")
+        return@ensureInitialized
+      }
+
+      if (fMin < 0 || fMax <= fMin) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "fMin must be non-negative and fMax must be greater than fMin")
+        return@ensureInitialized
+      }
+
+      Log.d("EssentiaModule", "Computing mel spectrogram with frame size: $frameSize, hop size: $hopSize, nMels: $nMels")
+
+      // Call the native method
+      val resultJsonString: String
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
+        }
+        resultJsonString = nativeComputeMelSpectrogram(
+          nativeHandle, frameSize, hopSize, nMels, fMin, fMax, windowType, normalize, logScale
+        )
+      }
+
+      Log.d("EssentiaModule", "Mel spectrogram computation result: ${resultJsonString.take(100)}...")
+
+      // Convert the JSON string to a WritableMap
+      val resultMap = convertJsonToWritableMap(resultJsonString)
+
+      // Check if there was an error using our helper
+      if (handleErrorInResultMap(resultMap, promise)) {
+        return@ensureInitialized
+      }
+
+      // Resolve the promise with the properly structured map
+      promise.resolve(resultMap)
+    }
+  }
+
+  /**
+   * Executes an audio processing pipeline with configurable preprocessing, feature extraction,
+   * and post-processing steps.
+   *
+   * @param pipelineJson JSON string containing pipeline configuration with preprocessing steps,
+   *                     feature extraction algorithms, and post-processing options
+   * @param promise Promise that resolves to an object containing all extracted features
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun executePipeline(pipelineJson: String, promise: Promise) {
+    Log.d("EssentiaModule", "Entering executePipeline with pipelineJson length: ${pipelineJson.length}")
+    ensureInitialized(promise) {
+      // Validate the pipeline JSON is not empty
+      if (pipelineJson.isEmpty()) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Pipeline configuration cannot be empty")
+        return@ensureInitialized
+      }
+
+      Log.d("EssentiaModule", "Executing pipeline with configuration: ${pipelineJson.take(200)}...")
+
+      // Call the native method
+      val resultJsonString: String
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
+        }
+        resultJsonString = nativeExecutePipeline(nativeHandle, pipelineJson)
+      }
+
+      Log.d("EssentiaModule", "Pipeline execution result: ${resultJsonString.take(100)}...")
+
+      // Convert the JSON string to a WritableMap
+      val resultMap = convertJsonToWritableMap(resultJsonString)
+
+      // Check if there was an error using our helper
+      if (handleErrorInResultMap(resultMap, promise)) {
+        return@ensureInitialized
+      }
+
+      // Resolve the promise with the properly structured map
+      promise.resolve(resultMap)
+    }
+  }
+
+  /**
+   * Computes the spectrum with specified frame size and hop size.
+   * This ensures spectrum has appropriate size for subsequent algorithms.
+   * @param frameSize Size of each frame in samples (should be power of 2 for efficient FFT)
+   * @param hopSize Hop size between frames in samples
+   * @param promise Promise that resolves to a boolean indicating success
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun computeSpectrum(frameSize: Int, hopSize: Int, promise: Promise) {
+    Log.d("EssentiaModule", "Entering computeSpectrum with frameSize: $frameSize, hopSize: $hopSize")
+    ensureInitialized(promise) {
+      // Validate inputs
+      if (frameSize <= 0 || hopSize <= 0) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Frame size and hop size must be positive")
+        return@ensureInitialized
+      }
+
+      Log.d("EssentiaModule", "Computing spectrum with frame size: $frameSize, hop size: $hopSize")
+
+      // Call the native method
+      val result: Boolean
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
+        }
+        result = nativeComputeSpectrum(nativeHandle, frameSize, hopSize)
+      }
+
+      Log.d("EssentiaModule", "Spectrum computation result: $result")
+      promise.resolve(result)
     }
   }
 

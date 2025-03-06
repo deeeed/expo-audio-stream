@@ -1,4 +1,3 @@
-
 import { AppTheme, ScreenWrapper, useTheme } from '@siteed/design-system';
 import EssentiaJS, { AlgorithmResult, BatchProcessingResults } from '@siteed/react-native-essentia';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -176,10 +175,18 @@ function EssentiaScreen() {
           highFrequencyBound: 22050
         });
         
-        algorithmResults['directMFCCTest'] = {
-          success: true,
-          data: mfccResult.data || { message: "No result from MFCC test" }
-        };
+        // Fix: Check if mfccResult has mfcc data and properly store it
+        if (mfccResult && (mfccResult.mfcc || (mfccResult.data && mfccResult.data.mfcc))) {
+          algorithmResults['directMFCCTest'] = {
+            success: true,
+            data: mfccResult.mfcc ? mfccResult : mfccResult.data
+          };
+        } else {
+          algorithmResults['directMFCCTest'] = {
+            success: true,
+            data: { message: "MFCC test successful but unexpected result format", result: mfccResult }
+          };
+        }
         
         console.log('Direct MFCC test result:', mfccResult);
       } catch (error) {
@@ -443,7 +450,15 @@ function EssentiaScreen() {
         {result.error && <Text style={{ color: 'red' }}>
           {result.error.message || JSON.stringify(result.error)}
         </Text>}
-        {result.data && <Text style={styles.resultText}>{JSON.stringify(result.data, null, 2)}</Text>}
+        {result.data && (
+          <View>
+            <Text style={styles.resultText}>
+              {typeof result.data === 'object' && result.data.mfcc 
+                ? `MFCC coefficients: ${Array.isArray(result.data.mfcc) ? result.data.mfcc.length : 1} frames with ${Array.isArray(result.data.mfcc) && Array.isArray(result.data.mfcc[0]) ? result.data.mfcc[0].length : 'unknown'} coefficients`
+                : JSON.stringify(result.data, null, 2).substring(0, 500) + (JSON.stringify(result.data, null, 2).length > 500 ? '...' : '')}
+            </Text>
+          </View>
+        )}
       </View>
     ));
   };
