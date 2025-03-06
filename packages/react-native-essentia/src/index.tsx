@@ -32,6 +32,8 @@ interface EssentiaInterface {
 
   // Algorithm execution
   executeAlgorithm(algorithm: string, params: AlgorithmParams): Promise<any>;
+
+  testConnection(): Promise<string>;
 }
 
 // Get the native module
@@ -102,6 +104,15 @@ class EssentiaAPI implements EssentiaInterface {
       return await Essentia.executeAlgorithm(algorithm, params);
     } catch (error) {
       console.error(`Essentia algorithm error (${algorithm}):`, error);
+      throw error;
+    }
+  }
+
+  async testConnection(): Promise<string> {
+    try {
+      return await Essentia.testConnection();
+    } catch (error) {
+      console.error('Essentia testConnection error:', error);
       throw error;
     }
   }

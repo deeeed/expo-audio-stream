@@ -20,7 +20,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
 
   private val executor: ExecutorService = Executors.newSingleThreadExecutor()
-  private var isInitialized: Boolean = false
+  private var nativeHandle: Long = 0
 
   override fun getName(): String {
     return NAME
@@ -31,14 +31,22 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     const val NAME = "Essentia"
 
     init {
-      System.loadLibrary("react-native-essentia")
+      try {
+        System.loadLibrary("react-native-essentia")
+        Log.d("EssentiaModule", "Successfully loaded native library")
+      } catch (e: Exception) {
+        Log.e("EssentiaModule", "Failed to load native library: ${e.message}", e)
+      }
     }
   }
 
   // Native methods that will be implemented in C++
-  private external fun initializeEssentia(): Boolean
-  private external fun executeEssentiaAlgorithm(algorithm: String, paramsJson: String): String
-  private external fun setAudioData(pcmData: FloatArray, sampleRate: Double): Boolean
+  private external fun nativeCreateEssentiaWrapper(): Long
+  private external fun nativeDestroyEssentiaWrapper(handle: Long)
+  private external fun nativeInitializeEssentia(handle: Long): Boolean
+  private external fun nativeSetAudioData(handle: Long, pcmData: FloatArray, sampleRate: Double): Boolean
+  private external fun nativeExecuteAlgorithm(handle: Long, algorithm: String, paramsJson: String): String
+  private external fun testJniConnection(): String
 
   /**
    * Initializes the Essentia library, preparing it for use.
@@ -47,12 +55,31 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @ReactMethod
   fun initialize(promise: Promise) {
     try {
+      Log.d("EssentiaModule", "Starting initialization")
       executor.execute {
-        val result = initializeEssentia()
-        isInitialized = result
-        promise.resolve(result)
+        try {
+          if (nativeHandle == 0L) {
+            Log.d("EssentiaModule", "Creating native wrapper")
+            nativeHandle = nativeCreateEssentiaWrapper()
+            if (nativeHandle == 0L) {
+              Log.e("EssentiaModule", "Failed to create native wrapper")
+              promise.reject("ESSENTIA_INIT_ERROR", "Failed to create Essentia wrapper")
+              return@execute
+            }
+            Log.d("EssentiaModule", "Native wrapper created: $nativeHandle")
+          }
+
+          Log.d("EssentiaModule", "Initializing Essentia with handle: $nativeHandle")
+          val result = nativeInitializeEssentia(nativeHandle)
+          Log.d("EssentiaModule", "Initialization result: $result")
+          promise.resolve(result)
+        } catch (e: Exception) {
+          Log.e("EssentiaModule", "Exception during initialization: ${e.message}", e)
+          promise.reject("ESSENTIA_INIT_ERROR", "Exception during initialization: ${e.message}")
+        }
       }
     } catch (e: Exception) {
+      Log.e("EssentiaModule", "Failed to initialize Essentia: ${e.message}", e)
       promise.reject("ESSENTIA_INIT_ERROR", "Failed to initialize Essentia: ${e.message}")
     }
   }
@@ -65,7 +92,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    */
   @ReactMethod
   fun setAudioData(pcmArray: ReadableArray, sampleRate: Double, promise: Promise) {
-    if (!isInitialized) {
+    if (nativeHandle == 0L) {
       promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
       return
     }
@@ -74,6 +101,17 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       executor.execute {
         // Log start of processing
         Log.d("EssentiaModule", "Starting to process PCM data: ${pcmArray.size()} samples at ${sampleRate}Hz")
+
+        // Validate inputs
+        if (pcmArray.size() == 0) {
+          promise.reject("ESSENTIA_INVALID_INPUT", "PCM data array is empty")
+          return@execute
+        }
+
+        if (sampleRate <= 0) {
+          promise.reject("ESSENTIA_INVALID_INPUT", "Sample rate must be positive")
+          return@execute
+        }
 
         // Convert ReadableArray to FloatArray in chunks
         val arraySize = pcmArray.size()
@@ -97,7 +135,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
         Log.d("EssentiaModule", "Successfully converted all PCM data, now sending to native code")
 
-        val result = setAudioData(pcmFloatArray, sampleRate)
+        val result = nativeSetAudioData(nativeHandle, pcmFloatArray, sampleRate)
         if (result) {
           Log.d("EssentiaModule", "Successfully set PCM audio data in native layer")
         } else {
@@ -185,18 +223,24 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    */
   @ReactMethod
   fun executeAlgorithm(algorithm: String, params: ReadableMap, promise: Promise) {
-    if (!isInitialized) {
+    if (nativeHandle == 0L) {
       promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
       return
     }
 
     try {
       executor.execute {
+        // Validate inputs
+        if (algorithm.isEmpty()) {
+          promise.reject("ESSENTIA_INVALID_INPUT", "Algorithm name cannot be empty")
+          return@execute
+        }
+
         // Convert params to JSON string
         val paramsJson = params.toString()
 
         // Execute the algorithm and get the JSON result
-        val resultJsonString = executeEssentiaAlgorithm(algorithm, paramsJson)
+        val resultJsonString = nativeExecuteAlgorithm(nativeHandle, algorithm, paramsJson)
         Log.d("EssentiaModule", "Raw result from C++: $resultJsonString")
 
         // Convert the JSON string to a WritableMap
@@ -211,8 +255,36 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  /**
+   * Simple test method to verify JNI connection is working
+   * @param promise Promise that resolves to a string message
+   */
+  @ReactMethod
+  fun testConnection(promise: Promise) {
+    try {
+      Log.d("EssentiaModule", "Testing JNI connection")
+      executor.execute {
+        try {
+          val result = testJniConnection()
+          Log.d("EssentiaModule", "Test connection result: $result")
+          promise.resolve(result)
+        } catch (e: Exception) {
+          Log.e("EssentiaModule", "Test connection failed: ${e.message}", e)
+          promise.reject("TEST_FAILED", "Test connection failed: ${e.message}")
+        }
+      }
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Test connection error: ${e.message}", e)
+      promise.reject("TEST_ERROR", "Test connection error: ${e.message}")
+    }
+  }
+
   override fun onCatalystInstanceDestroy() {
     super.onCatalystInstanceDestroy()
+    if (nativeHandle != 0L) {
+      nativeDestroyEssentiaWrapper(nativeHandle)
+      nativeHandle = 0
+    }
     executor.shutdown()
   }
 }

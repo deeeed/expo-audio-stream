@@ -94,6 +94,10 @@ function EssentiaScreen() {
   const [isExtractingMFCC, setIsExtractingMFCC] = useState<boolean>(false);
   const [mfccResult, setMfccResult] = useState<AlgorithmResult | null>(null);
 
+  // Add new state for test connection
+  const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<string | null>(null);
+
   const handleLoadSample = async (assetModule: AssetSourceType, index: number) => {
     try {
       setIsLoadingSample(true);
@@ -315,6 +319,26 @@ function EssentiaScreen() {
     );
   };
 
+  // Add a new handler for testing the connection
+  const handleTestConnection = async () => {
+    try {
+      setIsTestingConnection(true);
+      setConnectionTestResult(null);
+      
+      // Call the test connection method
+      const result = await EssentiaJS.testConnection();
+      console.log('Connection test result:', result);
+      setConnectionTestResult(result);
+    } catch (error) {
+      console.error('Connection test error:', error);
+      setConnectionTestResult(
+        `Error: ${error instanceof Error ? error.message : String(error)}`
+      );
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
   return (
     <ScreenWrapper contentContainerStyle={styles.container} withScrollView>
 
@@ -331,6 +355,15 @@ function EssentiaScreen() {
               </View>
             )}
             <View style={styles.buttonContainer}>
+              <Button
+                mode="outlined"
+                onPress={handleTestConnection}
+                loading={isTestingConnection}
+                disabled={isTestingConnection}
+                style={styles.button}
+              >
+                Test JNI Connection
+              </Button>
               <Button
                 mode="contained"
                 onPress={handleInitialize}
@@ -350,6 +383,14 @@ function EssentiaScreen() {
                 Validate Integration
               </Button>
             </View>
+            
+            {/* Display the connection test result */}
+            {connectionTestResult !== null && (
+              <View style={{ marginTop: 8, padding: 8, backgroundColor: theme.colors.surfaceVariant, borderRadius: 4 }}>
+                <Text style={{ fontWeight: 'bold' }}>Connection Test Result:</Text>
+                <Text>{connectionTestResult}</Text>
+              </View>
+            )}
           </Card.Content>
         </Card>
 
