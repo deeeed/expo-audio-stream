@@ -27,6 +27,9 @@ interface EssentiaInterface {
   // Core functionality
   initialize(): Promise<boolean>;
 
+  // Version information
+  getVersion(): Promise<string>;
+
   // Audio data handling
   setAudioData(pcmData: Float32Array, sampleRate: number): Promise<boolean>;
 
@@ -90,6 +93,19 @@ class EssentiaAPI implements EssentiaInterface {
       return await Essentia.initialize();
     } catch (error) {
       console.error('Essentia initialization error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Gets the version of the Essentia library
+   * @returns A Promise that resolves to the version string
+   */
+  async getVersion(): Promise<string> {
+    try {
+      return await Essentia.getVersion();
+    } catch (error) {
+      console.error('Essentia getVersion error:', error);
       throw error;
     }
   }

@@ -1197,6 +1197,13 @@ static jstring extractFeatures(JNIEnv* env, jobject thiz, jlong handle, jstring 
     return env->NewStringUTF(result.c_str());
 }
 
+// Add near the end, with other JNI methods
+static jstring getVersion(JNIEnv* env, jobject thiz) {
+    // Access version directly from essentia namespace
+    std::string version = essentia::version;
+    return env->NewStringUTF(version.c_str());
+}
+
 // JNI method registration
 static JNINativeMethod methods[] = {
     {"nativeCreateEssentiaWrapper", "()J", (void*)createEssentiaWrapper},
@@ -1207,7 +1214,8 @@ static JNINativeMethod methods[] = {
     {"testJniConnection", "()Ljava/lang/String;", (void*)testJniConnection},
     {"nativeGetAlgorithmInfo", "(JLjava/lang/String;)Ljava/lang/String;", (void*)getAlgorithmInfo},
     {"nativeGetAllAlgorithms", "(J)Ljava/lang/String;", (void*)getAllAlgorithms},
-    {"nativeExtractFeatures", "(JLjava/lang/String;)Ljava/lang/String;", (void*)extractFeatures}
+    {"nativeExtractFeatures", "(JLjava/lang/String;)Ljava/lang/String;", (void*)extractFeatures},
+    {"getVersion", "()Ljava/lang/String;", (void*)getVersion}
 };
 
 // Add this function to register the native methods

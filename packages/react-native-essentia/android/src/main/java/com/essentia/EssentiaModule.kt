@@ -52,6 +52,58 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   private external fun nativeGetAlgorithmInfo(handle: Long, algorithm: String): String
   private external fun nativeGetAllAlgorithms(handle: Long): String
   private external fun nativeExtractFeatures(handle: Long, featuresJson: String): String
+  private external fun getVersion(): String
+
+  /**
+   * Helper method to ensure Essentia is initialized
+   * This implements lazy initialization so users don't need to explicitly call initialize()
+   */
+  private fun ensureInitialized(promise: Promise, callback: () -> Unit) {
+    try {
+      executor.execute {
+        try {
+          synchronized(lock) {
+            if (nativeHandle == 0L) {
+              Log.d("EssentiaModule", "Lazy initialization: Creating native wrapper")
+              nativeHandle = nativeCreateEssentiaWrapper()
+              if (nativeHandle == 0L) {
+                Log.e("EssentiaModule", "Failed to create native wrapper")
+                promise.reject("ESSENTIA_INIT_ERROR", "Failed to create Essentia wrapper")
+                return@execute
+              }
+
+              Log.d("EssentiaModule", "Lazy initialization: Initializing Essentia with handle: $nativeHandle")
+              val result = nativeInitializeEssentia(nativeHandle)
+
+              if (!result) {
+                nativeDestroyEssentiaWrapper(nativeHandle)
+                nativeHandle = 0L
+                promise.reject("ESSENTIA_INIT_ERROR", "Failed to initialize Essentia")
+                return@execute
+              }
+
+              Log.d("EssentiaModule", "Lazy initialization successful")
+            }
+
+            // Now that we're initialized, execute the callback
+            callback()
+          }
+        } catch (e: Exception) {
+          Log.e("EssentiaModule", "Exception during lazy initialization: ${e.message}", e)
+          synchronized(lock) {
+            if (nativeHandle != 0L) {
+              nativeDestroyEssentiaWrapper(nativeHandle)
+              nativeHandle = 0L
+            }
+          }
+          promise.reject("ESSENTIA_INIT_ERROR", "Exception during initialization: ${e.message}")
+        }
+      }
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Failed to initialize Essentia: ${e.message}", e)
+      promise.reject("ESSENTIA_INIT_ERROR", "Failed to initialize Essentia: ${e.message}")
+    }
+  }
 
   /**
    * Initializes the Essentia library, preparing it for use.
@@ -115,85 +167,70 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun setAudioData(pcmArray: ReadableArray, sampleRate: Double, promise: Promise) {
-    synchronized(lock) {
-      if (nativeHandle == 0L) {
-        promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
-        return
+    ensureInitialized(promise) {
+      // Validate inputs
+      if (pcmArray.size() == 0) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "PCM data array is empty")
+        return@ensureInitialized
       }
-    }
 
-    try {
-      executor.execute {
-        // Log start of processing
-        Log.d("EssentiaModule", "Starting to process PCM data: ${pcmArray.size()} samples at ${sampleRate}Hz")
+      if (sampleRate <= 0) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Sample rate must be positive")
+        return@ensureInitialized
+      }
 
-        // Validate inputs
-        if (pcmArray.size() == 0) {
-          promise.reject("ESSENTIA_INVALID_INPUT", "PCM data array is empty")
-          return@execute
-        }
+      // Convert ReadableArray to FloatArray in chunks
+      val arraySize = pcmArray.size()
+      val pcmFloatArray = FloatArray(arraySize)
 
-        if (sampleRate <= 0) {
-          promise.reject("ESSENTIA_INVALID_INPUT", "Sample rate must be positive")
-          return@execute
-        }
+      // Use a reasonable chunk size to avoid stack issues
+      val chunkSize = 1000
+      var i = 0
 
-        // Convert ReadableArray to FloatArray in chunks
-        val arraySize = pcmArray.size()
-        val pcmFloatArray = FloatArray(arraySize)
+      Log.d("EssentiaModule", "Converting PCM data in chunks of $chunkSize (total: $arraySize samples)")
 
-        // Use a reasonable chunk size to avoid stack issues
-        val chunkSize = 1000
-        var i = 0
+      try {
+        while (i < arraySize) {
+          val end = kotlin.math.min(i + chunkSize, arraySize)
+          Log.d("EssentiaModule", "Processing chunk $i to $end (size: ${end - i})")
 
-        Log.d("EssentiaModule", "Converting PCM data in chunks of $chunkSize (total: $arraySize samples)")
-
-        try {
-          while (i < arraySize) {
-            val end = kotlin.math.min(i + chunkSize, arraySize)
-            Log.d("EssentiaModule", "Processing chunk $i to $end (size: ${end - i})")
-
-            for (j in i until end) {
-              // Type safety check
-              if (pcmArray.getType(j) != ReadableType.Number) {
-                promise.reject("ESSENTIA_TYPE_ERROR",
-                  "Invalid data type at index $j. Expected number, got ${pcmArray.getType(j)}")
-                return@execute
-              }
-              pcmFloatArray[j] = pcmArray.getDouble(j).toFloat()
+          for (j in i until end) {
+            // Type safety check
+            if (pcmArray.getType(j) != ReadableType.Number) {
+              promise.reject("ESSENTIA_TYPE_ERROR",
+                "Invalid data type at index $j. Expected number, got ${pcmArray.getType(j)}")
+              return@ensureInitialized
             }
-            i = end
+            pcmFloatArray[j] = pcmArray.getDouble(j).toFloat()
           }
-        } catch (e: Exception) {
-          Log.e("EssentiaModule", "Error converting PCM data: ${e.message}", e)
-          promise.reject("ESSENTIA_CONVERSION_ERROR", "Failed to convert PCM data: ${e.message}")
-          return@execute
+          i = end
         }
-
-        Log.d("EssentiaModule", "Successfully converted all PCM data, now sending to native code")
-
-        val result: Boolean
-        synchronized(lock) {
-          if (nativeHandle == 0L) {
-            promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
-            return@execute
-          }
-          result = nativeSetAudioData(nativeHandle, pcmFloatArray, sampleRate)
-        }
-
-        when (result) {
-          true -> {
-          Log.d("EssentiaModule", "Successfully set PCM audio data in native layer")
-          }
-          false -> {
-          Log.e("EssentiaModule", "Failed to set PCM audio data in native layer")
-          }
-        }
-        promise.resolve(result)
+      } catch (e: Exception) {
+        Log.e("EssentiaModule", "Error converting PCM data: ${e.message}", e)
+        promise.reject("ESSENTIA_CONVERSION_ERROR", "Failed to convert PCM data: ${e.message}")
+        return@ensureInitialized
       }
-    } catch (e: Exception) {
-      Log.e("EssentiaModule", "Error in setAudioData: ${e.message}", e)
-      promise.reject("ESSENTIA_SET_AUDIO_ERROR", "Failed to set audio data: ${e.message}")
+
+      Log.d("EssentiaModule", "Successfully converted all PCM data, now sending to native code")
+
+      val result: Boolean
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
+        }
+        result = nativeSetAudioData(nativeHandle, pcmFloatArray, sampleRate)
+      }
+
+      when (result) {
+        true -> {
+          Log.d("EssentiaModule", "Successfully set PCM audio data in native layer")
+        }
+        false -> {
+          Log.e("EssentiaModule", "Failed to set PCM audio data in native layer")
+        }
+      }
+      promise.resolve(result)
     }
   }
 
@@ -269,57 +306,45 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun executeAlgorithm(algorithm: String, params: ReadableMap, promise: Promise) {
-    synchronized(lock) {
-      if (nativeHandle == 0L) {
-        promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
-        return
+    ensureInitialized(promise) {
+      // Validate inputs
+      if (algorithm.isEmpty()) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Algorithm name cannot be empty")
+        return@ensureInitialized
       }
-    }
 
-    try {
-      executor.execute {
-        // Validate inputs
-        if (algorithm.isEmpty()) {
-          promise.reject("ESSENTIA_INVALID_INPUT", "Algorithm name cannot be empty")
-          return@execute
+      // Convert params to JSON string
+      val paramsJson = params.toString()
+
+      // Execute the algorithm and get the JSON result
+      val resultJsonString: String
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
         }
-
-        // Convert params to JSON string
-        val paramsJson = params.toString()
-
-        // Execute the algorithm and get the JSON result
-        val resultJsonString: String
-        synchronized(lock) {
-          if (nativeHandle == 0L) {
-            promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
-            return@execute
-          }
-          resultJsonString = nativeExecuteAlgorithm(nativeHandle, algorithm, paramsJson)
-        }
-
-        Log.d("EssentiaModule", "Raw result from C++: $resultJsonString")
-
-        // Convert the JSON string to a WritableMap
-        val resultMap = convertJsonToWritableMap(resultJsonString)
-
-        // Check if there was an error
-        if (resultMap.hasKey("error")) {
-          val errorMap = resultMap.getMap("error")
-          if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-            promise.reject(
-              errorMap.getString("code") ?: "UNKNOWN_ERROR",
-              errorMap.getString("message") ?: "Unknown error occurred"
-            )
-            return@execute
-          }
-        }
-
-        // Always resolves with a non-null value, so no need to check result
-        promise.resolve(resultMap)
+        resultJsonString = nativeExecuteAlgorithm(nativeHandle, algorithm, paramsJson)
       }
-    } catch (e: Exception) {
-      Log.e("EssentiaModule", "Error executing algorithm: ${e.message}", e)
-      promise.reject("ESSENTIA_ALGORITHM_ERROR", "Failed to execute algorithm: ${e.message}")
+
+      Log.d("EssentiaModule", "Raw result from C++: $resultJsonString")
+
+      // Convert the JSON string to a WritableMap
+      val resultMap = convertJsonToWritableMap(resultJsonString)
+
+      // Check if there was an error
+      if (resultMap.hasKey("error")) {
+        val errorMap = resultMap.getMap("error")
+        if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
+          promise.reject(
+            errorMap.getString("code") ?: "UNKNOWN_ERROR",
+            errorMap.getString("message") ?: "Unknown error occurred"
+          )
+          return@ensureInitialized
+        }
+      }
+
+      // Always resolves with a non-null value, so no need to check result
+      promise.resolve(resultMap)
     }
   }
 
@@ -356,54 +381,42 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun getAlgorithmInfo(algorithm: String, promise: Promise) {
-    synchronized(lock) {
-      if (nativeHandle == 0L) {
-        promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
-        return
+    ensureInitialized(promise) {
+      // Validate inputs
+      if (algorithm.isEmpty()) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Algorithm name cannot be empty")
+        return@ensureInitialized
       }
-    }
 
-    try {
-      executor.execute {
-        // Validate inputs
-        if (algorithm.isEmpty()) {
-          promise.reject("ESSENTIA_INVALID_INPUT", "Algorithm name cannot be empty")
-          return@execute
+      // Get the algorithm info
+      val resultJsonString: String
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
         }
-
-        // Get the algorithm info
-        val resultJsonString: String
-        synchronized(lock) {
-          if (nativeHandle == 0L) {
-            promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
-            return@execute
-          }
-          resultJsonString = nativeGetAlgorithmInfo(nativeHandle, algorithm)
-        }
-
-        Log.d("EssentiaModule", "Algorithm info from C++ for $algorithm: $resultJsonString")
-
-        // Convert the JSON string to a WritableMap
-        val resultMap = convertJsonToWritableMap(resultJsonString)
-
-        // Check if there was an error
-        if (resultMap.hasKey("error")) {
-          val errorMap = resultMap.getMap("error")
-          if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-            promise.reject(
-              errorMap.getString("code") ?: "UNKNOWN_ERROR",
-              errorMap.getString("message") ?: "Unknown error occurred"
-            )
-            return@execute
-          }
-        }
-
-        // Resolve the promise with the properly structured map
-        promise.resolve(resultMap)
+        resultJsonString = nativeGetAlgorithmInfo(nativeHandle, algorithm)
       }
-    } catch (e: Exception) {
-      Log.e("EssentiaModule", "Error getting algorithm info: ${e.message}", e)
-      promise.reject("ESSENTIA_ALGORITHM_ERROR", "Failed to get algorithm info: ${e.message}")
+
+      Log.d("EssentiaModule", "Algorithm info from C++ for $algorithm: $resultJsonString")
+
+      // Convert the JSON string to a WritableMap
+      val resultMap = convertJsonToWritableMap(resultJsonString)
+
+      // Check if there was an error
+      if (resultMap.hasKey("error")) {
+        val errorMap = resultMap.getMap("error")
+        if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
+          promise.reject(
+            errorMap.getString("code") ?: "UNKNOWN_ERROR",
+            errorMap.getString("message") ?: "Unknown error occurred"
+          )
+          return@ensureInitialized
+        }
+      }
+
+      // Resolve the promise with the properly structured map
+      promise.resolve(resultMap)
     }
   }
 
@@ -414,48 +427,36 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun getAllAlgorithms(promise: Promise) {
-    synchronized(lock) {
-      if (nativeHandle == 0L) {
-        promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
-        return
-      }
-    }
-
-    try {
-      executor.execute {
-        // Get all algorithms
-        val resultJsonString: String
-        synchronized(lock) {
-          if (nativeHandle == 0L) {
-            promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
-            return@execute
-          }
-          resultJsonString = nativeGetAllAlgorithms(nativeHandle)
+    ensureInitialized(promise) {
+      // Get all algorithms
+      val resultJsonString: String
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
         }
-
-        Log.d("EssentiaModule", "Algorithm list from C++: $resultJsonString")
-
-        // Convert the JSON string to a WritableMap
-        val resultMap = convertJsonToWritableMap(resultJsonString)
-
-        // Check if there was an error
-        if (resultMap.hasKey("error")) {
-          val errorMap = resultMap.getMap("error")
-          if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-            promise.reject(
-              errorMap.getString("code") ?: "UNKNOWN_ERROR",
-              errorMap.getString("message") ?: "Unknown error occurred"
-            )
-            return@execute
-          }
-        }
-
-        // Resolve the promise with the properly structured map
-        promise.resolve(resultMap)
+        resultJsonString = nativeGetAllAlgorithms(nativeHandle)
       }
-    } catch (e: Exception) {
-      Log.e("EssentiaModule", "Error getting algorithm list: ${e.message}", e)
-      promise.reject("ESSENTIA_ALGORITHM_ERROR", "Failed to get algorithm list: ${e.message}")
+
+      Log.d("EssentiaModule", "Algorithm list from C++: $resultJsonString")
+
+      // Convert the JSON string to a WritableMap
+      val resultMap = convertJsonToWritableMap(resultJsonString)
+
+      // Check if there was an error
+      if (resultMap.hasKey("error")) {
+        val errorMap = resultMap.getMap("error")
+        if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
+          promise.reject(
+            errorMap.getString("code") ?: "UNKNOWN_ERROR",
+            errorMap.getString("message") ?: "Unknown error occurred"
+          )
+          return@ensureInitialized
+        }
+      }
+
+      // Resolve the promise with the properly structured map
+      promise.resolve(resultMap)
     }
   }
 
@@ -467,76 +468,64 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   @Suppress("unused")
   @ReactMethod
   fun extractFeatures(featureList: ReadableArray, promise: Promise) {
-    synchronized(lock) {
-      if (nativeHandle == 0L) {
-        promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
-        return
+    ensureInitialized(promise) {
+      // Validate input
+      if (featureList.size() == 0) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Feature list cannot be empty")
+        return@ensureInitialized
       }
-    }
 
-    try {
-      executor.execute {
-        // Validate input
-        if (featureList.size() == 0) {
-          promise.reject("ESSENTIA_INVALID_INPUT", "Feature list cannot be empty")
-          return@execute
+      // Validate each feature has required parameters
+      for (i in 0 until featureList.size()) {
+        val feature = featureList.getMap(i) ?: run {
+          promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i is missing")
+          return@ensureInitialized
         }
 
-        // Validate each feature has required parameters
-        for (i in 0 until featureList.size()) {
-          val feature = featureList.getMap(i) ?: run {
-            promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i is missing")
-            return@execute
-          }
-
-          if (!feature.hasKey("name") || feature.getString("name").isNullOrEmpty()) {
-            promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i is missing a valid name")
-            return@execute
-          }
-
-          if (feature.hasKey("params") && feature.getType("params") != ReadableType.Map) {
-            promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i has invalid params (must be an object)")
-            return@execute
-          }
+        if (!feature.hasKey("name") || feature.getString("name").isNullOrEmpty()) {
+          promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i is missing a valid name")
+          return@ensureInitialized
         }
 
-        // Convert ReadableArray to JSON string for passing to native code
-        val featuresJson = convertReadableArrayToJson(featureList)
-        Log.d("EssentiaModule", "Extracting features with config: $featuresJson")
-
-        // Call the native method
-        val resultJsonString: String
-        synchronized(lock) {
-          if (nativeHandle == 0L) {
-            promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
-            return@execute
-          }
-          resultJsonString = nativeExtractFeatures(nativeHandle, featuresJson)
+        if (feature.hasKey("params") && feature.getType("params") != ReadableType.Map) {
+          promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i has invalid params (must be an object)")
+          return@ensureInitialized
         }
-
-        Log.d("EssentiaModule", "Feature extraction result: $resultJsonString")
-
-        // Convert the JSON string to a WritableMap
-        val resultMap = convertJsonToWritableMap(resultJsonString)
-
-        // Check if there was an error
-        if (resultMap.hasKey("error")) {
-          val errorMap = resultMap.getMap("error")
-          if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
-            promise.reject(
-              errorMap.getString("code") ?: "UNKNOWN_ERROR",
-              errorMap.getString("message") ?: "Unknown error occurred"
-            )
-            return@execute
-          }
-        }
-
-        // Resolve the promise with the properly structured map
-        promise.resolve(resultMap)
       }
-    } catch (e: Exception) {
-      Log.e("EssentiaModule", "Error extracting features: ${e.message}", e)
-      promise.reject("ESSENTIA_FEATURE_EXTRACTION_ERROR", "Failed to extract features: ${e.message}")
+
+      // Convert ReadableArray to JSON string for passing to native code
+      val featuresJson = convertReadableArrayToJson(featureList)
+      Log.d("EssentiaModule", "Extracting features with config: $featuresJson")
+
+      // Call the native method
+      val resultJsonString: String
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
+        }
+        resultJsonString = nativeExtractFeatures(nativeHandle, featuresJson)
+      }
+
+      Log.d("EssentiaModule", "Feature extraction result: $resultJsonString")
+
+      // Convert the JSON string to a WritableMap
+      val resultMap = convertJsonToWritableMap(resultJsonString)
+
+      // Check if there was an error
+      if (resultMap.hasKey("error")) {
+        val errorMap = resultMap.getMap("error")
+        if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
+          promise.reject(
+            errorMap.getString("code") ?: "UNKNOWN_ERROR",
+            errorMap.getString("message") ?: "Unknown error occurred"
+          )
+          return@ensureInitialized
+        }
+      }
+
+      // Resolve the promise with the properly structured map
+      promise.resolve(resultMap)
     }
   }
 
@@ -613,6 +602,22 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     }
 
     return jsonArray
+  }
+
+  /**
+   * Gets the version of the Essentia library
+   * @param promise Promise that resolves to the version string
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun getVersion(promise: Promise) {
+    try {
+      val version = getVersion()
+      promise.resolve(version)
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Error getting version: ${e.message}", e)
+      promise.reject("ESSENTIA_VERSION_ERROR", "Failed to get Essentia version: ${e.message}")
+    }
   }
 
   override fun invalidate() {

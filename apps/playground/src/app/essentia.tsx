@@ -48,6 +48,7 @@ declare module 'react-native-essentia' {
       data?: AlgorithmInfo;
       error?: { code: string; message: string };
     }>;
+    getVersion(): Promise<string>;
   }
 }
 
@@ -157,6 +158,8 @@ function EssentiaScreen() {
   const [connectionTestResult, setConnectionTestResult] = useState<string | null>(null);
   const [isExtractingBatch, setIsExtractingBatch] = useState<boolean>(false);
   const [batchResults, setBatchResults] = useState<BatchExtractionResults | null>(null);
+  const [isGettingVersion, setIsGettingVersion] = useState<boolean>(false);
+  const [versionInfo, setVersionInfo] = useState<string | null>(null);
 
   // Toast utility function
   const showToast = (message: string) => {
@@ -504,6 +507,24 @@ function EssentiaScreen() {
     );
   };
 
+  const handleGetVersion = async () => {
+    try {
+      setIsGettingVersion(true);
+      setVersionInfo(null);
+      
+      // Call the getVersion method
+      const version = await EssentiaJS.getVersion();
+      console.log('Essentia version:', version);
+      setVersionInfo(version);
+      showToast(`Essentia version: ${version}`);
+    } catch (error) {
+      console.error('Error getting Essentia version:', error);
+      setVersionInfo(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsGettingVersion(false);
+    }
+  };
+
   return (
     <ScreenWrapper contentContainerStyle={styles.container} withScrollView>
 
@@ -547,13 +568,30 @@ function EssentiaScreen() {
               >
                 Validate Integration
               </Button>
+              <Button
+                mode="outlined"
+                onPress={handleGetVersion}
+                loading={isGettingVersion}
+                disabled={isGettingVersion}
+                style={styles.button}
+              >
+                Get Version
+              </Button>
             </View>
             
             {/* Display the connection test result */}
             {connectionTestResult !== null && (
-              <View style={{ marginTop: 8, padding: 8, backgroundColor: theme.colors.surfaceVariant, borderRadius: 4 }}>
+              <View style={styles.testResult}>
                 <Text style={{ fontWeight: 'bold' }}>Connection Test Result:</Text>
                 <Text>{connectionTestResult}</Text>
+              </View>
+            )}
+            
+            {/* Add this to display version information */}
+            {versionInfo !== null && (
+              <View style={styles.testResult}>
+                <Text style={{ fontWeight: 'bold' }}>Essentia Version:</Text>
+                <Text>{versionInfo}</Text>
               </View>
             )}
           </Card.Content>
@@ -666,6 +704,30 @@ function EssentiaScreen() {
             }}
           />
         )}
+
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text style={styles.cardTitle}>Version Information</Text>
+            <View style={styles.buttonContainer}>
+              <Button
+                mode="contained"
+                onPress={handleGetVersion}
+                loading={isGettingVersion}
+                disabled={isGettingVersion}
+                style={styles.button}
+              >
+                Get Essentia Version
+              </Button>
+            </View>
+            {versionInfo && (
+              <View style={{ marginTop: 8, padding: 8, backgroundColor: theme.colors.surfaceVariant, borderRadius: 4 }}>
+                <Text style={{ fontWeight: 'bold' }}>Essentia Version:</Text>
+                <Text>{versionInfo}</Text>
+              </View>
+            )}
+          </Card.Content>
+        </Card>
+
         <View style={{ height: 100 }} />
 
     </ScreenWrapper>
