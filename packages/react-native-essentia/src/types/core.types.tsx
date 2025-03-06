@@ -1,4 +1,6 @@
 // packages/react-native-essentia/src/types/core.ts
+import type { MelSpectrogramResult } from './results.types';
+
 export interface AlgorithmParams {
   [key: string]: string | number | boolean | number[] | string[] | undefined;
 }
@@ -28,6 +30,21 @@ export interface EssentiaInterface {
   setCacheEnabled(enabled: boolean): Promise<boolean>;
   isCacheEnabled(): Promise<boolean>;
   clearCache(): Promise<boolean>;
+
+  // New functionality
+  computeMelSpectrogram(
+    frameSize: number,
+    hopSize: number,
+    nMels: number,
+    fMin: number,
+    fMax: number,
+    windowType: string,
+    normalize: boolean,
+    logScale: boolean
+  ): Promise<MelSpectrogramResult>;
+
+  // Pipeline functionality
+  executePipeline(config: PipelineConfig): Promise<PipelineResult>;
 }
 
 // Define feature configuration interface
@@ -81,6 +98,8 @@ export interface BatchProcessingResults {
     strength?: number;
     chords?: string[];
     hpcp?: number[];
+    chroma?: number[];
+    tonnetz?: number[];
     tuningFrequency?: number;
     tuningCents?: number;
     inharmonicity?: number;
@@ -93,6 +112,7 @@ export interface BatchProcessingResults {
     confidence?: number;
     danceability?: number;
     onsets?: number[];
+    noveltyCurve?: number[];
 
     // Other core features
     energy?: number;
@@ -110,5 +130,38 @@ export interface BatchProcessingResults {
 export interface EssentiaResult<T = Record<string, unknown>> {
   success: boolean;
   data?: T;
+  error?: { code: string; message: string; details?: string };
+}
+
+// Removed MelSpectrogramResult interface - now only defined in results.types.tsx
+
+// Pipeline-related interfaces
+export interface PipelinePreprocessStep {
+  name: string;
+  params?: AlgorithmParams;
+}
+
+export interface PipelineFeatureStep {
+  name: string;
+  input: string;
+  params?: AlgorithmParams;
+  postProcess?: {
+    mean?: boolean;
+  };
+}
+
+export interface PipelinePostProcessing {
+  concatenate?: boolean;
+}
+
+export interface PipelineConfig {
+  preprocess: PipelinePreprocessStep[];
+  features: PipelineFeatureStep[];
+  postProcess?: PipelinePostProcessing;
+}
+
+export interface PipelineResult {
+  success: boolean;
+  data?: Record<string, number | number[]>;
   error?: { code: string; message: string; details?: string };
 }
