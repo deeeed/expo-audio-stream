@@ -209,9 +209,9 @@ essentia::ParameterMap convertToParameterMap(const std::map<std::string, essenti
     return parameterMap;
 }
 
-// Add a helper function for creating error JSON responses
-std::string createErrorResponse(const std::string& errorMessage) {
-    return "{\"success\":false,\"error\":\"" + errorMessage + "\"}";
+// Improved error response with code and message
+std::string createErrorResponse(const std::string& errorMessage, const std::string& errorCode = "UNKNOWN_ERROR") {
+    return "{\"success\":false,\"error\":{\"code\":\"" + errorCode + "\",\"message\":\"" + errorMessage + "\"}}";
 }
 
 // EssentiaWrapper class to encapsulate state
@@ -283,19 +283,19 @@ public:
     std::string executeAlgorithm(const std::string& algorithm, const std::string& paramsJson) {
         try {
             if (!mIsInitialized) {
-                return createErrorResponse("Essentia not initialized");
+                return createErrorResponse("Essentia not initialized", "NOT_INITIALIZED");
             }
 
             // Validate algorithm name
             if (algorithm.empty()) {
-                return createErrorResponse("Algorithm name cannot be empty");
+                return createErrorResponse("Algorithm name cannot be empty", "INVALID_ALGORITHM");
             }
 
             LOGI("Executing algorithm: %s with params: %s", algorithm.c_str(), paramsJson.c_str());
 
             // Check if we have audio data
             if (audioBuffer.empty() && algorithm != "TestAlgorithm") {
-                return createErrorResponse("No audio data loaded");
+                return createErrorResponse("No audio data loaded", "NO_AUDIO_DATA");
             }
 
             // Create algorithm factory
@@ -439,7 +439,7 @@ public:
                     return "{\"success\":true,\"data\":{\"message\":\"Algorithm executed, but full output handling not implemented yet\"}}";
                 } catch (const std::exception& e) {
                     std::string errorMsg = std::string("Unsupported algorithm or error: ") + e.what();
-                    return createErrorResponse(errorMsg);
+                    return createErrorResponse(errorMsg, "UNSUPPORTED_ALGORITHM");
                 }
             }
 
@@ -451,7 +451,7 @@ public:
         } catch (const std::exception& e) {
             std::string errorMsg = std::string("Error executing algorithm: ") + e.what();
             LOGE("%s", errorMsg.c_str());
-            return createErrorResponse(errorMsg);
+            return createErrorResponse(errorMsg, "ALGORITHM_EXECUTION_ERROR");
         }
     }
 

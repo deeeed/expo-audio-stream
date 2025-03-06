@@ -15,12 +15,14 @@ import android.util.Log
 import org.json.JSONObject
 import org.json.JSONArray
 import org.json.JSONException
+import com.facebook.react.bridge.ReadableType
 
 class EssentiaModule(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
 
   private val executor: ExecutorService = Executors.newSingleThreadExecutor()
   private var nativeHandle: Long = 0
+  private val lock = Object()
 
   override fun getName(): String {
     return NAME
@@ -58,23 +60,39 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       Log.d("EssentiaModule", "Starting initialization")
       executor.execute {
         try {
-          if (nativeHandle == 0L) {
-            Log.d("EssentiaModule", "Creating native wrapper")
-            nativeHandle = nativeCreateEssentiaWrapper()
+          synchronized(lock) {
             if (nativeHandle == 0L) {
-              Log.e("EssentiaModule", "Failed to create native wrapper")
-              promise.reject("ESSENTIA_INIT_ERROR", "Failed to create Essentia wrapper")
+              Log.d("EssentiaModule", "Creating native wrapper")
+              nativeHandle = nativeCreateEssentiaWrapper()
+              if (nativeHandle == 0L) {
+                Log.e("EssentiaModule", "Failed to create native wrapper")
+                promise.reject("ESSENTIA_INIT_ERROR", "Failed to create Essentia wrapper")
+                return@execute
+              }
+              Log.d("EssentiaModule", "Native wrapper created: $nativeHandle")
+            }
+
+            Log.d("EssentiaModule", "Initializing Essentia with handle: $nativeHandle")
+            val result = nativeInitializeEssentia(nativeHandle)
+            Log.d("EssentiaModule", "Initialization result: $result")
+
+            if (!result) {
+              nativeDestroyEssentiaWrapper(nativeHandle)
+              nativeHandle = 0L
+              promise.reject("ESSENTIA_INIT_ERROR", "Failed to initialize Essentia")
               return@execute
             }
-            Log.d("EssentiaModule", "Native wrapper created: $nativeHandle")
-          }
 
-          Log.d("EssentiaModule", "Initializing Essentia with handle: $nativeHandle")
-          val result = nativeInitializeEssentia(nativeHandle)
-          Log.d("EssentiaModule", "Initialization result: $result")
-          promise.resolve(result)
+            promise.resolve(result)
+          }
         } catch (e: Exception) {
           Log.e("EssentiaModule", "Exception during initialization: ${e.message}", e)
+          synchronized(lock) {
+            if (nativeHandle != 0L) {
+              nativeDestroyEssentiaWrapper(nativeHandle)
+              nativeHandle = 0L
+            }
+          }
           promise.reject("ESSENTIA_INIT_ERROR", "Exception during initialization: ${e.message}")
         }
       }
@@ -92,9 +110,11 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    */
   @ReactMethod
   fun setAudioData(pcmArray: ReadableArray, sampleRate: Double, promise: Promise) {
-    if (nativeHandle == 0L) {
-      promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
-      return
+    synchronized(lock) {
+      if (nativeHandle == 0L) {
+        promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
+        return
+      }
     }
 
     try {
@@ -123,19 +143,39 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
         Log.d("EssentiaModule", "Converting PCM data in chunks of $chunkSize (total: $arraySize samples)")
 
-        while (i < arraySize) {
-          val end = Math.min(i + chunkSize, arraySize)
-          Log.d("EssentiaModule", "Processing chunk $i to $end (size: ${end - i})")
+        try {
+          while (i < arraySize) {
+            val end = Math.min(i + chunkSize, arraySize)
+            Log.d("EssentiaModule", "Processing chunk $i to $end (size: ${end - i})")
 
-          for (j in i until end) {
-            pcmFloatArray[j] = pcmArray.getDouble(j).toFloat()
+            for (j in i until end) {
+              // Type safety check
+              if (pcmArray.getType(j) != ReadableType.Number) {
+                promise.reject("ESSENTIA_TYPE_ERROR",
+                  "Invalid data type at index $j. Expected number, got ${pcmArray.getType(j)}")
+                return@execute
+              }
+              pcmFloatArray[j] = pcmArray.getDouble(j).toFloat()
+            }
+            i = end
           }
-          i = end
+        } catch (e: Exception) {
+          Log.e("EssentiaModule", "Error converting PCM data: ${e.message}", e)
+          promise.reject("ESSENTIA_CONVERSION_ERROR", "Failed to convert PCM data: ${e.message}")
+          return@execute
         }
 
         Log.d("EssentiaModule", "Successfully converted all PCM data, now sending to native code")
 
-        val result = nativeSetAudioData(nativeHandle, pcmFloatArray, sampleRate)
+        val result: Boolean
+        synchronized(lock) {
+          if (nativeHandle == 0L) {
+            promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+            return@execute
+          }
+          result = nativeSetAudioData(nativeHandle, pcmFloatArray, sampleRate)
+        }
+
         if (result) {
           Log.d("EssentiaModule", "Successfully set PCM audio data in native layer")
         } else {
@@ -223,9 +263,11 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    */
   @ReactMethod
   fun executeAlgorithm(algorithm: String, params: ReadableMap, promise: Promise) {
-    if (nativeHandle == 0L) {
-      promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
-      return
+    synchronized(lock) {
+      if (nativeHandle == 0L) {
+        promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia is not initialized. Call initialize() first.")
+        return
+      }
     }
 
     try {
@@ -240,11 +282,36 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         val paramsJson = params.toString()
 
         // Execute the algorithm and get the JSON result
-        val resultJsonString = nativeExecuteAlgorithm(nativeHandle, algorithm, paramsJson)
+        val resultJsonString: String
+        synchronized(lock) {
+          if (nativeHandle == 0L) {
+            promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+            return@execute
+          }
+          resultJsonString = nativeExecuteAlgorithm(nativeHandle, algorithm, paramsJson)
+        }
+
         Log.d("EssentiaModule", "Raw result from C++: $resultJsonString")
 
         // Convert the JSON string to a WritableMap
         val resultMap = convertJsonToWritableMap(resultJsonString)
+
+        // Check if there was an error
+        if (resultMap.hasKey("success") && !resultMap.getBoolean("success")) {
+          if (resultMap.hasKey("error")) {
+            val errorMap = resultMap.getMap("error")
+            if (errorMap != null && errorMap.hasKey("code") && errorMap.hasKey("message")) {
+              promise.reject(
+                errorMap.getString("code") ?: "UNKNOWN_ERROR",
+                errorMap.getString("message") ?: "Unknown error occurred"
+              )
+              return@execute
+            }
+          }
+          // Fallback if error structure is not as expected
+          promise.reject("ESSENTIA_ALGORITHM_ERROR", "Algorithm execution failed")
+          return@execute
+        }
 
         // Resolve the promise with the properly structured map
         promise.resolve(resultMap)
@@ -281,10 +348,23 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
   override fun onCatalystInstanceDestroy() {
     super.onCatalystInstanceDestroy()
-    if (nativeHandle != 0L) {
-      nativeDestroyEssentiaWrapper(nativeHandle)
-      nativeHandle = 0
+
+    synchronized(lock) {
+      if (nativeHandle != 0L) {
+        try {
+          nativeDestroyEssentiaWrapper(nativeHandle)
+        } catch (e: Exception) {
+          Log.e("EssentiaModule", "Error destroying native wrapper: ${e.message}", e)
+        } finally {
+          nativeHandle = 0
+        }
+      }
     }
-    executor.shutdown()
+
+    try {
+      executor.shutdown()
+    } catch (e: Exception) {
+      Log.e("EssentiaModule", "Error shutting down executor: ${e.message}", e)
+    }
   }
 }
