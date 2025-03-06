@@ -1,4 +1,4 @@
-# react-native-essentia
+#  @siteed/react-native-essentia
 
 A React Native module that provides access to the [Essentia audio analysis library](https://essentia.upf.edu/) on Android devices. This module enables developers to perform advanced audio feature extraction and analysis directly within their React Native applications.
 
@@ -20,13 +20,13 @@ A React Native module that provides access to the [Essentia audio analysis libra
 Install the module using npm or yarn:
 
 ```bash
-npm install react-native-essentia
+npm install @siteed/react-native-essentia
 ```
 
 or
 
 ```bash
-yarn add react-native-essentia
+yarn add @siteed/react-native-essentia
 ```
 
 Since this module uses native code, rebuild your project after installation:
@@ -47,7 +47,7 @@ npx react-native run-android
 Here's how to initialize the module, set audio data, and extract features:
 
 ```typescript
-import Essentia from 'react-native-essentia';
+import Essentia from '@siteed/react-native-essentia';
 
 // Initialize Essentia
 await Essentia.initialize();
