@@ -1,6 +1,13 @@
 # React Native Essentia
 
-A React Native wrapper for the Essentia audio analysis library.
+A React Native wrapper for the [Essentia](https://essentia.upf.edu/) audio analysis library, providing direct access to Essentia's audio processing algorithms from JavaScript.
+
+## Features
+
+- Direct access to Essentia's audio processing algorithms
+- Process raw PCM audio data without file loading
+- Simple, Promise-based API
+- TypeScript support
 
 ## Installation
 
@@ -10,126 +17,193 @@ npm install react-native-essentia
 yarn add react-native-essentia
 ```
 
-## Features
+### iOS
 
-- Access to Essentia's powerful audio analysis algorithms from React Native
-- Support for various categories of audio features:
-  - Spectral analysis (MFCC, spectral centroid, etc.)
-  - Tonal analysis (key detection, chroma, etc.)
-  - Rhythm analysis (beat tracking, tempo, etc.)
-  - High-level audio features
-- Audio data processing with PCM arrays
-- Both high-level API and low-level access to individual algorithms
-
-## Usage
-
-```js
-import { essentiaAPI } from 'react-native-essentia';
-
-// Initialize the library
-await essentiaAPI.initialize();
-
-// Get the version
-const version = await essentiaAPI.getVersion();
-console.log(`Essentia version: ${version}`);
-
-// Example: Process PCM data for feature extraction
-const pcmData = [...]; // Your PCM audio data as a number array
-const sampleRate = 44100; // Sample rate in Hz
-
-// Convert PCM data to string format for processing
-const pcmString = JSON.stringify(pcmData);
-
-// Load the audio data
-await essentiaAPI.loadAudio(pcmString, sampleRate);
-
-// Extract features with custom parameters
-const features = await essentiaAPI.extractFeatures(pcmString, {
-  sampleRate: 44100,
-  nMfcc: 13,
-  nFft: 2048,
-  hopLength: 512,
-  winLength: 1024,
-  window: 'hann',
-  nChroma: 12,
-  nMels: 40,
-  nBands: 7,
-  fmin: 100
-});
-
-console.log('Extracted features:', features);
-```
-
-## Feature Extraction
-
-The library provides a comprehensive feature extraction API that matches the parameters used in the Python implementation:
-
-```js
-// Extract features from PCM data
-const features = await essentiaAPI.extractFeatures(pcmString, {
-  // All parameters are optional and have sensible defaults
-  sampleRate: 44100, // Sample rate of the audio
-  nMfcc: 13,        // Number of MFCC coefficients
-  nFft: 2048,       // FFT size
-  hopLength: 512,   // Hop length in samples
-  winLength: 1024,  // Window length in samples
-  window: 'hann',   // Window type (hann, hamming, blackman, etc.)
-  nChroma: 12,      // Number of chroma bins
-  nMels: 40,        // Number of mel bands
-  nBands: 7,        // Number of spectral contrast bands
-  fmin: 100         // Minimum frequency
-});
-```
-
-The returned features object contains:
-
-```js
-{
-  mfcc: [...],      // Array of MFCC coefficients (length: nMfcc)
-  mel: [...],       // Array of mel band energies (length: nMels)
-  chroma: [...],    // Array of chroma features (length: nChroma)
-  spectralContrast: [...],  // Array of spectral contrast features (length: nBands + 1)
-}
+```bash
+cd ios && pod install
 ```
 
 ## API Reference
 
-### Core Methods
+The API is designed to be minimal and focused on direct usage of Essentia algorithms with raw audio data:
 
-- `initialize()`: Initialize the Essentia library
-- `getVersion()`: Get the Essentia version
-- `listAlgorithms()`: List all available algorithms
+### `initialize(): Promise<boolean>`
 
-### Audio Processing
+Initializes the Essentia library, preparing it for use.
 
-- `loadAudio(pcmString, sampleRate)`: Load audio data for processing
-- `processAudioFrames(frameSize, hopSize)`: Process the loaded audio with the specified frame and hop sizes
+**Returns:** A Promise that resolves to `true` on success or rejects with an error if initialization fails.
 
-### Feature Extraction
+**Example:**
+```javascript
+import EssentiaJS from 'react-native-essentia';
 
-- `extractFeatures(pcmString, params)`: Extract features from PCM data with customizable parameters
+try {
+  const initialized = await EssentiaJS.initialize();
+  console.log('Essentia initialized:', initialized);
+} catch (error) {
+  console.error('Failed to initialize Essentia:', error);
+}
+```
 
-## Example
+### `setAudioData(pcmData: Float32Array, sampleRate: number): Promise<boolean>`
 
-See the [example directory](example/) for a complete sample application demonstrating how to use the feature extraction API.
+Sets the raw audio data (PCM samples) and sample rate for subsequent algorithm processing.
+
+**Parameters:**
+- `pcmData`: Float32Array of audio samples
+- `sampleRate`: Sampling rate in Hz (e.g., 44100)
+
+**Returns:** A Promise that resolves to `true` on success or rejects with an error if data cannot be set.
+
+**Example:**
+```javascript
+// Create or obtain PCM data
+const pcmData = new Float32Array([/* audio samples */]);
+const sampleRate = 44100;
+
+try {
+  const success = await EssentiaJS.setAudioData(pcmData, sampleRate);
+  console.log('Audio data set:', success);
+} catch (error) {
+  console.error('Failed to set audio data:', error);
+}
+```
+
+### `executeAlgorithm(algorithm: string, params: object): Promise<object>`
+
+Executes a specified Essentia algorithm on the set audio data, using provided parameters.
+
+**Parameters:**
+- `algorithm`: Name of the Essentia algorithm (e.g., "MFCC", "Spectrum", "Key")
+- `params`: An object containing key-value pairs for algorithm configuration
+
+**Returns:** A Promise that resolves to an object containing the algorithm's output or rejects with an error if execution fails.
+
+**Example:**
+```javascript
+try {
+  // Execute MFCC algorithm
+  const mfccResult = await EssentiaJS.executeAlgorithm("MFCC", {
+    numberCoefficients: 13,
+    numberBands: 40,
+    lowFrequencyBound: 0,
+    highFrequencyBound: 22050
+  });
+
+  console.log('MFCC coefficients:', mfccResult.data.mfcc);
+} catch (error) {
+  console.error('Failed to execute MFCC algorithm:', error);
+}
+```
+
+## Usage Examples
+
+### Extracting MFCC Features
+
+```javascript
+import EssentiaJS from 'react-native-essentia';
+
+async function extractMFCC(audioSamples, sampleRate) {
+  try {
+    // Initialize Essentia
+    await EssentiaJS.initialize();
+
+    // Set audio data
+    await EssentiaJS.setAudioData(audioSamples, sampleRate);
+
+    // Execute MFCC algorithm
+    const result = await EssentiaJS.executeAlgorithm("MFCC", {
+      numberCoefficients: 13,
+      numberBands: 40,
+      sampleRate: sampleRate
+    });
+
+    return result.data.mfcc; // Array of MFCC coefficients
+  } catch (error) {
+    console.error("Error extracting MFCC:", error);
+    throw error;
+  }
+}
+```
+
+### Computing Spectrum
+
+```javascript
+import EssentiaJS from 'react-native-essentia';
+
+async function computeSpectrum(audioSamples, sampleRate) {
+  try {
+    // Initialize Essentia
+    await EssentiaJS.initialize();
+
+    // Set audio data
+    await EssentiaJS.setAudioData(audioSamples, sampleRate);
+
+    // Execute Spectrum algorithm
+    const result = await EssentiaJS.executeAlgorithm("Spectrum", {
+      size: 2048
+    });
+
+    return result.data.spectrum; // Array of spectrum values
+  } catch (error) {
+    console.error("Error computing spectrum:", error);
+    throw error;
+  }
+}
+```
+
+### Processing Chain Example
+
+```javascript
+import EssentiaJS from 'react-native-essentia';
+
+async function processAudioChain(audioSamples, sampleRate) {
+  try {
+    // Initialize Essentia
+    await EssentiaJS.initialize();
+
+    // Set audio data
+    await EssentiaJS.setAudioData(audioSamples, sampleRate);
+
+    // 1. Compute spectrum
+    const spectrumResult = await EssentiaJS.executeAlgorithm("Spectrum", {
+      size: 2048
+    });
+
+    // 2. Use spectrum to compute MFCC
+    // Note: In a real implementation, you would need to pass the spectrum to MFCC
+    // This is a simplified example
+    const mfccResult = await EssentiaJS.executeAlgorithm("MFCC", {
+      numberCoefficients: 13,
+      numberBands: 40,
+      sampleRate: sampleRate
+    });
+
+    return {
+      spectrum: spectrumResult.data.spectrum,
+      mfcc: mfccResult.data.mfcc
+    };
+  } catch (error) {
+    console.error("Error in audio processing chain:", error);
+    throw error;
+  }
+}
+```
+
+## Supported Algorithms
+
+The wrapper supports all Essentia algorithms, but the following are specifically optimized in the current implementation:
+
+- MFCC (Mel-Frequency Cepstral Coefficients)
+- Spectrum
+
+For other algorithms, you may need to ensure the correct input/output configuration.
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Requirements
+## Acknowledgements
 
-- React Native >= 0.63.0
-- iOS 11.0+ / Android API 21+
-
-## Acknowledgments
-
-This project uses the [Essentia library](https://essentia.upf.edu/) - an open-source C++ library for audio analysis developed by the Music Technology Group at Universitat Pompeu Fabra.
-
-## Contributing
-
-See the [contributing guide](CONTRIBUTING.md) to learn how to contribute to the repository and the development workflow.
-
----
-
-Made with [create-react-native-library](https://github.com/callstack/react-native-builder-bob)
+- [Essentia](https://essentia.upf.edu/) - The open-source library for audio analysis
+- [React Native](https://reactnative.dev/) - The framework for building native apps using React
