@@ -273,7 +273,10 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
     } catch (e: JSONException) {
       Log.e("EssentiaModule", "Error parsing JSON: ${e.message}", e)
       map.putBoolean("success", false)
-      map.putString("error", "Failed to parse JSON result: ${e.message}")
+      val errorMap = Arguments.createMap()
+      errorMap.putString("code", "JSON_PARSING_ERROR")
+      errorMap.putString("message", "Failed to parse JSON result: ${e.message}")
+      map.putMap("error", errorMap)
       return map
     }
   }
@@ -329,21 +332,37 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    * Update this helper method to handle the new error structure with details
    */
   private fun handleErrorInResultMap(resultMap: WritableMap, promise: Promise): Boolean {
-    if (resultMap.hasKey("error")) {
-      val errorMap = resultMap.getMap("error")
-      if (errorMap != null) {
-        val code = errorMap.getString("code") ?: "UNKNOWN_ERROR"
-        val message = errorMap.getString("message") ?: "Unknown error occurred"
-        val details = errorMap.getString("details") ?: ""
+    if (resultMap.hasKey("success") && !resultMap.getBoolean("success")) {
+      if (resultMap.hasKey("error")) {
+        when (resultMap.getType("error")) {
+          ReadableType.Map -> {
+            val errorMap = resultMap.getMap("error")
+            if (errorMap != null) {
+              val code = errorMap.getString("code") ?: "UNKNOWN_ERROR"
+              val message = errorMap.getString("message") ?: "Unknown error occurred"
+              val details = errorMap.getString("details") ?: ""
 
-        if (details.isNotEmpty()) {
-          // If we have details, include them as the cause Exception
-          promise.reject(code, message, Exception(details))
-        } else {
-          // Otherwise, just use code and message
-          promise.reject(code, message)
+              if (details.isNotEmpty()) {
+                promise.reject(code, message, Exception(details))
+              } else {
+                promise.reject(code, message)
+              }
+            } else {
+              promise.reject("UNKNOWN_ERROR", "Error map was null")
+            }
+          }
+          ReadableType.String -> {
+            val errorMessage = resultMap.getString("error") ?: "Unknown error"
+            promise.reject("NATIVE_ERROR", errorMessage)
+          }
+          else -> {
+            promise.reject("UNKNOWN_ERROR", "Unknown error type")
+          }
         }
         return true // Indicates an error was found and handled
+      } else {
+        promise.reject("UNKNOWN_ERROR", "Native execution failed without error details")
+        return true
       }
     }
     return false // No error found
@@ -396,8 +415,14 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         return@ensureInitialized
       }
 
-      // Always resolves with a non-null value
-      promise.resolve(resultMap)
+      // Check for data field for consistent resolution
+      if (resultMap.hasKey("data")) {
+        promise.resolve(resultMap)
+      } else {
+        // Still resolve with resultMap for backward compatibility, but log a warning
+        Log.w("EssentiaModule", "Algorithm $algorithm returned success but no data field")
+        promise.resolve(resultMap)
+      }
     }
   }
 

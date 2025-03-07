@@ -185,44 +185,41 @@ std::string poolToJson(const essentia::Pool& pool) {
                 const auto& vecOfVecs = pool.value<std::vector<std::vector<essentia::Real>>>(key);
                 json framesArray = json::array();
                 for (const auto& vec : vecOfVecs) {
-                    json frameArray = json::array();
-                    for (const auto& val : vec) {
-                        frameArray.push_back(val);
-                    }
-                    framesArray.push_back(frameArray);
+                    // Directly push the vector - the JSON library will convert it automatically
+                    framesArray.push_back(vec);
                 }
                 result[key] = framesArray;
+                LOGI("Serialized %s with %zu frames", key.c_str(), vecOfVecs.size());
             }
             // Handle vector of reals case
             else if (pool.contains<std::vector<essentia::Real>>(key)) {
                 const auto& values = pool.value<std::vector<essentia::Real>>(key);
-                json array = json::array();
-                for (const auto& val : values) {
-                    array.push_back(val);
-                }
-                result[key] = array;
+                // Directly push the vector - the JSON library will convert it automatically
+                result[key] = values;
+                LOGI("Serialized %s with %zu values", key.c_str(), values.size());
             }
             // Handle single real values
             else if (pool.contains<essentia::Real>(key)) {
                 result[key] = pool.value<essentia::Real>(key);
+                LOGI("Serialized %s as single value", key.c_str());
             }
             // Handle strings and vectors of strings
             else if (pool.contains<std::string>(key)) {
                 result[key] = pool.value<std::string>(key);
+                LOGI("Serialized %s as string", key.c_str());
             }
             else if (pool.contains<std::vector<std::string>>(key)) {
                 const auto& values = pool.value<std::vector<std::string>>(key);
-                json array = json::array();
-                for (const auto& val : values) {
-                    array.push_back(val);
-                }
-                result[key] = array;
+                result[key] = values; // Direct assignment
+                LOGI("Serialized %s with %zu strings", key.c_str(), values.size());
             }
             else {
                 result[key] = "unsupported_type";
+                LOGI("Unsupported type for %s", key.c_str());
             }
         }
         catch (const std::exception& e) {
+            LOGE("Error serializing %s: %s", key.c_str(), e.what());
             result[key] = "error_reading_value";
         }
     }
@@ -480,19 +477,28 @@ public:
             int hopSize = frameSize / 2;
             if (params.count("hopSize")) hopSize = params.at("hopSize").toInt();
 
+            LOGI("Using frameSize=%d, hopSize=%d", frameSize, hopSize);
             // Filter out framewise parameter since it's not supported by all algorithms
             auto algoParams = params;
             algoParams.erase("framewise"); // Remove framewise if present
 
             if (algorithm == "MFCC") {
+                LOGI("Processing MFCC algorithm");
                 if (!spectrumComputed || allSpectra.empty()) {
                     computeSpectrum(frameSize, hopSize);
                 }
+                if (allSpectra.empty()) {
+                    LOGE("No spectrum frames computed for MFCC");
+                    return createErrorResponse("No valid spectrum frames computed", "NO_DATA");
+                }
 
                 auto mfccAlgo = essentia::standard::AlgorithmFactory::create("MFCC");
-                mfccAlgo->configure(convertToParameterMap(algoParams));
+                // Filter out "framewise" from params
+                auto mfccParams = params;
+                mfccParams.erase("framewise");
+                mfccAlgo->configure(convertToParameterMap(mfccParams));
 
-                // Always process frame-wise for consistency
+                LOGI("Processing %zu spectrum frames through MFCC", allSpectra.size());
                 std::vector<std::vector<essentia::Real>> mfccFrames;
                 std::vector<std::vector<essentia::Real>> bandsFrames;
                 for (const auto& spectrumFrame : allSpectra) {
@@ -501,39 +507,44 @@ public:
                     mfccAlgo->output("mfcc").set(mfcc);
                     mfccAlgo->output("bands").set(bands);
                     mfccAlgo->compute();
-                    mfccFrames.push_back(mfcc);
-                    bandsFrames.push_back(bands);
-                }
-                // Fix: iterate through frames and add each one individually
-                for (const auto& frame : mfccFrames) {
-                    pool.add("mfcc", frame);
-                }
-
-                for (const auto& frame : bandsFrames) {
-                    pool.add("mfcc_bands", frame);
+                    pool.add("mfcc", mfcc);
+                    pool.add("mfcc_bands", bands);
+                    LOGI("Added MFCC frame of size %zu", mfcc.size());
                 }
 
                 delete mfccAlgo;
             }
             else if (algorithm == "Key") {
+                LOGI("Processing Key algorithm");
                 if (!spectrumComputed || allSpectra.empty()) {
                     computeSpectrum(frameSize, hopSize);
+                }
+                if (allSpectra.empty()) {
+                    LOGE("No spectrum frames computed for Key");
+                    return createErrorResponse("No valid spectrum frames computed", "NO_DATA");
                 }
 
                 auto hpcpAlgo = essentia::standard::AlgorithmFactory::create("HPCP");
                 auto keyAlgo = essentia::standard::AlgorithmFactory::create("Key");
-                keyAlgo->configure(convertToParameterMap(algoParams));
+                keyAlgo->configure(convertToParameterMap(params));
 
                 // Check if we should do frame-wise processing
                 bool doFrameWise = params.count("framewise") && params.at("framewise").toBool();
+                LOGI("Key algorithm: framewise processing = %s", doFrameWise ? "true" : "false");
 
                 if (doFrameWise) {
+                    LOGI("Starting framewise Key processing");
                     // Process each frame individually and store results as sequences
                     std::vector<std::string> keyFrames;
                     std::vector<std::string> scaleFrames;
                     std::vector<essentia::Real> strengthFrames;
 
+                    int frameCount = 0;
                     for (const auto& spectrumFrame : allSpectra) {
+                        frameCount++;
+                        LOGI("Processing Key frame %d of %zu, frame size: %zu",
+                             frameCount, allSpectra.size(), spectrumFrame.size());
+
                         std::vector<essentia::Real> hpcp;
                         std::string key, scale;
                         essentia::Real strength;
@@ -541,12 +552,15 @@ public:
                         hpcpAlgo->input("spectrum").set(spectrumFrame);
                         hpcpAlgo->output("hpcp").set(hpcp);
                         hpcpAlgo->compute();
+                        LOGI("Computed HPCP for frame %d, hpcp size: %zu", frameCount, hpcp.size());
 
                         keyAlgo->input("pcp").set(hpcp);
                         keyAlgo->output("key").set(key);
                         keyAlgo->output("scale").set(scale);
                         keyAlgo->output("strength").set(strength);
                         keyAlgo->compute();
+                        LOGI("Computed Key for frame %d: key=%s, scale=%s, strength=%.4f",
+                             frameCount, key.c_str(), scale.c_str(), strength);
 
                         keyFrames.push_back(key);
                         scaleFrames.push_back(scale);
@@ -556,6 +570,7 @@ public:
                     pool.add("key_values", keyFrames);
                     pool.add("scale_values", scaleFrames);
                     pool.add("strength_values", strengthFrames);
+                    LOGI("Added %zu key frames", keyFrames.size());
                 } else {
                     // Process the average HPCP for a single result
                     std::vector<essentia::Real> averageHpcp(12, 0.0);
@@ -595,18 +610,41 @@ public:
                     pool.set("key", key);
                     pool.set("scale", scale);
                     pool.set("strength", strength);
+                    LOGI("Computed key: %s %s (strength: %f)", key.c_str(), scale.c_str(), strength);
                 }
 
                 delete hpcpAlgo;
                 delete keyAlgo;
             }
             else if (algorithm == "Tonnetz") {
+                LOGI("Processing Tonnetz algorithm");
+
+                // Validate parameters
+                if (params.count("frameSize")) {
+                    int frameSize = params.at("frameSize").toInt();
+                    if (frameSize <= 0) {
+                        LOGE("Invalid frameSize parameter: %d", frameSize);
+                        return createErrorResponse("frameSize must be positive", "INVALID_PARAM");
+                    }
+                    // Check if power of 2 for FFT efficiency
+                    if ((frameSize & (frameSize - 1)) != 0) {
+                        LOGW("frameSize should be a power of 2 for efficient FFT");
+                    }
+                }
+
+                if (params.count("hopSize")) {
+                    int hopSize = params.at("hopSize").toInt();
+                    if (hopSize <= 0) {
+                        LOGE("Invalid hopSize parameter: %d", hopSize);
+                        return createErrorResponse("hopSize must be positive", "INVALID_PARAM");
+                    }
+                }
+
                 // Check if spectrum is computed; if not, compute it
                 if (!spectrumComputed || allSpectra.empty()) {
-                    int frameSize = params.count("frameSize") ? params.at("frameSize").toInt() : 1024;
-                    int hopSize = params.count("hopSize") ? params.at("hopSize").toInt() : 512;
                     computeSpectrum(frameSize, hopSize);
                     if (allSpectra.empty()) {
+                        LOGE("No spectrum frames computed for Tonnetz");
                         return createErrorResponse("No valid spectrum frames computed from audio data", "NO_DATA");
                     }
                 }
@@ -627,7 +665,7 @@ public:
                        params.at("referenceFrequency").toReal() : 440.0f);
                 hpcpAlgo->configure(hpcpParams);
 
-                essentia::Pool pool;
+                LOGI("Processing %zu spectrum frames through Tonnetz", allSpectra.size());
 
                 // Process each spectrum frame
                 for (const auto& spectrumFrame : allSpectra) {
@@ -651,33 +689,151 @@ public:
                     // Apply Tonnetz transformation
                     std::vector<essentia::Real> tonnetz = applyTonnetzTransform(hpcp);
                     pool.add("tonnetz", tonnetz);
+                    LOGI("Added Tonnetz frame of size %zu", tonnetz.size());
                 }
 
                 // Compute mean if requested
                 bool computeMean = params.count("computeMean") && params.at("computeMean").toBool();
-                if (computeMean && !pool.value<std::vector<std::vector<essentia::Real>>>("tonnetz").empty()) {
-                    const auto& tonnetzVectors = pool.value<std::vector<std::vector<essentia::Real>>>("tonnetz");
-                    std::vector<essentia::Real> meanTonnetz(6, 0.0);
-                    for (const auto& frame : tonnetzVectors) {
-                        for (size_t i = 0; i < 6; ++i) {
-                            meanTonnetz[i] += frame[i];
+                if (computeMean) {
+                    try {
+                        const auto& tonnetzFrames = pool.value<std::vector<std::vector<essentia::Real>>>("tonnetz");
+                        if (!tonnetzFrames.empty()) {
+                            size_t frameSize = tonnetzFrames[0].size();
+                            std::vector<essentia::Real> meanTonnetz(frameSize, 0.0);
+
+                            for (const auto& frame : tonnetzFrames) {
+                                for (size_t i = 0; i < frameSize; ++i) {
+                                    meanTonnetz[i] += frame[i];
+                                }
+                            }
+
+                            for (auto& val : meanTonnetz) {
+                                val /= tonnetzFrames.size();
+                            }
+
+                            pool.set("tonnetz_mean", meanTonnetz);
+                            LOGI("Computed mean Tonnetz values");
+                        } else {
+                            LOGW("No Tonnetz frames available to compute mean");
                         }
+                    } catch (const std::exception& e) {
+                        LOGW("Could not compute mean Tonnetz: %s", e.what());
+                        // Continue execution, this is not a fatal error
                     }
-                    for (auto& val : meanTonnetz) {
-                        val /= tonnetzVectors.size();
-                    }
-                    pool.set("tonnetz_mean", meanTonnetz);
                 }
 
                 // Clean up
                 delete spectralPeaksAlgo;
                 delete hpcpAlgo;
-
-                return poolToJson(pool);
             }
-            // ... other algorithms ...
+            else if (algorithm == "Spectrum") {
+                LOGI("Processing Spectrum algorithm");
+                if (!spectrumComputed || allSpectra.empty()) {
+                    computeSpectrum(frameSize, hopSize);
+                }
+                if (allSpectra.empty()) {
+                    LOGE("No spectrum frames computed for Spectrum");
+                    return createErrorResponse("No valid spectrum frames computed", "NO_DATA");
+                }
 
-            return poolToJson(pool);
+                for (const auto& spectrumFrame : allSpectra) {
+                    pool.add("spectrum", spectrumFrame);
+                    LOGI("Added spectrum frame of size %zu", spectrumFrame.size());
+                }
+            }
+            else if (algorithm == "HPCP") {
+                LOGI("Processing HPCP algorithm");
+                if (!spectrumComputed || allSpectra.empty()) {
+                    computeSpectrum(frameSize, hopSize);
+                }
+                if (allSpectra.empty()) {
+                    LOGE("No spectrum frames computed for HPCP");
+                    return createErrorResponse("No valid spectrum frames computed", "NO_DATA");
+                }
+
+                // Create SpectralPeaks algorithm for better HPCP computation
+                auto spectralPeaksAlgo = essentia::standard::AlgorithmFactory::create("SpectralPeaks");
+                spectralPeaksAlgo->configure(
+                    "sampleRate", static_cast<float>(sampleRate),
+                    "maxPeaks", params.count("maxPeaks") ? params.at("maxPeaks").toInt() : 100,
+                    "magnitudeThreshold", params.count("magnitudeThreshold") ?
+                        params.at("magnitudeThreshold").toReal() : 0.0f
+                );
+
+                // Create HPCP algorithm
+                auto hpcpAlgo = essentia::standard::AlgorithmFactory::create("HPCP");
+                essentia::ParameterMap hpcpParams;
+                hpcpParams.add("size", params.count("size") ? params.at("size").toInt() : 12);
+                hpcpParams.add("referenceFrequency", params.count("referenceFrequency") ?
+                    params.at("referenceFrequency").toReal() : 440.0f);
+                hpcpParams.add("harmonics", params.count("harmonics") ? params.at("harmonics").toInt() : 8);
+                hpcpAlgo->configure(hpcpParams);
+
+                LOGI("Processing %zu spectrum frames through HPCP", allSpectra.size());
+
+                // Process each spectrum frame
+                for (const auto& spectrumFrame : allSpectra) {
+                    // Compute spectral peaks
+                    std::vector<essentia::Real> frequencies, magnitudes;
+                    spectralPeaksAlgo->input("spectrum").set(spectrumFrame);
+                    spectralPeaksAlgo->output("frequencies").set(frequencies);
+                    spectralPeaksAlgo->output("magnitudes").set(magnitudes);
+                    spectralPeaksAlgo->compute();
+
+                    // Compute HPCP from peaks
+                    std::vector<essentia::Real> hpcp;
+                    hpcpAlgo->input("frequencies").set(frequencies);
+                    hpcpAlgo->input("magnitudes").set(magnitudes);
+                    hpcpAlgo->output("hpcp").set(hpcp);
+                    hpcpAlgo->compute();
+
+                    pool.add("hpcp", hpcp);
+                    LOGI("Added HPCP frame of size %zu", hpcp.size());
+                }
+
+                // Compute mean if requested
+                bool computeMean = params.count("computeMean") && params.at("computeMean").toBool();
+                if (computeMean) {
+                    try {
+                        const auto& hpcpFrames = pool.value<std::vector<std::vector<essentia::Real>>>("hpcp");
+                        if (!hpcpFrames.empty()) {
+                            size_t frameSize = hpcpFrames[0].size();
+                            std::vector<essentia::Real> meanHpcp(frameSize, 0.0);
+
+                            for (const auto& frame : hpcpFrames) {
+                                for (size_t i = 0; i < frameSize; ++i) {
+                                    meanHpcp[i] += frame[i];
+                                }
+                            }
+
+                            for (auto& val : meanHpcp) {
+                                val /= hpcpFrames.size();
+                            }
+
+                            pool.set("hpcp_mean", meanHpcp);
+                            LOGI("Computed mean HPCP values");
+                        } else {
+                            LOGW("No HPCP frames available to compute mean");
+                        }
+                    } catch (const std::exception& e) {
+                        LOGW("Could not compute mean HPCP: %s", e.what());
+                        // Continue execution, this is not a fatal error
+                    }
+                }
+
+                // Clean up
+                delete spectralPeaksAlgo;
+                delete hpcpAlgo;
+            }
+            else {
+                // Fall back to dynamic algorithm handling for any other algorithm
+                LOGI("Falling back to dynamic algorithm for %s", algorithm.c_str());
+                return executeDynamicAlgorithm(algorithm, params);
+            }
+
+            // Convert the pool to JSON and wrap in success format
+            std::string dataJson = poolToJson(pool);
+            return "{\"success\":true,\"data\":" + dataJson + "}";
         } catch (const std::exception& e) {
             return createErrorResponse(e.what(), "ALGORITHM_ERROR");
         }
@@ -841,64 +997,72 @@ public:
     }
 
     // Add a method to compute and cache the spectrum
-    void computeSpectrum(int frameSize = 1024, int hopSize = 512) {
+    void computeSpectrum(int frameSize, int hopSize) {
+        LOGI("computeSpectrum called with frameSize=%d, hopSize=%d", frameSize, hopSize);
+
         if (audioBuffer.empty()) {
+            LOGE("Audio buffer is empty, cannot compute spectrum");
             return;
         }
 
-        // Create algorithms
-        essentia::standard::Algorithm* frameCutter = essentia::standard::AlgorithmFactory::create("FrameCutter",
-            "frameSize", frameSize,
-            "hopSize", hopSize);
+        LOGI("Audio buffer size: %zu, sample rate: %.1f", audioBuffer.size(), sampleRate);
 
-        essentia::standard::Algorithm* windowing = essentia::standard::AlgorithmFactory::create("Windowing",
-            "type", "hann");
-
+        essentia::standard::Algorithm* frameCutter = essentia::standard::AlgorithmFactory::create(
+            "FrameCutter", "frameSize", frameSize, "hopSize", hopSize);
+        essentia::standard::Algorithm* windowing = essentia::standard::AlgorithmFactory::create(
+            "Windowing", "type", "hann");
         essentia::standard::Algorithm* spectrum = essentia::standard::AlgorithmFactory::create("Spectrum");
 
-        // Set up connections
-        std::vector<essentia::Real> frame, windowedFrame;
-        std::vector<essentia::Real> spectrumFrame;
+        LOGI("Created algorithms: FrameCutter, Windowing, Spectrum");
 
+        std::vector<essentia::Real> frame, windowedFrame, spectrumFrame;
         frameCutter->input("signal").set(audioBuffer);
         frameCutter->output("frame").set(frame);
-
         windowing->input("frame").set(frame);
         windowing->output("frame").set(windowedFrame);
-
         spectrum->input("frame").set(windowedFrame);
         spectrum->output("spectrum").set(spectrumFrame);
 
-        // Clear previous results
+        LOGI("Connected algorithm inputs/outputs");
         allSpectra.clear();
+        LOGI("Cleared previous spectrum data");
 
-        // Process all frames
+        int frameCount = 0;
         while (true) {
-            // Compute a frame
             frameCutter->compute();
+            if (frame.empty()) {
+                LOGI("No more frames to process, breaking loop");
+                break;
+            }
 
-            // If the frame is empty (end of stream), we're done
-            if (frame.empty()) break;
+            frameCount++;
+            LOGI("Processing frame %d, size: %zu", frameCount, frame.size());
 
             windowing->compute();
-            spectrum->compute();
+            LOGI("Applied windowing, windowed frame size: %zu", windowedFrame.size());
 
-            // Store the spectrum frame
+            spectrum->compute();
+            LOGI("Computed spectrum, frame size: %zu", spectrumFrame.size());
+
             allSpectra.push_back(spectrumFrame);
         }
+
+        LOGI("Processed total of %d frames, allSpectra size: %zu", frameCount, allSpectra.size());
 
         // Keep the last spectrum for backward compatibility
         if (!allSpectra.empty()) {
             cachedSpectrum = allSpectra.back();
             spectrumComputed = true;
+            LOGI("Spectrum computation successful, cached last spectrum of size %zu", cachedSpectrum.size());
         } else {
             spectrumComputed = false;
+            LOGE("No spectrum frames were computed, marking spectrumComputed=false");
         }
 
-        // Clean up algorithms
         delete frameCutter;
         delete windowing;
         delete spectrum;
+        LOGI("Cleaned up algorithm resources");
     }
 
     // Get algorithm information
@@ -2205,7 +2369,9 @@ public:
                 }
             }
 
-            return "{\"success\":true,\"data\":" + result.dump() + "}";
+            // Convert the pool to JSON and wrap in success format
+            std::string dataJson = poolToJson(finalPool);
+            return "{\"success\":true,\"data\":" + dataJson + "}";
         }
         catch (const std::exception& e) {
             std::string errorMsg = std::string("Error executing pipeline: ") + e.what();

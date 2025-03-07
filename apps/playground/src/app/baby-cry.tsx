@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { baseLogger } from '../config';
 import { CryDetectionResult, useCryDetector } from '../hooks/useCryDetection';
 import { useSampleAudio } from '../hooks/useSampleAudio';
+import EssentiaAPI from '@siteed/react-native-essentia';
 
 const logger = baseLogger.extend('BabyCryScreen');
 
@@ -96,6 +97,13 @@ export default function BabyCryScreen() {
     manual: { avgTime: number; avgProbability: number; detectionRate: number };
     pipeline: { avgTime: number; avgProbability: number; detectionRate: number };
   } | null>(null);
+
+  // New state for Tonnetz result
+  const [tonnetzResult, setTonnetzResult] = useState<{
+    tonnetz: number[];
+    processingTimeMs: number;
+  } | null>(null);
+
 
   // Load sample audio hook
   const { loadSampleAudio } = useSampleAudio({
@@ -231,7 +239,226 @@ export default function BabyCryScreen() {
     }
   }, [loadSampleAudio, show]);
 
-  // Process audio with both methods
+    // Calculate average metrics
+    const calculateAverages = useCallback((allResults: ProcessingResult[]) => {
+      const manualResults = allResults.filter(r => r.method === 'manual' && r.result);
+      const pipelineResults = allResults.filter(r => r.method === 'pipeline' && r.result);
+      
+      if (manualResults.length === 0 || pipelineResults.length === 0) {
+        return;
+      }
+      
+      const manualAvgTime = manualResults.reduce((sum, r) => sum + r.processingTimeMs, 0) / manualResults.length;
+      const pipelineAvgTime = pipelineResults.reduce((sum, r) => sum + r.processingTimeMs, 0) / pipelineResults.length;
+      
+      const manualAvgProb = manualResults.reduce((sum, r) => sum + (r.result?.probability || 0), 0) / manualResults.length;
+      const pipelineAvgProb = pipelineResults.reduce((sum, r) => sum + (r.result?.probability || 0), 0) / pipelineResults.length;
+      
+      const manualDetectionRate = manualResults.filter(r => r.result?.isCrying).length / manualResults.length;
+      const pipelineDetectionRate = pipelineResults.filter(r => r.result?.isCrying).length / pipelineResults.length;
+      
+      setAverageResults({
+        manual: {
+          avgTime: manualAvgTime,
+          avgProbability: manualAvgProb,
+          detectionRate: manualDetectionRate,
+        },
+        pipeline: {
+          avgTime: pipelineAvgTime,
+          avgProbability: pipelineAvgProb,
+          detectionRate: pipelineDetectionRate,
+        }
+      });
+    }, []);
+
+  // Run manual detection only
+  const runManualDetection = useCallback(async () => {
+    if (!audioData) {
+      show({
+        type: 'error',
+        message: 'No audio data available',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      const timestamp = Date.now();
+      const manualStartTime = performance.now();
+      const manualResult = await detectCryManually(audioData, timestamp);
+      const manualEndTime = performance.now();
+      
+      const newResult: ProcessingResult = {
+        method: 'manual',
+        result: manualResult,
+        processingTimeMs: manualEndTime - manualStartTime,
+        error: manualResult ? undefined : 'Failed to detect cry manually',
+      };
+
+      // Update results
+      setResults(prev => [...prev, newResult]);
+      setComparisonCount(prev => prev + 1);
+      
+      // Show success message
+      show({
+        type: 'success',
+        message: 'Manual cry detection completed',
+        duration: 2000,
+      });
+      
+      // Calculate averages after adding new result
+      calculateAverages([...results, newResult]);
+    } catch (error) {
+      logger.error('Manual detection error:', error);
+      show({
+        type: 'error',
+        message: 'Error running manual detection',
+        duration: 3000,
+      });
+    }
+  }, [audioData, detectCryManually, results, show, calculateAverages]);
+
+  // Run pipeline detection only
+  const runPipelineDetection = useCallback(async () => {
+    if (!audioData) {
+      show({
+        type: 'error',
+        message: 'No audio data available',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      const timestamp = Date.now();
+      const pipelineStartTime = performance.now();
+      const pipelineResult = await detectCryWithPipeline(audioData, timestamp);
+      const pipelineEndTime = performance.now();
+      
+      const newResult: ProcessingResult = {
+        method: 'pipeline',
+        result: pipelineResult,
+        processingTimeMs: pipelineEndTime - pipelineStartTime,
+        error: pipelineResult ? undefined : 'Failed to detect cry with pipeline',
+      };
+
+      // Update results
+      setResults(prev => [...prev, newResult]);
+      setComparisonCount(prev => prev + 1);
+      
+      // Show success message
+      show({
+        type: 'success',
+        message: 'Pipeline cry detection completed',
+        duration: 2000,
+      });
+      
+      // Calculate averages after adding new result
+      calculateAverages([...results, newResult]);
+    } catch (error) {
+      logger.error('Pipeline detection error:', error);
+      show({
+        type: 'error',
+        message: 'Error running pipeline detection',
+        duration: 3000,
+      });
+    }
+  }, [audioData, detectCryWithPipeline, results, show, calculateAverages]);
+
+  
+  // Compute Tonnetz features only
+  const computeTonnetzOnly = useCallback(async () => {
+    if (!audioData) {
+      show({
+        type: 'error',
+        message: 'No audio data available',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      setIsComparing(true);
+      
+      const startTime = performance.now();
+      
+      await EssentiaAPI.setAudioData(audioData, 16000); // Use 16kHz as the sample rate
+      
+      // Frame the audio
+      const frames = await EssentiaAPI.executeAlgorithm("FrameCutter", {
+        frameSize: 400, // 25 ms at 16,000 Hz
+        hopSize: 160,   // 10 ms at 16,000 Hz
+      });
+      
+      const chromaFrames: number[][] = [];
+      const tonnetzFrames: number[][] = [];
+      
+      // Process each frame to compute chroma and tonnetz
+      for (const frame of frames.data.frame) {
+        // Windowing
+        const windowedFrame = await EssentiaAPI.executeAlgorithm("Windowing", {
+          type: "hann",
+          size: 400,
+          zeroPadding: 1024 - 400,
+          frame,
+        });
+        
+        // Spectrum
+        const spectrumResult = await EssentiaAPI.executeAlgorithm("Spectrum", {
+          size: 1024,
+          frame: windowedFrame.data.frame,
+        });
+        const spectrum = spectrumResult.data.spectrum;
+        
+        // Compute chroma
+        const chromaResult = await EssentiaAPI.executeAlgorithm("Chromagram", {
+          sampleRate: 16000,
+          numberBins: 12,
+          minFrequency: 0,
+          maxFrequency: 16000 / 2,
+          spectrum,
+        });
+        chromaFrames.push(chromaResult.data.chroma);
+        
+        // Compute Tonnetz from chroma
+        const tonnetzResult = await EssentiaAPI.executeAlgorithm("Tonnetz", {
+          pcp: chromaResult.data.chroma,
+        });
+        tonnetzFrames.push(tonnetzResult.data.tonnetz);
+      }
+      
+      // Compute mean tonnetz features
+      const meanTonnetz = tonnetzFrames.reduce((sum, frame) => {
+        return frame.map((value, i) => (sum[i] || 0) + value / tonnetzFrames.length);
+      }, [] as number[]);
+      
+      const endTime = performance.now();
+      
+      // Set result
+      setTonnetzResult({
+        tonnetz: meanTonnetz,
+        processingTimeMs: endTime - startTime,
+      });
+      
+      show({
+        type: 'success',
+        message: 'Tonnetz computation completed',
+        duration: 2000,
+      });
+    } catch (error) {
+      logger.error('Tonnetz computation error:', error);
+      show({
+        type: 'error',
+        message: 'Error computing Tonnetz features',
+        duration: 3000,
+      });
+      setTonnetzResult(null);
+    } finally {
+      setIsComparing(false);
+    }
+  }, [audioData, show]);
+
+  // Process audio with both methods (keeping the original function for backward compatibility)
   const runCryDetection = useCallback(async () => {
     if (!audioData) {
       show({
@@ -294,39 +521,9 @@ export default function BabyCryScreen() {
     } finally {
       setIsComparing(false);
     }
-  }, [audioData, detectCryManually, detectCryWithPipeline, results, show]);
+  }, [audioData, detectCryManually, detectCryWithPipeline, results, show, calculateAverages]);
 
-  // Calculate average metrics
-  const calculateAverages = useCallback((allResults: ProcessingResult[]) => {
-    const manualResults = allResults.filter(r => r.method === 'manual' && r.result);
-    const pipelineResults = allResults.filter(r => r.method === 'pipeline' && r.result);
-    
-    if (manualResults.length === 0 || pipelineResults.length === 0) {
-      return;
-    }
-    
-    const manualAvgTime = manualResults.reduce((sum, r) => sum + r.processingTimeMs, 0) / manualResults.length;
-    const pipelineAvgTime = pipelineResults.reduce((sum, r) => sum + r.processingTimeMs, 0) / pipelineResults.length;
-    
-    const manualAvgProb = manualResults.reduce((sum, r) => sum + (r.result?.probability || 0), 0) / manualResults.length;
-    const pipelineAvgProb = pipelineResults.reduce((sum, r) => sum + (r.result?.probability || 0), 0) / pipelineResults.length;
-    
-    const manualDetectionRate = manualResults.filter(r => r.result?.isCrying).length / manualResults.length;
-    const pipelineDetectionRate = pipelineResults.filter(r => r.result?.isCrying).length / pipelineResults.length;
-    
-    setAverageResults({
-      manual: {
-        avgTime: manualAvgTime,
-        avgProbability: manualAvgProb,
-        detectionRate: manualDetectionRate,
-      },
-      pipeline: {
-        avgTime: pipelineAvgTime,
-        avgProbability: pipelineAvgProb,
-        detectionRate: pipelineDetectionRate,
-      }
-    });
-  }, []);
+
 
   // Clear all results
   const clearResults = useCallback(() => {
@@ -492,6 +689,113 @@ export default function BabyCryScreen() {
     );
   }, [averageResults, comparisonCount, styles.cardTitle, styles.resultCard]);
 
+  // Render Tonnetz result
+  const renderTonnetzResult = useCallback(() => {
+    if (!tonnetzResult) {
+      return null;
+    }
+
+    return (
+      <Card style={styles.resultCard}>
+        <Card.Content>
+          <Text style={styles.cardTitle}>Tonnetz Computation Result</Text>
+          
+          <View style={{ marginTop: 8 }}>
+            <Text style={styles.metricLabel}>Processing Time: {tonnetzResult.processingTimeMs.toFixed(2)} ms</Text>
+            
+            <Text style={{ marginTop: 12, fontWeight: 'bold' }}>Tonnetz Features:</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 }}>
+              {tonnetzResult.tonnetz.map((value, index) => (
+                <Text key={index} style={{ marginRight: 8, marginBottom: 4 }}>
+                  {index}: {value.toFixed(4)}
+                </Text>
+              ))}
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
+    );
+  }, [tonnetzResult, styles]);
+
+  // Update the Card for detection controls
+  const renderDetectionControls = useCallback(() => {
+    return (
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text style={styles.cardTitle}>Detection Controls</Text>
+          
+          <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Button
+                mode="contained"
+                onPress={runCryDetection}
+                loading={isComparing || isProcessing}
+                disabled={isComparing || isProcessing || isModelLoading || !audioData}
+                icon="compare"
+                style={{ flex: 1 }}
+              >
+                Run Both
+              </Button>
+              
+              {results.length > 0 && (
+                <Button
+                  mode="outlined"
+                  onPress={clearResults}
+                  disabled={isComparing || isProcessing}
+                  icon="delete"
+                >
+                  Clear
+                </Button>
+              )}
+            </View>
+            
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Button
+                mode="outlined"
+                onPress={runManualDetection}
+                disabled={isComparing || isProcessing || isModelLoading || !audioData}
+                icon="hand-pointing-right"
+                style={{ flex: 1 }}
+              >
+                Manual Only
+              </Button>
+              
+              <Button
+                mode="outlined"
+                onPress={runPipelineDetection}
+                disabled={isComparing || isProcessing || isModelLoading || !audioData}
+                icon="pipe"
+                style={{ flex: 1 }}
+              >
+                Pipeline Only
+              </Button>
+            </View>
+            
+            <Button
+              mode="outlined"
+              onPress={computeTonnetzOnly}
+              disabled={isComparing || isProcessing || !audioData}
+              icon="waveform"
+            >
+              Compute Tonnetz Only
+            </Button>
+            
+            {!audioData && (
+              <Notice
+                type="info"
+                message="Please select an audio source before running detection"
+              />
+            )}
+          </View>
+        </Card.Content>
+      </Card>
+    );
+  }, [
+    styles, isComparing, isProcessing, isModelLoading, audioData, 
+    runCryDetection, clearResults, results.length, 
+    runManualDetection, runPipelineDetection, computeTonnetzOnly
+  ]);
+
   return (
     <ScreenWrapper 
       withScrollView 
@@ -583,44 +887,9 @@ export default function BabyCryScreen() {
           </Card.Content>
         </Card>
 
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.cardTitle}>Detection Controls</Text>
-            
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Button
-                mode="contained"
-                onPress={runCryDetection}
-                loading={isComparing || isProcessing}
-                disabled={isComparing || isProcessing || isModelLoading || !audioData}
-                icon="account-voice"
-                style={{ flex: 1 }}
-              >
-                Run Detection
-              </Button>
-              
-              {results.length > 0 && (
-                <Button
-                  mode="outlined"
-                  onPress={clearResults}
-                  disabled={isComparing || isProcessing}
-                  icon="delete"
-                >
-                  Clear
-                </Button>
-              )}
-            </View>
-            
-            {!audioData && (
-              <Notice
-                type="info"
-                message="Please select an audio source before running detection"
-              />
-            )}
-          </Card.Content>
-        </Card>
-
+        {renderDetectionControls()}
         {renderComparisonResults()}
+        {renderTonnetzResult()}
         {renderAggregateStats()}
       </View>
     </ScreenWrapper>

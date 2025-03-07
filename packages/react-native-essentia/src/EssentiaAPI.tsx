@@ -1554,43 +1554,66 @@ class EssentiaAPI implements EssentiaInterface {
       };
 
       // Validate frameSize
-      if (!Number.isInteger(validatedParams.frameSize as number) || (validatedParams.frameSize as number) <= 0) {
-        throw new Error("frameSize must be a positive integer");
+      if (
+        !Number.isInteger(validatedParams.frameSize as number) ||
+        (validatedParams.frameSize as number) <= 0
+      ) {
+        throw new Error('frameSize must be a positive integer');
       }
 
       // Check if frameSize is a power of 2 (for FFT efficiency)
-      if (((validatedParams.frameSize as number) & ((validatedParams.frameSize as number) - 1)) !== 0) {
-        console.warn("frameSize should be a power of 2 for efficient FFT processing");
+      if (
+        ((validatedParams.frameSize as number) &
+          ((validatedParams.frameSize as number) - 1)) !==
+        0
+      ) {
+        console.warn(
+          'frameSize should be a power of 2 for efficient FFT processing'
+        );
       }
 
       // Validate hopSize
-      if (!Number.isInteger(validatedParams.hopSize as number) || (validatedParams.hopSize as number) <= 0) {
-        throw new Error("hopSize must be a positive integer");
+      if (
+        !Number.isInteger(validatedParams.hopSize as number) ||
+        (validatedParams.hopSize as number) <= 0
+      ) {
+        throw new Error('hopSize must be a positive integer');
       }
 
       // Validate hpcpSize
-      if (!Number.isInteger(validatedParams.hpcpSize as number) || (validatedParams.hpcpSize as number) <= 0) {
-        throw new Error("hpcpSize must be a positive integer");
+      if (
+        !Number.isInteger(validatedParams.hpcpSize as number) ||
+        (validatedParams.hpcpSize as number) <= 0
+      ) {
+        throw new Error('hpcpSize must be a positive integer');
       }
 
       // Check if hpcpSize is a common value
       if (![12, 24, 36].includes(validatedParams.hpcpSize as number)) {
-        console.warn("hpcpSize is typically 12, 24, or 36 in music analysis");
+        console.warn('hpcpSize is typically 12, 24, or 36 in music analysis');
       }
 
       // Validate referenceFrequency
-      if (typeof validatedParams.referenceFrequency !== 'number' || validatedParams.referenceFrequency <= 0) {
-        throw new Error("referenceFrequency must be a positive number");
+      if (
+        typeof validatedParams.referenceFrequency !== 'number' ||
+        validatedParams.referenceFrequency <= 0
+      ) {
+        throw new Error('referenceFrequency must be a positive number');
       }
 
       // Check if referenceFrequency is in a reasonable range
-      if (validatedParams.referenceFrequency < 400 || validatedParams.referenceFrequency > 500) {
-        console.warn("referenceFrequency is typically between 400-500 Hz for tuning");
+      if (
+        validatedParams.referenceFrequency < 400 ||
+        validatedParams.referenceFrequency > 500
+      ) {
+        console.warn(
+          'referenceFrequency is typically between 400-500 Hz for tuning'
+        );
       }
 
       // Validate computeMean
       if (typeof validatedParams.computeMean !== 'boolean') {
-        throw new Error("computeMean must be a boolean value");
+        throw new Error('computeMean must be a boolean value');
       }
 
       const result = await this.extractFeatures([
