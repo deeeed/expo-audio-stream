@@ -220,14 +220,21 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
 
   const executeTonnetz = async () => {
     try {
-      // If we're executing the Tonnetz algorithm directly, we need to generate a sample HPCP vector
-      // Normally this would come from running the HPCP algorithm on audio data
+      // Instead of manually creating HPCP data, we'll use the audio data that was already set
+      // and let the algorithm handle the HPCP computation internally
       
-      // Generate a sample HPCP vector (C major chord: C, E, G)
-      const sampleHPCP = [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
+      console.log('Computing Tonnetz from audio data');
       
-      console.log('Computing Tonnetz with sample HPCP:', sampleHPCP);
-      const result = await EssentiaJS.computeTonnetz(sampleHPCP);
+      // These parameters will let the Tonnetz algorithm compute HPCP internally
+      const params = {
+        frameSize: 2048,
+        hopSize: 1024,
+        hpcpSize: 12,  // Size of HPCP (12 for standard pitch class representation)
+        referenceFrequency: 440.0,  // Standard tuning reference
+        framewise: false  // Get a single result instead of per-frame
+      };
+      
+      const result = await EssentiaJS.extractTonnetz(params);
       
       console.log('Tonnetz computation result:', result);
       return result;
