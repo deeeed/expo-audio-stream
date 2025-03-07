@@ -1451,6 +1451,43 @@ public:
                 for (const auto& feature : config["features"]) {
                     std::string name = feature["name"].get<std::string>();
 
+                    if (name == "Tonnetz") {
+                        // Skip creating algorithm for Tonnetz, as it's handled manually
+
+                        // Still need to track relevant configuration info for later use
+                        if (!feature.contains("input")) {
+                            // Clean up resources
+                            for (auto* algo : preprocessAlgos) delete algo;
+                            for (auto* algo : featureAlgos) delete algo;
+                            return createErrorResponse(std::string("Feature '") + name + "' is missing required 'input' field", "INVALID_CONFIG");
+                        }
+
+                        std::string inputName = feature["input"].get<std::string>();
+
+                        // Add to tracking arrays to maintain index alignment
+                        featureAlgos.push_back(nullptr); // No algorithm for Tonnetz
+                        featureOutputs.push_back(std::vector<essentia::Real>());
+                        featureNames.push_back(name);
+                        featureInputs.push_back(inputName);
+                        featureOutputNames.push_back("tonnetz");
+
+                        // Check for post-processing options
+                        bool useMean = false;
+                        bool useVariance = false;
+                        if (feature.contains("postProcess")) {
+                            if (feature["postProcess"].contains("mean")) {
+                                useMean = feature["postProcess"]["mean"].get<bool>();
+                            }
+                            if (feature["postProcess"].contains("variance")) {
+                                useVariance = feature["postProcess"]["variance"].get<bool>();
+                            }
+                        }
+                        featureUseMean.push_back(useMean);
+                        featureUseVariance.push_back(useVariance);
+
+                        continue;
+                    }
+
                     if (!feature.contains("input")) {
                         // Clean up resources
                         for (auto* algo : preprocessAlgos) delete algo;
@@ -1625,29 +1662,20 @@ public:
 
                         // Add special case for Tonnetz
                         if (featureName == "Tonnetz") {
-                            // Check if Spectrum is available in the pool
-                            if (!framePool.contains<std::vector<essentia::Real>>("Spectrum")) {
-                                LOGE("Spectrum not found in pool for Tonnetz");
+                            // Check if the specified input exists in the pool
+                            if (!framePool.contains<std::vector<essentia::Real>>(inputName)) {
+                                LOGE("Input '%s' not found in pool for Tonnetz", inputName.c_str());
                                 continue;
                             }
-                            const auto& spectrumFrame = framePool.value<std::vector<essentia::Real>>("Spectrum");
 
-                            // Create and configure HPCP algorithm
-                            auto* hpcpAlgo = factory.create("HPCP");
-                            essentia::ParameterMap hpcpParams;
-                            hpcpParams.add("size", 12); // Fixed to 12 for Tonnetz
-                            hpcpParams.add("sampleRate", static_cast<essentia::Real>(sampleRate));
-                            hpcpParams.add("referenceFrequency", 440.0f); // Default A4 tuning
-                            hpcpAlgo->configure(hpcpParams);
+                            const auto& hpcp = framePool.value<std::vector<essentia::Real>>(inputName);
 
-                            // Compute HPCP from spectrum
-                            std::vector<essentia::Real> hpcp;
-                            hpcpAlgo->input("spectrum").set(spectrumFrame);
-                            hpcpAlgo->output("hpcp").set(hpcp);
-                            hpcpAlgo->compute();
-
-                            // Normalize HPCP for consistency
-                            essentia::normalize(hpcp);
+                            // Validate HPCP size (must be 12 for Tonnetz)
+                            if (hpcp.size() != 12) {
+                                LOGE("Input '%s' vector must be 12-dimensional for Tonnetz, got %zu",
+                                     inputName.c_str(), hpcp.size());
+                                continue;
+                            }
 
                             // Apply Tonnetz transformation
                             std::vector<essentia::Real> tonnetz = applyTonnetzTransform(hpcp);
@@ -1658,8 +1686,8 @@ public:
                             }
                             featureCollectors["Tonnetz"].push_back(tonnetz);
 
-                            // Clean up HPCP algorithm
-                            delete hpcpAlgo;
+                            LOGI("Computed Tonnetz from input '%s' (size: %zu) with result size: %zu",
+                                 inputName.c_str(), hpcp.size(), tonnetz.size());
 
                             // Skip the rest of the processing for this feature
                             continue;
