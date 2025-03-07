@@ -395,37 +395,22 @@ export default function BabyCryScreen() {
       
       // Process each frame to compute chroma and tonnetz
       for (const frame of frames.data.frame) {
-        // Windowing
-        const windowedFrame = await EssentiaAPI.executeAlgorithm("Windowing", {
-          type: "hann",
-          size: 400,
-          zeroPadding: 1024 - 400,
-          frame,
+        // Set each frame as new audio data
+        await EssentiaAPI.setAudioData(frame, 16000);
+    
+        // Chroma (Note: "Chromagram" isn’t in Essentia; use "HPCP" instead)
+        const chromaResult = await EssentiaAPI.executeAlgorithm("HPCP", {
+            sampleRate: 16000,
+            size: 12,
         });
-        
-        // Spectrum
-        const spectrumResult = await EssentiaAPI.executeAlgorithm("Spectrum", {
-          size: 1024,
-          frame: windowedFrame.data.frame,
-        });
-        const spectrum = spectrumResult.data.spectrum;
-        
-        // Compute chroma
-        const chromaResult = await EssentiaAPI.executeAlgorithm("Chromagram", {
-          sampleRate: 16000,
-          numberBins: 12,
-          minFrequency: 0,
-          maxFrequency: 16000 / 2,
-          spectrum,
-        });
-        chromaFrames.push(chromaResult.data.chroma);
-        
-        // Compute Tonnetz from chroma
+        chromaFrames.push(chromaResult.data.hpcp);
+    
+        // Tonnetz
         const tonnetzResult = await EssentiaAPI.executeAlgorithm("Tonnetz", {
-          pcp: chromaResult.data.chroma,
+            // Your Tonnetz accepts HPCP directly
         });
         tonnetzFrames.push(tonnetzResult.data.tonnetz);
-      }
+    }
       
       // Compute mean tonnetz features
       const meanTonnetz = tonnetzFrames.reduce((sum, frame) => {

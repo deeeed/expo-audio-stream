@@ -55,71 +55,6 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                 const contrastFrames: number[][] = [];
                 const tonnetzFrames: number[][] = [];
 
-                // Step 2: Process each frame
-                for (const frame of frames.data.frame) {
-                    // Windowing
-                    const windowedFrame = await EssentiaAPI.executeAlgorithm("Windowing", {
-                        type: "hann",
-                        size: frameSize,
-                        zeroPadding: n_fft - frameSize,
-                        frame,
-                    });
-
-                    // Spectrum
-                    const spectrumResult = await EssentiaAPI.executeAlgorithm("Spectrum", {
-                        size: n_fft,
-                        frame: windowedFrame.data.frame,
-                    });
-                    const spectrum = spectrumResult.data.spectrum;
-
-                    // MFCC
-                    const mfccResult = await EssentiaAPI.executeAlgorithm("MFCC", {
-                        sampleRate: sr,
-                        numberBands: 128,
-                        numberCoefficients: 40,
-                        warpingFormula: "htkMel",
-                        type: "power",
-                        lowFrequencyBound: 0,
-                        highFrequencyBound: sr / 2,
-                        spectrum,
-                    });
-                    mfccFrames.push(mfccResult.data.mfcc);
-
-                    // Mel Spectrogram
-                    const melResult = await EssentiaAPI.executeAlgorithm("MelBands", {
-                        sampleRate: sr,
-                        numberBands: 128,
-                        type: "power",
-                        log: false,
-                        spectrum,
-                    });
-                    melFrames.push(melResult.data.melBands);
-
-                    // Chroma
-                    const chromaResult = await EssentiaAPI.executeAlgorithm("Chromagram", {
-                        sampleRate: sr,
-                        numberBins: 12,
-                        minFrequency: 0,
-                        maxFrequency: sr / 2,
-                        spectrum,
-                    });
-                    chromaFrames.push(chromaResult.data.chroma);
-
-                    // Spectral Contrast
-                    const contrastResult = await EssentiaAPI.executeAlgorithm("SpectralContrast", {
-                        sampleRate: sr,
-                        numberBands: 7,
-                        lowFrequencyBound: 100,
-                        spectrum,
-                    });
-                    contrastFrames.push(contrastResult.data.spectralContrast);
-
-                    // Tonnetz
-                    const tonnetzResult = await EssentiaAPI.executeAlgorithm("Tonnetz", {
-                        pcp: chromaResult.data.chroma,
-                    });
-                    tonnetzFrames.push(tonnetzResult.data.tonnetz);
-                }
 
                 // Step 3: Compute means
                 const meanMFCC = computeMean(mfccFrames);         // 40
@@ -189,8 +124,13 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                         },
                         { name: "Spectrum", params: { size: n_fft } },
                         {
-                            name: "Chromagram",
-                            params: { sampleRate: sr, numberBins: 12, minFrequency: 0, maxFrequency: sr / 2 },
+                            name: "HPCP", // Replace Chromagram with HPCP
+                            params: { 
+                                sampleRate: sr, 
+                                size: 12, // HPCP uses 'size' instead of 'numberBins'
+                                minFrequency: 0, 
+                                maxFrequency: sr / 2 
+                            },
                         },
                     ],
                     features: [
@@ -222,7 +162,7 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                         },
                         {
                             name: "Tonnetz",
-                            input: "Chromagram",
+                            input: "HPCP", 
                             params: {},
                             postProcess: { mean: true },
                         },

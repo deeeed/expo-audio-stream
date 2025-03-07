@@ -926,6 +926,63 @@ public:
 
                 delete melBandsAlgo;
             }
+            else if (algorithm == "FrameCutter") {
+                LOGI("Processing FrameCutter algorithm");
+
+                // Create and configure FrameCutter algorithm
+                auto frameCutter = essentia::standard::AlgorithmFactory::create("FrameCutter");
+
+                // Remove 'framewise' and 'computeMean' if present (not used by FrameCutter)
+                auto frameCutterParams = params;
+                frameCutterParams.erase("framewise");
+                frameCutterParams.erase("computeMean");
+                frameCutter->configure(convertToParameterMap(frameCutterParams));
+
+                // Set input and prepare output
+                frameCutter->input("signal").set(audioBuffer);
+                std::vector<essentia::Real> frame;
+                frameCutter->output("frame").set(frame);
+
+                // Process all frames in a loop
+                std::vector<std::vector<essentia::Real>> frames;
+                int frameCount = 0;
+
+                while (true) {
+                    // Clear frame for next iteration
+                    frame.clear();
+
+                    // Compute next frame
+                    frameCutter->compute();
+
+                    // Check if we've reached the end of the signal
+                    if (frame.empty()) {
+                        LOGI("No more frames to process, total frames: %d", frameCount);
+                        break;
+                    }
+
+                    // Store the frame and continue
+                    frames.push_back(frame);
+                    frameCount++;
+
+                    if (frameCount % 100 == 0) {
+                        LOGI("Processed %d frames so far", frameCount);
+                    }
+                }
+
+                if (frames.empty()) {
+                    LOGE("No frames extracted by FrameCutter");
+                    return createErrorResponse("No frames could be extracted from audio data", "NO_DATA");
+                }
+
+                // Add each frame individually to the pool
+                for (const auto& frame : frames) {
+                    pool.add("frame", frame);
+                }
+                LOGI("Successfully processed %zu frames with FrameCutter", frames.size());
+
+                // Clean up
+                delete frameCutter;
+            }
             else {
                 // Fall back to dynamic algorithm handling for any other algorithm
                 LOGI("Falling back to dynamic algorithm for %s", algorithm.c_str());
