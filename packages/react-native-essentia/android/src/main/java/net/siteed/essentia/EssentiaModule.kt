@@ -72,6 +72,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   ): String
   private external fun nativeExecutePipeline(handle: Long, pipelineJson: String): String
   private external fun nativeComputeSpectrum(handle: Long, frameSize: Int, hopSize: Int): Boolean
+  private external fun nativeComputeTonnetz(handle: Long, hpcpJson: String): String
 
   /**
    * Helper method to ensure Essentia is initialized
@@ -1022,6 +1023,73 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
       Log.d("EssentiaModule", "Spectrum computation result: $result")
       promise.resolve(result)
+    }
+  }
+
+  /**
+   * Computes the Tonnetz representation directly from the loaded audio data
+   * @param frameSize Size of each frame in samples
+   * @param hopSize Hop size between frames in samples
+   * @param hpcpSize Number of bins in HPCP
+   * @param referenceFrequency Reference frequency for HPCP computation
+   * @param computeMean Whether to compute mean of the result
+   * @param promise Promise that resolves to the Tonnetz representation
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun computeTonnetz(
+    frameSize: Int = 1024,
+    hopSize: Int = 512,
+    hpcpSize: Int = 12,
+    referenceFrequency: Float = 440.0f,
+    computeMean: Boolean = false,
+    promise: Promise
+  ) {
+    Log.d("EssentiaModule", "Entering computeTonnetz with frameSize: $frameSize, hopSize: $hopSize")
+    ensureInitialized(promise) {
+      // Validate inputs
+      if (frameSize <= 0 || hopSize <= 0 || hpcpSize <= 0) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Frame size, hop size, and HPCP size must be positive")
+        return@ensureInitialized
+      }
+
+      if (referenceFrequency <= 0) {
+        promise.reject("ESSENTIA_INVALID_INPUT", "Reference frequency must be positive")
+        return@ensureInitialized
+      }
+
+      // Create a JSON object with the parameters
+      val paramsJson = JSONObject()
+      paramsJson.put("frameSize", frameSize)
+      paramsJson.put("hopSize", hopSize)
+      paramsJson.put("hpcpSize", hpcpSize)
+      paramsJson.put("referenceFrequency", referenceFrequency)
+      paramsJson.put("computeMean", computeMean)
+
+      val hpcpJson = paramsJson.toString()
+
+      Log.d("EssentiaModule", "Computing Tonnetz with parameters: $hpcpJson")
+
+      // Call the native method
+      val resultJsonString: String
+      synchronized(lock) {
+        if (nativeHandle == 0L) {
+          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+          return@ensureInitialized
+        }
+        resultJsonString = nativeComputeTonnetz(nativeHandle, hpcpJson)
+      }
+
+      // Convert the JSON string to a WritableMap
+      val resultMap = convertJsonToWritableMap(resultJsonString)
+
+      // Check if there was an error using our helper
+      if (handleErrorInResultMap(resultMap, promise)) {
+        return@ensureInitialized
+      }
+
+      // Resolve the promise with the properly structured map
+      promise.resolve(resultMap)
     }
   }
 

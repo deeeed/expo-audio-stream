@@ -396,9 +396,29 @@ export interface SpectralContrastResult {
 
 /**
  * Result type for Tonnetz feature extraction
+ * Tonnetz features represent tonal content in a 6-dimensional space
  */
 export interface TonnetzResult {
-  tonnetz: number[];
+  /**
+   * Tonnetz vector with 6 dimensions representing harmonic relationships:
+   * [0]: Fifth relationship (perfect fifth)
+   * [1]: Minor third relationship
+   * [2]: Major third relationship
+   * [3]: Minor triad center
+   * [4]: Major triad center
+   * [5]: Diminished triad center
+   */
+  tonnetz: number[] | number[][];
+
+  /**
+   * Whether the tonnetz data is frame-wise (multiple frames) or single-frame
+   */
+  isFrameWise?: boolean;
+
+  /**
+   * Mean of tonnetz vectors across all frames (only present if computeMean was true)
+   */
+  mean?: number[];
 }
 
 /**

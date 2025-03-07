@@ -299,6 +299,16 @@ std::string createErrorResponse(const std::string& errorMessage, const std::stri
     return "{\"success\":false,\"error\":{\"code\":\"" + errorCode + "\",\"message\":\"" + errorMessage + "\",\"details\":\"" + details + "\"}}";
 }
 
+// Define the Tonnetz transformation matrix as a constant (add near the top with other constants)
+const std::array<std::array<float, 12>, 6> TONNETZ_MATRIX = {{
+    {1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+    {0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0},
+    {0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0},
+    {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0},
+    {0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}
+}};
+
 // EssentiaWrapper class to encapsulate state
 class EssentiaWrapper {
 private:
@@ -410,6 +420,59 @@ public:
 
     // Handle the specific optimized algorithms (MFCC, Spectrum, Key)
     std::string executeSpecificAlgorithm(const std::string& algorithm, const std::map<std::string, essentia::Parameter>& params) {
+        // Add parameter validation for Tonnetz algorithm
+        if (algorithm == "Tonnetz") {
+            // Validate frameSize
+            if (params.count("frameSize")) {
+                int frameSize = params.at("frameSize").toInt();
+                if (frameSize <= 0) {
+                    return createErrorResponse("frameSize must be positive", "INVALID_PARAM");
+                }
+                // Check if power of 2 for FFT efficiency
+                if ((frameSize & (frameSize - 1)) != 0) {
+                    return createErrorResponse("frameSize should be a power of 2 for efficient FFT", "INVALID_PARAM_WARNING");
+                }
+            }
+
+            // Validate hopSize
+            if (params.count("hopSize")) {
+                int hopSize = params.at("hopSize").toInt();
+                if (hopSize <= 0) {
+                    return createErrorResponse("hopSize must be positive", "INVALID_PARAM");
+                }
+            }
+
+            // Validate hpcpSize
+            if (params.count("hpcpSize")) {
+                int hpcpSize = params.at("hpcpSize").toInt();
+                if (hpcpSize <= 0) {
+                    return createErrorResponse("hpcpSize must be positive", "INVALID_PARAM");
+                }
+                // Common values check
+                if (hpcpSize != 12 && hpcpSize != 24 && hpcpSize != 36) {
+                    return createErrorResponse("hpcpSize is typically 12, 24, or 36 in music analysis", "INVALID_PARAM_WARNING");
+                }
+            }
+
+            // Validate referenceFrequency
+            if (params.count("referenceFrequency")) {
+                float refFreq = params.at("referenceFrequency").toReal();
+                if (refFreq <= 20 || refFreq >= 1000) {
+                    return createErrorResponse("referenceFrequency must be between 20 Hz and 1000 Hz", "INVALID_PARAM");
+                }
+            }
+
+            // Validate computeMean
+            bool computeMean = false; // Default value
+            if (params.count("computeMean")) {
+                try {
+                    computeMean = params.at("computeMean").toBool();
+                } catch (const std::exception& e) {
+                    return createErrorResponse("computeMean must be a boolean value", "INVALID_PARAM");
+                }
+            }
+        }
+
         essentia::Pool pool;
         try {
             int frameSize = 2048;
@@ -536,6 +599,72 @@ public:
 
                 delete hpcpAlgo;
                 delete keyAlgo;
+            }
+            else if (algorithm == "Tonnetz") {
+                // Enforce hpcpSize to 12 for Tonnetz computation
+                if (params.count("hpcpSize") && params.at("hpcpSize").toInt() != 12) {
+                    return createErrorResponse(
+                        "HPCP size must be 12 for Tonnetz computation because the transformation matrix is designed for 12-bin pitch class profiles",
+                        "INVALID_PARAM"
+                    );
+                }
+
+                // Check if spectrum is computed; if not, compute it with default or user-provided parameters
+                if (!spectrumComputed || allSpectra.empty()) {
+                    int frameSize = params.count("frameSize") ? params.at("frameSize").toInt() : 1024;
+                    int hopSize = params.count("hopSize") ? params.at("hopSize").toInt() : 512;
+                    computeSpectrum(frameSize, hopSize); // Reuse existing method to compute spectra
+                    if (allSpectra.empty()) {
+                        return createErrorResponse("No valid spectrum frames computed from audio data", "NO_DATA");
+                    }
+                }
+
+                // Configure HPCP algorithm - directly set size to 12 without modifying params
+                auto hpcpAlgo = essentia::standard::AlgorithmFactory::create("HPCP");
+                essentia::ParameterMap hpcpParams;
+                hpcpParams.add("size", 12); // Fixed size for Tonnetz
+                hpcpParams.add("referenceFrequency", params.count("referenceFrequency") ?
+                       params.at("referenceFrequency").toReal() : 440.0f);
+                hpcpAlgo->configure(hpcpParams);
+
+                // Process each spectrum frame and compute Tonnetz
+                essentia::Pool pool;
+                for (const auto& spectrumFrame : allSpectra) {
+                    // Compute HPCP
+                    std::vector<essentia::Real> hpcp;
+                    hpcpAlgo->input("spectrum").set(spectrumFrame);
+                    hpcpAlgo->output("hpcp").set(hpcp);
+                    hpcpAlgo->compute();
+
+                    // Normalize HPCP (optional but recommended for consistency)
+                    essentia::normalize(hpcp);
+
+                    // Apply manual Tonnetz transformation using your existing method
+                    std::vector<essentia::Real> tonnetz = applyTonnetzTransform(hpcp);
+                    pool.add("tonnetz", tonnetz); // Store frame-wise Tonnetz vectors
+                }
+
+                // Compute mean if requested
+                bool computeMean = params.count("computeMean") && params.at("computeMean").toBool();
+                if (computeMean && !pool.value<std::vector<std::vector<essentia::Real>>>("tonnetz").empty()) {
+                    const auto& tonnetzVectors = pool.value<std::vector<std::vector<essentia::Real>>>("tonnetz");
+                    std::vector<essentia::Real> meanTonnetz(6, 0.0);
+                    for (const auto& frame : tonnetzVectors) {
+                        for (size_t i = 0; i < 6; ++i) {
+                            meanTonnetz[i] += frame[i];
+                        }
+                    }
+                    for (auto& val : meanTonnetz) {
+                        val /= tonnetzVectors.size();
+                    }
+                    pool.set("tonnetz_mean", meanTonnetz); // Store mean Tonnetz vector
+                }
+
+                // Clean up
+                delete hpcpAlgo;
+
+                // Return results as JSON
+                return poolToJson(pool);
             }
             // ... other algorithms ...
 
@@ -2005,6 +2134,93 @@ public:
             return createErrorResponse(errorMsg, "PIPELINE_EXECUTION_ERROR");
         }
     }
+
+    // Add this new method to the EssentiaWrapper class
+    std::string applyTonnetzTransform(const std::string& hpcpJson) {
+        if (!isInitialized()) {
+            return createErrorResponse("Essentia not initialized", "ESSENTIA_NOT_INITIALIZED");
+        }
+
+        try {
+            // Parse the input JSON
+            json input = json::parse(hpcpJson);
+
+            // Check if we have a single HPCP vector or multiple frames
+            bool isSingleVector = input.is_array() && !input.empty() && !input[0].is_array();
+
+            if (isSingleVector) {
+                // Process a single HPCP vector
+                std::vector<essentia::Real> hpcp = input.get<std::vector<essentia::Real>>();
+                if (hpcp.size() != 12) {
+                    return createErrorResponse("HPCP vector must be 12-dimensional", "INVALID_INPUT_SIZE");
+                }
+
+                // Apply Tonnetz transformation
+                std::vector<essentia::Real> tonnetz = applyTonnetzTransform(hpcp);
+
+                // Return the result as JSON
+                json result = tonnetz;
+                return result.dump();
+            } else {
+                // Process multiple HPCP frames
+                std::vector<std::vector<essentia::Real>> hpcpFrames = input.get<std::vector<std::vector<essentia::Real>>>();
+                std::vector<std::vector<essentia::Real>> tonnetzFrames;
+
+                for (const auto& hpcp : hpcpFrames) {
+                    if (hpcp.size() != 12) {
+                        return createErrorResponse("Each HPCP vector must be 12-dimensional", "INVALID_INPUT_SIZE");
+                    }
+                    tonnetzFrames.push_back(applyTonnetzTransform(hpcp));
+                }
+
+                // Compute mean if requested
+                bool computeMean = input.contains("computeMean") && input["computeMean"].get<bool>();
+                if (computeMean && !tonnetzFrames.empty()) {
+                    std::vector<essentia::Real> meanTonnetz(6, 0.0);
+                    for (const auto& frame : tonnetzFrames) {
+                        for (size_t i = 0; i < 6; ++i) {
+                            meanTonnetz[i] += frame[i];
+                        }
+                    }
+                    for (auto& val : meanTonnetz) {
+                        val /= tonnetzFrames.size();
+                    }
+
+                    // Return the result with both frames and mean
+                    json result;
+                    result["frames"] = tonnetzFrames;
+                    result["mean"] = meanTonnetz;
+                    return result.dump();
+                }
+
+                // Return just the frames
+                json result = tonnetzFrames;
+                return result.dump();
+            }
+        } catch (const std::exception& e) {
+            return createErrorResponse(std::string("Error computing Tonnetz: ") + e.what(), "COMPUTATION_ERROR");
+        }
+    }
+
+private:
+    // ... existing private methods ...
+
+    // Helper method to apply the Tonnetz transformation
+    std::vector<essentia::Real> applyTonnetzTransform(const std::vector<essentia::Real>& hpcp) {
+        // Initialize 6-dimensional Tonnetz vector
+        std::vector<essentia::Real> tonnetz(6, 0.0);
+
+        // Matrix-vector multiplication
+        for (size_t i = 0; i < 6; ++i) {
+            for (size_t j = 0; j < 12; ++j) {
+                tonnetz[i] += TONNETZ_MATRIX[i][j] * hpcp[j];
+            }
+        }
+
+        return tonnetz;
+    }
+
+    // ... existing private methods ...
 };
 
 // JNI Implementation with EssentiaWrapper
@@ -2259,7 +2475,28 @@ static jboolean nativeComputeSpectrum(JNIEnv* env, jobject thiz, jlong handle, j
     }
 }
 
-// JNI method registration
+// Add this to your JNI methods section
+static jstring nativeComputeTonnetz(JNIEnv* env, jobject thiz, jlong handle, jstring jhpcpJson) {
+    try {
+        EssentiaWrapper* wrapper = reinterpret_cast<EssentiaWrapper*>(handle);
+        if (!wrapper) {
+            return env->NewStringUTF(createErrorResponse("Invalid Essentia instance", "INVALID_HANDLE").c_str());
+        }
+
+        // Get the HPCP JSON string
+        const char* hpcpJsonCStr = env->GetStringUTFChars(jhpcpJson, nullptr);
+        std::string hpcpJson(hpcpJsonCStr);
+        env->ReleaseStringUTFChars(jhpcpJson, hpcpJsonCStr);
+
+        // Call the wrapper method
+        std::string result = wrapper->applyTonnetzTransform(hpcpJson);
+        return env->NewStringUTF(result.c_str());
+    } catch (const std::exception& e) {
+        return env->NewStringUTF(createErrorResponse("Tonnetz computation failed", "JNI_ERROR", e.what()).c_str());
+    }
+}
+
+// Then register this method in JNI_OnLoad
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     JNIEnv* env;
     if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {
@@ -2284,7 +2521,8 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
         {"getVersion", "()Ljava/lang/String;", (void*)getVersion},
         {"nativeComputeMelSpectrogram", "(JIIIFFLjava/lang/String;ZZ)Ljava/lang/String;", (void*)nativeComputeMelSpectrogram},
         {"nativeExecutePipeline", "(JLjava/lang/String;)Ljava/lang/String;", (void*)nativeExecutePipeline},
-        {"nativeComputeSpectrum", "(JII)Z", (void*)nativeComputeSpectrum}
+        {"nativeComputeSpectrum", "(JII)Z", (void*)nativeComputeSpectrum},
+        {"nativeComputeTonnetz", "(JLjava/lang/String;)Ljava/lang/String;", (void*)nativeComputeTonnetz},
     };
 
     int rc = env->RegisterNatives(clazz, methods, sizeof(methods) / sizeof(methods[0]));
