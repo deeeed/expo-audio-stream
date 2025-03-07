@@ -601,47 +601,56 @@ public:
                 delete keyAlgo;
             }
             else if (algorithm == "Tonnetz") {
-                // Enforce hpcpSize to 12 for Tonnetz computation
-                if (params.count("hpcpSize") && params.at("hpcpSize").toInt() != 12) {
-                    return createErrorResponse(
-                        "HPCP size must be 12 for Tonnetz computation because the transformation matrix is designed for 12-bin pitch class profiles",
-                        "INVALID_PARAM"
-                    );
-                }
-
-                // Check if spectrum is computed; if not, compute it with default or user-provided parameters
+                // Check if spectrum is computed; if not, compute it
                 if (!spectrumComputed || allSpectra.empty()) {
                     int frameSize = params.count("frameSize") ? params.at("frameSize").toInt() : 1024;
                     int hopSize = params.count("hopSize") ? params.at("hopSize").toInt() : 512;
-                    computeSpectrum(frameSize, hopSize); // Reuse existing method to compute spectra
+                    computeSpectrum(frameSize, hopSize);
                     if (allSpectra.empty()) {
                         return createErrorResponse("No valid spectrum frames computed from audio data", "NO_DATA");
                     }
                 }
 
-                // Configure HPCP algorithm - directly set size to 12 without modifying params
+                // Create SpectralPeaks algorithm
+                auto spectralPeaksAlgo = essentia::standard::AlgorithmFactory::create("SpectralPeaks");
+                spectralPeaksAlgo->configure(
+                    "sampleRate", static_cast<float>(sampleRate),
+                    "maxPeaks", 100,              // Limit the number of peaks
+                    "magnitudeThreshold", 0.0f    // Minimum magnitude threshold
+                );
+
+                // Create HPCP algorithm
                 auto hpcpAlgo = essentia::standard::AlgorithmFactory::create("HPCP");
                 essentia::ParameterMap hpcpParams;
-                hpcpParams.add("size", 12); // Fixed size for Tonnetz
+                hpcpParams.add("size", 12); // Fixed size for Tonnetz (12 pitch classes)
                 hpcpParams.add("referenceFrequency", params.count("referenceFrequency") ?
                        params.at("referenceFrequency").toReal() : 440.0f);
                 hpcpAlgo->configure(hpcpParams);
 
-                // Process each spectrum frame and compute Tonnetz
                 essentia::Pool pool;
+
+                // Process each spectrum frame
                 for (const auto& spectrumFrame : allSpectra) {
-                    // Compute HPCP
+                    // Compute spectral peaks
+                    std::vector<essentia::Real> frequencies, magnitudes;
+                    spectralPeaksAlgo->input("spectrum").set(spectrumFrame);
+                    spectralPeaksAlgo->output("frequencies").set(frequencies);
+                    spectralPeaksAlgo->output("magnitudes").set(magnitudes);
+                    spectralPeaksAlgo->compute();
+
+                    // Compute HPCP from peaks
                     std::vector<essentia::Real> hpcp;
-                    hpcpAlgo->input("spectrum").set(spectrumFrame);
+                    hpcpAlgo->input("frequencies").set(frequencies);
+                    hpcpAlgo->input("magnitudes").set(magnitudes);
                     hpcpAlgo->output("hpcp").set(hpcp);
                     hpcpAlgo->compute();
 
-                    // Normalize HPCP (optional but recommended for consistency)
+                    // Normalize HPCP (optional but recommended)
                     essentia::normalize(hpcp);
 
-                    // Apply manual Tonnetz transformation using your existing method
+                    // Apply Tonnetz transformation
                     std::vector<essentia::Real> tonnetz = applyTonnetzTransform(hpcp);
-                    pool.add("tonnetz", tonnetz); // Store frame-wise Tonnetz vectors
+                    pool.add("tonnetz", tonnetz);
                 }
 
                 // Compute mean if requested
@@ -657,13 +666,13 @@ public:
                     for (auto& val : meanTonnetz) {
                         val /= tonnetzVectors.size();
                     }
-                    pool.set("tonnetz_mean", meanTonnetz); // Store mean Tonnetz vector
+                    pool.set("tonnetz_mean", meanTonnetz);
                 }
 
                 // Clean up
+                delete spectralPeaksAlgo;
                 delete hpcpAlgo;
 
-                // Return results as JSON
                 return poolToJson(pool);
             }
             // ... other algorithms ...
@@ -1452,9 +1461,9 @@ public:
                     std::string name = feature["name"].get<std::string>();
 
                     if (name == "Tonnetz") {
-                        // Skip creating algorithm for Tonnetz, as it's handled manually
+                        // Skip trying to create the Tonnetz algorithm using the factory
+                        // We'll handle it manually in the processing loop
 
-                        // Still need to track relevant configuration info for later use
                         if (!feature.contains("input")) {
                             // Clean up resources
                             for (auto* algo : preprocessAlgos) delete algo;

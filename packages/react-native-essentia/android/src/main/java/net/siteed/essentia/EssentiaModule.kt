@@ -72,6 +72,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   ): String
   private external fun nativeExecutePipeline(handle: Long, pipelineJson: String): String
   private external fun nativeComputeSpectrum(handle: Long, frameSize: Int, hopSize: Int): Boolean
+  private external fun nativeComputeTonnetz(handle: Long, hpcpJson: String): String
 
   /**
    * Helper method to ensure Essentia is initialized
@@ -258,16 +259,22 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   /**
    * Converts a JSON string to a WritableMap that can be sent to JavaScript
    */
-  private fun convertJsonToWritableMap(jsonString: String): WritableMap {
+  private fun convertJsonToWritableMap(jsonString: String?): WritableMap {
+    val map = Arguments.createMap()
+    if (jsonString.isNullOrEmpty()) {
+      map.putBoolean("success", false)
+      map.putString("error", "Native layer returned null or empty result")
+      return map
+    }
+
     try {
       val jsonObject = JSONObject(jsonString)
       return convertJsonObjectToWritableMap(jsonObject)
     } catch (e: JSONException) {
       Log.e("EssentiaModule", "Error parsing JSON: ${e.message}", e)
-      val errorMap = Arguments.createMap()
-      errorMap.putBoolean("success", false)
-      errorMap.putString("error", "Failed to parse JSON result: ${e.message}")
-      return errorMap
+      map.putBoolean("success", false)
+      map.putString("error", "Failed to parse JSON result: ${e.message}")
+      return map
     }
   }
 
@@ -360,10 +367,10 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       }
 
       // Convert params to JSON string
-      val paramsJson = params.toString()
+      val paramsJson = convertReadableMapToJsonObject(params).toString()
 
       // Execute the algorithm and get the JSON result
-      val resultJsonString: String
+      val resultJsonString: String?
       synchronized(lock) {
         if (nativeHandle == 0L) {
           promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
@@ -382,7 +389,14 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         return@ensureInitialized
       }
 
-      // Always resolves with a non-null value, so no need to check result
+      // Check success flag from native response
+      if (!resultMap.hasKey("success") || !resultMap.getBoolean("success")) {
+        val errorMessage = resultMap.getString("error") ?: "Unknown error in native execution"
+        promise.reject("ESSENTIA_ALGORITHM_ERROR", "Failed to execute $algorithm: $errorMessage")
+        return@ensureInitialized
+      }
+
+      // Always resolves with a non-null value
       promise.resolve(resultMap)
     }
   }
@@ -1022,6 +1036,52 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
       Log.d("EssentiaModule", "Spectrum computation result: $result")
       promise.resolve(result)
+    }
+  }
+
+  /**
+   * Computes the Tonnetz transformation from HPCP data or directly from audio
+   * @param params Parameters for the Tonnetz algorithm
+   * @param promise Promise that resolves to the Tonnetz result
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun extractTonnetz(params: ReadableMap, promise: Promise) {
+    Log.d("EssentiaModule", "Entering extractTonnetz with params: $params")
+    ensureInitialized(promise) {
+      try {
+        // Convert params to JSON string
+        val paramsJson = convertReadableMapToJsonObject(params).toString()
+        Log.d("EssentiaModule", "Executing Tonnetz with params: $paramsJson")
+
+        // First try to execute as a regular algorithm
+        val resultJsonString: String
+        synchronized(lock) {
+          if (nativeHandle == 0L) {
+            promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+            return@ensureInitialized
+          }
+
+          // Try to use standard algorithm execution
+          resultJsonString = nativeExecuteAlgorithm(nativeHandle, "Tonnetz", paramsJson)
+        }
+
+        Log.d("EssentiaModule", "Tonnetz execution result: $resultJsonString")
+
+        // Convert the JSON string to a WritableMap
+        val resultMap = convertJsonToWritableMap(resultJsonString)
+
+        // Check if there was an error
+        if (handleErrorInResultMap(resultMap, promise)) {
+          return@ensureInitialized
+        }
+
+        // Resolve the promise with the properly structured map
+        promise.resolve(resultMap)
+      } catch (e: Exception) {
+        Log.e("EssentiaModule", "Error executing Tonnetz algorithm: ${e.message}", e)
+        promise.reject("TONNETZ_ERROR", "Failed to compute Tonnetz transformation: ${e.message}")
+      }
     }
   }
 

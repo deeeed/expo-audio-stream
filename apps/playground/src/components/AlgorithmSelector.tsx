@@ -218,32 +218,6 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
     }
   };
 
-  const executeTonnetz = async () => {
-    try {
-      // Instead of manually creating HPCP data, we'll use the audio data that was already set
-      // and let the algorithm handle the HPCP computation internally
-      
-      console.log('Computing Tonnetz from audio data');
-      
-      // These parameters will let the Tonnetz algorithm compute HPCP internally
-      const params = {
-        frameSize: 2048,
-        hopSize: 1024,
-        hpcpSize: 12,  // Size of HPCP (12 for standard pitch class representation)
-        referenceFrequency: 440.0,  // Standard tuning reference
-        framewise: false  // Get a single result instead of per-frame
-      };
-      
-      const result = await EssentiaJS.extractTonnetz(params);
-      
-      console.log('Tonnetz computation result:', result);
-      return result;
-    } catch (error) {
-      console.error('Error executing Tonnetz algorithm:', error);
-      throw error;
-    }
-  };
-
   const executeAlgorithm = async () => {
     if (!isInitialized) {
       alert('Essentia is not initialized. Please initialize it first.');
@@ -253,13 +227,7 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
     setIsExecuting(true);
     setResult(null);
 
-    try {
-      let result;
-      
-      // Special case for Tonnetz algorithm
-      if (selectedAlgorithm === 'Tonnetz') {
-        result = await executeTonnetz();
-      } else {
+    try {      
         // Original code for other algorithms
         const audioDataSuccess = await setDummyAudioData();
         
@@ -268,8 +236,7 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
         }
         
         console.log(`Executing ${selectedAlgorithm} with parameters:`, parameters);
-        result = await EssentiaJS.executeAlgorithm(selectedAlgorithm, parameters);
-      }
+        const result = await EssentiaJS.executeAlgorithm(selectedAlgorithm, parameters);
       
       console.log(`${selectedAlgorithm} execution result:`, result);
       setResult(result);
