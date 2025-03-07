@@ -1623,6 +1623,48 @@ public:
                         std::string featureName = featureNames[i];
                         std::string outputName = featureOutputNames[i];
 
+                        // Add special case for Tonnetz
+                        if (featureName == "Tonnetz") {
+                            // Check if Spectrum is available in the pool
+                            if (!framePool.contains<std::vector<essentia::Real>>("Spectrum")) {
+                                LOGE("Spectrum not found in pool for Tonnetz");
+                                continue;
+                            }
+                            const auto& spectrumFrame = framePool.value<std::vector<essentia::Real>>("Spectrum");
+
+                            // Create and configure HPCP algorithm
+                            auto* hpcpAlgo = factory.create("HPCP");
+                            essentia::ParameterMap hpcpParams;
+                            hpcpParams.add("size", 12); // Fixed to 12 for Tonnetz
+                            hpcpParams.add("sampleRate", static_cast<essentia::Real>(sampleRate));
+                            hpcpParams.add("referenceFrequency", 440.0f); // Default A4 tuning
+                            hpcpAlgo->configure(hpcpParams);
+
+                            // Compute HPCP from spectrum
+                            std::vector<essentia::Real> hpcp;
+                            hpcpAlgo->input("spectrum").set(spectrumFrame);
+                            hpcpAlgo->output("hpcp").set(hpcp);
+                            hpcpAlgo->compute();
+
+                            // Normalize HPCP for consistency
+                            essentia::normalize(hpcp);
+
+                            // Apply Tonnetz transformation
+                            std::vector<essentia::Real> tonnetz = applyTonnetzTransform(hpcp);
+
+                            // Store in feature collectors
+                            if (featureCollectors.find("Tonnetz") == featureCollectors.end()) {
+                                featureCollectors["Tonnetz"] = std::vector<std::vector<essentia::Real>>();
+                            }
+                            featureCollectors["Tonnetz"].push_back(tonnetz);
+
+                            // Clean up HPCP algorithm
+                            delete hpcpAlgo;
+
+                            // Skip the rest of the processing for this feature
+                            continue;
+                        }
+
                         // Special case: if the input is "frame" and we have no preprocessing steps,
                         // use the frame directly
                         if (inputName == "frame" && preprocessAlgos.empty()) {
@@ -2202,17 +2244,15 @@ public:
         }
     }
 
-private:
-    // ... existing private methods ...
-
-    // Helper method to apply the Tonnetz transformation
+    // Move from private to public section
     std::vector<essentia::Real> applyTonnetzTransform(const std::vector<essentia::Real>& hpcp) {
+        // Keep the existing implementation untouched
         // Initialize 6-dimensional Tonnetz vector
         std::vector<essentia::Real> tonnetz(6, 0.0);
 
-        // Matrix-vector multiplication
-        for (size_t i = 0; i < 6; ++i) {
-            for (size_t j = 0; j < 12; ++j) {
+        // Apply Tonnetz transformation with the 6x12 matrix
+        for (int i = 0; i < 6; i++) {
+            for (int j = 0; j < 12; j++) {
                 tonnetz[i] += TONNETZ_MATRIX[i][j] * hpcp[j];
             }
         }
@@ -2220,6 +2260,7 @@ private:
         return tonnetz;
     }
 
+private:
     // ... existing private methods ...
 };
 
@@ -2522,7 +2563,6 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
         {"nativeComputeMelSpectrogram", "(JIIIFFLjava/lang/String;ZZ)Ljava/lang/String;", (void*)nativeComputeMelSpectrogram},
         {"nativeExecutePipeline", "(JLjava/lang/String;)Ljava/lang/String;", (void*)nativeExecutePipeline},
         {"nativeComputeSpectrum", "(JII)Z", (void*)nativeComputeSpectrum},
-        {"nativeComputeTonnetz", "(JLjava/lang/String;)Ljava/lang/String;", (void*)nativeComputeTonnetz},
     };
 
     int rc = env->RegisterNatives(clazz, methods, sizeof(methods) / sizeof(methods[0]));
