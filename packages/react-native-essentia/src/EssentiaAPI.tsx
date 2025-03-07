@@ -524,9 +524,13 @@ class EssentiaAPI implements EssentiaInterface {
         }
       }
 
-      // Check feature algorithms
+      const customAlgorithms = ['Tonnetz'];
+      // // Check feature algorithms
       for (const feature of config.features) {
-        if (!allAlgorithms.includes(feature.name)) {
+        if (
+          !allAlgorithms.includes(feature.name) &&
+          !customAlgorithms.includes(feature.name)
+        ) {
           throw {
             code: 'INVALID_ALGORITHM',
             message: `Algorithm '${feature.name}' not found in Essentia registry`,

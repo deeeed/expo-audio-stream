@@ -1658,11 +1658,15 @@ public:
      */
     std::string executePipeline(const std::string& pipelineJson) {
         try {
+            LOGI("Starting pipeline execution with configuration length: %zu", pipelineJson.length());
+
             if (!mIsInitialized) {
+                LOGE("Essentia not initialized");
                 return createErrorResponse("Essentia not initialized", "NOT_INITIALIZED");
             }
 
             if (audioBuffer.empty()) {
+                LOGE("No audio data loaded");
                 return createErrorResponse("No audio data loaded", "NO_AUDIO_DATA");
             }
 
@@ -1670,15 +1674,29 @@ public:
             json config;
             try {
                 config = json::parse(pipelineJson);
+                LOGI("Successfully parsed pipeline JSON configuration");
             } catch (const json::exception& e) {
+                LOGE("Failed to parse JSON configuration: %s", e.what());
                 return createErrorResponse(std::string("Invalid JSON configuration: ") + e.what(), "INVALID_CONFIG");
+            }
+
+            // Log the feature algorithms we're going to process
+            if (config.contains("features") && config["features"].is_array()) {
+                LOGI("Pipeline includes %zu features:", config["features"].size());
+                for (const auto& feature : config["features"]) {
+                    if (feature.contains("name")) {
+                        LOGI("  - %s", feature["name"].get<std::string>().c_str());
+                    }
+                }
             }
 
             // Validate configuration
             if (!config.contains("preprocess") || !config["preprocess"].is_array()) {
+                LOGE("Invalid configuration: 'preprocess' must be an array");
                 return createErrorResponse("Invalid configuration: 'preprocess' must be an array", "INVALID_CONFIG");
             }
             if (!config.contains("features") || !config["features"].is_array()) {
+                LOGE("Invalid configuration: 'features' must be an array");
                 return createErrorResponse("Invalid configuration: 'features' must be an array", "INVALID_CONFIG");
             }
 
@@ -1702,6 +1720,7 @@ public:
             if (isFrameBased) {
                 // Frame-based processing
                 if (frameCutterIndex >= config["preprocess"].size()) {
+                    LOGE("FrameCutter not found in preprocessing steps");
                     return createErrorResponse("FrameCutter not found in preprocessing steps", "INVALID_CONFIG");
                 }
 
@@ -1710,6 +1729,7 @@ public:
                 if (!frameCutterConfig.contains("params") ||
                     !frameCutterConfig["params"].contains("frameSize") ||
                     !frameCutterConfig["params"].contains("hopSize")) {
+                    LOGE("FrameCutter requires frameSize and hopSize parameters");
                     return createErrorResponse("FrameCutter requires frameSize and hopSize parameters", "INVALID_CONFIG");
                 }
 
@@ -1766,6 +1786,7 @@ public:
                         for (auto* algo : preprocessAlgos) {
                             delete algo;
                         }
+                        LOGE("Error creating algorithm '%s': %s", name.c_str(), e.what());
                         return createErrorResponse(std::string("Error creating algorithm '") + name + "': " + e.what(), "ALGORITHM_ERROR");
                     }
                 }
@@ -1782,7 +1803,11 @@ public:
                 for (const auto& feature : config["features"]) {
                     std::string name = feature["name"].get<std::string>();
 
+                    LOGI("Processing feature configuration: '%s'", name.c_str());
+
                     if (name == "Tonnetz") {
+                        LOGI("Detected Tonnetz feature - using special handling path");
+
                         // Skip trying to create the Tonnetz algorithm using the factory
                         // We'll handle it manually in the processing loop
 
@@ -1790,10 +1815,12 @@ public:
                             // Clean up resources
                             for (auto* algo : preprocessAlgos) delete algo;
                             for (auto* algo : featureAlgos) delete algo;
+                            LOGE("Tonnetz feature missing required 'input' field");
                             return createErrorResponse(std::string("Feature '") + name + "' is missing required 'input' field", "INVALID_CONFIG");
                         }
 
                         std::string inputName = feature["input"].get<std::string>();
+                        LOGI("Tonnetz will use input: '%s'", inputName.c_str());
 
                         // Add to tracking arrays to maintain index alignment
                         featureAlgos.push_back(nullptr); // No algorithm for Tonnetz
@@ -1823,13 +1850,23 @@ public:
                         // Clean up resources
                         for (auto* algo : preprocessAlgos) delete algo;
                         for (auto* algo : featureAlgos) delete algo;
+                        LOGE("Feature '%s' is missing required 'input' field", name.c_str());
                         return createErrorResponse(std::string("Feature '") + name + "' is missing required 'input' field", "INVALID_CONFIG");
                     }
 
                     std::string inputName = feature["input"].get<std::string>();
 
                     try {
+                        LOGI("Attempting to create algorithm '%s'", name.c_str());
+
+                        // Check if we're trying to create Tonnetz through the factory
+                        if (name == "Tonnetz") {
+                            LOGE("Unexpected code path: Trying to create Tonnetz algorithm through factory!");
+                            // This should never happen as we should have handled Tonnetz earlier
+                        }
+
                         essentia::standard::Algorithm* algo = factory.create(name);
+                        LOGI("Successfully created algorithm '%s'", name.c_str());
 
                         // Configure algorithm parameters
                         if (feature.contains("params")) {
@@ -1884,6 +1921,7 @@ public:
                         // Clean up resources
                         for (auto* algo : preprocessAlgos) delete algo;
                         for (auto* algo : featureAlgos) delete algo;
+                        LOGE("Error creating algorithm '%s': %s", name.c_str(), e.what());
                         return createErrorResponse(std::string("Error creating algorithm '") + name + "': " + e.what(), "ALGORITHM_ERROR");
                     }
                 }
@@ -1993,13 +2031,26 @@ public:
 
                         // Add special case for Tonnetz
                         if (featureName == "Tonnetz") {
+                            LOGI("Executing special Tonnetz processing for frame %d", frameCount);
+
                             // Check if the specified input exists in the pool
                             if (!framePool.contains<std::vector<essentia::Real>>(inputName)) {
-                                LOGE("Input '%s' not found in pool for Tonnetz", inputName.c_str());
+                                LOGE("Input '%s' not found in pool for Tonnetz (available descriptors: %s)",
+                                     inputName.c_str(),
+                                     [&framePool]() {
+                                         std::string result = "";
+                                         auto descriptors = framePool.descriptorNames();
+                                         for (const auto& desc : descriptors) {
+                                             if (!result.empty()) result += ", ";
+                                             result += desc;
+                                         }
+                                         return result;
+                                     }().c_str());
                                 continue;
                             }
 
                             const auto& hpcp = framePool.value<std::vector<essentia::Real>>(inputName);
+                            LOGI("Retrieved input '%s' for Tonnetz (size: %zu)", inputName.c_str(), hpcp.size());
 
                             // Validate HPCP size (must be 12 for Tonnetz)
                             if (hpcp.size() != 12) {
@@ -2008,12 +2059,35 @@ public:
                                 continue;
                             }
 
+                            // Log before applying transformation
+                            LOGI("Applying Tonnetz transformation to HPCP values: [%s]",
+                                 [&hpcp]() {
+                                     std::string values = "";
+                                     for (size_t i = 0; i < hpcp.size(); ++i) {
+                                         if (i > 0) values += ", ";
+                                         values += std::to_string(hpcp[i]);
+                                     }
+                                     return values;
+                                 }().c_str());
+
                             // Apply Tonnetz transformation
                             std::vector<essentia::Real> tonnetz = applyTonnetzTransform(hpcp);
+
+                            // Log the result
+                            LOGI("Tonnetz transformation result: [%s]",
+                                 [&tonnetz]() {
+                                     std::string values = "";
+                                     for (size_t i = 0; i < tonnetz.size(); ++i) {
+                                         if (i > 0) values += ", ";
+                                         values += std::to_string(tonnetz[i]);
+                                     }
+                                     return values;
+                                 }().c_str());
 
                             // Store in feature collectors
                             if (featureCollectors.find("Tonnetz") == featureCollectors.end()) {
                                 featureCollectors["Tonnetz"] = std::vector<std::vector<essentia::Real>>();
+                                LOGI("Created new feature collector for Tonnetz");
                             }
                             featureCollectors["Tonnetz"].push_back(tonnetz);
 
