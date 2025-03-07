@@ -592,11 +592,13 @@ public:
                         keyFrames.push_back(key);
                         scaleFrames.push_back(scale);
                         strengthFrames.push_back(strength);
+                        firstToSecondRelativeStrengthFrames.push_back(firstToSecondRelativeStrength);
                     }
 
                     pool.add("key_values", keyFrames);
                     pool.add("scale_values", scaleFrames);
                     pool.add("strength_values", strengthFrames);
+                    pool.add("first_to_second_relative_strength_values", firstToSecondRelativeStrengthFrames);
                     LOGI("Added %zu key frames", keyFrames.size());
                 } else {
                     // Process the average HPCP for a single result
@@ -636,17 +638,20 @@ public:
 
                     // Compute key on the averaged HPCP
                     std::string key, scale;
-                    essentia::Real strength;
+                    essentia::Real strength, firstToSecondRelativeStrength;
                     keyAlgo->input("pcp").set(averageHpcp);
                     keyAlgo->output("key").set(key);
                     keyAlgo->output("scale").set(scale);
                     keyAlgo->output("strength").set(strength);
+                    keyAlgo->output("firstToSecondRelativeStrength").set(firstToSecondRelativeStrength);
                     keyAlgo->compute();
 
                     pool.set("key", key);
                     pool.set("scale", scale);
                     pool.set("strength", strength);
-                    LOGI("Computed key: %s %s (strength: %f)", key.c_str(), scale.c_str(), strength);
+                    pool.set("first_to_second_relative_strength", firstToSecondRelativeStrength);
+                    LOGI("Computed key: %s %s (strength: %f, firstToSecondRelativeStrength: %f)",
+                         key.c_str(), scale.c_str(), strength, firstToSecondRelativeStrength);
                 }
 
                 // Clean up algorithms
@@ -862,6 +867,64 @@ public:
                 // Clean up
                 delete spectralPeaksAlgo;
                 delete hpcpAlgo;
+            }
+            else if (algorithm == "MelBands") {
+                LOGI("Processing MelBands algorithm");
+                if (!spectrumComputed || allSpectra.empty()) {
+                    computeSpectrum(frameSize, hopSize);
+                }
+                if (allSpectra.empty()) {
+                    LOGE("No spectrum frames computed for MelBands");
+                    return createErrorResponse("No valid spectrum frames computed", "NO_DATA");
+                }
+
+                auto melBandsAlgo = essentia::standard::AlgorithmFactory::create("MelBands");
+                // Remove 'framewise' from params to avoid invalid configuration
+                auto melBandsParams = params;
+                melBandsParams.erase("framewise");
+                melBandsAlgo->configure(convertToParameterMap(melBandsParams));
+
+                LOGI("Processing %zu spectrum frames through MelBands", allSpectra.size());
+                for (const auto& spectrumFrame : allSpectra) {
+                std::vector<essentia::Real> bands;
+                    melBandsAlgo->input("spectrum").set(spectrumFrame);
+                    melBandsAlgo->output("bands").set(bands);
+                    melBandsAlgo->compute();
+                    pool.add("melbands", bands);
+                    LOGI("Added MelBands frame of size %zu", bands.size());
+                }
+
+                // Compute mean if requested
+                bool computeMean = params.count("computeMean") && params.at("computeMean").toBool();
+                if (computeMean) {
+                    try {
+                        const auto& melBandsFrames = pool.value<std::vector<std::vector<essentia::Real>>>("melbands");
+                        if (!melBandsFrames.empty()) {
+                            size_t frameSize = melBandsFrames[0].size();
+                            std::vector<essentia::Real> meanMelBands(frameSize, 0.0);
+
+                            for (const auto& frame : melBandsFrames) {
+                                for (size_t i = 0; i < frameSize; ++i) {
+                                    meanMelBands[i] += frame[i];
+                                }
+                            }
+
+                            for (auto& val : meanMelBands) {
+                                val /= melBandsFrames.size();
+                            }
+
+                            pool.set("melbands_mean", meanMelBands);
+                            LOGI("Computed mean MelBands values");
+                        } else {
+                            LOGW("No MelBands frames available to compute mean");
+                    }
+                } catch (const std::exception& e) {
+                        LOGW("Could not compute mean MelBands: %s", e.what());
+                        // Continue execution, this is not a fatal error
+                    }
+                }
+
+                delete melBandsAlgo;
             }
             else {
                 // Fall back to dynamic algorithm handling for any other algorithm
