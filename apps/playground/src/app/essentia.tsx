@@ -5,10 +5,10 @@ import { Alert, Platform, StyleSheet, ToastAndroid, View } from 'react-native';
 import { Button, Card, Text, TouchableRipple } from 'react-native-paper';
 import { AlgorithmExplorer } from '../components/AlgorithmExplorer';
 import AlgorithmSelector from '../components/AlgorithmSelector';
-import { AssetSourceType, SampleAudioFile, useSampleAudio } from '../hooks/useSampleAudio';
-import { sendDummyPCMData } from '../utils/essentiaUtils';
 import { MusicGenreClassifier } from '../components/MusicGenreClassifier';
 import { SpeechEmotionClassifier } from '../components/SpeechEmotionClassifier';
+import { AssetSourceType, SampleAudioFile, useSampleAudio } from '../hooks/useSampleAudio';
+import { sendDummyPCMData } from '../utils/essentiaUtils';
 
 // Sample audio assets 
 // Use a more compatible type
@@ -119,6 +119,8 @@ function EssentiaScreen() {
   const [versionInfo, setVersionInfo] = useState<string | null>(null);
   const [isBatchProcessing, setIsBatchProcessing] = useState<boolean>(false);
   const [batchProcessingResults, setBatchProcessingResults] = useState<BatchProcessingResults | null>(null);
+  const [isComputingTonnetz, setIsComputingTonnetz] = useState<boolean>(false);
+  const [tonnetzResult, setTonnetzResult] = useState<any>(null);
 
   // Simple callback to log favorites changes
   const handleFavoritesChange = useCallback((favorites: string[]) => {
@@ -546,7 +548,52 @@ function EssentiaScreen() {
     }
   };
 
-  
+  const handleComputeTonnetz = async () => {
+    if (!selectedSample) {
+      showToast('Please select a sample first');
+      return;
+    }
+    
+    setIsComputingTonnetz(true);
+    setTonnetzResult(null);
+    
+    try {
+      // Generate a sample HPCP vector (C major chord: C, E, G)
+      const sampleHPCP = [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
+      
+      // Compute the Tonnetz representation
+      const result = await EssentiaJS.computeTonnetz(sampleHPCP);
+      
+      if (result.success) {
+        setTonnetzResult(result.data);
+        showToast('Successfully computed Tonnetz representation');
+      } else {
+        throw new Error(result.error?.message || 'Unknown error computing Tonnetz');
+      }
+    } catch (error) {
+      console.error('Error computing Tonnetz:', error);
+      showToast(`Failed to compute Tonnetz: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsComputingTonnetz(false);
+    }
+  };
+
+  const renderTonnetzResult = () => {
+    if (!tonnetzResult) return null;
+    
+    return (
+      <View style={styles.testResult}>
+        <Text style={{ fontWeight: 'bold' }}>Tonnetz Representation:</Text>
+        <Text style={styles.resultText}>
+          [{tonnetzResult.tonnetz.map((val: number) => val.toFixed(2)).join(', ')}]
+        </Text>
+        <Text style={{ marginTop: 8, fontSize: 12 }}>
+          These 6 values represent the harmonic relationships captured in the Tonnetz space.
+        </Text>
+      </View>
+    );
+  };
+
   return (
     <ScreenWrapper contentContainerStyle={styles.container} withScrollView>
 
@@ -720,6 +767,30 @@ function EssentiaScreen() {
                 {renderBatchResults()}
               </View>
             )}
+          </Card.Content>
+        </Card>
+
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text style={styles.cardTitle}>Tonnetz Transformation</Text>
+            <Text style={styles.cardContent}>
+              The Tonnetz transformation maps a 12-dimensional HPCP vector to a 6-dimensional space
+              that captures harmonic relationships.
+            </Text>
+            
+            <View style={styles.buttonContainer}>
+              <Button
+                mode="contained"
+                onPress={handleComputeTonnetz}
+                loading={isComputingTonnetz}
+                disabled={isComputingTonnetz}
+                style={styles.button}
+              >
+                Compute Tonnetz
+              </Button>
+            </View>
+            
+            {renderTonnetzResult()}
           </Card.Content>
         </Card>
 

@@ -67,6 +67,46 @@ const AVAILABLE_ALGORITHMS: Record<string, AlgorithmConfig> = {
         max: 65536
       }
     }
+  },
+  HPCP: {
+    name: 'HPCP',
+    displayName: 'HPCP (Harmonic Pitch Class Profile)',
+    description: 'Computes the Harmonic Pitch Class Profile from the spectral peaks of a signal.',
+    parameters: {
+      size: {
+        type: 'number',
+        default: 12,
+        description: 'Size of HPCP (recommended: 12 for Tonnetz)',
+        min: 12,
+        max: 120
+      },
+      referenceFrequency: {
+        type: 'number',
+        default: 440,
+        description: 'Reference frequency for A4 in Hz',
+        min: 220,
+        max: 880
+      },
+      harmonics: {
+        type: 'number',
+        default: 8,
+        description: 'Number of harmonics to consider',
+        min: 1,
+        max: 20
+      }
+    }
+  },
+  Tonnetz: {
+    name: 'Tonnetz',
+    displayName: 'Tonnetz Transformation',
+    description: 'Computes the Tonnetz representation from an HPCP vector, capturing harmonic relationships in a 6-dimensional space.',
+    parameters: {
+      generateSampleHPCP: {
+        type: 'boolean',
+        default: true,
+        description: 'Generate a sample HPCP vector for demonstration'
+      }
+    }
   }
   // Add more algorithms as needed
 };
@@ -178,6 +218,25 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
     }
   };
 
+  const executeTonnetz = async () => {
+    try {
+      // If we're executing the Tonnetz algorithm directly, we need to generate a sample HPCP vector
+      // Normally this would come from running the HPCP algorithm on audio data
+      
+      // Generate a sample HPCP vector (C major chord: C, E, G)
+      const sampleHPCP = [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
+      
+      console.log('Computing Tonnetz with sample HPCP:', sampleHPCP);
+      const result = await EssentiaJS.computeTonnetz(sampleHPCP);
+      
+      console.log('Tonnetz computation result:', result);
+      return result;
+    } catch (error) {
+      console.error('Error executing Tonnetz algorithm:', error);
+      throw error;
+    }
+  };
+
   const executeAlgorithm = async () => {
     if (!isInitialized) {
       alert('Essentia is not initialized. Please initialize it first.');
@@ -188,16 +247,22 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
     setResult(null);
 
     try {
-      // First, set the audio data - this is the key step that was missing
-      const audioDataSuccess = await setDummyAudioData();
+      let result;
       
-      if (!audioDataSuccess) {
-        throw new Error('Failed to set audio data');
+      // Special case for Tonnetz algorithm
+      if (selectedAlgorithm === 'Tonnetz') {
+        result = await executeTonnetz();
+      } else {
+        // Original code for other algorithms
+        const audioDataSuccess = await setDummyAudioData();
+        
+        if (!audioDataSuccess) {
+          throw new Error('Failed to set audio data');
+        }
+        
+        console.log(`Executing ${selectedAlgorithm} with parameters:`, parameters);
+        result = await EssentiaJS.executeAlgorithm(selectedAlgorithm, parameters);
       }
-      
-      // Execute the selected algorithm with the current parameters
-      console.log(`Executing ${selectedAlgorithm} with parameters:`, parameters);
-      const result = await EssentiaJS.executeAlgorithm(selectedAlgorithm, parameters);
       
       console.log(`${selectedAlgorithm} execution result:`, result);
       setResult(result);

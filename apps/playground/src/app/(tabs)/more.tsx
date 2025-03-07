@@ -230,6 +230,17 @@ export const MoreScreen = () => {
                             }}
                         />
                     )}
+                    <ListItem
+                        contentContainerStyle={{
+                            ...styles.listItemContainer,
+                            backgroundColor: theme.colors.errorContainer,
+                        }}
+                        label="Baby Cry"    
+                        subLabel="Baby Cry"
+                        onPress={() => {
+                            router.navigate('/baby-cry')
+                        }}
+                    />
                     {Platform.OS === 'android' && (
                         <>
                             <ListItem
