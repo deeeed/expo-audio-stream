@@ -524,7 +524,22 @@ public:
                     return createErrorResponse("No valid spectrum frames computed", "NO_DATA");
                 }
 
+                // Create SpectralPeaks algorithm
+                auto spectralPeaksAlgo = essentia::standard::AlgorithmFactory::create("SpectralPeaks");
+                spectralPeaksAlgo->configure(
+                    "sampleRate", static_cast<float>(sampleRate),
+                    "maxPeaks", 100,
+                    "magnitudeThreshold", 0.0f
+                );
+
+                // Create HPCP algorithm
                 auto hpcpAlgo = essentia::standard::AlgorithmFactory::create("HPCP");
+                essentia::ParameterMap hpcpParams;
+                hpcpParams.add("size", 12);
+                hpcpParams.add("referenceFrequency", 440.0f);
+                hpcpAlgo->configure(hpcpParams);
+
+                // Create Key algorithm
                 auto keyAlgo = essentia::standard::AlgorithmFactory::create("Key");
                 keyAlgo->configure(convertToParameterMap(params));
 
@@ -538,6 +553,7 @@ public:
                     std::vector<std::string> keyFrames;
                     std::vector<std::string> scaleFrames;
                     std::vector<essentia::Real> strengthFrames;
+                    std::vector<essentia::Real> firstToSecondRelativeStrengthFrames;
 
                     int frameCount = 0;
                     for (const auto& spectrumFrame : allSpectra) {
@@ -545,22 +561,33 @@ public:
                         LOGI("Processing Key frame %d of %zu, frame size: %zu",
                              frameCount, allSpectra.size(), spectrumFrame.size());
 
-                        std::vector<essentia::Real> hpcp;
-                        std::string key, scale;
-                        essentia::Real strength;
+                        // Compute spectral peaks
+                        std::vector<essentia::Real> frequencies, magnitudes;
+                        spectralPeaksAlgo->input("spectrum").set(spectrumFrame);
+                        spectralPeaksAlgo->output("frequencies").set(frequencies);
+                        spectralPeaksAlgo->output("magnitudes").set(magnitudes);
+                        spectralPeaksAlgo->compute();
+                        LOGI("Computed spectral peaks for frame %d: %zu peaks", frameCount, frequencies.size());
 
-                        hpcpAlgo->input("spectrum").set(spectrumFrame);
+                        // Compute HPCP from peaks
+                        std::vector<essentia::Real> hpcp;
+                        hpcpAlgo->input("frequencies").set(frequencies);
+                        hpcpAlgo->input("magnitudes").set(magnitudes);
                         hpcpAlgo->output("hpcp").set(hpcp);
                         hpcpAlgo->compute();
                         LOGI("Computed HPCP for frame %d, hpcp size: %zu", frameCount, hpcp.size());
 
+                        // Compute Key from HPCP
+                        std::string key, scale;
+                        essentia::Real strength, firstToSecondRelativeStrength;
                         keyAlgo->input("pcp").set(hpcp);
                         keyAlgo->output("key").set(key);
                         keyAlgo->output("scale").set(scale);
                         keyAlgo->output("strength").set(strength);
+                        keyAlgo->output("firstToSecondRelativeStrength").set(firstToSecondRelativeStrength);
                         keyAlgo->compute();
-                        LOGI("Computed Key for frame %d: key=%s, scale=%s, strength=%.4f",
-                             frameCount, key.c_str(), scale.c_str(), strength);
+                        LOGI("Computed Key for frame %d: key=%s, scale=%s, strength=%.4f, firstToSecondRelativeStrength=%.4f",
+                             frameCount, key.c_str(), scale.c_str(), strength, firstToSecondRelativeStrength);
 
                         keyFrames.push_back(key);
                         scaleFrames.push_back(scale);
@@ -578,8 +605,17 @@ public:
 
                     // Calculate average HPCP across frames
                     for (const auto& spectrumFrame : allSpectra) {
+                        // Compute spectral peaks
+                        std::vector<essentia::Real> frequencies, magnitudes;
+                        spectralPeaksAlgo->input("spectrum").set(spectrumFrame);
+                        spectralPeaksAlgo->output("frequencies").set(frequencies);
+                        spectralPeaksAlgo->output("magnitudes").set(magnitudes);
+                        spectralPeaksAlgo->compute();
+
+                        // Compute HPCP from peaks
                         std::vector<essentia::Real> hpcp;
-                        hpcpAlgo->input("spectrum").set(spectrumFrame);
+                        hpcpAlgo->input("frequencies").set(frequencies);
+                        hpcpAlgo->input("magnitudes").set(magnitudes);
                         hpcpAlgo->output("hpcp").set(hpcp);
                         hpcpAlgo->compute();
 
@@ -613,6 +649,8 @@ public:
                     LOGI("Computed key: %s %s (strength: %f)", key.c_str(), scale.c_str(), strength);
                 }
 
+                // Clean up algorithms
+                delete spectralPeaksAlgo;
                 delete hpcpAlgo;
                 delete keyAlgo;
             }
