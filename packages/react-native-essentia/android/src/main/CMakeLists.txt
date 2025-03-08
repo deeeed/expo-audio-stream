@@ -88,11 +88,14 @@ endif()
 include_directories(
     ${RNESSENTIA_LIB_DIR}/include  # Essentia headers in cpp/include/essentia
     ${RNESSENTIA_LIB_DIR}/third_party  # Path to third-party libraries
+    ${RNESSENTIA_LIB_DIR}  # Include the cpp directory for local header files
 )
 
-# Add the react-native-essentia shared library
+# Custom wrapper code
 add_library(react-native-essentia SHARED
-    ${RNESSENTIA_LIB_DIR}/react-native-essentia.cpp
+    ${RNESSENTIA_LIB_DIR}/JNIBindings.cpp
+    ${RNESSENTIA_LIB_DIR}/EssentiaWrapper.cpp
+    ${RNESSENTIA_LIB_DIR}/FeatureExtractor.cpp
 )
 
 # Link libraries to react-native-essentia
