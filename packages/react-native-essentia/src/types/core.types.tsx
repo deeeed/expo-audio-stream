@@ -1,5 +1,5 @@
 // packages/react-native-essentia/src/types/core.ts
-import type { MelSpectrogramResult } from './results.types';
+import type { MelSpectrogramParams, MelSpectrogramResult } from './algorithms.types';
 
 export interface AlgorithmParams {
   [key: string]: string | number | boolean | number[] | string[] | undefined;
@@ -33,14 +33,7 @@ export interface EssentiaInterface {
 
   // New functionality
   computeMelSpectrogram(
-    frameSize: number,
-    hopSize: number,
-    nMels: number,
-    fMin: number,
-    fMax: number,
-    windowType: string,
-    normalize: boolean,
-    logScale: boolean
+    params?: MelSpectrogramParams
   ): Promise<MelSpectrogramResult>;
 
   // Pipeline functionality

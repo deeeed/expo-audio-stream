@@ -259,6 +259,58 @@ std::string EssentiaWrapper::executeSpecificAlgorithm(const std::string& algorit
 
           delete mfccAlgo;
       }
+      else if (algorithm == "Chromagram") {
+          LOGI("Processing Chromagram algorithm");
+
+          // ConstantQ requires 16384 frame size for the given parameters
+          int frameSize = 16384; // Hard-code to required size for ConstantQ
+          int hopSize = frameSize / 4; // Use 1/4 overlap for better analysis
+
+          LOGI("Using fixed frameSize=%d, hopSize=%d for Chromagram (required by ConstantQ)", frameSize, hopSize);
+
+          // Create FrameCutter to split audio into frames
+          auto frameCutter = essentia::standard::AlgorithmFactory::create("FrameCutter",
+              "frameSize", frameSize,
+              "hopSize", hopSize);
+
+          // Create Chromagram algorithm
+          auto chromagramAlgo = essentia::standard::AlgorithmFactory::create("Chromagram");
+          // Remove frameSize and hopSize from params as they're used for framing
+          auto chromagramParams = params;
+          chromagramParams.erase("frameSize");
+          chromagramParams.erase("hopSize");
+          chromagramAlgo->configure(convertToParameterMap(chromagramParams));
+
+          // Connect inputs and outputs
+          std::vector<essentia::Real> frame;
+          frameCutter->input("signal").set(audioBuffer);
+          frameCutter->output("frame").set(frame);
+
+          std::vector<std::vector<essentia::Real>> chromagramFrames;
+
+          // Process each frame
+          while (true) {
+              frameCutter->compute();
+              if (frame.empty()) {
+                  break; // No more frames
+              }
+
+              std::vector<essentia::Real> chromagram;
+              chromagramAlgo->input("frame").set(frame);
+              chromagramAlgo->output("chromagram").set(chromagram);
+              chromagramAlgo->compute();
+              chromagramFrames.push_back(chromagram);
+          }
+
+          // Store results in pool with key "chroma" to match JS expectations
+          for (const auto& frame : chromagramFrames) {
+              pool.add("chroma", frame);
+          }
+
+          // Clean up
+          delete frameCutter;
+          delete chromagramAlgo;
+      }
       else if (algorithm == "Key") {
           LOGI("Processing Key algorithm");
           if (!spectrumComputed || allSpectra.empty()) {
@@ -727,6 +779,83 @@ std::string EssentiaWrapper::executeSpecificAlgorithm(const std::string& algorit
 
           // Clean up
           delete frameCutter;
+      }
+      else if (algorithm == "SpectralContrast") {
+          LOGI("Processing SpectralContrast algorithm");
+          if (!spectrumComputed || allSpectra.empty()) {
+              computeSpectrum(frameSize, hopSize);
+          }
+          if (allSpectra.empty()) {
+              LOGE("No spectrum frames computed for SpectralContrast");
+              return createErrorResponse("No valid spectrum frames computed", "NO_DATA");
+          }
+
+          auto spectralContrastAlgo = essentia::standard::AlgorithmFactory::create("SpectralContrast");
+          // Remove 'framewise' from params to avoid invalid configuration
+          auto spectralContrastParams = params;
+          spectralContrastParams.erase("framewise");
+          spectralContrastAlgo->configure(convertToParameterMap(spectralContrastParams));
+
+          LOGI("Processing %zu spectrum frames through SpectralContrast", allSpectra.size());
+          for (const auto& spectrumFrame : allSpectra) {
+              std::vector<essentia::Real> spectralContrast, spectralValley;
+              spectralContrastAlgo->input("spectrum").set(spectrumFrame);
+              spectralContrastAlgo->output("spectralContrast").set(spectralContrast);
+              spectralContrastAlgo->output("spectralValley").set(spectralValley);
+              spectralContrastAlgo->compute();
+              pool.add("spectralContrast", spectralContrast);
+              pool.add("spectralValley", spectralValley);
+              LOGI("Added SpectralContrast frame of size %zu and SpectralValley frame of size %zu",
+                   spectralContrast.size(), spectralValley.size());
+          }
+
+          // Compute mean if requested
+          bool computeMean = params.count("computeMean") && params.at("computeMean").toBool();
+          if (computeMean) {
+              try {
+                  const auto& contrastFrames = pool.value<std::vector<std::vector<essentia::Real>>>("spectralContrast");
+                  const auto& valleyFrames = pool.value<std::vector<std::vector<essentia::Real>>>("spectralValley");
+
+                  if (!contrastFrames.empty() && !valleyFrames.empty()) {
+                      size_t contrastSize = contrastFrames[0].size();
+                      size_t valleySize = valleyFrames[0].size();
+
+                      std::vector<essentia::Real> meanContrast(contrastSize, 0.0);
+                      std::vector<essentia::Real> meanValley(valleySize, 0.0);
+
+                      for (const auto& frame : contrastFrames) {
+                          for (size_t i = 0; i < contrastSize; ++i) {
+                              meanContrast[i] += frame[i];
+                          }
+                      }
+
+                      for (const auto& frame : valleyFrames) {
+                          for (size_t i = 0; i < valleySize; ++i) {
+                              meanValley[i] += frame[i];
+                          }
+                      }
+
+                      for (auto& val : meanContrast) {
+                          val /= contrastFrames.size();
+                      }
+
+                      for (auto& val : meanValley) {
+                          val /= valleyFrames.size();
+                      }
+
+                      pool.set("spectralContrast_mean", meanContrast);
+                      pool.set("spectralValley_mean", meanValley);
+                      LOGI("Computed mean SpectralContrast and SpectralValley values");
+                  } else {
+                      LOGW("No SpectralContrast frames available to compute mean");
+                  }
+              } catch (const std::exception& e) {
+                  LOGW("Could not compute mean SpectralContrast: %s", e.what());
+                  // Continue execution, this is not a fatal error
+              }
+          }
+
+          delete spectralContrastAlgo;
       }
       else {
           // Fall back to dynamic algorithm handling for any other algorithm

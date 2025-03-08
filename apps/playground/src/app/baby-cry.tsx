@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { baseLogger } from '../config';
 import { CryDetectionResult, useCryDetector } from '../hooks/useCryDetection';
 import { useSampleAudio } from '../hooks/useSampleAudio';
-import EssentiaAPI from '@siteed/react-native-essentia';
 
 const logger = baseLogger.extend('BabyCryScreen');
 
@@ -98,12 +97,13 @@ export default function BabyCryScreen() {
     pipeline: { avgTime: number; avgProbability: number; detectionRate: number };
   } | null>(null);
 
-  // New state for Tonnetz result
-  const [tonnetzResult, setTonnetzResult] = useState<{
-    tonnetz: number[];
+
+  // Add new state for individual feature extraction results
+  const [featureResults, setFeatureResults] = useState<{
+    type: string;
+    features: number[];
     processingTimeMs: number;
   } | null>(null);
-
 
   // Load sample audio hook
   const { loadSampleAudio } = useSampleAudio({
@@ -122,7 +122,13 @@ export default function BabyCryScreen() {
     isModelLoading, 
     isProcessing, 
     detectCryManually, 
-    detectCryWithPipeline 
+    detectCryWithPipeline,
+    extractMFCC,
+    extractMelSpectrogram,
+    extractChroma,
+    extractSpectralContrast,
+    extractTonnetz,
+    runPrediction
   } = useCryDetector({
     onError: (error) => {
       logger.error('Cry detection error:', error);
@@ -365,84 +371,6 @@ export default function BabyCryScreen() {
     }
   }, [audioData, detectCryWithPipeline, results, show, calculateAverages]);
 
-  
-  // Compute Tonnetz features only
-  const computeTonnetzOnly = useCallback(async () => {
-    if (!audioData) {
-      show({
-        type: 'error',
-        message: 'No audio data available',
-        duration: 3000,
-      });
-      return;
-    }
-
-    try {
-      setIsComparing(true);
-      
-      const startTime = performance.now();
-      
-      await EssentiaAPI.setAudioData(audioData, 16000); // Use 16kHz as the sample rate
-      
-      // Frame the audio
-      const frames = await EssentiaAPI.executeAlgorithm("FrameCutter", {
-        frameSize: 400, // 25 ms at 16,000 Hz
-        hopSize: 160,   // 10 ms at 16,000 Hz
-      });
-      
-      const chromaFrames: number[][] = [];
-      const tonnetzFrames: number[][] = [];
-      
-      // Process each frame to compute chroma and tonnetz
-      for (const frame of frames.data.frame) {
-        // Set each frame as new audio data
-        await EssentiaAPI.setAudioData(frame, 16000);
-    
-        // Chroma (Note: "Chromagram" isn’t in Essentia; use "HPCP" instead)
-        const chromaResult = await EssentiaAPI.executeAlgorithm("HPCP", {
-            sampleRate: 16000,
-            size: 12,
-        });
-        chromaFrames.push(chromaResult.data.hpcp);
-    
-        // Tonnetz
-        const tonnetzResult = await EssentiaAPI.executeAlgorithm("Tonnetz", {
-            // Your Tonnetz accepts HPCP directly
-        });
-        tonnetzFrames.push(tonnetzResult.data.tonnetz);
-    }
-      
-      // Compute mean tonnetz features
-      const meanTonnetz = tonnetzFrames.reduce((sum, frame) => {
-        return frame.map((value, i) => (sum[i] || 0) + value / tonnetzFrames.length);
-      }, [] as number[]);
-      
-      const endTime = performance.now();
-      
-      // Set result
-      setTonnetzResult({
-        tonnetz: meanTonnetz,
-        processingTimeMs: endTime - startTime,
-      });
-      
-      show({
-        type: 'success',
-        message: 'Tonnetz computation completed',
-        duration: 2000,
-      });
-    } catch (error) {
-      logger.error('Tonnetz computation error:', error);
-      show({
-        type: 'error',
-        message: 'Error computing Tonnetz features',
-        duration: 3000,
-      });
-      setTonnetzResult(null);
-    } finally {
-      setIsComparing(false);
-    }
-  }, [audioData, show]);
-
   // Process audio with both methods (keeping the original function for backward compatibility)
   const runCryDetection = useCallback(async () => {
     if (!audioData) {
@@ -674,35 +602,238 @@ export default function BabyCryScreen() {
     );
   }, [averageResults, comparisonCount, styles.cardTitle, styles.resultCard]);
 
-  // Render Tonnetz result
-  const renderTonnetzResult = useCallback(() => {
-    if (!tonnetzResult) {
-      return null;
+  // Define extractMFCCOnly function
+  const extractMFCCOnly = useCallback(async () => {
+    if (!audioData) {
+      show({
+        type: 'error',
+        message: 'No audio data available',
+        duration: 3000,
+      });
+      return;
     }
 
-    return (
-      <Card style={styles.resultCard}>
-        <Card.Content>
-          <Text style={styles.cardTitle}>Tonnetz Computation Result</Text>
-          
-          <View style={{ marginTop: 8 }}>
-            <Text style={styles.metricLabel}>Processing Time: {tonnetzResult.processingTimeMs.toFixed(2)} ms</Text>
-            
-            <Text style={{ marginTop: 12, fontWeight: 'bold' }}>Tonnetz Features:</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 }}>
-              {tonnetzResult.tonnetz.map((value, index) => (
-                <Text key={index} style={{ marginRight: 8, marginBottom: 4 }}>
-                  {index}: {value.toFixed(4)}
-                </Text>
-              ))}
-            </View>
-          </View>
-        </Card.Content>
-      </Card>
-    );
-  }, [tonnetzResult, styles]);
+    try {
+      setIsComparing(true);
+      const result = await extractMFCC(audioData);
+      setFeatureResults({
+        type: 'MFCC',
+        features: result.features,
+        processingTimeMs: result.processingTimeMs,
+      });
+    } catch (error) {
+      logger.error('MFCC extraction error:', error);
+      show({
+        type: 'error',
+        message: 'Error extracting MFCC features',
+        duration: 3000,
+      });
+    } finally {
+      setIsComparing(false);
+    }
+  }, [audioData, extractMFCC, show]);
 
-  // Update the Card for detection controls
+  const extractMelSpectrogramOnly = useCallback(async () => {
+    if (!audioData) {
+      show({
+        type: 'error',
+        message: 'No audio data available',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      setIsComparing(true);
+      const result = await extractMelSpectrogram(audioData);
+      setFeatureResults({
+        type: 'Mel Spectrogram',
+        features: result.features,
+        processingTimeMs: result.processingTimeMs,
+      });
+      show({
+        type: 'success',
+        message: `Mel Spectrogram extraction completed in ${result.processingTimeMs.toFixed(2)}ms`,
+        duration: 2000,
+      });
+    } catch (error) {
+      logger.error('Mel Spectrogram extraction error:', error);
+      show({
+        type: 'error',
+        message: 'Error extracting Mel Spectrogram features',
+        duration: 3000,
+      });
+    } finally {
+      setIsComparing(false);
+    }
+  }, [audioData, extractMelSpectrogram, show]);
+
+  const extractChromaOnly = useCallback(async () => {
+    if (!audioData) {
+      show({
+        type: 'error',
+        message: 'No audio data available',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      setIsComparing(true);
+      const result = await extractChroma(audioData);
+      setFeatureResults({
+        type: 'Chroma',
+        features: result.features,
+        processingTimeMs: result.processingTimeMs,
+      });
+      show({
+        type: 'success',
+        message: `Chroma extraction completed in ${result.processingTimeMs.toFixed(2)}ms`,
+        duration: 2000,
+      });
+    } catch (error) {
+      logger.error('Chroma extraction error:', error);
+      show({
+        type: 'error',
+        message: 'Error extracting Chroma features',
+        duration: 3000,
+      });
+    } finally {
+      setIsComparing(false);
+    }
+  }, [audioData, extractChroma, show]);
+
+  const extractSpectralContrastOnly = useCallback(async () => {
+    if (!audioData) {
+      show({
+        type: 'error',
+        message: 'No audio data available',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      setIsComparing(true);
+      const result = await extractSpectralContrast(audioData);
+      setFeatureResults({
+        type: 'Spectral Contrast',
+        features: result.features,
+        processingTimeMs: result.processingTimeMs,
+      });
+      show({
+        type: 'success',
+        message: `Spectral Contrast extraction completed in ${result.processingTimeMs.toFixed(2)}ms`,
+        duration: 2000,
+      });
+    } catch (error) {
+      logger.error('Spectral Contrast extraction error:', error);
+      show({
+        type: 'error',
+        message: 'Error extracting Spectral Contrast features',
+        duration: 3000,
+      });
+    } finally {
+      setIsComparing(false);
+    }
+  }, [audioData, extractSpectralContrast, show]);
+
+  const extractTonnetzOnly = useCallback(async () => {
+    if (!audioData) {
+      show({
+        type: 'error',
+        message: 'No audio data available',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      setIsComparing(true);
+      const result = await extractTonnetz(audioData);
+      setFeatureResults({
+        type: 'Tonnetz',
+        features: result.features,
+        processingTimeMs: result.processingTimeMs,
+      });
+      show({
+        type: 'success',
+        message: `Tonnetz extraction completed in ${result.processingTimeMs.toFixed(2)}ms`,
+        duration: 2000,
+      });
+    } catch (error) {
+      logger.error('Tonnetz extraction error:', error);
+      show({
+        type: 'error',
+        message: 'Error extracting Tonnetz features',
+        duration: 3000,
+      });
+    } finally {
+      setIsComparing(false);
+    }
+  }, [audioData, extractTonnetz, show]);
+
+  // Run model prediction on concatenated features
+  const runModelPredictionOnly = useCallback(async () => {
+    if (!audioData) {
+      show({
+        type: 'error',
+        message: 'No audio data available',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      setIsComparing(true);
+      
+      // First extract all features
+      const mfccResult = await extractMFCC(audioData);
+      const melResult = await extractMelSpectrogram(audioData);
+      const chromaResult = await extractChroma(audioData);
+      const contrastResult = await extractSpectralContrast(audioData);
+      const tonnetzResult = await extractTonnetz(audioData);
+      
+      // Concatenate features
+      const features = [
+        ...mfccResult.features,
+        ...chromaResult.features,
+        ...melResult.features,
+        ...contrastResult.features,
+        ...tonnetzResult.features
+      ];
+      
+      // Run prediction
+      const startTime = performance.now();
+      const result = await runPrediction(features);
+      const endTime = performance.now();
+      
+      // Show result
+      show({
+        type: 'success',
+        message: `Prediction: ${result.isCrying ? 'Crying' : 'Not Crying'} (${(result.probability * 100).toFixed(2)}%)`,
+        duration: 3000,
+      });
+      
+      setFeatureResults({
+        type: 'Prediction',
+        features: [result.probability],
+        processingTimeMs: endTime - startTime,
+      });
+      
+    } catch (error) {
+      logger.error('Model prediction error:', error);
+      show({
+        type: 'error',
+        message: 'Error running model prediction',
+        duration: 3000,
+      });
+    } finally {
+      setIsComparing(false);
+    }
+  }, [audioData, extractMFCC, extractMelSpectrogram, extractChroma, extractSpectralContrast, extractTonnetz, runPrediction, show]);
+
+  // Now update the renderDetectionControls function to include buttons for each feature extraction
   const renderDetectionControls = useCallback(() => {
     return (
       <Card style={styles.card}>
@@ -756,15 +887,74 @@ export default function BabyCryScreen() {
               </Button>
             </View>
             
-            <Button
-              mode="outlined"
-              onPress={computeTonnetzOnly}
-              disabled={isComparing || isProcessing || !audioData}
-              icon="waveform"
-            >
-              Compute Tonnetz Only
-            </Button>
+            <Text style={{ fontWeight: 'bold', marginTop: 8 }}>Individual Feature Extraction:</Text>
             
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              <Button
+                mode="outlined"
+                onPress={extractMFCCOnly}
+                disabled={isComparing || isProcessing || !audioData}
+                icon="music-note"
+                style={{ flex: 1, minWidth: 150 }}
+              >
+                MFCC
+              </Button>
+              
+              <Button
+                mode="outlined"
+                onPress={extractMelSpectrogramOnly}
+                disabled={isComparing || isProcessing || !audioData}
+                icon="waveform"
+                style={{ flex: 1, minWidth: 150 }}
+              >
+                Mel Spectrogram
+              </Button>
+            </View>
+            
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              <Button
+                mode="outlined"
+                onPress={extractChromaOnly}
+                disabled={isComparing || isProcessing || !audioData}
+                icon="music-circle"
+                style={{ flex: 1, minWidth: 150 }}
+              >
+                Chroma
+              </Button>
+              
+              <Button
+                mode="outlined"
+                onPress={extractSpectralContrastOnly}
+                disabled={isComparing || isProcessing || !audioData}
+                icon="contrast-circle"
+                style={{ flex: 1, minWidth: 150 }}
+              >
+                Spectral Contrast
+              </Button>
+            </View>
+            
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              <Button
+                mode="outlined"
+                onPress={extractTonnetzOnly}
+                disabled={isComparing || isProcessing || !audioData}
+                icon="music-accidental-sharp"
+                style={{ flex: 1, minWidth: 150 }}
+              >
+                Tonnetz
+              </Button>
+              
+              <Button
+                mode="outlined"
+                onPress={runModelPredictionOnly}
+                disabled={isComparing || isProcessing || isModelLoading || !audioData}
+                icon="brain"
+                style={{ flex: 1, minWidth: 150 }}
+              >
+                Run Prediction
+              </Button>
+            </View>
+
             {!audioData && (
               <Notice
                 type="info"
@@ -778,8 +968,56 @@ export default function BabyCryScreen() {
   }, [
     styles, isComparing, isProcessing, isModelLoading, audioData, 
     runCryDetection, clearResults, results.length, 
-    runManualDetection, runPipelineDetection, computeTonnetzOnly
+    runManualDetection, runPipelineDetection,
+    extractMFCCOnly, extractMelSpectrogramOnly, extractChromaOnly,
+    extractSpectralContrastOnly, extractTonnetzOnly, runModelPredictionOnly
   ]);
+
+  // Enhanced feature results card
+  const renderFeatureResults = useCallback(() => {
+    if (!featureResults) {
+      return null;
+    }
+
+    return (
+      <Card style={styles.resultCard}>
+        <Card.Content>
+          <Text style={styles.cardTitle}>{featureResults.type} Features</Text>
+          <Text>Processing Time: {featureResults.processingTimeMs.toFixed(2)} ms</Text>
+          
+          {featureResults.type === 'Prediction' ? (
+            <View style={{ marginTop: 12 }}>
+              <Text style={{ fontWeight: 'bold' }}>
+                Result: {featureResults.features[0] > 0.5 ? 'Crying Detected' : 'No Crying Detected'}
+              </Text>
+              <Text>Probability: {(featureResults.features[0] * 100).toFixed(2)}%</Text>
+              <View style={{ 
+                width: `${featureResults.features[0] * 100}%`, 
+                backgroundColor: featureResults.features[0] > 0.5 ? theme.colors.error : theme.colors.primary,
+                height: 20,
+                borderRadius: 4,
+                marginVertical: 8
+              }} />
+            </View>
+          ) : (
+            <>
+              <Text style={{ marginTop: 12, fontWeight: 'bold' }}>Feature Values ({featureResults.features.length}):</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 }}>
+                {featureResults.features.slice(0, 20).map((value, index) => (
+                  <Text key={index} style={{ marginRight: 8, marginBottom: 4 }}>
+                    {index}: {value.toFixed(4)}
+                  </Text>
+                ))}
+                {featureResults.features.length > 20 && (
+                  <Text>... {featureResults.features.length - 20} more values</Text>
+                )}
+              </View>
+            </>
+          )}
+        </Card.Content>
+      </Card>
+    );
+  }, [featureResults, styles, theme.colors]);
 
   return (
     <ScreenWrapper 
@@ -874,7 +1112,7 @@ export default function BabyCryScreen() {
 
         {renderDetectionControls()}
         {renderComparisonResults()}
-        {renderTonnetzResult()}
+        {renderFeatureResults()}
         {renderAggregateStats()}
       </View>
     </ScreenWrapper>

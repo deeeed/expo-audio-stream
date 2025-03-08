@@ -29,6 +29,61 @@ export interface WindowTypeParam extends AlgorithmParams {
 
 // AfterMaxToBeforeMaxEnergyRatio has no specific parameters
 
+export interface MelSpectrogramParams {
+  /**
+   * The size of each frame in samples
+   * @default 2048
+   */
+  frameSize?: number;
+
+  /**
+   * The hop size between frames in samples
+   * @default 1024
+   */
+  hopSize?: number;
+
+  /**
+   * The number of mel bands
+   * @default 40
+   */
+  nMels?: number;
+
+  /**
+   * The minimum frequency for mel bands in Hz
+   * @default 0
+   */
+  fMin?: number;
+
+  /**
+   * The maximum frequency for mel bands in Hz
+   * @default 22050
+   */
+  fMax?: number;
+
+  /**
+   * The type of window function to apply
+   * @default "hann"
+   */
+  windowType?: string;
+
+  /**
+   * Whether to normalize the mel bands
+   * @default true
+   */
+  normalize?: boolean;
+
+  /**
+   * Whether to apply log scaling to the mel bands
+   * @default true
+   */
+  logScale?: boolean;
+
+  /**
+   * The sample rate of the audio in Hz
+   */
+  sampleRate?: number;
+}
+
 export interface AllPassParams extends AlgorithmParams {
   sampleRate: number;
   order?: number;
@@ -48,6 +103,59 @@ export interface AutoCorrelationParams extends AlgorithmParams {
   frequencyDomainCompression?: number;
 }
 
+// ----- SpectralContrast -----
+//  LOG  Inputs:
+//  LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+//  LOG  Outputs:
+//  LOG    - spectralContrast (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+//  LOG    - spectralValley (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+//  LOG  Parameters:
+//  LOG    - staticDistribution: 0.15000000596046448
+//  LOG    - sampleRate: 22050
+//  LOG    - numberBands: 6
+//  LOG    - neighbourRatio: 0.4000000059604645
+//  LOG    - highFrequencyBound: 11000
+//  LOG    - lowFrequencyBound: 20
+//  LOG    - frameSize: 2048
+//  LOG
+export interface SpectralContrastParams {
+  staticDistribution?: number; // 0.15000000596046448
+  sampleRate?: number; // 22050
+  numberBands?: number; // 6
+  neighbourRatio?: number; // 0.4000000059604645
+  highFrequencyBound?: number; // 11000
+  lowFrequencyBound?: number; // 20
+  frameSize?: number; // 2048
+}
+
+// ----- Chromagram -----
+//  LOG  Inputs:
+//  LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+//  LOG  Outputs:
+//  LOG    - chromagram (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+//  LOG  Parameters:
+//  LOG    - windowType: "hann"
+//  LOG    - zeroPhase: true
+//  LOG    - scale: 1
+//  LOG    - threshold: 0.009999999776482582
+//  LOG    - sampleRate: 44100
+//  LOG    - numberBins: 84
+//  LOG    - minimumKernelSize: 4
+//  LOG    - normalizeType: "unit_max"
+//  LOG    - minFrequency: 32.70000076293945
+//  LOG    - binsPerOctave: 12
+export interface ChromagramParams extends AlgorithmParams {
+  windowType?: string; // "hann"
+  zeroPhase?: boolean; // true
+  scale?: number; // 1
+  threshold?: number; // 0.009999999776482582
+  sampleRate?: number; // 44100
+  numberBins?: number; // 84
+  minimumKernelSize?: number; // 4
+  normalizeType?: string; // "unit_max"
+  minFrequency?: number; // 32.70000076293945
+  binsPerOctave?: number; // 12
+}
 export interface BFCCParams extends AlgorithmParams {
   weighting?: string;
   sampleRate?: number;
@@ -152,6 +260,20 @@ export interface MFCCParams extends AlgorithmParams {
   type?: string;
   logType?: string;
   dctType?: number;
+  // LOG    - weighting: "warping"
+  // LOG    - warpingFormula: "htkMel"
+  // LOG    - type: "power"
+  // LOG    - sampleRate: 44100
+  // LOG    - normalize: "unit_sum"
+  // LOG    - lowFrequencyBound: 0
+  // LOG    - liftering: 0
+  // LOG    - silenceThreshold: 1.000000013351432e-10
+  // LOG    - logType: "dbamp"
+  // LOG    - inputSize: 1025
+  // LOG    - highFrequencyBound: 11000
+  // LOG    - numberCoefficients: 13
+  // LOG    - numberBands: 40
+  // LOG    - dctType: 2
 }
 
 export interface MelBandsParams extends AlgorithmParams {
