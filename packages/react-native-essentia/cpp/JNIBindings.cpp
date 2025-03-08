@@ -2,6 +2,7 @@
 #include <jni.h>
 #include "EssentiaWrapper.h"
 #include "FeatureExtractor.h"
+#include "Utils.h"
 
 // Helper function to convert jlong to EssentiaWrapper pointer
 EssentiaWrapper* getWrapper(JNIEnv* env, jlong ptr) {
@@ -110,6 +111,48 @@ extern "C" JNIEXPORT jboolean JNICALL nativeComputeSpectrum(JNIEnv* env, jobject
     return wrapper->getSpectrumComputed() ? JNI_TRUE : JNI_FALSE; // Assuming method exists
 }
 
+// Add a dedicated method for Tonnetz transformation using nlohmann/json
+extern "C" JNIEXPORT jstring JNICALL nativeComputeTonnetz(JNIEnv* env, jobject /* thiz */, jlong ptr, jstring hpcpJson) {
+    EssentiaWrapper* wrapper = getWrapper(env, ptr);
+    const char* jsonStr = env->GetStringUTFChars(hpcpJson, nullptr);
+
+    // Parse the HPCP array from JSON
+    std::string result;
+    try {
+        // Use nlohmann/json from Utils.h instead of rapidjson
+        nlohmann::json inputJson = nlohmann::json::parse(jsonStr);
+
+        if (inputJson.is_array()) {
+            // Convert JSON array to vector
+            std::vector<essentia::Real> hpcp;
+            for (const auto& element : inputJson) {
+                if (element.is_number()) {
+                    hpcp.push_back(static_cast<essentia::Real>(element.get<double>()));
+                }
+            }
+
+            // Apply Tonnetz transformation
+            std::vector<essentia::Real> tonnetz = wrapper->applyTonnetzTransform(hpcp);
+
+            // Create result JSON using nlohmann/json
+            nlohmann::json resultJson;
+            resultJson["success"] = true;
+            resultJson["data"] = {{"tonnetz", tonnetz}};
+
+            result = resultJson.dump();
+        } else {
+            // Invalid input format - use existing utility function
+            result = createErrorResponse("HPCP must be an array", "INVALID_INPUT");
+        }
+    } catch (const std::exception& e) {
+        // Use existing utility function
+        result = createErrorResponse(e.what(), "PROCESSING_ERROR");
+    }
+
+    env->ReleaseStringUTFChars(hpcpJson, jsonStr);
+    return env->NewStringUTF(result.c_str());
+}
+
 // JNI_OnLoad function (unchanged from your code)
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     JNIEnv* env;
@@ -136,6 +179,7 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
         {"nativeComputeMelSpectrogram", "(JIIIFFLjava/lang/String;ZZ)Ljava/lang/String;", (void*)nativeComputeMelSpectrogram},
         {"nativeExecutePipeline", "(JLjava/lang/String;)Ljava/lang/String;", (void*)nativeExecutePipeline},
         {"nativeComputeSpectrum", "(JII)Z", (void*)nativeComputeSpectrum},
+        {"nativeComputeTonnetz", "(JLjava/lang/String;)Ljava/lang/String;", (void*)nativeComputeTonnetz},
     };
 
     int rc = env->RegisterNatives(clazz, methods, sizeof(methods) / sizeof(methods[0]));

@@ -18,7 +18,7 @@ import type {
   MFCCParams,
   PitchParams,
   SilenceRateParams,
-} from './types/params.types';
+} from './types/algorithms.types';
 import type {
   MusicGenreFeatures,
   SpeechEmotionFeatures,
@@ -678,11 +678,32 @@ class EssentiaAPI implements EssentiaInterface {
    * Extracts multiple audio features in a single batch operation.
    * @param features Array of feature configurations, each with a name and optional parameters
    * @returns A Promise that resolves to an object containing all extracted features
-   * @deprecated Use executeBatch instead for more consistent results
    */
   async extractFeatures(features: FeatureConfig[]): Promise<any> {
-    console.warn('extractFeatures is deprecated. Please use executeBatch for consistent results.');
-    return this.executeBatch(features);
+    try {
+      if (!features || features.length === 0) {
+        throw new Error('Feature list cannot be empty');
+      }
+      // Validate feature configurations
+      features.forEach((feature) => {
+        if (!feature.name) {
+          throw new Error('Each feature must have a name');
+        }
+        // Only add framewise for algorithms that explicitly support it
+        if (
+          ['Chroma', 'SpectralCentroid', 'SpectralContrast'].includes(
+            feature.name
+          ) &&
+          !feature.params?.hasOwnProperty('framewise')
+        ) {
+          feature.params = { ...feature.params, framewise: true };
+        }
+      });
+      return await Essentia.extractFeatures(JSON.stringify(features));
+    } catch (error) {
+      console.error('Essentia feature extraction error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -690,15 +711,8 @@ class EssentiaAPI implements EssentiaInterface {
    * @param params Parameters for MFCC extraction
    * @returns A Promise that resolves to the MFCC features
    */
-  async extractMFCC(
-    params: MFCCParams = {}
-  ): Promise<MFCCResult | EssentiaResult<any>> {
-    const result = await this.extractFeatures([
-      {
-        name: 'MFCC',
-        params,
-      },
-    ]);
+  async extractMFCC(params: MFCCParams = {}): Promise<MFCCResult> {
+    const result = await this.executeAlgorithm('MFCC', params);
     return result.data?.mfcc
       ? { mfcc: result.data.mfcc, bands: result.data.mfcc_bands }
       : result;
@@ -1545,11 +1559,7 @@ class EssentiaAPI implements EssentiaInterface {
       }
 
       // Check if frameSize is a power of 2 (for FFT efficiency)
-      if (
-        ((validatedParams.frameSize as number) &
-          ((validatedParams.frameSize as number) - 1)) !==
-        0
-      ) {
+      if (!this.isPowerOfTwo(validatedParams.frameSize as number)) {
         console.warn(
           'frameSize should be a power of 2 for efficient FFT processing'
         );
@@ -1637,6 +1647,18 @@ class EssentiaAPI implements EssentiaInterface {
         },
       };
     }
+  }
+
+  async computeTonnetz(hpcp: number[]): Promise<TonnetzResult> {
+    const tonnetzArray = (await Essentia.computeTonnetz(hpcp)) as {
+      success: boolean;
+      data: { tonnetz: number[] };
+    };
+    const tonnetzResult: TonnetzResult = {
+      tonnetz: tonnetzArray.data?.tonnetz || [],
+      isFrameWise: false,
+    };
+    return tonnetzResult;
   }
 
   /**

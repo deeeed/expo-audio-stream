@@ -548,12 +548,7 @@ function EssentiaScreen() {
     }
   };
 
-  const handleComputeTonnetz = async () => {
-    if (!selectedSample) {
-      showToast('Please select a sample first');
-      return;
-    }
-    
+  const handleComputeTonnetz = async () => {    
     setIsComputingTonnetz(true);
     setTonnetzResult(null);
     
@@ -561,15 +556,14 @@ function EssentiaScreen() {
       // Generate a sample HPCP vector (C major chord: C, E, G)
       const sampleHPCP = [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
       
-      // Compute the Tonnetz representation
-      const result = await EssentiaJS.computeTonnetz(sampleHPCP);
+      // Use the dedicated computeTonnetz method instead of executeAlgorithm
+      // This bypasses the need for audio data loading
+      const result = await EssentiaJS.computeTonnetz(sampleHPCP) ;
       
-      if (result.success) {
-        setTonnetzResult(result.data);
-        showToast('Successfully computed Tonnetz representation');
-      } else {
-        throw new Error(result.error?.message || 'Unknown error computing Tonnetz');
-      }
+      console.log('Tonnetz result:', result);
+      
+      setTonnetzResult(result);
+      showToast('Successfully computed Tonnetz representation');
     } catch (error) {
       console.error('Error computing Tonnetz:', error);
       showToast(`Failed to compute Tonnetz: ${error instanceof Error ? error.message : String(error)}`);

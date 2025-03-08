@@ -340,9 +340,9 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
             if (errorMap != null) {
               val code = errorMap.getString("code") ?: "UNKNOWN_ERROR"
               val message = errorMap.getString("message") ?: "Unknown error occurred"
-              val details = errorMap.getString("details") ?: ""
+              val details = if (errorMap.hasKey("details")) errorMap.getString("details") else null
 
-              if (details.isNotEmpty()) {
+              if (details != null) {
                 promise.reject(code, message, Exception(details))
               } else {
                 promise.reject(code, message)
@@ -1012,38 +1012,44 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   }
 
   /**
-   * Computes the Tonnetz transformation from HPCP data or directly from audio
-   * @param params Parameters for the Tonnetz algorithm
+   * Computes the Tonnetz transformation from HPCP data without requiring audio data
+   * @param hpcp An array of HPCP values (must be a 12-element array representing the chromagram)
    * @param promise Promise that resolves to the Tonnetz result
    */
   @Suppress("unused")
   @ReactMethod
-  fun extractTonnetz(params: ReadableMap, promise: Promise) {
-    Log.d("EssentiaModule", "Entering extractTonnetz with params: $params")
+  fun computeTonnetz(hpcp: ReadableArray, promise: Promise) {
+    Log.d("EssentiaModule", "Entering computeTonnetz with HPCP vector of length: ${hpcp.size()}")
     ensureInitialized(promise) {
       try {
-        // Convert params to JSON string
-        val paramsJson = convertReadableMapToJsonObject(params).toString()
-        Log.d("EssentiaModule", "Executing Tonnetz with params: $paramsJson")
+        // Validate HPCP array
+        if (hpcp.size() != 12) {
+          promise.reject("INVALID_INPUT", "HPCP vector must contain exactly 12 values (one per semitone)")
+          return@ensureInitialized
+        }
 
-        // First try to execute as a regular algorithm
+        // Convert HPCP to JSON array string
+        val hpcpJsonArray = JSONArray()
+        for (i in 0 until hpcp.size()) {
+          hpcpJsonArray.put(hpcp.getDouble(i))
+        }
+
+        // Call the native method
         val resultJsonString: String
         synchronized(lock) {
           if (nativeHandle == 0L) {
             promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
             return@ensureInitialized
           }
-
-          // Try to use standard algorithm execution
-          resultJsonString = nativeExecuteAlgorithm(nativeHandle, "Tonnetz", paramsJson)
+          resultJsonString = nativeComputeTonnetz(nativeHandle, hpcpJsonArray.toString())
         }
 
-        Log.d("EssentiaModule", "Tonnetz execution result: $resultJsonString")
+        Log.d("EssentiaModule", "Tonnetz computation result: $resultJsonString")
 
         // Convert the JSON string to a WritableMap
         val resultMap = convertJsonToWritableMap(resultJsonString)
 
-        // Check if there was an error
+        // Check if there was an error using our helper
         if (handleErrorInResultMap(resultMap, promise)) {
           return@ensureInitialized
         }
@@ -1051,7 +1057,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         // Resolve the promise with the properly structured map
         promise.resolve(resultMap)
       } catch (e: Exception) {
-        Log.e("EssentiaModule", "Error executing Tonnetz algorithm: ${e.message}", e)
+        Log.e("EssentiaModule", "Error computing Tonnetz: ${e.message}", e)
         promise.reject("TONNETZ_ERROR", "Failed to compute Tonnetz transformation: ${e.message}")
       }
     }

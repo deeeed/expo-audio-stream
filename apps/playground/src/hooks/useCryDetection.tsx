@@ -1,6 +1,6 @@
 // apps/playground/src/hooks/useCryDetector.ts
-import { useCallback, useState } from 'react';
 import EssentiaAPI from '@siteed/react-native-essentia';
+import { useCallback, useState } from 'react';
 import { baseLogger } from '../config';
 import { useOnnxModel } from './useOnnxModel';
 
@@ -27,11 +27,10 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
     // Common parameters
     const frameSize = 400; // 25 ms at 16,000 Hz
     const hopSize = 160;   // 10 ms at 16,000 Hz
-    const n_fft = 1024;    // FFT size
+    const fftSize = 1024;  // Renamed from n_fft to fftSize and used below
     const sr = 16000;      // Sample rate
     const threshold = 0.5; // Detection threshold
 
-    // Manual feature extraction method
     const detectCryManually = useCallback(
         async (
             audioData: Float32Array,
@@ -39,211 +38,173 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
         ): Promise<CryDetectionResult | null> => {
             try {
                 setIsProcessing(true);
-                logger.debug('Starting manual cry detection');
-
+                console.log('Starting manual cry detection');
+    
+                // Set audio data in EssentiaAPI
+                const sr = 16000;
                 await EssentiaAPI.setAudioData(audioData, sr);
-
-                // Step 1: Frame the audio
-                const frames = await EssentiaAPI.executeAlgorithm("FrameCutter", {
-                    frameSize,
-                    hopSize,
-                });
-
-                logger.debug('Frames result status:', frames.success ? 'Success' : 'Failed');
-
-                if (!frames.success || !frames.data?.frame) {
-                    throw new Error('Failed to retrieve frames from FrameCutter');
-                }
-
-                logger.debug('Number of frames:', frames.data.frame.length);
-                logger.debug('First frame sample length:', frames.data.frame[0]?.length || 0);
-
-                const mfccFrames: number[][] = [];
-                const melFrames: number[][] = [];
-                const chromaFrames: number[][] = [];
-                const contrastFrames: number[][] = [];
-                const tonnetzFrames: number[][] = [];
-
-                // Process only a subset of frames for efficiency (every 5th frame)
-                // This reduces processing time while still capturing the audio characteristics
-                const frameStep = 5;
-                const selectedFrames = frames.data.frame.filter((_: number[], index: number) => index % frameStep === 0);
-                
-                logger.debug(`Processing ${selectedFrames.length} frames out of ${frames.data.frame.length} total frames`);
-
-                // Step 2: Process each selected frame to extract features
-                for (let i = 0; i < selectedFrames.length; i++) {
-                    const frame = selectedFrames[i];
+    
+                // Define parameters matching Python
+                const frameSize = 25 * 16; // 400 samples
+                const hopSize = 10 * 16;   // 160 samples
+                const n_mfcc = 40;
+                const n_mels = 128;
+                const n_bands = 7;
+                const fmin = 100;
+                const n_chroma = 12;
+    
+                // Helper function to compute mean across frames with proper typing
+                const computeMean = (data: number[][] | number[]): number[] => {
+                    if (data.length === 0) {
+                        return [];
+                    }
                     
-                    try {
-                        // Set each frame as the current audio data
-                        // Make sure the frame is a Float32Array
-                        if (!frame || frame.length === 0) {
-                            logger.warn(`Skipping empty frame at index ${i}`);
-                            continue;
-                        }
+                    if (Array.isArray(data[0])) {
+                        // Handle 2D array case
+                        const frames = data as number[][];
+                        const featureLength = frames[0].length;
+                        const result = new Array(featureLength).fill(0);
                         
-                        await EssentiaAPI.setAudioData(new Float32Array(frame), sr);
-                        
-                        // Apply windowing with string type instead of object
-                        const windowResult = await EssentiaAPI.executeAlgorithm("Windowing", {
-                            type: "hann",
-                            size: frame.length
-                        });
-                        
-                        if (!windowResult.success || !windowResult.data?.frame) {
-                            logger.warn(`Windowing failed for frame ${i}:`, windowResult.error || 'Unknown error');
-                            continue;
-                        }
-                        
-                        // Compute spectrum with zero padding
-                        const spectrumResult = await EssentiaAPI.executeAlgorithm("Spectrum", { 
-                            size: n_fft 
-                        });
-                        
-                        if (!spectrumResult.success || !spectrumResult.data?.spectrum) {
-                            logger.warn(`Spectrum computation failed for frame ${i}:`, spectrumResult.error || 'Unknown error');
-                            continue;
-                        }
-                        
-                        // Extract MFCC
-                        const mfccResult = await EssentiaAPI.executeAlgorithm("MFCC", {
-                            sampleRate: sr,
-                            numberBands: 40,       // Reduced from 128 to improve performance
-                            numberCoefficients: 40,
-                            lowFrequencyBound: 0,
-                            highFrequencyBound: sr / 2,
-                        });
-                        
-                        if (mfccResult.success && mfccResult.data?.mfcc) {
-                            mfccFrames.push(mfccResult.data.mfcc);
-                        } else {
-                            logger.warn(`MFCC extraction failed for frame ${i}:`, mfccResult.error || 'Unknown error');
-                        }
-                        
-                        // Extract MelBands
-                        const melResult = await EssentiaAPI.executeAlgorithm("MelBands", {
-                            sampleRate: sr,
-                            numberBands: 40,      // Reduced from 128 to improve performance
-                            lowFrequencyBound: 0,
-                            highFrequencyBound: sr / 2,
-                        });
-                        
-                        if (melResult.success && melResult.data?.melBands) {
-                            melFrames.push(melResult.data.melBands);
-                        } else {
-                            logger.warn(`MelBands extraction failed for frame ${i}:`, melResult.error || 'Unknown error');
-                        }
-                        
-                        // Extract HPCP (Chroma)
-                        const hpcpResult = await EssentiaAPI.executeAlgorithm("HPCP", {
-                            sampleRate: sr,
-                            size: 12,
-                            minFrequency: 20,  // Add minimum frequency parameter 
-                            maxFrequency: sr / 2
-                        });
-                        
-                        if (hpcpResult.success && hpcpResult.data?.hpcp) {
-                            chromaFrames.push(hpcpResult.data.hpcp);
-                        } else {
-                            logger.warn(`HPCP extraction failed for frame ${i}:`, hpcpResult.error || 'Unknown error');
-                        }
-                        
-                        // Extract Spectral Contrast
-                        const contrastResult = await EssentiaAPI.executeAlgorithm("SpectralContrast", {
-                            sampleRate: sr,
-                            numberBands: 7,
-                            lowFrequencyBound: 100
-                        });
-                        
-                        if (contrastResult.success && contrastResult.data?.contrast) {
-                            contrastFrames.push(contrastResult.data.contrast);
-                        } else {
-                            logger.warn(`SpectralContrast extraction failed for frame ${i}:`, contrastResult.error || 'Unknown error');
-                        }
-                        
-                        // Extract Tonnetz
-                        if (chromaFrames.length > 0) { // Only extract Tonnetz if we have chroma data
-                            const tonnetzResult = await EssentiaAPI.executeAlgorithm("Tonnetz", {});
-                            
-                            if (tonnetzResult.success && tonnetzResult.data?.tonnetz) {
-                                tonnetzFrames.push(tonnetzResult.data.tonnetz);
-                            } else {
-                                logger.warn(`Tonnetz extraction failed for frame ${i}:`, tonnetzResult.error || 'Unknown error');
+                        for (let i = 0; i < frames.length; i++) {
+                            for (let j = 0; j < featureLength; j++) {
+                                result[j] += frames[i][j];
                             }
                         }
                         
-                        // Log progress for every 10th frame
-                        if (i % 10 === 0) {
-                            logger.debug(`Processed ${i}/${selectedFrames.length} frames`);
+                        for (let j = 0; j < featureLength; j++) {
+                            result[j] /= frames.length;
                         }
-                    } catch (frameError) {
-                        logger.warn(`Error processing frame ${i}:`, frameError);
-                        // Continue with next frame
+                        
+                        return result;
+                    } else {
+                        // It's already a 1D array
+                        return data as number[];
                     }
-                }
-
-                logger.debug('Feature extraction complete. Results:', {
-                    mfccFrames: mfccFrames.length,
-                    melFrames: melFrames.length,
-                    chromaFrames: chromaFrames.length,
-                    contrastFrames: contrastFrames.length,
-                    tonnetzFrames: tonnetzFrames.length,
+                };
+    
+                // 1. Extract MFCC
+                const mfccResult = await EssentiaAPI.extractMFCC({
+                    sampleRate: sr,
+                    frameSize,
+                    hopSize,
+                    numberCoefficients: n_mfcc,
+                    numberBands: 128, // Mel filter banks, adjust if needed
                 });
-
-                // Step 3: Check if we have enough data to proceed
-                if (mfccFrames.length === 0 && melFrames.length === 0 && 
-                    chromaFrames.length === 0 && contrastFrames.length === 0) {
-                    throw new Error('No features could be extracted from the audio');
-                }
-
-                // Step 4: Compute means with robust error handling
-                const meanMFCC = computeMean(mfccFrames);
-                const meanMel = computeMean(melFrames);
-                const meanChroma = computeMean(chromaFrames);
-                const meanContrast = computeMean(contrastFrames);
-                const meanTonnetz = computeMean(tonnetzFrames);
-
-                // Step 5: Concatenate available features
-                const features: number[] = [];
                 
-                // Add each feature if available
-                if (meanMFCC.length > 0) features.push(...meanMFCC);
-                if (meanChroma.length > 0) features.push(...meanChroma);
-                if (meanMel.length > 0) features.push(...meanMel);
-                if (meanContrast.length > 0) features.push(...meanContrast);
-                if (meanTonnetz.length > 0) features.push(...meanTonnetz);
-
-                if (features.length === 0) {
-                    throw new Error('Failed to calculate feature means');
+                // Type guard to check for proper response structure
+                if (!('mfcc' in mfccResult)) {
+                    throw new Error('MFCC extraction failed');
                 }
-
-                logger.debug('Final feature vector:', {
-                    featureLength: features.length,
-                    mfcc: meanMFCC.length,
-                    chroma: meanChroma.length,
-                    mel: meanMel.length,
-                    contrast: meanContrast.length,
-                    tonnetz: meanTonnetz.length,
+                
+                const mfcc = mfccResult.mfcc;
+                const mfccMean = computeMean(mfcc);
+                if (mfccMean.length !== n_mfcc) {
+                    throw new Error(`MFCC length is ${mfccMean.length}, expected ${n_mfcc}`);
+                }
+                console.log('MFCC extracted', { length: mfccMean.length });
+    
+                // 2. Extract Mel Spectrogram
+                const melResult = await EssentiaAPI.extractMelBands({
+                    sampleRate: sr,
+                    frameSize,
+                    hopSize,
+                    numberBands: n_mels,
                 });
-
-                // Step 6: Run ONNX model
+                
+                // Type guard for mel bands
+                if (!('melBands' in melResult)) {
+                    throw new Error('Mel Spectrogram extraction failed');
+                }
+                
+                const mel = melResult.melBands;
+                const melMean = computeMean(mel);
+                if (melMean.length !== n_mels) {
+                    throw new Error(`Mel length is ${melMean.length}, expected ${n_mels}`);
+                }
+                console.log('Mel Spectrogram extracted', { length: melMean.length });
+    
+                // 3. Extract Chroma
+                const chromaResult = await EssentiaAPI.extractChroma({
+                    sampleRate: sr,
+                    frameSize,
+                    hopSize,
+                    size: n_chroma,
+                });
+                
+                // Type guard for chroma
+                if (!('chroma' in chromaResult)) {
+                    throw new Error('Chroma extraction failed');
+                }
+                
+                const chroma = chromaResult.chroma;
+                const chromaMean = computeMean(chroma);
+                if (chromaMean.length !== n_chroma) {
+                    throw new Error(`Chroma length is ${chromaMean.length}, expected ${n_chroma}`);
+                }
+                console.log('Chroma extracted', { length: chromaMean.length });
+    
+                // 4. Extract Spectral Contrast
+                const contrastResult = await EssentiaAPI.extractSpectralContrast({
+                    sampleRate: sr,
+                    frameSize,
+                    hopSize,
+                    numberBands: n_bands,
+                    lowFrequencyBound: fmin,
+                });
+                
+                // Type guard for spectral contrast
+                if (!('contrast' in contrastResult)) {
+                    throw new Error('Spectral Contrast extraction failed');
+                }
+                
+                const contrast = contrastResult.contrast;
+                const contrastMean = computeMean(Array.isArray(contrast[0]) ? contrast as number[][] : [contrast as number[]]);
+                const expectedContrastLength = n_bands + 1; // 8
+                if (contrastMean.length !== expectedContrastLength) {
+                    throw new Error(`Contrast length is ${contrastMean.length}, expected ${expectedContrastLength}`);
+                }
+                console.log('Spectral Contrast extracted', { length: contrastMean.length });
+    
+                // 5. Extract Tonnetz
+                const tonnetzResult = await EssentiaAPI.extractTonnetz({
+                    sampleRate: sr,
+                    frameSize,
+                    hopSize,
+                });
+                
+                // Type guard for tonnetz
+                if (!('tonnetz' in tonnetzResult)) {
+                    throw new Error('Tonnetz extraction failed');
+                }
+                
+                const tonnetz = tonnetzResult.tonnetz;
+                const tonnetzMean = computeMean(Array.isArray(tonnetz[0]) ? tonnetz as number[][] : [tonnetz as number[]]);
+                const expectedTonnetzLength = 6;
+                if (tonnetzMean.length !== expectedTonnetzLength) {
+                    throw new Error(`Tonnetz length is ${tonnetzMean.length}, expected ${expectedTonnetzLength}`);
+                }
+                console.log('Tonnetz extracted', { length: tonnetzMean.length });
+    
+                // Concatenate features in the same order as Python
+                const features: number[] = [...mfccMean, ...chromaMean, ...melMean, ...contrastMean, ...tonnetzMean];
+                if (features.length !== 194) {
+                    throw new Error(`Total feature length is ${features.length}, expected 194`);
+                }
+                console.log('Features concatenated', { length: features.length });
+    
+                // Run ONNX model
                 const model = await initModel();
                 const inputTensor = createTensor('float32', new Float32Array(features), [1, features.length]);
                 const results = await model.run({ input: inputTensor });
                 const probability = (results.output.data as Float32Array)[0];
                 const isCrying = probability > threshold;
-
-                logger.debug('Cry detection result', { probability, isCrying });
-
+    
+                console.log('Cry detection result', { probability, isCrying });
+    
                 return { probability, isCrying, timestamp };
             } catch (error) {
-                logger.error('Manual cry detection error', { 
-                    error,
-                    message: error instanceof Error ? error.message : String(error),
-                    stack: error instanceof Error ? error.stack : undefined
-                });
-                onError?.(error instanceof Error ? error : new Error('Manual cry detection failed'));
+                console.error('Error in cry detection', { error });
+                onError?.(error instanceof Error ? error : new Error('Cry detection failed'));
                 return null;
             } finally {
                 setIsProcessing(false);
@@ -251,7 +212,7 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
         },
         [initModel, createTensor, onError]
     );
-
+    
     // Pipeline feature extraction method
     const detectCryWithPipeline = useCallback(
         async (
@@ -270,9 +231,9 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                         { name: "FrameCutter", params: { frameSize, hopSize } },
                         {
                             name: "Windowing",
-                            params: { type: "hann", size: frameSize, zeroPadding: n_fft - frameSize },
+                            params: { type: "hann", size: frameSize, zeroPadding: fftSize - frameSize },
                         },
-                        { name: "Spectrum", params: { size: n_fft } },
+                        { name: "Spectrum", params: { size: fftSize } },
                         {
                             name: "HPCP", 
                             params: { 
@@ -351,7 +312,7 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
     );
 
     // Helper function to compute mean across frames - improved to handle empty arrays
-    const computeMean = (frames: number[][]): number[] => {
+    const _computeMean = (frames: number[][]): number[] => {
         if (frames.length === 0) {
             return []; // Return empty array if no frames are provided
         }
