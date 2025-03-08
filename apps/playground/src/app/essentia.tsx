@@ -1,5 +1,5 @@
 import { AppTheme, ScreenWrapper, useTheme } from '@siteed/design-system';
-import EssentiaJS, { AlgorithmResult, BatchProcessingResults } from '@siteed/react-native-essentia';
+import EssentiaJS, { AlgorithmResult, BatchProcessingResults, TonnetzResult } from '@siteed/react-native-essentia';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Platform, StyleSheet, ToastAndroid, View } from 'react-native';
 import { Button, Card, Text, TouchableRipple } from 'react-native-paper';
@@ -120,7 +120,7 @@ function EssentiaScreen() {
   const [isBatchProcessing, setIsBatchProcessing] = useState<boolean>(false);
   const [batchProcessingResults, setBatchProcessingResults] = useState<BatchProcessingResults | null>(null);
   const [isComputingTonnetz, setIsComputingTonnetz] = useState<boolean>(false);
-  const [tonnetzResult, setTonnetzResult] = useState<any>(null);
+  const [tonnetzResult, setTonnetzResult] = useState<TonnetzResult | null>(null);
 
   // Simple callback to log favorites changes
   const handleFavoritesChange = useCallback((favorites: string[]) => {
@@ -579,7 +579,7 @@ function EssentiaScreen() {
       <View style={styles.testResult}>
         <Text style={{ fontWeight: 'bold' }}>Tonnetz Representation:</Text>
         <Text style={styles.resultText}>
-          [{tonnetzResult.tonnetz.map((val: number) => val.toFixed(2)).join(', ')}]
+          [{tonnetzResult.tonnetz.map((val) => typeof val === 'number' ? val.toFixed(2) : val).join(', ')}]
         </Text>
         <Text style={{ marginTop: 8, fontSize: 12 }}>
           These 6 values represent the harmonic relationships captured in the Tonnetz space.
