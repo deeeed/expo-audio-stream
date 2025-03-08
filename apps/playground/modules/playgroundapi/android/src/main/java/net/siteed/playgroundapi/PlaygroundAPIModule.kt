@@ -8,7 +8,7 @@ import net.siteed.audiostream.AudioProcessor
 import net.siteed.audiostream.DecodingConfig
 
 class PlaygroundAPIModule : Module() {
-  // Create a lazy-initialized instance of AudioProcessor
+  // Create a lazy-initialized instance of AudioProcessor for demo purposes
   private val audioProcessor by lazy { 
     AudioProcessor(appContext.reactContext?.filesDir ?: throw IllegalStateException("React context not available")) 
   }
@@ -53,10 +53,71 @@ class PlaygroundAPIModule : Module() {
 
     // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
     Function("hello") {
-      "Hello world! 👋"
+      "Hello from PlaygroundAPI! 👋"
     }
 
-    // Add a new function to validate AudioProcessor integration
+    // Keep the essential validation function for Essentia
+    AsyncFunction("validateEssentiaIntegration") {
+      try {
+        val result = mutableMapOf(
+          "success" to true,
+          "validationSteps" to mutableListOf<String>()
+        )
+        
+        val steps = result["validationSteps"] as MutableList<String>
+        steps.add("Starting Essentia module validation")
+        
+        // Check for the existence of the EssentiaModule class
+        try {
+          val essentiaModuleClass = Class.forName("net.siteed.essentia.EssentiaModule")
+          result["essentiaModuleClassFound"] = true
+          result["essentiaModuleClassName"] = essentiaModuleClass.name
+          steps.add("Found EssentiaModule class")
+          
+          // Attempt to call a native static method using reflection
+          try {
+            // Try to get the testJniConnection method
+            val testJniMethod = essentiaModuleClass.getDeclaredMethod("testJniConnection")
+            testJniMethod.isAccessible = true
+            
+            steps.add("Attempting to call testJniConnection native method")
+            
+            // Create an instance with the ReactContext
+            val constructor = essentiaModuleClass.getConstructor(
+              Class.forName("com.facebook.react.bridge.ReactApplicationContext")
+            )
+            val reactContext = appContext.reactContext
+            val essentiaInstance = constructor.newInstance(reactContext)
+            
+            // Call method on instance
+            val jniTestResult = testJniMethod.invoke(essentiaInstance) as? String
+            
+            result["jniTestResult"] = jniTestResult ?: "No result"
+            result["jniConnectionSuccessful"] = true
+            steps.add("Successfully called native method")
+          } catch (e: Exception) {
+            steps.add("Failed to call native method: ${e.javaClass.simpleName}")
+            result["jniConnectionError"] = e.message ?: "Unknown error"
+          }
+          
+        } catch (e: ClassNotFoundException) {
+          result["essentiaModuleClassFound"] = false
+          result["essentiaModuleClassError"] = "Class not found: ${e.message}"
+          steps.add("Failed to find EssentiaModule class")
+          result["success"] = false
+        }
+        
+        result
+      } catch (e: Exception) {
+        mapOf(
+          "success" to false,
+          "error" to (e.message ?: "Unknown error"),
+          "errorType" to e.javaClass.name
+        )
+      }
+    }
+
+    // Keep the AudioProcessor validation for demonstration
     AsyncFunction("validateAudioProcessorIntegration") { 
       try {
         val result = mapOf(
@@ -75,116 +136,26 @@ class PlaygroundAPIModule : Module() {
       }
     }
 
-    // Enhanced validation function that calls a native method directly
-    AsyncFunction("validateEssentiaIntegration") {
+    // Keep the version test function
+    AsyncFunction("testEssentiaVersion") {
       try {
-        val result = mutableMapOf(
+        val essentia = getEssentiaModule() ?: throw Exception("Failed to get Essentia module")
+        val getVersionMethod = essentia.javaClass.getDeclaredMethod("getVersion")
+        getVersionMethod.isAccessible = true
+        val version = getVersionMethod.invoke(essentia) as String
+        mapOf(
           "success" to true,
-          "validationSteps" to mutableListOf<String>()
+          "version" to version
         )
-        
-        val steps = result["validationSteps"] as MutableList<String>
-        steps.add("Starting Essentia module validation")
-        
-        // 1. Check for the existence of the EssentiaModule class
-        try {
-          val essentiaModuleClass = Class.forName("net.siteed.essentia.EssentiaModule")
-          result["essentiaModuleClassFound"] = true
-          result["essentiaModuleClassName"] = essentiaModuleClass.name
-          steps.add("Found EssentiaModule class")
-          
-          // 2. Attempt to call a native static method using reflection
-          try {
-            // Try to get the testJniConnection method
-            val testJniMethod = essentiaModuleClass.getDeclaredMethod("testJniConnection")
-            testJniMethod.isAccessible = true
-            
-            // Create a temporary instance of the class with context
-            steps.add("Attempting to call testJniConnection native method")
-            
-            // Create an instance with the ReactContext
-            val constructor = essentiaModuleClass.getConstructor(
-              Class.forName("com.facebook.react.bridge.ReactApplicationContext")
-            )
-            val reactContext = appContext.reactContext
-            val essentiaInstance = constructor.newInstance(reactContext)
-            
-            // Call method on instance
-            val jniTestResult = testJniMethod.invoke(essentiaInstance) as? String
-            
-            result["jniTestResult"] = jniTestResult ?: "No result"
-            result["jniConnectionSuccessful"] = true
-            steps.add("Successfully called native method")
-          } catch (e: Exception) {
-            steps.add("Failed to call native method: ${e.javaClass.simpleName}")
-            
-            // Try an alternative approach - loading the library manually
-            steps.add("Attempting to load native library manually")
-            try {
-              System.loadLibrary("react-native-essentia")
-              result["manualLibraryLoadSuccessful"] = true
-              steps.add("Successfully loaded native library")
-            } catch (e2: Exception) {
-              result["manualLibraryLoadSuccessful"] = false
-              result["manualLibraryLoadError"] = e2.message ?: "Unknown error"
-              steps.add("Failed to load native library: ${e2.message}")
-            }
-          }
-          
-          // 3. Check if the NAME constant is accessible (doesn't require native methods)
-          try {
-            val nameField = essentiaModuleClass.getDeclaredField("NAME")
-            nameField.isAccessible = true
-            val moduleName = nameField.get(null) as? String
-            result["essentiaModuleName"] = moduleName ?: "Unknown"
-            steps.add("Retrieved module NAME constant: $moduleName")
-          } catch (e: Exception) {
-            result["essentiaModuleNameError"] = e.message ?: "Unknown error"
-            steps.add("Failed to get NAME constant: ${e.message}")
-          }
-          
-        } catch (e: ClassNotFoundException) {
-          result["essentiaModuleClassFound"] = false
-          result["essentiaModuleClassError"] = "Class not found: ${e.message}"
-          steps.add("Failed to find EssentiaModule class")
-          result["success"] = false
-        }
-        
-        // 4. Check for native module availability through JNI
-        steps.add("Checking native module availability through JNI environment")
-        try {
-          // This is a different approach that doesn't require creating an EssentiaModule instance
-          // It checks if the native library exports the expected symbols
-          val Runtime = Runtime.getRuntime()
-          val process = Runtime.exec("nm -D /data/app/*/net.siteed.playground-*/lib/arm64/libreact-native-essentia.so | grep testJniConnection")
-          val output = process.inputStream.bufferedReader().use { reader -> 
-            reader.readText() 
-          }
-          
-          if (output.contains("testJniConnection")) {
-            result["nativeSymbolFound"] = true
-            steps.add("Found native symbol 'testJniConnection' in library")
-          } else {
-            result["nativeSymbolFound"] = false
-            steps.add("Could not find native symbol in library")
-          }
-        } catch (e: Exception) {
-          // This might fail due to security permissions or if the command is not available
-          steps.add("Failed to check native symbols: ${e.message}")
-        }
-        
-        result
       } catch (e: Exception) {
         mapOf(
           "success" to false,
-          "error" to (e.message ?: "Unknown error"),
-          "errorType" to e.javaClass.name,
-          "stackTrace" to e.stackTraceToString()
+          "error" to (e.message ?: "Unknown error")
         )
       }
     }
 
-    // Add a function to check module imports
+    // Keep the module imports check for demonstration
     AsyncFunction("checkModuleImports") {
       try {
         val result = mutableMapOf<String, Any>()
@@ -224,31 +195,31 @@ class PlaygroundAPIModule : Module() {
         )
       }
     }
-    
-    // Add function to test Essentia version
-    AsyncFunction("testEssentiaVersion") {
+
+    // Keep simple audio processing demo
+    AsyncFunction("processAudioWithModule") { fileUri: String ->
       try {
-        val essentia = getEssentiaModule() ?: throw Exception("Failed to get Essentia module")
-        val getVersionMethod = essentia.javaClass.getDeclaredMethod("getVersion")
-        getVersionMethod.isAccessible = true
-        val version = getVersionMethod.invoke(essentia) as String
+        // Simple demo of AudioProcessor usage
+        val result = audioProcessor.loadAudioFromAnyFormat(fileUri, DecodingConfig(
+          targetSampleRate = null,
+          targetChannels = 1,
+          targetBitDepth = 16,
+          normalizeAudio = false
+        ))
+        
         mapOf(
           "success" to true,
-          "version" to version
+          "moduleAvailable" to true,
+          "message" to "Successfully processed audio file",
+          "durationMs" to (result?.durationMs ?: 0)
         )
       } catch (e: Exception) {
         mapOf(
           "success" to false,
+          "moduleAvailable" to false,
           "error" to (e.message ?: "Unknown error")
         )
       }
-    }
-
-    AsyncFunction("setValueAsync") { value: String ->
-      // Send an event to JavaScript.
-      sendEvent("onChange", mapOf(
-        "value" to value
-      ))
     }
 
     // Enables the module to be used as a native view. Definition components that are accepted as part of
@@ -262,28 +233,11 @@ class PlaygroundAPIModule : Module() {
       Events("onLoad")
     }
 
-    // Use the audio processor directly
-    AsyncFunction("processAudioWithModule") { fileUri: String ->
-      try {
-        // Access the audio processor directly since you've already instantiated it
-        val result = audioProcessor.loadAudioFromAnyFormat(fileUri, DecodingConfig(
-          targetSampleRate = null,
-          targetChannels = 1,
-          targetBitDepth = 16,
-          normalizeAudio = false
-        ))
-        
-        mapOf(
-          "moduleAvailable" to true,
-          "message" to "Successfully processed audio file",
-          "durationMs" to (result?.durationMs ?: 0)
-        )
-      } catch (e: Exception) {
-        mapOf(
-          "moduleAvailable" to false,
-          "error" to (e.message ?: "Unknown error")
-        )
-      }
+    AsyncFunction("setValueAsync") { value: String ->
+      // Send an event to JavaScript.
+      sendEvent("onChange", mapOf(
+        "value" to value
+      ))
     }
   }
   
@@ -292,7 +246,6 @@ class PlaygroundAPIModule : Module() {
     return try {
       val reactContext = appContext.reactContext
       if (reactContext != null) {
-        // For the purpose of this check, just see if we can load a class from each module
         when (modulePath) {
           ":siteed-expo-audio-studio" -> Class.forName("net.siteed.audiostream.AudioProcessor") != null
           ":siteed_react-native-essentia" -> Class.forName("net.siteed.essentia.EssentiaModule") != null

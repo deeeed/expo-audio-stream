@@ -2,31 +2,30 @@ import { AppTheme, ScreenWrapper, useThemePreferences } from '@siteed/design-sys
 import PlaygroundAPIModule from 'playgroundapi';
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { Button, Divider, Text } from 'react-native-paper';
 import { useSampleAudio } from '../hooks/useSampleAudio';
 
 interface ValidationResult {
   success: boolean;
-  audioProcessorInitialized?: boolean;
-  audioProcessorClass?: string;
   message?: string;
   error?: string;
-  errorType?: string;
-  essentiaModuleInitialized?: boolean;
-  essentiaModuleClass?: string;
-  essentiaModuleName?: string;
-  stackTrace?: string;
-  validationSteps?: string[];
+  audioProcessorInitialized?: boolean;
+  audioProcessorClass?: string;
   essentiaModuleClassFound?: boolean;
   essentiaModuleClassName?: string;
-  essentiaModuleNameError?: string;
-  jniTestResult?: string;
   jniConnectionSuccessful?: boolean;
-  manualLibraryLoadSuccessful?: boolean;
-  manualLibraryLoadError?: string;
-  nativeSymbolFound?: boolean;
-  moduleImportsCheck?: any;
-  essentiaVersion?: string;
+  jniTestResult?: string;
+  validationSteps?: string[];
+}
+
+interface ModuleImportsResult {
+  success: boolean;
+  audioProcessorImported?: boolean;
+  audioProcessorClass?: string;
+  essentiaModuleImported?: boolean;
+  essentiaModuleClass?: string;
+  modules?: { name: string; exists: boolean }[];
+  error?: string;
 }
 
 interface AudioProcessingResult {
@@ -53,27 +52,38 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             marginTop: 20,
             gap: 10,
         },
-        loadingContainer: {
+        sectionContainer: {
             marginTop: 20,
-            padding: theme.padding.s,
+        },
+        sectionTitle: {
+            marginBottom: 10,
+        },
+        successContainer: {
             backgroundColor: theme.colors.secondaryContainer,
+        },
+        errorContainer: {
+            backgroundColor: theme.colors.errorContainer,
+        },
+        loadingContainer: {
+            backgroundColor: theme.colors.tertiaryContainer,
+            padding: theme.padding.s,
             borderRadius: theme.roundness,
+            marginTop: 10,
         }
     });
 };
-
-// Sample audio file to use for testing
-const sampleAudioAsset = require('@assets/jfk.mp3');
 
 const PlaygroundAPIScreen = () => {
     const { theme } = useThemePreferences();
     const styles = useMemo(() => getStyles({ theme }), [theme]);
     const [result, setResult] = useState<string | null>(null);
     const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+    const [audioValidationResult, setAudioValidationResult] = useState<ValidationResult | null>(null);
+    const [versionResult, setVersionResult] = useState<{ version?: string, error?: string } | null>(null);
+    const [moduleImportsResult, setModuleImportsResult] = useState<ModuleImportsResult | null>(null);
     const [audioProcessingResult, setAudioProcessingResult] = useState<AudioProcessingResult | null>(null);
-    const [essentiaValidationResult, setEssentiaValidationResult] = useState<ValidationResult | null>(null);
     
-    // Use the sample audio hook
+    // Use the sample audio hook for audio demos
     const { isLoading: isSampleLoading, sampleFile, loadSampleAudio } = useSampleAudio({
         onError: (error) => {
             console.error('Failed to load sample audio:', error);
@@ -91,77 +101,30 @@ const PlaygroundAPIScreen = () => {
         }
     };
 
-    const handleValidateIntegration = async () => {
-        try {
-            const result = await PlaygroundAPIModule.validateAudioProcessorIntegration();
-            console.log('Validation result:', result);
-            setValidationResult(result);
-        } catch (error) {
-            console.error('Validation error:', error);
-            setValidationResult({
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-            });
-        }
-    };
-
     const handleValidateEssentiaIntegration = async () => {
         try {
             const result = await PlaygroundAPIModule.validateEssentiaIntegration();
             console.log('Essentia validation result:', result);
-            setEssentiaValidationResult(result);
+            setValidationResult(result);
         } catch (error) {
             console.error('Essentia validation error:', error);
-            setEssentiaValidationResult({
+            setValidationResult({
                 success: false,
                 error: error instanceof Error ? error.message : String(error),
             });
         }
     };
 
-    const handleLoadSampleAndProcess = async () => {
+    const handleValidateAudioProcessor = async () => {
         try {
-            // First load the sample audio
-            const loadedSample = await loadSampleAudio(sampleAudioAsset, 'jfk.mp3');
-            
-            if (!loadedSample) {
-                throw new Error('Failed to load sample audio file');
-            }
-            
-            console.log('Using sample audio file:', loadedSample.name, 'at path:', loadedSample.uri);
-            
-            // Then process it with the module
-            const processingResult = await PlaygroundAPIModule.processAudioWithModule(loadedSample.uri);
-            console.log('Processing result:', processingResult);
-            
-            setAudioProcessingResult({
-                success: true,
-                moduleAvailable: processingResult.moduleAvailable,
-                durationMs: processingResult.durationMs,
-                message: `Successfully processed audio with PlaygroundAPI module. Duration: ${processingResult.durationMs}ms`,
-            });
+            const result = await PlaygroundAPIModule.validateAudioProcessorIntegration();
+            console.log('Audio processor validation result:', result);
+            setAudioValidationResult(result);
         } catch (error) {
-            console.error('Audio processing error:', error);
-            setAudioProcessingResult({
+            console.error('Audio processor validation error:', error);
+            setAudioValidationResult({
                 success: false,
                 error: error instanceof Error ? error.message : String(error),
-            });
-        }
-    };
-
-    const handleCheckModuleImports = async () => {
-        try {
-            const result = await PlaygroundAPIModule.checkModuleImports();
-            console.log('Module imports check:', result);
-            setValidationResult({
-                success: result.success,
-                moduleImportsCheck: result
-            });
-        } catch (error) {
-            console.error('Module imports check error:', error);
-            setValidationResult({
-                success: false,
-                error: error instanceof Error ? error.message : String(error)
             });
         }
     };
@@ -170,13 +133,52 @@ const PlaygroundAPIScreen = () => {
         try {
             const result = await PlaygroundAPIModule.testEssentiaVersion();
             console.log('Essentia version test:', result);
-            setValidationResult({
-                success: result.success,
-                essentiaVersion: result.version
+            setVersionResult({
+                version: result.version,
+                error: result.error
             });
         } catch (error) {
             console.error('Essentia version test error:', error);
-            setValidationResult({
+            setVersionResult({
+                error: error instanceof Error ? error.message : String(error)
+            });
+        }
+    };
+
+    const handleCheckModuleImports = async () => {
+        try {
+            const result = await PlaygroundAPIModule.checkModuleImports();
+            console.log('Module imports check:', result);
+            setModuleImportsResult(result);
+        } catch (error) {
+            console.error('Module imports check error:', error);
+            setModuleImportsResult({
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            });
+        }
+    };
+
+    const handleProcessAudio = async () => {
+        try {
+            // Load sample audio file
+            const sampleAudioAsset = require('@assets/jfk.mp3');
+            const loadedSample = await loadSampleAudio(sampleAudioAsset, 'jfk.mp3');
+            
+            if (!loadedSample) {
+                throw new Error('Failed to load sample audio file');
+            }
+            
+            console.log('Using sample audio file:', loadedSample.name, 'at path:', loadedSample.uri);
+            
+            // Process with module
+            const result = await PlaygroundAPIModule.processAudioWithModule(loadedSample.uri);
+            console.log('Audio processing result:', result);
+            
+            setAudioProcessingResult(result);
+        } catch (error) {
+            console.error('Audio processing error:', error);
+            setAudioProcessingResult({
                 success: false,
                 error: error instanceof Error ? error.message : String(error)
             });
@@ -185,13 +187,20 @@ const PlaygroundAPIScreen = () => {
 
     return (
         <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
-            <Text variant="headlineMedium">Playground API</Text>
+            <Text variant="headlineMedium">Module Integration Tests</Text>
             
-            <View style={styles.buttonContainer}>
+            <View style={styles.sectionContainer}>
+                <Text variant="titleLarge" style={styles.sectionTitle}>Basic Tests</Text>
                 <Button mode="contained" onPress={handleHello}>Test Hello Function</Button>
-                <Button mode="contained" onPress={handleValidateIntegration}>
-                    Validate AudioProcessor Integration
+                <Button mode="contained" onPress={handleCheckModuleImports} style={{ marginTop: 10 }}>
+                    Check Module Imports
                 </Button>
+            </View>
+            
+            <Divider style={{ marginTop: 20 }} />
+            
+            <View style={styles.sectionContainer}>
+                <Text variant="titleLarge" style={styles.sectionTitle}>Essentia Module Tests</Text>
                 <Button 
                     mode="contained" 
                     onPress={handleValidateEssentiaIntegration}
@@ -201,108 +210,77 @@ const PlaygroundAPIScreen = () => {
                 </Button>
                 <Button 
                     mode="contained" 
-                    onPress={handleLoadSampleAndProcess}
-                    style={{ backgroundColor: theme.colors.tertiary }}
-                    loading={isSampleLoading}
-                    disabled={isSampleLoading}
+                    onPress={handleTestEssentiaVersion}
+                    style={{ marginTop: 10 }}
                 >
-                    Load & Process Sample Audio
-                </Button>
-                <Button mode="contained" onPress={handleCheckModuleImports}>
-                    Check Module Imports
-                </Button>
-                <Button mode="contained" onPress={handleTestEssentiaVersion}>
                     Test Essentia Version
                 </Button>
             </View>
-
+            
+            <Divider style={{ marginTop: 20 }} />
+            
+            <View style={styles.sectionContainer}>
+                <Text variant="titleLarge" style={styles.sectionTitle}>Audio Processor Tests</Text>
+                <Button 
+                    mode="contained" 
+                    onPress={handleValidateAudioProcessor}
+                    style={{ backgroundColor: theme.colors.tertiary }}
+                >
+                    Validate Audio Processor
+                </Button>
+                <Button 
+                    mode="contained" 
+                    onPress={handleProcessAudio}
+                    style={{ marginTop: 10 }}
+                    loading={isSampleLoading}
+                    disabled={isSampleLoading}
+                >
+                    Process Sample Audio
+                </Button>
+            </View>
+            
             {isSampleLoading && (
                 <View style={styles.loadingContainer}>
-                    <Text variant="titleMedium">Loading and processing sample audio...</Text>
+                    <Text>Loading and processing sample audio...</Text>
                 </View>
             )}
             
-            {sampleFile && (
-                <View style={styles.resultContainer}>
-                    <Text variant="titleMedium">Sample Audio Loaded:</Text>
-                    <Text>Name: {sampleFile.name}</Text>
-                    <Text>Duration: {sampleFile.durationMs}ms</Text>
-                    <Text>Size: {sampleFile.size} bytes</Text>
-                </View>
-            )}
-
+            {/* Results Sections */}
             {result && (
                 <View style={styles.resultContainer}>
                     <Text variant="titleMedium">Hello Result:</Text>
                     <Text>{result}</Text>
                 </View>
             )}
-
-            {validationResult && (
-                <View style={styles.resultContainer}>
-                    <Text variant="titleMedium">Integration Validation:</Text>
-                    <Text>Success: {validationResult.success ? 'Yes' : 'No'}</Text>
-                    {validationResult.audioProcessorInitialized !== undefined && (
-                        <Text>AudioProcessor Initialized: {validationResult.audioProcessorInitialized ? 'Yes' : 'No'}</Text>
-                    )}
-                    {validationResult.audioProcessorClass && (
-                        <Text>AudioProcessor Class: {validationResult.audioProcessorClass}</Text>
-                    )}
-                    {validationResult.message && (
-                        <Text>Message: {validationResult.message}</Text>
-                    )}
-                    {validationResult.error && (
-                        <Text>Error: {validationResult.error}</Text>
-                    )}
-                    {validationResult.errorType && (
-                        <Text>Error Type: {validationResult.errorType}</Text>
-                    )}
-                </View>
-            )}
             
-            {essentiaValidationResult && (
+            {validationResult && (
                 <View style={[
                     styles.resultContainer,
-                    { backgroundColor: essentiaValidationResult.success ? 
-                        theme.colors.secondaryContainer : 
-                        theme.colors.errorContainer 
-                    }
+                    validationResult.success ? styles.successContainer : styles.errorContainer
                 ]}>
                     <Text variant="titleMedium">Essentia Integration Validation:</Text>
-                    <Text>Success: {essentiaValidationResult.success ? 'Yes' : 'No'}</Text>
+                    <Text>Success: {validationResult.success ? 'Yes' : 'No'}</Text>
                     
-                    {essentiaValidationResult.essentiaModuleClassFound !== undefined && (
-                        <Text>Module Class Found: {essentiaValidationResult.essentiaModuleClassFound ? 'Yes' : 'No'}</Text>
+                    {validationResult.essentiaModuleClassFound !== undefined && (
+                        <Text>Module Class Found: {validationResult.essentiaModuleClassFound ? 'Yes' : 'No'}</Text>
                     )}
                     
-                    {essentiaValidationResult.essentiaModuleClassName && (
-                        <Text>Module Class: {essentiaValidationResult.essentiaModuleClassName}</Text>
+                    {validationResult.essentiaModuleClassName && (
+                        <Text>Module Class: {validationResult.essentiaModuleClassName}</Text>
                     )}
                     
-                    {essentiaValidationResult.essentiaModuleName && (
-                        <Text>Module Name: {essentiaValidationResult.essentiaModuleName}</Text>
+                    {validationResult.jniConnectionSuccessful !== undefined && (
+                        <Text>JNI Connection: {validationResult.jniConnectionSuccessful ? 'Successful' : 'Failed'}</Text>
                     )}
                     
-                    {essentiaValidationResult.jniConnectionSuccessful !== undefined && (
-                        <Text>JNI Connection: {essentiaValidationResult.jniConnectionSuccessful ? 'Successful' : 'Failed'}</Text>
+                    {validationResult.jniTestResult && (
+                        <Text>JNI Test Result: {validationResult.jniTestResult}</Text>
                     )}
                     
-                    {essentiaValidationResult.jniTestResult && (
-                        <Text>JNI Test Result: {essentiaValidationResult.jniTestResult}</Text>
-                    )}
-                    
-                    {essentiaValidationResult.manualLibraryLoadSuccessful !== undefined && (
-                        <Text>Manual Library Load: {essentiaValidationResult.manualLibraryLoadSuccessful ? 'Successful' : 'Failed'}</Text>
-                    )}
-                    
-                    {essentiaValidationResult.nativeSymbolFound !== undefined && (
-                        <Text>Native Symbol Found: {essentiaValidationResult.nativeSymbolFound ? 'Yes' : 'No'}</Text>
-                    )}
-                    
-                    {essentiaValidationResult.validationSteps && (
+                    {validationResult.validationSteps && (
                         <View style={{ marginTop: 10 }}>
                             <Text style={{ fontWeight: 'bold' }}>Validation Steps:</Text>
-                            {essentiaValidationResult.validationSteps.map((step, index) => (
+                            {validationResult.validationSteps.map((step, index) => (
                                 <Text key={index} style={{ fontSize: 12 }}>
                                     {index + 1}. {step}
                                 </Text>
@@ -310,24 +288,89 @@ const PlaygroundAPIScreen = () => {
                         </View>
                     )}
                     
-                    {essentiaValidationResult.error && (
+                    {validationResult.error && (
                         <Text style={{ color: theme.colors.error }}>
-                            Error: {essentiaValidationResult.error}
+                            Error: {validationResult.error}
                         </Text>
                     )}
+                </View>
+            )}
+
+            {audioValidationResult && (
+                <View style={[
+                    styles.resultContainer,
+                    audioValidationResult.success ? styles.successContainer : styles.errorContainer
+                ]}>
+                    <Text variant="titleMedium">Audio Processor Validation:</Text>
+                    <Text>Success: {audioValidationResult.success ? 'Yes' : 'No'}</Text>
                     
-                    {/* Show additional error details */}
-                    {essentiaValidationResult.manualLibraryLoadError && (
-                        <Text style={{ color: theme.colors.error, fontSize: 12 }}>
-                            Library Load Error: {essentiaValidationResult.manualLibraryLoadError}
-                        </Text>
+                    {audioValidationResult.audioProcessorInitialized !== undefined && (
+                        <Text>Processor Initialized: {audioValidationResult.audioProcessorInitialized ? 'Yes' : 'No'}</Text>
                     )}
                     
-                    {essentiaValidationResult.stackTrace && (
-                        <Text style={{ fontSize: 10, marginTop: 10 }}>
-                            Stack Trace: {essentiaValidationResult.stackTrace.length > 200 ? 
-                                `${essentiaValidationResult.stackTrace.substring(0, 200)}...` : 
-                                essentiaValidationResult.stackTrace}
+                    {audioValidationResult.audioProcessorClass && (
+                        <Text>Processor Class: {audioValidationResult.audioProcessorClass}</Text>
+                    )}
+                    
+                    {audioValidationResult.message && (
+                        <Text>Message: {audioValidationResult.message}</Text>
+                    )}
+                    
+                    {audioValidationResult.error && (
+                        <Text style={{ color: theme.colors.error }}>
+                            Error: {audioValidationResult.error}
+                        </Text>
+                    )}
+                </View>
+            )}
+
+            {versionResult && (
+                <View style={[
+                    styles.resultContainer,
+                    versionResult.version ? styles.successContainer : styles.errorContainer
+                ]}>
+                    <Text variant="titleMedium">Essentia Version:</Text>
+                    {versionResult.version && (
+                        <Text>Version: {versionResult.version}</Text>
+                    )}
+                    {versionResult.error && (
+                        <Text style={{ color: theme.colors.error }}>
+                            Error: {versionResult.error}
+                        </Text>
+                    )}
+                </View>
+            )}
+            
+            {moduleImportsResult && (
+                <View style={[
+                    styles.resultContainer,
+                    moduleImportsResult.success ? styles.successContainer : styles.errorContainer
+                ]}>
+                    <Text variant="titleMedium">Module Imports Check:</Text>
+                    <Text>Success: {moduleImportsResult.success ? 'Yes' : 'No'}</Text>
+                    
+                    {moduleImportsResult.audioProcessorImported !== undefined && (
+                        <Text>Audio Processor Imported: {moduleImportsResult.audioProcessorImported ? 'Yes' : 'No'}</Text>
+                    )}
+                    
+                    {moduleImportsResult.essentiaModuleImported !== undefined && (
+                        <Text>Essentia Module Imported: {moduleImportsResult.essentiaModuleImported ? 'Yes' : 'No'}</Text>
+                    )}
+                    
+                    {moduleImportsResult.modules && moduleImportsResult.modules.length > 0 && (
+                        <View style={{ marginTop: 10 }}>
+                            <Text style={{ fontWeight: 'bold' }}>Module Availability:</Text>
+                            {moduleImportsResult.modules.map((module, index) => (
+                                <Text key={index}>
+                                    {module.name}: {module.exists ? 'Available' : 'Not Available'}
+                                </Text>
+                            ))}
+                        </View>
+                    )}
+                    
+                    {moduleImportsResult.error && (
+                        <Text style={{ color: theme.colors.error }}>
+                            Error: {moduleImportsResult.error}
                         </Text>
                     )}
                 </View>
@@ -335,28 +378,39 @@ const PlaygroundAPIScreen = () => {
             
             {audioProcessingResult && (
                 <View style={[
-                    styles.resultContainer, 
-                    { backgroundColor: audioProcessingResult.success ? 
-                        theme.colors.tertiaryContainer : 
-                        theme.colors.errorContainer 
-                    }
+                    styles.resultContainer,
+                    audioProcessingResult.success ? styles.successContainer : styles.errorContainer
                 ]}>
                     <Text variant="titleMedium">Audio Processing Result:</Text>
                     <Text>Success: {audioProcessingResult.success ? 'Yes' : 'No'}</Text>
+                    
                     {audioProcessingResult.moduleAvailable !== undefined && (
                         <Text>Module Available: {audioProcessingResult.moduleAvailable ? 'Yes' : 'No'}</Text>
                     )}
+                    
                     {audioProcessingResult.durationMs !== undefined && (
                         <Text>Duration: {audioProcessingResult.durationMs}ms</Text>
                     )}
+                    
                     {audioProcessingResult.message && (
                         <Text>Message: {audioProcessingResult.message}</Text>
                     )}
+                    
                     {audioProcessingResult.error && (
                         <Text style={{ color: theme.colors.error }}>
                             Error: {audioProcessingResult.error}
                         </Text>
                     )}
+                </View>
+            )}
+
+            {sampleFile && (
+                <View style={styles.resultContainer}>
+                    <Text variant="titleMedium">Sample Audio Loaded:</Text>
+                    <Text>Name: {sampleFile.name}</Text>
+                    <Text>Duration: {sampleFile.durationMs}ms</Text>
+                    <Text>Size: {sampleFile.size} bytes</Text>
+                    <Text>Path: {sampleFile.uri}</Text>
                 </View>
             )}
         </ScreenWrapper>
