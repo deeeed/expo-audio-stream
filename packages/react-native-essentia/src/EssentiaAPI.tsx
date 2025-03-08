@@ -678,32 +678,11 @@ class EssentiaAPI implements EssentiaInterface {
    * Extracts multiple audio features in a single batch operation.
    * @param features Array of feature configurations, each with a name and optional parameters
    * @returns A Promise that resolves to an object containing all extracted features
+   * @deprecated Use executeBatch instead for more consistent results
    */
   async extractFeatures(features: FeatureConfig[]): Promise<any> {
-    try {
-      if (!features || features.length === 0) {
-        throw new Error('Feature list cannot be empty');
-      }
-      // Validate feature configurations
-      features.forEach((feature) => {
-        if (!feature.name) {
-          throw new Error('Each feature must have a name');
-        }
-        // Only add framewise for algorithms that explicitly support it
-        if (
-          ['Chroma', 'SpectralCentroid', 'SpectralContrast'].includes(
-            feature.name
-          ) &&
-          !feature.params?.hasOwnProperty('framewise')
-        ) {
-          feature.params = { ...feature.params, framewise: true };
-        }
-      });
-      return await Essentia.extractFeatures(JSON.stringify(features));
-    } catch (error) {
-      console.error('Essentia feature extraction error:', error);
-      throw error;
-    }
+    console.warn('extractFeatures is deprecated. Please use executeBatch for consistent results.');
+    return this.executeBatch(features);
   }
 
   /**

@@ -12,6 +12,21 @@ interface ValidationResult {
   message?: string;
   error?: string;
   errorType?: string;
+  essentiaModuleInitialized?: boolean;
+  essentiaModuleClass?: string;
+  essentiaModuleName?: string;
+  stackTrace?: string;
+  validationSteps?: string[];
+  essentiaModuleClassFound?: boolean;
+  essentiaModuleClassName?: string;
+  essentiaModuleNameError?: string;
+  jniTestResult?: string;
+  jniConnectionSuccessful?: boolean;
+  manualLibraryLoadSuccessful?: boolean;
+  manualLibraryLoadError?: string;
+  nativeSymbolFound?: boolean;
+  moduleImportsCheck?: any;
+  essentiaVersion?: string;
 }
 
 interface AudioProcessingResult {
@@ -26,7 +41,6 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({
         container: {
             padding: theme.padding.s,
-            flex: 1,
             gap: theme.spacing.gap || 10,
         },
         resultContainer: {
@@ -57,6 +71,7 @@ const PlaygroundAPIScreen = () => {
     const [result, setResult] = useState<string | null>(null);
     const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
     const [audioProcessingResult, setAudioProcessingResult] = useState<AudioProcessingResult | null>(null);
+    const [essentiaValidationResult, setEssentiaValidationResult] = useState<ValidationResult | null>(null);
     
     // Use the sample audio hook
     const { isLoading: isSampleLoading, sampleFile, loadSampleAudio } = useSampleAudio({
@@ -84,6 +99,20 @@ const PlaygroundAPIScreen = () => {
         } catch (error) {
             console.error('Validation error:', error);
             setValidationResult({
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    };
+
+    const handleValidateEssentiaIntegration = async () => {
+        try {
+            const result = await PlaygroundAPIModule.validateEssentiaIntegration();
+            console.log('Essentia validation result:', result);
+            setEssentiaValidationResult(result);
+        } catch (error) {
+            console.error('Essentia validation error:', error);
+            setEssentiaValidationResult({
                 success: false,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -120,6 +149,40 @@ const PlaygroundAPIScreen = () => {
         }
     };
 
+    const handleCheckModuleImports = async () => {
+        try {
+            const result = await PlaygroundAPIModule.checkModuleImports();
+            console.log('Module imports check:', result);
+            setValidationResult({
+                success: result.success,
+                moduleImportsCheck: result
+            });
+        } catch (error) {
+            console.error('Module imports check error:', error);
+            setValidationResult({
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            });
+        }
+    };
+
+    const handleTestEssentiaVersion = async () => {
+        try {
+            const result = await PlaygroundAPIModule.testEssentiaVersion();
+            console.log('Essentia version test:', result);
+            setValidationResult({
+                success: result.success,
+                essentiaVersion: result.version
+            });
+        } catch (error) {
+            console.error('Essentia version test error:', error);
+            setValidationResult({
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            });
+        }
+    };
+
     return (
         <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
             <Text variant="headlineMedium">Playground API</Text>
@@ -131,12 +194,25 @@ const PlaygroundAPIScreen = () => {
                 </Button>
                 <Button 
                     mode="contained" 
+                    onPress={handleValidateEssentiaIntegration}
+                    style={{ backgroundColor: theme.colors.secondary }}
+                >
+                    Validate Essentia Integration
+                </Button>
+                <Button 
+                    mode="contained" 
                     onPress={handleLoadSampleAndProcess}
                     style={{ backgroundColor: theme.colors.tertiary }}
                     loading={isSampleLoading}
                     disabled={isSampleLoading}
                 >
                     Load & Process Sample Audio
+                </Button>
+                <Button mode="contained" onPress={handleCheckModuleImports}>
+                    Check Module Imports
+                </Button>
+                <Button mode="contained" onPress={handleTestEssentiaVersion}>
+                    Test Essentia Version
                 </Button>
             </View>
 
@@ -180,6 +256,79 @@ const PlaygroundAPIScreen = () => {
                     )}
                     {validationResult.errorType && (
                         <Text>Error Type: {validationResult.errorType}</Text>
+                    )}
+                </View>
+            )}
+            
+            {essentiaValidationResult && (
+                <View style={[
+                    styles.resultContainer,
+                    { backgroundColor: essentiaValidationResult.success ? 
+                        theme.colors.secondaryContainer : 
+                        theme.colors.errorContainer 
+                    }
+                ]}>
+                    <Text variant="titleMedium">Essentia Integration Validation:</Text>
+                    <Text>Success: {essentiaValidationResult.success ? 'Yes' : 'No'}</Text>
+                    
+                    {essentiaValidationResult.essentiaModuleClassFound !== undefined && (
+                        <Text>Module Class Found: {essentiaValidationResult.essentiaModuleClassFound ? 'Yes' : 'No'}</Text>
+                    )}
+                    
+                    {essentiaValidationResult.essentiaModuleClassName && (
+                        <Text>Module Class: {essentiaValidationResult.essentiaModuleClassName}</Text>
+                    )}
+                    
+                    {essentiaValidationResult.essentiaModuleName && (
+                        <Text>Module Name: {essentiaValidationResult.essentiaModuleName}</Text>
+                    )}
+                    
+                    {essentiaValidationResult.jniConnectionSuccessful !== undefined && (
+                        <Text>JNI Connection: {essentiaValidationResult.jniConnectionSuccessful ? 'Successful' : 'Failed'}</Text>
+                    )}
+                    
+                    {essentiaValidationResult.jniTestResult && (
+                        <Text>JNI Test Result: {essentiaValidationResult.jniTestResult}</Text>
+                    )}
+                    
+                    {essentiaValidationResult.manualLibraryLoadSuccessful !== undefined && (
+                        <Text>Manual Library Load: {essentiaValidationResult.manualLibraryLoadSuccessful ? 'Successful' : 'Failed'}</Text>
+                    )}
+                    
+                    {essentiaValidationResult.nativeSymbolFound !== undefined && (
+                        <Text>Native Symbol Found: {essentiaValidationResult.nativeSymbolFound ? 'Yes' : 'No'}</Text>
+                    )}
+                    
+                    {essentiaValidationResult.validationSteps && (
+                        <View style={{ marginTop: 10 }}>
+                            <Text style={{ fontWeight: 'bold' }}>Validation Steps:</Text>
+                            {essentiaValidationResult.validationSteps.map((step, index) => (
+                                <Text key={index} style={{ fontSize: 12 }}>
+                                    {index + 1}. {step}
+                                </Text>
+                            ))}
+                        </View>
+                    )}
+                    
+                    {essentiaValidationResult.error && (
+                        <Text style={{ color: theme.colors.error }}>
+                            Error: {essentiaValidationResult.error}
+                        </Text>
+                    )}
+                    
+                    {/* Show additional error details */}
+                    {essentiaValidationResult.manualLibraryLoadError && (
+                        <Text style={{ color: theme.colors.error, fontSize: 12 }}>
+                            Library Load Error: {essentiaValidationResult.manualLibraryLoadError}
+                        </Text>
+                    )}
+                    
+                    {essentiaValidationResult.stackTrace && (
+                        <Text style={{ fontSize: 10, marginTop: 10 }}>
+                            Stack Trace: {essentiaValidationResult.stackTrace.length > 200 ? 
+                                `${essentiaValidationResult.stackTrace.substring(0, 200)}...` : 
+                                essentiaValidationResult.stackTrace}
+                        </Text>
                     )}
                 </View>
             )}

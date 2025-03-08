@@ -328,8 +328,8 @@ function EssentiaScreen() {
       // Set the audio data
       await EssentiaJS.setAudioData(dummyPcmData, 44100);
       
-      // Extract multiple features in a single call
-      const result = await EssentiaJS.extractFeatures([
+      // Changed from extractFeatures to executeBatch since that works
+      const result = await EssentiaJS.executeBatch([
         { 
           name: 'MFCC', 
           params: { 

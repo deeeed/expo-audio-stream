@@ -570,66 +570,13 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   }
 
   /**
-   * Extracts multiple audio features in a single call, based on a configurable feature list.
-   * @param featureList Array of feature configurations, each with a name and optional parameters
-   * @param promise Promise that resolves to an object containing all extracted features
+   * @deprecated Use executeBatch instead. This method is kept for backward compatibility.
    */
   @Suppress("unused")
   @ReactMethod
   fun extractFeatures(featureList: ReadableArray, promise: Promise) {
-    Log.d("EssentiaModule", "Entering extractFeatures with featureList size: ${featureList.size()}")
-    ensureInitialized(promise) {
-      // Validate input
-      if (featureList.size() == 0) {
-        promise.reject("ESSENTIA_INVALID_INPUT", "Feature list cannot be empty")
-        return@ensureInitialized
-      }
-
-      // Validate each feature has required parameters
-      for (i in 0 until featureList.size()) {
-        val feature = featureList.getMap(i) ?: run {
-          promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i is missing")
-          return@ensureInitialized
-        }
-
-        if (!feature.hasKey("name") || feature.getString("name").isNullOrEmpty()) {
-          promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i is missing a valid name")
-          return@ensureInitialized
-        }
-
-        if (feature.hasKey("params") && feature.getType("params") != ReadableType.Map) {
-          promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i has invalid params (must be an object)")
-          return@ensureInitialized
-        }
-      }
-
-      // Convert ReadableArray to JSON string for passing to native code
-      val featuresJson = convertReadableArrayToJson(featureList)
-      Log.d("EssentiaModule", "Extracting features with config: $featuresJson")
-
-      // Call the native method
-      val resultJsonString: String
-      synchronized(lock) {
-        if (nativeHandle == 0L) {
-          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
-          return@ensureInitialized
-        }
-        resultJsonString = nativeExtractFeatures(nativeHandle, featuresJson)
-      }
-
-      Log.d("EssentiaModule", "Feature extraction result: $resultJsonString")
-
-      // Convert the JSON string to a WritableMap
-      val resultMap = convertJsonToWritableMap(resultJsonString)
-
-      // Check if there was an error using our new helper
-      if (handleErrorInResultMap(resultMap, promise)) {
-        return@ensureInitialized
-      }
-
-      // Resolve the promise with the properly structured map
-      promise.resolve(resultMap)
-    }
+    Log.d("EssentiaModule", "extractFeatures is deprecated. Using executeBatch instead.")
+    executeBatch(featureList, promise)
   }
 
   /**

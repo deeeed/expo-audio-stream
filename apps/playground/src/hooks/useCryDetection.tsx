@@ -49,30 +49,176 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                     hopSize,
                 });
 
+                logger.debug('Frames result status:', frames.success ? 'Success' : 'Failed');
+
+                if (!frames.success || !frames.data?.frame) {
+                    throw new Error('Failed to retrieve frames from FrameCutter');
+                }
+
+                logger.debug('Number of frames:', frames.data.frame.length);
+                logger.debug('First frame sample length:', frames.data.frame[0]?.length || 0);
+
                 const mfccFrames: number[][] = [];
                 const melFrames: number[][] = [];
                 const chromaFrames: number[][] = [];
                 const contrastFrames: number[][] = [];
                 const tonnetzFrames: number[][] = [];
 
+                // Process only a subset of frames for efficiency (every 5th frame)
+                // This reduces processing time while still capturing the audio characteristics
+                const frameStep = 5;
+                const selectedFrames = frames.data.frame.filter((_: number[], index: number) => index % frameStep === 0);
+                
+                logger.debug(`Processing ${selectedFrames.length} frames out of ${frames.data.frame.length} total frames`);
 
-                // Step 3: Compute means
-                const meanMFCC = computeMean(mfccFrames);         // 40
-                const meanMel = computeMean(melFrames);           // 128
-                const meanChroma = computeMean(chromaFrames);     // 12
-                const meanContrast = computeMean(contrastFrames); // 7
-                const meanTonnetz = computeMean(tonnetzFrames);   // 6
+                // Step 2: Process each selected frame to extract features
+                for (let i = 0; i < selectedFrames.length; i++) {
+                    const frame = selectedFrames[i];
+                    
+                    try {
+                        // Set each frame as the current audio data
+                        // Make sure the frame is a Float32Array
+                        if (!frame || frame.length === 0) {
+                            logger.warn(`Skipping empty frame at index ${i}`);
+                            continue;
+                        }
+                        
+                        await EssentiaAPI.setAudioData(new Float32Array(frame), sr);
+                        
+                        // Apply windowing with string type instead of object
+                        const windowResult = await EssentiaAPI.executeAlgorithm("Windowing", {
+                            type: "hann",
+                            size: frame.length
+                        });
+                        
+                        if (!windowResult.success || !windowResult.data?.frame) {
+                            logger.warn(`Windowing failed for frame ${i}:`, windowResult.error || 'Unknown error');
+                            continue;
+                        }
+                        
+                        // Compute spectrum with zero padding
+                        const spectrumResult = await EssentiaAPI.executeAlgorithm("Spectrum", { 
+                            size: n_fft 
+                        });
+                        
+                        if (!spectrumResult.success || !spectrumResult.data?.spectrum) {
+                            logger.warn(`Spectrum computation failed for frame ${i}:`, spectrumResult.error || 'Unknown error');
+                            continue;
+                        }
+                        
+                        // Extract MFCC
+                        const mfccResult = await EssentiaAPI.executeAlgorithm("MFCC", {
+                            sampleRate: sr,
+                            numberBands: 40,       // Reduced from 128 to improve performance
+                            numberCoefficients: 40,
+                            lowFrequencyBound: 0,
+                            highFrequencyBound: sr / 2,
+                        });
+                        
+                        if (mfccResult.success && mfccResult.data?.mfcc) {
+                            mfccFrames.push(mfccResult.data.mfcc);
+                        } else {
+                            logger.warn(`MFCC extraction failed for frame ${i}:`, mfccResult.error || 'Unknown error');
+                        }
+                        
+                        // Extract MelBands
+                        const melResult = await EssentiaAPI.executeAlgorithm("MelBands", {
+                            sampleRate: sr,
+                            numberBands: 40,      // Reduced from 128 to improve performance
+                            lowFrequencyBound: 0,
+                            highFrequencyBound: sr / 2,
+                        });
+                        
+                        if (melResult.success && melResult.data?.melBands) {
+                            melFrames.push(melResult.data.melBands);
+                        } else {
+                            logger.warn(`MelBands extraction failed for frame ${i}:`, melResult.error || 'Unknown error');
+                        }
+                        
+                        // Extract HPCP (Chroma)
+                        const hpcpResult = await EssentiaAPI.executeAlgorithm("HPCP", {
+                            sampleRate: sr,
+                            size: 12,
+                            minFrequency: 20,  // Add minimum frequency parameter 
+                            maxFrequency: sr / 2
+                        });
+                        
+                        if (hpcpResult.success && hpcpResult.data?.hpcp) {
+                            chromaFrames.push(hpcpResult.data.hpcp);
+                        } else {
+                            logger.warn(`HPCP extraction failed for frame ${i}:`, hpcpResult.error || 'Unknown error');
+                        }
+                        
+                        // Extract Spectral Contrast
+                        const contrastResult = await EssentiaAPI.executeAlgorithm("SpectralContrast", {
+                            sampleRate: sr,
+                            numberBands: 7,
+                            lowFrequencyBound: 100
+                        });
+                        
+                        if (contrastResult.success && contrastResult.data?.contrast) {
+                            contrastFrames.push(contrastResult.data.contrast);
+                        } else {
+                            logger.warn(`SpectralContrast extraction failed for frame ${i}:`, contrastResult.error || 'Unknown error');
+                        }
+                        
+                        // Extract Tonnetz
+                        if (chromaFrames.length > 0) { // Only extract Tonnetz if we have chroma data
+                            const tonnetzResult = await EssentiaAPI.executeAlgorithm("Tonnetz", {});
+                            
+                            if (tonnetzResult.success && tonnetzResult.data?.tonnetz) {
+                                tonnetzFrames.push(tonnetzResult.data.tonnetz);
+                            } else {
+                                logger.warn(`Tonnetz extraction failed for frame ${i}:`, tonnetzResult.error || 'Unknown error');
+                            }
+                        }
+                        
+                        // Log progress for every 10th frame
+                        if (i % 10 === 0) {
+                            logger.debug(`Processed ${i}/${selectedFrames.length} frames`);
+                        }
+                    } catch (frameError) {
+                        logger.warn(`Error processing frame ${i}:`, frameError);
+                        // Continue with next frame
+                    }
+                }
 
-                // Step 4: Concatenate features
-                const features = [
-                    ...meanMFCC,
-                    ...meanChroma,
-                    ...meanMel,
-                    ...meanContrast,
-                    ...meanTonnetz,
-                ];
+                logger.debug('Feature extraction complete. Results:', {
+                    mfccFrames: mfccFrames.length,
+                    melFrames: melFrames.length,
+                    chromaFrames: chromaFrames.length,
+                    contrastFrames: contrastFrames.length,
+                    tonnetzFrames: tonnetzFrames.length,
+                });
 
-                logger.debug('Extracted features', {
+                // Step 3: Check if we have enough data to proceed
+                if (mfccFrames.length === 0 && melFrames.length === 0 && 
+                    chromaFrames.length === 0 && contrastFrames.length === 0) {
+                    throw new Error('No features could be extracted from the audio');
+                }
+
+                // Step 4: Compute means with robust error handling
+                const meanMFCC = computeMean(mfccFrames);
+                const meanMel = computeMean(melFrames);
+                const meanChroma = computeMean(chromaFrames);
+                const meanContrast = computeMean(contrastFrames);
+                const meanTonnetz = computeMean(tonnetzFrames);
+
+                // Step 5: Concatenate available features
+                const features: number[] = [];
+                
+                // Add each feature if available
+                if (meanMFCC.length > 0) features.push(...meanMFCC);
+                if (meanChroma.length > 0) features.push(...meanChroma);
+                if (meanMel.length > 0) features.push(...meanMel);
+                if (meanContrast.length > 0) features.push(...meanContrast);
+                if (meanTonnetz.length > 0) features.push(...meanTonnetz);
+
+                if (features.length === 0) {
+                    throw new Error('Failed to calculate feature means');
+                }
+
+                logger.debug('Final feature vector:', {
                     featureLength: features.length,
                     mfcc: meanMFCC.length,
                     chroma: meanChroma.length,
@@ -81,7 +227,7 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                     tonnetz: meanTonnetz.length,
                 });
 
-                // Step 5: Run ONNX model
+                // Step 6: Run ONNX model
                 const model = await initModel();
                 const inputTensor = createTensor('float32', new Float32Array(features), [1, features.length]);
                 const results = await model.run({ input: inputTensor });
@@ -92,7 +238,11 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
 
                 return { probability, isCrying, timestamp };
             } catch (error) {
-                logger.error('Manual cry detection error', { error });
+                logger.error('Manual cry detection error', { 
+                    error,
+                    message: error instanceof Error ? error.message : String(error),
+                    stack: error instanceof Error ? error.stack : undefined
+                });
                 onError?.(error instanceof Error ? error : new Error('Manual cry detection failed'));
                 return null;
             } finally {
@@ -124,11 +274,11 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                         },
                         { name: "Spectrum", params: { size: n_fft } },
                         {
-                            name: "HPCP", // Replace Chromagram with HPCP
+                            name: "HPCP", 
                             params: { 
                                 sampleRate: sr, 
-                                size: 12, // HPCP uses 'size' instead of 'numberBins'
-                                minFrequency: 0, 
+                                size: 12,
+                                minFrequency: 20, // Changed from 0 to 20Hz
                                 maxFrequency: sr / 2 
                             },
                         },
@@ -200,19 +350,51 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
         [initModel, createTensor, onError]
     );
 
-    // Helper function to compute mean across frames
+    // Helper function to compute mean across frames - improved to handle empty arrays
     const computeMean = (frames: number[][]): number[] => {
+        if (frames.length === 0) {
+            return []; // Return empty array if no frames are provided
+        }
+        
         const numFrames = frames.length;
         const featureSize = frames[0].length;
         const mean = new Array(featureSize).fill(0);
 
+        // Check if all frames have the same dimension
+        for (let i = 1; i < numFrames; i++) {
+            if (frames[i].length !== featureSize) {
+                console.warn(`Frame ${i} has inconsistent feature size: ${frames[i].length} vs ${featureSize}`);
+                // Handle this case - we could either:
+                // 1. Skip this frame
+                // 2. Truncate to smaller size
+                // 3. Pad with zeros
+                // Here we'll truncate to smaller size
+                const minSize = Math.min(frames[i].length, featureSize);
+                for (let j = 0; j < numFrames; j++) {
+                    if (frames[j].length > minSize) {
+                        frames[j] = frames[j].slice(0, minSize);
+                    }
+                }
+            }
+        }
+
+        // Recompute feature size in case it changed
+        const finalFeatureSize = frames[0].length;
+        
+        // Reset mean array with new size
+        for (let j = 0; j < finalFeatureSize; j++) {
+            mean[j] = 0;
+        }
+
+        // Sum values
         for (let i = 0; i < numFrames; i++) {
-            for (let j = 0; j < featureSize; j++) {
+            for (let j = 0; j < finalFeatureSize; j++) {
                 mean[j] += frames[i][j];
             }
         }
 
-        for (let j = 0; j < featureSize; j++) {
+        // Divide by count
+        for (let j = 0; j < finalFeatureSize; j++) {
             mean[j] /= numFrames;
         }
 
