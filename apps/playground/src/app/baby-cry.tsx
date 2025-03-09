@@ -10,7 +10,7 @@ import { useSampleAudio } from '../hooks/useSampleAudio';
 const logger = baseLogger.extend('BabyCryScreen');
 
 interface ProcessingResult {
-  method: 'manual' | 'pipeline';
+  method: 'manual';
   result: CryDetectionResult | null;
   processingTimeMs: number;
   error?: string;
@@ -36,21 +36,11 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
       backgroundColor: theme.colors.surfaceVariant,
       marginBottom: 16,
     },
-    compareContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      gap: 12,
-    },
     resultColumn: {
       flex: 1,
       borderRadius: 8,
       padding: 12,
-    },
-    manualColumn: {
       backgroundColor: theme.colors.primaryContainer,
-    },
-    pipelineColumn: {
-      backgroundColor: theme.colors.secondaryContainer,
     },
     metricRow: {
       flexDirection: 'row',
@@ -90,11 +80,9 @@ export default function BabyCryScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [sampleSource, setSampleSource] = useState<'sample' | 'synthetic' | null>(null);
   const [results, setResults] = useState<ProcessingResult[]>([]);
-  const [isComparing, setIsComparing] = useState(false);
   const [comparisonCount, setComparisonCount] = useState(0);
   const [averageResults, setAverageResults] = useState<{
     manual: { avgTime: number; avgProbability: number; detectionRate: number };
-    pipeline: { avgTime: number; avgProbability: number; detectionRate: number };
   } | null>(null);
 
   // Add new state for individual feature extraction results
@@ -104,7 +92,33 @@ export default function BabyCryScreen() {
     processingTimeMs: number;
     classification?: CryTypeLabel;
     predictions?: { label: CryTypeLabel; probability: number }[];
+    isFullModel?: boolean;
+    extractionTimes?: {
+      mfcc: number;
+      mel: number;
+      chroma: number;
+      contrast: number;
+      tonnetz: number;
+      prediction: number;
+    };
   } | null>(null);
+
+  // Add individual loading states for each feature extraction process
+  const [loadingStates, setLoadingStates] = useState<{
+    mfcc: boolean;
+    melSpectrogram: boolean;
+    chroma: boolean;
+    spectralContrast: boolean;
+    tonnetz: boolean;
+    prediction: boolean;
+  }>({
+    mfcc: false,
+    melSpectrogram: false,
+    chroma: false,
+    spectralContrast: false,
+    tonnetz: false,
+    prediction: false,
+  });
 
   // Load sample audio hook
   const { loadSampleAudio } = useSampleAudio({
@@ -122,8 +136,7 @@ export default function BabyCryScreen() {
   const { 
     isModelLoading, 
     isProcessing, 
-    detectCryManually, 
-    detectCryWithPipeline,
+    detectCryManually,
     extractMFCC,
     extractMelSpectrogram,
     extractChroma,
@@ -246,37 +259,26 @@ export default function BabyCryScreen() {
     }
   }, [loadSampleAudio, show]);
 
-    // Calculate average metrics
-    const calculateAverages = useCallback((allResults: ProcessingResult[]) => {
-      const manualResults = allResults.filter(r => r.method === 'manual' && r.result);
-      const pipelineResults = allResults.filter(r => r.method === 'pipeline' && r.result);
-      
-      if (manualResults.length === 0 || pipelineResults.length === 0) {
-        return;
+  // Calculate average metrics
+  const calculateAverages = useCallback((allResults: ProcessingResult[]) => {
+    const manualResults = allResults.filter(r => r.method === 'manual' && r.result);
+    
+    if (manualResults.length === 0) {
+      return;
+    }
+    
+    const manualAvgTime = manualResults.reduce((sum, r) => sum + r.processingTimeMs, 0) / manualResults.length;
+    const manualAvgProb = manualResults.reduce((sum, r) => sum + (r.result?.probability || 0), 0) / manualResults.length;
+    const manualDetectionRate = manualResults.filter(r => r.result?.isCrying).length / manualResults.length;
+    
+    setAverageResults({
+      manual: {
+        avgTime: manualAvgTime,
+        avgProbability: manualAvgProb,
+        detectionRate: manualDetectionRate,
       }
-      
-      const manualAvgTime = manualResults.reduce((sum, r) => sum + r.processingTimeMs, 0) / manualResults.length;
-      const pipelineAvgTime = pipelineResults.reduce((sum, r) => sum + r.processingTimeMs, 0) / pipelineResults.length;
-      
-      const manualAvgProb = manualResults.reduce((sum, r) => sum + (r.result?.probability || 0), 0) / manualResults.length;
-      const pipelineAvgProb = pipelineResults.reduce((sum, r) => sum + (r.result?.probability || 0), 0) / pipelineResults.length;
-      
-      const manualDetectionRate = manualResults.filter(r => r.result?.isCrying).length / manualResults.length;
-      const pipelineDetectionRate = pipelineResults.filter(r => r.result?.isCrying).length / pipelineResults.length;
-      
-      setAverageResults({
-        manual: {
-          avgTime: manualAvgTime,
-          avgProbability: manualAvgProb,
-          detectionRate: manualDetectionRate,
-        },
-        pipeline: {
-          avgTime: pipelineAvgTime,
-          avgProbability: pipelineAvgProb,
-          detectionRate: pipelineDetectionRate,
-        }
-      });
-    }, []);
+    });
+  }, []);
 
   // Run manual detection only
   const runManualDetection = useCallback(async () => {
@@ -290,6 +292,7 @@ export default function BabyCryScreen() {
     }
 
     try {
+      setLoadingStates(prev => ({ ...prev, prediction: true }));
       const timestamp = Date.now();
       const manualStartTime = performance.now();
       const manualResult = await detectCryManually(audioData, timestamp);
@@ -322,120 +325,10 @@ export default function BabyCryScreen() {
         message: 'Error running manual detection',
         duration: 3000,
       });
+    } finally {
+      setLoadingStates(prev => ({ ...prev, prediction: false }));
     }
   }, [audioData, detectCryManually, results, show, calculateAverages]);
-
-  // Run pipeline detection only
-  const runPipelineDetection = useCallback(async () => {
-    if (!audioData) {
-      show({
-        type: 'error',
-        message: 'No audio data available',
-        duration: 3000,
-      });
-      return;
-    }
-
-    try {
-      const timestamp = Date.now();
-      const pipelineStartTime = performance.now();
-      const pipelineResult = await detectCryWithPipeline(audioData, timestamp);
-      const pipelineEndTime = performance.now();
-      
-      const newResult: ProcessingResult = {
-        method: 'pipeline',
-        result: pipelineResult,
-        processingTimeMs: pipelineEndTime - pipelineStartTime,
-        error: pipelineResult ? undefined : 'Failed to detect cry with pipeline',
-      };
-
-      // Update results
-      setResults(prev => [...prev, newResult]);
-      setComparisonCount(prev => prev + 1);
-      
-      // Show success message
-      show({
-        type: 'success',
-        message: 'Pipeline cry detection completed',
-        duration: 2000,
-      });
-      
-      // Calculate averages after adding new result
-      calculateAverages([...results, newResult]);
-    } catch (error) {
-      logger.error('Pipeline detection error:', error);
-      show({
-        type: 'error',
-        message: 'Error running pipeline detection',
-        duration: 3000,
-      });
-    }
-  }, [audioData, detectCryWithPipeline, results, show, calculateAverages]);
-
-  // Process audio with both methods (keeping the original function for backward compatibility)
-  const runCryDetection = useCallback(async () => {
-    if (!audioData) {
-      show({
-        type: 'error',
-        message: 'No audio data available',
-        duration: 3000,
-      });
-      return;
-    }
-
-    setIsComparing(true);
-    const newResults: ProcessingResult[] = [];
-    const timestamp = Date.now();
-
-    try {
-      // Run manual detection
-      const manualStartTime = performance.now();
-      const manualResult = await detectCryManually(audioData, timestamp);
-      const manualEndTime = performance.now();
-      
-      newResults.push({
-        method: 'manual',
-        result: manualResult,
-        processingTimeMs: manualEndTime - manualStartTime,
-        error: manualResult ? undefined : 'Failed to detect cry manually',
-      });
-
-      // Run pipeline detection
-      const pipelineStartTime = performance.now();
-      const pipelineResult = await detectCryWithPipeline(audioData, timestamp);
-      const pipelineEndTime = performance.now();
-      
-      newResults.push({
-        method: 'pipeline',
-        result: pipelineResult,
-        processingTimeMs: pipelineEndTime - pipelineStartTime,
-        error: pipelineResult ? undefined : 'Failed to detect cry with pipeline',
-      });
-
-      // Update results
-      setResults(prev => [...prev, ...newResults]);
-      setComparisonCount(prev => prev + 1);
-      
-      // Show success message
-      show({
-        type: 'success',
-        message: 'Cry detection completed',
-        duration: 2000,
-      });
-      
-      // Calculate averages after adding new results
-      calculateAverages([...results, ...newResults]);
-    } catch (error) {
-      logger.error('Comparison error:', error);
-      show({
-        type: 'error',
-        message: 'Error running comparison',
-        duration: 3000,
-      });
-    } finally {
-      setIsComparing(false);
-    }
-  }, [audioData, detectCryManually, detectCryWithPipeline, results, show, calculateAverages]);
 
   // Clear all results
   const clearResults = useCallback(() => {
@@ -450,62 +343,57 @@ export default function BabyCryScreen() {
     });
   }, [show]);
 
-  // Render comparison results
-  const renderComparisonResults = useCallback(() => {
+  // Render detection results
+  const renderDetectionResults = useCallback(() => {
     if (results.length === 0) {
       return (
         <Notice
           type="info"
-          message="Run a comparison to see the results between manual and pipeline processing methods."
+          message="Run a detection to see the results."
         />
       );
     }
 
-    // Get the most recent results for each method
-    const latestResults = {
-      manual: results.filter(r => r.method === 'manual').pop(),
-      pipeline: results.filter(r => r.method === 'pipeline').pop(),
-    };
+    // Get the most recent result
+    const latestResult = results[results.length - 1];
 
     return (
       <Card style={styles.resultCard}>
         <Card.Content>
           <Text style={styles.cardTitle}>Latest Detection Results</Text>
           
-          <View style={styles.compareContainer}>
-            {/* Manual column */}
-            <View style={[styles.resultColumn, styles.manualColumn]}>
-              <Text variant="titleMedium">Manual Processing</Text>
-              
-              {latestResults.manual?.error ? (
-                <Text style={{ color: theme.colors.error, marginTop: 8 }}>
-                  {latestResults.manual.error}
-                </Text>
-              ) : latestResults.manual?.result ? (
+          <View>
+            {latestResult?.error ? (
+              <Text style={{ color: theme.colors.error, marginTop: 8 }}>
+                {latestResult.error}
+              </Text>
+            ) : latestResult?.result ? (
+              <View style={styles.resultColumn}>
+                <Text variant="titleMedium">Manual Processing</Text>
                 <>
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Crying:</Text>
-                    <Text>{latestResults.manual.result.isCrying ? 'Yes ✓' : 'No ✗'}</Text>
+                    <Text>{latestResult.result.isCrying ? 'Yes ✓' : 'No ✗'}</Text>
                   </View>
                   
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Type:</Text>
-                    <Text>{latestResults.manual.result.classification}</Text>
+                    <Text>{latestResult.result.classification}</Text>
                   </View>
                   
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Confidence:</Text>
-                    <Text>{(latestResults.manual.result.probability * 100).toFixed(2)}%</Text>
+                    <Text>{(latestResult.result.probability * 100).toFixed(2)}%</Text>
                   </View>
                   
                   <View style={{ 
-                    width: `${latestResults.manual.result.probability * 100}%`, 
-                    backgroundColor: latestResults.manual.result.isCrying ? theme.colors.error : theme.colors.primary,
+                    width: `${latestResult.result.probability * 100}%`, 
+                    backgroundColor: latestResult.result.isCrying ? theme.colors.error : theme.colors.primary,
                     ...styles.probabilityIndicator 
                   }} />
                   
                   <Text style={{marginTop: 8, fontWeight: 'bold'}}>Top Predictions:</Text>
-                  {latestResults.manual.result.predictions.slice(0, 3).map((pred, idx) => (
+                  {latestResult.result.predictions.slice(0, 3).map((pred, idx) => (
                     <View key={idx} style={styles.metricRow}>
                       <Text>{pred.label}:</Text>
                       <Text>{(pred.probability * 100).toFixed(2)}%</Text>
@@ -514,67 +402,18 @@ export default function BabyCryScreen() {
                   
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Processing Time:</Text>
-                    <Text>{latestResults.manual.processingTimeMs.toFixed(2)} ms</Text>
+                    <Text>{latestResult.processingTimeMs.toFixed(2)} ms</Text>
                   </View>
                 </>
-              ) : (
-                <Text style={{ marginTop: 8 }}>No results available</Text>
-              )}
-            </View>
-            
-            {/* Pipeline column */}
-            <View style={[styles.resultColumn, styles.pipelineColumn]}>
-              <Text variant="titleMedium">Pipeline Processing</Text>
-              
-              {latestResults.pipeline?.error ? (
-                <Text style={{ color: theme.colors.error, marginTop: 8 }}>
-                  {latestResults.pipeline.error}
-                </Text>
-              ) : latestResults.pipeline?.result ? (
-                <>
-                  <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Crying:</Text>
-                    <Text>{latestResults.pipeline.result.isCrying ? 'Yes ✓' : 'No ✗'}</Text>
-                  </View>
-                  
-                  <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Type:</Text>
-                    <Text>{latestResults.pipeline.result.classification}</Text>
-                  </View>
-                  
-                  <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Confidence:</Text>
-                    <Text>{(latestResults.pipeline.result.probability * 100).toFixed(2)}%</Text>
-                  </View>
-                  
-                  <View style={{ 
-                    width: `${latestResults.pipeline.result.probability * 100}%`, 
-                    backgroundColor: latestResults.pipeline.result.isCrying ? theme.colors.error : theme.colors.secondary,
-                    ...styles.probabilityIndicator 
-                  }} />
-                  
-                  <Text style={{marginTop: 8, fontWeight: 'bold'}}>Top Predictions:</Text>
-                  {latestResults.pipeline.result.predictions.slice(0, 3).map((pred, idx) => (
-                    <View key={idx} style={styles.metricRow}>
-                      <Text>{pred.label}:</Text>
-                      <Text>{(pred.probability * 100).toFixed(2)}%</Text>
-                    </View>
-                  ))}
-                  
-                  <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Processing Time:</Text>
-                    <Text>{latestResults.pipeline.processingTimeMs.toFixed(2)} ms</Text>
-                  </View>
-                </>
-              ) : (
-                <Text style={{ marginTop: 8 }}>No results available</Text>
-              )}
-            </View>
+              </View>
+            ) : (
+              <Text style={{ marginTop: 8 }}>No results available</Text>
+            )}
           </View>
         </Card.Content>
       </Card>
     );
-  }, [results, styles, theme.colors.error, theme.colors.primary, theme.colors.secondary]);
+  }, [results, styles, theme.colors.error, theme.colors.primary]);
 
   // Render aggregate statistics
   const renderAggregateStats = useCallback(() => {
@@ -590,36 +429,22 @@ export default function BabyCryScreen() {
           <DataTable>
             <DataTable.Header>
               <DataTable.Title>Metric</DataTable.Title>
-              <DataTable.Title numeric>Manual</DataTable.Title>
-              <DataTable.Title numeric>Pipeline</DataTable.Title>
-              <DataTable.Title numeric>Difference</DataTable.Title>
+              <DataTable.Title numeric>Value</DataTable.Title>
             </DataTable.Header>
             
             <DataTable.Row>
               <DataTable.Cell>Avg. Processing Time</DataTable.Cell>
               <DataTable.Cell numeric>{averageResults.manual.avgTime.toFixed(2)} ms</DataTable.Cell>
-              <DataTable.Cell numeric>{averageResults.pipeline.avgTime.toFixed(2)} ms</DataTable.Cell>
-              <DataTable.Cell numeric>
-                {(averageResults.manual.avgTime - averageResults.pipeline.avgTime).toFixed(2)} ms
-              </DataTable.Cell>
             </DataTable.Row>
             
             <DataTable.Row>
               <DataTable.Cell>Avg. Probability</DataTable.Cell>
               <DataTable.Cell numeric>{(averageResults.manual.avgProbability * 100).toFixed(2)}%</DataTable.Cell>
-              <DataTable.Cell numeric>{(averageResults.pipeline.avgProbability * 100).toFixed(2)}%</DataTable.Cell>
-              <DataTable.Cell numeric>
-                {((averageResults.manual.avgProbability - averageResults.pipeline.avgProbability) * 100).toFixed(2)}%
-              </DataTable.Cell>
             </DataTable.Row>
             
             <DataTable.Row>
               <DataTable.Cell>Detection Rate</DataTable.Cell>
               <DataTable.Cell numeric>{(averageResults.manual.detectionRate * 100).toFixed(2)}%</DataTable.Cell>
-              <DataTable.Cell numeric>{(averageResults.pipeline.detectionRate * 100).toFixed(2)}%</DataTable.Cell>
-              <DataTable.Cell numeric>
-                {((averageResults.manual.detectionRate - averageResults.pipeline.detectionRate) * 100).toFixed(2)}%
-              </DataTable.Cell>
             </DataTable.Row>
           </DataTable>
         </Card.Content>
@@ -627,7 +452,7 @@ export default function BabyCryScreen() {
     );
   }, [averageResults, comparisonCount, styles.cardTitle, styles.resultCard]);
 
-  // Define extractMFCCOnly function
+  // Update feature extraction functions to use individual loading states
   const extractMFCCOnly = useCallback(async () => {
     if (!audioData) {
       show({
@@ -639,12 +464,17 @@ export default function BabyCryScreen() {
     }
 
     try {
-      setIsComparing(true);
+      setLoadingStates(prev => ({ ...prev, mfcc: true }));
       const result = await extractMFCC(audioData);
       setFeatureResults({
         type: 'MFCC',
         features: result.features,
         processingTimeMs: result.processingTimeMs,
+      });
+      show({
+        type: 'success',
+        message: `MFCC extraction completed in ${result.processingTimeMs.toFixed(2)}ms`,
+        duration: 2000,
       });
     } catch (error) {
       logger.error('MFCC extraction error:', error);
@@ -654,7 +484,7 @@ export default function BabyCryScreen() {
         duration: 3000,
       });
     } finally {
-      setIsComparing(false);
+      setLoadingStates(prev => ({ ...prev, mfcc: false }));
     }
   }, [audioData, extractMFCC, show]);
 
@@ -669,7 +499,7 @@ export default function BabyCryScreen() {
     }
 
     try {
-      setIsComparing(true);
+      setLoadingStates(prev => ({ ...prev, melSpectrogram: true }));
       const result = await extractMelSpectrogram(audioData);
       setFeatureResults({
         type: 'Mel Spectrogram',
@@ -689,7 +519,7 @@ export default function BabyCryScreen() {
         duration: 3000,
       });
     } finally {
-      setIsComparing(false);
+      setLoadingStates(prev => ({ ...prev, melSpectrogram: false }));
     }
   }, [audioData, extractMelSpectrogram, show]);
 
@@ -704,7 +534,7 @@ export default function BabyCryScreen() {
     }
 
     try {
-      setIsComparing(true);
+      setLoadingStates(prev => ({ ...prev, chroma: true }));
       const result = await extractChroma(audioData);
       setFeatureResults({
         type: 'Chroma',
@@ -724,7 +554,7 @@ export default function BabyCryScreen() {
         duration: 3000,
       });
     } finally {
-      setIsComparing(false);
+      setLoadingStates(prev => ({ ...prev, chroma: false }));
     }
   }, [audioData, extractChroma, show]);
 
@@ -739,7 +569,7 @@ export default function BabyCryScreen() {
     }
 
     try {
-      setIsComparing(true);
+      setLoadingStates(prev => ({ ...prev, spectralContrast: true }));
       const result = await extractSpectralContrast(audioData);
       setFeatureResults({
         type: 'Spectral Contrast',
@@ -759,7 +589,7 @@ export default function BabyCryScreen() {
         duration: 3000,
       });
     } finally {
-      setIsComparing(false);
+      setLoadingStates(prev => ({ ...prev, spectralContrast: false }));
     }
   }, [audioData, extractSpectralContrast, show]);
 
@@ -774,7 +604,7 @@ export default function BabyCryScreen() {
     }
 
     try {
-      setIsComparing(true);
+      setLoadingStates(prev => ({ ...prev, tonnetz: true }));
       const result = await extractTonnetz(audioData);
       setFeatureResults({
         type: 'Tonnetz',
@@ -794,11 +624,11 @@ export default function BabyCryScreen() {
         duration: 3000,
       });
     } finally {
-      setIsComparing(false);
+      setLoadingStates(prev => ({ ...prev, tonnetz: false }));
     }
   }, [audioData, extractTonnetz, show]);
 
-  // Run model prediction on concatenated features
+  // Run model prediction on concatenated features with progress indicators
   const runModelPredictionOnly = useCallback(async () => {
     if (!audioData) {
       show({
@@ -810,14 +640,24 @@ export default function BabyCryScreen() {
     }
 
     try {
-      setIsComparing(true);
+      setLoadingStates(prev => ({ ...prev, prediction: true }));
       
-      // First extract all features
+      // First extract all features - with proper progress tracking
+      setLoadingStates(prev => ({ ...prev, mfcc: true }));
       const mfccResult = await extractMFCC(audioData);
+      setLoadingStates(prev => ({ ...prev, mfcc: false, melSpectrogram: true }));
+      
       const melResult = await extractMelSpectrogram(audioData);
+      setLoadingStates(prev => ({ ...prev, melSpectrogram: false, chroma: true }));
+      
       const chromaResult = await extractChroma(audioData);
+      setLoadingStates(prev => ({ ...prev, chroma: false, spectralContrast: true }));
+      
       const contrastResult = await extractSpectralContrast(audioData);
+      setLoadingStates(prev => ({ ...prev, spectralContrast: false, tonnetz: true }));
+      
       const tonnetzResult = await extractTonnetz(audioData);
+      setLoadingStates(prev => ({ ...prev, tonnetz: false }));
       
       // Concatenate features
       const features = [
@@ -842,11 +682,20 @@ export default function BabyCryScreen() {
       
       // Update feature results to display classification info
       setFeatureResults({
-        type: 'Prediction',
+        type: 'Full Prediction',
         features: result.predictions.map(p => p.probability),
         processingTimeMs: endTime - startTime,
         classification: result.classification,
-        predictions: result.predictions
+        predictions: result.predictions,
+        isFullModel: true,
+        extractionTimes: {
+          mfcc: mfccResult.processingTimeMs,
+          mel: melResult.processingTimeMs,
+          chroma: chromaResult.processingTimeMs,
+          contrast: contrastResult.processingTimeMs,
+          tonnetz: tonnetzResult.processingTimeMs,
+          prediction: endTime - startTime
+        }
       });
       
     } catch (error) {
@@ -857,11 +706,18 @@ export default function BabyCryScreen() {
         duration: 3000,
       });
     } finally {
-      setIsComparing(false);
+      setLoadingStates({
+        mfcc: false,
+        melSpectrogram: false,
+        chroma: false,
+        spectralContrast: false,
+        tonnetz: false,
+        prediction: false,
+      });
     }
   }, [audioData, extractMFCC, extractMelSpectrogram, extractChroma, extractSpectralContrast, extractTonnetz, runPrediction, show]);
 
-  // Now update the renderDetectionControls function to include buttons for each feature extraction
+  // Update the detection controls to use individual loading states
   const renderDetectionControls = useCallback(() => {
     return (
       <Card style={styles.card}>
@@ -872,20 +728,20 @@ export default function BabyCryScreen() {
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Button
                 mode="contained"
-                onPress={runCryDetection}
-                loading={isComparing || isProcessing}
-                disabled={isComparing || isProcessing || isModelLoading || !audioData}
-                icon="compare"
+                onPress={runManualDetection}
+                loading={loadingStates.prediction || isProcessing}
+                disabled={Object.values(loadingStates).some(Boolean) || isProcessing || isModelLoading || !audioData}
+                icon="play"
                 style={{ flex: 1 }}
               >
-                Run Both
+                Run Detection
               </Button>
               
               {results.length > 0 && (
                 <Button
                   mode="outlined"
                   onPress={clearResults}
-                  disabled={isComparing || isProcessing}
+                  disabled={Object.values(loadingStates).some(Boolean) || isProcessing}
                   icon="delete"
                 >
                   Clear
@@ -893,25 +749,23 @@ export default function BabyCryScreen() {
               )}
             </View>
             
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ marginVertical: 12, padding: 12, borderRadius: 8, backgroundColor: theme.colors.surfaceVariant }}>
+              <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>
+                Baby Cry Detection Process
+              </Text>
+              <Text style={{ marginBottom: 8 }}>
+                The full detection combines all feature types below to achieve accurate detection results.
+                Each button extracts individual features that are later combined for the final prediction.
+              </Text>
               <Button
-                mode="outlined"
-                onPress={runManualDetection}
-                disabled={isComparing || isProcessing || isModelLoading || !audioData}
-                icon="hand-pointing-right"
-                style={{ flex: 1 }}
+                mode="contained"
+                onPress={runModelPredictionOnly}
+                loading={Object.values(loadingStates).some(Boolean)}
+                disabled={Object.values(loadingStates).some(Boolean) || isModelLoading || !audioData}
+                icon="brain"
+                style={{ marginTop: 8 }}
               >
-                Manual Only
-              </Button>
-              
-              <Button
-                mode="outlined"
-                onPress={runPipelineDetection}
-                disabled={isComparing || isProcessing || isModelLoading || !audioData}
-                icon="pipe"
-                style={{ flex: 1 }}
-              >
-                Pipeline Only
+                Run Full Detection Pipeline
               </Button>
             </View>
             
@@ -921,7 +775,8 @@ export default function BabyCryScreen() {
               <Button
                 mode="outlined"
                 onPress={extractMFCCOnly}
-                disabled={isComparing || isProcessing || !audioData}
+                loading={loadingStates.mfcc}
+                disabled={Object.values(loadingStates).some(Boolean) || isProcessing || !audioData}
                 icon="music-note"
                 style={{ flex: 1, minWidth: 150 }}
               >
@@ -931,7 +786,8 @@ export default function BabyCryScreen() {
               <Button
                 mode="outlined"
                 onPress={extractMelSpectrogramOnly}
-                disabled={isComparing || isProcessing || !audioData}
+                loading={loadingStates.melSpectrogram}
+                disabled={Object.values(loadingStates).some(Boolean) || isProcessing || !audioData}
                 icon="waveform"
                 style={{ flex: 1, minWidth: 150 }}
               >
@@ -943,7 +799,8 @@ export default function BabyCryScreen() {
               <Button
                 mode="outlined"
                 onPress={extractChromaOnly}
-                disabled={isComparing || isProcessing || !audioData}
+                loading={loadingStates.chroma}
+                disabled={Object.values(loadingStates).some(Boolean) || isProcessing || !audioData}
                 icon="music-circle"
                 style={{ flex: 1, minWidth: 150 }}
               >
@@ -953,7 +810,8 @@ export default function BabyCryScreen() {
               <Button
                 mode="outlined"
                 onPress={extractSpectralContrastOnly}
-                disabled={isComparing || isProcessing || !audioData}
+                loading={loadingStates.spectralContrast}
+                disabled={Object.values(loadingStates).some(Boolean) || isProcessing || !audioData}
                 icon="contrast-circle"
                 style={{ flex: 1, minWidth: 150 }}
               >
@@ -965,21 +823,12 @@ export default function BabyCryScreen() {
               <Button
                 mode="outlined"
                 onPress={extractTonnetzOnly}
-                disabled={isComparing || isProcessing || !audioData}
+                loading={loadingStates.tonnetz}
+                disabled={Object.values(loadingStates).some(Boolean) || isProcessing || !audioData}
                 icon="music-accidental-sharp"
                 style={{ flex: 1, minWidth: 150 }}
               >
                 Tonnetz
-              </Button>
-              
-              <Button
-                mode="outlined"
-                onPress={runModelPredictionOnly}
-                disabled={isComparing || isProcessing || isModelLoading || !audioData}
-                icon="brain"
-                style={{ flex: 1, minWidth: 150 }}
-              >
-                Run Prediction
               </Button>
             </View>
 
@@ -994,18 +843,21 @@ export default function BabyCryScreen() {
       </Card>
     );
   }, [
-    styles, isComparing, isProcessing, isModelLoading, audioData, 
-    runCryDetection, clearResults, results.length, 
-    runManualDetection, runPipelineDetection,
+    styles, loadingStates, isProcessing, isModelLoading, audioData, theme.colors.surfaceVariant,
+    runManualDetection, clearResults, results.length, 
     extractMFCCOnly, extractMelSpectrogramOnly, extractChromaOnly,
     extractSpectralContrastOnly, extractTonnetzOnly, runModelPredictionOnly
   ]);
 
-  // Enhanced feature results card
+  // Enhanced feature results card to show all feature extraction times when full model is run
   const renderFeatureResults = useCallback(() => {
     if (!featureResults) {
       return null;
     }
+
+    // Check if this is a full model result with all features
+    const isFullModel = 'isFullModel' in featureResults && featureResults.isFullModel;
+    const extractionTimes = isFullModel && 'extractionTimes' in featureResults ? featureResults.extractionTimes : null;
 
     return (
       <Card style={styles.resultCard}>
@@ -1013,7 +865,59 @@ export default function BabyCryScreen() {
           <Text style={styles.cardTitle}>{featureResults.type} Features</Text>
           <Text>Processing Time: {featureResults.processingTimeMs.toFixed(2)} ms</Text>
           
-          {featureResults.type === 'Prediction' && featureResults.classification ? (
+          {isFullModel && extractionTimes && (
+            <View style={{ 
+              marginTop: 12, 
+              padding: 12, 
+              backgroundColor: theme.colors.primaryContainer,
+              borderRadius: 8 
+            }}>
+              <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>
+                Full Detection Pipeline Times:
+              </Text>
+              <View style={{ gap: 4 }}>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>MFCC Extraction:</Text>
+                  <Text>{extractionTimes.mfcc.toFixed(2)} ms</Text>
+                </View>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Mel Spectrogram:</Text>
+                  <Text>{extractionTimes.mel.toFixed(2)} ms</Text>
+                </View>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Chroma:</Text>
+                  <Text>{extractionTimes.chroma.toFixed(2)} ms</Text>
+                </View>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Spectral Contrast:</Text>
+                  <Text>{extractionTimes.contrast.toFixed(2)} ms</Text>
+                </View>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Tonnetz:</Text>
+                  <Text>{extractionTimes.tonnetz.toFixed(2)} ms</Text>
+                </View>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Final Prediction:</Text>
+                  <Text>{extractionTimes.prediction.toFixed(2)} ms</Text>
+                </View>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Total Time:</Text>
+                  <Text style={{ fontWeight: 'bold' }}>
+                    {(
+                      extractionTimes.mfcc + 
+                      extractionTimes.mel + 
+                      extractionTimes.chroma +
+                      extractionTimes.contrast + 
+                      extractionTimes.tonnetz + 
+                      extractionTimes.prediction
+                    ).toFixed(2)} ms
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+          
+          {featureResults.type === 'Full Prediction' || featureResults.type === 'Prediction' ? (
             <View style={{ marginTop: 12 }}>
               <Text style={{ fontWeight: 'bold' }}>
                 Classification: {featureResults.classification}
@@ -1074,7 +978,7 @@ export default function BabyCryScreen() {
         <Notice
           type="info"
           title="Baby Cry Detector"
-          message="Compare manual feature extraction vs. pipeline processing for baby cry detection"
+          message="Manual feature extraction for baby cry detection"
         />
 
         <Card style={styles.card}>
@@ -1091,13 +995,7 @@ export default function BabyCryScreen() {
                 <Text>Model loaded successfully.</Text>
                 <Text style={{ marginTop: 8 }}>
                   This detector uses audio feature extraction and a neural network model to
-                  detect baby crying sounds. Two methods are compared:
-                </Text>
-                <Text style={{ marginTop: 8, marginLeft: 16 }}>
-                  • <Text style={{ fontWeight: 'bold' }}>Manual:</Text> Step-by-step feature extraction
-                </Text>
-                <Text style={{ marginLeft: 16 }}>
-                  • <Text style={{ fontWeight: 'bold' }}>Pipeline:</Text> Optimized feature extraction pipeline
+                  detect baby crying sounds.
                 </Text>
               </>
             )}
@@ -1156,7 +1054,7 @@ export default function BabyCryScreen() {
         </Card>
 
         {renderDetectionControls()}
-        {renderComparisonResults()}
+        {renderDetectionResults()}
         {renderFeatureResults()}
         {renderAggregateStats()}
       </View>

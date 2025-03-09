@@ -45,7 +45,6 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
     });
 
     // Common parameters
-    const frameSize = 400; // 25 ms at 16,000 Hz
     const hopSize = 160;   // 10 ms at 16,000 Hz
     const fftSize = 1024;  // Renamed from n_fft to fftSize and used below
     const sr = 16000;      // Sample rate
@@ -489,170 +488,10 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
         [extractMFCC, extractMelSpectrogram, extractChroma, extractSpectralContrast, extractTonnetz, runPrediction, onError]
     );
     
-    // Pipeline feature extraction method
-    const detectCryWithPipeline = useCallback(
-        async (
-            audioData: Float32Array,
-            timestamp: number = Date.now()
-        ): Promise<CryDetectionResult | null> => {
-            try {
-                setIsProcessing(true);
-                logger.debug('Starting pipeline cry detection');
-
-                await EssentiaAPI.setAudioData(audioData, sr);
-
-                const pipelineConfig = {
-                    preprocess: [
-                      { 
-                        name: "FrameCutter", 
-                        params: { frameSize, hopSize },
-                        output: "frame" 
-                      },
-                      {
-                        name: "Windowing",
-                        params: { type: "hann", size: frameSize, zeroPadding: fftSize - frameSize },
-                        input: "frame",
-                        output: "windowedFrame"
-                      },
-                      { name: "Spectrum", params: { size: fftSize }, input: "windowedFrame", output: "spectrum" },
-                      {
-                        name: "SpectralPeaks",
-                        params: {
-                          sampleRate: 16000,  // Adjust to your sample rate
-                          maxPeaks: 100,
-                          magnitudeThreshold: 0.001,
-                          orderBy: "magnitude"
-                        },
-                        input: "spectrum",
-                        outputs: ["frequencies", "magnitudes"]
-                      },   
-                    ],
-                    features: [
-                      {
-                        name: "MFCC",
-                        input: "spectrum",
-                        params: {
-                          sampleRate: sr,
-                          numberBands: 128,
-                          numberCoefficients: 40,
-                          warpingFormula: "htkMel",
-                          type: "power",
-                          lowFrequencyBound: 0,
-                          highFrequencyBound: sr / 2,
-                        },
-                        postProcess: { mean: true },
-                      },
-                    //   {
-                    //     name: "MelBands",
-                    //     input: "Spectrum",
-                    //     params: {
-                    //       sampleRate: sr,
-                    //       numberBands: 128,
-                    //       type: "power",
-                    //       log: false,
-                    //       highFrequencyBound: sr / 2, // Explicitly set to 8000 Hz
-                    //     },
-                    //     postProcess: { mean: true },
-                    //   },
-                      {
-                        name: "SpectralContrast",
-                        input: "Spectrum",
-                        params: {
-                          sampleRate: sr,
-                          numberBands: 7,
-                          lowFrequencyBound: 100,
-                          highFrequencyBound: sr / 2, // Explicitly set to 8000 Hz
-                          frameSize: 1024,  // CHANGED: Match this to the windowing/FFT size, not 2048
-                        },
-                        postProcess: { mean: true },
-                      },
-                    //   {
-                    //     name: "Tonnetz",
-                    //     input: "HPCP",
-                    //     params: {},
-                    //     postProcess: { mean: true },
-                    //   },
-                    ],
-                    postProcess: { concatenate: true },
-                  };
-
-                // Execute pipeline
-                const result = await EssentiaAPI.executePipeline(pipelineConfig);
-                if (!result.success || !result.data?.concatenatedFeatures) {
-                    throw new Error('Pipeline execution failed: ' + (result.error?.message || 'Unknown error'));
-                }
-
-                const features = result.data.concatenatedFeatures as number[];
-                logger.debug('Pipeline extracted features', { featureLength: features.length });
-
-                // Run ONNX model
-                const model = await initModel();
-                const inputTensor = createTensor('float32', new Float32Array(features), [1, features.length]);
-                const results = await model.run({ float_input: inputTensor });
-                
-                // Get probabilities and label outputs
-                const probabilitiesKey = 'probabilities';
-                const labelKey = 'label';
-                
-                if (!results[probabilitiesKey] || !results[labelKey]) {
-                    throw new Error('Model did not return expected outputs');
-                }
-                
-                // Get the raw logits/probabilities
-                const logits = Array.from(results[probabilitiesKey].data as Float32Array);
-                const predictedLabelIndex = Number(results[labelKey].data[0]);
-                
-                // Apply softmax to convert logits to probabilities
-                const maxLogit = Math.max(...logits);
-                const expValues = logits.map(x => Math.exp(x - maxLogit));
-                const sumExp = expValues.reduce((a, b) => a + b, 0);
-                const probabilities = expValues.map(x => x / sumExp);
-                
-                // Get the highest probability
-                const maxProbability = Math.max(...probabilities);
-                const isCrying = maxProbability > threshold;
-                
-                // Map probabilities to labels and sort
-                const predictionResults = probabilities
-                    .map((prob, idx) => ({
-                        label: CRY_TYPE_LABELS[idx],
-                        probability: prob
-                    }))
-                    .sort((a, b) => b.probability - a.probability);
-                
-                // Get the predicted class
-                const classification = CRY_TYPE_LABELS[predictedLabelIndex];
-
-                logger.debug('Cry detection result', { 
-                    probability: maxProbability, 
-                    isCrying, 
-                    classification,
-                    predictions: predictionResults.slice(0, 3)
-                });
-
-                return { 
-                    probability: maxProbability, 
-                    isCrying, 
-                    timestamp,
-                    classification,
-                    predictions: predictionResults
-                };
-            } catch (error) {
-                logger.error('Pipeline cry detection error', { error });
-                onError?.(error instanceof Error ? error : new Error('Pipeline cry detection failed'));
-                return null;
-            } finally {
-                setIsProcessing(false);
-            }
-        },
-        [initModel, createTensor, onError]
-    );
-
     return {
         isModelLoading,
         isProcessing,
         detectCryManually,
-        detectCryWithPipeline,
         // Export individual feature extraction functions
         extractMFCC,
         extractMelSpectrogram,
