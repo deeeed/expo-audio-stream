@@ -1,5 +1,8 @@
 // packages/react-native-essentia/src/types/core.ts
-import type { MelSpectrogramParams, MelSpectrogramResult } from './algorithms.types';
+import type {
+  MelSpectrogramParams,
+  MelSpectrogramResult,
+} from './algorithms.types';
 
 export interface AlgorithmParams {
   [key: string]: string | number | boolean | number[] | string[] | undefined;

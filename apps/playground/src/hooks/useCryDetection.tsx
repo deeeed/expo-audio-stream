@@ -501,61 +501,80 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
 
                 await EssentiaAPI.setAudioData(audioData, sr);
 
-                // Pipeline configuration
                 const pipelineConfig = {
                     preprocess: [
-                        { name: "FrameCutter", params: { frameSize, hopSize } },
-                        {
-                            name: "Windowing",
-                            params: { type: "hann", size: frameSize, zeroPadding: fftSize - frameSize },
+                      { 
+                        name: "FrameCutter", 
+                        params: { frameSize, hopSize },
+                        output: "frame" 
+                      },
+                      {
+                        name: "Windowing",
+                        params: { type: "hann", size: frameSize, zeroPadding: fftSize - frameSize },
+                        input: "frame",
+                        output: "windowedFrame"
+                      },
+                      { name: "Spectrum", params: { size: fftSize }, input: "windowedFrame", output: "spectrum" },
+                      {
+                        name: "SpectralPeaks",
+                        params: {
+                          sampleRate: 16000,  // Adjust to your sample rate
+                          maxPeaks: 100,
+                          magnitudeThreshold: 0.001,
+                          orderBy: "magnitude"
                         },
-                        { name: "Spectrum", params: { size: fftSize } },
-                        {
-                            name: "HPCP", 
-                            params: { 
-                                sampleRate: sr, 
-                                size: 12,
-                                minFrequency: 20, // Changed from 0 to 20Hz
-                                maxFrequency: sr / 2 
-                            },
-                        },
+                        input: "spectrum",
+                        outputs: ["frequencies", "magnitudes"]
+                      },   
                     ],
                     features: [
-                        {
-                            name: "MFCC",
-                            input: "Spectrum",
-                            params: {
-                                sampleRate: sr,
-                                numberBands: 128,
-                                numberCoefficients: 40,
-                                warpingFormula: "htkMel",
-                                type: "power",
-                                lowFrequencyBound: 0,
-                                highFrequencyBound: sr / 2,
-                            },
-                            postProcess: { mean: true },
+                      {
+                        name: "MFCC",
+                        input: "spectrum",
+                        params: {
+                          sampleRate: sr,
+                          numberBands: 128,
+                          numberCoefficients: 40,
+                          warpingFormula: "htkMel",
+                          type: "power",
+                          lowFrequencyBound: 0,
+                          highFrequencyBound: sr / 2,
                         },
-                        {
-                            name: "MelBands",
-                            input: "Spectrum",
-                            params: { sampleRate: sr, numberBands: 128, type: "power", log: false },
-                            postProcess: { mean: true },
+                        postProcess: { mean: true },
+                      },
+                    //   {
+                    //     name: "MelBands",
+                    //     input: "Spectrum",
+                    //     params: {
+                    //       sampleRate: sr,
+                    //       numberBands: 128,
+                    //       type: "power",
+                    //       log: false,
+                    //       highFrequencyBound: sr / 2, // Explicitly set to 8000 Hz
+                    //     },
+                    //     postProcess: { mean: true },
+                    //   },
+                      {
+                        name: "SpectralContrast",
+                        input: "Spectrum",
+                        params: {
+                          sampleRate: sr,
+                          numberBands: 7,
+                          lowFrequencyBound: 100,
+                          highFrequencyBound: sr / 2, // Explicitly set to 8000 Hz
+                          frameSize: 1024,  // CHANGED: Match this to the windowing/FFT size, not 2048
                         },
-                        {
-                            name: "SpectralContrast",
-                            input: "Spectrum",
-                            params: { sampleRate: sr, numberBands: 7, lowFrequencyBound: 100 },
-                            postProcess: { mean: true },
-                        },
-                        {
-                            name: "Tonnetz",
-                            input: "HPCP", 
-                            params: {},
-                            postProcess: { mean: true },
-                        },
+                        postProcess: { mean: true },
+                      },
+                    //   {
+                    //     name: "Tonnetz",
+                    //     input: "HPCP",
+                    //     params: {},
+                    //     postProcess: { mean: true },
+                    //   },
                     ],
                     postProcess: { concatenate: true },
-                };
+                  };
 
                 // Execute pipeline
                 const result = await EssentiaAPI.executePipeline(pipelineConfig);
