@@ -10,10 +10,25 @@ export interface UseCryDetectorProps {
     onError?: (error: Error) => void;
 }
 
+export const CRY_TYPE_LABELS = [
+  "belly_pain",
+  "burping",
+  "discomfort",
+  "hungry",
+  "tired",
+] as const;
+
+export type CryTypeLabel = (typeof CRY_TYPE_LABELS)[number];
+
 export interface CryDetectionResult {
-    probability: number; // Probability of baby cry (0 to 1)
-    isCrying: boolean;   // True if probability exceeds threshold
-    timestamp: number;   // Timestamp of detection
+    probability: number;       // Highest probability
+    isCrying: boolean;         // True if any probability exceeds threshold
+    timestamp: number;         // Timestamp of detection
+    classification: CryTypeLabel;  // The predicted cry type
+    predictions: {      // All predictions sorted by probability
+        label: CryTypeLabel;
+        probability: number;
+    }[];
 }
 
 export interface FeatureExtractionResult {
@@ -316,7 +331,13 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
     // 6. Run prediction with the model
     const runPrediction = useCallback(async (
         features: number[]
-    ): Promise<{probability: number; isCrying: boolean; processingTimeMs: number}> => {
+    ): Promise<{
+        probability: number; 
+        isCrying: boolean; 
+        classification: CryTypeLabel;
+        predictions: { label: CryTypeLabel; probability: number }[];
+        processingTimeMs: number
+    }> => {
         try {
             const startTime = performance.now();
             logger.debug('Running model prediction', { featureLength: features.length });
@@ -334,23 +355,52 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
             // Debug log the results structure to help identify output names
             logger.debug('Model results structure', { keys: Object.keys(results) });
             
-            // Get the first output key if 'output' doesn't exist
-            const outputKey = Object.keys(results)[0]; // Use first output if specific name not known
+            // Get probabilities and label outputs
+            const probabilitiesKey = 'probabilities';
+            const labelKey = 'label';
             
-            if (!outputKey || !results[outputKey]) {
-                throw new Error('Model did not return any outputs');
+            if (!results[probabilitiesKey] || !results[labelKey]) {
+                throw new Error('Model did not return expected outputs');
             }
             
-            // Access the data using the correct output key
-            const probability = (results[outputKey].data as Float32Array)[0];
-            const isCrying = probability > threshold;
+            // Get the raw logits/probabilities
+            const logits = Array.from(results[probabilitiesKey].data as Float32Array);
+            const predictedLabelIndex = Number(results[labelKey].data[0]);
+            
+            // Apply softmax to convert logits to probabilities
+            const maxLogit = Math.max(...logits);
+            const expValues = logits.map(x => Math.exp(x - maxLogit));
+            const sumExp = expValues.reduce((a, b) => a + b, 0);
+            const probabilities = expValues.map(x => x / sumExp);
+            
+            // Get the highest probability
+            const maxProbability = Math.max(...probabilities);
+            const isCrying = maxProbability > threshold;
+            
+            // Map probabilities to labels and sort
+            const predictions = probabilities
+                .map((prob, idx) => ({
+                    label: CRY_TYPE_LABELS[idx],
+                    probability: prob
+                }))
+                .sort((a, b) => b.probability - a.probability);
+            
+            // Get the predicted class
+            const classification = CRY_TYPE_LABELS[predictedLabelIndex];
             
             const endTime = performance.now();
-            logger.debug('Prediction completed', { probability, isCrying, outputKey });
+            logger.debug('Prediction completed', { 
+                probability: maxProbability, 
+                isCrying, 
+                classification,
+                predictions: predictions.slice(0, 3) // Log top 3 predictions
+            });
             
             return {
-                probability,
+                probability: maxProbability,
                 isCrying,
+                classification,
+                predictions,
                 processingTimeMs: endTime - startTime
             };
         } catch (error) {
@@ -424,7 +474,9 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                 return { 
                     probability: predictionResult.probability, 
                     isCrying: predictionResult.isCrying, 
-                    timestamp 
+                    timestamp,
+                    classification: predictionResult.classification,
+                    predictions: predictionResult.predictions
                 };
             } catch (error) {
                 logger.error('Error in cry detection', { error });
@@ -519,20 +571,53 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                 const inputTensor = createTensor('float32', new Float32Array(features), [1, features.length]);
                 const results = await model.run({ float_input: inputTensor });
                 
-                // Get the first output key if 'output' doesn't exist
-                const outputKey = Object.keys(results)[0];
+                // Get probabilities and label outputs
+                const probabilitiesKey = 'probabilities';
+                const labelKey = 'label';
                 
-                if (!outputKey || !results[outputKey]) {
-                    throw new Error('Model did not return any outputs');
+                if (!results[probabilitiesKey] || !results[labelKey]) {
+                    throw new Error('Model did not return expected outputs');
                 }
                 
-                // Access the data using the correct output key
-                const probability = (results[outputKey].data as Float32Array)[0];
-                const isCrying = probability > threshold;
+                // Get the raw logits/probabilities
+                const logits = Array.from(results[probabilitiesKey].data as Float32Array);
+                const predictedLabelIndex = Number(results[labelKey].data[0]);
+                
+                // Apply softmax to convert logits to probabilities
+                const maxLogit = Math.max(...logits);
+                const expValues = logits.map(x => Math.exp(x - maxLogit));
+                const sumExp = expValues.reduce((a, b) => a + b, 0);
+                const probabilities = expValues.map(x => x / sumExp);
+                
+                // Get the highest probability
+                const maxProbability = Math.max(...probabilities);
+                const isCrying = maxProbability > threshold;
+                
+                // Map probabilities to labels and sort
+                const predictionResults = probabilities
+                    .map((prob, idx) => ({
+                        label: CRY_TYPE_LABELS[idx],
+                        probability: prob
+                    }))
+                    .sort((a, b) => b.probability - a.probability);
+                
+                // Get the predicted class
+                const classification = CRY_TYPE_LABELS[predictedLabelIndex];
 
-                logger.debug('Cry detection result', { probability, isCrying });
+                logger.debug('Cry detection result', { 
+                    probability: maxProbability, 
+                    isCrying, 
+                    classification,
+                    predictions: predictionResults.slice(0, 3)
+                });
 
-                return { probability, isCrying, timestamp };
+                return { 
+                    probability: maxProbability, 
+                    isCrying, 
+                    timestamp,
+                    classification,
+                    predictions: predictionResults
+                };
             } catch (error) {
                 logger.error('Pipeline cry detection error', { error });
                 onError?.(error instanceof Error ? error : new Error('Pipeline cry detection failed'));

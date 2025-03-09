@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Button, Card, DataTable, Text } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { baseLogger } from '../config';
-import { CryDetectionResult, useCryDetector } from '../hooks/useCryDetection';
+import { CryDetectionResult, CryTypeLabel, useCryDetector } from '../hooks/useCryDetection';
 import { useSampleAudio } from '../hooks/useSampleAudio';
 
 const logger = baseLogger.extend('BabyCryScreen');
@@ -97,12 +97,13 @@ export default function BabyCryScreen() {
     pipeline: { avgTime: number; avgProbability: number; detectionRate: number };
   } | null>(null);
 
-
   // Add new state for individual feature extraction results
   const [featureResults, setFeatureResults] = useState<{
     type: string;
     features: number[];
     processingTimeMs: number;
+    classification?: CryTypeLabel;
+    predictions?: { label: CryTypeLabel; probability: number }[];
   } | null>(null);
 
   // Load sample audio hook
@@ -436,8 +437,6 @@ export default function BabyCryScreen() {
     }
   }, [audioData, detectCryManually, detectCryWithPipeline, results, show, calculateAverages]);
 
-
-
   // Clear all results
   const clearResults = useCallback(() => {
     setResults([]);
@@ -490,7 +489,12 @@ export default function BabyCryScreen() {
                   </View>
                   
                   <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Probability:</Text>
+                    <Text style={styles.metricLabel}>Type:</Text>
+                    <Text>{latestResults.manual.result.classification}</Text>
+                  </View>
+                  
+                  <View style={styles.metricRow}>
+                    <Text style={styles.metricLabel}>Confidence:</Text>
                     <Text>{(latestResults.manual.result.probability * 100).toFixed(2)}%</Text>
                   </View>
                   
@@ -499,6 +503,14 @@ export default function BabyCryScreen() {
                     backgroundColor: latestResults.manual.result.isCrying ? theme.colors.error : theme.colors.primary,
                     ...styles.probabilityIndicator 
                   }} />
+                  
+                  <Text style={{marginTop: 8, fontWeight: 'bold'}}>Top Predictions:</Text>
+                  {latestResults.manual.result.predictions.slice(0, 3).map((pred, idx) => (
+                    <View key={idx} style={styles.metricRow}>
+                      <Text>{pred.label}:</Text>
+                      <Text>{(pred.probability * 100).toFixed(2)}%</Text>
+                    </View>
+                  ))}
                   
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Processing Time:</Text>
@@ -526,7 +538,12 @@ export default function BabyCryScreen() {
                   </View>
                   
                   <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Probability:</Text>
+                    <Text style={styles.metricLabel}>Type:</Text>
+                    <Text>{latestResults.pipeline.result.classification}</Text>
+                  </View>
+                  
+                  <View style={styles.metricRow}>
+                    <Text style={styles.metricLabel}>Confidence:</Text>
                     <Text>{(latestResults.pipeline.result.probability * 100).toFixed(2)}%</Text>
                   </View>
                   
@@ -535,6 +552,14 @@ export default function BabyCryScreen() {
                     backgroundColor: latestResults.pipeline.result.isCrying ? theme.colors.error : theme.colors.secondary,
                     ...styles.probabilityIndicator 
                   }} />
+                  
+                  <Text style={{marginTop: 8, fontWeight: 'bold'}}>Top Predictions:</Text>
+                  {latestResults.pipeline.result.predictions.slice(0, 3).map((pred, idx) => (
+                    <View key={idx} style={styles.metricRow}>
+                      <Text>{pred.label}:</Text>
+                      <Text>{(pred.probability * 100).toFixed(2)}%</Text>
+                    </View>
+                  ))}
                   
                   <View style={styles.metricRow}>
                     <Text style={styles.metricLabel}>Processing Time:</Text>
@@ -808,17 +833,20 @@ export default function BabyCryScreen() {
       const result = await runPrediction(features);
       const endTime = performance.now();
       
-      // Show result
+      // Show result with classification
       show({
         type: 'success',
-        message: `Prediction: ${result.isCrying ? 'Crying' : 'Not Crying'} (${(result.probability * 100).toFixed(2)}%)`,
+        message: `Prediction: ${result.classification} (${(result.probability * 100).toFixed(2)}%)`,
         duration: 3000,
       });
       
+      // Update feature results to display classification info
       setFeatureResults({
         type: 'Prediction',
-        features: [result.probability],
+        features: result.predictions.map(p => p.probability),
         processingTimeMs: endTime - startTime,
+        classification: result.classification,
+        predictions: result.predictions
       });
       
     } catch (error) {
@@ -985,12 +1013,29 @@ export default function BabyCryScreen() {
           <Text style={styles.cardTitle}>{featureResults.type} Features</Text>
           <Text>Processing Time: {featureResults.processingTimeMs.toFixed(2)} ms</Text>
           
-          {featureResults.type === 'Prediction' ? (
+          {featureResults.type === 'Prediction' && featureResults.classification ? (
             <View style={{ marginTop: 12 }}>
               <Text style={{ fontWeight: 'bold' }}>
-                Result: {featureResults.features[0] > 0.5 ? 'Crying Detected' : 'No Crying Detected'}
+                Classification: {featureResults.classification}
               </Text>
-              <Text>Probability: {(featureResults.features[0] * 100).toFixed(2)}%</Text>
+              <Text>Confidence: {(featureResults.features[0] * 100).toFixed(2)}%</Text>
+              
+              {featureResults.predictions && (
+                <>
+                  <Text style={{marginTop: 8, fontWeight: 'bold'}}>All Classifications:</Text>
+                  {featureResults.predictions.map((pred, idx) => (
+                    <View key={idx} style={{ 
+                      flexDirection: 'row', 
+                      justifyContent: 'space-between',
+                      marginBottom: 4
+                    }}>
+                      <Text>{pred.label}:</Text>
+                      <Text>{(pred.probability * 100).toFixed(2)}%</Text>
+                    </View>
+                  ))}
+                </>
+              )}
+              
               <View style={{ 
                 width: `${featureResults.features[0] * 100}%`, 
                 backgroundColor: featureResults.features[0] > 0.5 ? theme.colors.error : theme.colors.primary,
