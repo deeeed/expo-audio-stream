@@ -1,6 +1,6 @@
 {
   "name": "@siteed/react-native-essentia",
-  "version": "0.1.0",
+  "version": "0.1.0-beta.1",
   "description": "RN jni bindings for essentia",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
@@ -73,6 +73,7 @@
     "@evilmartians/lefthook": "^1.5.0",
     "@react-native/eslint-config": "^0.73.1",
     "@release-it/conventional-changelog": "^9.0.2",
+    "@siteed/publisher": "^0.6.0",
     "@types/jest": "^29.5.5",
     "@types/react": "^18.2.44",
     "commitlint": "^17.0.2",
