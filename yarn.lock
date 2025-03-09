@@ -8069,6 +8069,29 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@siteed/publisher@npm:^0.6.0":
+  version: 0.6.0
+  resolution: "@siteed/publisher@npm:0.6.0"
+  dependencies:
+    "@inquirer/prompts": "npm:^7.1.0"
+    chalk: "npm:4.1.2"
+    commander: "npm:^11.1.0"
+    conventional-changelog: "npm:^5.1.0"
+    date-fns: "npm:^4.1.0"
+    execa: "npm:^5.1.1"
+    globby: "npm:^11.1.0"
+    inquirer: "npm:^8.2.6"
+    ora: "npm:^5.4.1"
+    semver: "npm:^7.5.4"
+    simple-git: "npm:^3.21.0"
+    update-notifier: "npm:^5.1.0"
+    zod: "npm:^3.22.4"
+  bin:
+    publisher: ./dist/bin/publisher.js
+  checksum: 10/80c2efc8254db69d1edc56fc568b4eb53265643df21d23fb36141aabbd84c019f5fea6c668cb010bd777712adee59ea1a95ca5f0f9046ec3274dbef1a7eec368
+  languageName: node
+  linkType: hard
+
 "@siteed/react-native-essentia@workspace:^, @siteed/react-native-essentia@workspace:packages/react-native-essentia":
   version: 0.0.0-use.local
   resolution: "@siteed/react-native-essentia@workspace:packages/react-native-essentia"
@@ -8077,6 +8100,7 @@ __metadata:
     "@evilmartians/lefthook": "npm:^1.5.0"
     "@react-native/eslint-config": "npm:^0.73.1"
     "@release-it/conventional-changelog": "npm:^9.0.2"
+    "@siteed/publisher": "npm:^0.6.0"
     "@types/jest": "npm:^29.5.5"
     "@types/react": "npm:^18.2.44"
     commitlint: "npm:^17.0.2"
