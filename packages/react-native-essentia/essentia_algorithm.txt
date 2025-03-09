@@ -1,0 +1,2830 @@
+ LOG  ===== ESSENTIA ALGORITHMS LIST =====
+ LOG  Total available algorithms: 224
+ LOG
+All available algorithms (alphabetical):
+ LOG  AfterMaxToBeforeMaxEnergyRatio, AllPass, AudioOnsetsMarker, AutoCorrelation, BFCC, BPF, BandPass, BandReject, BarkBands, BeatTrackerDegara, BeatTrackerMultiFeature, Beatogram, BeatsLoudness, BinaryOperator, BinaryOperatorStream, BpmHistogram, BpmHistogramDescriptors, BpmRubato, CartesianToPolar, CentralMoments, Centroid, ChordsDescriptors, ChordsDetection, ChordsDetectionBeats, Chromagram, ClickDetector, Clipper, ConstantQ, Crest, CrossCorrelation, CubicSpline, DCRemoval, DCT, Danceability, Decrease, Derivative, DerivativeSFX, DiscontinuityDetector, Dissonance, DistributionShape, Duration, DynamicComplexity, ERBBands, EffectiveDuration, Energy, EnergyBand, EnergyBandRatio, Entropy, Envelope, EqualLoudness, Extractor, FFT, FFTC, FadeDetection, FalseStereoDetector, Flatness, FlatnessDB, FlatnessSFX, Flux, FrameCutter, FrameToReal, FrequencyBands, GFCC, GapsDetector, GeometricMean, HFC, HPCP, HarmonicBpm, HarmonicMask, HarmonicModelAnal, HarmonicPeaks, HighPass, HighResolutionFeatures, Histogram, HprModelAnal, HpsModelAnal, HumDetector, IDCT, IFFT, IFFTC, IIR, Inharmonicity, InstantPower, Intensity, Key, KeyExtractor, LPC, Larm, Leq, LevelExtractor, LogAttackTime, LogSpectrum, LoopBpmConfidence, LoopBpmEstimator, Loudness, LoudnessEBUR128, LoudnessVickers, LowLevelSpectralEqloudExtractor, LowLevelSpectralExtractor, LowPass, MFCC, Magnitude, MaxFilter, MaxMagFreq, MaxToTotal, Mean, Median, MedianFilter, MelBands, Meter, MinToTotal, MonoMixer, MovingAverage, MultiPitchKlapuri, MultiPitchMelodia, Multiplexer, NNLSChroma, NSGConstantQ, NSGIConstantQ, NoiseAdder, NoiseBurstDetector, NoveltyCurve, NoveltyCurveFixedBpmEstimator, OddToEvenHarmonicEnergyRatio, OnsetDetection, OnsetDetectionGlobal, OnsetRate, Onsets, OverlapAdd, PCA, Panning, PeakDetection, PercivalBpmEstimator, PercivalEnhanceHarmonics, PercivalEvaluatePulseTrains, PitchContourSegmentation, PitchContours, PitchContoursMelody, PitchContoursMonoMelody, PitchContoursMultiMelody, PitchFilter, PitchMelodia, PitchSalience, PitchSalienceFunction, PitchSalienceFunctionPeaks, PitchYin, PitchYinFFT, PitchYinProbabilistic, PitchYinProbabilities, PitchYinProbabilitiesHMM, PolarToCartesian, PoolAggregator, PowerMean, PowerSpectrum, PredominantPitchMelodia, RMS, RawMoments, ReplayGain, ResampleFFT, RhythmDescriptors, RhythmExtractor, RhythmExtractor2013, RhythmTransform, RollOff, SBic, SNR, SaturationDetector, Scale, SilenceRate, SineModelAnal, SineModelSynth, SineSubtraction, SingleBeatLoudness, SingleGaussian, Slicer, SpectralCentroidTime, SpectralComplexity, SpectralContrast, SpectralPeaks, SpectralWhitening, Spectrum, SpectrumCQ, SpectrumToCent, Spline, SprModelAnal, SprModelSynth, SpsModelAnal, SpsModelSynth, StartStopCut, StartStopSilence, StereoDemuxer, StereoMuxer, StereoTrimmer, StochasticModelAnal, StochasticModelSynth, StrongDecay, StrongPeak, SuperFluxExtractor, SuperFluxNovelty, SuperFluxPeaks, TCToTotal, TempoScaleBands, TempoTap, TempoTapDegara, TempoTapMaxAgreement, TempoTapTicks, TonalExtractor, TonicIndianArtMusic, TriangularBands, TriangularBarkBands, Trimmer, Tristimulus, TruePeakDetector, TuningFrequency, TuningFrequencyExtractor, UnaryOperator, UnaryOperatorStream, Variance, Vibrato, Viterbi, WarpedAutoCorrelation, Welch, Windowing, ZeroCrossingRate
+ LOG
+Detailed information for first 300 algorithms:
+ LOG
+----- AfterMaxToBeforeMaxEnergyRatio -----
+ LOG  Inputs:
+ LOG    - pitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - afterMaxToBeforeMaxEnergyRatio (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- AllPass -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - order: 1
+ LOG    - cutoffFrequency: 1500
+ LOG    - bandwidth: 500
+ LOG
+----- AudioOnsetsMarker -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - type: "beep"
+ LOG    - sampleRate: 44100
+ LOG    - onsets: "[]"
+ LOG
+----- AutoCorrelation -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - autoCorrelation (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - normalization: "standard"
+ LOG    - generalized: false
+ LOG    - frequencyDomainCompression: 0.5
+ LOG
+----- BFCC -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bands (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - bfcc (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - weighting: "warping"
+ LOG    - sampleRate: 44100
+ LOG    - normalize: "unit_sum"
+ LOG    - lowFrequencyBound: 0
+ LOG    - liftering: 0
+ LOG    - type: "power"
+ LOG    - logType: "dbamp"
+ LOG    - inputSize: 1025
+ LOG    - highFrequencyBound: 11000
+ LOG    - numberCoefficients: 13
+ LOG    - numberBands: 40
+ LOG    - dctType: 2
+ LOG
+----- BPF -----
+ LOG  Inputs:
+ LOG    - x (f)
+ LOG  Outputs:
+ LOG    - y (f)
+ LOG  Parameters:
+ LOG    - yPoints: "[0, 1]"
+ LOG    - xPoints: "[0, 1]"
+ LOG
+----- BandPass -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - cutoffFrequency: 1500
+ LOG    - bandwidth: 500
+ LOG
+----- BandReject -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - cutoffFrequency: 1500
+ LOG    - bandwidth: 500
+ LOG
+----- BarkBands -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bands (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - numberBands: 27
+ LOG
+----- BeatTrackerDegara -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - ticks (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - minTempo: 40
+ LOG    - maxTempo: 208
+ LOG
+----- BeatTrackerMultiFeature -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - ticks (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - confidence (f)
+ LOG  Parameters:
+ LOG    - minTempo: 40
+ LOG    - maxTempo: 208
+ LOG
+----- Beatogram -----
+ LOG  Inputs:
+ LOG    - loudness (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - loudnessBandRatio (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Outputs:
+ LOG    - beatogram (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Parameters:
+ LOG    - size: 16
+ LOG
+----- BeatsLoudness -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - loudness (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - loudnessBandRatio (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Parameters:
+ LOG    - frequencyBands: "[20, 150, 400, 3200, 7000, 22000]"
+ LOG    - beatWindowDuration: 0.10000000149011612
+ LOG    - sampleRate: 44100
+ LOG    - beats: "[]"
+ LOG    - beatDuration: 0.05000000074505806
+ LOG
+----- BinaryOperator -----
+ LOG  Inputs:
+ LOG    - array1 (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - array2 (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - type: "add"
+ LOG
+----- BinaryOperatorStream -----
+ LOG  Inputs:
+ LOG    - array1 (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - array2 (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - type: "add"
+ LOG
+----- BpmHistogram -----
+ LOG  Inputs:
+ LOG    - novelty (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bpm (f)
+ LOG    - bpmCandidates (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - bpmMagnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - tempogram (N3TNT7Array2DIfEE)
+ LOG    - frameBpms (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - ticks (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - ticksMagnitude (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - sinusoid (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - zeroPadding: 0
+ LOG    - minBpm: 30
+ LOG    - maxBpm: 560
+ LOG    - weightByMagnitude: true
+ LOG    - tempoChange: 5
+ LOG    - overlap: 16
+ LOG    - maxPeaks: 50
+ LOG    - windowType: "hann"
+ LOG    - constantTempo: false
+ LOG    - frameSize: 4
+ LOG    - frameRate: 86.1328125
+ LOG    - bpm: 0
+ LOG
+----- BpmHistogramDescriptors -----
+ LOG  Inputs:
+ LOG    - bpmIntervals (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - firstPeakBPM (f)
+ LOG    - firstPeakWeight (f)
+ LOG    - firstPeakSpread (f)
+ LOG    - secondPeakBPM (f)
+ LOG    - secondPeakWeight (f)
+ LOG    - secondPeakSpread (f)
+ LOG    - histogram (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- BpmRubato -----
+ LOG  Inputs:
+ LOG    - beats (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - rubatoStart (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - rubatoStop (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - rubatoNumber (i)
+ LOG  Parameters:
+ LOG    - tolerance: 0.07999999821186066
+ LOG    - shortRegionsMergingTime: 4
+ LOG    - longRegionsPruningTime: 20
+ LOG
+----- CartesianToPolar -----
+ LOG  Inputs:
+ LOG    - complex (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Outputs:
+ LOG    - magnitude (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phase (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- CentralMoments -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - centralMoments (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - range: 1
+ LOG    - mode: "pdf"
+ LOG
+----- Centroid -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - centroid (f)
+ LOG  Parameters:
+ LOG    - range: 1
+ LOG
+----- ChordsDescriptors -----
+ LOG  Inputs:
+ LOG    - chords (NSt6__ndk16vectorINS_12basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEENS4_IS6_EEEE)
+ LOG    - key (NSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE)
+ LOG    - scale (NSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE)
+ LOG  Outputs:
+ LOG    - chordsHistogram (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - chordsNumberRate (f)
+ LOG    - chordsChangesRate (f)
+ LOG    - chordsKey (NSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE)
+ LOG    - chordsScale (NSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- ChordsDetection -----
+ LOG  Inputs:
+ LOG    - pcp (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Outputs:
+ LOG    - chords (NSt6__ndk16vectorINS_12basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEENS4_IS6_EEEE)
+ LOG    - strength (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - windowSize: 2
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 2048
+ LOG
+----- ChordsDetectionBeats -----
+ LOG  Inputs:
+ LOG    - pcp (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - ticks (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - chords (NSt6__ndk16vectorINS_12basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEENS4_IS6_EEEE)
+ LOG    - strength (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 2048
+ LOG    - chromaPick: "interbeat_median"
+ LOG
+----- Chromagram -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - chromagram (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - windowType: "hann"
+ LOG    - zeroPhase: true
+ LOG    - scale: 1
+ LOG    - threshold: 0.009999999776482582
+ LOG    - sampleRate: 44100
+ LOG    - numberBins: 84
+ LOG    - minimumKernelSize: 4
+ LOG    - normalizeType: "unit_max"
+ LOG    - minFrequency: 32.70000076293945
+ LOG    - binsPerOctave: 12
+ LOG
+----- ClickDetector -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - starts (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - ends (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - order: 12
+ LOG    - silenceThreshold: -50
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 256
+ LOG    - powerEstimationThreshold: 10
+ LOG    - frameSize: 512
+ LOG    - detectionThreshold: 30
+ LOG
+----- Clipper -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - min: -1
+ LOG    - max: 1
+ LOG
+----- ConstantQ -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - constantq (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Parameters:
+ LOG    - windowType: "hann"
+ LOG    - zeroPhase: true
+ LOG    - scale: 1
+ LOG    - minimumKernelSize: 4
+ LOG    - numberBins: 84
+ LOG    - threshold: 0.009999999776482582
+ LOG    - sampleRate: 44100
+ LOG    - minFrequency: 32.70000076293945
+ LOG    - binsPerOctave: 12
+ LOG
+----- Crest -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - crest (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- CrossCorrelation -----
+ LOG  Inputs:
+ LOG    - arrayX (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - arrayY (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - crossCorrelation (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - minLag: 0
+ LOG    - maxLag: 1
+ LOG
+----- CubicSpline -----
+ LOG  Inputs:
+ LOG    - x (f)
+ LOG  Outputs:
+ LOG    - y (f)
+ LOG    - dy (f)
+ LOG    - ddy (f)
+ LOG  Parameters:
+ LOG    - yPoints: "[0, 1]"
+ LOG    - rightBoundaryValue: 0
+ LOG    - rightBoundaryFlag: 0
+ LOG    - xPoints: "[0, 1]"
+ LOG    - leftBoundaryValue: 0
+ LOG    - leftBoundaryFlag: 0
+ LOG
+----- DCRemoval -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - cutoffFrequency: 40
+ LOG
+----- DCT -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - dct (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - liftering: 0
+ LOG    - inputSize: 10
+ LOG    - outputSize: 10
+ LOG    - dctType: 2
+ LOG
+----- Danceability -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - danceability (f)
+ LOG    - dfa (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - tauMultiplier: 1.100000023841858
+ LOG    - sampleRate: 44100
+ LOG    - minTau: 310
+ LOG    - maxTau: 8800
+ LOG
+----- Decrease -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - decrease (f)
+ LOG  Parameters:
+ LOG    - range: 1
+ LOG
+----- Derivative -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- DerivativeSFX -----
+ LOG  Inputs:
+ LOG    - envelope (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - derAvAfterMax (f)
+ LOG    - maxDerBeforeMax (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- DiscontinuityDetector -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - discontinuityLocations (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - discontinuityAmplitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - subFrameSize: 32
+ LOG    - order: 3
+ LOG    - silenceThreshold: -50
+ LOG    - hopSize: 256
+ LOG    - frameSize: 512
+ LOG    - kernelSize: 7
+ LOG    - energyThreshold: -60
+ LOG    - detectionThreshold: 8
+ LOG
+----- Dissonance -----
+ LOG  Inputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - dissonance (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- DistributionShape -----
+ LOG  Inputs:
+ LOG    - centralMoments (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - spread (f)
+ LOG    - skewness (f)
+ LOG    - kurtosis (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- Duration -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - duration (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG
+----- DynamicComplexity -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - dynamicComplexity (f)
+ LOG    - loudness (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - frameSize: 0.20000000298023224
+ LOG
+----- ERBBands -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bands (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - width: 1
+ LOG    - type: "power"
+ LOG    - sampleRate: 44100
+ LOG    - numberBands: 40
+ LOG    - lowFrequencyBound: 50
+ LOG    - inputSize: 1025
+ LOG    - highFrequencyBound: 22050
+ LOG
+----- EffectiveDuration -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - effectiveDuration (f)
+ LOG  Parameters:
+ LOG    - thresholdRatio: 0.4000000059604645
+ LOG    - sampleRate: 44100
+ LOG
+----- Energy -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - energy (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- EnergyBand -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - energyBand (f)
+ LOG  Parameters:
+ LOG    - stopCutoffFrequency: 100
+ LOG    - startCutoffFrequency: 0
+ LOG    - sampleRate: 44100
+ LOG
+----- EnergyBandRatio -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - energyBandRatio (f)
+ LOG  Parameters:
+ LOG    - stopFrequency: 100
+ LOG    - startFrequency: 0
+ LOG    - sampleRate: 44100
+ LOG
+----- Entropy -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - entropy (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- Envelope -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - releaseTime: 1500
+ LOG    - attackTime: 10
+ LOG    - applyRectification: true
+ LOG
+----- EqualLoudness -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG
+----- Extractor -----
+ LOG  Inputs:
+ LOG    - audio (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - pool (N8essentia4PoolE)
+ LOG  Parameters:
+ LOG    - tuning: true
+ LOG    - tonalHopSize: 2048
+ LOG    - tonalFrameSize: 4096
+ LOG    - sampleRate: 44100
+ LOG    - dynamicsHopSize: 44100
+ LOG    - namespace: ""
+ LOG    - midLevel: true
+ LOG    - lowLevelFrameSize: 2048
+ LOG    - highLevel: true
+ LOG    - lowLevelHopSize: 1024
+ LOG    - lowLevel: true
+ LOG    - dynamicsFrameSize: 88200
+ LOG    - rhythm: true
+ LOG    - relativeIoi: false
+ LOG    - dynamics: true
+ LOG
+----- FFT -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - fft (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Parameters:
+ LOG    - size: 1024
+ LOG
+----- FFTC -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Outputs:
+ LOG    - fft (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Parameters:
+ LOG    - size: 1024
+ LOG    - negativeFrequencies: false
+ LOG
+----- FadeDetection -----
+ LOG  Inputs:
+ LOG    - rms (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - fadeIn (N3TNT7Array2DIfEE)
+ LOG    - fadeOut (N3TNT7Array2DIfEE)
+ LOG  Parameters:
+ LOG    - minLength: 3
+ LOG    - frameRate: 4
+ LOG    - cutoffLow: 0.20000000298023224
+ LOG    - cutoffHigh: 0.8500000238418579
+ LOG
+----- FalseStereoDetector -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIN8essentia6Tuple2IfEENS_9allocatorIS3_EEEE)
+ LOG  Outputs:
+ LOG    - isFalseStereo (i)
+ LOG    - correlation (f)
+ LOG  Parameters:
+ LOG    - silenceThreshold: -70
+ LOG    - correlationThreshold: 0.9994999766349792
+ LOG
+----- Flatness -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - flatness (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- FlatnessDB -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - flatnessDB (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- FlatnessSFX -----
+ LOG  Inputs:
+ LOG    - envelope (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - flatness (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- Flux -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - flux (f)
+ LOG  Parameters:
+ LOG    - norm: "L2"
+ LOG    - halfRectify: false
+ LOG
+----- FrameCutter -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - validFrameThresholdRatio: 0
+ LOG    - startFromZero: false
+ LOG    - lastFrameToEndOfFile: false
+ LOG    - hopSize: 512
+ LOG    - frameSize: 1024
+ LOG
+----- FrameToReal -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - hopSize: 128
+ LOG    - frameSize: 2048
+ LOG
+----- FrequencyBands -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bands (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - frequencyBands: "[0, 50, 100, 150, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480, 1720, 2000, 2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700, 9500, 12000, 15500, 20500, 27000]"
+ LOG
+----- GFCC -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bands (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - gfcc (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - lowFrequencyBound: 40
+ LOG    - type: "power"
+ LOG    - silenceThreshold: 1.000000013351432e-10
+ LOG    - sampleRate: 44100
+ LOG    - logType: "dbamp"
+ LOG    - inputSize: 1025
+ LOG    - highFrequencyBound: 22050
+ LOG    - numberCoefficients: 13
+ LOG    - numberBands: 40
+ LOG    - dctType: 2
+ LOG
+----- GapsDetector -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - starts (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - ends (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - silenceThreshold: -50
+ LOG    - releaseTime: 0.05000000074505806
+ LOG    - postpowerTime: 40
+ LOG    - minimumTime: 10
+ LOG    - sampleRate: 44100
+ LOG    - prepowerThreshold: -30
+ LOG    - hopSize: 1024
+ LOG    - maximumTime: 3500
+ LOG    - kernelSize: 11
+ LOG    - prepowerTime: 40
+ LOG    - frameSize: 2048
+ LOG    - attackTime: 0.05000000074505806
+ LOG
+----- GeometricMean -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - geometricMean (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- HFC -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - hfc (f)
+ LOG  Parameters:
+ LOG    - type: "Masri"
+ LOG    - sampleRate: 44100
+ LOG
+----- HPCP -----
+ LOG  Inputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - hpcp (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - minFrequency: 40
+ LOG    - size: 12
+ LOG    - maxFrequency: 5000
+ LOG    - sampleRate: 44100
+ LOG    - normalized: "unitMax"
+ LOG    - nonLinear: false
+ LOG    - maxShifted: false
+ LOG    - weightType: "squaredCosine"
+ LOG    - referenceFrequency: 440
+ LOG    - harmonics: 0
+ LOG    - bandSplitFrequency: 500
+ LOG    - windowSize: 1
+ LOG    - bandPreset: true
+ LOG
+----- HarmonicBpm -----
+ LOG  Inputs:
+ LOG    - bpms (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - harmonicBpms (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - threshold: 20
+ LOG    - tolerance: 5
+ LOG    - bpm: 60
+ LOG
+----- HarmonicMask -----
+ LOG  Inputs:
+ LOG    - fft (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG    - pitch (f)
+ LOG  Outputs:
+ LOG    - fft (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - binWidth: 4
+ LOG    - attenuation: -200
+ LOG
+----- HarmonicModelAnal -----
+ LOG  Inputs:
+ LOG    - fft (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG    - pitch (f)
+ LOG  Outputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phases (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - orderBy: "frequency"
+ LOG    - sampleRate: 44100
+ LOG    - maxnSines: 100
+ LOG    - maxFrequency: 5000
+ LOG    - nHarmonics: 100
+ LOG    - minFrequency: 20
+ LOG    - maxPeaks: 100
+ LOG    - freqDevOffset: 20
+ LOG    - magnitudeThreshold: -74
+ LOG    - hopSize: 512
+ LOG    - harmDevSlope: 0.009999999776482582
+ LOG    - freqDevSlope: 0.009999999776482582
+ LOG
+----- HarmonicPeaks -----
+ LOG  Inputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - pitch (f)
+ LOG  Outputs:
+ LOG    - harmonicFrequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - harmonicMagnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - tolerance: 0.20000000298023224
+ LOG    - maxHarmonics: 20
+ LOG
+----- HighPass -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - cutoffFrequency: 1500
+ LOG
+----- HighResolutionFeatures -----
+ LOG  Inputs:
+ LOG    - hpcp (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - equalTemperedDeviation (f)
+ LOG    - nonTemperedEnergyRatio (f)
+ LOG    - nonTemperedPeaksEnergyRatio (f)
+ LOG  Parameters:
+ LOG    - maxPeaks: 24
+ LOG
+----- Histogram -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - histogram (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - binEdges (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - numberBins: 10
+ LOG    - normalize: "none"
+ LOG    - minValue: 0
+ LOG    - maxValue: 1
+ LOG
+----- HprModelAnal -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - pitch (f)
+ LOG  Outputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phases (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - res (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - orderBy: "frequency"
+ LOG    - stocf: 0.20000000298023224
+ LOG    - sampleRate: 44100
+ LOG    - maxnSines: 100
+ LOG    - maxFrequency: 5000
+ LOG    - nHarmonics: 100
+ LOG    - minFrequency: 20
+ LOG    - maxPeaks: 100
+ LOG    - hopSize: 512
+ LOG    - harmDevSlope: 0.009999999776482582
+ LOG    - freqDevSlope: 0.009999999776482582
+ LOG    - magnitudeThreshold: 0
+ LOG    - freqDevOffset: 20
+ LOG    - fftSize: 2048
+ LOG
+----- HpsModelAnal -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - pitch (f)
+ LOG  Outputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phases (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - stocenv (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - orderBy: "frequency"
+ LOG    - stocf: 0.20000000298023224
+ LOG    - sampleRate: 44100
+ LOG    - maxnSines: 100
+ LOG    - maxFrequency: 5000
+ LOG    - nHarmonics: 100
+ LOG    - minFrequency: 20
+ LOG    - maxPeaks: 100
+ LOG    - hopSize: 512
+ LOG    - harmDevSlope: 0.009999999776482582
+ LOG    - freqDevSlope: 0.009999999776482582
+ LOG    - magnitudeThreshold: 0
+ LOG    - freqDevOffset: 20
+ LOG    - fftSize: 2048
+ LOG
+----- HumDetector -----
+ LOG  Failed to get info for HumDetector: [object Object]
+ LOG
+----- IDCT -----
+ LOG  Inputs:
+ LOG    - dct (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - idct (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - liftering: 0
+ LOG    - inputSize: 10
+ LOG    - outputSize: 10
+ LOG    - dctType: 2
+ LOG
+----- IFFT -----
+ LOG  Inputs:
+ LOG    - fft (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Outputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - size: 1024
+ LOG    - normalize: true
+ LOG
+----- IFFTC -----
+ LOG  Inputs:
+ LOG    - fft (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Outputs:
+ LOG    - frame (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Parameters:
+ LOG    - size: 1024
+ LOG    - normalize: true
+ LOG
+----- IIR -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - numerator: "[1]"
+ LOG    - denominator: "[1]"
+ LOG
+----- Inharmonicity -----
+ LOG  Inputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - inharmonicity (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- InstantPower -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - power (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- Intensity -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - intensity (i)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG
+----- Key -----
+ LOG  Inputs:
+ LOG    - pcp (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - key (NSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE)
+ LOG    - scale (NSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE)
+ LOG    - strength (f)
+ LOG    - firstToSecondRelativeStrength (f)
+ LOG  Parameters:
+ LOG    - usePolyphony: true
+ LOG    - useMajMin: false
+ LOG    - pcpSize: 36
+ LOG    - useThreeChords: true
+ LOG    - slope: 0.6000000238418579
+ LOG    - profileType: "bgate"
+ LOG    - numHarmonics: 4
+ LOG
+----- KeyExtractor -----
+ LOG  Inputs:
+ LOG    - audio (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - key (NSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE)
+ LOG    - scale (NSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE)
+ LOG    - strength (f)
+ LOG  Parameters:
+ LOG    - weightType: "cosine"
+ LOG    - tuningFrequency: 440
+ LOG    - sampleRate: 44100
+ LOG    - maxFrequency: 3500
+ LOG    - profileType: "bgate"
+ LOG    - hopSize: 4096
+ LOG    - pcpThreshold: 0.20000000298023224
+ LOG    - minFrequency: 25
+ LOG    - averageDetuningCorrection: true
+ LOG    - maximumSpectralPeaks: 60
+ LOG    - frameSize: 4096
+ LOG    - spectralPeaksThreshold: 0.00009999999747378752
+ LOG    - windowType: "hann"
+ LOG    - hpcpSize: 12
+ LOG
+----- LPC -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - lpc (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - reflection (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - type: "regular"
+ LOG    - sampleRate: 44100
+ LOG    - order: 10
+ LOG
+----- Larm -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - larm (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - releaseTime: 1500
+ LOG    - power: 1.5
+ LOG    - attackTime: 10
+ LOG
+----- Leq -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - leq (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- LevelExtractor -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - loudness (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - hopSize: 44100
+ LOG    - frameSize: 88200
+ LOG
+----- LogAttackTime -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - logAttackTime (f)
+ LOG    - attackStart (f)
+ LOG    - attackStop (f)
+ LOG  Parameters:
+ LOG    - stopAttackThreshold: 0.8999999761581421
+ LOG    - startAttackThreshold: 0.20000000298023224
+ LOG    - sampleRate: 44100
+ LOG
+----- LogSpectrum -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - logFreqSpectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - meanTuning (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - localTuning (f)
+ LOG  Parameters:
+ LOG    - frameSize: 1025
+ LOG    - sampleRate: 44100
+ LOG    - rollOn: 0
+ LOG    - binsPerSemitone: 3
+ LOG
+----- LoopBpmConfidence -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - bpmEstimate (f)
+ LOG  Outputs:
+ LOG    - confidence (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG
+----- LoopBpmEstimator -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bpm (f)
+ LOG  Parameters:
+ LOG    - confidenceThreshold: 0.949999988079071
+ LOG
+----- Loudness -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - loudness (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- LoudnessEBUR128 -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIN8essentia6Tuple2IfEENS_9allocatorIS3_EEEE)
+ LOG  Outputs:
+ LOG    - momentaryLoudness (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - shortTermLoudness (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - integratedLoudness (f)
+ LOG    - loudnessRange (f)
+ LOG  Parameters:
+ LOG    - startAtZero: false
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 0.10000000149011612
+ LOG
+----- LoudnessVickers -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - loudness (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG
+----- LowLevelSpectralEqloudExtractor -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - dissonance (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - sccoeffs (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - scvalleys (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - spectral_centroid (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_kurtosis (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_skewness (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_spread (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 1024
+ LOG    - frameSize: 2048
+ LOG
+----- LowLevelSpectralExtractor -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - barkbands (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - barkbands_kurtosis (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - barkbands_skewness (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - barkbands_spread (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - hfc (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - mfcc (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - pitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - pitch_instantaneous_confidence (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - pitch_salience (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - silence_rate_20dB (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - silence_rate_30dB (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - silence_rate_60dB (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_complexity (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_crest (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_decrease (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_energy (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_energyband_low (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_energyband_middle_low (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_energyband_middle_high (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_energyband_high (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_flatness_db (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_flux (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_rms (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_rolloff (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectral_strongpeak (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - zerocrossingrate (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - inharmonicity (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - tristimulus (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - oddtoevenharmonicenergyratio (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 1024
+ LOG    - frameSize: 2048
+ LOG
+----- LowPass -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - cutoffFrequency: 1500
+ LOG
+----- MFCC -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bands (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - mfcc (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - weighting: "warping"
+ LOG    - warpingFormula: "htkMel"
+ LOG    - type: "power"
+ LOG    - sampleRate: 44100
+ LOG    - normalize: "unit_sum"
+ LOG    - lowFrequencyBound: 0
+ LOG    - liftering: 0
+ LOG    - silenceThreshold: 1.000000013351432e-10
+ LOG    - logType: "dbamp"
+ LOG    - inputSize: 1025
+ LOG    - highFrequencyBound: 11000
+ LOG    - numberCoefficients: 13
+ LOG    - numberBands: 40
+ LOG    - dctType: 2
+ LOG
+----- Magnitude -----
+ LOG  Inputs:
+ LOG    - complex (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Outputs:
+ LOG    - magnitude (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- MaxFilter -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - width: 3
+ LOG    - causal: true
+ LOG
+----- MaxMagFreq -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - maxMagFreq (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG
+----- MaxToTotal -----
+ LOG  Inputs:
+ LOG    - envelope (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - maxToTotal (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- Mean -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - mean (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- Median -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - median (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- MedianFilter -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - filteredArray (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - kernelSize: 11
+ LOG
+----- MelBands -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bands (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - type: "power"
+ LOG    - sampleRate: 44100
+ LOG    - numberBands: 24
+ LOG    - weighting: "warping"
+ LOG    - normalize: "unit_sum"
+ LOG    - lowFrequencyBound: 0
+ LOG    - log: false
+ LOG    - warpingFormula: "htkMel"
+ LOG    - inputSize: 1025
+ LOG    - highFrequencyBound: 22050
+ LOG
+----- Meter -----
+ LOG  Inputs:
+ LOG    - beatogram (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Outputs:
+ LOG    - meter (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- MinToTotal -----
+ LOG  Inputs:
+ LOG    - envelope (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - minToTotal (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- MonoMixer -----
+ LOG  Inputs:
+ LOG    - audio (NSt6__ndk16vectorIN8essentia6Tuple2IfEENS_9allocatorIS3_EEEE)
+ LOG    - numberChannels (i)
+ LOG  Outputs:
+ LOG    - audio (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - type: "mix"
+ LOG
+----- MovingAverage -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - size: 6
+ LOG
+----- MultiPitchKlapuri -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - pitch (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Parameters:
+ LOG    - numberHarmonics: 10
+ LOG    - magnitudeThreshold: 40
+ LOG    - magnitudeCompression: 1
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 128
+ LOG    - minFrequency: 80
+ LOG    - harmonicWeight: 0.800000011920929
+ LOG    - referenceFrequency: 55
+ LOG    - maxFrequency: 1760
+ LOG    - frameSize: 2048
+ LOG    - binResolution: 10
+ LOG
+----- MultiPitchMelodia -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - pitch (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Parameters:
+ LOG    - timeContinuity: 100
+ LOG    - referenceFrequency: 55
+ LOG    - pitchContinuity: 27.5625
+ LOG    - peakFrameThreshold: 0.8999999761581421
+ LOG    - numberHarmonics: 20
+ LOG    - magnitudeThreshold: 40
+ LOG    - hopSize: 128
+ LOG    - guessUnvoiced: false
+ LOG    - peakDistributionThreshold: 0.8999999761581421
+ LOG    - binResolution: 10
+ LOG    - minFrequency: 40
+ LOG    - minDuration: 100
+ LOG    - harmonicWeight: 0.800000011920929
+ LOG    - magnitudeCompression: 1
+ LOG    - filterIterations: 3
+ LOG    - sampleRate: 44100
+ LOG    - maxFrequency: 20000
+ LOG    - frameSize: 2048
+ LOG
+----- Multiplexer -----
+ LOG  Inputs:
+ LOG  Outputs:
+ LOG    - data (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Parameters:
+ LOG    - numberVectorRealInputs: 0
+ LOG    - numberRealInputs: 0
+ LOG
+----- NNLSChroma -----
+ LOG  Inputs:
+ LOG    - logSpectrogram (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - meanTuning (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - localTuning (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - tunedLogfreqSpectrum (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - semitoneSpectrum (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - bassChromagram (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - chromagram (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Parameters:
+ LOG    - useNNLS: true
+ LOG    - tuningMode: "global"
+ LOG    - spectralWhitening: 1
+ LOG    - frameSize: 1025
+ LOG    - spectralShape: 0.699999988079071
+ LOG    - sampleRate: 44100
+ LOG    - chromaNormalization: "none"
+ LOG
+----- NSGConstantQ -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - constantq (NSt6__ndk16vectorINS0_INS_7complexIfEENS_9allocatorIS2_EEEENS3_IS5_EEEE)
+ LOG    - constantqdc (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG    - constantqnf (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Parameters:
+ LOG    - windowSizeFactor: 1
+ LOG    - normalize: "none"
+ LOG    - maxFrequency: 7040
+ LOG    - sampleRate: 44100
+ LOG    - rasterize: "full"
+ LOG    - phaseMode: "global"
+ LOG    - minimumWindow: 4
+ LOG    - inputSize: 4096
+ LOG    - binsPerOctave: 48
+ LOG    - gamma: 0
+ LOG    - window: "hannnsgcq"
+ LOG    - minFrequency: 27.5
+ LOG
+----- NSGIConstantQ -----
+ LOG  Inputs:
+ LOG    - constantq (NSt6__ndk16vectorINS0_INS_7complexIfEENS_9allocatorIS2_EEEENS3_IS5_EEEE)
+ LOG    - constantqdc (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG    - constantqnf (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Outputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - windowSizeFactor: 1
+ LOG    - normalize: "none"
+ LOG    - maxFrequency: 7040
+ LOG    - sampleRate: 44100
+ LOG    - rasterize: "full"
+ LOG    - phaseMode: "global"
+ LOG    - minimumWindow: 4
+ LOG    - inputSize: 4096
+ LOG    - binsPerOctave: 48
+ LOG    - gamma: 0
+ LOG    - window: "hannnsgcq"
+ LOG    - minFrequency: 27.5
+ LOG
+----- NoiseAdder -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - level: -100
+ LOG    - fixSeed: false
+ LOG
+----- NoiseBurstDetector -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - indexes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - threshold: 8
+ LOG    - silenceThreshold: -50
+ LOG    - alpha: 0.8999999761581421
+ LOG
+----- NoveltyCurve -----
+ LOG  Inputs:
+ LOG    - frequencyBands (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Outputs:
+ LOG    - novelty (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - weightCurveType: "hybrid"
+ LOG    - weightCurve: "[]"
+ LOG    - normalize: false
+ LOG    - frameRate: 344.53125
+ LOG
+----- NoveltyCurveFixedBpmEstimator -----
+ LOG  Inputs:
+ LOG    - novelty (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bpms (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - amplitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - tolerance: 3
+ LOG    - minBpm: 30
+ LOG    - maxBpm: 560
+ LOG    - hopSize: 512
+ LOG
+----- OddToEvenHarmonicEnergyRatio -----
+ LOG  Inputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - oddToEvenHarmonicEnergyRatio (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- OnsetDetection -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phase (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - onsetDetection (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - method: "hfc"
+ LOG
+----- OnsetDetectionGlobal -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - onsetDetections (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 512
+ LOG    - method: "infogain"
+ LOG    - frameSize: 2048
+ LOG
+----- OnsetRate -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - onsets (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - onsetRate (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- Onsets -----
+ LOG  Inputs:
+ LOG    - detections (N3TNT7Array2DIfEE)
+ LOG    - weights (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - onsets (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - delay: 5
+ LOG    - silenceThreshold: 0.019999999552965164
+ LOG    - frameRate: 86.1328125
+ LOG    - alpha: 0.10000000149011612
+ LOG
+----- OverlapAdd -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - hopSize: 128
+ LOG    - gain: 1
+ LOG    - frameSize: 2048
+ LOG
+----- PCA -----
+ LOG  Inputs:
+ LOG    - poolIn (N8essentia4PoolE)
+ LOG  Outputs:
+ LOG    - poolOut (N8essentia4PoolE)
+ LOG  Parameters:
+ LOG    - namespaceIn: "spectral contrast"
+ LOG    - namespaceOut: "spectral contrast pca"
+ LOG    - dimensions: 0
+ LOG
+----- Panning -----
+ LOG  Inputs:
+ LOG    - spectrumLeft (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectrumRight (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - panningCoeffs (N3TNT7Array2DIfEE)
+ LOG  Parameters:
+ LOG    - warpedPanorama: true
+ LOG    - averageFrames: 43
+ LOG    - sampleRate: 44100
+ LOG    - panningBins: 512
+ LOG    - numCoeffs: 20
+ LOG    - numBands: 1
+ LOG
+----- PeakDetection -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - positions (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - amplitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - range: 1
+ LOG    - orderBy: "position"
+ LOG    - maxPosition: 1
+ LOG    - threshold: -1000000
+ LOG    - minPosition: 0
+ LOG    - maxPeaks: 100
+ LOG    - minPeakDistance: 0
+ LOG    - interpolate: true
+ LOG
+----- PercivalBpmEstimator -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bpm (f)
+ LOG  Parameters:
+ LOG    - maxBPM: 210
+ LOG    - minBPM: 50
+ LOG    - hopSizeOSS: 128
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 128
+ LOG    - frameSizeOSS: 2048
+ LOG    - frameSize: 1024
+ LOG
+----- PercivalEnhanceHarmonics -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- PercivalEvaluatePulseTrains -----
+ LOG  Inputs:
+ LOG    - oss (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - positions (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - lag (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- PitchContourSegmentation -----
+ LOG  Inputs:
+ LOG    - pitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - onset (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - duration (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - MIDIpitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - tuningFrequency: 440
+ LOG    - hopSize: 128
+ LOG    - sampleRate: 44100
+ LOG    - rmsThreshold: -2
+ LOG    - pitchDistanceThreshold: 60
+ LOG    - minDuration: 0.10000000149011612
+ LOG
+----- PitchContours -----
+ LOG  Inputs:
+ LOG    - peakBins (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - peakSaliences (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Outputs:
+ LOG    - contoursBins (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - contoursSaliences (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - contoursStartTimes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - duration (f)
+ LOG  Parameters:
+ LOG    - peakFrameThreshold: 0.8999999761581421
+ LOG    - timeContinuity: 100
+ LOG    - peakDistributionThreshold: 0.8999999761581421
+ LOG    - pitchContinuity: 27.5625
+ LOG    - minDuration: 100
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 128
+ LOG    - binResolution: 10
+ LOG
+----- PitchContoursMelody -----
+ LOG  Inputs:
+ LOG    - contoursBins (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - contoursSaliences (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - contoursStartTimes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - duration (f)
+ LOG  Outputs:
+ LOG    - pitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - pitchConfidence (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - voicingTolerance: 0.20000000298023224
+ LOG    - voiceVibrato: false
+ LOG    - minFrequency: 80
+ LOG    - referenceFrequency: 55
+ LOG    - binResolution: 10
+ LOG    - maxFrequency: 20000
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 128
+ LOG    - guessUnvoiced: false
+ LOG    - filterIterations: 3
+ LOG
+----- PitchContoursMonoMelody -----
+ LOG  Inputs:
+ LOG    - contoursBins (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - contoursSaliences (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - contoursStartTimes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - duration (f)
+ LOG  Outputs:
+ LOG    - pitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - pitchConfidence (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - minFrequency: 80
+ LOG    - referenceFrequency: 55
+ LOG    - binResolution: 10
+ LOG    - maxFrequency: 20000
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 128
+ LOG    - guessUnvoiced: false
+ LOG    - filterIterations: 3
+ LOG
+----- PitchContoursMultiMelody -----
+ LOG  Inputs:
+ LOG    - contoursBins (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - contoursSaliences (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - contoursStartTimes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - duration (f)
+ LOG  Outputs:
+ LOG    - pitch (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Parameters:
+ LOG    - minFrequency: 80
+ LOG    - referenceFrequency: 55
+ LOG    - binResolution: 10
+ LOG    - maxFrequency: 20000
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 128
+ LOG    - guessUnvoiced: false
+ LOG    - filterIterations: 3
+ LOG
+----- PitchFilter -----
+ LOG  Inputs:
+ LOG    - pitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - pitchConfidence (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - pitchFiltered (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - useAbsolutePitchConfidence: false
+ LOG    - minChunkSize: 30
+ LOG    - confidenceThreshold: 36
+ LOG
+----- PitchMelodia -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - pitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - pitchConfidence (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - timeContinuity: 100
+ LOG    - referenceFrequency: 55
+ LOG    - pitchContinuity: 27.5625
+ LOG    - peakFrameThreshold: 0.8999999761581421
+ LOG    - numberHarmonics: 20
+ LOG    - magnitudeThreshold: 40
+ LOG    - hopSize: 128
+ LOG    - guessUnvoiced: false
+ LOG    - peakDistributionThreshold: 0.8999999761581421
+ LOG    - binResolution: 10
+ LOG    - minFrequency: 40
+ LOG    - minDuration: 100
+ LOG    - harmonicWeight: 0.800000011920929
+ LOG    - magnitudeCompression: 1
+ LOG    - filterIterations: 3
+ LOG    - sampleRate: 44100
+ LOG    - maxFrequency: 20000
+ LOG    - frameSize: 2048
+ LOG
+----- PitchSalience -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - pitchSalience (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - lowBoundary: 100
+ LOG    - highBoundary: 5000
+ LOG
+----- PitchSalienceFunction -----
+ LOG  Inputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - salienceFunction (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - numberHarmonics: 20
+ LOG    - magnitudeCompression: 1
+ LOG    - harmonicWeight: 0.800000011920929
+ LOG    - magnitudeThreshold: 40
+ LOG    - referenceFrequency: 55
+ LOG    - binResolution: 10
+ LOG
+----- PitchSalienceFunctionPeaks -----
+ LOG  Inputs:
+ LOG    - salienceFunction (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - salienceBins (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - salienceValues (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - minFrequency: 55
+ LOG    - referenceFrequency: 55
+ LOG    - maxFrequency: 1760
+ LOG    - binResolution: 10
+ LOG
+----- PitchYin -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - pitch (f)
+ LOG    - pitchConfidence (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - minFrequency: 20
+ LOG    - tolerance: 0.15000000596046448
+ LOG    - frameSize: 2048
+ LOG    - maxFrequency: 22050
+ LOG    - interpolate: true
+ LOG
+----- PitchYinFFT -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - pitch (f)
+ LOG    - pitchConfidence (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - minFrequency: 20
+ LOG    - tolerance: 1
+ LOG    - frameSize: 2048
+ LOG    - maxFrequency: 22050
+ LOG    - interpolate: true
+ LOG
+----- PitchYinProbabilistic -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - pitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - voicedProbabilities (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - preciseTime: false
+ LOG    - outputUnvoiced: "negative"
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 256
+ LOG    - lowRMSThreshold: 0.10000000149011612
+ LOG    - frameSize: 2048
+ LOG
+----- PitchYinProbabilities -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - pitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - probabilities (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - RMS (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - preciseTime: false
+ LOG    - lowAmp: 0.10000000149011612
+ LOG    - frameSize: 2048
+ LOG
+----- PitchYinProbabilitiesHMM -----
+ LOG  Inputs:
+ LOG    - pitchCandidates (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - probabilities (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Outputs:
+ LOG    - pitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - yinTrust: 0.5
+ LOG    - selfTransition: 0.9900000095367432
+ LOG    - numberBinsPerSemitone: 5
+ LOG    - minFrequency: 61.73500061035156
+ LOG
+----- PolarToCartesian -----
+ LOG  Inputs:
+ LOG    - magnitude (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phase (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - complex (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- PoolAggregator -----
+ LOG  Inputs:
+ LOG    - input (N8essentia4PoolE)
+ LOG  Outputs:
+ LOG    - output (N8essentia4PoolE)
+ LOG  Parameters:
+ LOG    - exceptions: "{}"
+ LOG    - defaultStats: "[\"mean\", \"stdev\", \"min\", \"max\", \"median\"]"
+ LOG
+----- PowerMean -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - powerMean (f)
+ LOG  Parameters:
+ LOG    - power: 1
+ LOG
+----- PowerSpectrum -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - powerSpectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - size: 2048
+ LOG
+----- PredominantPitchMelodia -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - pitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - pitchConfidence (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - voicingTolerance: 0.20000000298023224
+ LOG    - timeContinuity: 100
+ LOG    - referenceFrequency: 55
+ LOG    - pitchContinuity: 27.5625
+ LOG    - peakFrameThreshold: 0.8999999761581421
+ LOG    - numberHarmonics: 20
+ LOG    - magnitudeThreshold: 40
+ LOG    - hopSize: 128
+ LOG    - guessUnvoiced: false
+ LOG    - voiceVibrato: false
+ LOG    - peakDistributionThreshold: 0.8999999761581421
+ LOG    - binResolution: 10
+ LOG    - minFrequency: 80
+ LOG    - minDuration: 100
+ LOG    - harmonicWeight: 0.800000011920929
+ LOG    - magnitudeCompression: 1
+ LOG    - filterIterations: 3
+ LOG    - sampleRate: 44100
+ LOG    - maxFrequency: 20000
+ LOG    - frameSize: 2048
+ LOG
+----- RMS -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - rms (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- RawMoments -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - rawMoments (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - range: 22050
+ LOG
+----- ReplayGain -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - replayGain (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG
+----- ResampleFFT -----
+ LOG  Inputs:
+ LOG    - input (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - output (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - outSize: 128
+ LOG    - inSize: 128
+ LOG
+----- RhythmDescriptors -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - beats_position (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - confidence (f)
+ LOG    - bpm (f)
+ LOG    - bpm_estimates (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - bpm_intervals (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - first_peak_bpm (f)
+ LOG    - first_peak_spread (f)
+ LOG    - first_peak_weight (f)
+ LOG    - second_peak_bpm (f)
+ LOG    - second_peak_spread (f)
+ LOG    - second_peak_weight (f)
+ LOG    - histogram (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- RhythmExtractor -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bpm (f)
+ LOG    - ticks (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - estimates (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - bpmIntervals (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - tempoHints: "[]"
+ LOG    - hopSize: 256
+ LOG    - useBands: true
+ LOG    - numberFrames: 1024
+ LOG    - minTempo: 40
+ LOG    - maxTempo: 208
+ LOG    - frameHop: 1024
+ LOG    - useOnset: true
+ LOG    - lastBeatInterval: 0.10000000149011612
+ LOG    - tolerance: 0.23999999463558197
+ LOG    - frameSize: 1024
+ LOG    - sampleRate: 44100
+ LOG
+----- RhythmExtractor2013 -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bpm (f)
+ LOG    - ticks (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - confidence (f)
+ LOG    - estimates (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - bpmIntervals (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - minTempo: 40
+ LOG    - method: "multifeature"
+ LOG    - maxTempo: 208
+ LOG
+----- RhythmTransform -----
+ LOG  Inputs:
+ LOG    - melBands (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Outputs:
+ LOG    - rhythm (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Parameters:
+ LOG    - hopSize: 32
+ LOG    - frameSize: 256
+ LOG
+----- RollOff -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - rollOff (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - cutoff: 0.8500000238418579
+ LOG
+----- SBic -----
+ LOG  Inputs:
+ LOG    - features (N3TNT7Array2DIfEE)
+ LOG  Outputs:
+ LOG    - segmentation (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - size2: 200
+ LOG    - inc1: 60
+ LOG    - size1: 300
+ LOG    - inc2: 20
+ LOG    - minLength: 10
+ LOG    - cpw: 1.5
+ LOG
+----- SNR -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - instantSNR (f)
+ LOG    - averagedSNR (f)
+ LOG    - spectralSNR (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - frameSize: 512
+ LOG    - NoiseAlpha: 0.8999999761581421
+ LOG    - noiseThreshold: -40
+ LOG    - MMSEAlpha: 0.9800000190734863
+ LOG    - useBroadbadNoiseCorrection: true
+ LOG    - MAAlpha: 0.949999988079071
+ LOG
+----- SaturationDetector -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - starts (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - ends (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - minimumDuration: 0.004999999888241291
+ LOG    - frameSize: 512
+ LOG    - energyThreshold: -1
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 256
+ LOG    - differentialThreshold: 0.0010000000474974513
+ LOG
+----- Scale -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - maxAbsValue: 1
+ LOG    - factor: 10
+ LOG    - clipping: true
+ LOG
+----- SilenceRate -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG  Parameters:
+ LOG    - thresholds: "[]"
+ LOG
+----- SineModelAnal -----
+ LOG  Inputs:
+ LOG    - fft (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Outputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phases (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - orderBy: "frequency"
+ LOG    - sampleRate: 44100
+ LOG    - maxnSines: 100
+ LOG    - minFrequency: 0
+ LOG    - maxPeaks: 250
+ LOG    - freqDevOffset: 20
+ LOG    - magnitudeThreshold: -74
+ LOG    - freqDevSlope: 0.009999999776482582
+ LOG    - maxFrequency: 22050
+ LOG
+----- SineModelSynth -----
+ LOG  Inputs:
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phases (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - fft (NSt6__ndk16vectorINS_7complexIfEENS_9allocatorIS2_EEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 512
+ LOG    - fftSize: 2048
+ LOG
+----- SineSubtraction -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phases (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 128
+ LOG    - fftSize: 512
+ LOG
+----- SingleBeatLoudness -----
+ LOG  Inputs:
+ LOG    - beat (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - loudness (f)
+ LOG    - loudnessBandRatio (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - onsetStart: "sumEnergy"
+ LOG    - frequencyBands: "[0, 200, 400, 800, 1600, 3200, 22000]"
+ LOG    - beatWindowDuration: 0.10000000149011612
+ LOG    - sampleRate: 44100
+ LOG    - beatDuration: 0.05000000074505806
+ LOG
+----- SingleGaussian -----
+ LOG  Inputs:
+ LOG    - matrix (N3TNT7Array2DIfEE)
+ LOG  Outputs:
+ LOG    - mean (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - covariance (N3TNT7Array2DIfEE)
+ LOG    - inverseCovariance (N3TNT7Array2DIfEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- Slicer -----
+ LOG  Inputs:
+ LOG    - audio (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - frame (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Parameters:
+ LOG    - startTimes: "[]"
+ LOG    - timeUnits: "seconds"
+ LOG    - sampleRate: 44100
+ LOG    - endTimes: "[]"
+ LOG
+----- SpectralCentroidTime -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - centroid (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG
+----- SpectralComplexity -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - spectralComplexity (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - magnitudeThreshold: 0.004999999888241291
+ LOG
+----- SpectralContrast -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - spectralContrast (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - spectralValley (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - staticDistribution: 0.15000000596046448
+ LOG    - sampleRate: 22050
+ LOG    - numberBands: 6
+ LOG    - neighbourRatio: 0.4000000059604645
+ LOG    - highFrequencyBound: 11000
+ LOG    - lowFrequencyBound: 20
+ LOG    - frameSize: 2048
+ LOG
+----- SpectralPeaks -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - orderBy: "frequency"
+ LOG    - maxPeaks: 100
+ LOG    - minFrequency: 0
+ LOG    - maxFrequency: 5000
+ LOG    - magnitudeThreshold: 0
+ LOG
+----- SpectralWhitening -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - maxFrequency: 5000
+ LOG
+----- Spectrum -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - size: 2048
+ LOG
+----- SpectrumCQ -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - spectrumCQ (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - windowType: "hann"
+ LOG    - zeroPhase: true
+ LOG    - scale: 1
+ LOG    - minimumKernelSize: 4
+ LOG    - numberBins: 84
+ LOG    - threshold: 0.009999999776482582
+ LOG    - sampleRate: 44100
+ LOG    - minFrequency: 32.70000076293945
+ LOG    - binsPerOctave: 12
+ LOG
+----- SpectrumToCent -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bands (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - type: "power"
+ LOG    - sampleRate: 44100
+ LOG    - normalize: "unit_sum"
+ LOG    - minimumFrequency: 164
+ LOG    - log: true
+ LOG    - inputSize: 32768
+ LOG    - centBinResolution: 10
+ LOG    - bands: 720
+ LOG
+----- Spline -----
+ LOG  Inputs:
+ LOG    - x (f)
+ LOG  Outputs:
+ LOG    - y (f)
+ LOG  Parameters:
+ LOG    - yPoints: "[0, 1]"
+ LOG    - xPoints: "[0, 1]"
+ LOG    - type: "b"
+ LOG    - beta2: 0
+ LOG    - beta1: 1
+ LOG
+----- SprModelAnal -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phases (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - res (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - orderBy: "frequency"
+ LOG    - minFrequency: 0
+ LOG    - maxPeaks: 100
+ LOG    - maxFrequency: 5000
+ LOG    - freqDevOffset: 20
+ LOG    - magnitudeThreshold: 0
+ LOG    - sampleRate: 44100
+ LOG    - maxnSines: 100
+ LOG    - hopSize: 512
+ LOG    - freqDevSlope: 0.009999999776482582
+ LOG    - fftSize: 2048
+ LOG
+----- SprModelSynth -----
+ LOG  Inputs:
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phases (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - res (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - sineframe (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - resframe (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 512
+ LOG    - fftSize: 2048
+ LOG
+----- SpsModelAnal -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phases (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - stocenv (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - orderBy: "frequency"
+ LOG    - minFrequency: 0
+ LOG    - maxPeaks: 100
+ LOG    - stocf: 0.20000000298023224
+ LOG    - maxnSines: 100
+ LOG    - sampleRate: 44100
+ LOG    - maxFrequency: 5000
+ LOG    - freqDevOffset: 20
+ LOG    - magnitudeThreshold: 0
+ LOG    - hopSize: 512
+ LOG    - freqDevSlope: 0.009999999776482582
+ LOG    - fftSize: 2048
+ LOG
+----- SpsModelSynth -----
+ LOG  Inputs:
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phases (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - stocenv (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - sineframe (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - stocframe (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 512
+ LOG    - stocf: 0.20000000298023224
+ LOG    - fftSize: 2048
+ LOG
+----- StartStopCut -----
+ LOG  Inputs:
+ LOG    - audio (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - startCut (i)
+ LOG    - stopCut (i)
+ LOG  Parameters:
+ LOG    - threshold: -60
+ LOG    - hopSize: 256
+ LOG    - sampleRate: 44100
+ LOG    - maximumStopTime: 10
+ LOG    - maximumStartTime: 10
+ LOG    - frameSize: 256
+ LOG
+----- StartStopSilence -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - startFrame (i)
+ LOG    - stopFrame (i)
+ LOG  Parameters:
+ LOG    - threshold: -60
+ LOG
+----- StereoDemuxer -----
+ LOG  Inputs:
+ LOG    - audio (NSt6__ndk16vectorIN8essentia6Tuple2IfEENS_9allocatorIS3_EEEE)
+ LOG  Outputs:
+ LOG    - left (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - right (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- StereoMuxer -----
+ LOG  Inputs:
+ LOG    - left (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - right (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - audio (NSt6__ndk16vectorIN8essentia6Tuple2IfEENS_9allocatorIS3_EEEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- StereoTrimmer -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIN8essentia6Tuple2IfEENS_9allocatorIS3_EEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIN8essentia6Tuple2IfEENS_9allocatorIS3_EEEE)
+ LOG  Parameters:
+ LOG    - startTime: 0
+ LOG    - sampleRate: 44100
+ LOG    - endTime: 1000000
+ LOG    - checkRange: false
+ LOG
+----- StochasticModelAnal -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - stocenv (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 512
+ LOG    - stocf: 0.20000000298023224
+ LOG    - fftSize: 2048
+ LOG
+----- StochasticModelSynth -----
+ LOG  Inputs:
+ LOG    - stocenv (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 512
+ LOG    - stocf: 0.20000000298023224
+ LOG    - fftSize: 2048
+ LOG
+----- StrongDecay -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - strongDecay (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG
+----- StrongPeak -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - strongPeak (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- SuperFluxExtractor -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - onsets (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - threshold: 0.05000000074505806
+ LOG    - hopSize: 256
+ LOG    - sampleRate: 44100
+ LOG    - ratioThreshold: 16
+ LOG    - frameSize: 2048
+ LOG    - combine: 20
+ LOG
+----- SuperFluxNovelty -----
+ LOG  Inputs:
+ LOG    - bands (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Outputs:
+ LOG    - differences (f)
+ LOG  Parameters:
+ LOG    - frameWidth: 2
+ LOG    - binWidth: 3
+ LOG
+----- SuperFluxPeaks -----
+ LOG  Inputs:
+ LOG    - novelty (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - peaks (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - ratioThreshold: 16
+ LOG    - pre_max: 30
+ LOG    - pre_avg: 100
+ LOG    - threshold: 0.05000000074505806
+ LOG    - frameRate: 172
+ LOG    - combine: 30
+ LOG
+----- TCToTotal -----
+ LOG  Inputs:
+ LOG    - envelope (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - TCToTotal (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- TempoScaleBands -----
+ LOG  Inputs:
+ LOG    - bands (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - scaledBands (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - cumulativeBands (f)
+ LOG  Parameters:
+ LOG    - frameTime: 512
+ LOG    - bandsGain: "[2, 3, 2, 1, 1.20000004768, 2, 3, 2.5]"
+ LOG
+----- TempoTap -----
+ LOG  Inputs:
+ LOG    - featuresFrame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - periods (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phases (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - tempoHints: "[]"
+ LOG    - sampleRate: 44100
+ LOG    - maxTempo: 208
+ LOG    - minTempo: 40
+ LOG    - frameSize: 256
+ LOG    - numberFrames: 1024
+ LOG    - frameHop: 1024
+ LOG
+----- TempoTapDegara -----
+ LOG  Inputs:
+ LOG    - onsetDetections (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - ticks (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRateODF: 86.1328125
+ LOG    - resample: "none"
+ LOG    - minTempo: 40
+ LOG    - maxTempo: 208
+ LOG
+----- TempoTapMaxAgreement -----
+ LOG  Inputs:
+ LOG    - tickCandidates (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG  Outputs:
+ LOG    - ticks (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - confidence (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- TempoTapTicks -----
+ LOG  Inputs:
+ LOG    - periods (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - phases (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - ticks (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - matchingPeriods (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - hopSize: 256
+ LOG    - frameHop: 512
+ LOG
+----- TonalExtractor -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - chords_changes_rate (f)
+ LOG    - chords_histogram (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - chords_key (NSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE)
+ LOG    - chords_number_rate (f)
+ LOG    - chords_progression (NSt6__ndk16vectorINS_12basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEENS4_IS6_EEEE)
+ LOG    - chords_scale (NSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE)
+ LOG    - chords_strength (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - hpcp (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - hpcp_highres (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - key_key (NSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE)
+ LOG    - key_scale (NSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE)
+ LOG    - key_strength (f)
+ LOG  Parameters:
+ LOG    - tuningFrequency: 440
+ LOG    - hopSize: 2048
+ LOG    - frameSize: 4096
+ LOG
+----- TonicIndianArtMusic -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - tonic (f)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - numberHarmonics: 20
+ LOG    - numberSaliencePeaks: 5
+ LOG    - magnitudeThreshold: 40
+ LOG    - maxTonicFrequency: 375
+ LOG    - magnitudeCompression: 1
+ LOG    - hopSize: 512
+ LOG    - harmonicWeight: 0.8500000238418579
+ LOG    - referenceFrequency: 55
+ LOG    - minTonicFrequency: 100
+ LOG    - frameSize: 2048
+ LOG    - binResolution: 10
+ LOG
+----- TriangularBands -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bands (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - type: "power"
+ LOG    - sampleRate: 44100
+ LOG    - weighting: "linear"
+ LOG    - frequencyBands: "[21.533203125, 43.06640625, 64.599609375, 86.1328125, 107.666015625, 129.19921875, 150.732421875, 172.265625, 193.798828125, 215.33203125, 236.865234375, 258.3984375, 279.931640625, 301.46484375, 322.998046875, 344.53125, 366.064453125, 387.59765625, 409.130859375, 430.6640625, 452.197265625, 473.73046875, 495.263671875, 516.796875, 538.330078125, 559.86328125, 581.396484375, 602.9296875, 624.462890625, 645.99609375, 667.529296875, 689.0625, 710.595703125, 732.12890625, 753.662109375, 775.1953125, 796.728515625, 839.794921875, 861.328125, 882.861328125, 904.39453125, 925.927734375, 968.994140625, 990.52734375, 1012.06054688, 1055.12695312, 1076.66015625, 1098.19335938, 1141.25976562, 1184.32617188, 1205.859375, 1248.92578125, 1270.45898438, 1313.52539062, 1356.59179688, 1399.65820312, 1442.72460938, 1485.79101562, 1528.85742188, 1571.92382812, 1614.99023438, 1658.05664062, 1701.12304688, 1765.72265625, 1808.7890625, 1873.38867188, 1916.45507812, 1981.0546875, 2024.12109375, 2088.72070312, 2153.3203125, 2217.91992188, 2282.51953125, 2347.11914062, 2411.71875, 2497.8515625, 2562.45117188, 2627.05078125, 2713.18359375, 2799.31640625, 2885.44921875, 2950.04882812, 3036.18164062, 3143.84765625, 3229.98046875, 3316.11328125, 3423.77929688, 3509.91210938, 3617.578125, 3725.24414062, 3832.91015625, 3940.57617188, 4069.77539062, 4177.44140625, 4306.640625, 4435.83984375, 4565.0390625, 4694.23828125, 4844.97070312, 4974.16992188, 5124.90234375, 5275.63476562, 5426.3671875, 5577.09960938, 5749.36523438, 5921.63085938, 6093.89648438, 6266.16210938, 6459.9609375, 6653.75976562, 6847.55859375, 7041.35742188, 7256.68945312, 7450.48828125, 7687.35351562, 7902.68554688, 8139.55078125, 8376.41601562, 8613.28125, 8871.6796875, 9130.078125, 9388.4765625, 9668.40820312, 9948.33984375, 10249.8046875, 10551.2695312, 10852.734375, 11175.7324219, 11498.7304688, 11843.2617188, 12187.7929688, 12553.8574219, 12919.921875, 13285.9863281, 13673.5839844, 14082.7148438, 14491.8457031, 14922.5097656, 15353.1738281, 15805.3710938, 16257.5683594]"
+ LOG    - normalize: "unit_sum"
+ LOG    - log: true
+ LOG    - inputSize: 1025
+ LOG
+----- TriangularBarkBands -----
+ LOG  Inputs:
+ LOG    - spectrum (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - bands (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - type: "power"
+ LOG    - sampleRate: 44100
+ LOG    - numberBands: 24
+ LOG    - weighting: "warping"
+ LOG    - normalize: "unit_sum"
+ LOG    - lowFrequencyBound: 0
+ LOG    - log: false
+ LOG    - inputSize: 1025
+ LOG    - highFrequencyBound: 22050
+ LOG
+----- Trimmer -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - startTime: 0
+ LOG    - sampleRate: 44100
+ LOG    - endTime: 1000000
+ LOG    - checkRange: false
+ LOG
+----- Tristimulus -----
+ LOG  Inputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - tristimulus (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- TruePeakDetector -----
+ LOG  Failed to get info for TruePeakDetector: [object Object]
+ LOG
+----- TuningFrequency -----
+ LOG  Inputs:
+ LOG    - frequencies (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - magnitudes (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - tuningFrequency (f)
+ LOG    - tuningCents (f)
+ LOG  Parameters:
+ LOG    - resolution: 1
+ LOG
+----- TuningFrequencyExtractor -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - tuningFrequency (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - hopSize: 2048
+ LOG    - frameSize: 4096
+ LOG
+----- UnaryOperator -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - type: "identity"
+ LOG    - shift: 0
+ LOG    - scale: 1
+ LOG
+----- UnaryOperatorStream -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - type: "identity"
+ LOG    - shift: 0
+ LOG    - scale: 1
+ LOG
+----- Variance -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - variance (f)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- Vibrato -----
+ LOG  Inputs:
+ LOG    - pitch (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - vibratoFrequency (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - vibratoExtend (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 344.53125
+ LOG    - maxFrequency: 8
+ LOG    - minFrequency: 4
+ LOG    - minExtend: 50
+ LOG    - maxExtend: 250
+ LOG
+----- Viterbi -----
+ LOG  Inputs:
+ LOG    - observationProbabilities (NSt6__ndk16vectorINS0_IfNS_9allocatorIfEEEENS1_IS3_EEEE)
+ LOG    - initialization (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG    - fromIndex (NSt6__ndk16vectorImNS_9allocatorImEEEE)
+ LOG    - toIndex (NSt6__ndk16vectorImNS_9allocatorImEEEE)
+ LOG    - transitionProbabilities (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - path (NSt6__ndk16vectorIiNS_9allocatorIiEEEE)
+ LOG  Parameters:
+ LOG    - 0: "n"
+ LOG    - 1: "u"
+ LOG    - 2: "l"
+ LOG    - 3: "l"
+ LOG
+----- WarpedAutoCorrelation -----
+ LOG  Inputs:
+ LOG    - array (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - warpedAutoCorrelation (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - sampleRate: 44100
+ LOG    - maxLag: 1
+ LOG
+----- Welch -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - psd (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - windowType: "hann"
+ LOG    - averagingFrames: 10
+ LOG    - sampleRate: 44100
+ LOG    - fftSize: 1024
+ LOG    - scaling: "density"
+ LOG    - frameSize: 512
+ LOG
+----- Windowing -----
+ LOG  Inputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - frame (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Parameters:
+ LOG    - zeroPhase: true
+ LOG    - type: "hann"
+ LOG    - zeroPadding: 0
+ LOG    - size: 1024
+ LOG    - normalized: true
+ LOG
+----- ZeroCrossingRate -----
+ LOG  Inputs:
+ LOG    - signal (NSt6__ndk16vectorIfNS_9allocatorIfEEEE)
+ LOG  Outputs:
+ LOG    - zeroCrossingRate (f)
+ LOG  Parameters:
+ LOG    - threshold: 0
+ LOG
+===== END OF ALGORITHMS LIST =====

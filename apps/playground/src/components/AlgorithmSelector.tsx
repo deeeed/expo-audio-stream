@@ -67,6 +67,46 @@ const AVAILABLE_ALGORITHMS: Record<string, AlgorithmConfig> = {
         max: 65536
       }
     }
+  },
+  HPCP: {
+    name: 'HPCP',
+    displayName: 'HPCP (Harmonic Pitch Class Profile)',
+    description: 'Computes the Harmonic Pitch Class Profile from the spectral peaks of a signal.',
+    parameters: {
+      size: {
+        type: 'number',
+        default: 12,
+        description: 'Size of HPCP (recommended: 12 for Tonnetz)',
+        min: 12,
+        max: 120
+      },
+      referenceFrequency: {
+        type: 'number',
+        default: 440,
+        description: 'Reference frequency for A4 in Hz',
+        min: 220,
+        max: 880
+      },
+      harmonics: {
+        type: 'number',
+        default: 8,
+        description: 'Number of harmonics to consider',
+        min: 1,
+        max: 20
+      }
+    }
+  },
+  Tonnetz: {
+    name: 'Tonnetz',
+    displayName: 'Tonnetz Transformation',
+    description: 'Computes the Tonnetz representation from an HPCP vector, capturing harmonic relationships in a 6-dimensional space.',
+    parameters: {
+      generateSampleHPCP: {
+        type: 'boolean',
+        default: true,
+        description: 'Generate a sample HPCP vector for demonstration'
+      }
+    }
   }
   // Add more algorithms as needed
 };
@@ -187,17 +227,16 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
     setIsExecuting(true);
     setResult(null);
 
-    try {
-      // First, set the audio data - this is the key step that was missing
-      const audioDataSuccess = await setDummyAudioData();
-      
-      if (!audioDataSuccess) {
-        throw new Error('Failed to set audio data');
-      }
-      
-      // Execute the selected algorithm with the current parameters
-      console.log(`Executing ${selectedAlgorithm} with parameters:`, parameters);
-      const result = await EssentiaJS.executeAlgorithm(selectedAlgorithm, parameters);
+    try {      
+        // Original code for other algorithms
+        const audioDataSuccess = await setDummyAudioData();
+        
+        if (!audioDataSuccess) {
+          throw new Error('Failed to set audio data');
+        }
+        
+        console.log(`Executing ${selectedAlgorithm} with parameters:`, parameters);
+        const result = await EssentiaJS.executeAlgorithm(selectedAlgorithm, parameters);
       
       console.log(`${selectedAlgorithm} execution result:`, result);
       setResult(result);

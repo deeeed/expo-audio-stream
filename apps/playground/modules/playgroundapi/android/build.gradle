@@ -34,6 +34,12 @@ if (useManagedAndroidSdkVersions) {
 dependencies {
   // Add direct path to the audio module project
   implementation project(':siteed-expo-audio-studio')
+  
+  // Add React Native core for the bridge classes
+  implementation "com.facebook.react:react-native:+" // For ReactContextBaseJavaModule
+  
+  // Reference Essentia module - keep your existing reference
+  implementation project(':siteed_react-native-essentia')
 }
 
 android {
