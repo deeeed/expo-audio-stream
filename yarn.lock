@@ -28182,6 +28182,7 @@ __metadata:
   resolution: "playgroundapi@workspace:apps/playground/modules/playgroundapi"
   dependencies:
     "@siteed/expo-audio-studio": "workspace:^"
+    "@siteed/react-native-essentia": "workspace:^"
     typescript: "npm:^5.8.2"
   peerDependencies:
     expo: ">=52.0.0"

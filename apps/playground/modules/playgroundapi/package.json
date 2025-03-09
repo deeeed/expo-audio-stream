@@ -21,6 +21,7 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "@siteed/expo-audio-studio": "workspace:^"
+    "@siteed/expo-audio-studio": "workspace:^",
+    "@siteed/react-native-essentia": "workspace:^"
   }
 }

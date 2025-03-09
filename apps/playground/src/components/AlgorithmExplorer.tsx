@@ -558,9 +558,9 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
       console.log(algorithms.join(', '));
       
       // For better performance, limit the detailed info to first 20 algorithms
-      const algoSubset = algorithms.length > 20 ? algorithms.slice(0, 20) : algorithms;
+      const algoSubset = algorithms.length > 300 ? algorithms.slice(0, 300) : algorithms;
       
-      console.log('\nDetailed information for first 20 algorithms:');
+      console.log('\nDetailed information for first 300 algorithms:');
       
       // Get info for each algorithm in the subset
       for (const algo of algoSubset) {

@@ -4,6 +4,47 @@ import { LINKING_ERROR } from './constants';
 import { musicGenreClassificationPipeline } from './pipelines/musicGenreClassification';
 import { speechEmotionRecognitionPipeline } from './pipelines/speechEmotionRecognition';
 import type {
+  AttackTimeResult,
+  BarkBandsParams,
+  BarkBandsResult,
+  BeatsResult,
+  ChordsResult,
+  ChromagramParams,
+  ChromaResult,
+  DanceabilityResult,
+  DissonanceResult,
+  DynamicsResult,
+  EnergyResult,
+  ERBBandsParams,
+  ERBBandsResult,
+  HarmonicsResult,
+  InharmonicityResult,
+  KeyResult,
+  LoudnessResult,
+  MelBandsParams,
+  MelBandsResult,
+  MelSpectrogramParams,
+  MelSpectrogramResult,
+  MFCCParams,
+  MFCCResult,
+  NoveltyCurveResult,
+  OnsetsResult,
+  PitchParams,
+  PitchResult,
+  RhythmFeaturesResult,
+  SilenceRateParams,
+  SilenceResult,
+  SpectralContrastParams,
+  SpectralContrastResult,
+  SpectralFeaturesResult,
+  TempoResult,
+  TonnetzParams,
+  TonnetzResult,
+  TuningFrequencyResult,
+  ZeroCrossingRateResult,
+} from './types/algorithms.types';
+
+import type {
   AlgorithmParams,
   EssentiaInterface,
   EssentiaResult,
@@ -12,47 +53,9 @@ import type {
   PipelineResult,
 } from './types/core.types';
 import type {
-  BarkBandsParams,
-  ERBBandsParams,
-  MelBandsParams,
-  MFCCParams,
-  PitchParams,
-  SilenceRateParams,
-} from './types/params.types';
-import type {
   MusicGenreFeatures,
   SpeechEmotionFeatures,
 } from './types/piepleine.types';
-import type {
-  AttackTimeResult,
-  BarkBandsResult,
-  BeatsResult,
-  ChordsResult,
-  ChromaResult,
-  DanceabilityResult,
-  DissonanceResult,
-  DynamicsResult,
-  EnergyResult,
-  ERBBandsResult,
-  HarmonicsResult,
-  InharmonicityResult,
-  KeyResult,
-  LoudnessResult,
-  MelBandsResult,
-  MelSpectrogramResult,
-  MFCCResult,
-  NoveltyCurveResult,
-  OnsetsResult,
-  PitchResult,
-  RhythmFeaturesResult,
-  SilenceResult,
-  SpectralContrastResult,
-  SpectralFeaturesResult,
-  TempoResult,
-  TonnetzResult,
-  TuningFrequencyResult,
-  ZeroCrossingRateResult,
-} from './types/results.types';
 
 // Get the native module
 const Essentia = NativeModules.Essentia
@@ -524,9 +527,13 @@ class EssentiaAPI implements EssentiaInterface {
         }
       }
 
-      // Check feature algorithms
+      const customAlgorithms = ['Tonnetz'];
+      // // Check feature algorithms
       for (const feature of config.features) {
-        if (!allAlgorithms.includes(feature.name)) {
+        if (
+          !allAlgorithms.includes(feature.name) &&
+          !customAlgorithms.includes(feature.name)
+        ) {
           throw {
             code: 'INVALID_ALGORITHM',
             message: `Algorithm '${feature.name}' not found in Essentia registry`,
@@ -707,15 +714,8 @@ class EssentiaAPI implements EssentiaInterface {
    * @param params Parameters for MFCC extraction
    * @returns A Promise that resolves to the MFCC features
    */
-  async extractMFCC(
-    params: MFCCParams = {}
-  ): Promise<MFCCResult | EssentiaResult<any>> {
-    const result = await this.extractFeatures([
-      {
-        name: 'MFCC',
-        params,
-      },
-    ]);
+  async extractMFCC(params: MFCCParams = {}): Promise<MFCCResult> {
+    const result = await this.executeAlgorithm('MFCC', params);
     return result.data?.mfcc
       ? { mfcc: result.data.mfcc, bands: result.data.mfcc_bands }
       : result;
@@ -1340,27 +1340,25 @@ class EssentiaAPI implements EssentiaInterface {
    * Computes a mel spectrogram directly from loaded audio data.
    * This is optimized for efficient computation by processing all frames in C++.
    *
-   * @param frameSize Size of each frame in samples (should be power of 2 for efficient FFT)
-   * @param hopSize Hop size between frames in samples
-   * @param nMels Number of mel bands
-   * @param fMin Minimum frequency for mel bands
-   * @param fMax Maximum frequency for mel bands
-   * @param windowType Type of window to apply ("hann", "hamming", etc.)
-   * @param normalize Whether to normalize the mel bands
-   * @param logScale Whether to use log scale for the mel bands
+   * @param params Parameters for mel spectrogram computation
    * @returns A Promise that resolves to the mel spectrogram result
    */
   async computeMelSpectrogram(
-    frameSize: number,
-    hopSize: number,
-    nMels: number,
-    fMin: number,
-    fMax: number,
-    windowType: string,
-    normalize: boolean,
-    logScale: boolean
+    params: MelSpectrogramParams = {}
   ): Promise<MelSpectrogramResult> {
     try {
+      // Destructure with defaults
+      const {
+        frameSize = 2048,
+        hopSize = 1024,
+        nMels = 40,
+        fMin = 0,
+        fMax = 22050,
+        windowType = 'hann',
+        normalize = true,
+        logScale = true,
+      } = params;
+
       // Validate inputs
       if (
         !Number.isFinite(frameSize) ||
@@ -1372,15 +1370,6 @@ class EssentiaAPI implements EssentiaInterface {
           message: 'Frame size must be a positive integer',
         };
       }
-
-      if (!this.isPowerOfTwo(frameSize)) {
-        throw {
-          code: 'INVALID_PARAMETERS',
-          message:
-            'Frame size should be a power of 2 for efficient FFT processing',
-        };
-      }
-
       if (
         !Number.isFinite(hopSize) ||
         hopSize <= 0 ||
@@ -1456,18 +1445,9 @@ class EssentiaAPI implements EssentiaInterface {
    * @returns A Promise that resolves to chroma features
    */
   async extractChroma(
-    params: AlgorithmParams = {}
+    params: ChromagramParams = {}
   ): Promise<ChromaResult | EssentiaResult<any>> {
-    const framewise = params.framewise !== false; // Default to true
-    const result = await this.extractFeatures([
-      {
-        name: 'Chroma',
-        params: {
-          ...params,
-          framewise,
-        },
-      },
-    ]);
+    const result = await this.executeAlgorithm('Chromagram', params);
 
     if (result.success && result.data) {
       // Check if we have frame-wise or single-frame results
@@ -1499,34 +1479,35 @@ class EssentiaAPI implements EssentiaInterface {
    * @returns A Promise that resolves to spectral contrast features
    */
   async extractSpectralContrast(
-    params: AlgorithmParams = {}
-  ): Promise<SpectralContrastResult | EssentiaResult<any>> {
-    const framewise = params.framewise !== false; // Default to true
-    const result = await this.extractFeatures([
-      {
-        name: 'SpectralContrast',
-        params: {
-          ...params,
-          framewise,
-        },
-      },
-    ]);
+    params: SpectralContrastParams = {}
+  ): Promise<SpectralContrastResult> {
+    const result = await this.executeAlgorithm(
+      'SpectralContrast',
+      params as AlgorithmParams
+    );
 
+    // Return properly formatted SpectralContrastResult
     if (result.success && result.data) {
-      // Handle both frame-wise and single-frame results
+      // Check if we have the required data
+      if (!result.data.spectralContrast) {
+        throw new Error('Spectral Contrast data missing from result');
+      }
+
+      // Determine if the result is frame-wise (2D arrays)
       const isFrameWise =
-        Array.isArray(result.data.spectral_contrast) &&
-        result.data.spectral_contrast.length > 0 &&
-        Array.isArray(result.data.spectral_contrast[0]);
+        Array.isArray(result.data.spectralContrast) &&
+        result.data.spectralContrast.length > 0 &&
+        Array.isArray(result.data.spectralContrast[0]);
 
       return {
-        contrast: result.data.spectral_contrast,
-        valleys: result.data.spectral_valley,
+        contrast: result.data.spectralContrast,
+        valleys: result.data.spectralValley || [],
         isFrameWise,
-      } as SpectralContrastResult;
+      };
     }
 
-    return result;
+    // If the result wasn't successful, throw an error
+    throw new Error('Spectral Contrast extraction failed');
   }
 
   /**
@@ -1537,22 +1518,118 @@ class EssentiaAPI implements EssentiaInterface {
    * @param params - Optional parameters for the Tonnetz algorithm
    * @returns Promise resolving to tonnetz features or error
    */
-  async extractTonnetz(
-    params: AlgorithmParams = {}
-  ): Promise<TonnetzResult | EssentiaResult<any>> {
-    if (!this.isCacheEnabledValue) {
-      await this.clearCache();
+  async extractTonnetz(params: TonnetzParams = {}): Promise<TonnetzResult> {
+    try {
+      const framewise = params.framewise !== false; // Default to true
+
+      // Set default values and validate parameters
+      const validatedParams: AlgorithmParams = {
+        frameSize: params.frameSize || 1024,
+        hopSize: params.hopSize || 512,
+        hpcpSize: params.hpcpSize || 12,
+        referenceFrequency: params.referenceFrequency || 440.0,
+        computeMean: params.computeMean ?? false,
+        framewise,
+      };
+
+      // Validate frameSize
+      if (
+        !Number.isInteger(validatedParams.frameSize as number) ||
+        (validatedParams.frameSize as number) <= 0
+      ) {
+        throw new Error('frameSize must be a positive integer');
+      }
+
+      // Check if frameSize is a power of 2 (for FFT efficiency)
+      if (!this.isPowerOfTwo(validatedParams.frameSize as number)) {
+        console.warn(
+          'frameSize should be a power of 2 for efficient FFT processing'
+        );
+      }
+
+      // Validate hopSize
+      if (
+        !Number.isInteger(validatedParams.hopSize as number) ||
+        (validatedParams.hopSize as number) <= 0
+      ) {
+        throw new Error('hopSize must be a positive integer');
+      }
+
+      // Validate hpcpSize
+      if (
+        !Number.isInteger(validatedParams.hpcpSize as number) ||
+        (validatedParams.hpcpSize as number) <= 0
+      ) {
+        throw new Error('hpcpSize must be a positive integer');
+      }
+
+      // Check if hpcpSize is a common value
+      if (![12, 24, 36].includes(validatedParams.hpcpSize as number)) {
+        console.warn('hpcpSize is typically 12, 24, or 36 in music analysis');
+      }
+
+      // Validate referenceFrequency
+      if (
+        typeof validatedParams.referenceFrequency !== 'number' ||
+        validatedParams.referenceFrequency <= 0
+      ) {
+        throw new Error('referenceFrequency must be a positive number');
+      }
+
+      // Check if referenceFrequency is in a reasonable range
+      if (
+        validatedParams.referenceFrequency < 400 ||
+        validatedParams.referenceFrequency > 500
+      ) {
+        console.warn(
+          'referenceFrequency is typically between 400-500 Hz for tuning'
+        );
+      }
+
+      // Validate computeMean
+      if (typeof validatedParams.computeMean !== 'boolean') {
+        throw new Error('computeMean must be a boolean value');
+      }
+
+      const result = await this.executeAlgorithm('Tonnetz', validatedParams);
+
+      if (result.success && result.data) {
+        // Check if we have frame-wise or single-frame results
+        const isFrameWise =
+          Array.isArray(result.data.tonnetz) &&
+          result.data.tonnetz.length > 0 &&
+          Array.isArray(result.data.tonnetz[0]);
+
+        const tonnetzResult: TonnetzResult = {
+          tonnetz: result.data.tonnetz,
+          isFrameWise,
+        };
+
+        // Add mean if available
+        if (result.data.tonnetz_mean) {
+          tonnetzResult.mean = result.data.tonnetz_mean;
+        }
+
+        return tonnetzResult;
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error extracting Tonnetz features:', error);
+      throw error;
     }
+  }
 
-    const result = await this.extractFeatures([{ name: 'Tonnetz', params }]);
-
-    if (result.success && result.data?.tonnetz) {
-      return {
-        tonnetz: result.data.tonnetz as number[],
-      } as TonnetzResult;
-    }
-
-    return result;
+  async computeTonnetz(hpcp: number[]): Promise<TonnetzResult> {
+    const tonnetzArray = (await Essentia.computeTonnetz(hpcp)) as {
+      success: boolean;
+      data: { tonnetz: number[] };
+    };
+    const tonnetzResult: TonnetzResult = {
+      tonnetz: tonnetzArray.data?.tonnetz || [],
+      isFrameWise: false,
+    };
+    return tonnetzResult;
   }
 
   /**

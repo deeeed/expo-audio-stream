@@ -72,6 +72,7 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   ): String
   private external fun nativeExecutePipeline(handle: Long, pipelineJson: String): String
   private external fun nativeComputeSpectrum(handle: Long, frameSize: Int, hopSize: Int): Boolean
+  private external fun nativeComputeTonnetz(handle: Long, hpcpJson: String): String
 
   /**
    * Helper method to ensure Essentia is initialized
@@ -258,16 +259,25 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   /**
    * Converts a JSON string to a WritableMap that can be sent to JavaScript
    */
-  private fun convertJsonToWritableMap(jsonString: String): WritableMap {
+  private fun convertJsonToWritableMap(jsonString: String?): WritableMap {
+    val map = Arguments.createMap()
+    if (jsonString.isNullOrEmpty()) {
+      map.putBoolean("success", false)
+      map.putString("error", "Native layer returned null or empty result")
+      return map
+    }
+
     try {
       val jsonObject = JSONObject(jsonString)
       return convertJsonObjectToWritableMap(jsonObject)
     } catch (e: JSONException) {
       Log.e("EssentiaModule", "Error parsing JSON: ${e.message}", e)
+      map.putBoolean("success", false)
       val errorMap = Arguments.createMap()
-      errorMap.putBoolean("success", false)
-      errorMap.putString("error", "Failed to parse JSON result: ${e.message}")
-      return errorMap
+      errorMap.putString("code", "JSON_PARSING_ERROR")
+      errorMap.putString("message", "Failed to parse JSON result: ${e.message}")
+      map.putMap("error", errorMap)
+      return map
     }
   }
 
@@ -322,21 +332,37 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
    * Update this helper method to handle the new error structure with details
    */
   private fun handleErrorInResultMap(resultMap: WritableMap, promise: Promise): Boolean {
-    if (resultMap.hasKey("error")) {
-      val errorMap = resultMap.getMap("error")
-      if (errorMap != null) {
-        val code = errorMap.getString("code") ?: "UNKNOWN_ERROR"
-        val message = errorMap.getString("message") ?: "Unknown error occurred"
-        val details = errorMap.getString("details") ?: ""
+    if (resultMap.hasKey("success") && !resultMap.getBoolean("success")) {
+      if (resultMap.hasKey("error")) {
+        when (resultMap.getType("error")) {
+          ReadableType.Map -> {
+            val errorMap = resultMap.getMap("error")
+            if (errorMap != null) {
+              val code = errorMap.getString("code") ?: "UNKNOWN_ERROR"
+              val message = errorMap.getString("message") ?: "Unknown error occurred"
+              val details = if (errorMap.hasKey("details")) errorMap.getString("details") else null
 
-        if (details.isNotEmpty()) {
-          // If we have details, include them as the cause Exception
-          promise.reject(code, message, Exception(details))
-        } else {
-          // Otherwise, just use code and message
-          promise.reject(code, message)
+              if (details != null) {
+                promise.reject(code, message, Exception(details))
+              } else {
+                promise.reject(code, message)
+              }
+            } else {
+              promise.reject("UNKNOWN_ERROR", "Error map was null")
+            }
+          }
+          ReadableType.String -> {
+            val errorMessage = resultMap.getString("error") ?: "Unknown error"
+            promise.reject("NATIVE_ERROR", errorMessage)
+          }
+          else -> {
+            promise.reject("UNKNOWN_ERROR", "Unknown error type")
+          }
         }
         return true // Indicates an error was found and handled
+      } else {
+        promise.reject("UNKNOWN_ERROR", "Native execution failed without error details")
+        return true
       }
     }
     return false // No error found
@@ -360,10 +386,10 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
       }
 
       // Convert params to JSON string
-      val paramsJson = params.toString()
+      val paramsJson = convertReadableMapToJsonObject(params).toString()
 
       // Execute the algorithm and get the JSON result
-      val resultJsonString: String
+      val resultJsonString: String?
       synchronized(lock) {
         if (nativeHandle == 0L) {
           promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
@@ -382,8 +408,21 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
         return@ensureInitialized
       }
 
-      // Always resolves with a non-null value, so no need to check result
-      promise.resolve(resultMap)
+      // Check success flag from native response
+      if (!resultMap.hasKey("success") || !resultMap.getBoolean("success")) {
+        val errorMessage = resultMap.getString("error") ?: "Unknown error in native execution"
+        promise.reject("ESSENTIA_ALGORITHM_ERROR", "Failed to execute $algorithm: $errorMessage")
+        return@ensureInitialized
+      }
+
+      // Check for data field for consistent resolution
+      if (resultMap.hasKey("data")) {
+        promise.resolve(resultMap)
+      } else {
+        // Still resolve with resultMap for backward compatibility, but log a warning
+        Log.w("EssentiaModule", "Algorithm $algorithm returned success but no data field")
+        promise.resolve(resultMap)
+      }
     }
   }
 
@@ -531,66 +570,13 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
   }
 
   /**
-   * Extracts multiple audio features in a single call, based on a configurable feature list.
-   * @param featureList Array of feature configurations, each with a name and optional parameters
-   * @param promise Promise that resolves to an object containing all extracted features
+   * @deprecated Use executeBatch instead. This method is kept for backward compatibility.
    */
   @Suppress("unused")
   @ReactMethod
   fun extractFeatures(featureList: ReadableArray, promise: Promise) {
-    Log.d("EssentiaModule", "Entering extractFeatures with featureList size: ${featureList.size()}")
-    ensureInitialized(promise) {
-      // Validate input
-      if (featureList.size() == 0) {
-        promise.reject("ESSENTIA_INVALID_INPUT", "Feature list cannot be empty")
-        return@ensureInitialized
-      }
-
-      // Validate each feature has required parameters
-      for (i in 0 until featureList.size()) {
-        val feature = featureList.getMap(i) ?: run {
-          promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i is missing")
-          return@ensureInitialized
-        }
-
-        if (!feature.hasKey("name") || feature.getString("name").isNullOrEmpty()) {
-          promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i is missing a valid name")
-          return@ensureInitialized
-        }
-
-        if (feature.hasKey("params") && feature.getType("params") != ReadableType.Map) {
-          promise.reject("ESSENTIA_INVALID_INPUT", "Feature at index $i has invalid params (must be an object)")
-          return@ensureInitialized
-        }
-      }
-
-      // Convert ReadableArray to JSON string for passing to native code
-      val featuresJson = convertReadableArrayToJson(featureList)
-      Log.d("EssentiaModule", "Extracting features with config: $featuresJson")
-
-      // Call the native method
-      val resultJsonString: String
-      synchronized(lock) {
-        if (nativeHandle == 0L) {
-          promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
-          return@ensureInitialized
-        }
-        resultJsonString = nativeExtractFeatures(nativeHandle, featuresJson)
-      }
-
-      Log.d("EssentiaModule", "Feature extraction result: $resultJsonString")
-
-      // Convert the JSON string to a WritableMap
-      val resultMap = convertJsonToWritableMap(resultJsonString)
-
-      // Check if there was an error using our new helper
-      if (handleErrorInResultMap(resultMap, promise)) {
-        return@ensureInitialized
-      }
-
-      // Resolve the promise with the properly structured map
-      promise.resolve(resultMap)
-    }
+    Log.d("EssentiaModule", "extractFeatures is deprecated. Using executeBatch instead.")
+    executeBatch(featureList, promise)
   }
 
   /**
@@ -1022,6 +1008,58 @@ class EssentiaModule(reactContext: ReactApplicationContext) :
 
       Log.d("EssentiaModule", "Spectrum computation result: $result")
       promise.resolve(result)
+    }
+  }
+
+  /**
+   * Computes the Tonnetz transformation from HPCP data without requiring audio data
+   * @param hpcp An array of HPCP values (must be a 12-element array representing the chromagram)
+   * @param promise Promise that resolves to the Tonnetz result
+   */
+  @Suppress("unused")
+  @ReactMethod
+  fun computeTonnetz(hpcp: ReadableArray, promise: Promise) {
+    Log.d("EssentiaModule", "Entering computeTonnetz with HPCP vector of length: ${hpcp.size()}")
+    ensureInitialized(promise) {
+      try {
+        // Validate HPCP array
+        if (hpcp.size() != 12) {
+          promise.reject("INVALID_INPUT", "HPCP vector must contain exactly 12 values (one per semitone)")
+          return@ensureInitialized
+        }
+
+        // Convert HPCP to JSON array string
+        val hpcpJsonArray = JSONArray()
+        for (i in 0 until hpcp.size()) {
+          hpcpJsonArray.put(hpcp.getDouble(i))
+        }
+
+        // Call the native method
+        val resultJsonString: String
+        synchronized(lock) {
+          if (nativeHandle == 0L) {
+            promise.reject("ESSENTIA_NOT_INITIALIZED", "Essentia was destroyed during processing")
+            return@ensureInitialized
+          }
+          resultJsonString = nativeComputeTonnetz(nativeHandle, hpcpJsonArray.toString())
+        }
+
+        Log.d("EssentiaModule", "Tonnetz computation result: $resultJsonString")
+
+        // Convert the JSON string to a WritableMap
+        val resultMap = convertJsonToWritableMap(resultJsonString)
+
+        // Check if there was an error using our helper
+        if (handleErrorInResultMap(resultMap, promise)) {
+          return@ensureInitialized
+        }
+
+        // Resolve the promise with the properly structured map
+        promise.resolve(resultMap)
+      } catch (e: Exception) {
+        Log.e("EssentiaModule", "Error computing Tonnetz: ${e.message}", e)
+        promise.reject("TONNETZ_ERROR", "Failed to compute Tonnetz transformation: ${e.message}")
+      }
     }
   }
 

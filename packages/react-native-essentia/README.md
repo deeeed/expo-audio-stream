@@ -4,7 +4,14 @@ A React Native module that provides access to the [Essentia audio analysis libra
 
 > **⚠️ DEVELOPMENT PACKAGE - NOT READY FOR PRODUCTION**
 >
-> This package is currently under active development and is **NOT ready for use** in production applications or by external developers. The API is unstable and subject to breaking changes without notice. Please check back later for a stable release.
+> This package is currently under active development and is **NOT ready for use** in production applications or by external developers. The API is unstable and subject to breaking changes without notice.
+>
+> **Current Implementation Status:**
+> - The wrapper currently maps only the basic Essentia algorithms listed in `@essentia_algorithm.txt`
+> - Advanced features such as pipeline processing, batch operations, and other enhanced functionality are highly experimental and may not work as expected
+> - The entire wrapper should be considered experimental and under development
+>
+> Please check back later for a stable release.
 
 ## ROADMAP
 - Fully document the pipelline and batch processing features.
@@ -14,13 +21,16 @@ A React Native module that provides access to the [Essentia audio analysis libra
 
 ## Features
 
-- Access to Essentia's extensive set of audio analysis algorithms
+### Stable Features
+- Access to basic Essentia audio analysis algorithms as listed in `@essentia_algorithm.txt`
 - Convenience methods for common features (e.g., MFCC, key, tempo)
+
+### Experimental Features
+The following features are still under active development and should be considered highly experimental:
 - Batch processing for efficient multi-feature extraction
 - Flexible audio processing pipelines with custom preprocessing and post-processing
 - Caching of algorithm information for faster access
 - Multi-threading support for performance optimization
-- TypeScript support for improved developer experience
 
 ## Platform Support
 

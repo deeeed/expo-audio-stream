@@ -45,5 +45,5 @@ export const musicGenreClassificationPipeline: PipelineConfig = {
       postProcess: { mean: true },
     },
   ],
-  postProcess: { concatenate: true },
+  // postProcess: { concatenate: true },
 };
