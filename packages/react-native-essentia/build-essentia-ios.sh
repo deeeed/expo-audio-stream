@@ -7,11 +7,12 @@ if [ ! -d "third_party/essentia" ]; then
   exit 1
 fi
 
-# Create output directories - simpler structure now
-mkdir -p ios/Frameworks
+# Create output directories for device and simulator
+mkdir -p ios/Frameworks/device
+mkdir -p ios/Frameworks/simulator
 
-# Check if library already exists and skip build if no changes
-if [ -f "ios/Frameworks/libessentia.a" ] && [ "$1" != "--force" ]; then
+# Check if libraries already exist and skip build if no changes
+if [ -f "ios/Frameworks/device/Essentia_iOS.a" ] && [ "$1" != "--force" ]; then
   echo "iOS library already exists. Use --force to rebuild."
   exit 0
 fi
@@ -39,7 +40,13 @@ python3 waf configure --cross-compile-ios --lightweight= --fft=KISS --build-stat
 echo "Building Essentia for iOS..."
 python3 waf
 
-echo "Copying library for iOS..."
-cp build/src/libessentia.a ../../ios/Frameworks/
+# Copy and rename library for device
+echo "Copying and renaming library for iOS device..."
+cp build/src/libessentia.a ../../ios/Frameworks/device/Essentia_iOS.a
+
+# Also copy for simulator (assuming this is built in the same pass)
+# In a proper setup, you might have separate builds for simulator and device
+echo "Copying and renaming library for iOS simulator..."
+cp build/src/libessentia.a ../../ios/Frameworks/simulator/Essentia_Sim.a
 
 echo "Essentia build for iOS complete!"
