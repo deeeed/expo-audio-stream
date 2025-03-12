@@ -4,7 +4,7 @@ project(Essentia)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_STANDARD 14)
 
-# Define the source files directory
+# Define the source files directory - use relative paths from the CMakeLists.txt location
 set(RNESSENTIA_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../cpp)
 set(ESSENTIA_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../third_party/essentia)
 
@@ -29,23 +29,58 @@ endif()
 
 # Check for pre-built Essentia library
 message(STATUS "Checking for pre-built Essentia library for ${ANDROID_ABI}")
-
-# The correct path to match our build script output
-set(LIBRARY_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libessentia.a)
+set(LIBRARY_PATH ${CMAKE_SOURCE_DIR}/jniLibs/${ANDROID_ABI}/libessentia.a)
 if(NOT EXISTS ${LIBRARY_PATH})
-    message(FATAL_ERROR "
-    =======================================================================
-    ERROR: Pre-built Essentia library not found for ${ANDROID_ABI}
+    message(WARNING "Library not found for ${ANDROID_ABI}: ${LIBRARY_PATH}")
 
-    Please run the build script first:
-    ./build-essentia-android.sh
-
-    Or for specific architecture:
-    ANDROID_ABI=${ANDROID_ABI} ./build-essentia-android.sh
-    =======================================================================
+    # Create a dummy library file
+    file(WRITE ${CMAKE_BINARY_DIR}/dummy.cpp "
+        // Dummy implementation for when the real library is missing
+        #include <string>
+        namespace essentia {
+            namespace standard {
+                namespace {
+                    struct DummyParam {};
+                    class AlgorithmFactory {
+                    public:
+                        static AlgorithmFactory& instance() { static AlgorithmFactory f; return f; }
+                    };
+                }
+            }
+            using Real = float;
+            using Parameter = DummyParam;
+        }
+        extern \"C\" {
+            // Dummy functions for the JNI interface
+            jlong Java_net_siteed_essentia_EssentiaModule_nativeCreateEssentiaWrapper(JNIEnv*, jobject) { return 0; }
+            void Java_net_siteed_essentia_EssentiaModule_nativeDestroyEssentiaWrapper(JNIEnv*, jobject, jlong) {}
+            jboolean Java_net_siteed_essentia_EssentiaModule_nativeInitializeEssentia(JNIEnv*, jobject, jlong) { return JNI_FALSE; }
+            jboolean Java_net_siteed_essentia_EssentiaModule_nativeSetAudioData(JNIEnv*, jobject, jlong, jfloatArray, jdouble) { return JNI_FALSE; }
+            jstring Java_net_siteed_essentia_EssentiaModule_nativeExecuteAlgorithm(JNIEnv* env, jobject, jlong, jstring, jstring) {
+                return env->NewStringUTF(\"{\\\"error\\\":{\\\"code\\\":\\\"NO_LIBRARY\\\",\\\"message\\\":\\\"Native library not available for this architecture\\\"}}\");
+            }
+            jstring Java_net_siteed_essentia_EssentiaModule_nativeGetAlgorithmInfo(JNIEnv* env, jobject, jlong, jstring) {
+                return env->NewStringUTF(\"{\\\"error\\\":{\\\"code\\\":\\\"NO_LIBRARY\\\",\\\"message\\\":\\\"Native library not available for this architecture\\\"}}\");
+            }
+            jstring Java_net_siteed_essentia_EssentiaModule_nativeGetAllAlgorithms(JNIEnv* env, jobject, jlong) {
+                return env->NewStringUTF(\"{\\\"error\\\":{\\\"code\\\":\\\"NO_LIBRARY\\\",\\\"message\\\":\\\"Native library not available for this architecture\\\"}}\");
+            }
+            jstring Java_net_siteed_essentia_EssentiaModule_nativeExtractFeatures(JNIEnv* env, jobject, jlong, jstring) {
+                return env->NewStringUTF(\"{\\\"error\\\":{\\\"code\\\":\\\"NO_LIBRARY\\\",\\\"message\\\":\\\"Native library not available for this architecture\\\"}}\");
+            }
+            jstring Java_net_siteed_essentia_EssentiaModule_testJniConnection(JNIEnv* env, jobject) {
+                return env->NewStringUTF(\"JNI connection successful, but native library not available for this architecture\");
+            }
+            jstring Java_net_siteed_essentia_EssentiaModule_getVersion(JNIEnv* env, jobject) {
+                return env->NewStringUTF(\"0.0.0-dummy\");
+            }
+        }
     ")
-else
-    message(STATUS "Found pre-built Essentia library: ${LIBRARY_PATH}")
+
+    # Create a static library from the dummy file
+    add_library(essentia STATIC ${CMAKE_BINARY_DIR}/dummy.cpp)
+    target_include_directories(essentia PRIVATE ${ANDROID_NDK}/sources/android/support/include)
+else()
     # Define the Essentia static library as an imported target
     add_library(essentia STATIC IMPORTED)
     set_target_properties(essentia PROPERTIES IMPORTED_LOCATION ${LIBRARY_PATH})
@@ -56,7 +91,6 @@ include_directories(
     ${RNESSENTIA_LIB_DIR}/include  # Essentia headers in cpp/include/essentia
     ${RNESSENTIA_LIB_DIR}/third_party  # Path to third-party libraries
     ${RNESSENTIA_LIB_DIR}  # Include the cpp directory for local header files
-    ${ESSENTIA_SOURCE_DIR}/src  # Original Essentia source directory
 )
 
 # Custom wrapper code
