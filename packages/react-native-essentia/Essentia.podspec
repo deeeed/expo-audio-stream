@@ -14,7 +14,12 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => min_ios_version_supported }
   s.source       = { :git => "https://github.com/deeeed/expo-audio-stream/.git", :tag => "#{s.version}" }
 
-  s.source_files = "ios/**/*.{h,m,mm}", "cpp/**/*.{hpp,cpp,c,h}"
+  # Platform-specific source files
+  s.source_files = "ios/**/*.{h,m,mm}", "cpp/**/*.{hpp,cpp,c,h}" # Exclude .cpp files that are Android-specific
+  s.exclude_files = "cpp/JNIBindings.cpp" # Explicitly exclude Android-specific file
+
+  # Ensure Foundation framework is linked for Objective-C compatibility
+  s.frameworks = "Foundation"
 
   # Use install_modules_dependencies helper to install the dependencies if React Native version >=0.71.0.
   # See https://github.com/facebook/react-native/blob/febf6b7f33fdb4904669f99d795eba4c0f95d7bf/scripts/cocoapods/new_architecture.rb#L79.
