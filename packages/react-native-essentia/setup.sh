@@ -18,8 +18,8 @@ fi
 mkdir -p cpp/include/essentia
 
 # Copy essential Essentia headers to our include directory
-echo "Copying Essentia headers to include directory..."
-cp -r third_party/essentia/src/essentia/* cpp/include/essentia/
+# echo "Copying Essentia headers to include directory..."
+# cp -r third_party/essentia/src/essentia/*.h cpp/include/essentia/
 
 # Download dependencies like nlohmann/json
 if [ ! -f "cpp/third_party/nlohmann/json.hpp" ]; then
