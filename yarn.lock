@@ -27221,9 +27221,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"playgroundapi@workspace:^, playgroundapi@workspace:apps/playground/modules/playgroundapi":
+"playgroundapi@workspace:^, playgroundapi@workspace:packages/playgroundapi":
   version: 0.0.0-use.local
-  resolution: "playgroundapi@workspace:apps/playground/modules/playgroundapi"
+  resolution: "playgroundapi@workspace:packages/playgroundapi"
   dependencies:
     "@siteed/expo-audio-studio": "workspace:^"
     "@siteed/react-native-essentia": "workspace:^"

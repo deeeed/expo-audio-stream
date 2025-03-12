@@ -1,8 +1,19 @@
 #import "Essentia.h"
 #import <React/RCTLog.h>
-// Import your C++ wrapper
+// Import your C++ wrapper - use proper bridging with Objective-C++
+#import <Foundation/Foundation.h>
+#include <vector>
+#include <string>
+
+// Forward declare C++ classes to avoid exposing C++ headers directly to Objective-C
+class EssentiaWrapper;
+class FeatureExtractor;
+
+// Include the actual implementations in implementation blocks
+#ifdef __cplusplus
 #import "../cpp/EssentiaWrapper.h"
 #import "../cpp/FeatureExtractor.h"
+#endif
 
 @implementation Essentia {
   EssentiaWrapper* _wrapper;

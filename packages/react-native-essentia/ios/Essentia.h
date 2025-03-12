@@ -1,6 +1,16 @@
 #import <Foundation/Foundation.h>
 #import <React/RCTBridgeModule.h>
 
+// Define a version constant for use in getVersion method
+#define ESSENTIA_VERSION 0.1
+
+// Forward declare C++ classes without including C++ headers directly in this Objective-C header
+#ifdef __cplusplus
+namespace essentia {
+    class Real;
+}
+#endif
+
 @interface Essentia : NSObject <RCTBridgeModule>
 
 // Core functionality
