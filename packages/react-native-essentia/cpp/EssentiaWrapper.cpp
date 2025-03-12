@@ -9,9 +9,9 @@
 #define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "EssentiaWrapper", __VA_ARGS__))
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, "EssentiaWrapper", __VA_ARGS__))
 #else
-#define LOGI(...) printf(__VA_ARGS__)
-#define LOGW(...) printf(__VA_ARGS__)
-#define LOGE(...) printf(__VA_ARGS__)
+#define LOGI(...) printf(__VA_ARGS__); printf("\n")
+#define LOGW(...) printf("WARNING: "); printf(__VA_ARGS__); printf("\n")
+#define LOGE(...) printf("ERROR: "); printf(__VA_ARGS__); printf("\n")
 #endif
 
 // Use the json library with a namespace alias for convenience

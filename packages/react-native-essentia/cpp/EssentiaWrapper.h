@@ -3,7 +3,6 @@
 #define ESSENTIA_WRAPPER_H
 #include <vector>
 #include <algorithm>
-#include <jni.h>
 #include <sstream>
 #include <map>
 #include <set>
@@ -14,6 +13,12 @@
 #include "essentia/pool.h"
 #include "essentia/version.h"
 #include "Utils.h"
+
+// Platform-specific includes
+#ifdef __ANDROID__
+  #include <jni.h>
+  // Other Android-specific includes
+#endif
 
 class EssentiaWrapper {
 public:

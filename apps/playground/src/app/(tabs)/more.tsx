@@ -241,7 +241,7 @@ export const MoreScreen = () => {
                             router.navigate('/baby-cry')
                         }}
                     />
-                    {Platform.OS === 'android' && (
+                    {!isWeb && (
                         <>
                             <ListItem
                                 contentContainerStyle={{
