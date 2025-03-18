@@ -308,6 +308,13 @@ RCT_EXPORT_METHOD(computeTonnetz:(NSArray *)hpcp
   RCTLogInfo(@"[Essentia] computeTonnetz called with HPCP array of size %lu", (unsigned long)[hpcp count]);
 
   [self ensureInitializedWithResolver:^(id initResult) {
+    // Validate HPCP array size
+    if ([hpcp count] != 12) {
+      reject(@"INVALID_INPUT", @"HPCP vector must contain exactly 12 values (one per semitone)", nil);
+      return;
+    }
+
+    // Convert HPCP array to JSON
     NSError *error;
     NSData *jsonData = [NSJSONSerialization dataWithJSONObject:hpcp options:0 error:&error];
 
@@ -321,11 +328,25 @@ RCT_EXPORT_METHOD(computeTonnetz:(NSArray *)hpcp
     RCTLogInfo(@"[Essentia] Computing Tonnetz with HPCP data: %@", hpcpJson);
 
     std::string tonnetzResult = self->_featureExtractor->applyTonnetzTransform([hpcpJson UTF8String]);
-    RCTLogInfo(@"[Essentia] Tonnetz computation completed");
+    RCTLogInfo(@"[Essentia] Tonnetz computation completed: %s", tonnetzResult.c_str());
 
-    // Parse the JSON string to an object before resolving
+    // Convert the raw result into a properly structured response
     NSString *jsonString = [NSString stringWithUTF8String:tonnetzResult.c_str()];
-    resolve([self parseJSONString:jsonString]);
+
+    // Parse the raw tonnetz values
+    id tonnetzValues = [self parseJSONString:jsonString];
+
+    // Create a properly structured response with the tonnetz array and isFrameWise flag
+    NSMutableDictionary *resultDict = [NSMutableDictionary dictionary];
+    [resultDict setObject:@YES forKey:@"success"];
+
+    NSMutableDictionary *dataDict = [NSMutableDictionary dictionary];
+    [dataDict setObject:tonnetzValues forKey:@"tonnetz"];
+    [dataDict setObject:@NO forKey:@"isFrameWise"];
+
+    [resultDict setObject:dataDict forKey:@"data"];
+
+    resolve(resultDict);
   } rejecter:reject];
 }
 
