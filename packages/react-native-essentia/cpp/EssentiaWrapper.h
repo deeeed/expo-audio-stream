@@ -7,6 +7,7 @@
 #include <map>
 #include <set>
 
+#include "essentia/types.h"
 #include "essentia/essentia.h"
 #include "essentia/algorithmfactory.h"
 #include "essentia/essentiamath.h"
@@ -36,11 +37,8 @@ public:
     std::string getAlgorithmInfo(const std::string& algorithm);
     std::string getAllAlgorithms();
 
-
     bool isInitialized() const  { return mIsInitialized; }
     void computeSpectrum(int frameSize, int hopSize);
-
-
 
     // Accessors for other private members used in FeatureExtractor
     bool getSpectrumComputed() const { return spectrumComputed; }

@@ -11547,6 +11547,7 @@ __metadata:
     "@siteed/design-system": "npm:^0.45.0"
     "@siteed/expo-audio-studio": "workspace:^"
     "@siteed/expo-audio-ui": "workspace:^"
+    "@siteed/react-native-essentia": "workspace:^"
     "@siteed/react-native-logger": "npm:^0.11.0"
     "@types/gh-pages": "npm:^6"
     "@types/is-base64": "npm:^1.1.3"

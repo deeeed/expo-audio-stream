@@ -11,30 +11,113 @@ Pod::Spec.new do |s|
   s.license      = package["license"]
   s.authors      = package["author"]
 
-  s.platforms    = { :ios => min_ios_version_supported }
+  s.platforms    = { :ios => "15.1" }
   s.source       = { :git => "https://github.com/deeeed/expo-audio-stream/.git", :tag => "#{s.version}" }
 
-  # Platform-specific source files
-  s.source_files = "ios/**/*.{h,m,mm}", "cpp/**/*.{hpp,cpp,c,h}" # Exclude .cpp files that are Android-specific
-  s.exclude_files = "cpp/JNIBindings.cpp" # Explicitly exclude Android-specific file
+  # Source files
+  s.source_files = [
+    "cpp/patches/binary_function_patch.h",
+    "cpp/third_party/nlohmann/json.hpp",
+    "ios/WrapEssentia.{h,mm}",
+    "ios/EssentiaSimple.{h,mm}",
+    "ios/EssentiaTest.{h,mm}",
+    "ios/EssentiaMinimal.{h,mm}",
+    "cpp/SimpleWrapper.{h,cpp}",
+    "cpp/Utils.h",
+    "cpp/EssentiaWrapper.{h,cpp}",
+    "cpp/FeatureExtractor.{h,cpp}",
+  ]
 
-  # Ensure Foundation framework is linked for Objective-C compatibility
-  s.frameworks = "Foundation"
+  # Vendored library (symlinked dynamically)
+  s.vendored_libraries = "ios/Frameworks/libEssentiaPrebuilt.a"
 
-  # Use install_modules_dependencies helper to install the dependencies if React Native version >=0.71.0.
-  # See https://github.com/facebook/react-native/blob/febf6b7f33fdb4904669f99d795eba4c0f95d7bf/scripts/cocoapods/new_architecture.rb#L79.
+  # Preserve original libraries
+  s.preserve_paths = [
+    "ios/Frameworks/device/Essentia_iOS.a",
+    "ios/Frameworks/simulator/Essentia_Sim.a"
+  ]
+
+  # Script to symlink the correct library based on platform
+  s.script_phase = {
+    :name => 'Link Essentia Library',
+    :script => '
+      echo "Script running for PLATFORM_NAME=$PLATFORM_NAME ARCHS=$ARCHS"
+      mkdir -p "${PODS_TARGET_SRCROOT}/ios/Frameworks"
+      if [[ "$PLATFORM_NAME" == *simulator* ]]; then
+        echo "Symlinking Essentia Simulator Library"
+        ln -sf "${PODS_TARGET_SRCROOT}/ios/Frameworks/simulator/Essentia_Sim.a" "${PODS_TARGET_SRCROOT}/ios/Frameworks/libEssentiaPrebuilt.a"
+      else
+        echo "Symlinking Essentia Device Library"
+        ln -sf "${PODS_TARGET_SRCROOT}/ios/Frameworks/device/Essentia_iOS.a" "${PODS_TARGET_SRCROOT}/ios/Frameworks/libEssentiaPrebuilt.a"
+      fi
+      ls -l "${PODS_TARGET_SRCROOT}/ios/Frameworks/"
+    ',
+    :execution_position => :before_compile,
+    :output_files => ["${PODS_TARGET_SRCROOT}/ios/Frameworks/libEssentiaPrebuilt.a"]
+  }
+
+  # Prepare command (unchanged)
+  s.prepare_command = <<-CMD
+  mkdir -p cpp/patches
+  if [ ! -f cpp/patches/binary_function_patch.h ]; then
+    echo '#pragma once
+
+namespace std {
+    template <class Arg1, class Arg2, class Result>
+    struct binary_function {
+        typedef Arg1 first_argument_type;
+        typedef Arg2 second_argument_type;
+        typedef Result result_type;
+    };
+}' > cpp/patches/binary_function_patch.h
+  fi
+
+  if [ ! -f ios/Frameworks/device/Essentia_iOS.a ]; then
+    echo "WARNING: Essentia library not found at ios/Frameworks/device/Essentia_iOS.a"
+    echo "Please run the build-essentia-ios.sh script first"
+  else
+    echo "Found Essentia device library"
+  fi
+
+  if [ ! -f ios/Frameworks/simulator/Essentia_Sim.a ]; then
+    echo "WARNING: Essentia simulator library not found at ios/Frameworks/simulator/Essentia_Sim.a"
+    echo "Please run the build-essentia-ios.sh script first"
+  else
+    echo "Found Essentia simulator library"
+  fi
+CMD
+
+  s.user_target_xcconfig = {
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64',
+    'VALID_ARCHS' => 'arm64 x86_64'
+  }
+
+  s.pod_target_xcconfig = {
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64',
+    'CLANG_CXX_LANGUAGE_STANDARD' => 'c++11',
+    'CLANG_CXX_LIBRARY' => 'libc++',
+    'HEADER_SEARCH_PATHS' => '"${PODS_TARGET_SRCROOT}" "${PODS_TARGET_SRCROOT}/cpp" "${PODS_TARGET_SRCROOT}/cpp/patches" "${PODS_TARGET_SRCROOT}/cpp/include" "${PODS_TARGET_SRCROOT}/cpp/third_party"',
+    'GCC_PREPROCESSOR_DEFINITIONS' => 'ESSENTIA_EXPORTS=1',
+    'VALID_ARCHS' => 'arm64 x86_64'
+  }
+
+  s.requires_arc = true
+  s.frameworks = "Foundation", "Accelerate", "CoreAudio"
+
   if respond_to?(:install_modules_dependencies, true)
     install_modules_dependencies(s)
   else
     s.dependency "React-Core"
 
-    # Don't install the dependencies when we run `pod install` in the old architecture.
     if ENV['RCT_NEW_ARCH_ENABLED'] == '1' then
       s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
-      s.pod_target_xcconfig    = {
-          "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\"",
-          "OTHER_CPLUSPLUSFLAGS" => "-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1",
-          "CLANG_CXX_LANGUAGE_STANDARD" => "c++17"
+      s.pod_target_xcconfig = {
+        "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\" \"${PODS_TARGET_SRCROOT}\" \"${PODS_TARGET_SRCROOT}/cpp\" \"${PODS_TARGET_SRCROOT}/cpp/patches\" \"${PODS_TARGET_SRCROOT}/cpp/include\" \"${PODS_TARGET_SRCROOT}/cpp/third_party\"",
+        "OTHER_CPLUSPLUSFLAGS" => "-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1 -include ${PODS_TARGET_SRCROOT}/cpp/patches/binary_function_patch.h",
+        "CLANG_CXX_LANGUAGE_STANDARD" => "c++11",
+        "GCC_PREPROCESSOR_DEFINITIONS" => "ESSENTIA_EXPORTS=1",
+        "EXCLUDED_ARCHS[sdk=iphonesimulator*]" => "arm64",
+        "VALID_ARCHS" => "arm64 x86_64"
       }
       s.dependency "React-Codegen"
       s.dependency "RCT-Folly"

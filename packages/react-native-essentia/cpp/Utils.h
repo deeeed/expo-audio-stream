@@ -1,5 +1,9 @@
+// packages/react-native-essentia/cpp/Utils.h
 #ifndef UTILS_H
 #define UTILS_H
+
+// Add this guard to prevent conflicts with Objective-C headers
+#ifdef __cplusplus
 
 #include <string>
 #include <map>
@@ -217,6 +221,17 @@ inline std::string poolToJson(const essentia::Pool& pool) {
     return safeResult;
 }
 
+inline std::string vectorToJsonString(const std::vector<float>& vec) {
+    std::stringstream ss;
+    ss << "[";
+    for (size_t i = 0; i < vec.size(); ++i) {
+        ss << vec[i];
+        if (i < vec.size() - 1) ss << ",";
+    }
+    ss << "]";
+    return ss.str();
+}
+
 // Inline definition of convertToParameterMap
 inline essentia::ParameterMap convertToParameterMap(const std::map<std::string, essentia::Parameter>& params) {
     essentia::ParameterMap parameterMap;
@@ -226,4 +241,5 @@ inline essentia::ParameterMap convertToParameterMap(const std::map<std::string, 
     return parameterMap;
 }
 
-#endif
+#endif // __cplusplus
+#endif // UTILS_H
