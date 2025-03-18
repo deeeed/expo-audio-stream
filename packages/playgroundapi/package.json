@@ -1,0 +1,27 @@
+{
+  "name": "playgroundapi",
+  "version": "0.1.0",
+  "description": "Playground API native module",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "author": "Arthur Breton <abreton@siteed.net>",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "prepare": "yarn build",
+    "clean": "rm -rf build/",
+    "watch": "tsc --watch"
+  },
+  "peerDependencies": {
+    "expo": ">=52.0.0",
+    "react": "*",
+    "react-native": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@siteed/expo-audio-studio": "workspace:^",
+    "@siteed/react-native-essentia": "workspace:^"
+  }
+}

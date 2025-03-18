@@ -42,7 +42,14 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build",
-    "publish-beta": "npm publish --tag beta"
+    "publish-beta": "npm publish --tag beta",
+    "setup": "./setup.sh",
+    "build:ios": "./build-essentia-ios.sh",
+    "build:ios:force": "./build-essentia-ios.sh --force",
+    "build:android": "./build-essentia-android.sh",
+    "build:android:force": "./build-essentia-android.sh --force",
+    "build:all": "./build-all.sh",
+    "build:all:force": "./build-all.sh --force"
   },
   "keywords": [
     "react-native",

@@ -155,6 +155,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             'expo-build-properties',
             {
                 ios: {
+                    deploymentTarget: "15.1",
                     infoPlist: {
                         ITSAppUsesNonExemptEncryption: false,
                         LSApplicationCategoryType: "public.app-category.utilities"

@@ -1,3 +1,4 @@
+// packages/react-native-essentia/src/index.tsx
 import EssentiaAPI from './EssentiaAPI';
 import { EssentiaCategory } from './constants';
 

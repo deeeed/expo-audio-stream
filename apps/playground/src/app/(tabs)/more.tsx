@@ -9,7 +9,7 @@ import {
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import React, { memo, useCallback, useMemo, useState } from 'react'
-import { Image, Platform, Pressable, StyleSheet, View } from 'react-native'
+import { Image, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 import Animated, {
     useAnimatedStyle,
@@ -241,7 +241,7 @@ export const MoreScreen = () => {
                             router.navigate('/baby-cry')
                         }}
                     />
-                    {Platform.OS === 'android' && (
+                    {!isWeb && (
                         <>
                             <ListItem
                                 contentContainerStyle={{
