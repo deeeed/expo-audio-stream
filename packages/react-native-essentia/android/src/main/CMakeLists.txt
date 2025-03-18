@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 14)
 
 # Define the source files directory - use relative paths from the CMakeLists.txt location
 set(RNESSENTIA_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../cpp)
+set(ESSENTIA_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../third_party/essentia)
 
 # Create third_party directory if it doesn't exist
 file(MAKE_DIRECTORY ${RNESSENTIA_LIB_DIR}/third_party/nlohmann)
@@ -26,7 +27,8 @@ if(NOT EXISTS ${RNESSENTIA_LIB_DIR}/third_party/nlohmann/json.hpp)
     message(STATUS "nlohmann/json library downloaded successfully")
 endif()
 
-# Check if the library exists for the current ABI
+# Check for pre-built Essentia library
+message(STATUS "Checking for pre-built Essentia library for ${ANDROID_ABI}")
 set(LIBRARY_PATH ${CMAKE_SOURCE_DIR}/jniLibs/${ANDROID_ABI}/libessentia.a)
 if(NOT EXISTS ${LIBRARY_PATH})
     message(WARNING "Library not found for ${ANDROID_ABI}: ${LIBRARY_PATH}")

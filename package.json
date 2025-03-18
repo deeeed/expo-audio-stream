@@ -2,7 +2,6 @@
     "private": true,
     "name": "@siteed/expo-audio-studio-monorepo",
     "workspaces": [
-        "apps/playground/modules/playgroundapi",
         "packages/*",
         "apps/*",
         "documentation_site"

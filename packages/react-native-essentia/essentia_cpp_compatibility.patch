@@ -1,0 +1,74 @@
+diff --git i/packages/react-native-essentia/cpp/include/essentia/essentiamath.h w/packages/react-native-essentia/cpp/include/essentia/essentiamath.h
+index e007f2e7..ffe62467 100644
+--- i/packages/react-native-essentia/cpp/include/essentia/essentiamath.h
++++ w/packages/react-native-essentia/cpp/include/essentia/essentiamath.h
+@@ -539,7 +539,7 @@ inline Real pow2db(Real power) {
+ }
+ 
+ inline Real pow2db(Real power, Real silenceCutoff, Real dbSilenceCutoff) {
+-  return lin2db(power, silenceCutoff, dbSilenceCutoff);  
++  return lin2db(power, silenceCutoff, dbSilenceCutoff);
+ }
+ 
+ inline Real db2pow(Real power) {
+@@ -551,7 +551,7 @@ inline Real amp2db(Real amplitude) {
+ }
+ 
+ inline Real amp2db(Real amplitude, Real silenceCutoff, Real dbSilenceCutoff) {
+-  return Real(2.0)*lin2db(amplitude, silenceCutoff, dbSilenceCutoff);  
++  return Real(2.0)*lin2db(amplitude, silenceCutoff, dbSilenceCutoff);
+ }
+ 
+ inline Real db2amp(Real amplitude) {
+@@ -795,7 +795,10 @@ std::vector<T> derivative(const std::vector<T>& array) {
+ }
+ 
+ template<typename T, typename U, typename Comparator=std::greater<T> >
+-class PairCompare : public std::binary_function<T, U, bool> {
++class PairCompare {
++  using first_argument_type = const std::pair<T, U>&;
++  using second_argument_type = const std::pair<T, U>&;
++  using result_type = bool;
+   Comparator _cmp;
+   public:
+     bool operator () (const std::pair<T,U>& p1, const std::pair<T,U>& p2) const {
+@@ -1058,15 +1061,15 @@ template <typename T> T pearsonCorrelationCoefficient(const std::vector<T>& x, c
+ 
+   T xMean = mean(x);
+   T yMean = mean(y);
+-  
++
+   T cov = covariance(x, xMean, y, yMean);
+ 
+   T xStddev = stddev(x, xMean);
+   T yStddev = stddev(y, yMean);
+ 
+-  // When dealing with constants corraltion is 0 by convention. 
++  // When dealing with constants corraltion is 0 by convention.
+   if ((xStddev == (T)0.0) || (xStddev == (T)0.0) || (xStddev == (T)0.0)) return (T) 0.0;
+-  
++
+   T corr = cov / (xStddev * yStddev);
+ 
+   // Numerical error can yield results slightly outside the analytical range [-1, 1].
+diff --git i/packages/react-native-essentia/cpp/include/essentia/types.h w/packages/react-native-essentia/cpp/include/essentia/types.h
+index 5eea2d36..7f715b02 100644
+--- i/packages/react-native-essentia/cpp/include/essentia/types.h
++++ w/packages/react-native-essentia/cpp/include/essentia/types.h
+@@ -1,3 +1,4 @@
++// packages/react-native-essentia/cpp/include/essentia/types.h
+ /*
+  * Copyright (C) 2006-2016  Music Technology Group - Universitat Pompeu Fabra
+  *
+@@ -115,7 +116,10 @@ inline bool case_insensitive_char_cmp(char a, char b) {
+  * Function object for comparing two strings in a case-insensitive manner.
+  */
+ struct case_insensitive_str_cmp
+-  : public std::binary_function<const std::string&, const std::string&, bool> {
++{
++  using first_argument_type = const std::string&;
++  using second_argument_type = const std::string&;
++  using result_type = bool;
+   bool operator()(const std::string& str1, const std::string& str2) const {
+     return std::lexicographical_compare(str1.begin(), str1.end(),
+                                         str2.begin(), str2.end(),

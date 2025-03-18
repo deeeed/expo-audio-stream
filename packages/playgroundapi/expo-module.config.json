@@ -1,0 +1,17 @@
+{
+  "platforms": [
+    "apple",
+    "android",
+    "web"
+  ],
+  "apple": {
+    "modules": [
+      "PlaygroundAPIModule"
+    ]
+  },
+  "android": {
+    "modules": [
+      "net.siteed.playgroundapi.PlaygroundAPIModule"
+    ]
+  }
+}

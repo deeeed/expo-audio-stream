@@ -1,5 +1,7 @@
 // packages/react-native-essentia/cpp/JNIBindings.cpp
+#ifdef __ANDROID__
 #include <jni.h>
+#endif
 #include "EssentiaWrapper.h"
 #include "FeatureExtractor.h"
 #include "Utils.h"
@@ -189,3 +191,6 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
     return JNI_VERSION_1_6;
 }
+
+#ifdef __ANDROID__
+#endif // __ANDROID__
