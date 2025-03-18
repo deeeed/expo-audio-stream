@@ -9,7 +9,14 @@ mkdir -p third_party
 # Clone Essentia if it doesn't exist
 if [ ! -d "third_party/essentia" ]; then
   echo "Cloning Essentia repository..."
-  git clone --depth 1 --branch 2.1-beta5 https://github.com/MTG/essentia.git third_party/essentia
+  git clone --depth 1 --branch v2.1_beta5 https://github.com/MTG/essentia.git third_party/essentia
+  # git clone --depth 1 --branch main https://github.com/MTG/essentia.git third_party/essentia
+
+   # Apply iOS patch to the Essentia source
+  echo "Applying iOS configuration patch..."
+  cd third_party/essentia
+  cp ../essentia_wscript_ios.patch .
+  patch -p1 < ./essentia_wscript_ios.patch
 else
   echo "Essentia source already exists."
 fi
