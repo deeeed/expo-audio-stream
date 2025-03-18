@@ -21,6 +21,15 @@ class EssentiaWrapper;
   EssentiaWrapper* _wrapper;
   FeatureExtractor* _featureExtractor;
   BOOL _isInitialized; // Track initialization state
+
+  // Add caching variables
+  NSMutableDictionary* _algorithmInfoCache;
+  NSDictionary* _allAlgorithmsCache;
+  BOOL _isCacheEnabled;
+
+  // Add thread pool variables
+  dispatch_queue_t _workerQueue;
+  NSInteger _threadCount;
 }
 
 RCT_EXPORT_MODULE()
@@ -29,6 +38,16 @@ RCT_EXPORT_MODULE()
   RCTLogInfo(@"[Essentia] Initializing module");
   if (self = [super init]) {
     _isInitialized = NO; // Initially not initialized
+
+    // Initialize caching system
+    _algorithmInfoCache = [NSMutableDictionary dictionary];
+    _allAlgorithmsCache = nil;
+    _isCacheEnabled = YES;
+
+    // Initialize thread pool
+    _threadCount = 4; // Default thread count
+    _workerQueue = dispatch_queue_create("net.siteed.essentia.worker", DISPATCH_QUEUE_CONCURRENT);
+
     RCTLogInfo(@"[Essentia] Module initialized, lazy initialization will be used");
   }
   return self;
@@ -36,11 +55,25 @@ RCT_EXPORT_MODULE()
 
 - (void)dealloc {
   RCTLogInfo(@"[Essentia] Deallocating module, isInitialized: %@", _isInitialized ? @"YES" : @"NO");
+
+  // Clear caches
+  [self clearCache];
+
+  // Clean up C++ resources
   if (_isInitialized) {
     RCTLogInfo(@"[Essentia] Cleaning up native resources");
-    delete _featureExtractor;
-    delete _wrapper;
+    if (_featureExtractor) {
+      delete _featureExtractor;
+      _featureExtractor = nullptr;
+    }
+    if (_wrapper) {
+      delete _wrapper;
+      _wrapper = nullptr;
+    }
+    _isInitialized = NO;
   }
+
+  // No need to explicitly release _workerQueue as ARC will handle it
 }
 
 // Make sure main queue setup is async
@@ -55,30 +88,36 @@ RCT_EXPORT_MODULE()
                              rejecter:(RCTPromiseRejectBlock)reject {
   RCTLogInfo(@"[Essentia] Ensuring initialization (current state: %@)", _isInitialized ? @"initialized" : @"not initialized");
 
-  if (!_isInitialized) {
-    RCTLogInfo(@"[Essentia] Creating new EssentiaWrapper instance");
-    _wrapper = new EssentiaWrapper();
+  dispatch_async(_workerQueue, ^{
+    @synchronized(self) {
+      if (!self->_isInitialized) {
+        RCTLogInfo(@"[Essentia] Creating new EssentiaWrapper instance");
+        self->_wrapper = new EssentiaWrapper();
 
-    RCTLogInfo(@"[Essentia] Initializing EssentiaWrapper");
-    bool success = _wrapper->initialize();
+        RCTLogInfo(@"[Essentia] Initializing EssentiaWrapper");
+        bool success = self->_wrapper->initialize();
 
-    if (!success) {
-      RCTLogError(@"[Essentia] Failed to initialize EssentiaWrapper");
-      delete _wrapper;
-      _wrapper = nullptr;
-      reject(@"init_failed", @"Failed to initialize Essentia wrapper", nil);
-      return;
+        if (!success) {
+          RCTLogError(@"[Essentia] Failed to initialize EssentiaWrapper");
+          delete self->_wrapper;
+          self->_wrapper = nullptr;
+          dispatch_async(dispatch_get_main_queue(), ^{
+            reject(@"init_failed", @"Failed to initialize Essentia wrapper", nil);
+          });
+          return;
+        }
+
+        RCTLogInfo(@"[Essentia] Creating FeatureExtractor");
+        self->_featureExtractor = new FeatureExtractor(self->_wrapper);
+        self->_isInitialized = YES;
+        RCTLogInfo(@"[Essentia] Initialization completed successfully");
+      }
+
+      dispatch_async(dispatch_get_main_queue(), ^{
+        resolve(@YES);
+      });
     }
-
-    RCTLogInfo(@"[Essentia] Creating FeatureExtractor");
-    _featureExtractor = new FeatureExtractor(_wrapper);
-    _isInitialized = YES;
-    RCTLogInfo(@"[Essentia] Initialization completed successfully");
-    resolve(@YES);
-  } else {
-    RCTLogInfo(@"[Essentia] Already initialized, skipping initialization");
-    resolve(@YES); // Already initialized
-  }
+  });
 }
 
 RCT_EXPORT_METHOD(initialize:(RCTPromiseResolveBlock)resolve
@@ -125,6 +164,12 @@ RCT_EXPORT_METHOD(executeAlgorithm:(NSString *)algorithm
                   rejecter:(RCTPromiseRejectBlock)reject) {
   RCTLogInfo(@"[Essentia] executeAlgorithm called with algorithm: %@", algorithm);
 
+  // Validate inputs
+  if ([algorithm length] == 0) {
+    reject(@"ESSENTIA_INVALID_INPUT", @"Algorithm name cannot be empty", nil);
+    return;
+  }
+
   [self ensureInitializedWithResolver:^(id initResult) {
     // Convert params dictionary to JSON string
     NSError *error;
@@ -144,7 +189,22 @@ RCT_EXPORT_METHOD(executeAlgorithm:(NSString *)algorithm
 
     // Parse the JSON string to an object before resolving
     NSString *jsonString = [NSString stringWithUTF8String:algResult.c_str()];
-    resolve([self parseJSONString:jsonString]);
+    id resultMap = [self parseJSONString:jsonString];
+
+    // Check for errors using our new helper
+    if ([self handleErrorInResultMap:resultMap promise:resolve rejecter:reject]) {
+      return;
+    }
+
+    // Check for data field for consistent resolution
+    if ([resultMap isKindOfClass:[NSDictionary class]] &&
+        [(NSDictionary *)resultMap objectForKey:@"data"]) {
+      resolve(resultMap);
+    } else {
+      // Still resolve with resultMap for backward compatibility, but log a warning
+      RCTLogWarn(@"[Essentia] Algorithm %@ returned success but no data field", algorithm);
+      resolve(resultMap);
+    }
   } rejecter:reject];
 }
 
@@ -152,6 +212,13 @@ RCT_EXPORT_METHOD(executeAlgorithm:(NSString *)algorithm
 
 // Add this helper method for JSON parsing
 - (id)parseJSONString:(NSString *)jsonString {
+  if (jsonString == nil || [jsonString length] == 0) {
+    NSMutableDictionary *errorDict = [NSMutableDictionary dictionary];
+    [errorDict setObject:@(NO) forKey:@"success"];
+    [errorDict setObject:@"Native layer returned null or empty result" forKey:@"error"];
+    return errorDict;
+  }
+
   NSData *jsonData = [jsonString dataUsingEncoding:NSUTF8StringEncoding];
   NSError *error;
   id result = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&error];
@@ -159,10 +226,15 @@ RCT_EXPORT_METHOD(executeAlgorithm:(NSString *)algorithm
   if (error || !result) {
     RCTLogError(@"[Essentia] Error parsing JSON: %@", error);
 
-    // Return a simple error object if parsing fails
+    // Return a structured error object if parsing fails
     NSMutableDictionary *errorDict = [NSMutableDictionary dictionary];
     [errorDict setObject:@(NO) forKey:@"success"];
-    [errorDict setObject:@"Failed to parse JSON response" forKey:@"error"];
+
+    NSMutableDictionary *errorInfo = [NSMutableDictionary dictionary];
+    [errorInfo setObject:@"JSON_PARSING_ERROR" forKey:@"code"];
+    [errorInfo setObject:[NSString stringWithFormat:@"Failed to parse JSON result: %@", error.localizedDescription] forKey:@"message"];
+
+    [errorDict setObject:errorInfo forKey:@"error"];
     return errorDict;
   }
 
@@ -174,6 +246,24 @@ RCT_EXPORT_METHOD(getAlgorithmInfo:(NSString *)algorithm
                   rejecter:(RCTPromiseRejectBlock)reject) {
   RCTLogInfo(@"[Essentia] getAlgorithmInfo called for algorithm: %@", algorithm);
 
+  // Validate inputs
+  if ([algorithm length] == 0) {
+    reject(@"ESSENTIA_INVALID_INPUT", @"Algorithm name cannot be empty", nil);
+    return;
+  }
+
+  // Check cache first if enabled
+  if (_isCacheEnabled) {
+    @synchronized(self) {
+      id cachedInfo = _algorithmInfoCache[algorithm];
+      if (cachedInfo) {
+        RCTLogInfo(@"[Essentia] Returning cached algorithm info for %@", algorithm);
+        resolve(cachedInfo);
+        return;
+      }
+    }
+  }
+
   [self ensureInitializedWithResolver:^(id initResult) {
     RCTLogInfo(@"[Essentia] Retrieving algorithm info for %@", algorithm);
     std::string algResult = self->_wrapper->getAlgorithmInfo([algorithm UTF8String]);
@@ -181,13 +271,29 @@ RCT_EXPORT_METHOD(getAlgorithmInfo:(NSString *)algorithm
 
     // Parse the JSON string to an object before resolving
     NSString *jsonString = [NSString stringWithUTF8String:algResult.c_str()];
-    resolve([self parseJSONString:jsonString]);
+    id result = [self parseJSONString:jsonString];
+
+    // Cache the result if caching is enabled
+    if (self->_isCacheEnabled) {
+      @synchronized(self) {
+        self->_algorithmInfoCache[algorithm] = result;
+      }
+    }
+
+    resolve(result);
   } rejecter:reject];
 }
 
 RCT_EXPORT_METHOD(getAllAlgorithms:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
   RCTLogInfo(@"[Essentia] getAllAlgorithms called");
+
+  // Check cache first if enabled
+  if (_isCacheEnabled && _allAlgorithmsCache) {
+    RCTLogInfo(@"[Essentia] Returning cached algorithm list");
+    resolve(_allAlgorithmsCache);
+    return;
+  }
 
   [self ensureInitializedWithResolver:^(id initResult) {
     RCTLogInfo(@"[Essentia] Retrieving all algorithm names");
@@ -196,7 +302,16 @@ RCT_EXPORT_METHOD(getAllAlgorithms:(RCTPromiseResolveBlock)resolve
 
     // Parse the JSON string to an object before resolving
     NSString *jsonString = [NSString stringWithUTF8String:algResult.c_str()];
-    resolve([self parseJSONString:jsonString]);
+    id result = [self parseJSONString:jsonString];
+
+    // Cache the result if caching is enabled
+    if (self->_isCacheEnabled) {
+      @synchronized(self) {
+        self->_allAlgorithmsCache = result;
+      }
+    }
+
+    resolve(result);
   } rejecter:reject];
 }
 
@@ -387,5 +502,110 @@ RCT_EXPORT_METHOD(executeBatch:(NSArray *)algorithms
 
 // Add more convenience methods to match your Android implementation
 
+// Helper method to clear cache
+- (void)clearCache {
+  @synchronized(self) {
+    [_algorithmInfoCache removeAllObjects];
+    _allAlgorithmsCache = nil;
+    RCTLogInfo(@"[Essentia] Algorithm information cache cleared");
+  }
+}
+
+RCT_EXPORT_METHOD(setCacheEnabled:(BOOL)enabled
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+  RCTLogInfo(@"[Essentia] setCacheEnabled called with enabled: %@", enabled ? @"YES" : @"NO");
+
+  @synchronized(self) {
+    _isCacheEnabled = enabled;
+    if (!enabled) {
+      [self clearCache];
+    }
+  }
+  resolve(@YES);
+}
+
+RCT_EXPORT_METHOD(isCacheEnabled:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+  RCTLogInfo(@"[Essentia] isCacheEnabled called");
+  resolve(@(_isCacheEnabled));
+}
+
+RCT_EXPORT_METHOD(clearCache:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+  RCTLogInfo(@"[Essentia] clearCache called");
+  [self clearCache];
+  resolve(@YES);
+}
+
+// Thread count management methods
+RCT_EXPORT_METHOD(setThreadCount:(nonnull NSNumber *)count
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+  RCTLogInfo(@"[Essentia] setThreadCount called with count: %@", count);
+
+  NSInteger newCount = [count integerValue];
+  if (newCount <= 0) {
+    reject(@"INVALID_THREAD_COUNT", @"Thread count must be greater than 0", nil);
+    return;
+  }
+
+  @synchronized(self) {
+    // Only update if count changed
+    if (_threadCount != newCount) {
+      _threadCount = newCount;
+      // Note: In iOS/GCD, we don't need to recreate the queue as GCD manages threads
+      RCTLogInfo(@"[Essentia] Thread count updated to %ld", (long)_threadCount);
+    }
+  }
+
+  resolve(@YES);
+}
+
+RCT_EXPORT_METHOD(getThreadCount:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+  RCTLogInfo(@"[Essentia] getThreadCount called");
+  resolve(@(_threadCount));
+}
+
+// Helper method to handle errors in result maps
+- (BOOL)handleErrorInResultMap:(id)resultMap
+                       promise:(RCTPromiseResolveBlock)resolve
+                      rejecter:(RCTPromiseRejectBlock)reject {
+  if ([resultMap isKindOfClass:[NSDictionary class]]) {
+    NSDictionary *resultDict = (NSDictionary *)resultMap;
+    id successValue = resultDict[@"success"];
+
+    if (successValue && ![successValue boolValue]) {
+      id errorValue = resultDict[@"error"];
+
+      if (errorValue) {
+        if ([errorValue isKindOfClass:[NSDictionary class]]) {
+          NSDictionary *errorDict = (NSDictionary *)errorValue;
+          NSString *code = errorDict[@"code"] ?: @"UNKNOWN_ERROR";
+          NSString *message = errorDict[@"message"] ?: @"Unknown error occurred";
+          NSString *details = errorDict[@"details"];
+
+          if (details) {
+            reject(code, message, [NSError errorWithDomain:@"EssentiaErrorDomain"
+                                                      code:1
+                                                  userInfo:@{NSLocalizedDescriptionKey: details}]);
+          } else {
+            reject(code, message, nil);
+          }
+        } else if ([errorValue isKindOfClass:[NSString class]]) {
+          reject(@"NATIVE_ERROR", (NSString *)errorValue, nil);
+        } else {
+          reject(@"UNKNOWN_ERROR", @"Unknown error type", nil);
+        }
+        return YES; // Error was found and handled
+      } else {
+        reject(@"UNKNOWN_ERROR", @"Native execution failed without error details", nil);
+        return YES;
+      }
+    }
+  }
+  return NO; // No error found
+}
 
 @end
