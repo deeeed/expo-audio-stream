@@ -271,14 +271,6 @@ export const MoreScreen = () => {
             )}
             <ListItem
                 contentContainerStyle={styles.listItemContainer}
-                label="Essentia Minimal"
-                subLabel="Essentia Minimal"
-                onPress={() => {
-                    router.navigate('/minimal-essentia')
-                }}
-            />  
-            <ListItem
-                contentContainerStyle={styles.listItemContainer}
                 label="Trim"
                 subLabel="Trim audio"
                 onPress={() => {
