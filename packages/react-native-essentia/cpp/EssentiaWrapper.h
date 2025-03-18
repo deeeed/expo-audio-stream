@@ -3,17 +3,23 @@
 #define ESSENTIA_WRAPPER_H
 #include <vector>
 #include <algorithm>
-#include <jni.h>
 #include <sstream>
 #include <map>
 #include <set>
 
+#include "essentia/types.h"
 #include "essentia/essentia.h"
 #include "essentia/algorithmfactory.h"
 #include "essentia/essentiamath.h"
 #include "essentia/pool.h"
 #include "essentia/version.h"
 #include "Utils.h"
+
+// Platform-specific includes
+#ifdef __ANDROID__
+  #include <jni.h>
+  // Other Android-specific includes
+#endif
 
 class EssentiaWrapper {
 public:
@@ -31,11 +37,8 @@ public:
     std::string getAlgorithmInfo(const std::string& algorithm);
     std::string getAllAlgorithms();
 
-
     bool isInitialized() const  { return mIsInitialized; }
     void computeSpectrum(int frameSize, int hopSize);
-
-
 
     // Accessors for other private members used in FeatureExtractor
     bool getSpectrumComputed() const { return spectrumComputed; }

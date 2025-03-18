@@ -1,0 +1,96 @@
+diff --git i/wscript w/wscript
+index 41680e4..b6a0a01 100644
+--- i/wscript
++++ w/wscript
+@@ -128,8 +128,8 @@ def configure(ctx):
+     # force using SSE floating point (default for 64bit in gcc) instead of
+     # 387 floating point (used for 32bit in gcc) to avoid numerical differences
+     # between 32 and 64bit builds (see https://github.com/MTG/essentia/issues/179)
+-    if (not ctx.options.EMSCRIPTEN and 
+-        not ctx.options.CROSS_COMPILE_ANDROID and 
++    if (not ctx.options.EMSCRIPTEN and
++        not ctx.options.CROSS_COMPILE_ANDROID and
+         not ctx.options.CROSS_COMPILE_IOS and
+         not ctx.options.NO_MSSE and
+         sys.platform != 'win32'):
+@@ -220,7 +220,7 @@ def configure(ctx):
+         # force the use of mingw gcc compiler instead of msvc
+         #ctx.env.CC = 'gcc'
+         #ctx.env.CXX = 'g++'
+-        
++
+         import distutils.dir_util
+ 
+         print("copying pkgconfig ...")
+@@ -246,13 +246,10 @@ def configure(ctx):
+         ctx.env.LINKFLAGS += ['-Wl,-soname,libessentia.so', '-latomic']
+ 
+     if ctx.options.CROSS_COMPILE_IOS:
+-        print ("→ Cross-compiling for iOS (ARMv7 and ARM64)")
+-        ctx.env.CXXFLAGS += ['-arch', 'armv7']
+-        ctx.env.LINKFLAGS += ['-arch', 'armv7']
+-        ctx.env.LDFLAGS += ['-arch', 'armv7']
++        print ("→ Cross-compiling for iOS (ARM64)")
+         ctx.env.CXXFLAGS += ['-arch', 'arm64']
+         ctx.env.LINKFLAGS += ['-arch', 'arm64']
+-        ctx.env.LDFLAGS += ['-arch', 'armv64']
++        ctx.env.LDFLAGS += ['-arch', 'arm64']
+ 
+         ctx.env.CXXFLAGS += ['-stdlib=libc++']
+         ctx.env.CXXFLAGS += ['-miphoneos-version-min=5.0']
+@@ -272,6 +269,33 @@ def configure(ctx):
+         ctx.env.CXXFLAGS += ['-miphoneos-version-min=5.0']
+         ctx.env.CXXFLAGS += ['-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk']
+ 
++    # if ctx.options.CROSS_COMPILE_IOS:
++    #     print ("→ Cross-compiling for iOS (ARMv7 and ARM64)")
++    #     ctx.env.CXXFLAGS += ['-arch', 'armv7']
++    #     ctx.env.LINKFLAGS += ['-arch', 'armv7']
++    #     ctx.env.LDFLAGS += ['-arch', 'armv7']
++    #     ctx.env.CXXFLAGS += ['-arch', 'arm64']
++    #     ctx.env.LINKFLAGS += ['-arch', 'arm64']
++    #     ctx.env.LDFLAGS += ['-arch', 'armv64']
++
++    #     ctx.env.CXXFLAGS += ['-stdlib=libc++']
++    #     ctx.env.CXXFLAGS += ['-miphoneos-version-min=5.0']
++    #     ctx.env.CXXFLAGS += ['-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk']
++    #     ctx.env.CXXFLAGS += ['-fembed-bitcode']
++
++    # if ctx.options.CROSS_COMPILE_IOS_SIM:
++    #     print ("→ Cross-compiling for iOS Simulator (i386)")
++    #     ctx.env.CXXFLAGS += ['-arch', 'i386']
++    #     ctx.env.LINKFLAGS += ['-arch', 'i386']
++    #     ctx.env.LDFLAGS += ['-arch', 'i386']
++    #     ctx.env.CXXFLAGS += ['-arch', 'x86_64']
++    #     ctx.env.LINKFLAGS += ['-arch', 'x86_64']
++    #     ctx.env.LDFLAGS += ['-arch', 'x86_64']
++
++    #     ctx.env.CXXFLAGS += ['-stdlib=libc++']
++    #     ctx.env.CXXFLAGS += ['-miphoneos-version-min=5.0']
++    #     ctx.env.CXXFLAGS += ['-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk']
++
+     # use manually prebuilt dependencies in the case of static examples or mingw cross-build
+     if ctx.options.CROSS_COMPILE_MINGW32:
+         print ("→ Cross-compiling for Windows with MinGW")
+@@ -291,11 +315,11 @@ def configure(ctx):
+     if ctx.env.STATIC_DEPENDENCIES \
+         and (sys.platform.startswith('linux') or sys.platform == 'darwin') \
+         and not ctx.options.CROSS_COMPILE_MINGW32:
+-        
++
+         if not ctx.env.ONLY_PYTHON:
+             print ("→ Building with static dependencies on Linux/OSX")
+             os.environ["PKG_CONFIG_PATH"] = 'packaging/debian_3rdparty/lib/pkgconfig'
+-        
++
+         # flags required for linking to static ffmpeg libs
+         # -Bsymbolic flag is not available on clang
+         if ctx.env.CXX_NAME is not "clang":
+@@ -352,6 +376,6 @@ def doc(ctx):
+     os.system('mkdir -p build/python')
+     os.system('cp -r src/python/essentia build/python/')
+     os.system('cp build/src/python/_essentia*.so build/python/essentia')
+-    
++
+     pythonpath = os.path.abspath('build/python')
+     os.system('PYTHONPATH=%s doc/build_sphinx_doc.sh %s' % (pythonpath, sys.executable))
