@@ -92,7 +92,7 @@
         "react-native-web": "~0.19.13",
         "react-redux": "^9.2.0",
         "redux-persist": "^6.0.0",
-        "whisper.rn": "^0.4.0-rc.10"
+        "whisper.rn": "^0.4.0-rc.12"
     },
     "devDependencies": {
         "@babel/core": "^7.20.0",

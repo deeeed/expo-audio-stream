@@ -1,4 +1,3 @@
-// packages/react-native-essentia/cpp/include/essentia/types.h
 /*
  * Copyright (C) 2006-2016  Music Technology Group - Universitat Pompeu Fabra
  *
@@ -115,11 +114,7 @@ inline bool case_insensitive_char_cmp(char a, char b) {
 /**
  * Function object for comparing two strings in a case-insensitive manner.
  */
-struct case_insensitive_str_cmp
-{
-  using first_argument_type = const std::string&;
-  using second_argument_type = const std::string&;
-  using result_type = bool;
+struct case_insensitive_str_cmp {
   bool operator()(const std::string& str1, const std::string& str2) const {
     return std::lexicographical_compare(str1.begin(), str1.end(),
                                         str2.begin(), str2.end(),

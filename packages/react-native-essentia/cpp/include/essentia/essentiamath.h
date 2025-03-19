@@ -539,7 +539,7 @@ inline Real pow2db(Real power) {
 }
 
 inline Real pow2db(Real power, Real silenceCutoff, Real dbSilenceCutoff) {
-  return lin2db(power, silenceCutoff, dbSilenceCutoff);
+  return lin2db(power, silenceCutoff, dbSilenceCutoff);  
 }
 
 inline Real db2pow(Real power) {
@@ -551,7 +551,7 @@ inline Real amp2db(Real amplitude) {
 }
 
 inline Real amp2db(Real amplitude, Real silenceCutoff, Real dbSilenceCutoff) {
-  return Real(2.0)*lin2db(amplitude, silenceCutoff, dbSilenceCutoff);
+  return Real(2.0)*lin2db(amplitude, silenceCutoff, dbSilenceCutoff);  
 }
 
 inline Real db2amp(Real amplitude) {
@@ -796,9 +796,6 @@ std::vector<T> derivative(const std::vector<T>& array) {
 
 template<typename T, typename U, typename Comparator=std::greater<T> >
 class PairCompare {
-  using first_argument_type = const std::pair<T, U>&;
-  using second_argument_type = const std::pair<T, U>&;
-  using result_type = bool;
   Comparator _cmp;
   public:
     bool operator () (const std::pair<T,U>& p1, const std::pair<T,U>& p2) const {
@@ -1061,15 +1058,15 @@ template <typename T> T pearsonCorrelationCoefficient(const std::vector<T>& x, c
 
   T xMean = mean(x);
   T yMean = mean(y);
-
+  
   T cov = covariance(x, xMean, y, yMean);
 
   T xStddev = stddev(x, xMean);
   T yStddev = stddev(y, yMean);
 
-  // When dealing with constants corraltion is 0 by convention.
+  // When dealing with constants corraltion is 0 by convention. 
   if ((xStddev == (T)0.0) || (xStddev == (T)0.0) || (xStddev == (T)0.0)) return (T) 0.0;
-
+  
   T corr = cov / (xStddev * yStddev);
 
   // Numerical error can yield results slightly outside the analytical range [-1, 1].

@@ -8,12 +8,24 @@
 import AVFoundation
 
 public struct DecodingConfig {
-    let targetSampleRate: Double?
-    let targetChannels: Int?
-    let targetBitDepth: Int?
-    let normalizeAudio: Bool
+    public let targetSampleRate: Double?
+    public let targetChannels: Int?
+    public let targetBitDepth: Int?
+    public let normalizeAudio: Bool
     
-    static func fromDictionary(_ dict: [String: Any]?) -> DecodingConfig {
+    public init(
+        targetSampleRate: Double?,
+        targetChannels: Int?,
+        targetBitDepth: Int?,
+        normalizeAudio: Bool = false
+    ) {
+        self.targetSampleRate = targetSampleRate
+        self.targetChannels = targetChannels
+        self.targetBitDepth = targetBitDepth
+        self.normalizeAudio = normalizeAudio
+    }
+    
+    public static func fromDictionary(_ dict: [String: Any]?) -> DecodingConfig {
         guard let dict = dict else {
             return DecodingConfig.default
         }
@@ -26,7 +38,7 @@ public struct DecodingConfig {
         )
     }
     
-    static var `default`: DecodingConfig {
+    public static var `default`: DecodingConfig {
         return DecodingConfig(
             targetSampleRate: nil,
             targetChannels: nil,
@@ -35,7 +47,7 @@ public struct DecodingConfig {
         )
     }
     
-    func toAudioFormat(baseFormat: AVAudioFormat) -> AVAudioFormat {
+    public func toAudioFormat(baseFormat: AVAudioFormat) -> AVAudioFormat {
         let sampleRate = targetSampleRate ?? baseFormat.sampleRate
         let channels = targetChannels ?? Int(baseFormat.channelCount)
         

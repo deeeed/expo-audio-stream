@@ -14,10 +14,13 @@ Pod::Spec.new do |s|
 
   s.dependency 'ExpoModulesCore'
   s.dependency 'ExpoAudioStream'
+  s.dependency 'Essentia'
 
   # Swift/Objective-C compatibility
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
+    'SWIFT_COMPILATION_MODE' => 'wholemodule',
+    'HEADER_SEARCH_PATHS' => '"${PODS_ROOT}/../../react-native-essentia/cpp/include"'
   }
 
   s.source_files = "**/*.{h,m,mm,swift,hpp,cpp}"

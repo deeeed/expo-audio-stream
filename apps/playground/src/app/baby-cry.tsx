@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { baseLogger } from '../config';
 import { CryDetectionResult, CryTypeLabel, useCryDetector } from '../hooks/useCryDetection';
 import { useSampleAudio } from '../hooks/useSampleAudio';
+import { useScreenHeader } from '../hooks/useScreenHeader';
 
 const logger = baseLogger.extend('BabyCryScreen');
 
@@ -119,6 +120,14 @@ export default function BabyCryScreen() {
     tonnetz: false,
     prediction: false,
   });
+
+  useScreenHeader({
+    title: "Baby Cry Detection",
+    backBehavior: {
+      fallbackUrl: "/more",
+    },
+  });
+
 
   // Load sample audio hook
   const { loadSampleAudio } = useSampleAudio({

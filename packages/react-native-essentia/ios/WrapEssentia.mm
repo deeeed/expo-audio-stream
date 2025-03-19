@@ -1,8 +1,5 @@
 // packages/react-native-essentia/ios/Essentia.mm
 #ifdef __cplusplus
-// Include the actual implementations in implementation blocks
-// Include our binary_function patch before any C++ headers
-#include "../cpp/patches/binary_function_patch.h"
 #include "../cpp/EssentiaWrapper.h"
 #include "../cpp/FeatureExtractor.h"
 #endif

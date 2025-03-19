@@ -17,13 +17,6 @@ if [ -f "ios/Frameworks/device/Essentia_iOS.a" ] && [ -f "ios/Frameworks/simulat
   exit 0
 fi
 
-# Reset environment that might be set from Android builds
-unset ANDROID_NDK_HOME
-unset ANDROID_ABI
-unset CROSS_COMPILE
-unset CC
-unset CXX
-
 # Set Xcode environment
 export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
 export DEVELOPER_DIR=$(xcode-select -p)
