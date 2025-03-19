@@ -226,7 +226,7 @@ export const MoreScreen = () => {
                             label="Whisper Debug"
                             subLabel="Whisper Debug (Dev Only)"
                             onPress={() => {
-                                router.navigate('/whisper-debug')
+                                router.navigate('/web-whisper-debug')
                             }}
                         />
                     )}

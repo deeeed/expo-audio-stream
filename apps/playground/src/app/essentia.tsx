@@ -9,6 +9,7 @@ import { MusicGenreClassifier } from '../components/MusicGenreClassifier';
 import { SpeechEmotionClassifier } from '../components/SpeechEmotionClassifier';
 import { AssetSourceType, SampleAudioFile, useSampleAudio } from '../hooks/useSampleAudio';
 import { sendDummyPCMData } from '../utils/essentiaUtils';
+import { useScreenHeader } from '../hooks/useScreenHeader';
 
 // Sample audio assets 
 // Use a more compatible type
@@ -145,6 +146,14 @@ function EssentiaScreen() {
       console.error('Error loading sample:', error);
     }
   };
+
+  useScreenHeader({
+    title: "Essentia",
+    backBehavior: {
+      fallbackUrl: "/more",
+    },
+  });
+
 
   const handleSelectSample = (sample: SampleAudioFile) => {
     setSelectedSample(sample);
