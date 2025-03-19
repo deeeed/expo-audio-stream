@@ -11519,7 +11519,7 @@ __metadata:
     ts-jest: "npm:^29.2.6"
     ts-node: "npm:^10.9.2"
     typescript: "npm:~5.3.3"
-    whisper.rn: "npm:^0.4.0-rc.10"
+    whisper.rn: "npm:^0.4.0-rc.12"
   languageName: unknown
   linkType: soft
 
@@ -34968,13 +34968,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"whisper.rn@npm:^0.4.0-rc.10":
-  version: 0.4.0-rc.10
-  resolution: "whisper.rn@npm:0.4.0-rc.10"
+"whisper.rn@npm:^0.4.0-rc.12":
+  version: 0.4.0-rc.12
+  resolution: "whisper.rn@npm:0.4.0-rc.12"
   peerDependencies:
     react: "*"
     react-native: "*"
-  checksum: 10/b7a1ba588ce3d82dc6ba9aee75bf153612efaf7509ec90635b4d6a88525a2ed746081300992a137a73c4adb004151d5c17af9876918b68b37148bb607847ecc1
+  checksum: 10/280c7e8014244b8e16ba4728689706f0dd1447318b2b28a63454137f7b1696f0af57cc0e2fbfb180f8382d72fb4f177be2f774564053d2342ed874286d63cb83
   languageName: node
   linkType: hard
 
