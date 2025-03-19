@@ -4,11 +4,11 @@ import {
     Button,
     EditableInfoCard,
     LabelSwitch,
-    Text,
     Notice,
     ScreenWrapper,
-    useToast,
+    Text,
     useTheme,
+    useToast,
 } from '@siteed/design-system'
 import {
     AudioDataEvent,
@@ -24,10 +24,10 @@ import {
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
-import { useRouter, Stack } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import isBase64 from 'is-base64'
-import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
-import { Platform, StyleSheet, View, Image } from 'react-native'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Image, Platform, StyleSheet, View } from 'react-native'
 import { ActivityIndicator, SegmentedButtons } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -37,13 +37,13 @@ import LiveTranscriber from '../../component/LiveTranscriber'
 import { NativeNotificationConfig } from '../../component/NativeNotificationConfig'
 import { ProgressItems } from '../../component/ProgressItems'
 import { RecordingStats } from '../../component/RecordingStats'
+import { SegmentDuration, SegmentDurationSelector } from '../../component/SegmentDurationSelector'
 import { baseLogger, WhisperSampleRate } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { useTranscription } from '../../context/TranscriptionProvider'
+import { TranscriptionOptions, useUnifiedTranscription } from '../../hooks/useUnifiedTranscription'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
-import { SegmentDuration, SegmentDurationSelector } from '../../component/SegmentDurationSelector'
-import { useUnifiedTranscription } from '../../hooks/useUnifiedTranscription'
 
 const CHUNK_DURATION_MS = 500 // 500 ms chunks
 const MAX_AUDIO_BUFFER_LENGTH = 48000 * 5; // 5 seconds of audio at 48kHz
@@ -190,11 +190,12 @@ export default function RecordScreen() {
     const webAudioChunks = useRef<Float32Array>(new Float32Array(0))
     const [streamConfig, setStreamConfig] =
         useState<StartRecordingResult | null>(null)
-    const [startRecordingConfig, setStartRecordingConfig] =
-        useState<RecordingConfig>({
+    const [enableLiveTranscription, setEnableLiveTranscription] = useState(false)
+    const [startRecordingConfig, setStartRecordingConfig] = 
+        useState<RecordingConfig>(() => ({
             ...baseRecordingConfig,
-            onAudioStream: (a) => onAudioData(a),
-        })
+            onAudioStream: (a: AudioDataEvent): Promise<void> => onAudioData(a),
+        }))
     const { ready, isModelLoading, progressItems } =
         useTranscription()
     const [result, setResult] = useState<AudioRecording | null>(null)
@@ -203,10 +204,7 @@ export default function RecordScreen() {
     const { refreshFiles, removeFile } = useAudioFiles()
     const router = useRouter()
     const [liveWebAudio, setLiveWebAudio] = useState<Float32Array | null>(null)
-    const [enableLiveTranscription, setEnableLiveTranscription] =
-        useState(false)
-    const validSRTranscription =
-        startRecordingConfig.sampleRate === WhisperSampleRate
+    const validSRTranscription: boolean = startRecordingConfig.sampleRate === WhisperSampleRate
     const [stopping, setStopping] = useState(false)
     const { colors } = useTheme()
     const [customFileName, setCustomFileName] = useState<string>('')
@@ -248,6 +246,19 @@ export default function RecordScreen() {
     const theme = useTheme()
     const { bottom, top } = useSafeAreaInsets()
     const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
+
+    const {
+        startRecording,
+        stopRecording,
+        pauseRecording,
+        resumeRecording,
+        isPaused,
+        durationMs: duration,
+        size,
+        compression,
+        isRecording,
+        analysisData,
+    } = useSharedAudioRecorder()
 
     const showPermissionError = (permission: string) => {
         logger.error(`${permission} permission not granted`)
@@ -292,7 +303,7 @@ export default function RecordScreen() {
         }
     }
 
-    const onAudioData = useCallback(async (event: AudioDataEvent) => {
+    const onAudioData = useCallback(async (event: AudioDataEvent): Promise<void> => {
         try {
             logger.log(`Received audio data event`)
             const { data, position, eventDataSize } = event
@@ -309,6 +320,19 @@ export default function RecordScreen() {
                 if (!isBase64(data)) {
                     logger.warn(
                         `Invalid base64 data for chunks#${audioChunks.current.length} position=${position}`
+                    )
+                }
+                
+                // Handle live transcription for native platforms
+                if (enableLiveTranscription && validSRTranscription) {
+                    await transcribeLive(
+                        data,
+                        startRecordingConfig.sampleRate ?? WhisperSampleRate,
+                        {
+                            stopping: false,
+                            checkpointInterval: 15,
+                            dataSize: eventDataSize
+                        } as TranscriptionOptions
                     )
                 }
             } else if (data instanceof Float32Array) {
@@ -340,20 +364,7 @@ export default function RecordScreen() {
         } catch (error) {
             logger.error(`Error while processing audio data`, error)
         }
-    }, [])
-
-    const {
-        startRecording,
-        stopRecording,
-        pauseRecording,
-        resumeRecording,
-        isPaused,
-        durationMs: duration,
-        size,
-        compression,
-        isRecording,
-        analysisData,
-    } = useSharedAudioRecorder()
+    }, [enableLiveTranscription, validSRTranscription, transcribeLive, startRecordingConfig?.sampleRate])
 
     const handleStart = async () => {
         try {
@@ -421,7 +432,7 @@ export default function RecordScreen() {
                 await transcribeLive(
                     webAudioChunks.current,
                     startRecordingConfig.sampleRate ?? WhisperSampleRate,
-                    { stopping: true }
+                    { stopping: true } as TranscriptionOptions
                 )
             }
 
@@ -500,7 +511,7 @@ export default function RecordScreen() {
             setTranscripts([])
             setActiveTranscript(null)
         }
-    }, [stopRecording, enableLiveTranscription, router, transcripts, refreshFiles, transcribeLive, startRecordingConfig.sampleRate])
+    }, [enableLiveTranscription, router, transcripts, refreshFiles, transcribeLive, startRecordingConfig.sampleRate, stopRecording])
 
     const renderRecording = () => (
         <View style={{ gap: 10, display: 'flex' }}>
@@ -525,7 +536,6 @@ export default function RecordScreen() {
             {isModelLoading && <ProgressItems items={progressItems} />}
 
             {!unifiedIsModelLoading &&
-                isWeb &&
                 enableLiveTranscription &&
                 liveWebAudio && (
                     <LiveTranscriber
@@ -756,18 +766,19 @@ export default function RecordScreen() {
                 />
             )}
 
-            {isWeb && validSRTranscription && (
-                <LabelSwitch
-                    label="Live Transcription"
-                    value={enableLiveTranscription}
-                    onValueChange={setEnableLiveTranscription}
-                />
-            )}
-            {isWeb && !validSRTranscription && (
+            
+            <LabelSwitch
+                label="Live Transcription"
+                value={validSRTranscription && enableLiveTranscription}
+                disabled={!validSRTranscription}
+                onValueChange={setEnableLiveTranscription}
+            />
+
+            {!validSRTranscription && (
                 <Notice
                     type="warning"
                     title="Transcription Not Available"
-                    message="Live Transcription is only available at 16000hz sample rate"
+                    message="Live Transcription is only available at 16kHz sample rate"
                 />
             )}
 
@@ -803,19 +814,32 @@ export default function RecordScreen() {
         let timeoutId: NodeJS.Timeout
 
         async function processLiveTranscription() {
-            if (!enableLiveTranscription || !validSRTranscription || !isRecording || !webAudioChunks.current) {
+            if (!enableLiveTranscription || !validSRTranscription || !isRecording) {
                 return
             }
 
             try {
-                await transcribeLive(
-                    webAudioChunks.current,
-                    startRecordingConfig.sampleRate ?? WhisperSampleRate,
-                    {
-                        stopping: stopping,
-                        checkpointInterval: 15 // or whatever interval you prefer
-                    }
-                )
+                if (isWeb && webAudioChunks.current) {
+                    await transcribeLive(
+                        webAudioChunks.current,
+                        startRecordingConfig.sampleRate ?? WhisperSampleRate,
+                        {
+                            stopping: stopping,
+                            checkpointInterval: 15
+                        } as TranscriptionOptions
+                    )
+                } else if (!isWeb && audioChunks.current.length > 0) {
+                    // For native, use the last chunk
+                    const lastChunk = audioChunks.current[audioChunks.current.length - 1]
+                    await transcribeLive(
+                        lastChunk,
+                        startRecordingConfig.sampleRate ?? WhisperSampleRate,
+                        {
+                            stopping: stopping,
+                            checkpointInterval: 15
+                        } as TranscriptionOptions
+                    )
+                }
             } catch (error) {
                 logger.error('Live transcription error:', error)
             }

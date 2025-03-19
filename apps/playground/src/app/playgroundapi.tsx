@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Divider, Text } from 'react-native-paper';
 import { useSampleAudio } from '../hooks/useSampleAudio';
+import { useScreenHeader } from '../hooks/useScreenHeader';
 
 interface ValidationResult {
   success: boolean;
@@ -83,6 +84,14 @@ const PlaygroundAPIScreen = () => {
     const [moduleImportsResult, setModuleImportsResult] = useState<ModuleImportsResult | null>(null);
     const [audioProcessingResult, setAudioProcessingResult] = useState<AudioProcessingResult | null>(null);
     
+    useScreenHeader({
+        title: "Playground API",
+        backBehavior: {
+          fallbackUrl: "/more",
+        },
+      });
+
+
     // Use the sample audio hook for audio demos
     const { isLoading: isSampleLoading, sampleFile, loadSampleAudio } = useSampleAudio({
         onError: (error) => {

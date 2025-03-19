@@ -16,7 +16,6 @@ Pod::Spec.new do |s|
 
   # Source files
   s.source_files = [
-    "cpp/patches/binary_function_patch.h",
     "cpp/third_party/nlohmann/json.hpp",
     "ios/WrapEssentia.{h,mm}",
     "cpp/Utils.h",
@@ -52,22 +51,8 @@ Pod::Spec.new do |s|
     :output_files => ["${PODS_TARGET_SRCROOT}/ios/Frameworks/libEssentiaPrebuilt.a"]
   }
 
-  # Prepare command (unchanged)
+  # Prepare command (simplified)
   s.prepare_command = <<-CMD
-  mkdir -p cpp/patches
-  if [ ! -f cpp/patches/binary_function_patch.h ]; then
-    echo '#pragma once
-
-namespace std {
-    template <class Arg1, class Arg2, class Result>
-    struct binary_function {
-        typedef Arg1 first_argument_type;
-        typedef Arg2 second_argument_type;
-        typedef Result result_type;
-    };
-}' > cpp/patches/binary_function_patch.h
-  fi
-
   if [ ! -f ios/Frameworks/device/Essentia_iOS.a ]; then
     echo "WARNING: Essentia library not found at ios/Frameworks/device/Essentia_iOS.a"
     echo "Please run the build-essentia-ios.sh script first"
@@ -90,9 +75,9 @@ CMD
 
   s.pod_target_xcconfig = {
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64',
-    'CLANG_CXX_LANGUAGE_STANDARD' => 'c++11',
+    'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17',
     'CLANG_CXX_LIBRARY' => 'libc++',
-    'HEADER_SEARCH_PATHS' => '"${PODS_TARGET_SRCROOT}" "${PODS_TARGET_SRCROOT}/cpp" "${PODS_TARGET_SRCROOT}/cpp/patches" "${PODS_TARGET_SRCROOT}/cpp/include" "${PODS_TARGET_SRCROOT}/cpp/third_party"',
+    'HEADER_SEARCH_PATHS' => '"${PODS_TARGET_SRCROOT}" "${PODS_TARGET_SRCROOT}/cpp" "${PODS_TARGET_SRCROOT}/cpp/include" "${PODS_TARGET_SRCROOT}/cpp/third_party"',
     'GCC_PREPROCESSOR_DEFINITIONS' => 'ESSENTIA_EXPORTS=1',
     'VALID_ARCHS' => 'arm64 x86_64'
   }
@@ -108,9 +93,9 @@ CMD
     if ENV['RCT_NEW_ARCH_ENABLED'] == '1' then
       s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
       s.pod_target_xcconfig = {
-        "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\" \"${PODS_TARGET_SRCROOT}\" \"${PODS_TARGET_SRCROOT}/cpp\" \"${PODS_TARGET_SRCROOT}/cpp/patches\" \"${PODS_TARGET_SRCROOT}/cpp/include\" \"${PODS_TARGET_SRCROOT}/cpp/third_party\"",
-        "OTHER_CPLUSPLUSFLAGS" => "-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1 -include ${PODS_TARGET_SRCROOT}/cpp/patches/binary_function_patch.h",
-        "CLANG_CXX_LANGUAGE_STANDARD" => "c++11",
+        "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\" \"${PODS_TARGET_SRCROOT}\" \"${PODS_TARGET_SRCROOT}/cpp\" \"${PODS_TARGET_SRCROOT}/cpp/include\" \"${PODS_TARGET_SRCROOT}/cpp/third_party\"",
+        "OTHER_CPLUSPLUSFLAGS" => "-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1",
+        "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
         "GCC_PREPROCESSOR_DEFINITIONS" => "ESSENTIA_EXPORTS=1",
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]" => "arm64",
         "VALID_ARCHS" => "arm64 x86_64"

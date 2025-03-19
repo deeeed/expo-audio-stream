@@ -6,20 +6,20 @@ import { isWeb } from '../utils/utils'
 
 const logger = baseLogger.extend('useUnifiedTranscription')
 
-interface TranscriptionOptions {
+export interface TranscriptionOptions {
     onError?: (error: Error) => void
     onTranscriptionUpdate?: (data: TranscriberData) => void
     language?: string
+    stopping?: boolean
+    checkpointInterval?: number
+    dataSize?: number
 }
 
-interface TranscriptionResult {
+export interface TranscriptionResult {
     isProcessing: boolean
     isModelLoading: boolean
-    transcribe: (audioData: Float32Array | Uint8Array, sampleRate: number, position?: number) => Promise<TranscriberData | null>
-    transcribeLive: (audioBuffer: Float32Array, sampleRate: number, options?: {
-        stopping?: boolean
-        checkpointInterval?: number
-    }) => Promise<TranscriberData | null>
+    transcribe: (audioData: Float32Array | Uint8Array | string, sampleRate: number, position?: number) => Promise<TranscriberData | null>
+    transcribeLive: (audioBuffer: Float32Array | Uint8Array | string, sampleRate: number, options?: TranscriptionOptions) => Promise<TranscriberData | null>
     stopTranscription: () => void
     initialize: () => Promise<void>
 }
@@ -64,11 +64,11 @@ export function useUnifiedTranscription({
 
     // One-time transcription of audio data
     const transcribe = useCallback(async (
-        audioData: Float32Array | Uint8Array,
+        audioData: Float32Array | Uint8Array | string,
         _sampleRate: number,
         position: number = 0
     ): Promise<TranscriberData | null> => {
-        if (!audioData || audioData.length === 0) return null;
+        if (!audioData || (typeof audioData !== 'string' && audioData.length === 0)) return null;
         
         if (isProcessing || activeJobRef.current || transcriptionContext.isBusy) {
             logger.debug('Skipping transcription - another one in progress');
@@ -90,9 +90,9 @@ export function useUnifiedTranscription({
             };
             onTranscriptionUpdate?.(initialData);
 
-            const processedAudioData = isWeb && audioData instanceof Uint8Array
-                ? new Float32Array(audioData.buffer)
-                : audioData;
+            const processedAudioData = isWeb && typeof audioData === 'string'
+                ? new Float32Array(Buffer.from(audioData, 'base64'))
+                : typeof audioData !== 'string' ? audioData : new Float32Array(Buffer.from(audioData, 'base64'));
 
             const { promise } = await transcriptionContext.transcribe({
                 audioData: processedAudioData as Float32Array,
@@ -147,7 +147,7 @@ export function useUnifiedTranscription({
 
     // Live transcription with continuous audio buffer
     const transcribeLive = useCallback(async (
-        audioBuffer: Float32Array,
+        audioBuffer: Float32Array | Uint8Array | string,
         sampleRate: number,
         options: {
             stopping?: boolean,
@@ -156,7 +156,7 @@ export function useUnifiedTranscription({
     ): Promise<TranscriberData | null> => {
         const { stopping = false, checkpointInterval = 15 } = options;
         
-        if (!audioBuffer || audioBuffer.length === 0) return null;
+        if (!audioBuffer || (typeof audioBuffer !== 'string' && audioBuffer.length === 0)) return null;
         
         if (isProcessing && !stopping) {
             logger.debug('Live transcription already in progress');
@@ -169,11 +169,15 @@ export function useUnifiedTranscription({
 
         try {
             const threshold = checkpointInterval * WhisperSampleRate;
-            const accumulated = audioBuffer.length - lastCheckpointBufferIndex.current;
+            const accumulated = typeof audioBuffer === 'string' ? 
+                (audioBuffer.length * 3) / 4 : // Estimate base64 decoded size
+                audioBuffer.length;
             
             if (stopping || accumulated >= threshold) {
-                const audioData = audioBuffer.slice(lastCheckpointBufferIndex.current);
-                const adjustedPosition = (audioBuffer.length - audioData.length) / WhisperSampleRate;
+                const audioData = audioBuffer;
+                const adjustedPosition = (accumulated - (typeof audioBuffer === 'string' ? 
+                    (audioBuffer.length * 3) / 4 : 
+                    audioBuffer.length)) / WhisperSampleRate;
                 
                 const { promise, stop } = await transcriptionContext.transcribe({
                     audioData,
@@ -199,7 +203,7 @@ export function useUnifiedTranscription({
                                 chunks,
                                 isBusy: true,
                                 startTime: adjustedPosition * 1000,
-                                endTime: (audioBuffer.length / sampleRate) * 1000
+                                endTime: (accumulated / sampleRate) * 1000
                             };
                             onTranscriptionUpdate?.(updateData);
                         }
@@ -213,10 +217,10 @@ export function useUnifiedTranscription({
                     if (transcription.chunks.length > 0) {
                         const lastChunk = transcription.chunks[transcription.chunks.length - 1];
                         lastCheckpointBufferIndex.current = lastChunk.timestamp[1] !== null
-                            ? audioBuffer.length
+                            ? accumulated
                             : lastChunk.timestamp[0] * WhisperSampleRate;
                     } else {
-                        lastCheckpointBufferIndex.current = audioBuffer.length;
+                        lastCheckpointBufferIndex.current = accumulated;
                     }
                     
                     return transcription;

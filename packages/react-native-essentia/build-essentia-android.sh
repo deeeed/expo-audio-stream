@@ -85,6 +85,36 @@ for ARCH in "${ARCHS_TO_BUILD[@]}"; do
     continue
   fi
 
+  # Set Android build environment variables
+  export API_LEVEL=21
+  case $ARCH in
+    "arm64-v8a")
+      export TARGET=aarch64-linux-android
+      ;;
+    "armeabi-v7a")
+      export TARGET=armv7a-linux-androideabi
+      ;;
+    "x86")
+      export TARGET=i686-linux-android
+      ;;
+    "x86_64")
+      export TARGET=x86_64-linux-android
+      ;;
+  esac
+
+  # Set compiler variables
+  export CC=$TOOLCHAIN/bin/${TARGET}${API_LEVEL}-clang
+  export CXX=$TOOLCHAIN/bin/${TARGET}${API_LEVEL}-clang++
+  export AR=$TOOLCHAIN/bin/llvm-ar
+  export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
+  export STRIP=$TOOLCHAIN/bin/llvm-strip
+
+  # Include paths
+  export SYSROOT=$TOOLCHAIN/sysroot
+  export CFLAGS="--sysroot=$SYSROOT"
+  export CXXFLAGS="$CFLAGS"
+  export LDFLAGS="--sysroot=$SYSROOT"
+
   # Set the environment variable for the build process
   export ANDROID_ABI=${ARCH}
 

@@ -41,44 +41,42 @@ export function useSampleAudio(options?: UseSampleAudioOptions) {
       // Get the file extension from the asset URI or default to mp3
       const sourceExtension = asset.localUri.split('.').pop()?.toLowerCase() || 'mp3'
       
-      // Get the filename from the asset or use the custom name, ensuring it has the correct extension
+      // Get the filename from the asset or use the custom name
       let fileName = customFileName || asset.name || 'sample.audio'
-      
-      // Make sure the filename has the correct extension
       if (!fileName.toLowerCase().endsWith(`.${sourceExtension}`)) {
         fileName = fileName.replace(/\.\w+$/, '') + `.${sourceExtension}`
       }
       
-      // Copy the file to a writable location (similar to DocumentPicker behavior)
+      // Initialize fileUri with the asset's localUri
       let fileUri = asset.localUri
-      
-      // On native platforms, copy to cache directory to ensure it's writable
+
+      // On native platforms, copy to cache directory
       if (!isWeb && FileSystem.cacheDirectory) {
         const destinationUri = `${FileSystem.cacheDirectory}${fileName}`
         await FileSystem.copyAsync({
           from: asset.localUri,
           to: destinationUri
         })
+        
+        // For iOS, ensure we keep the 'file://' prefix for Audio.Sound
         fileUri = destinationUri
         logger.debug('Copied sample audio to cache directory', { from: asset.localUri, to: fileUri })
         
-        // For Essentia, remove the 'file://' prefix if it exists
-        if (fileUri.startsWith('file://')) {
-          fileUri = fileUri.substring(7) // Remove 'file://' prefix
-          logger.debug('Adjusted file path for Essentia', { path: fileUri })
-        }
+        // Only remove 'file://' prefix for Essentia operations, not for Audio.Sound
+        const essentiaPath = fileUri.startsWith('file://') ? fileUri.substring(7) : fileUri
+        logger.debug('Adjusted file path for Essentia', { path: essentiaPath })
       }
       
       // Get audio metadata using Expo AV
       let size = 0
       let durationMs = 0
       
-      // Create a sound object
+      // Create sound object with the full file:// URI
       const { sound: tempSound } = await Audio.Sound.createAsync(
         { uri: fileUri },
-        { shouldPlay: isWeb }, // Only auto-play on web to get duration
+        { shouldPlay: false },
         null,
-        true // Download first for accurate metadata
+        true
       )
       
       try {
