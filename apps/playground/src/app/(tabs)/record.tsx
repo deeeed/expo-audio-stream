@@ -756,18 +756,19 @@ export default function RecordScreen() {
                 />
             )}
 
-            {isWeb && validSRTranscription && (
-                <LabelSwitch
-                    label="Live Transcription"
-                    value={enableLiveTranscription}
-                    onValueChange={setEnableLiveTranscription}
-                />
-            )}
-            {isWeb && !validSRTranscription && (
+            
+            <LabelSwitch
+                label="Live Transcription"
+                value={validSRTranscription && enableLiveTranscription}
+                disabled={!validSRTranscription}
+                onValueChange={setEnableLiveTranscription}
+            />
+
+            {!validSRTranscription && (
                 <Notice
                     type="warning"
                     title="Transcription Not Available"
-                    message="Live Transcription is only available at 16000hz sample rate"
+                    message="Live Transcription is only available at 16kHz sample rate"
                 />
             )}
 
