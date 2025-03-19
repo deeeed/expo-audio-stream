@@ -46,30 +46,38 @@ public class PlaygroundAPIModule: Module {
     
     // Then check if it's registered in the module registry
     let moduleNames = context.moduleRegistry.getModuleNames()
-    let moduleExists = moduleNames.contains { name in
-      name.contains(className)
+    
+    // Print all module names for debugging
+    print("[PlaygroundAPI] Available modules for comparison:")
+    moduleNames.forEach { name in
+        print("[PlaygroundAPI] - '\(name)' vs '\(className)'")
     }
+    
+    // Exact match instead of contains
+    let moduleExists = moduleNames.contains(className)
     
     print("[PlaygroundAPI] Checking module availability: \(className)")
     print("[PlaygroundAPI] - Class exists: \(classExists)")
     print("[PlaygroundAPI] - Module registered: \(moduleExists)")
+    print("[PlaygroundAPI] - Module names: \(moduleNames)")
     
-    return classExists || moduleExists
+    return moduleExists // Return just moduleExists since we're checking exact names
   }
 
-  // Get the Essentia module through module registry
+  // Get the Essentia module through React Native bridge
   private var essentiaModule: Any? {
-    guard let context = appContext else {
-      print("[PlaygroundAPI] Warning: No app context available for Essentia module")
-      return nil
+    guard let context = appContext,
+          let bridge = context.reactBridge else {
+        print("[PlaygroundAPI] Warning: No React bridge available")
+        return nil
     }
-    let module = context.moduleRegistry.get(moduleWithName: "Essentia")
-    if let module = module {
-      print("[PlaygroundAPI] Found Essentia module: \(String(describing: type(of: module)))")
-    } else {
-      print("[PlaygroundAPI] Essentia module not found in registry")
+
+    // Get module directly since we know it exists as "Essentia"
+    if let module = bridge.module(forName: "Essentia") {
+        print("[PlaygroundAPI] Found Essentia module: \(type(of: module))")
+        return module
     }
-    return module
+    return nil
   }
 
   public func definition() -> ModuleDefinition {
@@ -294,76 +302,61 @@ public class PlaygroundAPIModule: Module {
     }
 
     AsyncFunction("checkModuleImports") {
-      do {
-        print("[PlaygroundAPI] Starting module imports check...")
-        var result: [String: Any] = [:]
-        
-        // List all available modules first
-        let availableModules = self.listAvailableModules()
-        print("[PlaygroundAPI] Found \(availableModules.count) total modules")
-        
-        // Check AudioProcessor
-        if let audioModule = audioModule {
-            print("[PlaygroundAPI] AudioModule found: \(String(describing: type(of: audioModule)))")
-            result["audioModuleImported"] = true
-            result["audioModuleClass"] = String(describing: type(of: audioModule))
-            
-            // Create a new AudioProcessor instance
-            let processor = AudioProcessor(
-                resolve: { _ in },
-                reject: { _, _ in }
-            )
-            
-            print("[PlaygroundAPI] AudioProcessor created: \(String(describing: type(of: processor)))")
-            result["audioProcessorImported"] = true
-            result["audioProcessorClass"] = String(describing: type(of: processor))
-        } else {
-            print("[PlaygroundAPI] AudioModule not found")
-            result["audioModuleImported"] = false
-            result["audioModuleError"] = "Module not found"
-        }
-        
-        // Check Essentia
-        if let essentia = essentiaModule {
-          print("[PlaygroundAPI] Essentia module found: \(String(describing: type(of: essentia)))")
+      print("[PlaygroundAPI] Starting module imports check...")
+      var result: [String: Any] = [:]
+      
+      // Check AudioProcessor
+      if let audioModule = audioModule {
+          print("[PlaygroundAPI] AudioModule found: \(String(describing: type(of: audioModule)))")
+          result["audioModuleImported"] = true
+          result["audioModuleClass"] = String(describing: type(of: audioModule))
+          
+          // Try to create an AudioProcessor instance
+          do {
+              let url = URL(string: "file://test.wav")!
+              let processor = try AudioProcessor(
+                  url: url,
+                  resolve: { _ in },
+                  reject: { _, _ in }
+              )
+              result["audioProcessorImported"] = true
+              result["audioProcessorClass"] = String(describing: type(of: processor))
+          } catch {
+              print("[PlaygroundAPI] Error during audio processing tests: \(error)")
+              result["audioProcessorError"] = error.localizedDescription
+          }
+      } else {
+          result["audioModuleImported"] = false
+          result["audioModuleError"] = "Module not found"
+      }
+      
+      // Check Essentia (as a React Native module)
+      if let essentia = essentiaModule {
           result["essentiaModuleImported"] = true
           result["essentiaModuleClass"] = String(describing: type(of: essentia))
-        } else {
-          print("[PlaygroundAPI] Essentia module not found")
+          result["essentiaModuleType"] = "react-native"
+      } else {
           result["essentiaModuleImported"] = false
-          result["essentiaModuleError"] = "Module not found"
-        }
-        
-        // Add list of all available modules to result
-        result["availableModules"] = availableModules
-        
-        // Check specific modules with detailed logging
-        let modules = [
-          ["name": "siteed-expo-audio-studio", "class": "AudioProcessor"],
-          ["name": "siteed_react-native-essentia", "class": "EssentiaModule"]
-        ]
-        
-        print("[PlaygroundAPI] Checking specific module availability:")
-        let modulesStatus = modules.map { moduleInfo -> [String: Any] in
-          let name = moduleInfo["name"]!
-          let className = moduleInfo["class"]!
-          let exists = self.isModuleAvailable(className)
-          print("[PlaygroundAPI] - \(name) (\(className)): \(exists)")
-          return ["name": name, "exists": exists]
-        }
-        
-        result["modules"] = modulesStatus
-        result["success"] = true
-        
-        print("[PlaygroundAPI] Module imports check completed successfully")
-        return result
-      } catch {
-        print("[PlaygroundAPI] Error during module imports check: \(error)")
-        return [
-          "success": false,
-          "error": error.localizedDescription
-        ]
+          result["essentiaModuleError"] = "Module not found in React Native bridge"
+          result["essentiaModuleType"] = "react-native"
       }
+      
+      // Add list of available modules
+      result["availableModules"] = listAvailableModules()
+      
+      // Check specific modules
+      let modules = [
+          ["name": "ExpoAudioStream", "class": "ExpoAudioStream"],
+          ["name": "PlaygroundAPI", "class": "PlaygroundAPI"]
+      ]
+      
+      result["modules"] = modules.map { moduleInfo -> [String: Any] in
+          let name = moduleInfo["name"]!
+          return ["name": name, "exists": isModuleAvailable(name)]
+      }
+      
+      result["success"] = true
+      return result
     }
     
     View(PlaygroundAPIView.self) {
