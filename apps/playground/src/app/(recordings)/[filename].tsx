@@ -4,13 +4,11 @@ import {
     AppTheme,
     ScreenWrapper,
     useModal,
-    useTheme,
-    useToast,
+    useTheme
 } from '@siteed/design-system'
-import { router, useLocalSearchParams, useNavigation } from 'expo-router'
-import React, { useEffect, useMemo, useState } from 'react'
+import { router, useLocalSearchParams } from 'expo-router'
+import React, { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
-import { Text } from 'react-native-paper'
 
 import {
     AudioRecordingConfigForm,
@@ -18,6 +16,7 @@ import {
 } from '../../component/AudioRecordingConfigForm'
 import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
+import { useScreenHeader } from '../../hooks/useScreenHeader'
 
 const getStyles = (_: { theme: AppTheme }) => {
     return StyleSheet.create({
@@ -32,7 +31,6 @@ export const FullAudioViewerPage = () => {
     const { colors } = theme
 
     const styles = useMemo(() => getStyles({ theme }), [theme])
-    const { show } = useToast()
 
     const local = useLocalSearchParams<{
         filename: string
@@ -41,9 +39,44 @@ export const FullAudioViewerPage = () => {
 
     const { files, removeFile } = useAudioFiles()
 
+    useScreenHeader({
+        title: "Analysis",
+        backBehavior: {
+          fallbackUrl: "/files",
+        },
+        rightElements: () => (<View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable
+                onPress={async () => {
+                    await openDrawer({
+                        render: () => (
+                            <AudioRecordingConfigForm
+                                config={config}
+                                onChange={setConfig}
+                            />
+                        ),
+                    })
+                }}
+            >
+                {({ pressed }) => (
+                    <Entypo
+                        name="sound-mix"
+                        size={25}
+                        style={{
+                            marginRight: 15,
+                            opacity: pressed ? 0.5 : 1,
+                            color: pressed
+                                ? colors.primary
+                                : colors.text,
+                        }}
+                    />
+                )}
+            </Pressable>
+        </View>)
+      });
+
+
     const { filename } = local
     const selectedFile = files.find((file) => file.filename === filename)
-    const navigator = useNavigation()
 
     const { openDrawer } = useModal()
 
@@ -55,57 +88,6 @@ export const FullAudioViewerPage = () => {
         showDottedLine: true,
         showSilence: false,
     })
-
-    useEffect(() => {
-        // Set navbar title
-        navigator.setOptions({
-            headerShow: true,
-            headerBackTitleVisible: false,
-            headerTitle: ({ tintColor }: { tintColor: string }) => {
-                return (
-                    <Text
-                        style={{
-                            fontSize: 16,
-                            fontWeight: 'bold',
-                            color: tintColor,
-                        }}
-                    >
-                        Analysis
-                    </Text>
-                )
-            },
-            headerRight: () => (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Pressable
-                        onPress={async () => {
-                            await openDrawer({
-                                render: () => (
-                                    <AudioRecordingConfigForm
-                                        config={config}
-                                        onChange={setConfig}
-                                    />
-                                ),
-                            })
-                        }}
-                    >
-                        {({ pressed }) => (
-                            <Entypo
-                                name="sound-mix"
-                                size={25}
-                                style={{
-                                    marginRight: 15,
-                                    opacity: pressed ? 0.5 : 1,
-                                    color: pressed
-                                        ? colors.primary
-                                        : colors.text,
-                                }}
-                            />
-                        )}
-                    </Pressable>
-                </View>
-            ),
-        })
-    }, [navigator, selectedFile, setConfig, openDrawer, show, config, colors.primary, colors.text])
 
     return (
         <ScreenWrapper contentContainerStyle={styles.container}>

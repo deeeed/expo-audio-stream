@@ -8,7 +8,21 @@
       "esModuleInterop": true,
       "forceConsistentCasingInFileNames": true,
       "strict": true,
-      "skipLibCheck": true
+      "skipLibCheck": true,
+      "paths": {
+        "@siteed/expo-audio-studio": [
+            "../expo-audio-studio/src/index"
+        ],
+        "@siteed/expo-audio-studio/*": [
+            "../expo-audio-studio/src/*"
+        ],
+        "@siteed/react-native-essentia": [
+            "../react-native-essentia/src/index"
+        ],
+        "@siteed/react-native-essentia/*": [
+            "../react-native-essentia/src/*"
+        ]
+      }
     },
     "include": ["src/**/*"]
   } 
