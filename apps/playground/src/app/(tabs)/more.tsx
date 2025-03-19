@@ -230,19 +230,19 @@ export const MoreScreen = () => {
                             }}
                         />
                     )}
-                    <ListItem
-                        contentContainerStyle={{
-                            ...styles.listItemContainer,
-                            backgroundColor: theme.colors.errorContainer,
-                        }}
-                        label="Baby Cry"    
-                        subLabel="Baby Cry"
-                        onPress={() => {
-                            router.navigate('/baby-cry')
-                        }}
-                    />
                     {!isWeb && (
                         <>
+                            <ListItem
+                                contentContainerStyle={{
+                                    ...styles.listItemContainer,
+                                    backgroundColor: theme.colors.errorContainer,
+                                }}
+                                label="Baby Cry"    
+                                subLabel="Baby Cry"
+                                onPress={() => {
+                                    router.navigate('/baby-cry')
+                                }}
+                            />
                             <ListItem
                                 contentContainerStyle={{
                                     ...styles.listItemContainer,
@@ -266,6 +266,19 @@ export const MoreScreen = () => {
                                 }}
                             />
                         </>
+                    )}
+                    {isWeb && (
+                        <ListItem
+                            contentContainerStyle={{
+                                ...styles.listItemContainer,
+                                backgroundColor: theme.colors.errorContainer,
+                            }}
+                            label="WASM Demo"
+                            subLabel="WebAssembly Hello World Demo"
+                            onPress={() => {
+                                router.navigate('/wasm-demo')
+                            }}
+                        />
                     )}
                 </>
             )}
