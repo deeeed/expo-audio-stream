@@ -9,16 +9,31 @@ mkdir -p third_party
 # Clone Essentia if it doesn't exist
 if [ ! -d "third_party/essentia" ]; then
   echo "Cloning Essentia repository..."
-  git clone --depth 1 --branch v2.1_beta5 https://github.com/MTG/essentia.git third_party/essentia
+  git clone --branch v2.1_beta5 https://github.com/MTG/essentia.git third_party/essentia
+
+  # Below fork includes the c++11 patch to make it compatible with c++17
+  # https://github.com/wo80/essentia/commit/4c27b35fd0f06d58f4e4d4463e2467596d76ee9b#diff-2413d77f2a9daaf40336b81295762b2a8c79c242d1eb05e140b96b21315cd2c0
+  # git clone --depth 1 https://github.com/wo80/essentia third_party/essentia
+
   # git clone --depth 1 --branch main https://github.com/MTG/essentia.git third_party/essentia
 
    # Apply iOS patch to the Essentia source
   echo "Applying iOS configuration patch..."
   cd third_party/essentia
   cp ../essentia_wscript_ios.patch .
+  cp ../essentia_c++17.patch .
   patch -p1 < ./essentia_wscript_ios.patch
+  patch -p1 < ./essentia_c++17.patch
 else
   echo "Essentia source already exists."
+fi
+
+# Clone essentia.js if it doesn't exist
+if [ ! -d "third_party/essentia.js" ]; then
+  echo "Cloning Essentia.js repository..."
+  git clone --depth 1 https://github.com/MTG/essentia.js.git third_party/essentia.js
+else
+  echo "Essentia.js source already exists."
 fi
 
 # Create include directory if it doesn't exist

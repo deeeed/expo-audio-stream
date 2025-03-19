@@ -1,0 +1,84 @@
+From 4c27b35fd0f06d58f4e4d4463e2467596d76ee9b Mon Sep 17 00:00:00 2001
+From: wo80 <christian.woltering@tu-dortmund.de>
+Date: Tue, 6 Dec 2022 17:39:13 +0100
+Subject: [PATCH] Remove usage of std::binary_function and std::bind1st. -
+ Deprectated since C++11, removed in C++17
+
+---
+ src/algorithms/highlevel/chromaprinter.cpp | 4 ++--
+ src/essentia/essentiamath.h                | 2 +-
+ src/essentia/types.h                       | 3 +--
+ src/essentia/utils/peak.h                  | 4 ++--
+ 4 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/algorithms/highlevel/chromaprinter.cpp b/src/algorithms/highlevel/chromaprinter.cpp
+index e9435c04d..1713d1b9e 100644
+--- a/src/algorithms/highlevel/chromaprinter.cpp
++++ b/src/algorithms/highlevel/chromaprinter.cpp
+@@ -54,7 +54,7 @@ void Chromaprinter::compute() {
+   // Copy the signal to new vector to expand it to the int16_t dynamic range before the cast.
+   std::vector<Real> signalScaled = signal;
+   std::transform(signalScaled.begin(), signalScaled.end(), signalScaled.begin(),
+-                 std::bind1st(std::multiplies<Real>(), pow(2,15)));
++                 std::bind(std::multiplies<Real>(), pow(2,15), std::placeholders::_1));
+ 
+   std::vector<int16_t> signalCast(signalScaled.begin(), signalScaled.end());
+ 
+@@ -160,7 +160,7 @@ AlgorithmStatus Chromaprinter::process() {
+     // Copy the signal to new vector to expand it to the int16_t dynamic range before the cast.
+     std::vector<Real> signalScaled = signal;
+     std::transform(signalScaled.begin(), signalScaled.end(), signalScaled.begin(),
+-                   std::bind1st(std::multiplies<Real>(), pow(2,15)));
++                   std::bind(std::multiplies<Real>(), pow(2,15), std::placeholders::_1));
+ 
+     std::vector<int16_t> signalCast(signalScaled.begin(), signalScaled.end());
+ 
+diff --git a/src/essentia/essentiamath.h b/src/essentia/essentiamath.h
+index 2cb47cf03..1d8b356d5 100644
+--- a/src/essentia/essentiamath.h
++++ b/src/essentia/essentiamath.h
+@@ -831,7 +831,7 @@ std::vector<T> derivative(const std::vector<T>& array) {
+ }
+ 
+ template<typename T, typename U, typename Comparator=std::greater<T> >
+-class PairCompare : public std::binary_function<T, U, bool> {
++class PairCompare {
+   Comparator _cmp;
+   public:
+     bool operator () (const std::pair<T,U>& p1, const std::pair<T,U>& p2) const {
+diff --git a/src/essentia/types.h b/src/essentia/types.h
+index 8114556ce..cfc5b6d6d 100644
+--- a/src/essentia/types.h
++++ b/src/essentia/types.h
+@@ -115,8 +115,7 @@ inline bool case_insensitive_char_cmp(char a, char b) {
+ /**
+  * Function object for comparing two strings in a case-insensitive manner.
+  */
+-struct case_insensitive_str_cmp
+-  : public std::binary_function<const std::string&, const std::string&, bool> {
++struct case_insensitive_str_cmp {
+   bool operator()(const std::string& str1, const std::string& str2) const {
+     return std::lexicographical_compare(str1.begin(), str1.end(),
+                                         str2.begin(), str2.end(),
+diff --git a/src/essentia/utils/peak.h b/src/essentia/utils/peak.h
+index 12175fc54..83c095092 100644
+--- a/src/essentia/utils/peak.h
++++ b/src/essentia/utils/peak.h
+@@ -71,7 +71,7 @@ class Peak {
+ // the positions are equal it sorts by descending magnitude
+ template<typename Comp1=std::less<Real>,
+          typename Comp2=std::greater_equal<Real> >
+-class ComparePeakPosition : public std::binary_function<Real, Real, bool> {
++class ComparePeakPosition {
+   Comp1 _cmp1;
+   Comp2 _cmp2;
+   public:
+@@ -86,7 +86,7 @@ class ComparePeakPosition : public std::binary_function<Real, Real, bool> {
+ // the magnitudes are equal it sorts by ascending position
+ template<typename Comp1=std::greater<Real>,
+          typename Comp2=std::less_equal<Real> >
+-class ComparePeakMagnitude : public std::binary_function<Real, Real, bool> {
++class ComparePeakMagnitude {
+   Comp1 _cmp1;
+   Comp2 _cmp2;
+   public:
