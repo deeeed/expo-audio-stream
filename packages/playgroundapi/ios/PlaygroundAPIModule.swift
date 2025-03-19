@@ -96,16 +96,36 @@ public class PlaygroundAPIModule: Module {
     }
     
     AsyncFunction("validateAudioProcessorIntegration") {
-      let processor = AudioProcessor(
-        resolve: { _ in },
-        reject: { _, _ in }
-      )
-      
-      return [
-        "success": true,
-        "message": "AudioProcessor is properly integrated",
-        "audioProcessorClass": String(describing: type(of: processor))
-      ]
+      do {
+        // Try to create an AudioProcessor instance
+        let processor = AudioProcessor(
+          resolve: { _ in },
+          reject: { _, _ in }
+        )
+        
+        // Test creating a DecodingConfig
+        let config = DecodingConfig(
+          targetSampleRate: 44100,
+          targetChannels: 1,
+          targetBitDepth: 16,
+          normalizeAudio: false
+        )
+        
+        return [
+          "audioProcessorInitialized": true,
+          "audioProcessorClass": String(describing: type(of: processor)),
+          "decodingConfigCreated": true,
+          "decodingConfigClass": String(describing: type(of: config)),
+          "success": true,
+          "message": "AudioProcessor is properly integrated"
+        ]
+      } catch {
+        return [
+          "success": false,
+          "error": error.localizedDescription,
+          "errorType": String(describing: type(of: error))
+        ]
+      }
     }
     
     AsyncFunction("setValueAsync") { (value: String) in
@@ -255,50 +275,123 @@ public class PlaygroundAPIModule: Module {
       var steps = result["validationSteps"] as! [String]
       steps.append("Starting Essentia module validation")
       
-      do {
-        if let essentiaModuleClass = NSClassFromString("net_siteed_essentia_EssentiaModule") {
-          result["essentiaModuleClassFound"] = true
-          result["essentiaModuleClassName"] = String(describing: essentiaModuleClass)
-          steps.append("Found EssentiaModule class")
+      // Check Essentia module through React Native bridge
+      if let essentia = essentiaModule {
+        result["essentiaModuleImported"] = true
+        result["essentiaModuleClass"] = String(describing: type(of: essentia))
+        steps.append("Found Essentia module in React Native bridge")
+        
+        // Test native bridge by calling methods
+        if let instance = essentia as? NSObject {
+          steps.append("Attempting to call native methods")
           
-          if let instance = self.getEssentiaModule() as? NSObject {
-            steps.append("Attempting to call testNativeBridge native method")
+          // Test testConnection method
+          let testConnectionSelector = NSSelectorFromString("testConnection:rejecter:")
+          if instance.responds(to: testConnectionSelector) {
+            steps.append("Found testConnection method")
+            print("[PlaygroundAPI] Calling testConnection...")
             
-            let testSelector = NSSelectorFromString("testNativeBridge")
-            if instance.responds(to: testSelector) {
-              if let testResult = instance.perform(testSelector)?.takeUnretainedValue() as? String {
+            // Create completion handlers and retain them
+            let resolve: @convention(block) (Any?) -> Void = { value in
+              print("[PlaygroundAPI] testConnection resolved with:", value ?? "nil")
+              if let testResult = value as? String {
                 result["jniTestResult"] = testResult
                 result["jniConnectionSuccessful"] = true
-                steps.append("Successfully called native method")
-              } else {
-                result["jniTestResult"] = "No result"
-                result["jniConnectionSuccessful"] = false
-                steps.append("Method call returned no result")
+                steps.append("Successfully called testConnection: \(testResult)")
               }
-            } else {
-              steps.append("Method 'testNativeBridge' not found")
-              result["jniConnectionSuccessful"] = false
             }
+            
+            let reject: @convention(block) (String?, String?, Error?) -> Void = { code, message, error in
+              print("[PlaygroundAPI] testConnection rejected:", message ?? "unknown error")
+              result["jniConnectionSuccessful"] = false
+              result["jniConnectionError"] = message
+              steps.append("testConnection failed: \(message ?? "unknown error")")
+            }
+            
+            // Convert blocks to objects and retain them
+            let resolveObject = unsafeBitCast(resolve, to: AnyObject.self)
+            let rejectObject = unsafeBitCast(reject, to: AnyObject.self)
+            
+            // Perform the selector with retained objects
+            _ = instance.perform(testConnectionSelector, with: resolveObject, with: rejectObject)
+            print("[PlaygroundAPI] testConnection call completed")
           } else {
-            steps.append("Failed to create module instance")
-            result["success"] = false
+            steps.append("Method 'testConnection:rejecter:' not found")
+            result["jniConnectionSuccessful"] = false
           }
+          
+          // Test getVersion method
+          let versionSelector = NSSelectorFromString("getVersion:rejecter:")
+          if instance.responds(to: versionSelector) {
+            steps.append("Found getVersion method")
+            print("[PlaygroundAPI] Calling getVersion...")
+            
+            let resolve: @convention(block) (Any?) -> Void = { value in
+              print("[PlaygroundAPI] getVersion resolved with:", value ?? "nil")
+              if let version = value as? String {
+                result["version"] = version
+                steps.append("Successfully got version: \(version)")
+              }
+            }
+            
+            let reject: @convention(block) (String?, String?, Error?) -> Void = { code, message, error in
+              print("[PlaygroundAPI] getVersion rejected:", message ?? "unknown error")
+              steps.append("getVersion failed: \(message ?? "unknown error")")
+            }
+            
+            let resolveObject = unsafeBitCast(resolve, to: AnyObject.self)
+            let rejectObject = unsafeBitCast(reject, to: AnyObject.self)
+            
+            _ = instance.perform(versionSelector, with: resolveObject, with: rejectObject)
+            print("[PlaygroundAPI] getVersion call completed")
+          } else {
+            steps.append("Method 'getVersion:rejecter:' not found")
+          }
+          
+          // Test initialize method
+          let initializeSelector = NSSelectorFromString("initialize:rejecter:")
+          if instance.responds(to: initializeSelector) {
+            steps.append("Found initialize method")
+            print("[PlaygroundAPI] Calling initialize...")
+            
+            let resolve: @convention(block) (Any?) -> Void = { value in
+              print("[PlaygroundAPI] initialize resolved with:", value ?? "nil")
+              if let initResult = value as? Bool {
+                result["initializeSuccessful"] = initResult
+                steps.append("Successfully called initialize: \(initResult)")
+              }
+            }
+            
+            let reject: @convention(block) (String?, String?, Error?) -> Void = { code, message, error in
+              print("[PlaygroundAPI] initialize rejected:", message ?? "unknown error")
+              steps.append("initialize failed: \(message ?? "unknown error")")
+            }
+            
+            let resolveObject = unsafeBitCast(resolve, to: AnyObject.self)
+            let rejectObject = unsafeBitCast(reject, to: AnyObject.self)
+            
+            _ = instance.perform(initializeSelector, with: resolveObject, with: rejectObject)
+            print("[PlaygroundAPI] initialize call completed")
+          } else {
+            steps.append("Method 'initialize:rejecter:' not found")
+          }
+          
+          print("[PlaygroundAPI] All method calls completed")
+          print("[PlaygroundAPI] Validation steps:", steps)
+          print("[PlaygroundAPI] Result:", result)
         } else {
-          result["essentiaModuleClassFound"] = false
-          result["essentiaModuleClassError"] = "Class not found"
-          steps.append("Failed to find EssentiaModule class")
+          steps.append("Failed to cast module instance to NSObject")
           result["success"] = false
         }
-        
-        result["validationSteps"] = steps
-        return result
-      } catch {
-        return [
-          "success": false,
-          "error": error.localizedDescription,
-          "errorType": String(describing: type(of: error))
-        ]
+      } else {
+        result["essentiaModuleImported"] = false
+        result["essentiaModuleError"] = "Module not found in React Native bridge"
+        steps.append("Failed to find Essentia module in React Native bridge")
+        result["success"] = false
       }
+      
+      result["validationSteps"] = steps
+      return result
     }
 
     AsyncFunction("checkModuleImports") {
@@ -357,6 +450,46 @@ public class PlaygroundAPIModule: Module {
       
       result["success"] = true
       return result
+    }
+    
+    AsyncFunction("testEssentiaVersion") { (promise: Promise) in
+        if let essentia = essentiaModule {
+            if let instance = essentia as? NSObject {
+                let versionSelector = NSSelectorFromString("getVersion:rejecter:")
+                if instance.responds(to: versionSelector) {
+                    print("[PlaygroundAPI] Calling getVersion...")
+                    
+                    let resolve: @convention(block) (Any?) -> Void = { value in
+                        print("[PlaygroundAPI] getVersion resolved with:", value ?? "nil")
+                        if let version = value as? String {
+                            promise.resolve([
+                                "success": true,
+                                "version": version
+                            ])
+                        } else {
+                            promise.reject("NO_VERSION", "Version returned was nil")
+                        }
+                    }
+                    
+                    let reject: @convention(block) (String?, String?, Error?) -> Void = { code, message, error in
+                        print("[PlaygroundAPI] getVersion rejected:", message ?? "unknown error")
+                        promise.reject(code ?? "ERROR", message ?? "Unknown error")
+                    }
+                    
+                    let resolveObject = unsafeBitCast(resolve, to: AnyObject.self)
+                    let rejectObject = unsafeBitCast(reject, to: AnyObject.self)
+                    
+                    _ = instance.perform(versionSelector, with: resolveObject, with: rejectObject)
+                    print("[PlaygroundAPI] getVersion call completed")
+                } else {
+                    promise.reject("METHOD_NOT_FOUND", "getVersion method not found")
+                }
+            } else {
+                promise.reject("CAST_ERROR", "Failed to cast Essentia module to NSObject")
+            }
+        } else {
+            promise.reject("MODULE_NOT_FOUND", "Essentia module not found")
+        }
     }
     
     View(PlaygroundAPIView.self) {
