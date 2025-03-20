@@ -4,6 +4,7 @@ set -e
 # Use script location as source directory
 SRC_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DEST_DIR="${1:-/Volumes/c910ssd/dev/rn-essentia-static}"
+VERSION=$(node -e "console.log(require('${SRC_DIR}/package.json').version)")
 
 echo "===== Essentia Static Libraries Publisher ====="
 echo "Source directory: ${SRC_DIR}"
@@ -15,6 +16,12 @@ if [ ! -d "${DEST_DIR}" ]; then
   echo "Please create the directory first or specify a different path:"
   echo "Usage: $0 [destination_path]"
   exit 1
+fi
+
+# Remove any existing .gitattributes file that might be enabling LFS
+if [ -f "${DEST_DIR}/.gitattributes" ]; then
+  echo "🗑️ Removing existing .gitattributes file to prevent Git LFS tracking"
+  rm "${DEST_DIR}/.gitattributes"
 fi
 
 # Check if we have built libraries
@@ -80,7 +87,6 @@ else
 fi
 
 # Create version file with timestamp
-VERSION=$(grep -o '"version": "[^"]*"' "${SRC_DIR}/package.json" | cut -d'"' -f4)
 TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
 echo "{\"version\":\"${VERSION}\",\"built\":\"${TIMESTAMP}\"}" > "${DEST_DIR}/version.json"
 echo "✅ Created version.json with version ${VERSION}"
@@ -122,21 +128,18 @@ EOF
 
 echo "✅ Created README.md"
 
-# Create .gitattributes file to handle large binary files properly
-cat > "${DEST_DIR}/.gitattributes" << EOF
-# Handle large binary files with Git LFS
-*.a filter=lfs diff=lfs merge=lfs -text
-EOF
-
-echo "✅ Created .gitattributes for Git LFS"
-
 echo "✅ Done! Files copied to ${DEST_DIR}"
 echo ""
 echo "Next steps:"
 echo "1. Navigate to ${DEST_DIR}"
-echo "2. Initialize Git LFS: git lfs install"
-echo "3. Add the files: git add ."
-echo "4. Commit: git commit -m \"Update Essentia static libraries (v${VERSION})\""
-echo "5. Push to GitHub: git push origin main"
+echo "2. Run this command to completely uninstall Git LFS from the repository:"
+echo "   git lfs uninstall"
+echo "3. Make sure there is NO .gitattributes file in your repository"
+echo "   rm -f .gitattributes"
+echo "4. Delete any existing LFS-tracked files if they exist:"
+echo "   rm -f ios/Frameworks/device/*.a ios/Frameworks/simulator/*.a android/jniLibs/*/*.a"
+echo "5. Add your files: git add ."
+echo "6. Commit: git commit -m \"Update Essentia static libraries (v${VERSION}) WITHOUT Git LFS\""
+echo "7. Push to GitHub: git push origin main"
 echo ""
-echo "This will make the libraries available at: ${PREBUILT_BINARIES_URL}"
+echo "This will make the libraries available directly in the repository WITHOUT using Git LFS"

@@ -16,12 +16,10 @@ file(MAKE_DIRECTORY ${RNESSENTIA_LIB_DIR}/third_party/nlohmann)
 # Download nlohmann/json if not already present
 if(NOT EXISTS ${RNESSENTIA_LIB_DIR}/third_party/nlohmann/json.hpp)
     message(STATUS "Downloading nlohmann/json library...")
-    file(DOWNLOAD
-        https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp
-        ${RNESSENTIA_LIB_DIR}/third_party/nlohmann/json.hpp
-        SHOW_PROGRESS
-        STATUS download_status
-    )
+    file(DOWNLOAD https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp
+         ${RNESSENTIA_LIB_DIR}/third_party/nlohmann/json.hpp
+         SHOW_PROGRESS
+         STATUS download_status)
     list(GET download_status 0 status_code)
     if(NOT status_code EQUAL 0)
         message(FATAL_ERROR "Failed to download nlohmann/json library")
@@ -36,70 +34,62 @@ set(LIBRARY_PATH ${CMAKE_SOURCE_DIR}/jniLibs/${ANDROID_ABI}/libessentia.a)
 
 if(EXISTS ${LIBRARY_PATH})
     message(STATUS "Found library for ${ANDROID_ABI}: ${LIBRARY_PATH}")
-
-    # Check file size
     file(SIZE ${LIBRARY_PATH} LIBRARY_SIZE)
     message(STATUS "Library size: ${LIBRARY_SIZE} bytes")
 
     if(LIBRARY_SIZE LESS 1000)
-        message(WARNING "Library file is suspiciously small (< 1KB), might be a dummy or placeholder")
-
-        # Read the first few bytes to check if it's a Git LFS pointer
+        message(STATUS "Library file is suspiciously small (< 1KB), might be a dummy or placeholder")
         file(READ ${LIBRARY_PATH} LIBRARY_CONTENT LIMIT 100)
         string(FIND "${LIBRARY_CONTENT}" "git-lfs" GIT_LFS_POS)
 
-        if(NOT ${GIT_LFS_POS} EQUAL -1)
-            message(STATUS "Library appears to be a Git LFS pointer file, attempting to download...")
-            execute_process(
-                COMMAND node ${CMAKE_SOURCE_DIR}/../../../install.js
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/../../..
-                RESULT_VARIABLE INSTALL_RESULT
-            )
-
-            if(NOT INSTALL_RESULT EQUAL 0)
-                message(FATAL_ERROR "Failed to download libraries. Please run './build-essentia-android.sh' or replace with a proper library file.")
-            endif()
-
-            # Check if the file was properly downloaded
+        if(NOT GIT_LFS_POS EQUAL -1)
+            message(STATUS "Library appears to be a Git LFS pointer file, running install script")
+            execute_process(COMMAND node ${CMAKE_CURRENT_SOURCE_DIR}/../../../install.js
+                           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
             file(SIZE ${LIBRARY_PATH} NEW_LIBRARY_SIZE)
+
             if(NEW_LIBRARY_SIZE LESS 1000)
-                message(FATAL_ERROR "Library is still too small after download attempt (${NEW_LIBRARY_SIZE} bytes). Please run './build-essentia-android.sh' or replace with a proper library file.")
+                message(FATAL_ERROR "Library is still too small after download attempt (${NEW_LIBRARY_SIZE} bytes). Please run './build-essentia-android.sh' manually.")
             endif()
-        else
-            message(FATAL_ERROR "Library for ${ANDROID_ABI} is too small to be valid (${LIBRARY_SIZE} bytes). Please run './build-essentia-android.sh' or replace with a proper library file.")
+        else()
+            message(FATAL_ERROR "Library for ${ANDROID_ABI} is too small to be valid (${LIBRARY_SIZE} bytes). Please run './build-essentia-android.sh' manually.")
         endif()
     endif()
 
-    # Import the library
     add_library(essentia STATIC IMPORTED)
     set_target_properties(essentia PROPERTIES IMPORTED_LOCATION ${LIBRARY_PATH})
 else()
-    message(FATAL_ERROR "Library not found for ${ANDROID_ABI}: ${LIBRARY_PATH}. Please run './build-essentia-android.sh' or ensure the library is in the correct location.")
+    message(STATUS "Library not found, running install script...")
+    execute_process(COMMAND node ${CMAKE_CURRENT_SOURCE_DIR}/../../../install.js
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
+
+    if(EXISTS ${LIBRARY_PATH})
+        file(SIZE ${LIBRARY_PATH} LIBRARY_SIZE)
+        if(LIBRARY_SIZE LESS 1000)
+            message(FATAL_ERROR "Downloaded library is too small (${LIBRARY_SIZE} bytes). Please run './build-essentia-android.sh' manually.")
+        endif()
+        add_library(essentia STATIC IMPORTED)
+        set_target_properties(essentia PROPERTIES IMPORTED_LOCATION ${LIBRARY_PATH})
+    else()
+        message(FATAL_ERROR "Library not found after running install script. Please run './build-essentia-android.sh' manually.")
+    endif()
 endif()
 
 message(STATUS "======== END ESSENTIA ANDROID LIBRARY VALIDATION ========")
 
 # Add include directories for Essentia headers and third-party libraries
-include_directories(
-    ${RNESSENTIA_LIB_DIR}/include  # Essentia headers in cpp/include/essentia
-    ${RNESSENTIA_LIB_DIR}/third_party  # Path to third-party libraries
-    ${RNESSENTIA_LIB_DIR}  # Include the cpp directory for local header files
-)
+include_directories(${RNESSENTIA_LIB_DIR}/include
+                    ${RNESSENTIA_LIB_DIR}/third_party
+                    ${RNESSENTIA_LIB_DIR})
 
 # Custom wrapper code
 add_library(react-native-essentia SHARED
     ${RNESSENTIA_LIB_DIR}/JNIBindings.cpp
     ${RNESSENTIA_LIB_DIR}/EssentiaWrapper.cpp
-    ${RNESSENTIA_LIB_DIR}/FeatureExtractor.cpp
-)
+    ${RNESSENTIA_LIB_DIR}/FeatureExtractor.cpp)
 
 # Ensure C++17 is used for the wrapper code
 target_compile_features(react-native-essentia PRIVATE cxx_std_17)
 
 # Link libraries to react-native-essentia
-target_link_libraries(
-    react-native-essentia
-    essentia
-    android
-    log  # For Android logging
-)
+target_link_libraries(react-native-essentia essentia android log)
