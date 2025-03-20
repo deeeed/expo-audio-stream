@@ -8355,6 +8355,7 @@ __metadata:
     "@types/babel__core": "npm:^7"
     "@types/babel__preset-env": "npm:^7"
     "@types/jest": "npm:^29.5.5"
+    "@types/progress": "npm:^2"
     "@types/react": "npm:^18.2.44"
     adm-zip: "npm:^0.5.16"
     commitlint: "npm:^17.0.2"
@@ -8363,7 +8364,9 @@ __metadata:
     eslint-config-prettier: "npm:^9.0.0"
     eslint-plugin-prettier: "npm:^5.0.1"
     jest: "npm:^29.7.0"
+    node-fetch: "npm:2"
     prettier: "npm:^3.0.3"
+    progress: "npm:^2.0.3"
     react: "npm:19.0.0"
     react-native: "npm:0.78.0"
     react-native-builder-bob: "npm:^0.37.0"
@@ -9853,6 +9856,15 @@ __metadata:
   version: 1.26.5
   resolution: "@types/prismjs@npm:1.26.5"
   checksum: 10/617099479db9550119d0f84272dc79d64b2cf3e0d7a17167fe740d55fdf0f155697d935409464392d164e62080c2c88d649cf4bc4fdd30a87127337536657277
+  languageName: node
+  linkType: hard
+
+"@types/progress@npm:^2":
+  version: 2.0.7
+  resolution: "@types/progress@npm:2.0.7"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10/80c506e0fb100cca36852259ef43028d4f861cfd3f51bc608dc22b20fefab1a724552425dc4907f997d2c82557501a8d160a3f7803cbd56cc43a2bc1edb03c36
   languageName: node
   linkType: hard
 
@@ -26890,7 +26902,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"node-fetch@npm:^2.2.0, node-fetch@npm:^2.6.0, node-fetch@npm:^2.6.1, node-fetch@npm:^2.6.12":
+"node-fetch@npm:2, node-fetch@npm:^2.2.0, node-fetch@npm:^2.6.0, node-fetch@npm:^2.6.1, node-fetch@npm:^2.6.12":
   version: 2.7.0
   resolution: "node-fetch@npm:2.7.0"
   dependencies:
