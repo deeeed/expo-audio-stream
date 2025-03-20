@@ -1,3 +1,4 @@
+// apps/playground/src/hooks/useUnifiedTranscription.ts
 import { useCallback, useState, useRef, useEffect } from 'react'
 import { TranscriberData } from '@siteed/expo-audio-studio'
 import { useTranscription } from '../context/TranscriptionProvider'
@@ -27,7 +28,21 @@ export interface TranscriptionResult {
     startRealtimeTranscription: (options?: RealtimeTranscriptionOptions) => Promise<void>
     stopRealtimeTranscription: () => Promise<void>
     isRealtimeTranscribing: boolean
+    isProgressiveBatchRunning: boolean
+    startProgressiveBatch: (options?: BatchTranscriptionOptions) => void
+    stopProgressiveBatch: () => void
+    addAudioData: (data: Float32Array | string) => void
+    stopCurrentTranscription: () => void
     initialize: () => Promise<void>
+}
+
+export interface BatchTranscriptionOptions {
+  batchIntervalSec?: number;    // How often to run transcription (default: 10s)
+  batchWindowSec?: number;      // Size of audio window to process (default: 30s)
+  sampleRate?: number;          // Audio sample rate (default: 16000)
+  language?: string;            // Language code or 'auto'
+  minNewDataSec?: number;       // Min seconds of new data before processing (default: 3s)
+  maxBufferLengthSec?: number;  // Maximum length of audio buffer to retain (default: 60s)
 }
 
 export function useUnifiedTranscription({
@@ -44,6 +59,22 @@ export function useUnifiedTranscription({
     
     // For live transcription (prefix with _ to indicate it might not be used directly)
     const _lastCheckpointBufferIndex = useRef(0)
+    
+    const [isProgressiveBatchRunning, setIsProgressiveBatchRunning] = useState(false);
+    
+    // References for progressive batch processing
+    const audioBufferRef = useRef<Float32Array>(new Float32Array(0));
+    const lastProcessedTimeRef = useRef<number>(0);
+    const batchIntervalTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const batchOptionsRef = useRef<BatchTranscriptionOptions>({
+        batchIntervalSec: 10,
+        batchWindowSec: 30,
+        sampleRate: 16000,
+        minNewDataSec: 3,
+        maxBufferLengthSec: 60,
+    });
+    
+    const audioChunksRef = useRef<string[]>([]);
     
     const initialize = useCallback(async () => {
         try {
@@ -336,13 +367,390 @@ export function useUnifiedTranscription({
         }
     }, [transcriptionContext, onError, onTranscriptionUpdate, isProcessing, language, isRealtimeTranscribing]);
 
-    // Cleanup on unmount
+    // Clean up the interval timer on unmount
     useEffect(() => {
         return () => {
             stopTranscription();
             stopRealtimeTranscription();
+            if (batchIntervalTimerRef.current) {
+                clearInterval(batchIntervalTimerRef.current);
+                batchIntervalTimerRef.current = null;
+            }
         };
     }, [stopTranscription, stopRealtimeTranscription]);
+    
+    // Add audio data to the buffer
+    const addAudioData = useCallback((newData: Float32Array | string) => {
+        if (!newData) {
+            logger.warn('Attempted to add null/undefined audio data to buffer');
+            return;
+        }
+        
+        logger.debug(`addAudioData called with data type: ${typeof newData}, 
+                     isFloat32Array=${newData instanceof Float32Array},
+                     length=${typeof newData === 'string' ? newData.length : newData.length}`);
+        
+        if (typeof newData === 'string') {
+            // Handle base64 string for native platforms
+            if (newData.length === 0) {
+                logger.warn('Empty base64 string provided to addAudioData');
+                return;
+            }
+            
+            logger.debug(`Adding base64 audio data: length=${newData.length}`);
+            
+            // For native, we'll store base64 chunks directly
+            // and process them at batch intervals
+            if (!audioChunksRef.current) {
+                audioChunksRef.current = [];
+            }
+            
+            audioChunksRef.current.push(newData);
+            
+            // Keep only the most recent chunks that fit within our buffer limits
+            const { maxBufferLengthSec = 60, sampleRate = 16000 } = batchOptionsRef.current;
+            const estimatedSamplesPerChunk = 16000; // Rough estimate
+            const maxChunks = Math.ceil((maxBufferLengthSec * sampleRate) / estimatedSamplesPerChunk);
+            
+            if (audioChunksRef.current.length > maxChunks) {
+                audioChunksRef.current = audioChunksRef.current.slice(-maxChunks);
+            }
+            
+            logger.debug(`Base64 audio chunks: ${audioChunksRef.current.length}`);
+            return;
+        }
+        
+        // Handle Float32Array for web platforms
+        if (newData.length === 0) {
+            logger.warn('Empty Float32Array provided to addAudioData');
+            return;
+        }
+        
+        logger.debug(`Processing Float32Array data for batch: length=${newData.length}`);
+        
+        // Check if it's actually a Float32Array or some other object
+        if (!(newData instanceof Float32Array)) {
+            logger.warn(`Data is not a real Float32Array: ${Object.prototype.toString.call(newData)}`);
+            try {
+                // Try to convert it to Float32Array if possible
+                newData = new Float32Array(newData);
+                logger.debug(`Converted to proper Float32Array: length=${newData.length}`);
+            } catch (error) {
+                logger.error('Failed to convert data to Float32Array:', error);
+                return;
+            }
+        }
+        
+        const { maxBufferLengthSec = 60, sampleRate = 16000 } = batchOptionsRef.current;
+        const maxBufferLength = maxBufferLengthSec * sampleRate;
+        
+        // Create a new buffer that can hold both existing data and new data
+        const currentBuffer = audioBufferRef.current;
+        const totalLength = currentBuffer.length + newData.length;
+        const newLength = Math.min(totalLength, maxBufferLength);
+        
+        logger.debug(`Buffer status: current=${currentBuffer.length}, adding=${newData.length}, total=${totalLength}, newLength=${newLength}`);
+        
+        try {
+            const concatenatedBuffer = new Float32Array(newLength);
+            
+            if (totalLength > maxBufferLength) {
+                // If we'd exceed max length, truncate oldest data
+                const excessLength = totalLength - maxBufferLength;
+                concatenatedBuffer.set(
+                    currentBuffer.slice(excessLength),
+                    0
+                );
+                concatenatedBuffer.set(newData, currentBuffer.length - excessLength);
+            } else {
+                // Otherwise add all data
+                concatenatedBuffer.set(currentBuffer);
+                concatenatedBuffer.set(newData, currentBuffer.length);
+            }
+            
+            // Update the buffer reference
+            audioBufferRef.current = concatenatedBuffer;
+            logger.debug(`Audio buffer updated successfully: now contains ${audioBufferRef.current.length} samples (about ${(audioBufferRef.current.length/sampleRate).toFixed(1)}s of audio)`);
+        } catch (error) {
+            logger.error('Error updating audio buffer:', error);
+        }
+    }, []);
+    
+    // Process the current batch of audio data
+    const processBatch = useCallback(async () => {
+        if (!transcriptionContext.ready || isProcessing) {
+            logger.debug(`Skipping batch - not ready: transcriptionReady=${transcriptionContext.ready}, isProcessing=${isProcessing}`);
+            return;
+        }
+        
+        // Add logging for the buffer state
+        const webBufferLength = audioBufferRef.current.length;
+        const nativeBufferLength = audioChunksRef.current?.length || 0;
+        logger.debug(`Process batch check - webBuffer: ${webBufferLength} samples, nativeBuffer: ${nativeBufferLength} chunks`);
+        
+        const now = Date.now();
+        const { 
+            batchWindowSec = 30, 
+            sampleRate = 16000, 
+            minNewDataSec = 3 
+        } = batchOptionsRef.current;
+        
+        // Calculate seconds since last processing
+        const secSinceLastProcess = (now - lastProcessedTimeRef.current) / 1000;
+        
+        // Only process if we have enough new data to make it worthwhile
+        if (secSinceLastProcess < minNewDataSec) {
+            logger.debug(`Skipping batch - not enough new data (${secSinceLastProcess.toFixed(1)}s < ${minNewDataSec}s)`);
+            return;
+        }
+        
+        // Platform-specific processing
+        if (isWeb) {
+            // Web uses Float32Array buffer
+            const buffer = audioBufferRef.current;
+            const windowSamples = batchWindowSec * sampleRate;
+            
+            // Log the current buffer state
+            logger.debug(`Web batch processing - buffer status: ${buffer.length} samples, ${(buffer.length/sampleRate).toFixed(1)}s of audio`);
+            
+            // For web, we'll process with just 1 second of audio minimum
+            const minSamples = Math.min(windowSamples / 4, sampleRate * 1);
+            if (buffer.length < minSamples) {
+                logger.debug(`Skipping batch - buffer too small (${buffer.length} < ${minSamples}, need at least 1 second)`);
+                return;
+            }
+            
+            // Take the most recent window of audio
+            const processBuffer = buffer.length > windowSamples 
+                ? buffer.slice(-windowSamples) 
+                : buffer;
+            
+            logger.debug(`Processing web audio batch: ${processBuffer.length} samples, ${(processBuffer.length/sampleRate).toFixed(1)}s of audio`);
+            
+            if (processBuffer.length === 0) return;
+            
+            try {
+                setIsProcessing(true);
+                lastProcessedTimeRef.current = now;
+                
+                const jobId = `BATCH_${now}`;
+                
+                // Process the Float32Array
+                const { promise, stop: _stop } = await transcriptionContext.transcribe({
+                    audioData: processBuffer,
+                    jobId,
+                    options: {
+                        language: language === 'auto' ? undefined : language,
+                    },
+                    onNewSegments: (result) => {
+                        // Convert segments to our format
+                        const chunks = result.segments.map((segment) => ({
+                            text: segment.text.trim(),
+                            timestamp: [
+                                segment.t0 / 100,
+                                segment.t1 ? segment.t1 / 100 : null,
+                            ] as [number, number | null],
+                        }));
+
+                        const text = chunks.map((c) => c.text).join(' ');
+                        
+                        // Calculate real-world start time based on buffer position
+                        const bufferStartTime = now - (processBuffer.length / sampleRate) * 1000;
+                        
+                        const updateData: TranscriberData = {
+                            id: jobId,
+                            text,
+                            chunks,
+                            isBusy: true,
+                            startTime: bufferStartTime,
+                            endTime: now
+                        };
+                        
+                        onTranscriptionUpdate?.(updateData);
+                    }
+                });
+                
+                // Execute transcription
+                const transcription = await promise;
+                if (transcription) {
+                    onTranscriptionUpdate?.(transcription);
+                }
+            } catch (error) {
+                logger.error('Batch transcription error:', error);
+                onError?.(error instanceof Error ? error : new Error('Batch transcription failed'));
+            } finally {
+                setIsProcessing(false);
+            }
+        } else {
+            // Native uses base64 chunks
+            if (!audioChunksRef.current || audioChunksRef.current.length === 0) {
+                logger.debug('No audio chunks available for processing');
+                return;
+            }
+            
+            try {
+                setIsProcessing(true);
+                lastProcessedTimeRef.current = now;
+                
+                // Calculate how many chunks to process
+                const numChunks = Math.min(audioChunksRef.current.length, 
+                                         Math.ceil(batchWindowSec / 5)); // Assuming ~5s per chunk
+                
+                // Get the most recent chunks
+                const recentChunks = audioChunksRef.current.slice(-numChunks);
+                
+                logger.debug(`Processing ${recentChunks.length} audio chunks`);
+                
+                // For native, we directly use base64 data with whisper.rn
+                const _batchJobId = `BATCH_${now}`;
+                
+                // Use the first chunk (or concatenate if needed)
+                const audioData = recentChunks[recentChunks.length - 1];
+                
+                const { promise, stop: _stop } = await transcriptionContext.transcribe({
+                    audioData,
+                    jobId: _batchJobId,
+                    options: {
+                        language: language === 'auto' ? undefined : language,
+                    },
+                    onNewSegments: (result) => {
+                        // Convert segments to our format
+                        const chunks = result.segments.map((segment) => ({
+                            text: segment.text.trim(),
+                            timestamp: [
+                                segment.t0 / 100,
+                                segment.t1 ? segment.t1 / 100 : null,
+                            ] as [number, number | null],
+                        }));
+
+                        const text = chunks.map((c) => c.text).join(' ');
+                        
+                        const updateData: TranscriberData = {
+                            id: _batchJobId,
+                            text,
+                            chunks,
+                            isBusy: true,
+                            startTime: now - 5000, // Approximate start time
+                            endTime: now
+                        };
+                        
+                        onTranscriptionUpdate?.(updateData);
+                    }
+                });
+                
+                // Execute transcription
+                const transcription = await promise;
+                if (transcription) {
+                    onTranscriptionUpdate?.(transcription);
+                }
+                
+            } catch (error) {
+                logger.error('Native batch transcription error:', error);
+                onError?.(error instanceof Error ? error : new Error('Native batch transcription failed'));
+            } finally {
+                setIsProcessing(false);
+            }
+        }
+    }, [isProcessing, language, onError, onTranscriptionUpdate, transcriptionContext]);
+    
+    // Start the progressive batch processing
+    const startProgressiveBatch = useCallback((options?: BatchTranscriptionOptions) => {
+        // Stop any existing interval
+        if (batchIntervalTimerRef.current) {
+            clearInterval(batchIntervalTimerRef.current);
+            batchIntervalTimerRef.current = null;
+        }
+        
+        // Reset buffer
+        audioBufferRef.current = new Float32Array(0);
+        lastProcessedTimeRef.current = 0;
+        
+        // Default options more suitable for web
+        const defaultOptions: BatchTranscriptionOptions = {
+            batchIntervalSec: isWeb ? 3 : 10,    // More frequent for web
+            batchWindowSec: 30,
+            sampleRate: 16000,                   // Match Whisper's expected rate
+            minNewDataSec: isWeb ? 1 : 3,        // Need less data on web to start processing
+            maxBufferLengthSec: 60,
+        };
+        
+        // Update options
+        batchOptionsRef.current = {
+            ...defaultOptions,
+            ...options
+        };
+        
+        const { batchIntervalSec = isWeb ? 3 : 10 } = batchOptionsRef.current;
+        
+        // Start a new interval
+        logger.debug(`Starting progressive batch transcription (interval: ${batchIntervalSec}s, sample rate: ${batchOptionsRef.current.sampleRate})`);
+        
+        // Don't process immediately - wait for some data first
+        
+        // Then set up interval
+        batchIntervalTimerRef.current = setInterval(() => {
+            processBatch();
+        }, batchIntervalSec * 1000);
+        
+        setIsProgressiveBatchRunning(true);
+    }, [processBatch]);
+    
+    // Stop the progressive batch processing
+    const stopProgressiveBatch = useCallback(() => {
+        logger.debug('Stopping progressive batch transcription');
+        
+        if (batchIntervalTimerRef.current) {
+            clearInterval(batchIntervalTimerRef.current);
+            batchIntervalTimerRef.current = null;
+        }
+        
+        // Process one final time to capture any remaining audio
+        processBatch();
+        
+        // Reset buffers
+        audioBufferRef.current = new Float32Array(0);
+        if (audioChunksRef.current) {
+            audioChunksRef.current = [];
+        }
+        setIsProgressiveBatchRunning(false);
+    }, [processBatch]);
+
+    // Add a new method to stop any transcription in progress
+    const stopCurrentTranscription = useCallback(() => {
+        // Stop any batch interval
+        if (batchIntervalTimerRef.current) {
+            clearInterval(batchIntervalTimerRef.current);
+            batchIntervalTimerRef.current = null;
+        }
+        
+        // Stop any active transcription
+        if (stopTranscriptionRef.current) {
+            stopTranscriptionRef.current();
+            stopTranscriptionRef.current = null;
+        }
+        
+        // Stop any realtime transcription
+        if (realtimeStopFnRef.current) {
+            realtimeStopFnRef.current().catch(e => {
+                logger.error('Error stopping realtime transcription:', e);
+            });
+            realtimeStopFnRef.current = null;
+        }
+        
+        // Reset flags and state
+        setIsRealtimeTranscribing(false);
+        setIsProgressiveBatchRunning(false);
+        activeJobRef.current = null;
+        setIsProcessing(false);
+        
+        // Clear buffers
+        audioBufferRef.current = new Float32Array(0);
+        if (audioChunksRef.current) {
+            audioChunksRef.current = [];
+        }
+        
+        logger.debug('Stopped all transcription processes');
+    }, []);
 
     return {
         isProcessing: isProcessing || !!activeJobRef.current || transcriptionContext.isBusy,
@@ -352,6 +760,11 @@ export function useUnifiedTranscription({
         startRealtimeTranscription,
         stopRealtimeTranscription,
         isRealtimeTranscribing,
-        initialize
+        isProgressiveBatchRunning,
+        startProgressiveBatch,
+        stopProgressiveBatch,
+        addAudioData,
+        stopCurrentTranscription,
+        initialize,
     };
 } 

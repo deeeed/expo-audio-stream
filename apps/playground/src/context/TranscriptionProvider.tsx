@@ -527,6 +527,26 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 
                 logger.debug('Successfully started realtime transcription, setting up subscription')
                 
+                // Set up a failsafe for resetting if the realtime transcription hangs
+                let lastUpdateTimestamp = Date.now()
+                const healthCheckInterval = setInterval(() => {
+                    const now = Date.now()
+                    // If no updates for more than 10 seconds, assume transcription has stalled
+                    if (now - lastUpdateTimestamp > 10000) {
+                        logger.warn('Realtime transcription appears to have stalled - no updates for 10s')
+                        // No need to clear the interval here since we're about to reset everything
+                        stop().catch(e => logger.error('Error stopping stalled transcription:', e))
+                        
+                        // Provide error feedback
+                        dispatch({
+                            type: 'UPDATE_STATE',
+                            payload: { isBusy: false }
+                        })
+                        
+                        // throw new Error('Realtime transcription stalled - no updates received')
+                    }
+                }, 2000)
+                
                 // Set up subscription to transcription events
                 subscribe((event) => {
                     const { isCapturing, data, processTime, recordingTime, error, code } = event
@@ -578,12 +598,20 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                             payload: { isBusy: false }
                         })
                     }
+                    
+                    // Update timestamp on any data
+                    if (data) {
+                        lastUpdateTimestamp = Date.now()
+                    }
                 })
                 
-                // Return the stop function
+                // Return an enhanced stop function that cleans up the health check
                 return {
                     stop: async () => {
                         logger.debug('Stopping realtime transcription')
+                        if (healthCheckInterval) {
+                            clearInterval(healthCheckInterval)
+                        }
                         await stop()
                         dispatch({
                             type: 'UPDATE_STATE',
