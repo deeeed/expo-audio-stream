@@ -56,7 +56,7 @@
     "build:android:force": "./build-essentia-android.sh --force",
     "build:all": "./build-all.sh",
     "build:all:force": "./build-all.sh --force",
-    "postinstall": "node install.js"
+    "postinstall": "node ./install.js"
   },
   "keywords": [
     "react-native",
