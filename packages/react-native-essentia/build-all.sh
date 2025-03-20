@@ -1,24 +1,24 @@
 #!/bin/bash
 set -e
 
-echo "==== Building Essentia for all platforms ===="
+# Check if force flag is provided
+FORCE_FLAG=""
+if [ "$1" == "--force" ]; then
+  FORCE_FLAG="--force"
+fi
 
-# Add a --force flag to rebuild everything from scratch
-FORCE_FLAG="$1"
+# Run setup first if third_party/essentia doesn't exist
+if [ ! -d "third_party/essentia" ]; then
+  echo "Running setup script first..."
+  ./setup.sh
+fi
 
-echo "==== Building for iOS ===="
+# Build for iOS
+echo "Building for iOS..."
 ./build-essentia-ios.sh $FORCE_FLAG
 
-echo "==== Building for Android arm64-v8a ===="
-ANDROID_ABI=arm64-v8a ./build-essentia-android.sh $FORCE_FLAG
+# Build for Android
+echo "Building for Android..."
+./build-essentia-android.sh --all $FORCE_FLAG
 
-echo "==== Building for Android armeabi-v7a ===="
-ANDROID_ABI=armeabi-v7a ./build-essentia-android.sh $FORCE_FLAG
-
-echo "==== Building for Android x86 ===="
-ANDROID_ABI=x86 ./build-essentia-android.sh $FORCE_FLAG
-
-echo "==== Building for Android x86_64 ===="
-ANDROID_ABI=x86_64 ./build-essentia-android.sh $FORCE_FLAG
-
-echo "==== All builds completed successfully! ===="
+echo "Build completed for all platforms!"

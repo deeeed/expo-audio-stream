@@ -7,7 +7,13 @@
         "documentation_site"
     ],
     "scripts": {
-        "format": "prettier --write ."
+        "format": "prettier --write .",
+        "publish-static": "./publish-static-libs.sh",
+        "setup": "./setup.sh",
+        "build:ios": "./build-essentia-ios.sh",
+        "build:android": "./build-essentia-android.sh",
+        "build:all": "./build-all.sh",
+        "postinstall": "node install.js"
     },
     "nohoist": [
         "**/react-native",

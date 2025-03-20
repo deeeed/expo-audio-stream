@@ -300,6 +300,18 @@ Audio analysis can be resource-intensive:
 - Adjust thread count based on device capabilities.
 - For large audio files, consider processing in chunks or running in the background.
 
+## Static Libraries
+
+This package uses Essentia C++ libraries which are large binary files. To keep the package size manageable:
+
+- By default, the package downloads pre-built binaries from [deeeed/rn-essentia-static](https://github.com/deeeed/rn-essentia-static) during installation
+- The libraries are automatically configured for both iOS and Android platforms
+- If you prefer to build from source, set `USE_PREBUILT = false` in `install.js`
+
+The static libraries are located at:
+- iOS: `ios/Frameworks/device/Essentia_iOS.a` and `ios/Frameworks/simulator/Essentia_Sim.a`
+- Android: `android/src/main/jniLibs/<architecture>/libessentia.a`
+
 ## License and Acknowledgements
 
 This wrapper is MIT licensed, but the compiled binary is subject to Essentia's licensing terms.

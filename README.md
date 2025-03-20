@@ -26,6 +26,17 @@ For more details, please refer to the [README](packages/expo-audio-stream/README
 
 For more details, please refer to the [README](packages/expo-audio-ui/README.md) of the package.
 
+### 3. `@siteed/react-native-essentia`
+
+`@siteed/react-native-essentia` provides React Native bindings for the [Essentia audio analysis library](https://essentia.upf.edu/), enabling advanced audio feature extraction on mobile platforms.
+
+Key features:
+- Advanced audio analysis algorithms (MFCC, Key, Spectrum, etc.)
+- Native implementation using C++ for high performance
+- Cross-platform support for iOS and Android
+
+For more details, please refer to the [README](packages/react-native-essentia/README.md) of the package.
+
 
 ## Roadmap
 
@@ -33,7 +44,7 @@ For more details, please refer to the [README](packages/expo-audio-ui/README.md)
 - [x] Implement dual audio stream (one RAW for analysis, one compressed for playback).
 - [x] Intelligent call interruption handling
 - [x] Integrate with react-native-whisper for real-time on device transcriptions. (demo in playground)
-- [ ] Migrate audio analysis to c++ native library (share same logic on web via wasm and Kotlin / Swift for native). 
+- [x] Migrate audio analysis to c++ native library (implemented in @siteed/react-native-essentia)
 - [ ] Implement example app for custom VAD.
 - [ ] Audio preview waveform component from 'uri'. ( similar to https://github.com/SimformSolutionsPvtLtd/react-native-audio-waveform  )
 - [ ] e2e validation for cross platform features extraction (make sure we get exact same values on all platforms).

@@ -84,3 +84,9 @@ android/generated
 
 # React Native Nitro Modules
 nitrogen/
+
+# Essentia static libraries (built locally)
+ios/Frameworks/device/*.a
+ios/Frameworks/simulator/*.a
+android/src/main/jniLibs/**/*.a
+android/src/main/libs/**/*.a

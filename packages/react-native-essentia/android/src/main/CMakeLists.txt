@@ -30,7 +30,11 @@ endif()
 # Check for pre-built Essentia library
 message(STATUS "Checking for pre-built Essentia library for ${ANDROID_ABI}")
 set(LIBRARY_PATH ${CMAKE_SOURCE_DIR}/jniLibs/${ANDROID_ABI}/libessentia.a)
-if(NOT EXISTS ${LIBRARY_PATH})
+if(EXISTS ${LIBRARY_PATH})
+    message(STATUS "Found library for ${ANDROID_ABI}: ${LIBRARY_PATH}")
+    add_library(essentia STATIC IMPORTED)
+    set_target_properties(essentia PROPERTIES IMPORTED_LOCATION ${LIBRARY_PATH})
+else()
     message(WARNING "Library not found for ${ANDROID_ABI}: ${LIBRARY_PATH}")
 
     # Create a dummy library file
@@ -80,10 +84,6 @@ if(NOT EXISTS ${LIBRARY_PATH})
     # Create a static library from the dummy file
     add_library(essentia STATIC ${CMAKE_BINARY_DIR}/dummy.cpp)
     target_include_directories(essentia PRIVATE ${ANDROID_NDK}/sources/android/support/include)
-else()
-    # Define the Essentia static library as an imported target
-    add_library(essentia STATIC IMPORTED)
-    set_target_properties(essentia PROPERTIES IMPORTED_LOCATION ${LIBRARY_PATH})
 endif()
 
 # Add include directories for Essentia headers and third-party libraries
