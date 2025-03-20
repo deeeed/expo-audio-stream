@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-03-20
+### Added
+- Automate library install from remote git repository
+
+## [0.2.0] - 2025-03-20
+### Added
+- IOS feature parity
+
 ## [0.1.0-beta.1] - YYYY-MM-DD
 ### Added
 - Initial beta release of @siteed/react-native-essentia
