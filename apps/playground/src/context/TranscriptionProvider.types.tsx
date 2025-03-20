@@ -75,6 +75,7 @@ interface BaseTranscribeParams {
 interface AudioDataParams extends BaseTranscribeParams {
     audioData: AudioInputData
     audioUri?: never // Cannot be used with audioData
+    preserveBase64ForNative?: boolean // New flag for native base64 handling
 }
 
 // Interface for using audioUri
@@ -105,11 +106,21 @@ export interface RealtimeTranscribeResult {
     stop: () => Promise<void>
 }
 
-// Update the TranscriptionContextProps
+// Add this interface for the batch API
+export interface BatchTranscribeParams {
+    base64Data: string;
+    jobId: string;
+    options?: Partial<TranscribeFileOptions>;
+    onTranscriptionUpdate?: (data: TranscriberData) => void;
+}
+
+// Update TranscriptionContextProps
 export interface TranscriptionContextProps extends TranscriptionState {
     initialize: () => Promise<void>
     transcribe: (_: TranscribeParams) => Promise<TranscribeResult>
     transcribeRealtime: (_: RealtimeTranscribeParams) => Promise<RealtimeTranscribeResult>
+    // Add this new method specifically for batch processing native base64 data
+    transcribeBatchBase64: (_: BatchTranscribeParams) => Promise<TranscriberData>
     updateConfig: (
         config: Partial<TranscriptionState>,
         shouldInitialize?: boolean

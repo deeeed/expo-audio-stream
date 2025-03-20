@@ -26,7 +26,8 @@ import {
     TranscriptionProviderProps,
     TranscriptionState,
     RealtimeTranscribeParams,
-    RealtimeTranscribeResult
+    RealtimeTranscribeResult,
+    BatchTranscribeParams
 } from './TranscriptionProvider.types'
 
 const logger = baseLogger.extend('TranscriptionProvider')
@@ -804,6 +805,31 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         []
     )
 
+    const transcribeBatchBase64 = useCallback(
+        async ({
+            base64Data,
+            jobId,
+            options,
+            onTranscriptionUpdate
+        }: BatchTranscribeParams): Promise<TranscriberData> => {
+            logger.debug('transcribeBatchBase64 called in web environment');
+            
+            // For web, convert the base64 to Float32Array and use regular transcribe
+            const audioData = new Float32Array(Buffer.from(base64Data, 'base64'));
+            
+            const { promise } = await transcribe({
+                audioData,
+                jobId,
+                options
+            });
+            
+            const result = await promise;
+            onTranscriptionUpdate?.(result);
+            return result;
+        },
+        [transcribe]
+    );
+
     const contextValue = useMemo(
         () => ({
             ...state,
@@ -812,8 +838,9 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             updateConfig,
             resetWhisperContext,
             transcribeRealtime,
+            transcribeBatchBase64,
         }),
-        [state, initialize, transcribe, updateConfig, resetWhisperContext, transcribeRealtime]
+        [state, initialize, transcribe, updateConfig, resetWhisperContext, transcribeRealtime, transcribeBatchBase64]
     )
 
     return (

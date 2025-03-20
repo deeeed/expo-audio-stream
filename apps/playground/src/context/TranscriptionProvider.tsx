@@ -32,6 +32,7 @@ import {
     TranscriptionContextProps,
     TranscriptionProviderProps,
     TranscriptionState,
+    BatchTranscribeParams,
 } from './TranscriptionProvider.types'
 
 const logger = baseLogger.extend('TranscriptionProvider')
@@ -275,6 +276,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 if (typeof audioData === 'string') {
                     // Already a string (likely base64)
                     filePathOrBase64 = audioData;
+                    logger.debug(`Using string audio data, length=${audioData.length}`);
                 } else if (audioData instanceof ArrayBuffer || 
                           audioData instanceof Float32Array || 
                           audioData instanceof Uint8Array) {
@@ -627,16 +629,79 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         [whisperContext, state.language, initialize, state.isModelLoading, state.ready]
     )
 
+    const transcribeBatchBase64 = useCallback(
+        async ({
+            base64Data,
+            jobId,
+            options,
+            onTranscriptionUpdate
+        }: BatchTranscribeParams): Promise<TranscriberData> => {
+            logger.debug(`transcribeBatchBase64 called with jobId ${jobId}, data length ${base64Data.length}`);
+            
+            if (!whisperContext) {
+                throw new Error('Whisper context not initialized. Call initialize() first.');
+            }
+            
+            try {
+                // Create properly formatted options
+                const transcribeOptions = {
+                    language: state.language === 'auto' ? undefined : state.language,
+                    ...options
+                };
+                
+                // Call native transcribeData with the correct signature
+                const { promise } = whisperContext.transcribeData(base64Data, transcribeOptions);
+                
+                // Wait for the result
+                const result = await promise;
+                
+                if (!result) {
+                    throw new Error('Transcription failed: No result returned');
+                }
+                
+                // Process the result - use proper typing from whisper.rn package
+                // The type should match what's used in the transcribe method above
+                const chunks = result.segments.map((segment) => ({
+                    text: segment.text.trim(),
+                    timestamp: [
+                        segment.t0 / 100,
+                        segment.t1 ? segment.t1 / 100 : null,
+                    ] as [number, number | null],
+                }));
+                
+                // Create the final transcript
+                const transcription: TranscriberData = {
+                    id: jobId,
+                    text: result.result || '', // Use result.result instead of result.text
+                    chunks,
+                    isBusy: false,
+                    startTime: Date.now() - 5000, // Approximate
+                    endTime: Date.now()
+                };
+                
+                // Notify caller of result
+                onTranscriptionUpdate?.(transcription);
+                
+                return transcription;
+            } catch (error) {
+                logger.error('Error in transcribeBatchBase64:', error);
+                throw error;
+            }
+        },
+        [whisperContext, state.language]
+    );
+
     const contextValue = useMemo(
         () => ({
             ...state,
             initialize,
             transcribe,
             transcribeRealtime,
+            transcribeBatchBase64,
             updateConfig,
             resetWhisperContext,
         }),
-        [state, initialize, transcribe, transcribeRealtime, updateConfig, resetWhisperContext]
+        [state, initialize, transcribe, transcribeRealtime, transcribeBatchBase64, updateConfig, resetWhisperContext]
     )
 
     return (

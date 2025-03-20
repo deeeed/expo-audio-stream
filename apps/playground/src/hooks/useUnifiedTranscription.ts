@@ -1,10 +1,10 @@
 // apps/playground/src/hooks/useUnifiedTranscription.ts
-import { useCallback, useState, useRef, useEffect } from 'react'
 import { TranscriberData } from '@siteed/expo-audio-studio'
-import { useTranscription } from '../context/TranscriptionProvider'
-import { baseLogger } from '../config'
-import { isWeb } from '../utils/utils'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { TranscribeRealtimeOptions } from 'whisper.rn'
+import { baseLogger } from '../config'
+import { useTranscription } from '../context/TranscriptionProvider'
+import { isWeb } from '../utils/utils'
 const logger = baseLogger.extend('useUnifiedTranscription')
 
 export interface TranscriptionOptions {
@@ -220,12 +220,22 @@ export function useUnifiedTranscription({
             };
             onTranscriptionUpdate?.(initialData);
 
-            const processedAudioData = isWeb && typeof audioData === 'string'
-                ? new Float32Array(Buffer.from(audioData, 'base64'))
-                : typeof audioData !== 'string' ? audioData : new Float32Array(Buffer.from(audioData, 'base64'));
+            // MODIFIED: Be more careful with audio data conversion
+            let processedAudioData: Float32Array | Uint8Array | string;
+            
+            if (isWeb && typeof audioData === 'string') {
+                // Web needs to convert base64 to Float32Array
+                processedAudioData = new Float32Array(Buffer.from(audioData, 'base64'));
+            } else if (typeof audioData === 'string' && !isWeb) {
+                // On native, leave base64 strings alone!
+                processedAudioData = audioData;
+            } else {
+                // For other array types, use as-is
+                processedAudioData = audioData;
+            }
 
             const { promise, stop } = await transcriptionContext.transcribe({
-                audioData: processedAudioData as Float32Array,
+                audioData: processedAudioData,
                 jobId,
                 position,
                 options: {
@@ -400,23 +410,26 @@ export function useUnifiedTranscription({
             logger.debug(`Adding base64 audio data: length=${newData.length}`);
             
             // For native, we'll store base64 chunks directly
-            // and process them at batch intervals
             if (!audioChunksRef.current) {
                 audioChunksRef.current = [];
             }
             
-            audioChunksRef.current.push(newData);
-            
-            // Keep only the most recent chunks that fit within our buffer limits
-            const { maxBufferLengthSec = 60, sampleRate = 16000 } = batchOptionsRef.current;
-            const estimatedSamplesPerChunk = 16000; // Rough estimate
-            const maxChunks = Math.ceil((maxBufferLengthSec * sampleRate) / estimatedSamplesPerChunk);
-            
-            if (audioChunksRef.current.length > maxChunks) {
-                audioChunksRef.current = audioChunksRef.current.slice(-maxChunks);
+            // Only add chunks that are substantial in size (likely to contain audio)
+            if (newData.length > 500) {
+                audioChunksRef.current.push(newData);
+                
+                // Keep only the most recent chunks
+                const maxChunks = 10; // Simplified to just keep the last 10 chunks
+                
+                if (audioChunksRef.current.length > maxChunks) {
+                    audioChunksRef.current = audioChunksRef.current.slice(-maxChunks);
+                }
+                
+                logger.debug(`Base64 audio chunks: now have ${audioChunksRef.current.length} chunks stored`);
+            } else {
+                logger.debug(`Skipping small base64 chunk: length=${newData.length}`);
             }
             
-            logger.debug(`Base64 audio chunks: ${audioChunksRef.current.length}`);
             return;
         }
         
@@ -592,66 +605,91 @@ export function useUnifiedTranscription({
                 setIsProcessing(true);
                 lastProcessedTimeRef.current = now;
                 
-                // Calculate how many chunks to process
-                const numChunks = Math.min(audioChunksRef.current.length, 
-                                         Math.ceil(batchWindowSec / 5)); // Assuming ~5s per chunk
-                
                 // Get the most recent chunks
+                const numChunks = Math.min(audioChunksRef.current.length, 3); 
                 const recentChunks = audioChunksRef.current.slice(-numChunks);
                 
-                logger.debug(`Processing ${recentChunks.length} audio chunks`);
+                logger.debug(`Processing ${recentChunks.length} audio chunks for native`);
                 
-                // For native, we directly use base64 data with whisper.rn
-                const _batchJobId = `BATCH_${now}`;
+                const batchJobId = `BATCH_${now}`;
                 
-                // Use the first chunk (or concatenate if needed)
-                const audioData = recentChunks[recentChunks.length - 1];
+                // Select a suitable chunk - prefer longer chunks
+                const selectedChunk = recentChunks.reduce((longest, current) => 
+                    current.length > longest.length ? current : longest, recentChunks[0]);
                 
-                const { promise, stop: _stop } = await transcriptionContext.transcribe({
-                    audioData,
-                    jobId: _batchJobId,
-                    options: {
-                        language: language === 'auto' ? undefined : language,
-                    },
-                    onNewSegments: (result) => {
-                        // Convert segments to our format
-                        const chunks = result.segments.map((segment) => ({
-                            text: segment.text.trim(),
-                            timestamp: [
-                                segment.t0 / 100,
-                                segment.t1 ? segment.t1 / 100 : null,
-                            ] as [number, number | null],
-                        }));
-
-                        const text = chunks.map((c) => c.text).join(' ');
-                        
-                        const updateData: TranscriberData = {
-                            id: _batchJobId,
-                            text,
-                            chunks,
-                            isBusy: true,
-                            startTime: now - 5000, // Approximate start time
-                            endTime: now
-                        };
-                        
-                        onTranscriptionUpdate?.(updateData);
-                    }
+                logger.debug(`Selected chunk with length ${selectedChunk.length}`);
+                
+                // Initial update to show processing
+                onTranscriptionUpdate?.({
+                    id: batchJobId,
+                    text: "Processing audio...",
+                    chunks: [],
+                    isBusy: true,
+                    startTime: now - 5000,
+                    endTime: now
                 });
                 
-                // Execute transcription
-                const transcription = await promise;
-                if (transcription) {
-                    onTranscriptionUpdate?.(transcription);
+                try {
+                    // Use the new dedicated method for batch base64 transcription
+                    await transcriptionContext.transcribeBatchBase64({
+                        base64Data: selectedChunk,
+                        jobId: batchJobId,
+                        options: {
+                            language: language === 'auto' ? undefined : language,
+                            beamSize: 3,
+                            bestOf: 3,
+                        },
+                        onTranscriptionUpdate
+                    });
+                    
+                } catch (error) {
+                    logger.error('Failed to transcribe batch:', error);
+                    
+                    // Fallback to transcribeLive if direct method fails
+                    try {
+                        logger.debug('Falling back to transcribeLive');
+                        const liveResult = await transcribeLive(selectedChunk, 16000, {
+                            stopping: false,
+                            checkpointInterval: 5
+                        });
+                        
+                        if (liveResult && liveResult.text) {
+                            logger.debug(`Batch via Live successful: "${liveResult.text.substring(0, 50)}..."`);
+                            onTranscriptionUpdate?.({
+                                ...liveResult,
+                                id: batchJobId,
+                                isBusy: false
+                            });
+                        } else {
+                            onTranscriptionUpdate?.({
+                                id: batchJobId,
+                                text: "Listening for speech...",
+                                chunks: [],
+                                isBusy: false,
+                                startTime: now - 5000,
+                                endTime: now
+                            });
+                        }
+                    } catch (liveError) {
+                        logger.error('Fallback batch via Live failed too:', liveError);
+                        onTranscriptionUpdate?.({
+                            id: batchJobId,
+                            text: "Error processing audio",
+                            chunks: [],
+                            isBusy: false,
+                            startTime: now - 5000,
+                            endTime: now
+                        });
+                    }
                 }
-                
-            } catch (error) {
-                logger.error('Native batch transcription error:', error);
-                onError?.(error instanceof Error ? error : new Error('Native batch transcription failed'));
+            } catch (outerError) {
+                logger.error('Batch processing error:', outerError);
+                onError?.(outerError instanceof Error ? outerError : new Error('Batch processing failed'));
             } finally {
                 setIsProcessing(false);
             }
         }
-    }, [isProcessing, language, onError, onTranscriptionUpdate, transcriptionContext]);
+    }, [isProcessing, language, onError, onTranscriptionUpdate, transcribeLive, transcriptionContext]);
     
     // Start the progressive batch processing
     const startProgressiveBatch = useCallback((options?: BatchTranscriptionOptions) => {

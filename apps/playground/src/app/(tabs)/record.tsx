@@ -221,6 +221,7 @@ export default function RecordScreen() {
         initialize: initializeTranscription,
         isModelLoading: unifiedIsModelLoading,
         stopCurrentTranscription,
+        isProcessing,
     } = useUnifiedTranscription({
         onError: (error) => {
             logger.error('Transcription error:', error)
@@ -231,17 +232,22 @@ export default function RecordScreen() {
             })
         },
         onTranscriptionUpdate: (data) => {
-            // Update transcripts state with new data
+            // Log the update for debugging
+            logger.debug(`Received transcription update for job ${data.id}: "${data.text.substring(0, 50)}..."`);
+            
+            // Important: Make sure we're actually receiving updates
             setTranscripts(prev => {
-                const existingIndex = prev.findIndex(t => t.id === data.id)
+                const existingIndex = prev.findIndex(t => t.id === data.id);
                 if (existingIndex >= 0) {
-                    const updated = [...prev]
-                    updated[existingIndex] = data
-                    return updated
+                    const updated = [...prev];
+                    updated[existingIndex] = data;
+                    return updated;
                 }
-                return [...prev, data]
-            })
-            setActiveTranscript(data)
+                return [...prev, data];
+            });
+            
+            // Always update the active transcript when a new one arrives
+            setActiveTranscript(data);
         }
     })
 
@@ -269,16 +275,16 @@ export default function RecordScreen() {
 
     const transcriptionContext = useTranscription();
 
-    const showPermissionError = (permission: string) => {
+    const showPermissionError = useCallback((permission: string) => {
         logger.error(`${permission} permission not granted`)
         show({
             type: 'error',
             message: `${permission} permission is required for recording`,
             duration: 3000,
         })
-    }
+    }, [show])
 
-    const requestPermissions = async () => {
+    const requestPermissions = useCallback(async () => {
         try {
             if (Platform.OS === 'android') {
                 const recordingPermission =
@@ -310,7 +316,7 @@ export default function RecordScreen() {
             setError('Failed to request permissions. Please try again.')
             return false
         }
-    }
+    }, [showPermissionError])
 
     const onAudioData = useCallback(async (event: AudioDataEvent): Promise<void> => {
         try {
@@ -633,7 +639,7 @@ export default function RecordScreen() {
         } finally {
             setProcessing(false)
         }
-    }, [enableLiveTranscription, validSRTranscription, ready, initializeTranscription, isModelLoading])
+    }, [defaultDirectory, requestPermissions, enableLiveTranscription, validSRTranscription, customFileName, startRecordingConfig, startRecording, initializeTranscription, stopProgressiveBatch, transcriptionContext.language, transcriptionContext.ready, startProgressiveBatch, isProgressiveBatchRunning, show, ready, transcriptionSettings.mode, transcriptionSettings.realtimeOptions, transcriptionSettings.batchOptions, startRealtimeTranscription])
 
     const handleStopRecording = useCallback(async () => {
         try {
@@ -757,10 +763,17 @@ export default function RecordScreen() {
                     marginVertical: 10
                 }}>
                     <Text variant="labelMedium" style={{ marginBottom: 4, color: colors.onSurfaceVariant }}>
-                        Live Transcription
+                        Live Transcription {isProgressiveBatchRunning ? '(Active)' : '(Paused)'}
                     </Text>
                     <Text variant="bodyLarge">
                         {activeTranscript?.text || "Listening..."}
+                    </Text>
+                    
+                    {/* Add this to debug what's happening */}
+                    <Text variant="labelSmall" style={{ marginTop: 8, color: colors.outline }}>
+                        Status: {isProcessing ? 'Processing' : 'Idle'}, 
+                        Batch Running: {isProgressiveBatchRunning ? 'Yes' : 'No'},
+                        Transcripts: {transcripts.length}
                     </Text>
                 </View>
             )}
