@@ -20,7 +20,7 @@ fi
 
 # Remove any existing .gitattributes file that might be enabling LFS
 if [ -f "${DEST_DIR}/.gitattributes" ]; then
-  echo "🗑️ Removing existing .gitattributes file to prevent Git LFS tracking"
+  echo "🗑️ Removing existing .gitattributes file"
   rm "${DEST_DIR}/.gitattributes"
 fi
 
@@ -132,14 +132,7 @@ echo "✅ Done! Files copied to ${DEST_DIR}"
 echo ""
 echo "Next steps:"
 echo "1. Navigate to ${DEST_DIR}"
-echo "2. Run this command to completely uninstall Git LFS from the repository:"
-echo "   git lfs uninstall"
-echo "3. Make sure there is NO .gitattributes file in your repository"
-echo "   rm -f .gitattributes"
-echo "4. Delete any existing LFS-tracked files if they exist:"
-echo "   rm -f ios/Frameworks/device/*.a ios/Frameworks/simulator/*.a android/jniLibs/*/*.a"
-echo "5. Add your files: git add ."
-echo "6. Commit: git commit -m \"Update Essentia static libraries (v${VERSION}) WITHOUT Git LFS\""
-echo "7. Push to GitHub: git push origin main"
+echo "2. Add your files: git add ."
+echo "3. Commit: git commit -m \"Update Essentia static libraries (v${VERSION})\""
+echo "4. Push to GitHub: git push origin main"
 echo ""
-echo "This will make the libraries available directly in the repository WITHOUT using Git LFS"
