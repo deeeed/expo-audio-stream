@@ -3,7 +3,7 @@
     "version": "0.11.0",
     "main": "src/index",
     "scripts": {
-        "eas-build-pre-install": "corepack enable && cd ../.. && yarn install && cd packages/expo-audio-stream && yarn build && yarn build:plugin",
+        "eas-build-pre-install": "corepack enable && cd ../.. && yarn install && cd packages/expo-audio-studio && yarn build && yarn build:plugin",
         "start": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --dev-client --port 7365",
         "android": "RCT_METRO_PORT=7365 NODE_ENV=development expo run:android --port 7365",
         "ios": "RCT_METRO_PORT=7365 NODE_ENV=development expo run:ios --device --port 7365",
