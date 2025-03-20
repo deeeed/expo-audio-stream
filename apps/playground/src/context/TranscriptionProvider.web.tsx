@@ -24,7 +24,10 @@ import {
     TranscriberUpdateData,
     TranscriptionContextProps,
     TranscriptionProviderProps,
-    TranscriptionState
+    TranscriptionState,
+    RealtimeTranscribeParams,
+    RealtimeTranscribeResult,
+    BatchTranscribeParams
 } from './TranscriptionProvider.types'
 
 const logger = baseLogger.extend('TranscriptionProvider')
@@ -768,6 +771,65 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         logger.debug('resetWhisperContext called (no-op in web version)')
     }, [])
 
+    const transcribeRealtime = useCallback(
+        async ({
+            jobId,
+            options: _options,
+            onTranscriptionUpdate
+        }: RealtimeTranscribeParams): Promise<RealtimeTranscribeResult> => {
+            logger.debug('Realtime transcription requested in web environment (using polling fallback)')
+            
+            // For web, we'll create a dummy implementation that just informs the user
+            // that realtime transcription uses polling in web environments
+            
+            const initialData: TranscriberData = {
+                id: jobId,
+                text: 'Realtime transcription uses polling in web environments',
+                chunks: [],
+                isBusy: false,
+                startTime: Date.now(),
+                endTime: Date.now()
+            }
+            
+            // Call the callback with the fallback message
+            onTranscriptionUpdate(initialData)
+            
+            // Return a dummy stop function
+            return {
+                stop: async () => {
+                    logger.debug('Stopping realtime transcription (web fallback)')
+                    return Promise.resolve()
+                }
+            }
+        },
+        []
+    )
+
+    const transcribeBatchBase64 = useCallback(
+        async ({
+            base64Data,
+            jobId,
+            options,
+            onTranscriptionUpdate
+        }: BatchTranscribeParams): Promise<TranscriberData> => {
+            logger.debug('transcribeBatchBase64 called in web environment');
+            
+            // For web, convert the base64 to Float32Array and use regular transcribe
+            const audioData = new Float32Array(Buffer.from(base64Data, 'base64'));
+            
+            const { promise } = await transcribe({
+                audioData,
+                jobId,
+                options
+            });
+            
+            const result = await promise;
+            onTranscriptionUpdate?.(result);
+            return result;
+        },
+        [transcribe]
+    );
+
     const contextValue = useMemo(
         () => ({
             ...state,
@@ -775,8 +837,10 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             transcribe,
             updateConfig,
             resetWhisperContext,
+            transcribeRealtime,
+            transcribeBatchBase64,
         }),
-        [state, initialize, transcribe, updateConfig, resetWhisperContext]
+        [state, initialize, transcribe, updateConfig, resetWhisperContext, transcribeRealtime, transcribeBatchBase64]
     )
 
     return (
