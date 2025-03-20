@@ -186,16 +186,16 @@ export async function extractMelSpectrogramWithEssentia(
     
     try {
         // Use the new dedicated method
-        const result = await Essentia.computeMelSpectrogram(
+        const result = await Essentia.computeMelSpectrogram({
             frameSize,
             hopSize,
             nMels,
             fMin,
-            fMax || sampleRate/2,
+            fMax: fMax || sampleRate/2,
             windowType,
             normalize,
-            logScale
-        );
+            logScale,
+        });
         
         // Check if the result has the expected structure
         if (result.success && result.data) {

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import * as DocumentPicker from 'expo-document-picker';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Text, View } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
 
 // Minimal debug page for audio extraction and transcription
 export default function WebWhisperDebugPage() {
@@ -198,8 +198,10 @@ export default function WebWhisperDebugPage() {
         source.start();
         const resampledBuffer = await offlineCtx.startRendering();
         
-        // Get the resampled audio data
-        finalAudio = resampledBuffer.getChannelData(0) as Float32Array<ArrayBuffer>;
+         // Get the resampled audio data
+        const channelData2 = resampledBuffer.getChannelData(0);
+         // Create a new Float32Array with the same data to avoid type issues
+         finalAudio = new Float32Array(channelData2);
         
         // Calculate amplitude statistics to match whisper.tsx logs
         let maxAmplitude = 0;
