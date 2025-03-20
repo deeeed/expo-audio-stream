@@ -1,29 +1,34 @@
 #  @siteed/react-native-essentia
 
-A React Native module that provides access to the [Essentia audio analysis library](https://essentia.upf.edu/) on Android devices. This module enables developers to perform advanced audio feature extraction and analysis directly within their React Native applications.
+A React Native module that provides access to the [Essentia audio analysis library](https://essentia.upf.edu/) on Android and iOS devices. This module enables developers to perform advanced audio feature extraction and analysis directly within their React Native applications.
 
-> **⚠️ DEVELOPMENT PACKAGE - NOT READY FOR PRODUCTION**
+> **⚠️ USE AT YOUR OWN RISK**
 >
-> This package is currently under active development and is **NOT ready for use** in production applications or by external developers. The API is unstable and subject to breaking changes without notice.
+> This package could be used in production applications, but entirely at your own risk. Development happens sporadically, and the API may change without notice.
 >
 > **Current Implementation Status:**
-> - The wrapper currently maps only the basic Essentia algorithms listed in `@essentia_algorithm.txt`
-> - Advanced features such as pipeline processing, batch operations, and other enhanced functionality are highly experimental and may not work as expected
-> - The entire wrapper should be considered experimental and under development
+> - The wrapper provides access to most Essentia algorithms
+> - Some algorithms (like MFCC, Key, Spectrum, Tonnetz, MelBands, HPCP, SpectralContrast) have optimized implementations
+> - Other algorithms are accessible through a dynamic algorithm execution system
 >
-> Please check back later for a stable release.
+> **IMPORTANT NOTES:**
+> - I strongly encourage users to build on top of existing methods rather than using the package as-is
+> - Fork the repository and adapt the code to your specific needs for the best results
+> - I am moving away from using Essentia due to its invasive license terms
+> - This code is kept available for reference purposes for those who understand and accept Essentia's licensing requirements
+>
+> Please feel free to use this code as a reference implementation for your own audio processing needs.
 
 ## ROADMAP
-- Fully document the pipelline and batch processing features.
-- Split the code into smaller files for better readability.
-- Add support for iOS and Web platforms.
-
+- Fully document the pipeline and batch processing features
+- Split the code into smaller files for better readability
 
 ## Features
 
 ### Stable Features
-- Access to basic Essentia audio analysis algorithms as listed in `@essentia_algorithm.txt`
+- Access to most Essentia audio analysis algorithms
 - Convenience methods for common features (e.g., MFCC, key, tempo)
+- Support for both Android and iOS platforms
 
 ### Experimental Features
 The following features are still under active development and should be considered highly experimental:
@@ -34,7 +39,7 @@ The following features are still under active development and should be consider
 
 ## Platform Support
 
-**Currently, this module only supports Android.** iOS and Web support is planned for future releases.
+**This module supports both Android and iOS platforms.** Web support has been discontinued.
 
 ## Installation
 
@@ -432,9 +437,16 @@ To contribute or build the native library:
 
 ## License
 
-MIT License (see LICENSE file)
+This project does not directly include Essentia code, but rather compiles and links against the Essentia library. While the wrapper code itself is under MIT License, the compiled binary is subject to Essentia's licensing terms due to the dependency.
+
+**Note:** I am forced to comply with Essentia's license terms when distributing the compiled library. This is one of the main reasons I am moving away from using Essentia in future development.
+
+**Important:** This library should be considered experimental rather than under active development. Users are strongly encouraged to adapt the source code for their specific needs rather than using it as-is in production applications.
 
 ## Acknowledgements
 
 Built with the [Essentia audio analysis library](https://essentia.upf.edu/).
+
+---
+<sub>Created by [Arthur Breton](https://siteed.net) • See more projects at [siteed.net](https://siteed.net)</sub>
 

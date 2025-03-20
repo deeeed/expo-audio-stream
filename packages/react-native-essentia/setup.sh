@@ -31,14 +31,6 @@ else
   echo "Essentia source already exists."
 fi
 
-# Clone essentia.js if it doesn't exist
-if [ ! -d "third_party/essentia.js" ]; then
-  echo "Cloning Essentia.js repository..."
-  git clone --depth 1 https://github.com/MTG/essentia.js.git third_party/essentia.js
-else
-  echo "Essentia.js source already exists."
-fi
-
 # Create include directory if it doesn't exist
 mkdir -p cpp/include/essentia
 
