@@ -1,6 +1,12 @@
+// apps/playground/src/context/TranscriptionProvider.types.tsx
 import { Chunk, TranscriberData } from '@siteed/expo-audio-studio'
 import { ReactNode } from 'react'
-import { TranscribeFileOptions, TranscribeNewSegmentsResult } from 'whisper.rn'
+import { 
+  TranscribeFileOptions, 
+  TranscribeNewSegmentsResult, 
+  TranscribeResult as _WhisperTranscribeResult,
+  TranscribeRealtimeOptions,
+} from 'whisper.rn'
 
 export interface ProgressItem {
     file: string
@@ -69,6 +75,7 @@ interface BaseTranscribeParams {
 interface AudioDataParams extends BaseTranscribeParams {
     audioData: AudioInputData
     audioUri?: never // Cannot be used with audioData
+    preserveBase64ForNative?: boolean // New flag for native base64 handling
 }
 
 // Interface for using audioUri
@@ -80,15 +87,40 @@ interface AudioUriParams extends BaseTranscribeParams {
 // Union type that requires either audioData or audioUri, but not both
 export type TranscribeParams = AudioDataParams | AudioUriParams
 
+// Modified TranscribeResult to match what we're returning
 export interface TranscribeResult {
     promise: Promise<TranscriberData>
     stop: () => Promise<void>
     jobId: string
 }
 
+// Interface for realtime transcription parameters
+export interface RealtimeTranscribeParams {
+    jobId: string
+    options?: Partial<TranscribeRealtimeOptions>
+    onTranscriptionUpdate: (data: TranscriberData) => void
+}
+
+// Interface for realtime transcription result
+export interface RealtimeTranscribeResult {
+    stop: () => Promise<void>
+}
+
+// Add this interface for the batch API
+export interface BatchTranscribeParams {
+    base64Data: string;
+    jobId: string;
+    options?: Partial<TranscribeFileOptions>;
+    onTranscriptionUpdate?: (data: TranscriberData) => void;
+}
+
+// Update TranscriptionContextProps
 export interface TranscriptionContextProps extends TranscriptionState {
     initialize: () => Promise<void>
     transcribe: (_: TranscribeParams) => Promise<TranscribeResult>
+    transcribeRealtime: (_: RealtimeTranscribeParams) => Promise<RealtimeTranscribeResult>
+    // Add this new method specifically for batch processing native base64 data
+    transcribeBatchBase64: (_: BatchTranscribeParams) => Promise<TranscriberData>
     updateConfig: (
         config: Partial<TranscriptionState>,
         shouldInitialize?: boolean
