@@ -25,7 +25,6 @@ import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
 import { Stack, useRouter } from 'expo-router'
-import isBase64 from 'is-base64'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Image, Platform, StyleSheet, View } from 'react-native'
 import { ActivityIndicator, SegmentedButtons } from 'react-native-paper'
@@ -38,10 +37,11 @@ import { NativeNotificationConfig } from '../../component/NativeNotificationConf
 import { ProgressItems } from '../../component/ProgressItems'
 import { RecordingStats } from '../../component/RecordingStats'
 import { SegmentDuration, SegmentDurationSelector } from '../../component/SegmentDurationSelector'
+import { TranscriptionModeConfig, TranscriptionModeSettings } from '../../component/TranscriptionModeConfig'
 import { baseLogger, WhisperSampleRate } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { useTranscription } from '../../context/TranscriptionProvider'
-import { TranscriptionOptions, useUnifiedTranscription } from '../../hooks/useUnifiedTranscription'
+import { useUnifiedTranscription } from '../../hooks/useUnifiedTranscription'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
 
@@ -211,9 +211,17 @@ export default function RecordScreen() {
     const [defaultDirectory, setDefaultDirectory] = useState<string>('')
 
     const {
-        transcribeLive,
+        startRealtimeTranscription,
+        stopRealtimeTranscription,
+        isRealtimeTranscribing,
+        startProgressiveBatch,
+        stopProgressiveBatch,
+        addAudioData,
+        isProgressiveBatchRunning,
         initialize: initializeTranscription,
         isModelLoading: unifiedIsModelLoading,
+        stopCurrentTranscription,
+        isProcessing,
     } = useUnifiedTranscription({
         onError: (error) => {
             logger.error('Transcription error:', error)
@@ -224,17 +232,22 @@ export default function RecordScreen() {
             })
         },
         onTranscriptionUpdate: (data) => {
-            // Update transcripts state with new data
+            // Log the update for debugging
+            logger.debug(`Received transcription update for job ${data.id}: "${data.text.substring(0, 50)}..."`);
+            
+            // Important: Make sure we're actually receiving updates
             setTranscripts(prev => {
-                const existingIndex = prev.findIndex(t => t.id === data.id)
+                const existingIndex = prev.findIndex(t => t.id === data.id);
                 if (existingIndex >= 0) {
-                    const updated = [...prev]
-                    updated[existingIndex] = data
-                    return updated
+                    const updated = [...prev];
+                    updated[existingIndex] = data;
+                    return updated;
                 }
-                return [...prev, data]
-            })
-            setActiveTranscript(data)
+                return [...prev, data];
+            });
+            
+            // Always update the active transcript when a new one arrives
+            setActiveTranscript(data);
         }
     })
 
@@ -260,16 +273,18 @@ export default function RecordScreen() {
         analysisData,
     } = useSharedAudioRecorder()
 
-    const showPermissionError = (permission: string) => {
+    const transcriptionContext = useTranscription();
+
+    const showPermissionError = useCallback((permission: string) => {
         logger.error(`${permission} permission not granted`)
         show({
             type: 'error',
             message: `${permission} permission is required for recording`,
             duration: 3000,
         })
-    }
+    }, [show])
 
-    const requestPermissions = async () => {
+    const requestPermissions = useCallback(async () => {
         try {
             if (Platform.OS === 'android') {
                 const recordingPermission =
@@ -301,12 +316,13 @@ export default function RecordScreen() {
             setError('Failed to request permissions. Please try again.')
             return false
         }
-    }
+    }, [showPermissionError])
 
     const onAudioData = useCallback(async (event: AudioDataEvent): Promise<void> => {
         try {
-            logger.log(`Received audio data event`)
-            const { data, position, eventDataSize } = event
+            const { data, position: _position, eventDataSize } = event;
+            logger.debug(`onAudioData: received data of type ${typeof data}, isFloat32Array=${data instanceof Float32Array}, size=${eventDataSize}`);
+            
             if (eventDataSize === 0) {
                 logger.warn(`Invalid data size=${eventDataSize}`)
                 return
@@ -315,34 +331,24 @@ export default function RecordScreen() {
             currentSize.current += eventDataSize
 
             if (typeof data === 'string') {
+                // This path is for native platforms (iOS/Android)
                 // Append the audio data to the audioRef
                 audioChunks.current.push(data)
-                if (!isBase64(data)) {
-                    logger.warn(
-                        `Invalid base64 data for chunks#${audioChunks.current.length} position=${position}`
-                    )
-                }
                 
-                // Handle live transcription for native platforms
-                if (enableLiveTranscription && validSRTranscription) {
-                    await transcribeLive(
-                        data,
-                        startRecordingConfig.sampleRate ?? WhisperSampleRate,
-                        {
-                            stopping: false,
-                            checkpointInterval: 15,
-                            dataSize: eventDataSize
-                        } as TranscriptionOptions
-                    )
+                // Only process if batch is running and transcription is enabled
+                if (isProgressiveBatchRunningRef.current && enableLiveTranscriptionRef.current) {
+                    logger.debug(`Native: Adding base64 audio data to batch processor, length=${data.length}`);
+                    // Pass the base64 string directly to the batch processor
+                    addAudioData(data);
                 }
             } else if (data instanceof Float32Array) {
-                // Keep only a sliding window of audio data
-                const newLength = Math.min(
-                    MAX_AUDIO_BUFFER_LENGTH,
-                    webAudioChunks.current.length + data.length
-                )
+                // This path is for web platforms
+                logger.debug(`Web: Received Float32Array data of length ${data.length}`);
                 
-                const concatenatedBuffer = new Float32Array(newLength)
+                // First update our local buffer for visualization
+                const concatenatedBuffer = new Float32Array(
+                    Math.min(MAX_AUDIO_BUFFER_LENGTH, webAudioChunks.current.length + data.length)
+                )
                 
                 if (webAudioChunks.current.length + data.length > MAX_AUDIO_BUFFER_LENGTH) {
                     // If we would exceed max length, copy only the most recent data
@@ -360,18 +366,82 @@ export default function RecordScreen() {
                 
                 webAudioChunks.current = concatenatedBuffer
                 setLiveWebAudio(webAudioChunks.current)
+                
+                // Feed to batch processor if active - this is the key part for web
+                logger.debug(`Web audio state: isProgressiveBatchRunning=${isProgressiveBatchRunningRef.current}, enableLiveTranscription=${enableLiveTranscriptionRef.current}`);
+                
+                if (isProgressiveBatchRunningRef.current && enableLiveTranscriptionRef.current) {
+                    logger.debug(`Web: Adding Float32Array of length ${data.length} to batch processor`);
+                    
+                    // Pass the Float32Array directly to the batch processor
+                    addAudioData(data);
+                    
+                    // Let's also check if our local buffer is being updated
+                    logger.debug(`Local web buffer length: ${webAudioChunks.current.length}`);
+                }
             }
         } catch (error) {
-            logger.error(`Error while processing audio data`, error)
+            logger.error(`Error while processing audio data:`, error);
+            if (error instanceof Error) {
+                logger.error(`Error details: ${error.message}\n${error.stack}`);
+            }
         }
-    }, [enableLiveTranscription, validSRTranscription, transcribeLive, startRecordingConfig?.sampleRate])
+    }, [addAudioData])
 
-    const handleStart = async () => {
+    useEffect(() => {
+        // Preload the model if transcription is enabled
+        async function preloadWhisperModel() {
+            // Add a guard to prevent repeated initialization
+            if (enableLiveTranscription && validSRTranscription && !isWeb && !ready && !isModelLoading) {
+                logger.debug('Preloading whisper model')
+                try {
+                    await initializeTranscription()
+                    logger.debug('Whisper model preloaded successfully')
+                } catch (error) {
+                    logger.error('Failed to preload whisper model:', error)
+                    // Don't show an error here - we'll retry when recording starts
+                }
+            }
+        }
+
+        preloadWhisperModel()
+        // Add isModelLoading to dependencies
+    }, [enableLiveTranscription, validSRTranscription, ready, initializeTranscription, isModelLoading])
+
+    const isProgressiveBatchRunningRef = useRef(isProgressiveBatchRunning);
+    const enableLiveTranscriptionRef = useRef(enableLiveTranscription);
+
+    // Sync refs with state changes
+    useEffect(() => {
+        isProgressiveBatchRunningRef.current = isProgressiveBatchRunning;
+    }, [isProgressiveBatchRunning]);
+
+    useEffect(() => {
+        enableLiveTranscriptionRef.current = enableLiveTranscription;
+    }, [enableLiveTranscription]);
+
+    // Define our transcription settings state
+    const [transcriptionSettings, setTranscriptionSettings] = useState<TranscriptionModeSettings>({
+        mode: Platform.OS === 'web' ? 'batch' : 'realtime',
+        realtimeOptions: {
+            realtimeAudioMinSec: 1,
+            realtimeAudioSec: 300,
+            realtimeAudioSliceSec: 30,
+        },
+        batchOptions: {
+            batchIntervalSec: Platform.OS === 'web' ? 3 : 5,
+            batchWindowSec: 30,
+            minNewDataSec: Platform.OS === 'web' ? 0.5 : 1,
+            maxBufferLengthSec: 60,
+        }
+    });
+
+    const handleStart = useCallback(async () => {
         try {
             setProcessing(true)
             
             // Only check directory on native platforms
-            if (Platform.OS !== 'web' && !defaultDirectory) {
+            if (!isWeb && !defaultDirectory) {
                 throw new Error('Storage directory not initialized')
             }
 
@@ -379,14 +449,102 @@ export default function RecordScreen() {
             const permissionsGranted = await requestPermissions()
             if (!permissionsGranted) return
 
-            // Initialize transcription if needed
-            if (!ready && enableLiveTranscription) {
-                await initializeTranscription()
+            // Choose transcription strategy based on platform and device capability
+            if (enableLiveTranscription && validSRTranscription) {
+                try {
+                    await initializeTranscription() // Ensure transcription context is ready
+                    
+                    if (isWeb) {
+                        logger.debug('Setting up batch transcription for web...');
+                        // Make sure the batch mode is initialized properly
+                        try {
+                            logger.debug('Stopping any existing batch processing...');
+                            stopProgressiveBatch();
+                            
+                            // Configure with web-optimized parameters
+                            const batchParams = {
+                                batchIntervalSec: 2,
+                                batchWindowSec: 10,
+                                sampleRate: startRecordingConfig.sampleRate || 16000,
+                                language: transcriptionContext.language === 'auto' ? 
+                                    undefined : transcriptionContext.language,
+                                minNewDataSec: 0.5,
+                                maxBufferLengthSec: 30,
+                            };
+                            
+                            logger.debug(`Starting web batch with params: ${JSON.stringify(batchParams)}`);
+                            
+                            // Start the progressive batch processing
+                            startProgressiveBatch(batchParams);
+                            logger.debug(`isProgressiveBatchRunning: ${isProgressiveBatchRunning}, enableLiveTranscription: ${enableLiveTranscription}`);
+                            
+                            // Wait a bit to ensure the system is ready, then check status
+                            setTimeout(() => {
+                                logger.debug(`Batch status check: isProgressiveBatchRunning=${isProgressiveBatchRunning}`);
+                            }, 500);
+                            
+                            show({
+                                type: 'success',
+                                message: 'Live transcription active (batch mode)',
+                                duration: 2000,
+                            });
+                        } catch (error) {
+                            logger.error('Failed to start batch transcription:', error);
+                            show({
+                                type: 'error',
+                                message: 'Failed to start batch transcription',
+                                duration: 3000,
+                            });
+                        }
+                    }
+                } catch (error) {
+                    logger.error('Failed to initialize transcription:', error);
+                    show({
+                        type: 'error',
+                        message: 'Speech recognition failed to initialize',
+                        duration: 3000,
+                    });
+                }
+            }
+
+            // Initialize transcription if needed - with more robust error handling
+            if (enableLiveTranscription && validSRTranscription) {
+                if (!ready) {
+                    logger.debug('Initializing transcription before recording start')
+                    try {
+                        // Show loading indicator for model
+                        show({
+                            type: 'info',
+                            message: 'Loading speech recognition model...',
+                            duration: 5000,
+                        })
+                        
+                        await initializeTranscription()
+                        
+                        // Give a bit more time for the context to fully initialize
+                        await new Promise(resolve => setTimeout(resolve, 500))
+                        
+                        if (!transcriptionContext.ready) {
+                            throw new Error('Failed to initialize model in time')
+                        }
+                        
+                        logger.debug('Transcription model loaded successfully')
+                    } catch (error) {
+                        logger.error('Failed to initialize transcription:', error)
+                        show({
+                            type: 'error',
+                            message: 'Speech recognition model failed to load. Continuing without transcription.',
+                            duration: 3000,
+                        })
+                        // Continue without transcription rather than failing
+                        setEnableLiveTranscription(false)
+                    }
+                }
             }
 
             // Clear previous audio chunks
-            audioChunks.current = []
-            webAudioChunks.current = new Float32Array(0)
+            webAudioChunks.current = new Float32Array(0);
+            audioChunks.current = [];
             currentSize.current = 0
             setLiveWebAudio(null)
 
@@ -399,7 +557,7 @@ export default function RecordScreen() {
             const finalConfig = {
                 ...startRecordingConfig,
                 filename: finalFileName || undefined,
-                outputDirectory: Platform.OS !== 'web' ? defaultDirectory : undefined,
+                outputDirectory: !isWeb ? defaultDirectory : undefined,
             }
 
             logger.debug(`Starting recording with config:`, finalConfig)
@@ -407,6 +565,67 @@ export default function RecordScreen() {
             logger.debug(`Recording started:`, streamConfig)
             setStreamConfig(streamConfig)
 
+            // For narive platforms, start realtime transcription after recording begins
+            if(!isWeb && enableLiveTranscription && validSRTranscription) {
+                try {
+                    if (transcriptionSettings.mode === 'realtime') {
+                        await startRealtimeTranscription({
+                            language: transcriptionContext.language === 'auto' ? 
+                                undefined : transcriptionContext.language,
+                            ...transcriptionSettings.realtimeOptions
+                        });
+                        
+                        logger.debug('Realtime transcription started successfully');
+                        show({
+                            type: 'success',
+                            message: 'Live transcription active',
+                            duration: 2000,
+                        });
+                    } else {
+                        // Use batch mode
+                        startProgressiveBatch({
+                            sampleRate: startRecordingConfig.sampleRate || 16000,
+                            language: transcriptionContext.language === 'auto' ? 
+                                undefined : transcriptionContext.language,
+                            ...transcriptionSettings.batchOptions
+                        });
+                        
+                        show({
+                            type: 'success',
+                            message: 'Batch transcription active',
+                            duration: 2000,
+                        });
+                    }
+                } catch (error) {
+                    logger.warn(`${transcriptionSettings.mode} mode failed, falling back to batch mode:`, error);
+                    startProgressiveBatch({
+                        sampleRate: startRecordingConfig.sampleRate || 16000,
+                        language: transcriptionContext.language === 'auto' ? 
+                            undefined : transcriptionContext.language,
+                        ...transcriptionSettings.batchOptions
+                    });
+                    
+                    show({
+                        type: 'info',
+                        message: 'Using batch transcription mode',
+                        duration: 2000,
+                    });
+                }
+            } else if (isWeb && enableLiveTranscription && validSRTranscription) {
+                // For web, always use batch mode with web-optimized settings
+                startProgressiveBatch({
+                    sampleRate: startRecordingConfig.sampleRate || 16000,
+                    language: transcriptionContext.language === 'auto' ? 
+                        undefined : transcriptionContext.language,
+                    ...transcriptionSettings.batchOptions
+                });
+                
+                show({
+                    type: 'success',
+                    message: 'Web transcription active',
+                    duration: 2000,
+                });
+            }
         } catch (error) {
             logger.error(`Error while starting recording:`, error)
             if (error instanceof Error) {
@@ -420,20 +639,20 @@ export default function RecordScreen() {
         } finally {
             setProcessing(false)
         }
-    }
+    }, [defaultDirectory, requestPermissions, enableLiveTranscription, validSRTranscription, customFileName, startRecordingConfig, startRecording, initializeTranscription, stopProgressiveBatch, transcriptionContext.language, transcriptionContext.ready, startProgressiveBatch, isProgressiveBatchRunning, show, ready, transcriptionSettings.mode, transcriptionSettings.realtimeOptions, transcriptionSettings.batchOptions, startRealtimeTranscription])
 
     const handleStopRecording = useCallback(async () => {
         try {
             setStopping(true)
             setProcessing(true)
 
-            // Process final transcription if enabled
-            if (enableLiveTranscription && webAudioChunks.current) {
-                await transcribeLive(
-                    webAudioChunks.current,
-                    startRecordingConfig.sampleRate ?? WhisperSampleRate,
-                    { stopping: true } as TranscriptionOptions
-                )
+            // Stop active transcription
+            if (isRealtimeTranscribing) {
+                await stopRealtimeTranscription()
+            }
+            
+            if (isProgressiveBatchRunning) {
+                stopProgressiveBatch()
             }
 
             const result = await stopRecording()
@@ -511,7 +730,7 @@ export default function RecordScreen() {
             setTranscripts([])
             setActiveTranscript(null)
         }
-    }, [enableLiveTranscription, router, transcripts, refreshFiles, transcribeLive, startRecordingConfig.sampleRate, stopRecording])
+    }, [enableLiveTranscription, router, transcripts, refreshFiles, stopRecording, isRealtimeTranscribing, stopRealtimeTranscription, isProgressiveBatchRunning, stopProgressiveBatch])
 
     const renderRecording = () => (
         <View style={{ gap: 10, display: 'flex' }}>
@@ -535,6 +754,30 @@ export default function RecordScreen() {
 
             {isModelLoading && <ProgressItems items={progressItems} />}
 
+            {/* Display transcription text */}
+            {enableLiveTranscription && (
+                <View style={{
+                    padding: 16,
+                    backgroundColor: colors.surfaceVariant,
+                    borderRadius: 8,
+                    marginVertical: 10
+                }}>
+                    <Text variant="labelMedium" style={{ marginBottom: 4, color: colors.onSurfaceVariant }}>
+                        Live Transcription {isProgressiveBatchRunning ? '(Active)' : '(Paused)'}
+                    </Text>
+                    <Text variant="bodyLarge">
+                        {activeTranscript?.text || "Listening..."}
+                    </Text>
+                    
+                    {/* Add this to debug what's happening */}
+                    <Text variant="labelSmall" style={{ marginTop: 8, color: colors.outline }}>
+                        Status: {isProcessing ? 'Processing' : 'Idle'}, 
+                        Batch Running: {isProgressiveBatchRunning ? 'Yes' : 'No'},
+                        Transcripts: {transcripts.length}
+                    </Text>
+                </View>
+            )}
+
             {!unifiedIsModelLoading &&
                 enableLiveTranscription &&
                 liveWebAudio && (
@@ -550,7 +793,12 @@ export default function RecordScreen() {
             <Button 
                 testID="pause-recording-button"
                 mode="contained" 
-                onPress={pauseRecording}
+                onPress={() => {
+                    pauseRecording();
+                    if (isProgressiveBatchRunning || isRealtimeTranscribing) {
+                        stopCurrentTranscription();
+                    }
+                }}
             >
                 Pause Recording
             </Button>
@@ -603,10 +851,68 @@ export default function RecordScreen() {
                 channels={streamConfig?.channels}
                 compression={compression}
             />
+
+            {/* Display transcription text */}
+            {enableLiveTranscription && (
+                <View style={{
+                    padding: 16,
+                    backgroundColor: colors.surfaceVariant,
+                    borderRadius: 8,
+                    marginVertical: 10
+                }}>
+                    <Text variant="labelMedium" style={{ marginBottom: 4, color: colors.onSurfaceVariant }}>
+                        Live Transcription (Paused)
+                    </Text>
+                    <Text variant="bodyLarge">
+                        {activeTranscript?.text || "No transcription available"}
+                    </Text>
+                </View>
+            )}
+
             <Button 
                 testID="resume-recording-button"
                 mode="contained" 
-                onPress={resumeRecording}
+                onPress={() => {
+                    resumeRecording();
+                    if (enableLiveTranscription && validSRTranscription) {
+                        if (isWeb) {
+                            startProgressiveBatch({
+                                sampleRate: 16000,
+                                language: transcriptionContext.language === 'auto' ? 
+                                    undefined : transcriptionContext.language,
+                                ...transcriptionSettings.batchOptions
+                            });
+                        } else {
+                            try {
+                                if (transcriptionSettings.mode === 'realtime') {
+                                    startRealtimeTranscription({
+                                        language: transcriptionContext.language === 'auto' ? 
+                                            undefined : transcriptionContext.language,
+                                        ...transcriptionSettings.realtimeOptions
+                                    }).catch(error => {
+                                        logger.warn('Falling back to batch mode after resume:', error);
+                                        startProgressiveBatch({
+                                            sampleRate: startRecordingConfig.sampleRate || 16000,
+                                            language: transcriptionContext.language === 'auto' ? 
+                                                undefined : transcriptionContext.language,
+                                            ...transcriptionSettings.batchOptions
+                                        });
+                                    });
+                                } else {
+                                    // Use batch mode directly if that's the selected mode
+                                    startProgressiveBatch({
+                                        sampleRate: startRecordingConfig.sampleRate || 16000,
+                                        language: transcriptionContext.language === 'auto' ? 
+                                            undefined : transcriptionContext.language,
+                                        ...transcriptionSettings.batchOptions
+                                    });
+                                }
+                            } catch (error) {
+                                logger.error('Failed to resume transcription:', error);
+                            }
+                        }
+                    }
+                }}
             >
                 Resume Recording
             </Button>
@@ -767,12 +1073,42 @@ export default function RecordScreen() {
             )}
 
             
-            <LabelSwitch
-                label="Live Transcription"
-                value={validSRTranscription && enableLiveTranscription}
-                disabled={!validSRTranscription}
-                onValueChange={setEnableLiveTranscription}
+            <TranscriptionModeConfig
+                enabled={enableLiveTranscription}
+                onEnabledChange={(enabled) => {
+                    setEnableLiveTranscription(enabled);
+                    
+                    // Preload the model if enabled
+                    if (enabled && !ready && !isModelLoading && validSRTranscription) {
+                        show({
+                            type: 'info',
+                            message: 'Preparing speech recognition model...',
+                            duration: 2000,
+                        });
+                        initializeTranscription().catch(error => {
+                            logger.error('Failed to initialize transcription:', error);
+                        });
+                    }
+                }}
+                settings={transcriptionSettings}
+                onSettingsChange={setTranscriptionSettings}
+                validSampleRate={validSRTranscription}
+                isWeb={isWeb}
             />
+            
+            {/* Show loading indicator when model is loading */}
+            {enableLiveTranscription && isModelLoading && (
+                <View style={{ 
+                    flexDirection: 'row', 
+                    alignItems: 'center', 
+                    backgroundColor: colors.primaryContainer,
+                    padding: 12,
+                    borderRadius: 8
+                }}>
+                    <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
+                    <Text variant="labelMedium">Loading speech recognition model...</Text>
+                </View>
+            )}
 
             {!validSRTranscription && (
                 <Notice
@@ -809,56 +1145,6 @@ export default function RecordScreen() {
             </Button>
         </View>
     )
-
-    useEffect(() => {
-        let timeoutId: NodeJS.Timeout
-
-        async function processLiveTranscription() {
-            if (!enableLiveTranscription || !validSRTranscription || !isRecording) {
-                return
-            }
-
-            try {
-                if (isWeb && webAudioChunks.current) {
-                    await transcribeLive(
-                        webAudioChunks.current,
-                        startRecordingConfig.sampleRate ?? WhisperSampleRate,
-                        {
-                            stopping: stopping,
-                            checkpointInterval: 15
-                        } as TranscriptionOptions
-                    )
-                } else if (!isWeb && audioChunks.current.length > 0) {
-                    // For native, use the last chunk
-                    const lastChunk = audioChunks.current[audioChunks.current.length - 1]
-                    await transcribeLive(
-                        lastChunk,
-                        startRecordingConfig.sampleRate ?? WhisperSampleRate,
-                        {
-                            stopping: stopping,
-                            checkpointInterval: 15
-                        } as TranscriptionOptions
-                    )
-                }
-            } catch (error) {
-                logger.error('Live transcription error:', error)
-            }
-
-            if (isRecording && !stopping) {
-                timeoutId = setTimeout(processLiveTranscription, 1000)
-            }
-        }
-
-        if (enableLiveTranscription && validSRTranscription && isRecording) {
-            processLiveTranscription()
-        }
-
-        return () => {
-            if (timeoutId) {
-                clearTimeout(timeoutId)
-            }
-        }
-    }, [enableLiveTranscription, validSRTranscription, isRecording, stopping, transcribeLive, startRecordingConfig.sampleRate])
 
     useEffect(() => {
         setStartRecordingConfig((prev) => ({
