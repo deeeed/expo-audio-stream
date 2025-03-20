@@ -11,7 +11,12 @@ import React, {
     useState
 } from 'react'
 import { fromByteArray } from 'react-native-quick-base64'
-import { initWhisper, TranscribeFileOptions, WhisperContext } from 'whisper.rn'
+import {
+    initWhisper,
+    TranscribeFileOptions,
+    TranscribeRealtimeOptions,
+    WhisperContext
+} from 'whisper.rn'
 
 import { baseLogger, config } from '../config'
 import { WHISPER_MODELS } from '../hooks/useWhisperModels'
@@ -20,6 +25,8 @@ import {
     transcriptionReducer,
 } from './TranscriptionProvider.reducer'
 import {
+    RealtimeTranscribeParams,
+    RealtimeTranscribeResult,
     TranscribeParams,
     TranscribeResult,
     TranscriptionContextProps,
@@ -458,15 +465,150 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         })
     }, [])
 
+    const transcribeRealtime = useCallback(
+        async ({
+            jobId,
+            options,
+            onTranscriptionUpdate
+        }: RealtimeTranscribeParams): Promise<RealtimeTranscribeResult> => {
+            logger.debug('Starting realtime transcription with jobId:', jobId, 'options:', JSON.stringify(options))
+            
+            // First ensure the whisper context is initialized
+            if (!whisperContext) {
+                logger.debug('Whisper context not initialized, initializing first')
+                try {
+                    // Initialize with a timeout
+                    const initPromise = initialize()
+                    const timeoutPromise = new Promise<void>((_resolve, reject) => {
+                        setTimeout(() => reject(new Error('Initialization timed out after 10 seconds')), 10000)
+                    })
+                    
+                    await Promise.race([initPromise, timeoutPromise])
+                    
+                    // Add a delay to ensure state updates have propagated
+                    await new Promise(resolve => setTimeout(resolve, 500))
+                    
+                    // Check again after initialization with more diagnostic info
+                    if (!whisperContext) {
+                        logger.error('Whisper context still null after initialize call. State:', {
+                            isModelLoading: state.isModelLoading,
+                            ready: state.ready
+                        })
+                        throw new Error('Whisper context still not initialized after waiting')
+                    }
+                } catch (error) {
+                    logger.error('Failed to initialize whisper context:', error)
+                    throw new Error('Failed to initialize whisper context: ' + (error instanceof Error ? error.message : String(error)))
+                }
+            }
+            
+            try {
+                // Configure realtime options
+                const realtimeOptions: Partial<TranscribeRealtimeOptions> = {
+                    language: state.language === 'auto' ? undefined : state.language,
+                    ...options
+                }
+                
+                logger.debug('Calling whisperContext.transcribeRealtime with options:', JSON.stringify(realtimeOptions))
+                
+                // Send initial update to indicate transcription has started
+                const initialData: TranscriberData = {
+                    id: jobId,
+                    text: '',
+                    chunks: [],
+                    isBusy: true,
+                    startTime: Date.now(),
+                    endTime: Date.now()
+                }
+                onTranscriptionUpdate(initialData)
+                
+                // Call the existing transcribeRealtime method
+                const { stop, subscribe } = await whisperContext.transcribeRealtime(realtimeOptions)
+                
+                logger.debug('Successfully started realtime transcription, setting up subscription')
+                
+                // Set up subscription to transcription events
+                subscribe((event) => {
+                    const { isCapturing, data, processTime, recordingTime, error, code } = event
+                    
+                    logger.debug(`Realtime event: capturing=${isCapturing}, hasData=${!!data}, code=${code}, error=${error || 'none'}, processTime=${processTime}ms`)
+                    
+                    if (data && data.result) {
+                        logger.debug(`Transcription result: "${data.result.substring(0, 100)}..." (${data.segments?.length || 0} segments)`)
+                        
+                        // Create chunks from segments
+                        const chunks = data.segments ? data.segments.map((segment) => ({
+                            text: segment.text.trim(),
+                            timestamp: [
+                                segment.t0 / 100,
+                                segment.t1 ? segment.t1 / 100 : null,
+                            ] as [number, number | null],
+                        })) : []
+                        
+                        // Create transcription data object
+                        const transcriptionData: TranscriberData = {
+                            id: jobId,
+                            text: data.result,
+                            chunks: chunks,
+                            isBusy: isCapturing,
+                            startTime: Date.now() - recordingTime,
+                            endTime: Date.now()
+                        }
+                        
+                        // Update state
+                        dispatch({
+                            type: 'UPDATE_STATE',
+                            payload: {
+                                transcript: transcriptionData,
+                                isBusy: isCapturing
+                            }
+                        })
+                        
+                        // Call the callback with the transcription data
+                        onTranscriptionUpdate(transcriptionData)
+                    } else if (error) {
+                        logger.error('Realtime transcription error:', error)
+                    }
+                    
+                    // If capturing has stopped, update state
+                    if (!isCapturing) {
+                        logger.debug('Realtime transcription finished')
+                        dispatch({
+                            type: 'UPDATE_STATE',
+                            payload: { isBusy: false }
+                        })
+                    }
+                })
+                
+                // Return the stop function
+                return {
+                    stop: async () => {
+                        logger.debug('Stopping realtime transcription')
+                        await stop()
+                        dispatch({
+                            type: 'UPDATE_STATE',
+                            payload: { isBusy: false }
+                        })
+                    }
+                }
+            } catch (error) {
+                logger.error('Failed to start realtime transcription:', error)
+                throw error
+            }
+        },
+        [whisperContext, state.language, initialize, state.isModelLoading, state.ready]
+    )
+
     const contextValue = useMemo(
         () => ({
             ...state,
             initialize,
             transcribe,
+            transcribeRealtime,
             updateConfig,
             resetWhisperContext,
         }),
-        [state, initialize, transcribe, updateConfig, resetWhisperContext]
+        [state, initialize, transcribe, transcribeRealtime, updateConfig, resetWhisperContext]
     )
 
     return (

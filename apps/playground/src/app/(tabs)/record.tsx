@@ -41,7 +41,7 @@ import { SegmentDuration, SegmentDurationSelector } from '../../component/Segmen
 import { baseLogger, WhisperSampleRate } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { useTranscription } from '../../context/TranscriptionProvider'
-import { TranscriptionOptions, useUnifiedTranscription } from '../../hooks/useUnifiedTranscription'
+import { RealtimeTranscriptionOptions, useUnifiedTranscription } from '../../hooks/useUnifiedTranscription'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
 
@@ -211,7 +211,9 @@ export default function RecordScreen() {
     const [defaultDirectory, setDefaultDirectory] = useState<string>('')
 
     const {
-        transcribeLive,
+        startRealtimeTranscription,
+        stopRealtimeTranscription,
+        isRealtimeTranscribing,
         initialize: initializeTranscription,
         isModelLoading: unifiedIsModelLoading,
     } = useUnifiedTranscription({
@@ -259,6 +261,8 @@ export default function RecordScreen() {
         isRecording,
         analysisData,
     } = useSharedAudioRecorder()
+
+    const transcriptionContext = useTranscription();
 
     const showPermissionError = (permission: string) => {
         logger.error(`${permission} permission not granted`)
@@ -323,18 +327,7 @@ export default function RecordScreen() {
                     )
                 }
                 
-                // Handle live transcription for native platforms
-                if (enableLiveTranscription && validSRTranscription) {
-                    await transcribeLive(
-                        data,
-                        startRecordingConfig.sampleRate ?? WhisperSampleRate,
-                        {
-                            stopping: false,
-                            checkpointInterval: 15,
-                            dataSize: eventDataSize
-                        } as TranscriptionOptions
-                    )
-                }
+                // No batch transcription logic here
             } else if (data instanceof Float32Array) {
                 // Keep only a sliding window of audio data
                 const newLength = Math.min(
@@ -364,7 +357,25 @@ export default function RecordScreen() {
         } catch (error) {
             logger.error(`Error while processing audio data`, error)
         }
-    }, [enableLiveTranscription, validSRTranscription, transcribeLive, startRecordingConfig?.sampleRate])
+    }, [])
+
+    useEffect(() => {
+        // Preload the model if transcription is enabled
+        async function preloadWhisperModel() {
+            if (enableLiveTranscription && validSRTranscription && !isWeb && !ready) {
+                logger.debug('Preloading whisper model')
+                try {
+                    await initializeTranscription()
+                    logger.debug('Whisper model preloaded successfully')
+                } catch (error) {
+                    logger.error('Failed to preload whisper model:', error)
+                    // Don't show an error here - we'll retry when recording starts
+                }
+            }
+        }
+
+        preloadWhisperModel()
+    }, [enableLiveTranscription, validSRTranscription, ready, initializeTranscription])
 
     const handleStart = async () => {
         try {
@@ -379,9 +390,39 @@ export default function RecordScreen() {
             const permissionsGranted = await requestPermissions()
             if (!permissionsGranted) return
 
-            // Initialize transcription if needed
-            if (!ready && enableLiveTranscription) {
-                await initializeTranscription()
+            // Initialize transcription if needed - with more robust error handling
+            if (enableLiveTranscription && validSRTranscription && !isWeb) {
+                if (!ready) {
+                    logger.debug('Initializing transcription before recording start')
+                    try {
+                        // Show loading indicator for model
+                        show({
+                            type: 'info',
+                            message: 'Loading speech recognition model...',
+                            duration: 5000,
+                        })
+                        
+                        await initializeTranscription()
+                        
+                        // Give a bit more time for the context to fully initialize
+                        await new Promise(resolve => setTimeout(resolve, 500))
+                        
+                        if (!transcriptionContext.ready) {
+                            throw new Error('Failed to initialize model in time')
+                        }
+                        
+                        logger.debug('Transcription model loaded successfully')
+                    } catch (error) {
+                        logger.error('Failed to initialize transcription:', error)
+                        show({
+                            type: 'error',
+                            message: 'Speech recognition model failed to load. Continuing without transcription.',
+                            duration: 3000,
+                        })
+                        // Continue without transcription rather than failing
+                        setEnableLiveTranscription(false)
+                    }
+                }
             }
 
             // Clear previous audio chunks
@@ -407,6 +448,43 @@ export default function RecordScreen() {
             logger.debug(`Recording started:`, streamConfig)
             setStreamConfig(streamConfig)
 
+            // Start realtime transcription if enabled, initialized, and not on web
+            if (enableLiveTranscription && validSRTranscription && !isWeb && transcriptionContext.ready) {
+                logger.debug('Starting realtime transcription')
+                try {
+                    const realtimeOptions: RealtimeTranscriptionOptions = {
+                        language: transcriptionContext.language === 'auto' ? 
+                            undefined : transcriptionContext.language,
+                            realtimeAudioMinSec: 1,
+                            realtimeAudioSec: 30000,
+                            realtimeAudioSliceSec: 15,
+                    }
+                    await startRealtimeTranscription(realtimeOptions)
+                    
+                    // Confirm transcription started
+                    logger.debug('Realtime transcription started successfully')
+                    show({
+                        type: 'success',
+                        message: 'Live transcription active',
+                        duration: 2000,
+                    })
+                } catch (error) {
+                    logger.error('Failed to start realtime transcription:', error)
+                    show({
+                        type: 'error',
+                        message: 'Failed to start transcription, but recording is working',
+                        duration: 3000,
+                    })
+                }
+            } else if (isWeb && enableLiveTranscription) {
+                // Show a notice that transcription is not available on web
+                show({
+                    type: 'info',
+                    message: 'Live transcription is not available in web browsers',
+                    duration: 3000,
+                })
+            }
+
         } catch (error) {
             logger.error(`Error while starting recording:`, error)
             if (error instanceof Error) {
@@ -427,13 +505,9 @@ export default function RecordScreen() {
             setStopping(true)
             setProcessing(true)
 
-            // Process final transcription if enabled
-            if (enableLiveTranscription && webAudioChunks.current) {
-                await transcribeLive(
-                    webAudioChunks.current,
-                    startRecordingConfig.sampleRate ?? WhisperSampleRate,
-                    { stopping: true } as TranscriptionOptions
-                )
+            // If realtime transcription is active, stop it
+            if (isRealtimeTranscribing) {
+                await stopRealtimeTranscription()
             }
 
             const result = await stopRecording()
@@ -511,7 +585,7 @@ export default function RecordScreen() {
             setTranscripts([])
             setActiveTranscript(null)
         }
-    }, [enableLiveTranscription, router, transcripts, refreshFiles, transcribeLive, startRecordingConfig.sampleRate, stopRecording])
+    }, [enableLiveTranscription, router, transcripts, refreshFiles, stopRecording, isRealtimeTranscribing, stopRealtimeTranscription])
 
     const renderRecording = () => (
         <View style={{ gap: 10, display: 'flex' }}>
@@ -534,6 +608,23 @@ export default function RecordScreen() {
             />
 
             {isModelLoading && <ProgressItems items={progressItems} />}
+
+            {/* Display transcription text */}
+            {enableLiveTranscription && (
+                <View style={{
+                    padding: 16,
+                    backgroundColor: colors.surfaceVariant,
+                    borderRadius: 8,
+                    marginVertical: 10
+                }}>
+                    <Text variant="labelMedium" style={{ marginBottom: 4, color: colors.onSurfaceVariant }}>
+                        Live Transcription
+                    </Text>
+                    <Text variant="bodyLarge">
+                        {activeTranscript?.text || "Listening..."}
+                    </Text>
+                </View>
+            )}
 
             {!unifiedIsModelLoading &&
                 enableLiveTranscription &&
@@ -603,6 +694,24 @@ export default function RecordScreen() {
                 channels={streamConfig?.channels}
                 compression={compression}
             />
+
+            {/* Display transcription text */}
+            {enableLiveTranscription && (
+                <View style={{
+                    padding: 16,
+                    backgroundColor: colors.surfaceVariant,
+                    borderRadius: 8,
+                    marginVertical: 10
+                }}>
+                    <Text variant="labelMedium" style={{ marginBottom: 4, color: colors.onSurfaceVariant }}>
+                        Live Transcription (Paused)
+                    </Text>
+                    <Text variant="bodyLarge">
+                        {activeTranscript?.text || "No transcription available"}
+                    </Text>
+                </View>
+            )}
+
             <Button 
                 testID="resume-recording-button"
                 mode="contained" 
@@ -770,9 +879,44 @@ export default function RecordScreen() {
             <LabelSwitch
                 label="Live Transcription"
                 value={validSRTranscription && enableLiveTranscription}
-                disabled={!validSRTranscription}
-                onValueChange={setEnableLiveTranscription}
+                disabled={!validSRTranscription || isWeb}
+                onValueChange={(enabled) => {
+                    setEnableLiveTranscription(enabled)
+                    // Preload the model if enabled
+                    if (enabled && !ready && !isModelLoading && validSRTranscription && !isWeb) {
+                        show({
+                            type: 'info',
+                            message: 'Preparing speech recognition model...',
+                            duration: 2000,
+                        })
+                        initializeTranscription().catch(error => {
+                            logger.error('Failed to initialize transcription:', error)
+                        })
+                    }
+                }}
             />
+            
+            {/* Show loading indicator when model is loading */}
+            {enableLiveTranscription && isModelLoading && (
+                <View style={{ 
+                    flexDirection: 'row', 
+                    alignItems: 'center', 
+                    backgroundColor: colors.primaryContainer,
+                    padding: 12,
+                    borderRadius: 8
+                }}>
+                    <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
+                    <Text variant="labelMedium">Loading speech recognition model...</Text>
+                </View>
+            )}
+
+            {isWeb && (
+                <Notice
+                    type="info"
+                    title="Transcription Limitations"
+                    message="Live transcription is only available on native mobile apps, not in web browsers."
+                />
+            )}
 
             {!validSRTranscription && (
                 <Notice
@@ -809,56 +953,6 @@ export default function RecordScreen() {
             </Button>
         </View>
     )
-
-    useEffect(() => {
-        let timeoutId: NodeJS.Timeout
-
-        async function processLiveTranscription() {
-            if (!enableLiveTranscription || !validSRTranscription || !isRecording) {
-                return
-            }
-
-            try {
-                if (isWeb && webAudioChunks.current) {
-                    await transcribeLive(
-                        webAudioChunks.current,
-                        startRecordingConfig.sampleRate ?? WhisperSampleRate,
-                        {
-                            stopping: stopping,
-                            checkpointInterval: 15
-                        } as TranscriptionOptions
-                    )
-                } else if (!isWeb && audioChunks.current.length > 0) {
-                    // For native, use the last chunk
-                    const lastChunk = audioChunks.current[audioChunks.current.length - 1]
-                    await transcribeLive(
-                        lastChunk,
-                        startRecordingConfig.sampleRate ?? WhisperSampleRate,
-                        {
-                            stopping: stopping,
-                            checkpointInterval: 15
-                        } as TranscriptionOptions
-                    )
-                }
-            } catch (error) {
-                logger.error('Live transcription error:', error)
-            }
-
-            if (isRecording && !stopping) {
-                timeoutId = setTimeout(processLiveTranscription, 1000)
-            }
-        }
-
-        if (enableLiveTranscription && validSRTranscription && isRecording) {
-            processLiveTranscription()
-        }
-
-        return () => {
-            if (timeoutId) {
-                clearTimeout(timeoutId)
-            }
-        }
-    }, [enableLiveTranscription, validSRTranscription, isRecording, stopping, transcribeLive, startRecordingConfig.sampleRate])
 
     useEffect(() => {
         setStartRecordingConfig((prev) => ({

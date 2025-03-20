@@ -1,9 +1,9 @@
 import { useCallback, useState, useRef, useEffect } from 'react'
 import { TranscriberData } from '@siteed/expo-audio-studio'
 import { useTranscription } from '../context/TranscriptionProvider'
-import { baseLogger, WhisperSampleRate } from '../config'
+import { baseLogger } from '../config'
 import { isWeb } from '../utils/utils'
-
+import { TranscribeRealtimeOptions } from 'whisper.rn'
 const logger = baseLogger.extend('useUnifiedTranscription')
 
 export interface TranscriptionOptions {
@@ -15,12 +15,18 @@ export interface TranscriptionOptions {
     dataSize?: number
 }
 
+export interface RealtimeTranscriptionOptions extends TranscribeRealtimeOptions {
+    language?: string
+}
+
 export interface TranscriptionResult {
     isProcessing: boolean
     isModelLoading: boolean
     transcribe: (audioData: Float32Array | Uint8Array | string, sampleRate: number, position?: number) => Promise<TranscriberData | null>
     transcribeLive: (audioBuffer: Float32Array | Uint8Array | string, sampleRate: number, options?: TranscriptionOptions) => Promise<TranscriberData | null>
-    stopTranscription: () => void
+    startRealtimeTranscription: (options?: RealtimeTranscriptionOptions) => Promise<void>
+    stopRealtimeTranscription: () => Promise<void>
+    isRealtimeTranscribing: boolean
     initialize: () => Promise<void>
 }
 
@@ -30,13 +36,14 @@ export function useUnifiedTranscription({
     language
 }: TranscriptionOptions = {}): TranscriptionResult {
     const [isProcessing, setIsProcessing] = useState(false)
+    const [isRealtimeTranscribing, setIsRealtimeTranscribing] = useState(false)
     const transcriptionContext = useTranscription()
     const activeJobRef = useRef<string | null>(null)
     const stopTranscriptionRef = useRef<(() => void) | null>(null)
+    const realtimeStopFnRef = useRef<(() => Promise<void>) | null>(null)
     
-    // For live transcription
-    const lastCheckpointBufferIndex = useRef(0)
-    const _lastUpdateBufferIndex = useRef(0)
+    // For live transcription (prefix with _ to indicate it might not be used directly)
+    const _lastCheckpointBufferIndex = useRef(0)
     
     const initialize = useCallback(async () => {
         try {
@@ -52,6 +59,7 @@ export function useUnifiedTranscription({
         }
     }, [transcriptionContext, language, onError]);
 
+    // Stop any active transcription
     const stopTranscription = useCallback(() => {
         if (stopTranscriptionRef.current) {
             stopTranscriptionRef.current();
@@ -61,6 +69,97 @@ export function useUnifiedTranscription({
         activeJobRef.current = null;
         setIsProcessing(false);
     }, []);
+
+    // Stop realtime transcription
+    const stopRealtimeTranscription = useCallback(async () => {
+        logger.debug('Stopping realtime transcription');
+        
+        if (realtimeStopFnRef.current) {
+            try {
+                await realtimeStopFnRef.current();
+            } catch (error) {
+                logger.error('Error stopping realtime transcription:', error);
+            }
+            realtimeStopFnRef.current = null;
+        }
+        
+        setIsRealtimeTranscribing(false);
+        return Promise.resolve();
+    }, []);
+
+    // Start realtime transcription through the context API
+    const startRealtimeTranscription = useCallback(async (options?: RealtimeTranscriptionOptions) => {
+        logger.debug('Starting realtime transcription (platform: ' + (isWeb ? 'web' : 'native') + ')');
+        
+        if (isRealtimeTranscribing) {
+            logger.debug('Realtime transcription already in progress');
+            return;
+        }
+        
+        // First ensure context is initialized
+        if (!transcriptionContext.ready) {
+            logger.debug('Initializing transcription context before starting realtime transcription');
+            await initialize();
+            
+            // Add a short delay to ensure the context is ready
+            if (!transcriptionContext.ready) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+                if (!transcriptionContext.ready) {
+                    logger.warn('Transcription context not ready after initialization and waiting');
+                }
+            }
+        }
+        
+        const jobId = `REALTIME_${Date.now()}`;
+        activeJobRef.current = jobId;
+        
+        try {
+            setIsRealtimeTranscribing(true);
+            
+            const initialData: TranscriberData = {
+                id: jobId,
+                text: '',
+                chunks: [],
+                isBusy: true,
+                startTime: Date.now(),
+                endTime: Date.now()
+            };
+            onTranscriptionUpdate?.(initialData);
+            
+            // Configure language option
+            const realtimeOptions = {
+                language: language === 'auto' ? undefined : language,
+                ...options
+            };
+            
+            // This will be added to TranscriptionProvider
+            const { stop } = await transcriptionContext.transcribeRealtime({
+                jobId,
+                options: realtimeOptions,
+                onTranscriptionUpdate: (data: TranscriberData) => {
+                    if (jobId === activeJobRef.current) {
+                        onTranscriptionUpdate?.(data);
+                        
+                        // If the transcription is complete
+                        if (!data.isBusy) {
+                            setIsRealtimeTranscribing(false);
+                            realtimeStopFnRef.current = null;
+                            activeJobRef.current = null;
+                        }
+                    }
+                }
+            });
+            
+            // Save the stop function
+            realtimeStopFnRef.current = stop;
+            
+        } catch (error) {
+            logger.error('Failed to start realtime transcription:', error);
+            onError?.(error instanceof Error ? error : new Error('Failed to start realtime transcription'));
+            setIsRealtimeTranscribing(false);
+            activeJobRef.current = null;
+        }
+    }, [transcriptionContext, language, onTranscriptionUpdate, onError, initialize, isRealtimeTranscribing]);
 
     // One-time transcription of audio data
     const transcribe = useCallback(async (
@@ -94,7 +193,7 @@ export function useUnifiedTranscription({
                 ? new Float32Array(Buffer.from(audioData, 'base64'))
                 : typeof audioData !== 'string' ? audioData : new Float32Array(Buffer.from(audioData, 'base64'));
 
-            const { promise } = await transcriptionContext.transcribe({
+            const { promise, stop } = await transcriptionContext.transcribe({
                 audioData: processedAudioData as Float32Array,
                 jobId,
                 position,
@@ -125,6 +224,7 @@ export function useUnifiedTranscription({
                 }
             });
 
+            stopTranscriptionRef.current = stop;
             const transcription = await promise;
             
             if (transcription && jobId === activeJobRef.current) {
@@ -145,7 +245,7 @@ export function useUnifiedTranscription({
         }
     }, [transcriptionContext, onError, onTranscriptionUpdate, isProcessing, language]);
 
-    // Live transcription with continuous audio buffer
+    // For web or fallback, we keep the batch processing method
     const transcribeLive = useCallback(async (
         audioBuffer: Float32Array | Uint8Array | string,
         sampleRate: number,
@@ -154,6 +254,11 @@ export function useUnifiedTranscription({
             checkpointInterval?: number
         } = {}
     ): Promise<TranscriberData | null> => {
+        // Only proceed if we're not in realtime mode (for native) or we're on web
+        if (!isWeb && isRealtimeTranscribing) {
+            return null;
+        }
+        
         const { stopping = false, checkpointInterval = 15 } = options;
         
         if (!audioBuffer || (typeof audioBuffer !== 'string' && audioBuffer.length === 0)) return null;
@@ -168,7 +273,7 @@ export function useUnifiedTranscription({
         activeJobRef.current = jobId;
 
         try {
-            const threshold = checkpointInterval * WhisperSampleRate;
+            const threshold = checkpointInterval * sampleRate;
             const accumulated = typeof audioBuffer === 'string' ? 
                 (audioBuffer.length * 3) / 4 : // Estimate base64 decoded size
                 audioBuffer.length;
@@ -177,7 +282,7 @@ export function useUnifiedTranscription({
                 const audioData = audioBuffer;
                 const adjustedPosition = (accumulated - (typeof audioBuffer === 'string' ? 
                     (audioBuffer.length * 3) / 4 : 
-                    audioBuffer.length)) / WhisperSampleRate;
+                    audioBuffer.length)) / sampleRate;
                 
                 const { promise, stop } = await transcriptionContext.transcribe({
                     audioData,
@@ -214,15 +319,6 @@ export function useUnifiedTranscription({
                 const transcription = await promise;
                 
                 if (transcription && jobId === activeJobRef.current) {
-                    if (transcription.chunks.length > 0) {
-                        const lastChunk = transcription.chunks[transcription.chunks.length - 1];
-                        lastCheckpointBufferIndex.current = lastChunk.timestamp[1] !== null
-                            ? accumulated
-                            : lastChunk.timestamp[0] * WhisperSampleRate;
-                    } else {
-                        lastCheckpointBufferIndex.current = accumulated;
-                    }
-                    
                     return transcription;
                 }
             }
@@ -238,21 +334,24 @@ export function useUnifiedTranscription({
                 setIsProcessing(false);
             }
         }
-    }, [transcriptionContext, onError, onTranscriptionUpdate, isProcessing, language]);
+    }, [transcriptionContext, onError, onTranscriptionUpdate, isProcessing, language, isRealtimeTranscribing]);
 
     // Cleanup on unmount
     useEffect(() => {
         return () => {
             stopTranscription();
+            stopRealtimeTranscription();
         };
-    }, [stopTranscription]);
+    }, [stopTranscription, stopRealtimeTranscription]);
 
     return {
         isProcessing: isProcessing || !!activeJobRef.current || transcriptionContext.isBusy,
         isModelLoading: transcriptionContext.isModelLoading,
         transcribe,
         transcribeLive,
-        stopTranscription,
+        startRealtimeTranscription,
+        stopRealtimeTranscription,
+        isRealtimeTranscribing,
         initialize
     };
 } 

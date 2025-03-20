@@ -1,6 +1,11 @@
 import { Chunk, TranscriberData } from '@siteed/expo-audio-studio'
 import { ReactNode } from 'react'
-import { TranscribeFileOptions, TranscribeNewSegmentsResult } from 'whisper.rn'
+import { 
+  TranscribeFileOptions, 
+  TranscribeNewSegmentsResult, 
+  TranscribeResult as _WhisperTranscribeResult,
+  TranscribeRealtimeOptions,
+} from 'whisper.rn'
 
 export interface ProgressItem {
     file: string
@@ -80,15 +85,30 @@ interface AudioUriParams extends BaseTranscribeParams {
 // Union type that requires either audioData or audioUri, but not both
 export type TranscribeParams = AudioDataParams | AudioUriParams
 
+// Modified TranscribeResult to match what we're returning
 export interface TranscribeResult {
     promise: Promise<TranscriberData>
     stop: () => Promise<void>
     jobId: string
 }
 
+// Interface for realtime transcription parameters
+export interface RealtimeTranscribeParams {
+    jobId: string
+    options?: Partial<TranscribeRealtimeOptions>
+    onTranscriptionUpdate: (data: TranscriberData) => void
+}
+
+// Interface for realtime transcription result
+export interface RealtimeTranscribeResult {
+    stop: () => Promise<void>
+}
+
+// Update the TranscriptionContextProps
 export interface TranscriptionContextProps extends TranscriptionState {
     initialize: () => Promise<void>
     transcribe: (_: TranscribeParams) => Promise<TranscribeResult>
+    transcribeRealtime: (_: RealtimeTranscribeParams) => Promise<RealtimeTranscribeResult>
     updateConfig: (
         config: Partial<TranscriptionState>,
         shouldInitialize?: boolean
