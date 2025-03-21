@@ -1,8 +1,6 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
-const { extract } = require('tar');
 const AdmZip = require('adm-zip');
 const fetch = require('node-fetch');
 const ProgressBar = require('progress');
