@@ -8370,7 +8370,6 @@ __metadata:
     react: "npm:19.0.0"
     react-native: "npm:0.78.0"
     react-native-builder-bob: "npm:^0.37.0"
-    tar: "npm:^7.4.3"
     typescript: "npm:^5.2.2"
   peerDependencies:
     react: "*"
