@@ -1,6 +1,6 @@
 {
   "name": "@siteed/react-native-essentia",
-  "version": "0.3.0-beta.1",
+  "version": "0.3.0-beta.2",
   "description": "RN jni bindings for essentia",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
@@ -84,6 +84,11 @@
     "type": "modules",
     "jsSrcsDir": "src"
   },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "node-fetch": "2",
+    "progress": "^2.0.3"
+  },
   "devDependencies": {
     "@babel/core": "^7.26.10",
     "@babel/preset-env": "^7.26.9",
@@ -96,20 +101,16 @@
     "@types/jest": "^29.5.5",
     "@types/progress": "^2",
     "@types/react": "^18.2.44",
-    "adm-zip": "^0.5.16",
     "commitlint": "^17.0.2",
     "del-cli": "^5.1.0",
     "eslint": "^8.51.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.1",
     "jest": "^29.7.0",
-    "node-fetch": "2",
     "prettier": "^3.0.3",
-    "progress": "^2.0.3",
     "react": "19.0.0",
     "react-native": "0.78.0",
     "react-native-builder-bob": "^0.37.0",
-    "tar": "^7.4.3",
     "typescript": "^5.2.2"
   },
   "resolutions": {
