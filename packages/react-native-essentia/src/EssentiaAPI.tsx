@@ -19,6 +19,7 @@ import type {
   ERBBandsResult,
   HarmonicsResult,
   InharmonicityResult,
+  KeyParams,
   KeyResult,
   LoudnessResult,
   MelBandsParams,
@@ -56,6 +57,7 @@ import type {
   MusicGenreFeatures,
   SpeechEmotionFeatures,
 } from './types/pipeline.types';
+import { validateAlgorithmParams } from './utils/parameterValidation';
 
 // Get the native module
 const Essentia = NativeModules.Essentia
@@ -687,22 +689,34 @@ class EssentiaAPI implements EssentiaInterface {
       if (!features || features.length === 0) {
         throw new Error('Feature list cannot be empty');
       }
-      // Validate feature configurations
-      features.forEach((feature) => {
+
+      // First, use our validation utility to create clean features
+      const cleanedFeatures = features.map((feature) => {
         if (!feature.name) {
           throw new Error('Each feature must have a name');
         }
-        // Only add framewise for algorithms that explicitly support it
-        if (
-          ['Chroma', 'SpectralCentroid', 'SpectralContrast'].includes(
-            feature.name
-          ) &&
-          !feature.params?.hasOwnProperty('framewise')
-        ) {
-          feature.params = { ...feature.params, framewise: true };
-        }
+
+        // Create a validated copy with clean parameters
+        return {
+          name: feature.name,
+          params: validateAlgorithmParams(feature.name, feature.params) || {},
+        };
       });
-      return await Essentia.extractFeatures(JSON.stringify(features));
+
+      // Special handling for Key algorithm which has known issues
+      if (cleanedFeatures.length === 1) {
+        const singleFeature = cleanedFeatures[0];
+        if (singleFeature && singleFeature.name === 'Key') {
+          console.log('Using direct executeAlgorithm approach for Key');
+          return await this.executeAlgorithm('Key', singleFeature.params);
+        }
+      }
+
+      // For everything else, use the standard approach
+      console.log(
+        `Using standard extraction method with ${cleanedFeatures.length} features`
+      );
+      return await Essentia.extractFeatures(cleanedFeatures);
     } catch (error) {
       console.error('Essentia feature extraction error:', error);
       throw error;
@@ -762,40 +776,50 @@ class EssentiaAPI implements EssentiaInterface {
    * @returns A Promise that resolves to the detected key information
    */
   async extractKey(
-    params: AlgorithmParams = {}
+    params: KeyParams = {}
   ): Promise<KeyResult | EssentiaResult<any>> {
-    const framewise = params.framewise !== false; // Default to true
-    const result = await this.extractFeatures([
-      {
-        name: 'Key',
-        params: {
-          ...params,
-          framewise,
-        },
-      },
-    ]);
+    try {
+      // Use the centralized validation utility which now handles framewise removal properly
+      const validatedParams = validateAlgorithmParams('Key', params);
 
-    if (result.success && result.data) {
-      if (framewise && result.data.key_values) {
-        // Frame-wise results
-        return {
-          key: result.data.key_values,
-          scale: result.data.scale_values,
-          strength: result.data.strength_values,
-          isFrameWise: true,
-        } as KeyResult;
-      } else if (result.data.key) {
-        // Single result
-        return {
-          key: result.data.key,
-          scale: result.data.scale,
-          strength: result.data.strength,
-          isFrameWise: false,
-        } as KeyResult;
+      // Debug log the exact parameters being sent to native
+      console.log(
+        'Key params being sent to native:',
+        JSON.stringify(validatedParams)
+      );
+
+      // IMPORTANT: Use executeAlgorithm directly instead of extractFeatures
+      // This bypasses the problematic extractFeatures bridge method
+      const result = await this.executeAlgorithm('Key', validatedParams);
+
+      // Debug log the result
+      console.log('Raw result from Key extraction:', JSON.stringify(result));
+
+      if (result.success && result.data) {
+        if (result.data.key_values) {
+          // Frame-wise results
+          return {
+            key: result.data.key_values,
+            scale: result.data.scale_values,
+            strength: result.data.strength_values,
+            isFrameWise: true,
+          } as KeyResult;
+        } else if (result.data.key) {
+          // Single result
+          return {
+            key: result.data.key,
+            scale: result.data.scale,
+            strength: result.data.strength,
+            isFrameWise: false,
+          } as KeyResult;
+        }
       }
-    }
 
-    return result;
+      return result;
+    } catch (error) {
+      console.error('Error in extractKey:', error);
+      throw error;
+    }
   }
 
   /**
@@ -890,20 +914,34 @@ class EssentiaAPI implements EssentiaInterface {
   async extractPitch(
     params: PitchParams = { sampleRate: 44100 }
   ): Promise<PitchResult | EssentiaResult<any>> {
-    const result = await this.extractFeatures([
-      {
-        name: 'PitchYinFFT',
-        params,
-      },
-    ]);
-    if (result.data?.pitch && result.data?.pitchConfidence) {
-      return {
-        pitch: result.data.pitch,
-        confidence: result.data.pitchConfidence,
-      };
-    }
+    try {
+      // Use the centralized validation utility
+      const validatedParams = validateAlgorithmParams('PitchYinFFT', params);
 
-    return result;
+      // Ensure we have a sample rate
+      if (!validatedParams.sampleRate) {
+        validatedParams.sampleRate = 44100; // Default sample rate
+      }
+
+      const result = await this.extractFeatures([
+        {
+          name: 'PitchYinFFT',
+          params: validatedParams,
+        },
+      ]);
+
+      if (result.data?.pitch && result.data?.pitchConfidence) {
+        return {
+          pitch: result.data.pitch,
+          confidence: result.data.pitchConfidence,
+        };
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error in extractPitch:', error);
+      throw error;
+    }
   }
 
   /**
