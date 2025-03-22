@@ -9,6 +9,10 @@
 .vscode/
 jsconfig.json
 
+ios/Frameworks/device/*.a
+ios/Frameworks/simulator/*.a
+android/src/main/jniLibs/**/*.a
+
 # Xcode
 #
 build/
@@ -29,6 +33,8 @@ DerivedData
 *.xcuserstate
 project.xcworkspace
 **/.xcode.env.local
+
+prebuilt
 
 # Android/IJ
 #

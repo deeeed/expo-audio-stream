@@ -66,7 +66,11 @@
         "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
         "YARN_ENABLE_GLOBAL_CACHE": "false"
       },
-      "autoIncrement": true
+      "autoIncrement": true,
+      "cache": {
+        "disabled": false,
+        "paths": ["node_modules"]
+      }
     }
   },
   "submit": {

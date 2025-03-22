@@ -1110,14 +1110,6 @@ export default function RecordScreen() {
                 </View>
             )}
 
-            {!validSRTranscription && (
-                <Notice
-                    type="warning"
-                    title="Transcription Not Available"
-                    message="Live Transcription is only available at 16kHz sample rate"
-                />
-            )}
-
             {Platform.OS === 'ios' && (
                 <>
                     <LabelSwitch
