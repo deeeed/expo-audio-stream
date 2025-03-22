@@ -36,9 +36,10 @@ SIMULATOR_SDK_PATH=$(xcrun --sdk iphonesimulator --show-sdk-path)
 echo "Using simulator SDK path: $SIMULATOR_SDK_PATH"
 
 # Set explicit environment variables for x86_64 simulator build
-export CFLAGS="-arch x86_64 -isysroot $SIMULATOR_SDK_PATH"
-export CXXFLAGS="-arch x86_64 -isysroot $SIMULATOR_SDK_PATH"
-export LDFLAGS="-arch x86_64 -isysroot $SIMULATOR_SDK_PATH"
+# Updated to use iOS 15.0 minimum version
+export CFLAGS="-arch x86_64 -isysroot $SIMULATOR_SDK_PATH -miphoneos-version-min=15.0 -mios-simulator-version-min=15.0"
+export CXXFLAGS="-arch x86_64 -isysroot $SIMULATOR_SDK_PATH -miphoneos-version-min=15.0 -mios-simulator-version-min=15.0"
+export LDFLAGS="-arch x86_64 -isysroot $SIMULATOR_SDK_PATH -miphoneos-version-min=15.0 -mios-simulator-version-min=15.0"
 export SDKROOT="$SIMULATOR_SDK_PATH"
 
 # Configure for x86_64 simulator
@@ -74,10 +75,10 @@ unset CFLAGS CXXFLAGS LDFLAGS CPPFLAGS SDKROOT
 SIMULATOR_SDK_PATH=$(xcrun --sdk iphonesimulator --show-sdk-path)
 echo "Using simulator SDK path: $SIMULATOR_SDK_PATH"
 
-# Set environment variables for arm64 simulator
-export CFLAGS="-arch arm64 -isysroot $SIMULATOR_SDK_PATH"
-export CXXFLAGS="-arch arm64 -isysroot $SIMULATOR_SDK_PATH"
-export LDFLAGS="-arch arm64 -isysroot $SIMULATOR_SDK_PATH"
+# Set environment variables for arm64 simulator - Updated to iOS 15.0
+export CFLAGS="-arch arm64 -isysroot $SIMULATOR_SDK_PATH -miphoneos-version-min=15.0 -mios-simulator-version-min=15.0 -target arm64-apple-ios15.0-simulator"
+export CXXFLAGS="-arch arm64 -isysroot $SIMULATOR_SDK_PATH -miphoneos-version-min=15.0 -mios-simulator-version-min=15.0 -target arm64-apple-ios15.0-simulator"
+export LDFLAGS="-arch arm64 -isysroot $SIMULATOR_SDK_PATH -miphoneos-version-min=15.0 -mios-simulator-version-min=15.0 -target arm64-apple-ios15.0-simulator"
 export SDKROOT="$SIMULATOR_SDK_PATH"
 
 python3 waf configure --cross-compile-ios-sim-arm64 --lightweight= --fft=ACCELERATE --build-static
@@ -109,9 +110,10 @@ unset CFLAGS CXXFLAGS LDFLAGS CPPFLAGS SDKROOT
 DEVICE_SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
 echo "Using device SDK path: $DEVICE_SDK_PATH"
 
-export CFLAGS="-arch arm64 -isysroot $DEVICE_SDK_PATH"
-export CXXFLAGS="-arch arm64 -isysroot $DEVICE_SDK_PATH"
-export LDFLAGS="-arch arm64 -isysroot $DEVICE_SDK_PATH"
+# Updated to use iOS 15.0 minimum version
+export CFLAGS="-arch arm64 -isysroot $DEVICE_SDK_PATH -miphoneos-version-min=15.0"
+export CXXFLAGS="-arch arm64 -isysroot $DEVICE_SDK_PATH -miphoneos-version-min=15.0"
+export LDFLAGS="-arch arm64 -isysroot $DEVICE_SDK_PATH -miphoneos-version-min=15.0"
 export SDKROOT="$DEVICE_SDK_PATH"
 
 python3 waf configure --cross-compile-ios --lightweight= --fft=ACCELERATE --build-static
@@ -142,6 +144,12 @@ lipo -info ios/Frameworks/simulator/Essentia_Sim_x86_64.a
 
 echo "Simulator arm64 library:"
 lipo -info ios/Frameworks/simulator/Essentia_Sim_arm64.a
+
+# Create a combined simulator library
+echo "Creating combined simulator library..."
+lipo -create ios/Frameworks/simulator/Essentia_Sim_x86_64.a ios/Frameworks/simulator/Essentia_Sim_arm64.a -output ios/Frameworks/simulator/Essentia_Sim.a
+echo "Combined simulator library:"
+lipo -info ios/Frameworks/simulator/Essentia_Sim.a
 
 # Create a symbolic link for initial use - will be updated during build
 echo "Creating initial symlink to device library..."
