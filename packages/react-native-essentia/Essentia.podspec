@@ -125,20 +125,26 @@ Pod::Spec.new do |s|
       echo "Script running for PLATFORM_NAME=$PLATFORM_NAME ARCHS=$ARCHS"
       echo "Working directory: $(pwd)"
 
+      # Create absolute paths to avoid symlink issues
+      DEVICE_LIB="${PODS_TARGET_SRCROOT}/ios/Frameworks/device/Essentia_iOS.a"
+      SIM_LIB="${PODS_TARGET_SRCROOT}/ios/Frameworks/simulator/Essentia_Sim.a"
+      PREBUILT_LIB="${PODS_TARGET_SRCROOT}/ios/Frameworks/libEssentiaPrebuilt.a"
+
       # Check for the correct library files
       if [[ "$PLATFORM_NAME" == *simulator* ]]; then
         # For simulator builds
         echo "Symlinking Essentia Simulator Library"
-        ln -sf "${PODS_TARGET_SRCROOT}/ios/Frameworks/simulator/Essentia_Sim.a" "${PODS_TARGET_SRCROOT}/ios/Frameworks/libEssentiaPrebuilt.a"
+        ln -sf "$SIM_LIB" "$PREBUILT_LIB"
       else
         # For device builds
         echo "Symlinking Essentia Device Library"
-        ln -sf "${PODS_TARGET_SRCROOT}/ios/Frameworks/device/Essentia_iOS.a" "${PODS_TARGET_SRCROOT}/ios/Frameworks/libEssentiaPrebuilt.a"
+        ln -sf "$DEVICE_LIB" "$PREBUILT_LIB"
       fi
 
       # Verify the symlink
       echo "Verifying symlink:"
-      ls -la "${PODS_TARGET_SRCROOT}/ios/Frameworks/libEssentiaPrebuilt.a"
+      ls -la "$PREBUILT_LIB"
+      file "$PREBUILT_LIB"
       echo "========== END ESSENTIA LIBRARY VALIDATION =========="
     ',
     :execution_position => :before_compile,
