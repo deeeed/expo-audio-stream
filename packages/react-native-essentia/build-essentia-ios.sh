@@ -12,24 +12,109 @@ mkdir -p ios/Frameworks/device
 mkdir -p ios/Frameworks/simulator
 
 # Check if libraries already exist and skip build unless --force is used
-if [ -f "ios/Frameworks/device/Essentia_iOS.a" ] && [ -f "ios/Frameworks/simulator/Essentia_Sim.a" ] && [ "$1" != "--force" ]; then
+if [ -f "ios/Frameworks/device/Essentia_iOS.a" ] && [ -f "ios/Frameworks/simulator/Essentia_Sim_x86_64.a" ] && [ -f "ios/Frameworks/simulator/Essentia_Sim_arm64.a" ] && [ "$1" != "--force" ]; then
   echo "iOS libraries already exist. Use --force to rebuild."
   exit 0
 fi
-
-# Set Xcode environment
-export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
-export DEVELOPER_DIR=$(xcode-select -p)
 
 cd third_party/essentia
 
 # Clean any previous builds
 echo "Cleaning previous builds..."
 python3 waf distclean
+find . -name "*.o" -delete
+find . -name "*.a" -delete
+rm -rf build
 
-# Build for iOS devices
+# FIRST: Build for iOS simulator x86_64
+echo "Configuring Essentia for iOS simulator (x86_64)..."
+# Reset environment variables
+unset CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
+
+# Set simulator SDK path explicitly
+SIMULATOR_SDK_PATH=$(xcrun --sdk iphonesimulator --show-sdk-path)
+echo "Using simulator SDK path: $SIMULATOR_SDK_PATH"
+
+# Set explicit environment variables for x86_64 simulator build
+export CFLAGS="-arch x86_64 -isysroot $SIMULATOR_SDK_PATH"
+export CXXFLAGS="-arch x86_64 -isysroot $SIMULATOR_SDK_PATH"
+export LDFLAGS="-arch x86_64 -isysroot $SIMULATOR_SDK_PATH"
+export SDKROOT="$SIMULATOR_SDK_PATH"
+
+# Configure for x86_64 simulator
+python3 waf configure --cross-compile-ios-sim-x86_64 --lightweight= --fft=ACCELERATE --build-static
+if [ $? -ne 0 ]; then
+  echo "Error: Configuration for iOS simulator x86_64 failed. Check waf logs."
+  exit 1
+fi
+
+echo "Building Essentia for iOS simulator (x86_64)..."
+python3 waf --verbose
+if [ $? -ne 0 ]; then
+  echo "Error: Build for iOS simulator x86_64 failed. Check waf logs."
+  exit 1
+fi
+
+echo "Copying library for iOS simulator (x86_64)..."
+mkdir -p ../../ios/Frameworks/simulator/
+cp build/src/libessentia.a ../../ios/Frameworks/simulator/Essentia_Sim_x86_64.a
+
+# Clean for second build
+echo "Cleaning for simulator arm64 build..."
+python3 waf distclean
+find . -name "*.o" -delete
+find . -name "*.a" -delete
+rm -rf build
+
+# SECOND: Build for iOS simulator arm64
+echo "Configuring Essentia for iOS simulator (arm64)..."
+unset CFLAGS CXXFLAGS LDFLAGS CPPFLAGS SDKROOT
+
+# Set simulator SDK path for arm64
+SIMULATOR_SDK_PATH=$(xcrun --sdk iphonesimulator --show-sdk-path)
+echo "Using simulator SDK path: $SIMULATOR_SDK_PATH"
+
+# Set environment variables for arm64 simulator
+export CFLAGS="-arch arm64 -isysroot $SIMULATOR_SDK_PATH"
+export CXXFLAGS="-arch arm64 -isysroot $SIMULATOR_SDK_PATH"
+export LDFLAGS="-arch arm64 -isysroot $SIMULATOR_SDK_PATH"
+export SDKROOT="$SIMULATOR_SDK_PATH"
+
+python3 waf configure --cross-compile-ios-sim-arm64 --lightweight= --fft=ACCELERATE --build-static
+if [ $? -ne 0 ]; then
+  echo "Error: Configuration for iOS simulator arm64 failed. Check waf logs."
+  exit 1
+fi
+
+echo "Building Essentia for iOS simulator (arm64)..."
+python3 waf --verbose
+if [ $? -ne 0 ]; then
+  echo "Error: Build for iOS simulator arm64 failed. Check waf logs."
+  exit 1
+fi
+
+echo "Copying library for iOS simulator (arm64)..."
+cp build/src/libessentia.a ../../ios/Frameworks/simulator/Essentia_Sim_arm64.a
+
+# LASTLY: Build for iOS devices
+echo "Cleaning for device build..."
+python3 waf distclean
+find . -name "*.o" -delete
+find . -name "*.a" -delete
+rm -rf build
+
 echo "Configuring Essentia for iOS devices..."
-python3 waf configure --cross-compile-ios --lightweight= --fft=ACCELERATE --build-static  #--mode=debug #--include-algos=MonoLoader,Windowing,Spectrum,MFCC
+# Reset and set proper device environment
+unset CFLAGS CXXFLAGS LDFLAGS CPPFLAGS SDKROOT
+DEVICE_SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+echo "Using device SDK path: $DEVICE_SDK_PATH"
+
+export CFLAGS="-arch arm64 -isysroot $DEVICE_SDK_PATH"
+export CXXFLAGS="-arch arm64 -isysroot $DEVICE_SDK_PATH"
+export LDFLAGS="-arch arm64 -isysroot $DEVICE_SDK_PATH"
+export SDKROOT="$DEVICE_SDK_PATH"
+
+python3 waf configure --cross-compile-ios --lightweight= --fft=ACCELERATE --build-static
 if [ $? -ne 0 ]; then
   echo "Error: Configuration for iOS devices failed. Check waf logs."
   exit 1
@@ -43,43 +128,31 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Copying library for iOS devices..."
+mkdir -p ../../ios/Frameworks/device/
 cp build/src/libessentia.a ../../ios/Frameworks/device/Essentia_iOS.a
 
-# Clean and rebuild for simulator
-echo "Cleaning for simulator build..."
-python3 waf distclean
+# Verify architecture of individual libraries
+echo "Verifying library architectures..."
+cd ../..
+echo "iOS device library (arm64):"
+lipo -info ios/Frameworks/device/Essentia_iOS.a
 
-# Build for iOS simulator
-echo "Configuring Essentia for iOS simulator..."
-python3 waf configure --cross-compile-ios-sim --lightweight= --fft=ACCELERATE --build-static  #--mode=debug #--include-algos=MonoLoader,Windowing,Spectrum,MFCC
-if [ $? -ne 0 ]; then
-  echo "Error: Configuration for iOS simulator failed. Check waf logs."
-  exit 1
-fi
+echo "Simulator x86_64 library:"
+lipo -info ios/Frameworks/simulator/Essentia_Sim_x86_64.a
 
-echo "Building Essentia for iOS simulator..."
-python3 waf --verbose
-if [ $? -ne 0 ]; then
-  echo "Error: Build for iOS simulator failed. Check waf logs."
-  exit 1
-fi
+echo "Simulator arm64 library:"
+lipo -info ios/Frameworks/simulator/Essentia_Sim_arm64.a
 
-echo "Copying library for iOS simulator..."
-cp build/src/libessentia.a ../../ios/Frameworks/simulator/Essentia_Sim.a
+# Create a symbolic link for initial use - will be updated during build
+echo "Creating initial symlink to device library..."
+ln -sf ios/Frameworks/device/Essentia_iOS.a ios/Frameworks/libEssentiaPrebuilt.a
 
-# Verify the library architecture and symbols
-echo "Verifying Essentia_iOS.a architecture..."
-lipo -info ../../ios/Frameworks/device/Essentia_iOS.a
-if [ $? -ne 0 ]; then
-  echo "Error: Essentia_iOS.a is not a valid single-architecture file."
-  exit 1
-fi
-
+# Verifying symbols in the device library
 echo "Verifying symbols in Essentia_iOS.a..."
-if nm -gU ../../ios/Frameworks/device/Essentia_iOS.a | grep -q "_ZN8essentia4initEv"; then
-  echo "Success: Symbol essentia::init found in Essentia_iOS.a."
+if nm -gU ios/Frameworks/device/Essentia_iOS.a | grep -q "_ZN8essentia4initEv"; then
+  echo "✓ Success: Symbol essentia::init found in Essentia_iOS.a."
 else
-  echo "Warning: Symbol essentia::init not found in Essentia_iOS.a. The build may be incomplete."
+  echo "⚠️ Warning: Symbol essentia::init not found in Essentia_iOS.a. The build may be incomplete."
 fi
 
 echo "Essentia build for iOS completed successfully!"
