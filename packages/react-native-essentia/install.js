@@ -137,7 +137,8 @@ function downloadPrebuiltBinaries() {
         fs.mkdirSync(iosSimDir, { recursive: true });
 
         const iosDeviceSrc = path.join(sourcePath, 'ios/Frameworks/device/Essentia_iOS.a');
-        const iosSimSrc = path.join(sourcePath, 'ios/Frameworks/simulator/Essentia_Sim.a');
+        const iosSimX86Src = path.join(sourcePath, 'ios/Frameworks/simulator/Essentia_Sim_x86_64.a');
+        const iosSimArm64Src = path.join(sourcePath, 'ios/Frameworks/simulator/Essentia_Sim_arm64.a');
 
         if (fs.existsSync(iosDeviceSrc)) {
           console.log(`Copying iOS device library from ${iosDeviceSrc}`);
@@ -147,11 +148,41 @@ function downloadPrebuiltBinaries() {
           createFallbackLibrary('ios-device');
         }
 
-        if (fs.existsSync(iosSimSrc)) {
-          console.log(`Copying iOS simulator library from ${iosSimSrc}`);
-          fs.copyFileSync(iosSimSrc, path.join(iosSimDir, 'Essentia_Sim.a'));
+        let hasSimulatorLibs = false;
+
+        // Copy the individual architecture files if they exist
+        if (fs.existsSync(iosSimX86Src)) {
+          console.log(`Copying iOS x86_64 simulator library from ${iosSimX86Src}`);
+          fs.copyFileSync(iosSimX86Src, path.join(iosSimDir, 'Essentia_Sim_x86_64.a'));
+          hasSimulatorLibs = true;
         } else {
-          console.warn('iOS simulator library not found in downloaded package');
+          console.warn('iOS x86_64 simulator library not found in downloaded package');
+        }
+
+        if (fs.existsSync(iosSimArm64Src)) {
+          console.log(`Copying iOS arm64 simulator library from ${iosSimArm64Src}`);
+          fs.copyFileSync(iosSimArm64Src, path.join(iosSimDir, 'Essentia_Sim_arm64.a'));
+          hasSimulatorLibs = true;
+        } else {
+          console.warn('iOS arm64 simulator library not found in downloaded package');
+        }
+
+        // Create the combined simulator library if both architecture files were copied and we're on macOS
+        if (hasSimulatorLibs && fs.existsSync(path.join(iosSimDir, 'Essentia_Sim_x86_64.a')) &&
+            fs.existsSync(path.join(iosSimDir, 'Essentia_Sim_arm64.a')) && process.platform === 'darwin') {
+          try {
+            console.log('Creating combined iOS simulator library...');
+            execSync(`xcrun lipo -create "${path.join(iosSimDir, 'Essentia_Sim_x86_64.a')}" "${path.join(iosSimDir, 'Essentia_Sim_arm64.a')}" -output "${path.join(iosSimDir, 'Essentia_Sim.a')}"`,
+                    { stdio: 'inherit' });
+            console.log('Successfully created combined iOS simulator library');
+          } catch (error) {
+            console.error('Failed to create combined simulator library:', error);
+            // If we fail to create the combined library, we'll create a fallback one
+            createFallbackLibrary('ios-simulator-combined');
+          }
+        } else if (!hasSimulatorLibs) {
+          // If we couldn't find any simulator libraries, create fallbacks for all
+          console.warn('No iOS simulator libraries found, creating fallbacks');
           createFallbackLibrary('ios-simulator');
         }
 
@@ -243,8 +274,21 @@ function createFallbackLibrary(platform) {
   if (platform === 'ios' || platform === 'ios-simulator') {
     const simDir = path.resolve(__dirname, 'ios/Frameworks/simulator');
     fs.mkdirSync(simDir, { recursive: true });
+
+    // Create both individual architecture files
+    fs.writeFileSync(path.join(simDir, 'Essentia_Sim_x86_64.a'), dummyLib);
+    fs.writeFileSync(path.join(simDir, 'Essentia_Sim_arm64.a'), dummyLib);
+
+    // Also create the combined file
     fs.writeFileSync(path.join(simDir, 'Essentia_Sim.a'), dummyLib);
-    console.log('Created fallback iOS simulator library');
+
+    console.log('Created fallback iOS simulator libraries');
+  } else if (platform === 'ios-simulator-combined') {
+    // Only create the combined simulator library
+    const simDir = path.resolve(__dirname, 'ios/Frameworks/simulator');
+    fs.mkdirSync(simDir, { recursive: true });
+    fs.writeFileSync(path.join(simDir, 'Essentia_Sim.a'), dummyLib);
+    console.log('Created fallback combined iOS simulator library');
   }
 
   if (platform === 'android') {
@@ -286,6 +330,8 @@ function testInstallation() {
 
   // Check iOS libraries
   const iosDeviceLib = path.join(__dirname, 'ios/Frameworks/device/Essentia_iOS.a');
+  const iosSimLibX86 = path.join(__dirname, 'ios/Frameworks/simulator/Essentia_Sim_x86_64.a');
+  const iosSimLibArm64 = path.join(__dirname, 'ios/Frameworks/simulator/Essentia_Sim_arm64.a');
   const iosSimLib = path.join(__dirname, 'ios/Frameworks/simulator/Essentia_Sim.a');
 
   if (!fs.existsSync(iosDeviceLib)) {
@@ -295,11 +341,40 @@ function testInstallation() {
     console.log(`✅ iOS device library: OK (${formatFileSize(stats.size)})`);
   }
 
-  if (!fs.existsSync(iosSimLib)) {
-    problems.push('iOS simulator library is missing');
+  // Check for the individual architecture files first
+  let hasIndividualArchs = true;
+  if (!fs.existsSync(iosSimLibX86)) {
+    problems.push('iOS x86_64 simulator library is missing');
+    hasIndividualArchs = false;
   } else {
+    const stats = fs.statSync(iosSimLibX86);
+    console.log(`✅ iOS x86_64 simulator library: OK (${formatFileSize(stats.size)})`);
+  }
+
+  if (!fs.existsSync(iosSimLibArm64)) {
+    problems.push('iOS arm64 simulator library is missing');
+    hasIndividualArchs = false;
+  } else {
+    const stats = fs.statSync(iosSimLibArm64);
+    console.log(`✅ iOS arm64 simulator library: OK (${formatFileSize(stats.size)})`);
+  }
+
+  // Check if we need to create the combined file
+  if (hasIndividualArchs && !fs.existsSync(iosSimLib) && process.platform === 'darwin') {
+    console.log('Individual architecture files exist but combined file is missing. Creating combined file...');
+    try {
+      execSync(`xcrun lipo -create "${iosSimLibX86}" "${iosSimLibArm64}" -output "${iosSimLib}"`,
+              { stdio: 'inherit' });
+      console.log(`✅ Created combined iOS simulator library`);
+    } catch (error) {
+      console.error('Failed to create combined simulator library:', error);
+      problems.push('Failed to create combined iOS simulator library');
+    }
+  } else if (fs.existsSync(iosSimLib)) {
     const stats = fs.statSync(iosSimLib);
-    console.log(`✅ iOS simulator library: OK (${formatFileSize(stats.size)})`);
+    console.log(`✅ iOS combined simulator library: OK (${formatFileSize(stats.size)})`);
+  } else if (!hasIndividualArchs) {
+    problems.push('iOS simulator libraries are incomplete');
   }
 
   // Check Android libraries
