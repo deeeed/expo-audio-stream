@@ -26,6 +26,17 @@ cd "$SCRIPT_DIR"
 mkdir -p third_party
 mkdir -p prebuilt
 
+# Clone sherpa-onnx repository if not already present
+if [ ! -d "third_party/sherpa-onnx" ]; then
+  echo -e "${BLUE}Cloning sherpa-onnx repository...${NC}"
+  git clone https://github.com/k2-fsa/sherpa-onnx.git third_party/sherpa-onnx
+else
+  echo -e "${BLUE}Updating sherpa-onnx repository...${NC}"
+  cd third_party/sherpa-onnx
+  git pull origin master
+  cd "$SCRIPT_DIR"
+fi
+
 echo -e "${GREEN}Setup completed successfully!${NC}"
 echo -e "${YELLOW}You can now build the libraries:${NC}"
 echo -e "${YELLOW}  - For iOS: ./build-sherpa-ios.sh${NC}"
