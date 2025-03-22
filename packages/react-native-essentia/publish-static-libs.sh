@@ -25,7 +25,9 @@ if [ -f "${DEST_DIR}/.gitattributes" ]; then
 fi
 
 # Check if we have built libraries
-if [ ! -f "${SRC_DIR}/ios/Frameworks/device/Essentia_iOS.a" ] || [ ! -f "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim.a" ]; then
+if [ ! -f "${SRC_DIR}/ios/Frameworks/device/Essentia_iOS.a" ] ||
+   ([ ! -f "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim_x86_64.a" ] &&
+    [ ! -f "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim_arm64.a" ]); then
   echo "⚠️ Warning: Some iOS libraries are missing. Run ./build-essentia-ios.sh first for complete results."
 fi
 
@@ -59,11 +61,27 @@ else
   echo "⚠️ iOS device library not found. Did you run build-essentia-ios.sh?"
 fi
 
-if [ -f "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim.a" ]; then
-  cp "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim.a" "${DEST_DIR}/ios/Frameworks/simulator/"
-  echo "✅ Copied iOS simulator library"
+# Copy iOS simulator libraries (new separate architecture files)
+if [ -f "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim_x86_64.a" ]; then
+  cp "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim_x86_64.a" "${DEST_DIR}/ios/Frameworks/simulator/"
+  echo "✅ Copied iOS simulator x86_64 library"
 else
-  echo "⚠️ iOS simulator library not found. Did you run build-essentia-ios.sh?"
+  echo "⚠️ iOS simulator x86_64 library not found. Did you run build-essentia-ios.sh?"
+fi
+
+if [ -f "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim_arm64.a" ]; then
+  cp "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim_arm64.a" "${DEST_DIR}/ios/Frameworks/simulator/"
+  echo "✅ Copied iOS simulator arm64 library"
+else
+  echo "⚠️ iOS simulator arm64 library not found. Did you run build-essentia-ios.sh?"
+fi
+
+# For backward compatibility, check if we should create a combined simulator library
+if [ -f "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim_x86_64.a" ] &&
+   [ -f "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim_arm64.a" ]; then
+  echo "Creating combined simulator library..."
+  lipo -create "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim_x86_64.a" "${SRC_DIR}/ios/Frameworks/simulator/Essentia_Sim_arm64.a" -output "${DEST_DIR}/ios/Frameworks/simulator/Essentia_Sim.a"
+  echo "✅ Created combined iOS simulator library"
 fi
 
 # Copy Android libraries
