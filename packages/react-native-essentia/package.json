@@ -1,6 +1,6 @@
 {
   "name": "@siteed/react-native-essentia",
-  "version": "0.1.0-beta.1",
+  "version": "0.3.0-beta.2",
   "description": "RN jni bindings for essentia",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
@@ -25,6 +25,12 @@
     "cpp",
     "*.podspec",
     "react-native.config.js",
+    "install.js",
+    "setup.sh",
+    "build-essentia-ios.sh",
+    "build-essentia-android.sh",
+    "build-all.sh",
+    "publish-static-libs.sh",
     "!ios/build",
     "!android/build",
     "!android/gradle",
@@ -49,7 +55,9 @@
     "build:android": "./build-essentia-android.sh",
     "build:android:force": "./build-essentia-android.sh --force",
     "build:all": "./build-all.sh",
-    "build:all:force": "./build-all.sh --force"
+    "build:all:force": "./build-all.sh --force",
+    "postinstall": "node ./install.js",
+    "publish-static": "./publish-static-libs.sh"
   },
   "keywords": [
     "react-native",
@@ -76,11 +84,22 @@
     "type": "modules",
     "jsSrcsDir": "src"
   },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "node-fetch": "2",
+    "progress": "^2.0.3"
+  },
   "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@babel/preset-env": "^7.26.9",
     "@commitlint/config-conventional": "^17.0.2",
     "@evilmartians/lefthook": "^1.5.0",
     "@react-native/eslint-config": "^0.73.1",
+    "@types/adm-zip": "^0",
+    "@types/babel__core": "^7",
+    "@types/babel__preset-env": "^7",
     "@types/jest": "^29.5.5",
+    "@types/progress": "^2",
     "@types/react": "^18.2.44",
     "commitlint": "^17.0.2",
     "del-cli": "^5.1.0",

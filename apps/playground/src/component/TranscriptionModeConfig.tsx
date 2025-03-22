@@ -1,4 +1,4 @@
-import { AppTheme, EditableInfoCard, LabelSwitch, useModal, useTheme } from '@siteed/design-system'
+import { AppTheme, EditableInfoCard, LabelSwitch, Notice, useModal, useTheme } from '@siteed/design-system'
 import { getLogger } from '@siteed/react-native-logger'
 import React, { useCallback, useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
@@ -166,9 +166,11 @@ export const TranscriptionModeConfig = ({
             )}
             
             {!validSampleRate && (
-                <Text style={styles.errorText}>
-                    Live Transcription is only available at 16kHz sample rate
-                </Text>
+                <Notice
+                    type="warning"
+                    title="Transcription Not Available"
+                    message="Live Transcription is only available at 16kHz sample rate"
+                />
             )}
         </View>
     )

@@ -75,3 +75,7 @@ apps/playground/audioplayground-b0b0f366d11e.json
 # FFmpeg libraries and headers
 packages/react-native-essentia/android/src/main/jniLibs/**/ffmpeg/
 *.a
+packages/react-native-essentia/essentia-binaries.zip
+packages/react-native-essentia/third_party/essentia_sim/
+packages/react-native-essentia/build_arm64_sim/
+packages/react-native-essentia/build_minimal/

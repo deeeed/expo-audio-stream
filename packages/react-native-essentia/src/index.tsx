@@ -6,7 +6,7 @@ import { EssentiaCategory } from './constants';
 export * from './types/core.types';
 // Re-export everything from algorithms.types
 export * from './types/algorithms.types';
-
+// Re-export everything from pipeline.types
 export * from './types/pipeline.types';
 
 export { EssentiaCategory };
