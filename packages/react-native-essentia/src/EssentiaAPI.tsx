@@ -55,7 +55,7 @@ import type {
 import type {
   MusicGenreFeatures,
   SpeechEmotionFeatures,
-} from './types/piepleine.types';
+} from './types/pipeline.types';
 
 // Get the native module
 const Essentia = NativeModules.Essentia

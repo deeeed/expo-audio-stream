@@ -1,40 +1,32 @@
 #  @siteed/react-native-essentia
 
-A React Native module that provides access to the [Essentia audio analysis library](https://essentia.upf.edu/) on Android devices. This module enables developers to perform advanced audio feature extraction and analysis directly within their React Native applications.
+A React Native module providing access to the [Essentia audio analysis library](https://essentia.upf.edu/) for Android and iOS. Extract advanced audio features directly within your React Native apps.
 
-> **⚠️ DEVELOPMENT PACKAGE - NOT READY FOR PRODUCTION**
+> **⚠️ USE AT YOUR OWN RISK**
 >
-> This package is currently under active development and is **NOT ready for use** in production applications or by external developers. The API is unstable and subject to breaking changes without notice.
+> This package can be used in production, but entirely at your own risk. Development happens sporadically, and the API may change without notice.
 >
 > **Current Implementation Status:**
-> - The wrapper currently maps only the basic Essentia algorithms listed in `@essentia_algorithm.txt`
-> - Advanced features such as pipeline processing, batch operations, and other enhanced functionality are highly experimental and may not work as expected
-> - The entire wrapper should be considered experimental and under development
+> - The wrapper provides access to most Essentia algorithms
+> - Some algorithms (like MFCC, Key, Spectrum, Tonnetz, MelBands, HPCP, SpectralContrast) have optimized implementations
+> - Other algorithms are accessible through a dynamic algorithm execution system
 >
-> Please check back later for a stable release.
-
-## ROADMAP
-- Fully document the pipelline and batch processing features.
-- Split the code into smaller files for better readability.
-- Add support for iOS and Web platforms.
-
+> **IMPORTANT NOTES:**
+> - I strongly encourage users to build on top of existing methods rather than using the package as-is
+> - Fork the repository and adapt the code to your specific needs for the best results
+> - I am moving away from using Essentia due to its invasive license terms
+> - This code is kept available for reference purposes for those who understand and accept Essentia's licensing requirements
 
 ## Features
 
-### Stable Features
-- Access to basic Essentia audio analysis algorithms as listed in `@essentia_algorithm.txt`
-- Convenience methods for common features (e.g., MFCC, key, tempo)
-
-### Experimental Features
-The following features are still under active development and should be considered highly experimental:
-- Batch processing for efficient multi-feature extraction
-- Flexible audio processing pipelines with custom preprocessing and post-processing
-- Caching of algorithm information for faster access
-- Multi-threading support for performance optimization
+- **Audio Feature Extraction**: Access 200+ Essentia audio analysis algorithms
+- **Ready-to-use Methods**: Simplified APIs for common features (MFCC, key detection, pitch, tempo, etc.)
+- **Performance Optimized**: Native implementation using C++ with multi-threading support
+- **Cross-Platform**: Full support for both Android and iOS platforms
 
 ## Platform Support
 
-**Currently, this module only supports Android.** iOS and Web support is planned for future releases.
+**This module supports both Android and iOS platforms.** Web support has been discontinued.
 
 ## Installation
 
@@ -61,158 +53,93 @@ npx react-native run-android
 - React Native 0.60+ (uses autolinking)
 - Android SDK with NDK support (for native compilation)
 
-## Usage
-
-### Basic Example
-
-Here's how to initialize the module, set audio data, and extract features:
+## Quick Start
 
 ```typescript
 import Essentia from '@siteed/react-native-essentia';
 
-// Note: Explicit initialization is optional as the library implements lazy initialization
-// await Essentia.initialize();
-
-// Set audio data (PCM samples as Float32Array)
+// Load audio data (PCM samples)
 const audioData = new Float32Array([/* your audio samples */]);
 const sampleRate = 44100;
 await Essentia.setAudioData(audioData, sampleRate);
 
-// Extract MFCC
+// Extract basic features
 const mfccResult = await Essentia.extractMFCC();
-console.log('MFCC:', mfccResult.mfcc);
+const keyResult = await Essentia.extractKey();
 
-// Extract multiple features in one go
-const features = await Essentia.extractFeatures([
-  { name: 'MFCC' },
-  { name: 'Spectrum' },
-]);
-console.log('Features:', features.data.mfcc, features.data.spectrum);
+console.log('MFCC:', mfccResult.mfcc);
+console.log('Key:', keyResult.key, keyResult.scale);
 ```
 
-### Core Methods
+## Core APIs
 
-The module provides the following core methods for basic operation and more advanced control:
+### 1. Individual Feature Extraction
 
-- **initialize(): Promise\<boolean>**
-  Initializes the Essentia library. Note: Explicit initialization is optional as the library implements lazy initialization and will automatically initialize when needed.
-
-- **setAudioData(pcmData: number[] | Float32Array, sampleRate: number): Promise\<boolean>**
-  Sets the audio data to be analyzed.
-
-- **executeAlgorithm(algorithm: string, params?: AlgorithmParams): Promise\<AlgorithmResult>**
-  Executes a single Essentia algorithm with custom parameters.
-
-- **executeBatch(algorithms: FeatureConfig[]): Promise\<BatchProcessingResults>**
-  Runs multiple algorithms in a batch for efficient processing.
-
-- **executePipeline(config: PipelineConfig): Promise\<PipelineResult>**
-  Creates a full audio processing pipeline with preprocessing, feature extraction, and post-processing steps.
-
-- **extractFeatures(features: FeatureConfig[]): Promise\<BatchProcessingResults>**
-  Extracts multiple audio features with optimized execution.
-
-### Available Convenience Methods
-
-The module provides convenience methods for common audio features, each returning a promise with specific result types:
-
-- **extractMFCC(params?: MFCCParams): Promise\<MFCCResult>**
-  Extracts Mel-frequency cepstral coefficients.
-
-- **extractMelBands(params?: MelBandsParams): Promise\<MelBandsResult>**
-  Extracts Mel spectrogram bands.
-
-- **extractKey(params?: AlgorithmParams): Promise\<KeyResult>**
-  Detects musical key and scale.
-
-- **extractTempo(params?: AlgorithmParams): Promise\<TempoResult>**
-  Estimates tempo (BPM).
-
-- **extractBeats(params?: AlgorithmParams): Promise\<BeatsResult>**
-  Detects beat positions.
-
-- **extractLoudness(params?: AlgorithmParams): Promise\<LoudnessResult>**
-  Analyzes loudness.
-
-- **extractSpectralFeatures(params?: AlgorithmParams): Promise\<SpectralFeaturesResult>**
-  Extracts spectral features (centroid, rolloff, flux, complexity).
-
-- **extractPitch(params?: PitchParams): Promise\<PitchResult>**
-  Detects predominant pitch.
-
-- **extractRhythmFeatures(params?: AlgorithmParams): Promise\<RhythmFeaturesResult>**
-  Extracts rhythm descriptors.
-
-- **extractEnergy(params?: AlgorithmParams): Promise\<EnergyResult>**
-  Analyzes signal energy and RMS.
-
-- **extractOnsets(params?: AlgorithmParams): Promise\<OnsetsResult>**
-  Detects onsets.
-
-- **extractDissonance(params?: AlgorithmParams): Promise\<DissonanceResult>**
-  Measures dissonance.
-
-- **extractDynamics(params?: AlgorithmParams): Promise\<DynamicsResult>**
-  Analyzes dynamic complexity.
-
-- **extractHarmonics(params?: AlgorithmParams): Promise\<HarmonicsResult>**
-  Extracts harmonic pitch class profile (HPCP).
-
-- **extractChords(params?: AlgorithmParams): Promise\<ChordsResult>**
-  Detects chords.
-
-- **detectSilence(params?: SilenceRateParams): Promise\<SilenceResult>**
-  Detects silence regions.
-
-- **extractBarkBands(params?: BarkBandsParams): Promise\<BarkBandsResult>**
-  Extracts Bark frequency bands.
-
-- **extractDanceability(params?: AlgorithmParams): Promise\<DanceabilityResult>**
-  Analyzes danceability.
-
-- **extractZeroCrossingRate(params?: AlgorithmParams): Promise\<ZeroCrossingRateResult>**
-  Measures zero-crossing rate.
-
-- **extractTuningFrequency(params?: AlgorithmParams): Promise\<TuningFrequencyResult>**
-  Analyzes tuning frequency.
-
-- **extractERBBands(params?: ERBBandsParams): Promise\<ERBBandsResult>**
-  Extracts ERB bands.
-
-- **extractAttackTime(params?: AlgorithmParams): Promise\<AttackTimeResult>**
-  Detects attack time.
-
-- **extractInharmonicity(params?: AlgorithmParams): Promise\<InharmonicityResult>**
-  Measures inharmonicity.
-
-## Advanced Usage
-
-### Custom Algorithms
-
-For custom algorithms or greater control, use executeAlgorithm:
+Extract specific audio features with specialized, type-safe methods:
 
 ```typescript
-const result = await Essentia.executeAlgorithm('SpectralCentroidTime', { sampleRate: 44100 });
-console.log('Centroid:', result);
+// Musical properties
+const key = await Essentia.extractKey();
+const tempo = await Essentia.extractTempo();
+const chords = await Essentia.extractChords();
+
+// Spectral analysis
+const mfcc = await Essentia.extractMFCC();
+const melBands = await Essentia.extractMelBands();
+const spectralFeatures = await Essentia.extractSpectralFeatures();
+
+// Audio characteristics
+const loudness = await Essentia.extractLoudness();
+const energy = await Essentia.extractEnergy();
+const danceability = await Essentia.extractDanceability();
 ```
 
-### Audio Processing Pipeline
+### 2. Batch Processing API
 
-Define customizable audio processing pipelines with the `executePipeline` method:
+Extract multiple features efficiently in a single operation:
+
+```typescript
+const batchResult = await Essentia.extractFeatures([
+  { name: 'MFCC', params: { numberCoefficients: 13 } },
+  { name: 'Key' },
+  { name: 'BeatTrackerMultiFeature' },
+  { name: 'Loudness' }
+]);
+
+// Access all results from a single call
+const {
+  mfcc,
+  key,
+  ticks,       // beats from BeatTrackerMultiFeature
+  loudness
+} = batchResult.data;
+```
+
+Key benefits of batch processing:
+- **Performance**: Minimizes redundant computations and native bridge calls
+- **Optimization**: Reuses intermediate results like spectra across algorithms
+- **Simplicity**: Extracts multiple features with a single API call
+
+### 3. Pipeline API
+
+The most powerful feature - create custom audio processing workflows:
 
 ```typescript
 const pipelineResult = await Essentia.executePipeline({
+  // 1. PREPROCESSING STEPS
   preprocess: [
     { name: "FrameCutter", params: { frameSize: 2048, hopSize: 1024 } },
     { name: "Windowing", params: { type: "hann" } },
     { name: "Spectrum", params: { size: 2048 } }
   ],
+
+  // 2. FEATURE EXTRACTION
   features: [
     {
       name: "MFCC",
-      input: "Spectrum",
+      input: "Spectrum",  // Uses output from Spectrum preprocessing step
       params: { numberCoefficients: 13 },
-      postProcess: { mean: true }
+      postProcess: { mean: true, variance: true }  // Compute statistics across frames
     },
     {
       name: "MelBands",
@@ -221,68 +148,117 @@ const pipelineResult = await Essentia.executePipeline({
       postProcess: { mean: true }
     }
   ],
-  postProcess: { concatenate: true }
+
+  // 3. POST-PROCESSING
+  postProcess: {
+    concatenate: true  // Combine all features into a single vector
+  }
 });
 
-// Access results
-console.log('MFCC:', pipelineResult.data.MFCC);
-console.log('MelBands:', pipelineResult.data.MelBands);
+// Access structured results
+console.log('MFCC means:', pipelineResult.data.MFCC.mean);
+console.log('MFCC variance:', pipelineResult.data.MFCC.variance);
+console.log('MelBands means:', pipelineResult.data.MelBands.mean);
 console.log('Concatenated features:', pipelineResult.data.concatenatedFeatures);
 ```
 
-The pipeline configuration allows you to:
-- Define preprocessing steps including frame cutting and windowing
-- Extract multiple features in sequence
-- Specify the input for each feature (e.g., connecting a feature to a preprocessing step)
-- Apply post-processing such as frame averaging or feature concatenation
-- Create both frame-based and signal-based processing workflows
+Benefits of the Pipeline API:
+- **Complete Control**: Define custom preprocessing, feature extraction, and post-processing
+- **Data Flow**: Connect algorithm outputs to inputs of subsequent algorithms
+- **Statistical Analysis**: Automatically compute statistics (mean, variance) across audio frames
+- **Feature Engineering**: Concatenate features for machine learning applications
+- **Optimization**: Efficiently handles frame-based processing with minimal memory overhead
 
-### Batch Processing
+## Pipeline API Explained
 
-Run multiple algorithms in a batch with executeBatch:
+The Pipeline API provides a three-stage architecture for audio processing workflows:
+
+1. **Preprocessing**
+   - Handles audio segmentation, windowing, and transformation
+   - Common steps include frame cutting, windowing, and spectrum computation
+   - Output from these steps feeds into feature extraction
+
+2. **Feature Extraction**
+   - Core audio analysis with configurable algorithms
+   - Each algorithm takes input from a preprocessing step
+   - Parameters can be customized for each algorithm
+   - Results can be automatically summarized (mean, variance)
+
+3. **Post-processing**
+   - Works on extracted features (currently supports concatenation)
+   - Prepares features for machine learning or other applications
+
+Example use cases:
+- **Music Classification**: Extract MFCCs, spectral features, and rhythm features for genre classification
+- **Audio Fingerprinting**: Create compact audio signatures
+- **Mood Detection**: Analyze key, tempo, and spectral features to determine emotional characteristics
+- **Voice Analysis**: Extract pitch, formants, and energy for speech processing
+
+## Direct Algorithm Access
+
+For maximum flexibility, access any Essentia algorithm directly:
 
 ```typescript
-const batchResult = await Essentia.executeBatch([
-  { name: 'MFCC', params: { numberCoefficients: 13 } },
-  { name: 'Spectrum' },
-]);
-console.log('Batch Results:', batchResult.data);
-```
+// Execute any algorithm with custom parameters
+const result = await Essentia.executeAlgorithm('SpectralCentroidTime', {
+  sampleRate: 44100
+});
 
-### Algorithm Information
-
-Explore available algorithms and their details:
-
-```typescript
-// Get info for a specific algorithm
+// Get algorithm information
 const info = await Essentia.getAlgorithmInfo('MFCC');
-console.log('MFCC Info:', info);
+console.log('MFCC parameters:', info.parameters);
 
-// List all algorithms
+// List all available algorithms
 const algorithms = await Essentia.getAllAlgorithms();
-console.log('All Algorithms:', algorithms);
 ```
 
 ## Performance Optimization
 
-### Caching
-
-Enable/disable caching of algorithm information:
-
 ```typescript
+// Enable caching
 await Essentia.setCacheEnabled(true);
-const isEnabled = await Essentia.isCacheEnabled();
-await Essentia.clearCache();
+
+// Set thread count for multi-threaded processing
+await Essentia.setThreadCount(4);
 ```
 
-### Threading
+## Error Handling
 
-Adjust the number of threads for computation:
+All methods return an EssentiaResult with `success` and potential `error` fields:
 
 ```typescript
-await Essentia.setThreadCount(4); // Optimize based on device
-const threadCount = await Essentia.getThreadCount();
+try {
+  const result = await Essentia.extractMFCC();
+
+  if (result.success) {
+    console.log('MFCC:', result.mfcc);
+  } else {
+    console.error('Error:', result.error.message);
+  }
+} catch (error) {
+  console.error('Exception:', error);
+}
 ```
+
+## Available Feature Types
+
+The library provides extraction methods for several categories of audio features:
+
+- **Spectral Features**: MFCC, MelBands, BarkBands, Spectrum, SpectralContrast
+- **Tonal Features**: Key, Chords, Tonnetz, HPCP, Inharmonicity
+- **Rhythm Features**: Tempo, Beats, Onsets, Danceability
+- **Dynamics**: Loudness, Energy, RMS, DynamicComplexity
+- **Signal Properties**: Pitch, ZeroCrossingRate, SilenceRate
+
+## Available Convenience Methods
+
+The module provides specialized methods for common audio features:
+
+- **Spectral**: `extractMFCC()`, `extractMelBands()`, `extractSpectralFeatures()`, `extractBarkBands()`, `extractERBBands()`
+- **Tonal**: `extractKey()`, `extractChords()`, `extractHarmonics()`, `extractTonnetz()`, `extractTuningFrequency()`
+- **Rhythm**: `extractTempo()`, `extractBeats()`, `extractOnsets()`, `extractDanceability()`, `extractRhythmFeatures()`
+- **Dynamics**: `extractLoudness()`, `extractEnergy()`, `extractDynamics()`, `extractAttackTime()`
+- **Signal**: `extractPitch()`, `extractZeroCrossingRate()`, `detectSilence()`, `extractInharmonicity()`
 
 ## Types
 
@@ -302,65 +278,18 @@ Key TypeScript interfaces:
       name: string;
       input: string; // Source of input data (e.g., "Spectrum")
       params?: AlgorithmParams;
-      postProcess?: { mean?: boolean };
+      postProcess?: { mean?: boolean; variance?: boolean };
     }>;
     postProcess?: { concatenate?: boolean };
   }
   ```
   Configures an audio processing pipeline with preprocessing, feature extraction, and post-processing steps.
 
-- **PipelineResult**: `{ success: boolean; data?: Record<string, number | number[]>; error?: { code: string; message: string; details?: string } }`
+- **PipelineResult**: `{ success: boolean; data?: Record<string, { mean?: number[]; variance?: number[] }>; error?: { code: string; message: string } }`
   Result type for pipeline operations, containing the extracted features.
 
 - **EssentiaResult<T>**: `{ success: boolean; data?: T; error?: { code: string; message: string } }`
   Generic result type for most operations.
-
-- **BatchResult**: `{ success: boolean; data?: { [key: string]: any }; error?: { code: string; message: string } }`
-  Specific result type for batch operations like extractFeatures and executeBatch.
-
-Specific result types (e.g., MFCCResult, KeyResult) are returned by convenience methods alongside the generic EssentiaResult structure.
-
-### Return Type Consistency
-
-The module uses two patterns for result types:
-
-1. **Specific Result Types**: Methods like `extractMFCC()` return specialized types (e.g., `MFCCResult`) for better type safety and IDE autocompletion.
-
-2. **Generic Result Wrapper**: All responses are wrapped in the `EssentiaResult<T>` structure that includes `success` and possible `error` information.
-
-For example, when calling `extractMFCC()`:
-
-```typescript
-// The return type combines both patterns
-type MFCCResponse = MFCCResult & EssentiaResult<MFCCResult>;
-
-const result = await Essentia.extractMFCC();
-if (result.success) {
-  // Access typed fields directly
-  const coefficients = result.mfcc;
-  const bands = result.bands;
-} else {
-  // Handle errors
-  console.error(result.error?.message);
-}
-```
-
-## Error Handling
-
-All methods return promises that may reject with errors. Results also include a success field:
-
-```typescript
-try {
-  const result = await Essentia.extractMFCC();
-  if (result.success) {
-    console.log('MFCC:', result.mfcc);
-  } else {
-    console.error('Error:', result.error);
-  }
-} catch (error) {
-  console.error('Exception:', error);
-}
-```
 
 ## Performance Considerations
 
@@ -371,70 +300,24 @@ Audio analysis can be resource-intensive:
 - Adjust thread count based on device capabilities.
 - For large audio files, consider processing in chunks or running in the background.
 
-## Available Algorithms
+## Static Libraries
 
-The module provides access to over 200 audio analysis algorithms from the Essentia library. Some key categories include:
+This package uses Essentia C++ libraries which are large binary files. To keep the package size manageable:
 
-- **Spectral Analysis**: FFT, Spectrum, SpectralPeaks, SpectralContrast
-- **Feature Extraction**: MFCC, MelBands, BFCC, GFCC, BarkBands, ERBBands
-- **Musical Analysis**: Key, Tempo, BPM, Chords, Pitch, Scale
-- **Rhythm Analysis**: BeatTracker, Onsets, RhythmExtractor
-- **Signal Processing**: Filters (HighPass, LowPass, BandPass), Windowing, Normalization
-- **Audio Segmentation**: SilenceRate, Slicer, Onsets, RMS
+- By default, the package downloads pre-built binaries from [deeeed/rn-essentia-static](https://github.com/deeeed/rn-essentia-static) during installation
+- The libraries are automatically configured for both iOS and Android platforms
+- If you prefer to build from source, set `USE_PREBUILT = false` in `install.js`
 
-For a complete list of algorithms and their parameters, use the `getAllAlgorithms()` method.
+The static libraries are located at:
+- iOS: `ios/Frameworks/device/Essentia_iOS.a` and `ios/Frameworks/simulator/Essentia_Sim.a`
+- Android: `android/src/main/jniLibs/<architecture>/libessentia.a`
 
-### Example Algorithm Parameters
+## License and Acknowledgements
 
-Here are commonly used parameter examples for popular algorithms:
-
-```typescript
-// MFCC with custom parameters
-const mfccParams = {
-  numberBands: 40,
-  numberCoefficients: 13,
-  lowFrequencyBound: 20,
-  highFrequencyBound: 20000,
-  sampleRate: 44100
-};
-
-// BarkBands extraction
-const barkBandsParams = {
-  sampleRate: 44100,
-  numberBands: 27
-};
-
-// Key detection
-const keyParams = {
-  profileType: "temperley",
-  usePolyphony: false,
-  useThreeChords: true
-};
-
-// Tempo/BPM detection
-const tempoParams = {
-  minTempo: 40,
-  maxTempo: 208
-};
-```
-
-## Android-Specific Notes
-
-- No additional permissions are required, as the module processes raw PCM data provided by the user.
-- Ensure your project includes the native library (libreact-native-essentia.so), which is bundled with the module.
-
-## Contributing
-
-To contribute or build the native library:
-
-1. Clone the repository.
-2. Follow instructions in CONTRIBUTING.md for setting up the NDK and building the C++ code.
-
-## License
-
-MIT License (see LICENSE file)
-
-## Acknowledgements
+This wrapper is MIT licensed, but the compiled binary is subject to Essentia's licensing terms.
 
 Built with the [Essentia audio analysis library](https://essentia.upf.edu/).
+
+---
+<sub>Created by [Arthur Breton](https://siteed.net) • See more projects at [siteed.net](https://siteed.net)</sub>
 
