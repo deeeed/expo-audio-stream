@@ -1,6 +1,6 @@
 # @siteed/sherpa-onnx.rn
 
-React Native wrapper for [Sherpa-ONNX](https://github.com/k2-fsa/sherpa-onnx) speech recognition library.
+React Native wrapper for [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) providing Text-to-Speech (TTS) and Speech-to-Text (STT) capabilities for mobile applications.
 
 ## Features
 
@@ -12,12 +12,20 @@ React Native wrapper for [Sherpa-ONNX](https://github.com/k2-fsa/sherpa-onnx) sp
 
 ## Installation
 
-```bash
-# Using npm
+```sh
 npm install @siteed/sherpa-onnx.rn
-
-# Using yarn
+# or
 yarn add @siteed/sherpa-onnx.rn
+```
+
+### Linking
+
+This package is a native module and requires proper linking. For React Native 0.60 and above, linking should happen automatically through auto-linking.
+
+If you're using Expo, you'll need to use a custom development client or eject to a bare workflow:
+
+```sh
+npx expo prebuild
 ```
 
 ### iOS
@@ -37,6 +45,71 @@ Android integration is handled automatically by the package.
 This module is compatible with both the old and new React Native architectures. See [COMPATIBILITY.md](./COMPATIBILITY.md) for details on how this is achieved and considerations when using this module.
 
 ## Usage
+
+### Text-to-Speech (TTS)
+
+This example demonstrates how to use the TTS functionality:
+
+```typescript
+import SherpaOnnx, { TtsModelConfig } from '@siteed/sherpa-onnx.rn';
+import { Audio } from 'expo-av';
+import { Platform } from 'react-native';
+
+// Initialize TTS
+const initTts = async () => {
+  try {
+    // First validate the library is loaded
+    const validateResult = await SherpaOnnx.validateLibraryLoaded();
+    if (!validateResult.loaded) {
+      throw new Error(`Library validation failed: ${validateResult.status}`);
+    }
+    
+    // Configure TTS with your model
+    const modelConfig: TtsModelConfig = {
+      modelDir: 'assets/tts/kokoro-en-v0_19',
+      modelName: 'model.onnx',
+      voices: 'voices.bin',
+      dataDir: 'assets/tts/kokoro-en-v0_19/espeak-ng-data',
+    };
+    
+    // Initialize TTS
+    const initResult = await SherpaOnnx.initTts(modelConfig);
+    console.log(`TTS initialized with ${initResult.numSpeakers} speakers at ${initResult.sampleRate}Hz`);
+    return initResult;
+  } catch (error) {
+    console.error('Failed to initialize TTS:', error);
+    throw error;
+  }
+};
+
+// Generate speech
+const generateSpeech = async (text: string) => {
+  try {
+    // Generate TTS without playing (we'll play with Expo AV)
+    const result = await SherpaOnnx.generateTts(text, {
+      speakerId: 0,
+      speakingRate: 1.0,
+      playAudio: false
+    });
+    
+    // Play with Expo AV
+    const { sound } = await Audio.Sound.createAsync({ 
+      uri: Platform.OS === 'ios' ? result.filePath : `file://${result.filePath}` 
+    });
+    await sound.playAsync();
+    
+    return { sound, result };
+  } catch (error) {
+    console.error('Failed to generate speech:', error);
+    throw error;
+  }
+};
+
+// Clean up resources
+const cleanup = async () => {
+  await SherpaOnnx.releaseTts();
+};
+```
 
 ### Basic Speech-to-Text
 
@@ -161,6 +234,106 @@ cd yourrepo/packages/sherpa-onnx.rn
 # Build for all platforms
 ./build-all.sh
 ```
+
+## API Reference
+
+### Library Validation
+
+#### `validateLibraryLoaded()`
+
+Validates if the Sherpa ONNX library is properly loaded.
+
+**Returns:** Promise<ValidateResult>
+
+### Text-to-Speech
+
+#### `initTts(config: TtsModelConfig)`
+
+Initializes the TTS engine with the provided model configuration.
+
+**Parameters:**
+- `config`: TTS model configuration
+
+**Returns:** Promise<TtsInitResult>
+
+#### `generateTts(text: string, options?: TtsOptions)`
+
+Generates speech from the given text.
+
+**Parameters:**
+- `text`: Text to synthesize
+- `options`: TTS generation options (optional)
+
+**Returns:** Promise<TtsGenerateResult>
+
+#### `stopTts()`
+
+Stops any ongoing TTS generation.
+
+**Returns:** Promise<{ stopped: boolean; message?: string }>
+
+#### `releaseTts()`
+
+Releases TTS resources.
+
+**Returns:** Promise<{ released: boolean }>
+
+## Model Configuration
+
+### TtsModelConfig
+
+```typescript
+interface TtsModelConfig {
+  // Directory containing model files
+  modelDir: string;
+  
+  // Model file name for VITS models
+  modelName?: string;
+  
+  // Acoustic model file name for Matcha models
+  acousticModelName?: string;
+  
+  // Vocoder file name for Matcha models
+  vocoder?: string;
+  
+  // Voices file name for Kokoro models
+  voices?: string;
+  
+  // Lexicon file name
+  lexicon?: string;
+  
+  // Data directory path
+  dataDir?: string;
+  
+  // Dictionary directory path
+  dictDir?: string;
+  
+  // Rule FSTs file paths (comma-separated)
+  ruleFsts?: string;
+  
+  // Rule FARs file paths (comma-separated)
+  ruleFars?: string;
+  
+  // Number of threads to use for processing
+  numThreads?: number;
+}
+```
+
+## Troubleshooting
+
+### Android
+
+If you're having issues with the Android build, check that:
+
+1. The Kotlin standard library is properly included in your app's `build.gradle`
+2. JNI libraries are properly included in the build
+
+### iOS
+
+For iOS, ensure that:
+
+1. The necessary static libraries are included in your Xcode project
+2. The pod installation completed successfully
 
 ## License
 

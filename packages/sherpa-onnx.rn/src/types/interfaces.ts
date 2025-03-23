@@ -73,21 +73,127 @@ export interface SttOptions {
  */
 export interface TtsOptions {
   /**
-   * Voice ID to use
+   * Speaker ID to use (default: 0)
    */
-  voiceId?: string;
+  speakerId?: number;
   /**
-   * Speaking rate (0.5 to 2.0)
+   * Speaking rate (0.5 to 2.0, default: 1.0)
    */
   speakingRate?: number;
   /**
-   * Voice pitch (-20.0 to 20.0)
+   * Whether to play audio as it's generated
    */
-  pitch?: number;
+  playAudio?: boolean;
+}
+
+/**
+ * Configuration for TTS model
+ */
+export interface TtsModelConfig {
   /**
-   * Volume gain (0.0 to 2.0)
+   * Directory containing model files
    */
-  volumeGainDb?: number;
+  modelDir: string;
+  
+  /**
+   * Model file name for VITS models
+   */
+  modelName?: string;
+  
+  /**
+   * Acoustic model file name for Matcha models
+   */
+  acousticModelName?: string;
+  
+  /**
+   * Vocoder file name for Matcha models
+   */
+  vocoder?: string;
+  
+  /**
+   * Voices file name for Kokoro models
+   */
+  voices?: string;
+  
+  /**
+   * Lexicon file name
+   */
+  lexicon?: string;
+  
+  /**
+   * Data directory path
+   */
+  dataDir?: string;
+  
+  /**
+   * Dictionary directory path
+   */
+  dictDir?: string;
+  
+  /**
+   * Rule FSTs file paths (comma-separated)
+   */
+  ruleFsts?: string;
+  
+  /**
+   * Rule FARs file paths (comma-separated)
+   */
+  ruleFars?: string;
+  
+  /**
+   * Number of threads to use for processing
+   */
+  numThreads?: number;
+}
+
+/**
+ * Result of TTS initialization
+ */
+export interface TtsInitResult {
+  /**
+   * Whether initialization was successful
+   */
+  success: boolean;
+  
+  /**
+   * Sample rate of generated audio
+   */
+  sampleRate: number;
+  
+  /**
+   * Number of available speakers
+   */
+  numSpeakers: number;
+}
+
+/**
+ * Result of TTS generation
+ */
+export interface TtsGenerateResult {
+  /**
+   * Whether generation was successful
+   */
+  success: boolean;
+  
+  /**
+   * Sample rate of generated audio
+   */
+  sampleRate: number;
+  
+  /**
+   * Number of samples in the generated audio
+   */
+  samplesLength: number;
+  
+  /**
+   * Path to the generated audio file
+   */
+  filePath: string;
+  
+  /**
+   * Whether the audio was saved to a file successfully
+   */
+  saved: boolean;
 }
 
 /**

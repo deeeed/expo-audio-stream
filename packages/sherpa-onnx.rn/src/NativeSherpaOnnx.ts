@@ -1,12 +1,51 @@
-import type { TurboModule } from 'react-native/Libraries/TurboModule/RCTExport';
-import { TurboModuleRegistry } from 'react-native';
+import { NativeModules } from 'react-native';
+import type {
+  TtsGenerateResult,
+  TtsInitResult,
+  TtsModelConfig,
+} from './types/interfaces';
 
-export interface Spec extends TurboModule {
-  // Test method to validate that the library is properly loaded
+// Get the native module using the old architecture
+const { SherpaOnnx } = NativeModules;
+
+// Define the interface for type safety
+interface SherpaOnnxInterface {
   validateLibraryLoaded(): Promise<{
     loaded: boolean;
     status: string;
   }>;
+  initTts(modelConfig: TtsModelConfig): Promise<TtsInitResult>;
+  generateTts(
+    text: string,
+    speakerId: number,
+    speakingRate: number,
+    playAudio: boolean
+  ): Promise<TtsGenerateResult>;
+  stopTts(): Promise<{ stopped: boolean; message?: string }>;
+  releaseTts(): Promise<{ released: boolean }>;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>('SherpaOnnx'); 
+// Create a safer version that doesn't crash if the module is missing
+const SafeSherpaOnnx: SherpaOnnxInterface = SherpaOnnx
+  ? SherpaOnnx
+  : {
+      validateLibraryLoaded: async () => ({
+        loaded: false,
+        status: 'SherpaOnnx native module is not available',
+      }),
+      initTts: async () => {
+        throw new Error('SherpaOnnx native module is not available');
+      },
+      generateTts: async () => {
+        throw new Error('SherpaOnnx native module is not available');
+      },
+      stopTts: async () => ({
+        stopped: false,
+        message: 'SherpaOnnx native module is not available',
+      }),
+      releaseTts: async () => ({
+        released: false,
+      }),
+    };
+
+export default SafeSherpaOnnx;

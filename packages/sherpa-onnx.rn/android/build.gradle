@@ -47,6 +47,11 @@ android {
             // Add Java source directory for compatibility
             java.srcDirs = ['src/main/java']
         }
+        
+        // We'll add newArch source set back when we actually use it
+        // newArch {
+        //     kotlin.srcDirs = ['src/newarch/kotlin']
+        // }
     }
 
     buildTypes {
@@ -70,14 +75,24 @@ android {
     packagingOptions {
         pickFirst '**/*.so'
     }
+    
+    // Add local project sources for Sherpa ONNX Kotlin classes
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+        }
+    }
 }
 
-// For React Native New Architecture
+// Add back the New Architecture detection
 def isNewArchitectureEnabled() {
-    return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
+    // Return false to disable New Architecture completely for now
+    return false
+    // When ready to re-enable:
+    // return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
 }
 
-// For TurboModules / JSI
+// Conditional New Architecture setup
 if (isNewArchitectureEnabled()) {
     apply plugin: "com.facebook.react"
     react {
@@ -103,4 +118,13 @@ dependencies {
     
     // Android support libraries
     implementation "androidx.annotation:annotation:1.5.0"
+
+    // Removed all TurboModule dependencies completely
+    // We'll add them back when we're ready for New Architecture
+
+    // Add New Architecture dependencies conditionally
+    if (isNewArchitectureEnabled()) {
+        // Use a specific version instead of '+'
+        implementation "com.facebook.react:react-native-jni:0.72.6"
+    }
 } 

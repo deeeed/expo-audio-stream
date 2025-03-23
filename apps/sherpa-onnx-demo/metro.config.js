@@ -19,4 +19,13 @@ config.resolver.nodeModulesPaths = [
 // 3. Force Metro to resolve (sub)dependencies only from the `nodeModulesPaths`
 config.resolver.disableHierarchicalLookup = true;
 
+// add assetExts
+config.resolver.assetExts = [
+  ...config.resolver.assetExts,
+  'm4a',
+  'wav',
+  'bin',
+  'onnx',
+  'txt'
+];
 module.exports = config; 
