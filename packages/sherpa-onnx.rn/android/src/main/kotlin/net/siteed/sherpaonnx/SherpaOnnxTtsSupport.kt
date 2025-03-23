@@ -261,29 +261,35 @@ fun convertToJniConfig(
     }
     Log.d("SherpaOnnxTtsSupport", "Detected model type: $modelType")
     
-    // Correct the paths - check if models are in a tts/ subdirectory
-    val actualModelDir = if (modelDir.startsWith("tts/")) {
-        modelDir
-    } else {
-        // Check if the model dir is under tts/
-        "tts/$modelDir"
-    }
+    // Respect the modelDir as provided by the user without adding any prefix
+    val actualModelDir = modelDir
     
     Log.d("SherpaOnnxTtsSupport", "Using model directory: $actualModelDir")
+    
+    // Helper function to create proper paths for model files
+    fun getModelPath(path: String, basePath: String = actualModelDir): String {
+        return when {
+            path.isEmpty() -> ""
+            path.startsWith("/") -> path // Absolute path
+            path.contains(":") -> path // Already contains a scheme (e.g., file:)
+            basePath.isEmpty() -> path // No base path provided
+            else -> "$basePath/$path" // Relative to the base path
+        }
+    }
     
     // For Kokoro model (with voices file)
     val kokoro = if (voices.isNotEmpty()) {
         val kokoroConfig = com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig(
-            model = "$actualModelDir/$modelName",
-            voices = "$actualModelDir/$voices",
-            tokens = "$actualModelDir/tokens.txt",
-            dataDir = dataDir,
+            model = getModelPath(modelName),
+            voices = getModelPath(voices),
+            tokens = getModelPath("tokens.txt"),
+            dataDir = dataDir, // Keep as is - respect user provided path
             lexicon = when {
                 lexicon.isEmpty() -> lexicon
-                lexicon.contains(",") -> lexicon
-                else -> "$actualModelDir/$lexicon"
+                lexicon.contains(",") -> lexicon // Keep lexicon list as is
+                else -> getModelPath(lexicon)
             },
-            dictDir = dictDir
+            dictDir = dictDir // Keep as is - respect user provided path
         )
         
         Log.d("SherpaOnnxTtsSupport", "Created Kokoro config with model=${kokoroConfig.model}, voices=${kokoroConfig.voices}, tokens=${kokoroConfig.tokens}")
@@ -297,12 +303,12 @@ fun convertToJniConfig(
     // For Matcha model (with acoustic model and vocoder)
     val matcha = if (acousticModelName.isNotEmpty()) {
         val matchaConfig = com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig(
-            acousticModel = "$actualModelDir/$acousticModelName",
-            vocoder = vocoder,
-            lexicon = "$actualModelDir/$lexicon",
-            tokens = "$actualModelDir/tokens.txt",
-            dataDir = dataDir,
-            dictDir = dictDir
+            acousticModel = getModelPath(acousticModelName),
+            vocoder = if (vocoder.startsWith("/")) vocoder else getModelPath(vocoder),
+            lexicon = if (lexicon.isEmpty()) "" else getModelPath(lexicon),
+            tokens = getModelPath("tokens.txt"),
+            dataDir = dataDir, // Keep as is - respect user provided path
+            dictDir = dictDir  // Keep as is - respect user provided path
         )
         
         Log.d("SherpaOnnxTtsSupport", "Created Matcha config with acousticModel=${matchaConfig.acousticModel}, vocoder=${matchaConfig.vocoder}")
@@ -317,11 +323,11 @@ fun convertToJniConfig(
     // For VITS model (just model name, no voices)
     val vits = if (modelName.isNotEmpty() && voices.isEmpty() && acousticModelName.isEmpty()) {
         val vitsConfig = com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig(
-            model = "$actualModelDir/$modelName",
-            lexicon = "$actualModelDir/$lexicon",
-            tokens = "$actualModelDir/tokens.txt",
-            dataDir = dataDir,
-            dictDir = dictDir
+            model = getModelPath(modelName),
+            lexicon = if (lexicon.isEmpty()) "" else getModelPath(lexicon),
+            tokens = getModelPath("tokens.txt"),
+            dataDir = dataDir, // Keep as is - respect user provided path
+            dictDir = dictDir  // Keep as is - respect user provided path
         )
         
         Log.d("SherpaOnnxTtsSupport", "Created VITS config with model=${vitsConfig.model}, tokens=${vitsConfig.tokens}")

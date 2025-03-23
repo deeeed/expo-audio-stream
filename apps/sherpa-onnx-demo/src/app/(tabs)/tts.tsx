@@ -26,6 +26,7 @@ interface TtsModel {
   id: string;
   name: string;
   type: string;
+  path: string; // Explicit path to the model in assets
   disabled?: boolean; // Make it optional
 }
 
@@ -46,11 +47,27 @@ export default function TtsScreen() {
   const [speakingRate, setSpeakingRate] = useState<number>(1.0);
   const [selectedModel, setSelectedModel] = useState<string>('kokoro-en-v0_19');
   
-  // Available models with the proper interface
+  // Available models with the proper interface including explicit paths
   const availableModels: TtsModel[] = [
-    { id: 'kokoro-en-v0_19', name: 'Kokoro English', type: 'kokoro' },
-    { id: 'kokoro-multi-lang-v1_0', name: 'Kokoro Multi-language', type: 'kokoro' },
-    { id: 'matcha-icefall-en_US-ljspeech', name: 'Matcha English', type: 'matcha', disabled: false },
+    { 
+      id: 'kokoro-en-v0_19', 
+      name: 'Kokoro English', 
+      type: 'kokoro',
+      path: 'tts/kokoro-en-v0_19'
+    },
+    { 
+      id: 'kokoro-multi-lang-v1_0', 
+      name: 'Kokoro Multi-language', 
+      type: 'kokoro',
+      path: 'tts/kokoro-multi-lang-v1_0' 
+    },
+    { 
+      id: 'matcha-icefall-en_US-ljspeech', 
+      name: 'Matcha English', 
+      type: 'matcha', 
+      path: 'tts/matcha-icefall-en_US-ljspeech',
+      disabled: false 
+    },
   ];
   
   // Results
@@ -87,25 +104,27 @@ export default function TtsScreen() {
         throw new Error('Selected model not found');
       }
       
-      // Base configuration - only specify the model directory
+      // Base configuration - use the explicit path in the model definition
       const modelConfig: TtsModelConfig = {
-        modelDir: model.id,
+        modelDir: model.path, // Use the explicit path property
         numThreads: 2,
       };
       
-      // Follow the exact examples in MainActivity.kt but simplify paths
+      // Follow the exact examples in MainActivity.kt but use explicit paths
       if (model.type === 'kokoro') {
         // Common for all Kokoro models
         modelConfig.modelName = 'model.onnx';
         modelConfig.voices = 'voices.bin';
-
         
         if (model.id === 'kokoro-multi-lang-v1_0') {
-          modelConfig.modelName = 'model.onnx';
-          modelConfig.voices = 'voices.bin';
-          modelConfig.dataDir = `tts/${model.id}/espeak-ng-data`;
-          modelConfig.lexicon = `tts/${model.id}/lexicon-us-en.txt,tts/${model.id}/lexicon-zh.txt,tts/${model.id}/lexicon-gb-en.txt`;
-          modelConfig.ruleFsts = `tts/${model.id}/phone-zh.fst,tts/${model.id}/date-zh.fst,tts/${model.id}/number-zh.fst`;
+          // Use explicit paths for all resources
+          modelConfig.dataDir = `${model.path}/espeak-ng-data`;
+          
+          // Use explicit paths for lexicon files
+          modelConfig.lexicon = `${model.path}/lexicon-us-en.txt,${model.path}/lexicon-zh.txt,${model.path}/lexicon-gb-en.txt`;
+          
+          // Use explicit paths for rule files
+          modelConfig.ruleFsts = `${model.path}/phone-zh.fst,${model.path}/date-zh.fst,${model.path}/number-zh.fst`;
         }
       } 
       else if (model.type === 'matcha') {
@@ -115,7 +134,7 @@ export default function TtsScreen() {
         // Don't specify dataDir
       }
       
-      console.log('Trying with simplified config:', modelConfig);
+      console.log('Using model config with explicit paths:', modelConfig);
       
       // Validate library is loaded
       const validation = await SherpaOnnx.validateLibraryLoaded();
