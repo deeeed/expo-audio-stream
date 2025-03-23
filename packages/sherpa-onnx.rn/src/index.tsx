@@ -1,15 +1,8 @@
-import { SherpaOnnxAPI } from './SherpaOnnxAPI';
-import type { 
-  SherpaOnnxConfig, 
-  SherpaOnnxResult, 
-  SttOptions, 
-  TtsOptions 
-} from './types/interfaces';
+// Export the main API
+export { SherpaOnnxAPI } from './SherpaOnnxAPI';
 
-export { SherpaOnnxAPI };
-export type { 
-  SherpaOnnxConfig, 
-  SherpaOnnxResult, 
-  SttOptions, 
-  TtsOptions 
-}; 
+// Export constants
+export * from './constants';
+
+// Export types
+export * from './types/interfaces';

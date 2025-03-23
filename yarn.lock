@@ -8601,7 +8601,27 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@siteed/sherpa-onnx.rn@workspace:packages/sherpa-onnx.rn":
+"@siteed/sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo":
+  version: 0.0.0-use.local
+  resolution: "@siteed/sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo"
+  dependencies:
+    "@babel/core": "npm:^7.25.2"
+    "@siteed/sherpa-onnx.rn": "workspace:^"
+    "@types/react": "npm:~18.3.12"
+    expo: "npm:~52.0.40"
+    expo-constants: "npm:~17.0.8"
+    expo-linking: "npm:~7.0.5"
+    expo-router: "npm:^4.0.19"
+    expo-status-bar: "npm:~2.0.1"
+    react: "npm:18.3.1"
+    react-native: "npm:0.76.7"
+    react-native-safe-area-context: "npm:4.12.0"
+    react-native-screens: "npm:~4.4.0"
+    typescript: "npm:^5.3.3"
+  languageName: unknown
+  linkType: soft
+
+"@siteed/sherpa-onnx.rn@workspace:^, @siteed/sherpa-onnx.rn@workspace:packages/sherpa-onnx.rn":
   version: 0.0.0-use.local
   resolution: "@siteed/sherpa-onnx.rn@workspace:packages/sherpa-onnx.rn"
   dependencies:
@@ -18718,7 +18738,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-router@npm:~4.0.19":
+"expo-router@npm:^4.0.19, expo-router@npm:~4.0.19":
   version: 4.0.19
   resolution: "expo-router@npm:4.0.19"
   dependencies:

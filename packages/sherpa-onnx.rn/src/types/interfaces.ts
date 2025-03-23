@@ -88,4 +88,4 @@ export interface TtsOptions {
    * Volume gain (0.0 to 2.0)
    */
   volumeGainDb?: number;
-} 
+}

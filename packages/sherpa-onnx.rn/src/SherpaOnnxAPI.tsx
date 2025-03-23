@@ -1,6 +1,15 @@
 import { NativeModules, Platform } from 'react-native';
-import type { SherpaOnnxConfig, SherpaOnnxResult, SttOptions, TtsOptions } from './types/interfaces';
-import { DEFAULT_CHANNELS, DEFAULT_LANGUAGE, DEFAULT_SAMPLE_RATE } from './constants';
+import type {
+  SherpaOnnxConfig,
+  SherpaOnnxResult,
+  SttOptions,
+  TtsOptions,
+} from './types/interfaces';
+import {
+  DEFAULT_CHANNELS,
+  DEFAULT_LANGUAGE,
+  DEFAULT_SAMPLE_RATE,
+} from './constants';
 
 const LINKING_ERROR =
   `The package '@siteed/sherpa-onnx.rn' doesn't seem to be linked. Make sure: \n\n` +
@@ -47,7 +56,7 @@ export class SherpaOnnxAPI {
     if (this.isInitialized) {
       return true;
     }
-    
+
     try {
       const result = await SherpaOnnx.initialize(this.config);
       this.isInitialized = result;
@@ -211,4 +220,4 @@ export class SherpaOnnxAPI {
       return false;
     }
   }
-} 
+}
