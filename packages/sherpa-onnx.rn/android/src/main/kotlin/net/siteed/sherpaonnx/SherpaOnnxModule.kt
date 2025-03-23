@@ -85,26 +85,7 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 val ruleFars = modelConfig.getString("ruleFars") ?: ""
                 val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else null
                 
-                // Log the provided configuration for debugging
-                Log.d(TAG, "TTS init with parameters:")
-                Log.d(TAG, "  modelDir: $modelDir")
-                Log.d(TAG, "  modelName: $modelName")
-                Log.d(TAG, "  acousticModelName: $acousticModelName")
-                Log.d(TAG, "  vocoder: $vocoder")
-                Log.d(TAG, "  voices: $voices")
-                Log.d(TAG, "  lexicon: $lexicon")
-                Log.d(TAG, "  dataDir: $dataDir")
-                Log.d(TAG, "  dictDir: $dictDir")
-                Log.d(TAG, "  ruleFsts: $ruleFsts")
-                Log.d(TAG, "  ruleFars: $ruleFars")
-                Log.d(TAG, "  numThreads: $numThreads")
-                
-                // Determine model type (kokoro, matcha, etc.)
-                val modelType = determineModelType(modelDir, modelName, acousticModelName, voices)
-                Log.d(TAG, "Detected model type: $modelType")
-                
                 // Check if model exists in assets
-                // Try several possible paths for the model files
                 val possiblePaths = listOf(
                     modelDir, // Direct path
                     "tts/$modelDir", // With tts/ prefix
@@ -138,14 +119,10 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 if (!modelExists) {
                     Log.e(TAG, "Model files not found in assets for: $modelDir")
                     
-                    // Check if any TTS models exist in assets
-                    val availableModels = findTtsModels(reactContext.assets)
-                    Log.d(TAG, "Available TTS models: $availableModels")
-                    
                     reactContext.runOnUiQueueThread {
                         val errorMap = Arguments.createMap()
                         errorMap.putBoolean("success", false)
-                        errorMap.putString("error", "TTS model not found. Available models: $availableModels")
+                        errorMap.putString("error", "TTS model not found in the specified path")
                         promise.resolve(errorMap)
                     }
                     return@execute
@@ -534,22 +511,6 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     }
 
     /**
-     * Determine the model type based on the provided configuration
-     */
-    private fun determineModelType(
-        modelDir: String,
-        modelName: String,
-        acousticModelName: String,
-        voices: String
-    ): String {
-        return when {
-            voices.isNotEmpty() || modelDir.contains("kokoro") -> "kokoro"
-            acousticModelName.isNotEmpty() || modelDir.contains("matcha") -> "matcha"
-            else -> "vits"
-        }
-    }
-    
-    /**
      * Check if an asset exists
      */
     private fun assetExists(assetManager: AssetManager, path: String): Boolean {
@@ -569,149 +530,10 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
             
             // Try to list the directory to see if it contains our file
             val files = assetManager.list(directory)
-            Log.d(TAG, "Looking for '$fileName' in directory '$directory', found files: ${files?.joinToString()}")
-            
             return files?.contains(fileName) == true
         } catch (e: Exception) {
             Log.e(TAG, "Error checking if asset exists at $path: ${e.message}")
             return false
-        }
-    }
-    
-    /**
-     * Find available TTS models in assets
-     */
-    private fun findTtsModels(assetManager: AssetManager): List<String> {
-        val models = mutableListOf<String>()
-        
-        try {
-            // List all asset directories
-            val allAssets = assetManager.list("")
-            Log.d(TAG, "All assets at root level: ${allAssets?.joinToString()}")
-            
-            if (!allAssets.isNullOrEmpty()) {
-                // Check each directory to see if it contains TTS model files
-                for (assetDir in allAssets) {
-                    // Look for key TTS model files
-                    val dirContents = assetManager.list(assetDir)
-                    Log.d(TAG, "Contents of '$assetDir': ${dirContents?.joinToString()}")
-                    
-                    if (dirContents?.contains("model.onnx") == true || 
-                        dirContents?.contains("voices.bin") == true) {
-                        models.add(assetDir)
-                    }
-                    
-                    // Also check if it's a TTS directory with subdirectories
-                    if (assetDir == "tts") {
-                        val ttsSubdirs = assetManager.list("tts")
-                        Log.d(TAG, "Found tts directory with subdirs: ${ttsSubdirs?.joinToString()}")
-                        if (!ttsSubdirs.isNullOrEmpty()) {
-                            for (subdir in ttsSubdirs) {
-                                models.add("tts/$subdir")
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error finding TTS models: ${e.message}")
-            e.printStackTrace()
-        }
-        
-        Log.d(TAG, "Found TTS models: $models")
-        return models
-    }
-
-    @ReactMethod
-    fun debugAssetLoading(promise: Promise) {
-        try {
-            val resultMap = Arguments.createMap()
-            val detailsArray = Arguments.createArray()
-            
-            // Get list of all root assets
-            val rootAssets = reactContext.assets.list("")
-            
-            val rootList = Arguments.createMap()
-            rootList.putString("path", "(root)")
-            val filesArray = Arguments.createArray()
-            rootAssets?.forEach { filesArray.pushString(it) }
-            rootList.putArray("files", filesArray)
-            detailsArray.pushMap(rootList)
-            
-            // Check some specific paths
-            val pathsToCheck = listOf(
-                "test",
-                "tts",
-                "kokoro-en-v0_19",
-                "tts/kokoro-en-v0_19"
-            )
-            
-            for (path in pathsToCheck) {
-                try {
-                    val files = reactContext.assets.list(path)
-                    val pathMap = Arguments.createMap()
-                    pathMap.putString("path", path)
-                    val pathFiles = Arguments.createArray()
-                    files?.forEach { pathFiles.pushString(it) }
-                    pathMap.putArray("files", pathFiles)
-                    detailsArray.pushMap(pathMap)
-                } catch (e: Exception) {
-                    val pathMap = Arguments.createMap()
-                    pathMap.putString("path", path)
-                    pathMap.putString("error", e.message ?: "Unknown error")
-                    detailsArray.pushMap(pathMap)
-                }
-            }
-            
-            // Try to read test file
-            try {
-                val testBytes = reactContext.assets.open("test/test.txt").readBytes()
-                val testContent = String(testBytes)
-                resultMap.putString("testFile", testContent)
-            } catch (e: Exception) {
-                resultMap.putString("testFileError", e.message ?: "Unknown error")
-            }
-            
-            resultMap.putArray("details", detailsArray)
-            promise.resolve(resultMap)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error debugging asset loading: ${e.message}")
-            e.printStackTrace()
-            promise.reject("ERR_DEBUG_ASSETS", "Failed to debug assets: ${e.message}")
-        }
-    }
-
-    @ReactMethod
-    fun listAssetFiles(directory: String, promise: Promise) {
-        try {
-            val fileArray = Arguments.createArray()
-            val fileList = reactContext.assets.list(directory) ?: emptyArray()
-            
-            for (file in fileList) {
-                fileArray.pushString(file)
-            }
-            
-            val resultMap = Arguments.createMap()
-            resultMap.putString("directory", directory)
-            resultMap.putArray("files", fileArray)
-            promise.resolve(resultMap)
-        } catch (e: Exception) {
-            promise.reject("ERR_LIST_ASSETS", "Failed to list assets: ${e.message}")
-        }
-    }
-
-    @ReactMethod
-    fun checkAssetExists(filePath: String, promise: Promise) {
-        try {
-            val exists = assetExists(reactContext.assets, filePath)
-            
-            val resultMap = Arguments.createMap()
-            resultMap.putString("path", filePath)
-            resultMap.putBoolean("exists", exists)
-            
-            promise.resolve(resultMap)
-        } catch (e: Exception) {
-            promise.reject("ERR_CHECK_ASSET", "Failed to check asset: ${e.message}")
         }
     }
 } 
