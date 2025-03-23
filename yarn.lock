@@ -8606,9 +8606,11 @@ __metadata:
   resolution: "@siteed/sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo"
   dependencies:
     "@babel/core": "npm:^7.25.2"
+    "@expo/vector-icons": "npm:^14.0.2"
     "@siteed/sherpa-onnx.rn": "workspace:^"
     "@types/react": "npm:~18.3.12"
     expo: "npm:~52.0.40"
+    expo-av: "npm:~15.0.2"
     expo-constants: "npm:~17.0.8"
     expo-linking: "npm:~7.0.5"
     expo-router: "npm:^4.0.19"

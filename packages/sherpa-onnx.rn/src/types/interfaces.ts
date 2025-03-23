@@ -94,52 +94,52 @@ export interface TtsModelConfig {
    * Directory containing model files
    */
   modelDir: string;
-  
+
   /**
    * Model file name for VITS models
    */
   modelName?: string;
-  
+
   /**
    * Acoustic model file name for Matcha models
    */
   acousticModelName?: string;
-  
+
   /**
    * Vocoder file name for Matcha models
    */
   vocoder?: string;
-  
+
   /**
    * Voices file name for Kokoro models
    */
   voices?: string;
-  
+
   /**
    * Lexicon file name
    */
   lexicon?: string;
-  
+
   /**
    * Data directory path
    */
   dataDir?: string;
-  
+
   /**
    * Dictionary directory path
    */
   dictDir?: string;
-  
+
   /**
    * Rule FSTs file paths (comma-separated)
    */
   ruleFsts?: string;
-  
+
   /**
    * Rule FARs file paths (comma-separated)
    */
   ruleFars?: string;
-  
+
   /**
    * Number of threads to use for processing
    */
@@ -154,12 +154,12 @@ export interface TtsInitResult {
    * Whether initialization was successful
    */
   success: boolean;
-  
+
   /**
    * Sample rate of generated audio
    */
   sampleRate: number;
-  
+
   /**
    * Number of available speakers
    */
@@ -174,22 +174,22 @@ export interface TtsGenerateResult {
    * Whether generation was successful
    */
   success: boolean;
-  
+
   /**
    * Sample rate of generated audio
    */
   sampleRate: number;
-  
+
   /**
    * Number of samples in the generated audio
    */
   samplesLength: number;
-  
+
   /**
    * Path to the generated audio file
    */
   filePath: string;
-  
+
   /**
    * Whether the audio was saved to a file successfully
    */

@@ -11,8 +11,10 @@
     "web": "expo start --web --port 7500"
   },
   "dependencies": {
+    "@expo/vector-icons": "^14.0.2",
     "@siteed/sherpa-onnx.rn": "workspace:^",
     "expo": "~52.0.40",
+    "expo-av": "~15.0.2",
     "expo-constants": "~17.0.8",
     "expo-linking": "~7.0.5",
     "expo-router": "^4.0.19",

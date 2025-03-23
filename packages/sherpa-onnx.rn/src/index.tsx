@@ -1,26 +1,35 @@
-// Export the main API
-import { SherpaOnnxAPI } from './SherpaOnnxAPI';
+// Import services
+import { TtsService } from './services/TtsService';
 
 // Export types
-export type { 
+export type {
+  TtsGenerateResult,
+  TtsInitResult,
+  TtsModelConfig,
+  TtsOptions,
   ValidateResult,
-  TtsModelConfig, 
-  TtsInitResult, 
-  TtsOptions, 
-  TtsGenerateResult
 } from './types/interfaces';
 
 // Export a default object for easier import
 const SherpaOnnx = {
-  // Library validation
-  validateLibraryLoaded: SherpaOnnxAPI.validateLibraryLoaded,
-  
-  // TTS methods
-  initTts: SherpaOnnxAPI.initTts,
-  generateTts: SherpaOnnxAPI.generateTts,
-  stopTts: SherpaOnnxAPI.stopTts,
-  releaseTts: SherpaOnnxAPI.releaseTts,
+  // Library validation - keep this at top level for convenience
+  validateLibraryLoaded: TtsService.validateLibrary,
+
+  // Group all TTS functionality under TTS namespace
+  TTS: {
+    // Core functions
+    initialize: TtsService.initialize,
+    generateSpeech: TtsService.generateSpeech,
+    stopSpeech: TtsService.stopSpeech,
+    release: TtsService.release,
+
+    // Status functions
+    isInitialized: TtsService.isInitialized,
+    getSampleRate: TtsService.getSampleRate,
+    getNumSpeakers: TtsService.getNumSpeakers,
+  },
 };
 
-export { SherpaOnnxAPI };
+// Export for advanced usage if needed
+export { TtsService };
 export default SherpaOnnx;

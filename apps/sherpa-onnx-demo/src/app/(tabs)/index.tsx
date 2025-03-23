@@ -1,27 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, Platform, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, NativeModules } from 'react-native';
+import { StyleSheet, Text, View, Platform, TouchableOpacity, ScrollView, NativeModules } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import SherpaOnnx from '@siteed/sherpa-onnx.rn';
-import type { TtsInitResult, TtsGenerateResult } from '@siteed/sherpa-onnx.rn/src/types/interfaces';
 
-
-// Check if Sherpa-ONNX is available and working
 const SherpaOnnxDemo: React.FC = () => {
+  const router = useRouter();
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [platformSupport, setPlatformSupport] = useState<string>('Checking...');
   const [moduleInfo, setModuleInfo] = useState<string>('Checking...');
   const [validationResult, setValidationResult] = useState<string>('Not validated');
   const [nativeModulesInfo, setNativeModulesInfo] = useState<string>('Loading...');
-  
-  // TTS states
-  const [ttsInitialized, setTtsInitialized] = useState<boolean>(false);
-  const [initResult, setInitResult] = useState<TtsInitResult | null>(null);
-  const [textToSpeak, setTextToSpeak] = useState<string>('Hello, this is a test of Sherpa ONNX text to speech.');
-  const [speakerId, setSpeakerId] = useState<number>(0);
-  const [speakingRate, setSpeakingRate] = useState<number>(1.0);
-  const [ttsResult, setTtsResult] = useState<TtsGenerateResult | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     // Simple check to see if we're on Android (current implementation only)
@@ -40,7 +29,7 @@ const SherpaOnnxDemo: React.FC = () => {
       // Check if the module is properly loaded
       const hasModule = SherpaOnnx !== undefined;
       setIsAvailable(hasModule);
-      setModuleInfo(`Module loaded: ${hasModule ? Object.keys(SherpaOnnx).join(', ') : 'None'}`);
+      setModuleInfo(`Module loaded: ${hasModule ? 'Yes' : 'No'}`);
       
       // Try to validate the library
       if (hasModule && SherpaOnnx.validateLibraryLoaded) {
@@ -64,93 +53,6 @@ const SherpaOnnxDemo: React.FC = () => {
       console.error('Module loading error details:', error);
     }
   }, []);
-
-  const handleInitTts = async (): Promise<void> => {
-    setIsLoading(true);
-    setErrorMessage('');
-    try {
-      // For testing - use bundled assets directory path
-      const modelConfig = {
-        modelDir: Platform.OS === 'android' 
-          ? 'models'  // This would be in the Android assets directory
-          : 'models', // For iOS, this would be in the bundle
-        numThreads: 1
-      };
-      
-      console.log('Initializing TTS with config:', modelConfig);
-      
-      const result = await SherpaOnnx.initTts(modelConfig);
-      setInitResult(result);
-      setTtsInitialized(result.success);
-      
-      if (!result.success) {
-        setErrorMessage('TTS initialization failed');
-      }
-    } catch (error) {
-      const errorMsg = `TTS init error: ${(error as Error).message}`;
-      setErrorMessage(errorMsg);
-      setTtsInitialized(false);
-      console.error('TTS initialization error details:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGenerateTts = async (): Promise<void> => {
-    setIsLoading(true);
-    setErrorMessage('');
-    try {
-      if (!ttsInitialized) {
-        setErrorMessage('TTS must be initialized first');
-        return;
-      }
-      
-      const result = await SherpaOnnx.generateTts(textToSpeak, {
-        speakerId,
-        speakingRate,
-        playAudio: true
-      });
-      
-      setTtsResult(result);
-      
-      if (!result.success) {
-        setErrorMessage('TTS generation failed');
-      }
-    } catch (error) {
-      setErrorMessage(`TTS generation error: ${(error as Error).message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleStopTts = async (): Promise<void> => {
-    try {
-      const result = await SherpaOnnx.stopTts();
-      if (result.stopped) {
-        setErrorMessage('TTS stopped successfully');
-      } else {
-        setErrorMessage(`Failed to stop TTS: ${result.message}`);
-      }
-    } catch (error) {
-      setErrorMessage(`Stop TTS error: ${(error as Error).message}`);
-    }
-  };
-
-  const handleReleaseTts = async (): Promise<void> => {
-    try {
-      const result = await SherpaOnnx.releaseTts();
-      if (result.released) {
-        setTtsInitialized(false);
-        setInitResult(null);
-        setTtsResult(null);
-        setErrorMessage('TTS resources released');
-      } else {
-        setErrorMessage('Failed to release TTS resources');
-      }
-    } catch (error) {
-      setErrorMessage(`Release TTS error: ${(error as Error).message}`);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -181,79 +83,43 @@ const SherpaOnnxDemo: React.FC = () => {
           <Text style={styles.status}>{validationResult}</Text>
         </View>
 
-        <View style={styles.actionCard}>
-          <Text style={styles.cardTitle}>TTS Testing</Text>
-
-          <TouchableOpacity 
-            style={[styles.button, (!isAvailable || isLoading) && styles.buttonDisabled]} 
-            onPress={handleInitTts}
-            disabled={!isAvailable || isLoading}
-          >
-            <Text style={styles.buttonText}>Initialize TTS</Text>
-          </TouchableOpacity>
-
-          {initResult && (
-            <View style={styles.resultBox}>
-              <Text style={styles.resultText}>Init Result: {initResult.success ? 'Success' : 'Failed'}</Text>
-              <Text style={styles.resultText}>Sample Rate: {initResult.sampleRate}Hz</Text>
-              <Text style={styles.resultText}>Speakers: {initResult.numSpeakers}</Text>
+        <View style={styles.featuresCard}>
+          <Text style={styles.cardTitle}>Available Features</Text>
+          
+          <View style={styles.featureItem}>
+            <View style={styles.featureTextContainer}>
+              <Text style={styles.featureName}>Text-to-Speech</Text>
+              <Text style={styles.featureDesc}>
+                Convert text to natural-sounding speech using Sherpa-ONNX models
+              </Text>
             </View>
-          )}
-
-          <Text style={styles.inputLabel}>Text to speak:</Text>
-          <TextInput
-            style={styles.textInput}
-            value={textToSpeak}
-            onChangeText={setTextToSpeak}
-            multiline
-            placeholder="Enter text to speak"
-          />
-
-          <View style={styles.controlsRow}>
+            
             <TouchableOpacity 
-              style={[styles.button, (!ttsInitialized || isLoading) && styles.buttonDisabled]}
-              onPress={handleGenerateTts}
-              disabled={!ttsInitialized || isLoading}
+              style={[styles.featureButton, !isAvailable && styles.buttonDisabled]}
+              onPress={() => router.push('/tts')}
+              disabled={!isAvailable}
             >
-              <Text style={styles.buttonText}>Generate Speech</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.button, styles.buttonSecondary, !ttsInitialized && styles.buttonDisabled]}
-              onPress={handleStopTts}
-              disabled={!ttsInitialized}
-            >
-              <Text style={styles.buttonText}>Stop TTS</Text>
+              <Text style={styles.featureButtonText}>Try TTS</Text>
             </TouchableOpacity>
           </View>
           
-          <TouchableOpacity 
-            style={[styles.button, styles.buttonDanger, !ttsInitialized && styles.buttonDisabled]} 
-            onPress={handleReleaseTts}
-            disabled={!ttsInitialized}
-          >
-            <Text style={styles.buttonText}>Release TTS</Text>
-          </TouchableOpacity>
-
-          {ttsResult && (
-            <View style={styles.resultBox}>
-              <Text style={styles.resultText}>TTS Result: {ttsResult.success ? 'Success' : 'Failed'}</Text>
-              <Text style={styles.resultText}>Sample Rate: {ttsResult.sampleRate}Hz</Text>
-              <Text style={styles.resultText}>Samples: {ttsResult.samplesLength}</Text>
-              <Text style={styles.resultText}>File Saved: {ttsResult.saved ? 'Yes' : 'No'}</Text>
-              <Text style={styles.resultText}>File Path: {ttsResult.filePath}</Text>
+          <View style={[styles.featureItem, styles.featureItemDisabled]}>
+            <View style={styles.featureTextContainer}>
+              <Text style={styles.featureName}>Speech-to-Text</Text>
+              <Text style={styles.featureDesc}>
+                Convert speech to text using Sherpa-ONNX models (Coming soon)
+              </Text>
             </View>
-          )}
-          
-          {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
-          
-          {isLoading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.loadingText}>Processing...</Text>
-            </View>
-          )}
+            
+            <TouchableOpacity style={[styles.featureButton, styles.buttonDisabled]}>
+              <Text style={styles.featureButtonText}>Coming Soon</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
+        <Text style={styles.footer}>
+          Sherpa-ONNX Demo • Version 0.1.0
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -265,7 +131,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
   },
   title: {
     fontSize: 28,
@@ -282,7 +148,7 @@ const styles = StyleSheet.create({
   statusCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     width: '100%',
     marginBottom: 20,
     shadowColor: '#000',
@@ -291,11 +157,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  actionCard: {
+  featuresCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     width: '100%',
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -329,74 +196,48 @@ const styles = StyleSheet.create({
   neutral: {
     color: '#607D8B',
   },
-  button: {
-    backgroundColor: '#007AFF',
+  featureItem: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
     borderRadius: 8,
     padding: 12,
+    marginBottom: 12,
     alignItems: 'center',
-    marginVertical: 8,
   },
-  buttonSecondary: {
-    backgroundColor: '#FF9500',
+  featureItemDisabled: {
+    opacity: 0.7,
   },
-  buttonDanger: {
-    backgroundColor: '#FF3B30',
+  featureTextContainer: {
+    flex: 1,
+  },
+  featureName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  featureDesc: {
+    fontSize: 14,
+    color: '#666',
+  },
+  featureButton: {
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 4,
+  },
+  featureButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
   buttonDisabled: {
-    backgroundColor: '#A0A0A0',
-    opacity: 0.5,
+    backgroundColor: '#BDBDBD',
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 16,
-    backgroundColor: '#f9f9f9',
-    minHeight: 80,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+  footer: {
     marginTop: 8,
-    marginBottom: 4,
-  },
-  controlsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  resultBox: {
-    backgroundColor: '#f0f8ff',
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 12,
-  },
-  resultText: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  errorText: {
-    color: '#FF3B30',
-    fontSize: 16,
-    marginTop: 8,
-    fontWeight: '500',
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
-  },
-  loadingText: {
-    marginTop: 8,
-    color: '#007AFF',
-    fontSize: 16,
+    textAlign: 'center',
+    color: '#757575',
+    fontSize: 12,
   },
 });
 

@@ -8,30 +8,11 @@ import type {
 import NativeSherpaOnnx from './NativeSherpaOnnx';
 
 /**
- * Sherpa-onnx API wrapper for React Native
- * Minimal implementation for validation
+ * Sherpa-onnx internal API wrapper for React Native
+ * This is the lower-level API that communicates with the native module.
+ * Applications should use the service classes instead of this directly.
  */
 export class SherpaOnnxAPI {
-  // Track if the module is available
-  private static isModuleAvailable: boolean | null = null;
-
-  /**
-   * Check if the native module is available
-   */
-  private static async checkModuleAvailability(): Promise<boolean> {
-    if (this.isModuleAvailable === null) {
-      try {
-        const result = await NativeSherpaOnnx.validateLibraryLoaded();
-        this.isModuleAvailable = result.loaded;
-        return result.loaded;
-      } catch (error) {
-        this.isModuleAvailable = false;
-        return false;
-      }
-    }
-    return this.isModuleAvailable;
-  }
-
   /**
    * Validate that the Sherpa-ONNX library is properly loaded
    * @returns Promise that resolves with validation result
@@ -54,10 +35,6 @@ export class SherpaOnnxAPI {
    * @returns Promise that resolves with initialization result
    */
   public static async initTts(config: TtsModelConfig): Promise<TtsInitResult> {
-    if (!(await this.checkModuleAvailability())) {
-      throw new Error('SherpaOnnx native module is not available');
-    }
-
     try {
       return await NativeSherpaOnnx.initTts(config);
     } catch (error: any) {
