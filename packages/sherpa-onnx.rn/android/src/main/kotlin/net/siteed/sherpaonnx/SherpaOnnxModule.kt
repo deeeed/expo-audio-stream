@@ -218,35 +218,79 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                     numThreads = numThreads
                 )
 
-                // Create TTS instance
-                Log.d(TAG, "Creating OfflineTts instance with config: $config")
-                tts = OfflineTts(
-                    assetManager = reactContext.assets,
-                    config = config
-                )
-
-                // Initialize AudioTrack
-                initAudioTrack()
-
-                // After creating the TTS instance
-                Log.d(TAG, "Successfully created OfflineTts instance")
-                Log.d(TAG, "Sample rate: ${tts?.sampleRate()}, Num speakers: ${tts?.numSpeakers()}")
+                // Create TTS instance with try/catch to handle JNI crashes
+                var initSuccess = false
+                var errorMessage = ""
                 
-                // Return success
+                try {
+                    Log.d(TAG, "Creating OfflineTts instance with config: $config")
+                    
+                    tts = OfflineTts(
+                        assetManager = reactContext.assets,
+                        config = config
+                    )
+                    
+                    // Check if TTS was initialized correctly
+                    val sampleRate = try {
+                        tts?.sampleRate() ?: 0
+                    } catch (e: Throwable) {
+                        Log.e(TAG, "Error getting sample rate: ${e.message}")
+                        0
+                    }
+                    
+                    // Only proceed if we have a valid instance with proper sample rate
+                    if (tts != null && sampleRate > 0) {
+                        initSuccess = true
+                        
+                        // Initialize AudioTrack
+                        try {
+                            initAudioTrack()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to initialize AudioTrack: ${e.message}")
+                            // Continue anyway - this isn't fatal
+                        }
+                    } else {
+                        errorMessage = "TTS engine did not initialize properly"
+                        Log.e(TAG, errorMessage)
+                        
+                        // Clean up the failed instance
+                        tts?.free()
+                        tts = null
+                    }
+                } catch (e: Throwable) {
+                    // Handle any exception including JNI crashes
+                    errorMessage = "TTS initialization failed: ${e.message}"
+                    Log.e(TAG, errorMessage, e)
+                    
+                    // Clean up
+                    tts?.free()
+                    tts = null
+                }
+                
+                // Return result to React Native
                 val resultMap = Arguments.createMap()
-                resultMap.putBoolean("success", true)
-                resultMap.putInt("sampleRate", tts?.sampleRate() ?: 0)
-                resultMap.putInt("numSpeakers", tts?.numSpeakers() ?: 0)
+                resultMap.putBoolean("success", initSuccess)
+                
+                if (initSuccess) {
+                    resultMap.putInt("sampleRate", tts?.sampleRate() ?: 0)
+                    resultMap.putInt("numSpeakers", tts?.numSpeakers() ?: 0)
+                } else {
+                    resultMap.putString("error", errorMessage)
+                }
                 
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error initializing TTS: ${e.message}")
+                Log.e(TAG, "Error in initTts: ${e.message}")
                 e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
-                    promise.reject("ERR_TTS_INIT", "Failed to initialize TTS: ${e.message}")
+                    // Make sure we return a proper response rather than rejecting the promise
+                    val errorMap = Arguments.createMap()
+                    errorMap.putBoolean("success", false)
+                    errorMap.putString("error", "Error initializing TTS: ${e.message}")
+                    promise.resolve(errorMap)
                 }
             }
         }
@@ -634,6 +678,40 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
             Log.e(TAG, "Error debugging asset loading: ${e.message}")
             e.printStackTrace()
             promise.reject("ERR_DEBUG_ASSETS", "Failed to debug assets: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun listAssetFiles(directory: String, promise: Promise) {
+        try {
+            val fileArray = Arguments.createArray()
+            val fileList = reactContext.assets.list(directory) ?: emptyArray()
+            
+            for (file in fileList) {
+                fileArray.pushString(file)
+            }
+            
+            val resultMap = Arguments.createMap()
+            resultMap.putString("directory", directory)
+            resultMap.putArray("files", fileArray)
+            promise.resolve(resultMap)
+        } catch (e: Exception) {
+            promise.reject("ERR_LIST_ASSETS", "Failed to list assets: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun checkAssetExists(filePath: String, promise: Promise) {
+        try {
+            val exists = assetExists(reactContext.assets, filePath)
+            
+            val resultMap = Arguments.createMap()
+            resultMap.putString("path", filePath)
+            resultMap.putBoolean("exists", exists)
+            
+            promise.resolve(resultMap)
+        } catch (e: Exception) {
+            promise.reject("ERR_CHECK_ASSET", "Failed to check asset: ${e.message}")
         }
     }
 } 

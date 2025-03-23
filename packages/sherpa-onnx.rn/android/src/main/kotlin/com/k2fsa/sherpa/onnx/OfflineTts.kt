@@ -97,11 +97,22 @@ class OfflineTts {
             }
         }
         
-        // Update the method to use the proper config class
+        // Use the original method name - DON'T RENAME IT
         @JvmStatic external fun newFromAsset(
             assetManager: AssetManager,
             config: OfflineTtsConfig
         ): Long
+        
+        // Use try-catch wrapper separately
+        @JvmStatic
+        fun safeNewFromAsset(assetManager: AssetManager, config: OfflineTtsConfig): Long {
+            try {
+                return newFromAsset(assetManager, config)
+            } catch (e: Throwable) {
+                Log.e(TAG, "JNI newFromAsset call failed: ${e.message}")
+                return 0L
+            }
+        }
         
         @JvmStatic external fun generateImpl(
             ptr: Long, 

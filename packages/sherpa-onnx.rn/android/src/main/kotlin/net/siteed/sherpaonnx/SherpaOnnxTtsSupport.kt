@@ -82,22 +82,33 @@ class OfflineTts(
                 numThreads = config.numThreads
             )
             
-            // Use JniBridge with the config object
+            // Use the JNI bridge to call the native method with error handling
             Log.d(tag, "Calling JNI newFromAsset with asset manager and config")
-            nativePtr = JniBridge.newFromAsset(
-                assetManager,
-                jniConfig
-            )
-            
-            if (nativePtr == 0L) {
-                Log.e(tag, "Failed to create native TTS engine")
-            } else {
-                Log.i(tag, "Native TTS engine created successfully, handle: $nativePtr")
+            try {
+                // Use the standard method name for JNI compatibility
+                nativePtr = JniBridge.newFromAsset(
+                    assetManager,
+                    jniConfig
+                )
+                
+                if (nativePtr == 0L) {
+                    Log.e(tag, "Failed to create native TTS engine - returned null pointer")
+                } else {
+                    Log.i(tag, "Native TTS engine created successfully, handle: $nativePtr")
+                }
+            } catch (e: Throwable) {
+                Log.e(tag, "JNI call failed: ${e.message}")
+                nativePtr = 0L
             }
         } catch (e: Exception) {
             Log.e(tag, "Error initializing native TTS engine: ${e.message}")
-            e.printStackTrace()
+            nativePtr = 0L
         }
+    }
+
+    // Add validation method to check if instance is usable
+    fun isInitialized(): Boolean {
+        return nativePtr != 0L
     }
 
     fun generate(text: String, sid: Int = 0, speed: Float = 1.0f): OfflineTtsAudio {
@@ -272,6 +283,7 @@ fun convertToJniConfig(
             path.isEmpty() -> ""
             path.startsWith("/") -> path // Absolute path
             path.contains(":") -> path // Already contains a scheme (e.g., file:)
+            path.startsWith(basePath) -> path // Already contains the base path
             basePath.isEmpty() -> path // No base path provided
             else -> "$basePath/$path" // Relative to the base path
         }
@@ -302,13 +314,16 @@ fun convertToJniConfig(
     
     // For Matcha model (with acoustic model and vocoder)
     val matcha = if (acousticModelName.isNotEmpty()) {
+        // Use vocoder path exactly as provided
+        Log.d("SherpaOnnxTtsSupport", "Using vocoder path: $vocoder")
+        
         val matchaConfig = com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig(
-            acousticModel = getModelPath(acousticModelName),
-            vocoder = if (vocoder.startsWith("/")) vocoder else getModelPath(vocoder),
-            lexicon = if (lexicon.isEmpty()) "" else getModelPath(lexicon),
-            tokens = getModelPath("tokens.txt"),
-            dataDir = dataDir, // Keep as is - respect user provided path
-            dictDir = dictDir  // Keep as is - respect user provided path
+            acousticModel = "$modelDir/$acousticModelName",
+            vocoder = vocoder, // Use as provided - DO NOT MODIFY
+            lexicon = if (lexicon.isEmpty()) "" else "$modelDir/$lexicon",
+            tokens = "$modelDir/tokens.txt",
+            dataDir = dataDir,
+            dictDir = dictDir
         )
         
         Log.d("SherpaOnnxTtsSupport", "Created Matcha config with acousticModel=${matchaConfig.acousticModel}, vocoder=${matchaConfig.vocoder}")
@@ -358,4 +373,11 @@ fun convertToJniConfig(
     if (ruleFars.isNotEmpty()) Log.d("SherpaOnnxTtsSupport", "Using ruleFars: $ruleFars")
     
     return config
+}
+
+// Add a helper method to check if a file exists in assets
+private fun assetExists(path: String, assetManager: AssetManager? = null): Boolean {
+    // This is just a declaration - implementation would be similar to the one in SherpaOnnxModule
+    // You'll need to implement or refer to the existing implementation
+    return false  // Placeholder
 } 

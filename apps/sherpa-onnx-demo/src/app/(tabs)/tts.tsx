@@ -104,14 +104,23 @@ export default function TtsScreen() {
         throw new Error('Selected model not found');
       }
       
-      // Base configuration - use the explicit path in the model definition
+      // Base configuration
       const modelConfig: TtsModelConfig = {
-        modelDir: model.path, // Use the explicit path property
+        modelDir: model.path,
         numThreads: 2,
       };
       
-      // Follow the exact examples in MainActivity.kt but use explicit paths
-      if (model.type === 'kokoro') {
+      if (model.type === 'matcha') {
+        // For Matcha model - ensure these files exist in your assets
+        modelConfig.acousticModelName = 'model-steps-3.onnx';
+        
+        // Use absolute path for vocoder - use the root tts directory
+        modelConfig.vocoder = 'tts/vocos-22khz-univ.onnx';
+        
+        // Also specify data directory if needed
+        modelConfig.dataDir = `${model.path}/espeak-ng-data`;
+      } 
+      else if (model.type === 'kokoro') {
         // Common for all Kokoro models
         modelConfig.modelName = 'model.onnx';
         modelConfig.voices = 'voices.bin';
@@ -126,12 +135,6 @@ export default function TtsScreen() {
           // Use explicit paths for rule files
           modelConfig.ruleFsts = `${model.path}/phone-zh.fst,${model.path}/date-zh.fst,${model.path}/number-zh.fst`;
         }
-      } 
-      else if (model.type === 'matcha') {
-        // For Matcha model
-        modelConfig.acousticModelName = 'model-steps-3.onnx';
-        modelConfig.vocoder = 'vocos-22khz-univ.onnx';
-        // Don't specify dataDir
       }
       
       console.log('Using model config with explicit paths:', modelConfig);
