@@ -8,7 +8,6 @@ import android.content.res.AssetManager
 import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
-import kotlin.math.min
 
 // Import the JNI bridge
 import com.k2fsa.sherpa.onnx.OfflineTts as JniBridge
@@ -40,86 +39,12 @@ class OfflineTtsAudio(
     val sampleRate: Int
 ) {
     fun save(path: String): Boolean {
-        return try {
-            Log.i(TAG, "Saving audio to $path")
-            
-            // Create the parent directory if it doesn't exist
-            val file = File(path)
-            file.parentFile?.mkdirs()
-            
-            // Create FileOutputStream to write the WAV file
-            val outputStream = FileOutputStream(file)
-            
-            // Calculate sizes for WAV header
-            val numChannels = 1 // Mono
-            val bitsPerSample = 16 // 16-bit audio
-            val byteRate = sampleRate * numChannels * (bitsPerSample / 8)
-            val blockAlign = numChannels * (bitsPerSample / 8)
-            val dataSize = samples.size * (bitsPerSample / 8)
-            val totalSize = 36 + dataSize
-            
-            // Write WAV header - RIFF chunk
-            outputStream.write("RIFF".toByteArray()) // ChunkID
-            writeInt(outputStream, totalSize) // ChunkSize
-            outputStream.write("WAVE".toByteArray()) // Format
-            
-            // Write WAV header - fmt subchunk
-            outputStream.write("fmt ".toByteArray()) // Subchunk1ID
-            writeInt(outputStream, 16) // Subchunk1Size (PCM)
-            writeShort(outputStream, 1) // AudioFormat (1 = PCM)
-            writeShort(outputStream, numChannels) // NumChannels
-            writeInt(outputStream, sampleRate) // SampleRate
-            writeInt(outputStream, byteRate) // ByteRate
-            writeShort(outputStream, blockAlign) // BlockAlign
-            writeShort(outputStream, bitsPerSample) // BitsPerSample
-            
-            // Write WAV header - data subchunk
-            outputStream.write("data".toByteArray()) // Subchunk2ID
-            writeInt(outputStream, dataSize) // Subchunk2Size
-            
-            // Write the audio data (convert float to 16-bit PCM)
-            for (sample in samples) {
-                // Convert float (-1.0 to 1.0) to 16-bit PCM
-                val pcmValue = (sample * 32767f).toInt().coerceIn(-32768, 32767).toShort()
-                writeShort(outputStream, pcmValue.toInt())
-            }
-            
-            outputStream.close()
-            Log.i(TAG, "Audio saved successfully")
-            
-            // Validate file exists and has appropriate size
-            val savedFile = File(path)
-            if (savedFile.exists()) {
-                Log.i(TAG, "File exists, size: ${savedFile.length()} bytes")
-            } else {
-                Log.e(TAG, "File was not created at $path")
-            }
-            
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to save audio: ${e.message}")
-            e.printStackTrace()
-            false
-        }
+        return AudioUtils.saveAsWav(samples, sampleRate, path)
     }
     
-    // Helper function to write an integer in little-endian format
-    private fun writeInt(output: FileOutputStream, value: Int) {
-        output.write(value and 0xFF)
-        output.write((value shr 8) and 0xFF)
-        output.write((value shr 16) and 0xFF)
-        output.write((value shr 24) and 0xFF)
-    }
-    
-    // Helper function to write a short in little-endian format
-    private fun writeShort(output: FileOutputStream, value: Int) {
-        output.write(value and 0xFF)
-        output.write((value shr 8) and 0xFF)
-    }
-    
-    companion object {
-        private const val TAG = "OfflineTtsAudio"
-    }
+    // You can leave the original methods as private if you want to maintain compatibility
+    // or you can remove them since AudioUtils now handles this functionality
+    // ...
 }
 
 /**
@@ -158,6 +83,7 @@ class OfflineTts(
             )
             
             // Use JniBridge with the config object
+            Log.d(tag, "Calling JNI newFromAsset with asset manager and config")
             nativePtr = JniBridge.newFromAsset(
                 assetManager,
                 jniConfig
@@ -184,12 +110,18 @@ class OfflineTts(
         
         return try {
             // Use the JNI bridge to call the native method
+            Log.d(tag, "Calling JNI generateImpl with nativePtr=$nativePtr, text='$text', sid=$sid, speed=$speed")
             val result = JniBridge.generateImpl(nativePtr, text, sid, speed)
+            
+            // Log the result structure
+            val samples = result[0] as FloatArray
+            val sampleRate = result[1] as Int
+            Log.d(tag, "JNI generateImpl returned ${samples.size} samples with sample rate $sampleRate")
             
             // Convert from JNI bridge result to our OfflineTtsAudio
             OfflineTtsAudio(
-                samples = result[0] as FloatArray,
-                sampleRate = result[1] as Int
+                samples = samples,
+                sampleRate = sampleRate
             )
         } catch (e: Exception) {
             Log.e(tag, "Error generating speech: ${e.message}")
@@ -213,12 +145,18 @@ class OfflineTts(
         
         return try {
             // Use the JNI bridge to call the native method
+            Log.d(tag, "Calling JNI generateWithCallbackImpl with nativePtr=$nativePtr, text='$text', sid=$sid, speed=$speed")
             val result = JniBridge.generateWithCallbackImpl(nativePtr, text, sid, speed, callback)
+            
+            // Log the result structure
+            val samples = result[0] as FloatArray
+            val sampleRate = result[1] as Int
+            Log.d(tag, "JNI generateWithCallbackImpl returned ${samples.size} samples with sample rate $sampleRate")
             
             // Convert from JNI bridge result to our OfflineTtsAudio
             OfflineTtsAudio(
-                samples = result[0] as FloatArray,
-                sampleRate = result[1] as Int
+                samples = samples,
+                sampleRate = sampleRate
             )
         } catch (e: Exception) {
             Log.e(tag, "Error generating speech with callback: ${e.message}")
@@ -231,19 +169,26 @@ class OfflineTts(
         if (nativePtr == 0L) {
             return 22050 // Default sample rate
         }
-        return JniBridge.getSampleRate(nativePtr)
+        Log.d(tag, "Calling JNI getSampleRate with nativePtr=$nativePtr")
+        val rate = JniBridge.getSampleRate(nativePtr)
+        Log.d(tag, "JNI getSampleRate returned $rate")
+        return rate
     }
 
     fun numSpeakers(): Int {
         if (nativePtr == 0L) {
             return 1 // Default number of speakers
         }
-        return JniBridge.getNumSpeakers(nativePtr)
+        Log.d(tag, "Calling JNI getNumSpeakers with nativePtr=$nativePtr")
+        val speakers = JniBridge.getNumSpeakers(nativePtr)
+        Log.d(tag, "JNI getNumSpeakers returned $speakers")
+        return speakers
     }
 
     fun free() {
         Log.i(tag, "Releasing OfflineTts resources")
         if (nativePtr != 0L) {
+            Log.d(tag, "Calling JNI delete with nativePtr=$nativePtr")
             JniBridge.delete(nativePtr)
             nativePtr = 0
         }
@@ -252,11 +197,9 @@ class OfflineTts(
     // Helper function to create empty audio for error cases
     private fun createEmptyAudio(): OfflineTtsAudio {
         Log.w(tag, "Creating empty audio due to error")
-        // Create small non-zero audio to detect issues
-        return OfflineTtsAudio(
-            samples = FloatArray(1000) { (it % 100) * 0.01f }, // Simple pattern
-            sampleRate = 22050
-        )
+        // Use AudioUtils.createEmptyAudio() instead of duplicating the logic
+        val (samples, sampleRate) = AudioUtils.createEmptyAudio()
+        return OfflineTtsAudio(samples, sampleRate)
     }
     
     companion object {
@@ -265,6 +208,7 @@ class OfflineTts(
             return try {
                 // Just accessing the JniBridge will load the library
                 val version = JniBridge::class.java.name
+                Log.i("OfflineTts", "Library loaded successfully: $version")
                 true
             } catch (e: UnsatisfiedLinkError) {
                 Log.e("OfflineTts", "Library not loaded: ${e.message}")
@@ -290,8 +234,32 @@ fun convertToJniConfig(
     ruleFars: String = "",
     numThreads: Int? = null
 ): com.k2fsa.sherpa.onnx.OfflineTtsConfig {
+    // Log all input parameters for debugging
+    Log.d("SherpaOnnxTtsSupport", "Convert to JNI config with parameters:")
+    Log.d("SherpaOnnxTtsSupport", "  modelDir: $modelDir")
+    Log.d("SherpaOnnxTtsSupport", "  modelName: $modelName")
+    Log.d("SherpaOnnxTtsSupport", "  acousticModelName: $acousticModelName")
+    Log.d("SherpaOnnxTtsSupport", "  vocoder: $vocoder")
+    Log.d("SherpaOnnxTtsSupport", "  voices: $voices")
+    Log.d("SherpaOnnxTtsSupport", "  lexicon: $lexicon")
+    Log.d("SherpaOnnxTtsSupport", "  dataDir: $dataDir")
+    Log.d("SherpaOnnxTtsSupport", "  dictDir: $dictDir")
+    Log.d("SherpaOnnxTtsSupport", "  ruleFsts: $ruleFsts")
+    Log.d("SherpaOnnxTtsSupport", "  ruleFars: $ruleFars")
+    Log.d("SherpaOnnxTtsSupport", "  numThreads: $numThreads")
+    
     // Determine which model type to use
     val numberOfThreads = numThreads ?: if (voices.isNotEmpty()) 4 else 2
+    Log.d("SherpaOnnxTtsSupport", "Using $numberOfThreads threads")
+    
+    // Determine model type
+    val modelType = when {
+        voices.isNotEmpty() -> "Kokoro"
+        acousticModelName.isNotEmpty() -> "Matcha"
+        modelName.isNotEmpty() -> "VITS"
+        else -> "Unknown"
+    }
+    Log.d("SherpaOnnxTtsSupport", "Detected model type: $modelType")
     
     // Correct the paths - check if models are in a tts/ subdirectory
     val actualModelDir = if (modelDir.startsWith("tts/")) {
@@ -305,7 +273,7 @@ fun convertToJniConfig(
     
     // For Kokoro model (with voices file)
     val kokoro = if (voices.isNotEmpty()) {
-        com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig(
+        val kokoroConfig = com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig(
             model = "$actualModelDir/$modelName",
             voices = "$actualModelDir/$voices",
             tokens = "$actualModelDir/tokens.txt",
@@ -317,13 +285,18 @@ fun convertToJniConfig(
             },
             dictDir = dictDir
         )
+        
+        Log.d("SherpaOnnxTtsSupport", "Created Kokoro config with model=${kokoroConfig.model}, voices=${kokoroConfig.voices}, tokens=${kokoroConfig.tokens}")
+        Log.d("SherpaOnnxTtsSupport", "Kokoro lexicon=${kokoroConfig.lexicon}, dataDir=${kokoroConfig.dataDir}, dictDir=${kokoroConfig.dictDir}")
+        
+        kokoroConfig
     } else {
         com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig()
     }
     
     // For Matcha model (with acoustic model and vocoder)
     val matcha = if (acousticModelName.isNotEmpty()) {
-        com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig(
+        val matchaConfig = com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig(
             acousticModel = "$actualModelDir/$acousticModelName",
             vocoder = vocoder,
             lexicon = "$actualModelDir/$lexicon",
@@ -331,19 +304,30 @@ fun convertToJniConfig(
             dataDir = dataDir,
             dictDir = dictDir
         )
+        
+        Log.d("SherpaOnnxTtsSupport", "Created Matcha config with acousticModel=${matchaConfig.acousticModel}, vocoder=${matchaConfig.vocoder}")
+        Log.d("SherpaOnnxTtsSupport", "Matcha tokens=${matchaConfig.tokens}, lexicon=${matchaConfig.lexicon}")
+        Log.d("SherpaOnnxTtsSupport", "Matcha dataDir=${matchaConfig.dataDir}, dictDir=${matchaConfig.dictDir}")
+        
+        matchaConfig
     } else {
         com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig()
     }
     
     // For VITS model (just model name, no voices)
     val vits = if (modelName.isNotEmpty() && voices.isEmpty() && acousticModelName.isEmpty()) {
-        com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig(
+        val vitsConfig = com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig(
             model = "$actualModelDir/$modelName",
             lexicon = "$actualModelDir/$lexicon",
             tokens = "$actualModelDir/tokens.txt",
             dataDir = dataDir,
             dictDir = dictDir
         )
+        
+        Log.d("SherpaOnnxTtsSupport", "Created VITS config with model=${vitsConfig.model}, tokens=${vitsConfig.tokens}")
+        Log.d("SherpaOnnxTtsSupport", "VITS lexicon=${vitsConfig.lexicon}, dataDir=${vitsConfig.dataDir}, dictDir=${vitsConfig.dictDir}")
+        
+        vitsConfig
     } else {
         com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig()
     }
@@ -362,7 +346,10 @@ fun convertToJniConfig(
         ruleFars = ruleFars
     )
     
-    Log.d("SherpaOnnxTtsSupport", "JNI Config: $config")
+    Log.d("SherpaOnnxTtsSupport", "Created JNI Config for $modelType model")
+    Log.d("SherpaOnnxTtsSupport", "Final JNI config with provider=${config.model.provider}, threads=${config.model.numThreads}")
+    if (ruleFsts.isNotEmpty()) Log.d("SherpaOnnxTtsSupport", "Using ruleFsts: $ruleFsts")
+    if (ruleFars.isNotEmpty()) Log.d("SherpaOnnxTtsSupport", "Using ruleFars: $ruleFars")
     
     return config
 } 

@@ -86,10 +86,18 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else null
                 
                 // Log the provided configuration for debugging
-                Log.d(TAG, "TTS init with modelDir: $modelDir")
-                Log.d(TAG, "TTS init with modelName: $modelName")
-                Log.d(TAG, "TTS init with acousticModelName: $acousticModelName")
-                Log.d(TAG, "TTS init with voices: $voices")
+                Log.d(TAG, "TTS init with parameters:")
+                Log.d(TAG, "  modelDir: $modelDir")
+                Log.d(TAG, "  modelName: $modelName")
+                Log.d(TAG, "  acousticModelName: $acousticModelName")
+                Log.d(TAG, "  vocoder: $vocoder")
+                Log.d(TAG, "  voices: $voices")
+                Log.d(TAG, "  lexicon: $lexicon")
+                Log.d(TAG, "  dataDir: $dataDir")
+                Log.d(TAG, "  dictDir: $dictDir")
+                Log.d(TAG, "  ruleFsts: $ruleFsts")
+                Log.d(TAG, "  ruleFars: $ruleFars")
+                Log.d(TAG, "  numThreads: $numThreads")
                 
                 // Determine model type (kokoro, matcha, etc.)
                 val modelType = determineModelType(modelDir, modelName, acousticModelName, voices)
@@ -220,6 +228,10 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 // Initialize AudioTrack
                 initAudioTrack()
 
+                // After creating the TTS instance
+                Log.d(TAG, "Successfully created OfflineTts instance")
+                Log.d(TAG, "Sample rate: ${tts?.sampleRate()}, Num speakers: ${tts?.numSpeakers()}")
+                
                 // Return success
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
@@ -274,7 +286,9 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
 
                 // Generate speech
                 Log.d(TAG, "Starting speech generation")
+                val startTime = System.currentTimeMillis()
                 val audio = if (playAudio) {
+                    Log.d(TAG, "Using generateWithCallback method")
                     tts!!.generateWithCallback(
                         text = text,
                         sid = speakerId,
@@ -282,17 +296,21 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                         callback = this::audioCallback
                     )
                 } else {
+                    Log.d(TAG, "Using generate method without callback")
                     tts!!.generate(
                         text = text,
                         sid = speakerId,
                         speed = speed
                     )
                 }
+                val endTime = System.currentTimeMillis()
+                Log.d(TAG, "Speech generation completed in ${endTime - startTime}ms")
+                Log.d(TAG, "Generated ${audio.samples.size} samples at ${audio.sampleRate}Hz")
 
-                // Save to file
+                // Save to file using AudioUtils
                 Log.d(TAG, "Saving audio to file")
                 val wavFile = File(reactContext.cacheDir, "generated_audio.wav")
-                val saved = audio.save(wavFile.absolutePath)
+                val saved = AudioUtils.saveAsWav(audio.samples, audio.sampleRate, wavFile.absolutePath)
                 Log.d(TAG, "Audio saved: $saved, file path: ${wavFile.absolutePath}")
 
                 val resultMap = Arguments.createMap()
@@ -301,6 +319,7 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 resultMap.putInt("samplesLength", audio.samples.size)
                 resultMap.putString("filePath", wavFile.absolutePath)
                 resultMap.putBoolean("saved", saved)
+                resultMap.putInt("durationMs", (endTime - startTime).toInt())
 
                 isGenerating = false
                 
