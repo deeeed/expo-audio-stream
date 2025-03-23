@@ -21,11 +21,21 @@ export class SherpaOnnxAPI {
     try {
       return await NativeSherpaOnnx.validateLibraryLoaded();
     } catch (error: any) {
-      console.error('Failed to validate Sherpa-ONNX library:', error);
-      return {
-        loaded: false,
-        status: `Error validating library: ${error?.message || 'Unknown error'}`,
-      };
+      console.error('Failed to validate library loaded:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Debug asset loading - useful for diagnosing asset issues
+   * @returns Promise that resolves with details about asset loading
+   */
+  public static async debugAssetLoading(): Promise<any> {
+    try {
+      return await NativeSherpaOnnx.debugAssetLoading();
+    } catch (error: any) {
+      console.error('Failed to debug asset loading:', error);
+      throw error;
     }
   }
 

@@ -81,6 +81,59 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 val ruleFsts = modelConfig.getString("ruleFsts") ?: ""
                 val ruleFars = modelConfig.getString("ruleFars") ?: ""
                 val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else null
+                
+                // Log the provided configuration for debugging
+                Log.d(TAG, "TTS init with modelDir: $modelDir")
+                Log.d(TAG, "TTS init with modelName: $modelName")
+                Log.d(TAG, "TTS init with acousticModelName: $acousticModelName")
+                Log.d(TAG, "TTS init with voices: $voices")
+                
+                // Determine model type (kokoro, matcha, etc.)
+                val modelType = determineModelType(modelDir, modelName, acousticModelName, voices)
+                Log.d(TAG, "Detected model type: $modelType")
+                
+                // Check if model exists in assets
+                // Try several possible paths for the model files
+                val possiblePaths = listOf(
+                    modelDir, // Direct path
+                    "tts/$modelDir", // With tts/ prefix
+                    "$modelDir/$modelName", // Full model path
+                    "tts/$modelDir/$modelName", // Full path with tts/ prefix
+                    "$modelDir/model.onnx", // Default model name
+                    "tts/$modelDir/model.onnx" // Default with tts/ prefix
+                )
+                
+                val modelExists = possiblePaths.any { path ->
+                    val exists = if (path.endsWith(".onnx") || path.endsWith(".bin")) {
+                        assetExists(reactContext.assets, path)
+                    } else {
+                        val files = reactContext.assets.list(path)
+                        !files.isNullOrEmpty() && (
+                            files.contains("model.onnx") || 
+                            files.contains("voices.bin") ||
+                            files.contains(modelName) ||
+                            files.contains(acousticModelName)
+                        )
+                    }
+                    if (exists) Log.d(TAG, "Found model files at: $path")
+                    exists
+                }
+                
+                if (!modelExists) {
+                    Log.e(TAG, "Model files not found in assets for: $modelDir")
+                    
+                    // Check if any TTS models exist in assets
+                    val availableModels = findTtsModels(reactContext.assets)
+                    Log.d(TAG, "Available TTS models: $availableModels")
+                    
+                    reactContext.runOnUiQueueThread {
+                        val errorMap = Arguments.createMap()
+                        errorMap.putBoolean("success", false)
+                        errorMap.putString("error", "TTS model not found. Available models: $availableModels")
+                        promise.resolve(errorMap)
+                    }
+                    return@execute
+                }
 
                 // Prepare directories if needed
                 var processedDataDir = dataDir
@@ -89,20 +142,44 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 if (dataDir.isNotEmpty()) {
                     val newDir = copyAssetDir(dataDir)
                     processedDataDir = "$newDir/$dataDir"
+                } else if (assetExists(reactContext.assets, "$modelDir/espeak-ng-data")) {
+                    // If dataDir not specified but espeak-ng-data exists in model dir
+                    val newDir = copyAssetDir("$modelDir/espeak-ng-data")
+                    processedDataDir = "$newDir/$modelDir/espeak-ng-data"
+                    Log.d(TAG, "Using espeak-ng-data from model directory: $processedDataDir")
                 }
 
                 if (dictDir.isNotEmpty()) {
                     val newDir = copyAssetDir(dictDir)
                     processedDictDir = "$newDir/$dictDir"
+                } else if (assetExists(reactContext.assets, "$modelDir/dict")) {
+                    // If dictDir not specified but dict exists in model dir
+                    val newDir = copyAssetDir("$modelDir/dict")
+                    processedDictDir = "$newDir/$modelDir/dict"
+                    Log.d(TAG, "Using dict from model directory: $processedDictDir")
+                }
+                
+                // If modelName is not specified, try to use model.onnx
+                var usedModelName = modelName
+                if (usedModelName.isEmpty() && assetExists(reactContext.assets, "$modelDir/model.onnx")) {
+                    usedModelName = "model.onnx"
+                    Log.d(TAG, "Using default model.onnx from $modelDir")
+                }
+                
+                // If voices is not specified, try to use voices.bin
+                var usedVoices = voices
+                if (usedVoices.isEmpty() && assetExists(reactContext.assets, "$modelDir/voices.bin")) {
+                    usedVoices = "voices.bin"
+                    Log.d(TAG, "Using default voices.bin from $modelDir")
                 }
 
                 // Create TTS config
                 val config = getOfflineTtsConfig(
                     modelDir = modelDir,
-                    modelName = modelName,
+                    modelName = usedModelName,
                     acousticModelName = acousticModelName,
                     vocoder = vocoder,
-                    voices = voices,
+                    voices = usedVoices,
                     lexicon = lexicon,
                     dataDir = processedDataDir,
                     dictDir = processedDictDir,
@@ -112,6 +189,7 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 )
 
                 // Create TTS instance
+                Log.d(TAG, "Creating OfflineTts instance with config: $config")
                 tts = OfflineTts(
                     assetManager = reactContext.assets,
                     config = config
@@ -143,31 +221,37 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun generateTts(text: String, speakerId: Int, speed: Float, playAudio: Boolean, promise: Promise) {
         if (tts == null) {
+            Log.e(TAG, "TTS is not initialized before generateTts call")
             promise.reject("ERR_TTS_NOT_INITIALIZED", "TTS is not initialized")
             return
         }
 
         if (isGenerating) {
+            Log.e(TAG, "TTS is already generating speech")
             promise.reject("ERR_TTS_BUSY", "TTS is already generating speech")
             return
         }
 
+        Log.d(TAG, "Generating TTS for text: '$text' with speakerId: $speakerId, speed: $speed, playAudio: $playAudio")
         isGenerating = true
 
         executor.execute {
             try {
                 // Initialize or reset AudioTrack if needed
                 if (playAudio && audioTrack == null) {
+                    Log.d(TAG, "Initializing AudioTrack")
                     initAudioTrack()
                 }
 
                 if (playAudio) {
+                    Log.d(TAG, "Preparing AudioTrack for playback")
                     audioTrack?.pause()
                     audioTrack?.flush()
                     audioTrack?.play()
                 }
 
                 // Generate speech
+                Log.d(TAG, "Starting speech generation")
                 val audio = if (playAudio) {
                     tts!!.generateWithCallback(
                         text = text,
@@ -184,8 +268,10 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 }
 
                 // Save to file
+                Log.d(TAG, "Saving audio to file")
                 val wavFile = File(reactContext.cacheDir, "generated_audio.wav")
                 val saved = audio.save(wavFile.absolutePath)
+                Log.d(TAG, "Audio saved: $saved, file path: ${wavFile.absolutePath}")
 
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
@@ -359,6 +445,154 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         } catch (e: Exception) {
             Log.e(TAG, "Failed to copy file $filename: ${e.message}")
             throw e
+        }
+    }
+
+    /**
+     * Determine the model type based on the provided configuration
+     */
+    private fun determineModelType(
+        modelDir: String,
+        modelName: String,
+        acousticModelName: String,
+        voices: String
+    ): String {
+        return when {
+            voices.isNotEmpty() || modelDir.contains("kokoro") -> "kokoro"
+            acousticModelName.isNotEmpty() || modelDir.contains("matcha") -> "matcha"
+            else -> "vits"
+        }
+    }
+    
+    /**
+     * Check if an asset exists
+     */
+    private fun assetExists(assetManager: AssetManager, path: String): Boolean {
+        try {
+            val fullPath = path.trim()
+            val directory = if (fullPath.contains("/")) {
+                fullPath.substringBeforeLast("/")
+            } else {
+                "" // Root directory
+            }
+            
+            val fileName = if (fullPath.contains("/")) {
+                fullPath.substringAfterLast("/")
+            } else {
+                fullPath
+            }
+            
+            // Try to list the directory to see if it contains our file
+            val files = assetManager.list(directory)
+            Log.d(TAG, "Looking for '$fileName' in directory '$directory', found files: ${files?.joinToString()}")
+            
+            return files?.contains(fileName) == true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking if asset exists at $path: ${e.message}")
+            return false
+        }
+    }
+    
+    /**
+     * Find available TTS models in assets
+     */
+    private fun findTtsModels(assetManager: AssetManager): List<String> {
+        val models = mutableListOf<String>()
+        
+        try {
+            // List all asset directories
+            val allAssets = assetManager.list("")
+            Log.d(TAG, "All assets at root level: ${allAssets?.joinToString()}")
+            
+            if (!allAssets.isNullOrEmpty()) {
+                // Check each directory to see if it contains TTS model files
+                for (assetDir in allAssets) {
+                    // Look for key TTS model files
+                    val dirContents = assetManager.list(assetDir)
+                    Log.d(TAG, "Contents of '$assetDir': ${dirContents?.joinToString()}")
+                    
+                    if (dirContents?.contains("model.onnx") == true || 
+                        dirContents?.contains("voices.bin") == true) {
+                        models.add(assetDir)
+                    }
+                    
+                    // Also check if it's a TTS directory with subdirectories
+                    if (assetDir == "tts") {
+                        val ttsSubdirs = assetManager.list("tts")
+                        Log.d(TAG, "Found tts directory with subdirs: ${ttsSubdirs?.joinToString()}")
+                        if (!ttsSubdirs.isNullOrEmpty()) {
+                            for (subdir in ttsSubdirs) {
+                                models.add("tts/$subdir")
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error finding TTS models: ${e.message}")
+            e.printStackTrace()
+        }
+        
+        Log.d(TAG, "Found TTS models: $models")
+        return models
+    }
+
+    @ReactMethod
+    fun debugAssetLoading(promise: Promise) {
+        try {
+            val resultMap = Arguments.createMap()
+            val detailsArray = Arguments.createArray()
+            
+            // Get list of all root assets
+            val rootAssets = reactContext.assets.list("")
+            
+            val rootList = Arguments.createMap()
+            rootList.putString("path", "(root)")
+            val filesArray = Arguments.createArray()
+            rootAssets?.forEach { filesArray.pushString(it) }
+            rootList.putArray("files", filesArray)
+            detailsArray.pushMap(rootList)
+            
+            // Check some specific paths
+            val pathsToCheck = listOf(
+                "test",
+                "tts",
+                "kokoro-en-v0_19",
+                "tts/kokoro-en-v0_19"
+            )
+            
+            for (path in pathsToCheck) {
+                try {
+                    val files = reactContext.assets.list(path)
+                    val pathMap = Arguments.createMap()
+                    pathMap.putString("path", path)
+                    val pathFiles = Arguments.createArray()
+                    files?.forEach { pathFiles.pushString(it) }
+                    pathMap.putArray("files", pathFiles)
+                    detailsArray.pushMap(pathMap)
+                } catch (e: Exception) {
+                    val pathMap = Arguments.createMap()
+                    pathMap.putString("path", path)
+                    pathMap.putString("error", e.message ?: "Unknown error")
+                    detailsArray.pushMap(pathMap)
+                }
+            }
+            
+            // Try to read test file
+            try {
+                val testBytes = reactContext.assets.open("test/test.txt").readBytes()
+                val testContent = String(testBytes)
+                resultMap.putString("testFile", testContent)
+            } catch (e: Exception) {
+                resultMap.putString("testFileError", e.message ?: "Unknown error")
+            }
+            
+            resultMap.putArray("details", detailsArray)
+            promise.resolve(resultMap)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error debugging asset loading: ${e.message}")
+            e.printStackTrace()
+            promise.reject("ERR_DEBUG_ASSETS", "Failed to debug assets: ${e.message}")
         }
     }
 } 

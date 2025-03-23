@@ -23,6 +23,7 @@ interface SherpaOnnxInterface {
   ): Promise<TtsGenerateResult>;
   stopTts(): Promise<{ stopped: boolean; message?: string }>;
   releaseTts(): Promise<{ released: boolean }>;
+  debugAssetLoading(): Promise<any>;
 }
 
 // Create a safer version that doesn't crash if the module is missing
@@ -46,6 +47,9 @@ const SafeSherpaOnnx: SherpaOnnxInterface = SherpaOnnx
       releaseTts: async () => ({
         released: false,
       }),
+      debugAssetLoading: async () => {
+        throw new Error('SherpaOnnx native module is not available');
+      },
     };
 
 export default SafeSherpaOnnx;

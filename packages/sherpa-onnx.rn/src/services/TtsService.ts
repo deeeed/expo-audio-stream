@@ -37,7 +37,7 @@ export class TtsService {
       if (!validation.loaded) {
         throw new Error(`Library validation failed: ${validation.status}`);
       }
-      
+
       const result = await SherpaOnnxAPI.initTts(config);
       this.initialized = result.success;
       this.sampleRate = result.sampleRate;

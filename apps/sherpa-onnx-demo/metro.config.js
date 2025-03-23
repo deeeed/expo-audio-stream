@@ -24,8 +24,17 @@ config.resolver.assetExts = [
   ...config.resolver.assetExts,
   'm4a',
   'wav',
+  'mp3',
   'bin',
   'onnx',
-  'txt'
+  'txt',
+  'fst',
+  'far',
 ];
+
+// Add assets to copy without extensions (like data directories)
+config.resolver.extraNodeModules = {
+  assets: path.resolve(__dirname, 'assets'),
+};
+
 module.exports = config; 
