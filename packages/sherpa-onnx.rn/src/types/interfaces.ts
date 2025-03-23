@@ -164,7 +164,7 @@ export interface TtsInitResult {
    * Number of available speakers
    */
   numSpeakers: number;
-  
+
   /**
    * Error message if initialization failed
    */
