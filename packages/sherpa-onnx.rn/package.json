@@ -57,7 +57,8 @@
     "build:android:force": "./build-sherpa-android.sh --force",
     "build:all": "./build-all.sh",
     "build:all:force": "./build-all.sh --force",
-    "postinstall": "node ./install.js",
+    "copy:libs": "./android/scripts/copy-libs.sh",
+    "postinstall": "node ./install.js && npm run copy:libs",
     "publish-static": "./publish-static-libs.sh"
   },
   "keywords": [

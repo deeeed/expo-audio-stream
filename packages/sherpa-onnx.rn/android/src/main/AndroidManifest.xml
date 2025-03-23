@@ -2,6 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="net.siteed.sherpaonnx">
     
-    <!-- Add any permissions needed -->
+    <!-- Add permissions needed for audio recording if your app will handle this -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 </manifest> 

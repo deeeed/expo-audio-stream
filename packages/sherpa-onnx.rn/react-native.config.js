@@ -1,14 +1,22 @@
 module.exports = {
-  dependency: {
-    platforms: {
-      android: {
-        sourceDir: './android',
-        packageImportPath: 'import net.siteed.sherpaonnx.SherpaOnnxPackage;',
-        packageInstance: 'new SherpaOnnxPackage()',
-      },
-      ios: {
-        // iOS configuration will be added later
+  dependencies: {
+    '@siteed/sherpa-onnx.rn': {
+      platforms: {
+        ios: {
+          podspecPath: __dirname + '/sherpa-onnx-rn.podspec',
+        },
+        android: {
+          sourceDir: __dirname + '/android',
+          packageImportPath: 'import net.siteed.sherpaonnx.SherpaOnnxPackage;',
+          packageInstance: 'new SherpaOnnxPackage()',
+        },
       },
     },
+  },
+  // Enable codegen for the New Architecture
+  codegenConfig: {
+    name: "RNSherpaOnnxSpec",
+    type: "modules",
+    jsSrcsDir: "src",
   },
 }; 

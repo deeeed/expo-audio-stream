@@ -14,6 +14,9 @@ buildscript {
     }
 }
 
+// For backwards compatibility with older React Native versions
+def REACT_NATIVE_VERSION = safeExtGet('reactNativeVersion', '+')
+
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
@@ -35,10 +38,12 @@ android {
 
     sourceSets {
         main {
-            // Include prebuilt libraries
-            jniLibs.srcDirs = ['../prebuilt/android']
+            // Include prebuilt libraries in the correct location
+            jniLibs.srcDirs = ['src/main/jniLibs']
+            
             // Add Kotlin source directory
             kotlin.srcDirs = ['src/main/kotlin']
+            
             // Add Java source directory for compatibility
             java.srcDirs = ['src/main/java']
         }
@@ -51,26 +56,51 @@ android {
         }
     }
 
+    // IMPORTANT: These Java compatibility settings must match the React Native app
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
+    }
+
+    // This ensures the library is compiled as an AAR with the JNI libraries included
+    packagingOptions {
+        pickFirst '**/*.so'
+    }
+}
+
+// For React Native New Architecture
+def isNewArchitectureEnabled() {
+    return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
+}
+
+// For TurboModules / JSI
+if (isNewArchitectureEnabled()) {
+    apply plugin: "com.facebook.react"
+    react {
+        jsRootDir = file("../src/")
+        libraryName = "sherpa_onnx_rn"
+        codegenJavaPackageName = "net.siteed.sherpaonnx"
     }
 }
 
 repositories {
     google()
     mavenCentral()
-    // For development
     mavenLocal()
 }
 
 dependencies {
-    //noinspection GradleDynamicVersion
-    implementation "com.facebook.react:react-native:+"  // From node_modules
+    // React Native dependencies
+    implementation "com.facebook.react:react-native:${REACT_NATIVE_VERSION}"
+    
+    // Kotlin standard library
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.0"
     implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.0"
+    
+    // Android support libraries
     implementation "androidx.annotation:annotation:1.5.0"
 } 

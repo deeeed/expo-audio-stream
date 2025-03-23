@@ -89,3 +89,17 @@ export interface TtsOptions {
    */
   volumeGainDb?: number;
 }
+
+/**
+ * Result of validating that the Sherpa ONNX library is properly loaded
+ */
+export interface ValidateResult {
+  /**
+   * True if the library is loaded successfully
+   */
+  loaded: boolean;
+  /**
+   * Status message
+   */
+  status: string;
+}

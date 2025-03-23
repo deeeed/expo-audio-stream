@@ -1,0 +1,42 @@
+#import "SherpaOnnxModule.h"
+
+@implementation SherpaOnnxModule
+
+RCT_EXPORT_MODULE(SherpaOnnx);
+
+// Create a boolean to track if the library has loaded
+static BOOL libraryLoaded = NO;
+
++ (BOOL)requiresMainQueueSetup
+{
+    return NO;
+}
+
++ (void)initialize {
+    // Attempt to load the library
+    NSString *libraryPath = [[NSBundle mainBundle] pathForResource:@"libsherpa-onnx" ofType:@"a"];
+    if (libraryPath) {
+        NSLog(@"Found sherpa-onnx library at: %@", libraryPath);
+        libraryLoaded = YES;
+    } else {
+        NSLog(@"Failed to find sherpa-onnx library");
+        libraryLoaded = NO;
+    }
+}
+
+RCT_EXPORT_METHOD(validateLibraryLoaded:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+    NSMutableDictionary *result = [NSMutableDictionary dictionary];
+    [result setObject:@(libraryLoaded) forKey:@"loaded"];
+    
+    if (libraryLoaded) {
+        [result setObject:@"Sherpa ONNX library loaded successfully" forKey:@"status"];
+    } else {
+        [result setObject:@"Failed to load Sherpa ONNX library" forKey:@"status"];
+    }
+    
+    resolve(result);
+}
+
+@end 

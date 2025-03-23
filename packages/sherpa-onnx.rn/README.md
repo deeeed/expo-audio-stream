@@ -32,6 +32,10 @@ cd ios && pod install
 
 Android integration is handled automatically by the package.
 
+## React Native Compatibility
+
+This module is compatible with both the old and new React Native architectures. See [COMPATIBILITY.md](./COMPATIBILITY.md) for details on how this is achieved and considerations when using this module.
+
 ## Usage
 
 ### Basic Speech-to-Text
