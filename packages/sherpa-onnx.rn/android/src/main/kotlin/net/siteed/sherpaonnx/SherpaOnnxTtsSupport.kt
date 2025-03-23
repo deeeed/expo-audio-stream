@@ -6,6 +6,7 @@ package net.siteed.sherpaonnx
 
 import android.content.res.AssetManager
 import java.io.File
+import java.io.FileOutputStream
 
 /**
  * Configuration for Offline TTS
@@ -34,13 +35,49 @@ class OfflineTtsAudio(
     fun save(path: String): Boolean {
         return try {
             android.util.Log.i("OfflineTtsAudio", "Saving audio to $path")
-            // In a real implementation, this would save the audio to a WAV file
+            
+            // Create the parent directory if it doesn't exist
             val file = File(path)
             file.parentFile?.mkdirs()
-            file.createNewFile()
             
-            // Mock writing some data to the file for testing
-            file.writeBytes(ByteArray(samples.size / 10))
+            // Create FileOutputStream to write the WAV file
+            val outputStream = FileOutputStream(file)
+            
+            // Calculate sizes for WAV header
+            val numChannels = 1 // Mono
+            val bitsPerSample = 16 // 16-bit audio
+            val byteRate = sampleRate * numChannels * (bitsPerSample / 8)
+            val blockAlign = numChannels * (bitsPerSample / 8)
+            val dataSize = samples.size * (bitsPerSample / 8)
+            val totalSize = 36 + dataSize
+            
+            // Write WAV header - RIFF chunk
+            outputStream.write("RIFF".toByteArray()) // ChunkID
+            writeInt(outputStream, totalSize) // ChunkSize
+            outputStream.write("WAVE".toByteArray()) // Format
+            
+            // Write WAV header - fmt subchunk
+            outputStream.write("fmt ".toByteArray()) // Subchunk1ID
+            writeInt(outputStream, 16) // Subchunk1Size (PCM)
+            writeShort(outputStream, 1) // AudioFormat (1 = PCM)
+            writeShort(outputStream, numChannels) // NumChannels
+            writeInt(outputStream, sampleRate) // SampleRate
+            writeInt(outputStream, byteRate) // ByteRate
+            writeShort(outputStream, blockAlign) // BlockAlign
+            writeShort(outputStream, bitsPerSample) // BitsPerSample
+            
+            // Write WAV header - data subchunk
+            outputStream.write("data".toByteArray()) // Subchunk2ID
+            writeInt(outputStream, dataSize) // Subchunk2Size
+            
+            // Write the audio data (convert float to 16-bit PCM)
+            for (sample in samples) {
+                // Convert float (-1.0 to 1.0) to 16-bit PCM
+                val pcmValue = (sample * 32767f).toInt().coerceIn(-32768, 32767).toShort()
+                writeShort(outputStream, pcmValue.toInt())
+            }
+            
+            outputStream.close()
             android.util.Log.i("OfflineTtsAudio", "Audio saved successfully")
             true
         } catch (e: Exception) {
@@ -48,6 +85,20 @@ class OfflineTtsAudio(
             e.printStackTrace()
             false
         }
+    }
+    
+    // Helper function to write an integer in little-endian format
+    private fun writeInt(output: FileOutputStream, value: Int) {
+        output.write(value and 0xFF)
+        output.write((value shr 8) and 0xFF)
+        output.write((value shr 16) and 0xFF)
+        output.write((value shr 24) and 0xFF)
+    }
+    
+    // Helper function to write a short in little-endian format
+    private fun writeShort(output: FileOutputStream, value: Int) {
+        output.write(value and 0xFF)
+        output.write((value shr 8) and 0xFF)
     }
 }
 
