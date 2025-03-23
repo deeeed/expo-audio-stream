@@ -19,7 +19,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 // Extended TTS result with accessible path
 interface ExtendedTtsResult extends TtsGenerateResult {
   accessiblePath?: string;
-  fileInfo?: string;
+}
+
+// Define a proper interface for the model
+interface TtsModel {
+  id: string;
+  name: string;
+  type: string;
+  disabled?: boolean; // Make it optional
 }
 
 export default function TtsScreen() {
@@ -38,13 +45,12 @@ export default function TtsScreen() {
   const [speakerId, setSpeakerId] = useState<number>(0);
   const [speakingRate, setSpeakingRate] = useState<number>(1.0);
   const [selectedModel, setSelectedModel] = useState<string>('kokoro-en-v0_19');
-  const [debugInfo, setDebugInfo] = useState<string>('');
   
-  // Available models
-  const availableModels = [
+  // Available models with the proper interface
+  const availableModels: TtsModel[] = [
     { id: 'kokoro-en-v0_19', name: 'Kokoro English', type: 'kokoro' },
     { id: 'kokoro-multi-lang-v1_0', name: 'Kokoro Multi-language', type: 'kokoro' },
-    { id: 'matcha-icefall-en_US-ljspeech', name: 'Matcha English', type: 'matcha' },
+    { id: 'matcha-icefall-en_US-ljspeech', name: 'Matcha English', type: 'matcha', disabled: false },
   ];
   
   // Results
@@ -81,31 +87,35 @@ export default function TtsScreen() {
         throw new Error('Selected model not found');
       }
       
-      // In Expo/React Native, we need to use the base folder without 'tts/'
-      // The assets are flattened during build
+      // Base configuration - only specify the model directory
       const modelConfig: TtsModelConfig = {
-        modelDir: Platform.OS === 'android' 
-          ? model.id  // Just use the model ID as directory
-          : model.id, // Same for iOS
+        modelDir: model.id,
         numThreads: 2,
       };
       
-      // Add model-specific configuration
+      // Follow the exact examples in MainActivity.kt but simplify paths
       if (model.type === 'kokoro') {
-        // For Kokoro models, we need voices.bin
+        // Common for all Kokoro models
         modelConfig.modelName = 'model.onnx';
         modelConfig.voices = 'voices.bin';
-        // Don't specify dataDir for now - let the native module detect it
-        // modelConfig.dataDir = `${model.id}/espeak-ng-data`;
-      } else if (model.type === 'matcha') {
-        // For Matcha models, we need acoustic model and vocoder
+
+        
+        if (model.id === 'kokoro-multi-lang-v1_0') {
+          modelConfig.modelName = 'model.onnx';
+          modelConfig.voices = 'voices.bin';
+          modelConfig.dataDir = `tts/${model.id}/espeak-ng-data`;
+          modelConfig.lexicon = `tts/${model.id}/lexicon-us-en.txt,tts/${model.id}/lexicon-zh.txt,tts/${model.id}/lexicon-gb-en.txt`;
+          modelConfig.ruleFsts = `tts/${model.id}/phone-zh.fst,tts/${model.id}/date-zh.fst,tts/${model.id}/number-zh.fst`;
+        }
+      } 
+      else if (model.type === 'matcha') {
+        // For Matcha model
         modelConfig.acousticModelName = 'model-steps-3.onnx';
         modelConfig.vocoder = 'vocos-22khz-univ.onnx';
-        // Don't specify dataDir for now - let the native module detect it
-        // modelConfig.dataDir = `${model.id}/espeak-ng-data`;
+        // Don't specify dataDir
       }
       
-      console.log('Initializing TTS with config:', modelConfig);
+      console.log('Trying with simplified config:', modelConfig);
       
       // Validate library is loaded
       const validation = await SherpaOnnx.validateLibraryLoaded();
@@ -144,7 +154,6 @@ export default function TtsScreen() {
     setIsLoading(true);
     setErrorMessage('');
     setStatusMessage('Generating speech...');
-    setDebugInfo('');
     
     try {
       // Use the service instead of direct API
@@ -158,8 +167,8 @@ export default function TtsScreen() {
       if (result.success && result.filePath) {
         setStatusMessage('Speech generated successfully!');
         
-        // Copy file to accessible location and validate it
-        await copyAndValidateAudioFile(result.filePath);
+        // Copy file to accessible location
+        await copyAudioFile(result.filePath);
         
         // Update the result
         setTtsResult(result);
@@ -174,12 +183,12 @@ export default function TtsScreen() {
     }
   };
 
-  const copyAndValidateAudioFile = async (filePath: string) => {
+  // Simplified version without detailed validation and debug info
+  const copyAudioFile = async (filePath: string) => {
     try {
       // Check if the file exists
       const fileInfo = await FileSystem.getInfoAsync(filePath);
       if (!fileInfo.exists) {
-        setDebugInfo(`File does not exist: ${filePath}`);
         return;
       }
       
@@ -191,108 +200,17 @@ export default function TtsScreen() {
         to: newPath
       });
       
-      // Get detailed file information
-      const fileDetails = await getFileDetails(newPath);
-      
-      // Update the local path format for Android
-      let localPath = newPath;
-      if (Platform.OS === 'android') {
-        // Android physical path for ADB access
-        localPath = `/storage/emulated/0/Android/data/com.deeeed.sherpaonnxdemo/files/${fileName}`;
-      }
-      
-      // Safe access to size property with type checking
-      const fileSize = fileInfo.exists ? ('size' in fileInfo ? fileInfo.size : 'unknown') : 0;
-      
-      const infoText = `File copied to accessible location\n` +
-                      `Original: ${filePath}\n` +
-                      `Copied to: ${newPath}\n` +
-                      `Size: ${fileSize} bytes\n\n` +
-                      `ADB pull command:\n` +
-                      `adb pull ${localPath}\n\n` +
-                      fileDetails;
-      
-      setDebugInfo(infoText);
-      
       // Update the ttsResult with the accessible path
       setTtsResult(prev => {
         if (!prev) return null;
         return {
           ...prev,
-          accessiblePath: newPath,
-          fileInfo: infoText
+          accessiblePath: newPath
         };
       });
       
     } catch (error) {
-      setDebugInfo(`Error processing file: ${(error as Error).message}`);
-    }
-  };
-  
-  const validateAudioFile = async (filePath: string): Promise<string> => {
-    try {
-      // Read the first 44 bytes (WAV header) of the file
-      const headerResponse = await FileSystem.readAsStringAsync(filePath, {
-        encoding: FileSystem.EncodingType.Base64,
-        position: 0,
-        length: 44
-      });
-      
-      // Convert base64 to byte array without using Buffer
-      // Create a Uint8Array from the decoded base64 string
-      const binaryString = atob(headerResponse);
-      const headerBytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        headerBytes[i] = binaryString.charCodeAt(i);
-      }
-      
-      // Check WAV header
-      let info = "File Validation:\n";
-      
-      // Convert to a hex string for display
-      const headerHex = Array.from(headerBytes)
-                       .map(b => b.toString(16).padStart(2, '0'))
-                       .join(' ');
-      info += `Header (hex): ${headerHex}\n`;
-      
-      // Convert first 4 bytes to string to check for RIFF signature
-      const riffSignature = String.fromCharCode(headerBytes[0], headerBytes[1], headerBytes[2], headerBytes[3]);
-      info += `RIFF signature: ${riffSignature}\n`;
-      
-      // Check format (bytes 8-11) for "WAVE"
-      const waveFormat = String.fromCharCode(headerBytes[8], headerBytes[9], headerBytes[10], headerBytes[11]);
-      info += `Format: ${waveFormat}\n`;
-      
-      // Check "fmt " subchunk (bytes 12-15)
-      const fmtChunk = String.fromCharCode(headerBytes[12], headerBytes[13], headerBytes[14], headerBytes[15]);
-      info += `Subchunk1: ${fmtChunk}\n`;
-      
-      // Simple validation
-      if (riffSignature === 'RIFF' && waveFormat === 'WAVE' && fmtChunk === 'fmt ') {
-        info += "✓ Valid WAV header structure detected\n";
-      } else {
-        info += "✗ Invalid WAV header structure\n";
-      }
-      
-      // Get audio format (1 = PCM)
-      const audioFormat = headerBytes[20] + (headerBytes[21] << 8);
-      info += `Audio Format: ${audioFormat} (${audioFormat === 1 ? 'PCM' : 'Non-PCM'})\n`;
-      
-      // Get number of channels
-      const numChannels = headerBytes[22] + (headerBytes[23] << 8);
-      info += `Channels: ${numChannels}\n`;
-      
-      // Get sample rate
-      const sampleRate = headerBytes[24] + (headerBytes[25] << 8) + (headerBytes[26] << 16) + (headerBytes[27] << 24);
-      info += `Sample Rate: ${sampleRate} Hz\n`;
-      
-      // Get bits per sample
-      const bitsPerSample = headerBytes[34] + (headerBytes[35] << 8);
-      info += `Bits Per Sample: ${bitsPerSample}\n`;
-      
-      return info;
-    } catch (error) {
-      return `Error validating file: ${(error as Error).message}`;
+      console.error("Error copying audio file:", error);
     }
   };
 
@@ -338,20 +256,6 @@ export default function TtsScreen() {
     const id = parseInt(text, 10);
     if (!isNaN(id) && id >= 0) {
       setSpeakerId(id);
-    }
-  };
-
-  const handleDebugAssets = async () => {
-    try {
-      setStatusMessage('Debugging asset loading...');
-      setDebugInfo('');
-      
-      // For debugging purposes, we'll list the available files
-      // This is a simplified version since we removed the debug API
-      setDebugInfo('Debug assets feature is disabled for now.');
-      setStatusMessage('Asset debugging complete');
-    } catch (error) {
-      setErrorMessage(`Error debugging assets: ${(error as Error).message}`);
     }
   };
 
@@ -458,8 +362,7 @@ export default function TtsScreen() {
     shareAudioFile(filePath);
   };
 
-  // Improved downloadAudioFile function that creates a shareable file 
-  // with proper WAV headers for easy access
+  // Simplified downloadAudioFile function without debug info
   const downloadAudioFile = async (filePath: string) => {
     try {
       // First check if the file exists
@@ -481,28 +384,6 @@ export default function TtsScreen() {
         to: newFilePath
       });
       
-      // Get the Android-accessible path for adb pull
-      let androidPath = newFilePath;
-      if (Platform.OS === 'android') {
-        androidPath = `/storage/emulated/0/Android/data/com.deeeed.sherpaonnxdemo/files/${fileName}`;
-      }
-      
-      // Log detailed information about the file
-      const newFileInfo = await FileSystem.getInfoAsync(newFilePath);
-      
-      // Safe access to size property with type checking
-      const fileSize = newFileInfo.exists ? ('size' in newFileInfo ? newFileInfo.size : 'unknown') : 0;
-      
-      const fileDetails = 
-        `File saved successfully!\n\n` +
-        `Original: ${filePath}\n` +
-        `Copied to: ${newFilePath}\n` +
-        `Size: ${fileSize} bytes\n\n` +
-        `To download with ADB:\n` +
-        `adb pull ${androidPath} ./downloaded-audio.wav`;
-      
-      // Update UI with file information
-      setDebugInfo(fileDetails);
       setStatusMessage('File downloaded and ready to share');
       
       // Try to share the file
@@ -725,80 +606,6 @@ export default function TtsScreen() {
     };
   }, []);
 
-  // Helper function to get more detailed file information
-  const getFileDetails = async (filePath: string): Promise<string> => {
-    try {
-      const fileInfo = await FileSystem.getInfoAsync(filePath);
-      if (!fileInfo.exists) {
-        return `File does not exist: ${filePath}`;
-      }
-      
-      // Safe access to size and modificationTime properties
-      const fileSize = 'size' in fileInfo ? fileInfo.size : 'unknown';
-      const modTime = 'modificationTime' in fileInfo ? 
-        new Date(fileInfo.modificationTime * 1000).toLocaleString() : 
-        'unknown';
-      
-      let details = `File Information:\n`;
-      details += `• Path: ${filePath}\n`;
-      details += `• Size: ${fileSize} bytes\n`;
-      details += `• Modified: ${modTime}\n`;
-      
-      // Try to read the header if it's a WAV file
-      try {
-        // Read just the WAV header (first 44 bytes)
-        const headerData = await FileSystem.readAsStringAsync(filePath, {
-          encoding: FileSystem.EncodingType.Base64,
-          position: 0,
-          length: 44
-        });
-        
-        // Convert base64 to byte array
-        const binaryString = atob(headerData);
-        const headerBytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          headerBytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        // Extract WAV header information
-        const riffSignature = String.fromCharCode(headerBytes[0], headerBytes[1], headerBytes[2], headerBytes[3]);
-        const fileSize = headerBytes[4] + (headerBytes[5] << 8) + (headerBytes[6] << 16) + (headerBytes[7] << 24);
-        const waveFormat = String.fromCharCode(headerBytes[8], headerBytes[9], headerBytes[10], headerBytes[11]);
-        const fmtChunk = String.fromCharCode(headerBytes[12], headerBytes[13], headerBytes[14], headerBytes[15]);
-        const audioFormat = headerBytes[20] + (headerBytes[21] << 8);
-        const numChannels = headerBytes[22] + (headerBytes[23] << 8);
-        const sampleRate = headerBytes[24] + (headerBytes[25] << 8) + (headerBytes[26] << 16) + (headerBytes[27] << 24);
-        const byteRate = headerBytes[28] + (headerBytes[29] << 8) + (headerBytes[30] << 16) + (headerBytes[31] << 24);
-        const blockAlign = headerBytes[32] + (headerBytes[33] << 8);
-        const bitsPerSample = headerBytes[34] + (headerBytes[35] << 8);
-        
-        details += `\nWAV Header Analysis:\n`;
-        details += `• RIFF Signature: ${riffSignature} ${riffSignature === 'RIFF' ? '✓' : '✗'}\n`;
-        details += `• Format: ${waveFormat} ${waveFormat === 'WAVE' ? '✓' : '✗'}\n`;
-        details += `• Format Chunk: ${fmtChunk} ${fmtChunk === 'fmt ' ? '✓' : '✗'}\n`;
-        details += `• Audio Format: ${audioFormat} (${audioFormat === 1 ? 'PCM' : 'Non-PCM'})\n`;
-        details += `• Channels: ${numChannels}\n`;
-        details += `• Sample Rate: ${sampleRate} Hz\n`;
-        details += `• Byte Rate: ${byteRate} bytes/sec\n`;
-        details += `• Block Align: ${blockAlign} bytes\n`;
-        details += `• Bits Per Sample: ${bitsPerSample} bits\n`;
-        
-        // Validate WAV header 
-        if (riffSignature === 'RIFF' && waveFormat === 'WAVE' && fmtChunk === 'fmt ') {
-          details += `\n✅ Valid WAV file structure detected\n`;
-        } else {
-          details += `\n❌ Invalid WAV file structure\n`;
-        }
-      } catch (error) {
-        details += `\nError reading file header: ${(error as Error).message}\n`;
-      }
-      
-      return details;
-    } catch (error) {
-      return `Error getting file details: ${(error as Error).message}`;
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -821,14 +628,17 @@ export default function TtsScreen() {
               key={model.id}
               style={[
                 styles.modelOption,
-                selectedModel === model.id && styles.modelOptionSelected
+                selectedModel === model.id && styles.modelOptionSelected,
+                model.disabled && styles.modelOptionDisabled
               ]}
-              onPress={() => setSelectedModel(model.id)}
+              onPress={() => !model.disabled && setSelectedModel(model.id)}
+              disabled={model.disabled}
             >
               <Text 
                 style={[
                   styles.modelOptionText,
-                  selectedModel === model.id && styles.modelOptionTextSelected
+                  selectedModel === model.id && styles.modelOptionTextSelected,
+                  model.disabled && styles.modelOptionTextDisabled
                 ]}
               >
                 {model.name}
@@ -952,24 +762,6 @@ export default function TtsScreen() {
             <Text style={styles.loadingText}>Processing...</Text>
           </View>
         )}
-        
-        {/* Debug Info */}
-        {debugInfo ? (
-          <View style={styles.debugBox}>
-            <Text style={styles.debugTitle}>Debug Information</Text>
-            <ScrollView style={styles.debugScroll}>
-              <Text style={styles.debugText}>{debugInfo}</Text>
-            </ScrollView>
-          </View>
-        ) : null}
-        
-        {/* Debug Button */}
-        <TouchableOpacity 
-          style={styles.debugButton} 
-          onPress={handleDebugAssets}
-        >
-          <Text style={styles.buttonText}>Debug Assets</Text>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -1025,24 +817,6 @@ const styles = StyleSheet.create({
   },
   modelOptionTextSelected: {
     color: 'white',
-  },
-  debugBox: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-  },
-  debugTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  debugScroll: {
-    maxHeight: 200,
-  },
-  debugText: {
-    color: '#555',
   },
   sectionTitle: {
     fontSize: 18,
@@ -1110,12 +884,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#555',
   },
-  debugButton: {
-    backgroundColor: '#757575',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
+  modelOptionDisabled: {
+    backgroundColor: '#f0f0f0',
+    opacity: 0.7,
+  },
+  modelOptionTextDisabled: {
+    color: '#999',
   },
 }); 

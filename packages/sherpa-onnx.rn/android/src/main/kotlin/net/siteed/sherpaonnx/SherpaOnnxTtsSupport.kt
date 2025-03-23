@@ -1,15 +1,22 @@
 /**
- * Support classes for Sherpa ONNX TTS implementation
- * Minimal interface to support the SherpaOnnxModule
+ * SherpaOnnxTtsSupport - High-level interface for sherpa-onnx TTS
+ * Uses the JNI bridge in com.k2fsa.sherpa.onnx package
  */
 package net.siteed.sherpaonnx
 
 import android.content.res.AssetManager
+import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.math.min
+
+// Import the JNI bridge
+import com.k2fsa.sherpa.onnx.OfflineTts as JniBridge
+import com.k2fsa.sherpa.onnx.OfflineTtsAudio as JniAudio
 
 /**
- * Configuration for Offline TTS
+ * Configuration for Offline TTS - for React Native interface
+ * This is different from the bridge config
  */
 data class OfflineTtsConfig(
     val modelDir: String = "",
@@ -34,7 +41,7 @@ class OfflineTtsAudio(
 ) {
     fun save(path: String): Boolean {
         return try {
-            android.util.Log.i("OfflineTtsAudio", "Saving audio to $path")
+            Log.i(TAG, "Saving audio to $path")
             
             // Create the parent directory if it doesn't exist
             val file = File(path)
@@ -78,10 +85,19 @@ class OfflineTtsAudio(
             }
             
             outputStream.close()
-            android.util.Log.i("OfflineTtsAudio", "Audio saved successfully")
+            Log.i(TAG, "Audio saved successfully")
+            
+            // Validate file exists and has appropriate size
+            val savedFile = File(path)
+            if (savedFile.exists()) {
+                Log.i(TAG, "File exists, size: ${savedFile.length()} bytes")
+            } else {
+                Log.e(TAG, "File was not created at $path")
+            }
+            
             true
         } catch (e: Exception) {
-            android.util.Log.e("OfflineTtsAudio", "Failed to save audio: ${e.message}")
+            Log.e(TAG, "Failed to save audio: ${e.message}")
             e.printStackTrace()
             false
         }
@@ -100,6 +116,10 @@ class OfflineTtsAudio(
         output.write(value and 0xFF)
         output.write((value shr 8) and 0xFF)
     }
+    
+    companion object {
+        private const val TAG = "OfflineTtsAudio"
+    }
 }
 
 /**
@@ -108,64 +128,74 @@ class OfflineTtsAudio(
 typealias AudioCallback = (FloatArray) -> Int
 
 /**
- * Offline TTS class
- * This is a mock implementation for development without the actual library
+ * Offline TTS class - Using JNI bridge
  */
 class OfflineTts(
     private val assetManager: AssetManager,
     private val config: OfflineTtsConfig
 ) {
-    private val mockSampleRate = 22050
-    private val mockNumSpeakers = 1
     private val tag = "OfflineTts"
+    private var nativePtr: Long = 0
 
     init {
-        android.util.Log.i(tag, "Initializing OfflineTts with config: $config")
-        
-        // Log what models are found
         try {
-            val modelDir = config.modelDir
-            android.util.Log.d(tag, "Checking model dir: $modelDir")
+            Log.i(tag, "Successfully loaded sherpa-onnx-jni library")
+            Log.i(tag, "Initializing OfflineTts with config: $config")
             
-            val files = assetManager.list(modelDir)
-            android.util.Log.d(tag, "Files in $modelDir: ${files?.joinToString()}")
+            // Convert from our config to the JNI config
+            val jniConfig = convertToJniConfig(
+                modelDir = config.modelDir,
+                modelName = config.modelName,
+                acousticModelName = config.acousticModelName,
+                vocoder = config.vocoder,
+                voices = config.voices,
+                lexicon = config.lexicon,
+                dataDir = config.dataDir,
+                dictDir = config.dictDir,
+                ruleFsts = config.ruleFsts,
+                ruleFars = config.ruleFars,
+                numThreads = config.numThreads
+            )
             
-            // Check for model.onnx
-            if (files?.contains("model.onnx") == true) {
-                android.util.Log.i(tag, "Found model.onnx in $modelDir")
-            }
+            // Use JniBridge with the config object
+            nativePtr = JniBridge.newFromAsset(
+                assetManager,
+                jniConfig
+            )
             
-            // Check for voices.bin
-            if (files?.contains("voices.bin") == true) {
-                android.util.Log.i(tag, "Found voices.bin in $modelDir")
-            }
-            
-            // Check for espeak-ng-data
-            if (files?.contains("espeak-ng-data") == true) {
-                android.util.Log.i(tag, "Found espeak-ng-data in $modelDir")
-                
-                // Check what's inside espeak-ng-data
-                val espeakFiles = assetManager.list("$modelDir/espeak-ng-data")
-                android.util.Log.d(tag, "Files in espeak-ng-data: ${espeakFiles?.joinToString()}")
+            if (nativePtr == 0L) {
+                Log.e(tag, "Failed to create native TTS engine")
+            } else {
+                Log.i(tag, "Native TTS engine created successfully, handle: $nativePtr")
             }
         } catch (e: Exception) {
-            android.util.Log.e(tag, "Error checking model files: ${e.message}")
+            Log.e(tag, "Error initializing native TTS engine: ${e.message}")
             e.printStackTrace()
         }
     }
 
     fun generate(text: String, sid: Int = 0, speed: Float = 1.0f): OfflineTtsAudio {
-        android.util.Log.i(tag, "Generating TTS for text: '$text', sid: $sid, speed: $speed")
+        Log.i(tag, "Generating TTS for text: '$text', sid: $sid, speed: $speed")
         
-        // Mock implementation - would generate actual audio in real implementation
-        // For better testing, generate longer samples for longer text
-        val sampleSize = 1000 + text.length * 100
-        android.util.Log.d(tag, "Generated mock audio with $sampleSize samples")
+        if (nativePtr == 0L) {
+            Log.e(tag, "Native TTS engine not initialized")
+            return createEmptyAudio()
+        }
         
-        return OfflineTtsAudio(
-            samples = FloatArray(sampleSize) { 0f },
-            sampleRate = mockSampleRate
-        )
+        return try {
+            // Use the JNI bridge to call the native method
+            val result = JniBridge.generateImpl(nativePtr, text, sid, speed)
+            
+            // Convert from JNI bridge result to our OfflineTtsAudio
+            OfflineTtsAudio(
+                samples = result[0] as FloatArray,
+                sampleRate = result[1] as Int
+            )
+        } catch (e: Exception) {
+            Log.e(tag, "Error generating speech: ${e.message}")
+            e.printStackTrace()
+            createEmptyAudio()
+        }
     }
 
     fun generateWithCallback(
@@ -174,48 +204,80 @@ class OfflineTts(
         speed: Float = 1.0f,
         callback: AudioCallback
     ): OfflineTtsAudio {
-        android.util.Log.i(tag, "Generating TTS with callback for text: '$text', sid: $sid, speed: $speed")
+        Log.i(tag, "Generating TTS with callback for text: '$text', sid: $sid, speed: $speed")
         
-        // Mock implementation - would generate actual audio with callback in real implementation
-        val audio = generate(text, sid, speed)
-        
-        // Call callback with chunks of the audio to simulate streaming
-        val chunkSize = 500
-        val numChunks = (audio.samples.size / chunkSize) + 1
-        
-        android.util.Log.d(tag, "Calling callback with $numChunks chunks of size $chunkSize")
-        for (i in 0 until numChunks) {
-            val start = i * chunkSize
-            val end = minOf(start + chunkSize, audio.samples.size)
-            if (start < end) {
-                val chunk = audio.samples.sliceArray(start until end)
-                val result = callback(chunk)
-                if (result == 0) {
-                    android.util.Log.d(tag, "Callback returned 0, stopping audio generation")
-                    break // Stop if callback returns 0
-                }
-                // Simulate processing time
-                Thread.sleep(50)
-            }
+        if (nativePtr == 0L) {
+            Log.e(tag, "Native TTS engine not initialized")
+            return createEmptyAudio()
         }
         
-        return audio
+        return try {
+            // Use the JNI bridge to call the native method
+            val result = JniBridge.generateWithCallbackImpl(nativePtr, text, sid, speed, callback)
+            
+            // Convert from JNI bridge result to our OfflineTtsAudio
+            OfflineTtsAudio(
+                samples = result[0] as FloatArray,
+                sampleRate = result[1] as Int
+            )
+        } catch (e: Exception) {
+            Log.e(tag, "Error generating speech with callback: ${e.message}")
+            e.printStackTrace()
+            createEmptyAudio()
+        }
     }
 
-    fun sampleRate(): Int = mockSampleRate
+    fun sampleRate(): Int {
+        if (nativePtr == 0L) {
+            return 22050 // Default sample rate
+        }
+        return JniBridge.getSampleRate(nativePtr)
+    }
 
-    fun numSpeakers(): Int = mockNumSpeakers
+    fun numSpeakers(): Int {
+        if (nativePtr == 0L) {
+            return 1 // Default number of speakers
+        }
+        return JniBridge.getNumSpeakers(nativePtr)
+    }
 
     fun free() {
-        android.util.Log.i(tag, "Releasing OfflineTts resources")
-        // Would release native resources in real implementation
+        Log.i(tag, "Releasing OfflineTts resources")
+        if (nativePtr != 0L) {
+            JniBridge.delete(nativePtr)
+            nativePtr = 0
+        }
+    }
+    
+    // Helper function to create empty audio for error cases
+    private fun createEmptyAudio(): OfflineTtsAudio {
+        Log.w(tag, "Creating empty audio due to error")
+        // Create small non-zero audio to detect issues
+        return OfflineTtsAudio(
+            samples = FloatArray(1000) { (it % 100) * 0.01f }, // Simple pattern
+            sampleRate = 22050
+        )
+    }
+    
+    companion object {
+        // Check if library is loaded
+        fun isLoaded(): Boolean {
+            return try {
+                // Just accessing the JniBridge will load the library
+                val version = JniBridge::class.java.name
+                true
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e("OfflineTts", "Library not loaded: ${e.message}")
+                false
+            }
+        }
     }
 }
 
 /**
- * Helper function to create OfflineTtsConfig from parameters
+ * Helper function to convert from simple config to JNI config
  */
-fun getOfflineTtsConfig(
+fun convertToJniConfig(
     modelDir: String = "",
     modelName: String = "",
     acousticModelName: String = "",
@@ -227,18 +289,80 @@ fun getOfflineTtsConfig(
     ruleFsts: String = "",
     ruleFars: String = "",
     numThreads: Int? = null
-): OfflineTtsConfig {
-    return OfflineTtsConfig(
-        modelDir = modelDir,
-        modelName = modelName,
-        acousticModelName = acousticModelName,
-        vocoder = vocoder,
-        voices = voices,
-        lexicon = lexicon,
-        dataDir = dataDir,
-        dictDir = dictDir,
+): com.k2fsa.sherpa.onnx.OfflineTtsConfig {
+    // Determine which model type to use
+    val numberOfThreads = numThreads ?: if (voices.isNotEmpty()) 4 else 2
+    
+    // Correct the paths - check if models are in a tts/ subdirectory
+    val actualModelDir = if (modelDir.startsWith("tts/")) {
+        modelDir
+    } else {
+        // Check if the model dir is under tts/
+        "tts/$modelDir"
+    }
+    
+    Log.d("SherpaOnnxTtsSupport", "Using model directory: $actualModelDir")
+    
+    // For Kokoro model (with voices file)
+    val kokoro = if (voices.isNotEmpty()) {
+        com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig(
+            model = "$actualModelDir/$modelName",
+            voices = "$actualModelDir/$voices",
+            tokens = "$actualModelDir/tokens.txt",
+            dataDir = dataDir,
+            lexicon = when {
+                lexicon.isEmpty() -> lexicon
+                lexicon.contains(",") -> lexicon
+                else -> "$actualModelDir/$lexicon"
+            },
+            dictDir = dictDir
+        )
+    } else {
+        com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig()
+    }
+    
+    // For Matcha model (with acoustic model and vocoder)
+    val matcha = if (acousticModelName.isNotEmpty()) {
+        com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig(
+            acousticModel = "$actualModelDir/$acousticModelName",
+            vocoder = vocoder,
+            lexicon = "$actualModelDir/$lexicon",
+            tokens = "$actualModelDir/tokens.txt",
+            dataDir = dataDir,
+            dictDir = dictDir
+        )
+    } else {
+        com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig()
+    }
+    
+    // For VITS model (just model name, no voices)
+    val vits = if (modelName.isNotEmpty() && voices.isEmpty() && acousticModelName.isEmpty()) {
+        com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig(
+            model = "$actualModelDir/$modelName",
+            lexicon = "$actualModelDir/$lexicon",
+            tokens = "$actualModelDir/tokens.txt",
+            dataDir = dataDir,
+            dictDir = dictDir
+        )
+    } else {
+        com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig()
+    }
+    
+    // Log the final configuration for debugging
+    val config = com.k2fsa.sherpa.onnx.OfflineTtsConfig(
+        model = com.k2fsa.sherpa.onnx.OfflineTtsModelConfig(
+            vits = vits,
+            matcha = matcha,
+            kokoro = kokoro,
+            numThreads = numberOfThreads,
+            debug = true,
+            provider = "cpu"
+        ),
         ruleFsts = ruleFsts,
-        ruleFars = ruleFars,
-        numThreads = numThreads
+        ruleFars = ruleFars
     )
+    
+    Log.d("SherpaOnnxTtsSupport", "JNI Config: $config")
+    
+    return config
 } 

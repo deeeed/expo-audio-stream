@@ -19,7 +19,7 @@ def REACT_NATIVE_VERSION = safeExtGet('reactNativeVersion', '+')
 
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-parcelize'
+apply plugin: 'kotlin-parcelize'  // Add this for Kotlin synthetic properties
 
 android {
     namespace "net.siteed.sherpaonnx"
@@ -48,11 +48,6 @@ android {
             // Add Java source directory for compatibility
             java.srcDirs = ['src/main/java']
         }
-        
-        // We'll add newArch source set back when we actually use it
-        // newArch {
-        //     kotlin.srcDirs = ['src/newarch/kotlin']
-        // }
     }
 
     buildTypes {
@@ -72,12 +67,10 @@ android {
         jvmTarget = '17'
     }
 
-    // This ensures the library is compiled as an AAR with the JNI libraries included
     packagingOptions {
         pickFirst '**/*.so'
     }
     
-    // Add local project sources for Sherpa ONNX Kotlin classes
     externalNativeBuild {
         cmake {
             path "CMakeLists.txt"
@@ -125,7 +118,6 @@ dependencies {
     implementation "androidx.media:media:1.6.0"  // For AudioTrack and related classes
 
     // Make sure we have the actual sherpa-onnx library dependencies
-    // First check if there are prebuilt libraries in the jniLibs folder
     if (file("src/main/jniLibs").exists()) {
         println("Using prebuilt sherpa-onnx libraries from jniLibs directory")
     } else {
@@ -134,7 +126,6 @@ dependencies {
 
     // Add New Architecture dependencies conditionally
     if (isNewArchitectureEnabled()) {
-        // Use a specific version instead of '+'
         implementation "com.facebook.react:react-native-jni:0.72.6"
     }
 } 

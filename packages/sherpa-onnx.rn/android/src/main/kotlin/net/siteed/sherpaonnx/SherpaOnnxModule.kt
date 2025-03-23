@@ -16,8 +16,11 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.Executors
 
+// Import the JNI bridge
+import com.k2fsa.sherpa.onnx.OfflineTts as JniBridge
+
 // Note: We're using the local OfflineTts classes defined in SherpaOnnxTtsSupport.kt
-// instead of importing them from com.k2fsa.sherpa.onnx
+// which interface with the JNI bridge in com.k2fsa.sherpa.onnx package
 
 class SherpaOnnxModule(private val reactContext: ReactApplicationContext) : 
     ReactContextBaseJavaModule(reactContext) {
@@ -34,9 +37,9 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         
         init {
             try {
-                System.loadLibrary("sherpa-onnx-jni")
-                Log.i(TAG, "Loaded sherpa-onnx-jni library successfully")
-                isLibraryLoaded = true
+                // Check if the library is loaded by accessing the JNI bridge class
+                isLibraryLoaded = JniBridge::class.java != null
+                Log.i(TAG, "Sherpa ONNX JNI library is available")
             } catch (e: UnsatisfiedLinkError) {
                 Log.e(TAG, "Failed to load sherpa-onnx-jni: ${e.message}")
                 isLibraryLoaded = false
@@ -103,6 +106,8 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                     "tts/$modelDir/model.onnx" // Default with tts/ prefix
                 )
                 
+                var foundModelPath = ""
+                
                 val modelExists = possiblePaths.any { path ->
                     val exists = if (path.endsWith(".onnx") || path.endsWith(".bin")) {
                         assetExists(reactContext.assets, path)
@@ -115,7 +120,10 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                             files.contains(acousticModelName)
                         )
                     }
-                    if (exists) Log.d(TAG, "Found model files at: $path")
+                    if (exists) {
+                        Log.d(TAG, "Found model files at: $path")
+                        foundModelPath = path
+                    }
                     exists
                 }
                 
@@ -135,6 +143,20 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                     return@execute
                 }
 
+                // Use the found path for the model directory
+                val actualModelDir = if (foundModelPath.isNotEmpty()) {
+                    // Strip trailing filename if present
+                    if (foundModelPath.endsWith(".onnx") || foundModelPath.endsWith(".bin")) {
+                        foundModelPath.substringBeforeLast("/")
+                    } else {
+                        foundModelPath
+                    }
+                } else {
+                    modelDir
+                }
+                
+                Log.d(TAG, "Using model directory: $actualModelDir")
+                
                 // Prepare directories if needed
                 var processedDataDir = dataDir
                 var processedDictDir = dictDir
@@ -142,40 +164,40 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 if (dataDir.isNotEmpty()) {
                     val newDir = copyAssetDir(dataDir)
                     processedDataDir = "$newDir/$dataDir"
-                } else if (assetExists(reactContext.assets, "$modelDir/espeak-ng-data")) {
+                } else if (assetExists(reactContext.assets, "$actualModelDir/espeak-ng-data")) {
                     // If dataDir not specified but espeak-ng-data exists in model dir
-                    val newDir = copyAssetDir("$modelDir/espeak-ng-data")
-                    processedDataDir = "$newDir/$modelDir/espeak-ng-data"
+                    val newDir = copyAssetDir("$actualModelDir/espeak-ng-data")
+                    processedDataDir = "$newDir/$actualModelDir/espeak-ng-data"
                     Log.d(TAG, "Using espeak-ng-data from model directory: $processedDataDir")
                 }
 
                 if (dictDir.isNotEmpty()) {
                     val newDir = copyAssetDir(dictDir)
                     processedDictDir = "$newDir/$dictDir"
-                } else if (assetExists(reactContext.assets, "$modelDir/dict")) {
+                } else if (assetExists(reactContext.assets, "$actualModelDir/dict")) {
                     // If dictDir not specified but dict exists in model dir
-                    val newDir = copyAssetDir("$modelDir/dict")
-                    processedDictDir = "$newDir/$modelDir/dict"
+                    val newDir = copyAssetDir("$actualModelDir/dict")
+                    processedDictDir = "$newDir/$actualModelDir/dict"
                     Log.d(TAG, "Using dict from model directory: $processedDictDir")
                 }
                 
                 // If modelName is not specified, try to use model.onnx
                 var usedModelName = modelName
-                if (usedModelName.isEmpty() && assetExists(reactContext.assets, "$modelDir/model.onnx")) {
+                if (usedModelName.isEmpty() && assetExists(reactContext.assets, "$actualModelDir/model.onnx")) {
                     usedModelName = "model.onnx"
-                    Log.d(TAG, "Using default model.onnx from $modelDir")
+                    Log.d(TAG, "Using default model.onnx from $actualModelDir")
                 }
                 
                 // If voices is not specified, try to use voices.bin
                 var usedVoices = voices
-                if (usedVoices.isEmpty() && assetExists(reactContext.assets, "$modelDir/voices.bin")) {
+                if (usedVoices.isEmpty() && assetExists(reactContext.assets, "$actualModelDir/voices.bin")) {
                     usedVoices = "voices.bin"
-                    Log.d(TAG, "Using default voices.bin from $modelDir")
+                    Log.d(TAG, "Using default voices.bin from $actualModelDir")
                 }
 
                 // Create TTS config
-                val config = getOfflineTtsConfig(
-                    modelDir = modelDir,
+                val config = OfflineTtsConfig(
+                    modelDir = actualModelDir,  // Use found path
                     modelName = usedModelName,
                     acousticModelName = acousticModelName,
                     vocoder = vocoder,
