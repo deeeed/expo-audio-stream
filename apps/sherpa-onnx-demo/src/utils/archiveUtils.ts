@@ -87,7 +87,7 @@ export async function extractTarBz2(
 }
 
 /**
- * Helper function to create mock model files
+ * Helper function to inform that extraction failed and no mock files will be created
  */
 async function createMockFiles(targetDir: string, archivePath: string): Promise<ExtractionResult> {
   // Extract the model ID from the archive path (last part of the path)
@@ -95,77 +95,17 @@ async function createMockFiles(targetDir: string, archivePath: string): Promise<
   const archiveFileName = parts[parts.length - 1];
   const modelId = archiveFileName.replace('.tar.bz2', '');
   
-  console.log(`ArchiveUtils: Creating mock files for model ${modelId}`);
+  console.log(`ArchiveUtils: Extraction failed for model ${modelId}`);
+  console.log(`ArchiveUtils: Mock file creation is disabled - extraction is required`);
   
   // Check existing files
   const files = await FileSystem.readDirectoryAsync(targetDir);
   console.log(`ArchiveUtils: Found ${files.length} files in target directory:`, files);
   
-  // If directory is empty or only contains the archive file, create mock files
-  const hasOnlyArchiveFile = files.length === 1 && files[0] === archiveFileName;
-  
-  if (files.length === 0 || hasOnlyArchiveFile) {
-    // Try to use the native module if available
-    if (Platform.OS === 'android' && SherpaOnnx) {
-      try {
-        console.log(`ArchiveUtils: Using native module to create mock files on Android`);
-        const result = await SherpaOnnx.createMockModelFiles(targetDir, modelId);
-        console.log(`ArchiveUtils: Native mock file creation result:`, result);
-        
-        if (result.success) {
-          return {
-            success: true,
-            extractedFiles: result.createdFiles,
-            message: result.message
-          };
-        }
-      } catch (nativeError) {
-        console.error(`ArchiveUtils: Error in native mock file creation:`, nativeError);
-        // Continue with JavaScript implementation
-      }
-    }
-    
-    // JavaScript fallback implementation
-    console.log(`ArchiveUtils: Creating mock model files using JavaScript implementation`);
-    
-    // Create the required model files with placeholder content
-    const mockFiles = ['model.onnx', 'voices.bin', 'tokens.txt'];
-    const createdFiles = [];
-    
-    for (const file of mockFiles) {
-      const filePath = `${targetDir}/${file}`;
-      try {
-        // Add a note in the file indicating it's a mock file
-        const content = `This is a mock ${file} file created by archiveUtils because tar.bz2 extraction is not implemented.\n` +
-                        `In a real implementation, this file would be extracted from ${archiveFileName}.\n` +
-                        `Please replace this with the actual file content.`;
-        
-        await FileSystem.writeAsStringAsync(filePath, content);
-        console.log(`ArchiveUtils: Created mock file: ${filePath}`);
-        createdFiles.push(file);
-      } catch (error) {
-        console.error(`ArchiveUtils: Error creating mock file ${file}:`, error);
-      }
-    }
-    
-    console.log(`ArchiveUtils: Created ${createdFiles.length} mock files:`, createdFiles);
-    
-    // Read the directory again to include the newly created files
-    const updatedFiles = await FileSystem.readDirectoryAsync(targetDir);
-    console.log(`ArchiveUtils: Directory now contains ${updatedFiles.length} files:`, updatedFiles);
-    
-    return {
-      success: true,
-      extractedFiles: updatedFiles,
-      message: "Created mock model files (extraction not implemented)"
-    };
-  }
-  
-  // If there are already files in the directory, just return them
-  console.log(`ArchiveUtils: Files already present in directory, skipping mock file creation`);
   return {
-    success: true,
-    extractedFiles: files
+    success: false,
+    extractedFiles: files,
+    message: "Archive extraction failed. Mock files won't be created - please check native extraction implementation."
   };
 }
 

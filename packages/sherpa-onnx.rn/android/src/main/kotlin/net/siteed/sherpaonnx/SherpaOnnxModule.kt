@@ -17,18 +17,20 @@ import java.io.IOException
 import java.util.concurrent.Executors
 
 // Import the JNI bridge
-import com.k2fsa.sherpa.onnx.OfflineTts as JniBridge
-
-// Note: We're using the local OfflineTts classes defined in SherpaOnnxTtsSupport.kt
-// which interface with the JNI bridge in com.k2fsa.sherpa.onnx package
+import com.k2fsa.sherpa.onnx.OfflineTts
+import com.k2fsa.sherpa.onnx.OfflineTtsConfig
+import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
+import com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig
 
 class SherpaOnnxModule(private val reactContext: ReactApplicationContext) : 
     ReactContextBaseJavaModule(reactContext) {
 
     private val executor = Executors.newSingleThreadExecutor()
-    private var tts: OfflineTts? = null
-    private var audioTrack: AudioTrack? = null
+    
+    // TTS state
+    private var ttsPtr: Long = 0L
     private var isGenerating = false
+    private var audioTrack: AudioTrack? = null
 
     companion object {
         const val NAME = "SherpaOnnx"
@@ -38,7 +40,7 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         init {
             try {
                 // Check if the library is loaded by accessing the JNI bridge class
-                isLibraryLoaded = JniBridge::class.java != null
+                isLibraryLoaded = OfflineTts::class.java != null
                 Log.i(TAG, "Sherpa ONNX JNI library is available")
             } catch (e: UnsatisfiedLinkError) {
                 Log.e(TAG, "Failed to load sherpa-onnx-jni: ${e.message}")
@@ -150,30 +152,6 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         }
     }
 
-    @ReactMethod
-    fun listAllAssets(promise: Promise) {
-        try {
-            // Create a result map to return to JavaScript
-            val resultMap = Arguments.createMap()
-            val assetsList = Arguments.createArray()
-            
-            // Get all assets recursively
-            val allAssets = getAllAssetsRecursively("")
-            
-            // Add each asset path to the result array
-            for (assetPath in allAssets) {
-                assetsList.pushString(assetPath)
-            }
-            
-            resultMap.putArray("assets", assetsList)
-            resultMap.putInt("count", allAssets.size)
-            promise.resolve(resultMap)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error listing assets: ${e.message}")
-            promise.reject("ERR_LIST_ASSETS", "Failed to list assets: ${e.message}")
-        }
-    }
-
     /**
      * List all assets recursively
      */
@@ -240,167 +218,99 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 Log.i(TAG, "===== TTS INITIALIZATION START =====")
                 Log.i(TAG, "Received model config: ${modelConfig.toHashMap()}")
                 
-                // Extract config values from the provided map
+                // Extract paths directly from the config
                 val modelDir = modelConfig.getString("modelDir")?.replace("file://", "") ?: ""
                 val modelName = modelConfig.getString("modelName") ?: "model.onnx"
                 val voices = modelConfig.getString("voices") ?: "voices.bin"
-                val acousticModelName = modelConfig.getString("acousticModelName") ?: ""
-                val lexicon = modelConfig.getString("lexicon") ?: ""
-                val dataDir = modelConfig.getString("dataDir") ?: ""
-                val dictDir = modelConfig.getString("dictDir") ?: ""
-                val ruleFsts = modelConfig.getString("ruleFsts") ?: ""
-                val ruleFars = modelConfig.getString("ruleFars") ?: ""
-                val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else null
+                val dataDir = modelConfig.getString("dataDir")?.replace("file://", "") ?: ""
+                var numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else 2
                 
-                // Log extracted configuration
-                Log.i(TAG, "Extracted configuration:")
+                Log.i(TAG, "Using exact paths provided by client:")
                 Log.i(TAG, "- modelDir: $modelDir")
                 Log.i(TAG, "- modelName: $modelName")
                 Log.i(TAG, "- voices: $voices")
-                Log.i(TAG, "- acousticModelName: $acousticModelName")
-                Log.i(TAG, "- lexicon: $lexicon")
                 Log.i(TAG, "- dataDir: $dataDir")
-                Log.i(TAG, "- dictDir: $dictDir")
-                Log.i(TAG, "- ruleFsts: $ruleFsts")
-                Log.i(TAG, "- ruleFars: $ruleFars")
                 Log.i(TAG, "- numThreads: $numThreads")
                 
-                // Inspect directory structure
-                val modelDirFile = File(modelDir)
-                Log.i(TAG, "Model directory exists: ${modelDirFile.exists()}, isDirectory: ${modelDirFile.isDirectory()}")
+                // Build file paths
+                val modelFile = File(modelDir, modelName)
+                val voicesFile = File(modelDir, voices)
+                val tokensFile = File(modelDir, "tokens.txt")
                 
-                if (modelDirFile.exists() && modelDirFile.isDirectory) {
-                    Log.i(TAG, "Files in model directory:")
-                    modelDirFile.listFiles()?.forEach { file ->
-                        Log.i(TAG, "- ${file.name} (${if (file.isDirectory) "directory" else "file"}, ${file.length()} bytes)")
-                    }
+                // Log file existence
+                Log.i(TAG, "Model file: ${modelFile.absolutePath} (exists: ${modelFile.exists()}, size: ${modelFile.length()})")
+                Log.i(TAG, "Voices file: ${voicesFile.absolutePath} (exists: ${voicesFile.exists()}, size: ${voicesFile.length()})")
+                Log.i(TAG, "Tokens file: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})")
+                Log.i(TAG, "Data dir: $dataDir (exists: ${File(dataDir).exists()})")
+                
+                // Create JNI configuration directly
+                val kokoroConfig = OfflineTtsKokoroModelConfig().apply {
+                    model = modelFile.absolutePath
+                    this.voices = voicesFile.absolutePath
+                    tokens = tokensFile.absolutePath
+                    this.dataDir = dataDir
+                    lengthScale = 1.0f
                 }
                 
-                // Check for espeak-ng-data
-                val espeakDataDir = if (dataDir.isNotEmpty()) {
-                    File(dataDir)
-                } else {
-                    // Try to find in model dir
-                    File(modelDir, "espeak-ng-data")
+                var ttsModelConfig = OfflineTtsModelConfig().apply {
+                    kokoro = kokoroConfig
+                    debug = true
+                    provider = "cpu"
                 }
                 
-                Log.i(TAG, "espeak-ng-data path: ${espeakDataDir.absolutePath}")
-                Log.i(TAG, "espeak-ng-data exists: ${espeakDataDir.exists()}, isDirectory: ${espeakDataDir.isDirectory}")
-                
-                if (espeakDataDir.exists() && espeakDataDir.isDirectory) {
-                    Log.i(TAG, "espeak-ng-data contents:")
-                    espeakDataDir.listFiles()?.take(10)?.forEach { file ->
-                        Log.i(TAG, "- ${file.name} (${if (file.isDirectory) "directory" else "file"}, ${file.length()} bytes)")
-                    }
+                val config = OfflineTtsConfig().apply {
+                    model = ttsModelConfig
+                    maxNumSentences = 1
+                    silenceScale = 0.2f
                 }
                 
-                // Validate files first
-                val (isValid, errorMessage, missingFiles) = validateModelFiles(modelDir, modelName, voices)
-                if (!isValid) {
-                    Log.e(TAG, "Model file validation failed: $errorMessage")
-                    reactContext.runOnUiQueueThread {
-                        promise.reject("ERR_TTS_INIT", "Model file validation failed: $errorMessage")
-                    }
-                    return@execute
-                }
-
-                // Try to auto-detect espeak-ng-data if not provided
-                var resolvedDataDir = dataDir
+                // Log the final JNI config
+                Log.i(TAG, "Final JNI config:")
+                Log.i(TAG, "- model: ${kokoroConfig.model}")
+                Log.i(TAG, "- voices: ${kokoroConfig.voices}")
+                Log.i(TAG, "- tokens: ${kokoroConfig.tokens}")
+                Log.i(TAG, "- dataDir: ${kokoroConfig.dataDir}")
                 
-                if (resolvedDataDir.isEmpty()) {
-                    // Look in model dir first
-                    val espeakInModelDir = File(modelDir, "espeak-ng-data")
-                    if (espeakInModelDir.exists() && espeakInModelDir.isDirectory) {
-                        resolvedDataDir = espeakInModelDir.absolutePath
-                        Log.i(TAG, "Auto-detected espeak-ng-data in model directory: $resolvedDataDir")
-                    } else {
-                        // Look in subdirectories
-                        val subDirs = modelDirFile.listFiles { file -> file.isDirectory }
-                        var found = false
-                        
-                        subDirs?.forEach { subDir ->
-                            val espeakInSubDir = File(subDir, "espeak-ng-data")
-                            if (espeakInSubDir.exists() && espeakInSubDir.isDirectory) {
-                                resolvedDataDir = espeakInSubDir.absolutePath
-                                Log.i(TAG, "Auto-detected espeak-ng-data in subdirectory: $resolvedDataDir")
-                                found = true
-                                return@forEach
-                            }
-                        }
-                        
-                        if (!found) {
-                            Log.w(TAG, "Could not find espeak-ng-data directory")
-                        }
-                    }
-                }
-
-                // Create TTS config with validated paths
-                val config = OfflineTtsConfig(
-                    modelDir = modelDir,
-                    modelName = modelName,
-                    acousticModelName = acousticModelName,
-                    vocoder = "",
-                    voices = voices,
-                    lexicon = lexicon,
-                    dataDir = resolvedDataDir,
-                    dictDir = dictDir,
-                    ruleFsts = ruleFsts,
-                    ruleFars = ruleFars,
-                    numThreads = numThreads
-                )
-
-                // Initialize TTS
-                var initSuccess = false
-                var initError = ""
+                // Initialize TTS engine directly
+                val ptr = OfflineTts.newFromFile(config)
                 
-                try {
-                    Log.i(TAG, "Creating TTS engine with config")
-                    Log.i(TAG, "Using dataDir: $resolvedDataDir")
-                    
-                    // Keep using the AssetManager constructor but with validated paths
-                    tts = OfflineTts(reactContext.assets, config)
-                    
-                    val sampleRate = tts?.sampleRate() ?: 0
-                    if (tts != null && sampleRate > 0) {
-                        initSuccess = true
-                        initAudioTrack()
-                        Log.i(TAG, "TTS engine initialized successfully")
-                        Log.i(TAG, "Sample Rate: $sampleRate")
-                        Log.i(TAG, "Number of Speakers: ${tts?.numSpeakers() ?: 0}")
-                    } else {
-                        initError = "TTS engine did not initialize properly (sampleRate: $sampleRate)"
-                        Log.e(TAG, initError)
-                        tts?.free()
-                        tts = null
-                    }
-                } catch (e: Throwable) {
-                    initError = "TTS initialization failed: ${e.message}"
-                    Log.e(TAG, initError, e)
-                    tts?.free()
-                    tts = null
+                if (ptr == 0L) {
+                    throw Exception("Failed to initialize TTS engine (returned null pointer)")
                 }
-
-                // Return result
+                
+                // Store the pointer
+                ttsPtr = ptr
+                
+                val sampleRate = OfflineTts.getSampleRate(ptr)
+                val numSpeakers = OfflineTts.getNumSpeakers(ptr)
+                
+                Log.i(TAG, "TTS initialized successfully with sample rate: $sampleRate")
+                
+                // Initialize audio track
+                initAudioTrack(sampleRate)
+                
+                // Return success result
                 val resultMap = Arguments.createMap()
-                resultMap.putBoolean("success", initSuccess)
-                if (initSuccess) {
-                    resultMap.putInt("sampleRate", tts?.sampleRate() ?: 0)
-                    resultMap.putInt("numSpeakers", tts?.numSpeakers() ?: 0)
-                } else {
-                    resultMap.putString("error", initError)
-                }
+                resultMap.putBoolean("success", true)
+                resultMap.putInt("sampleRate", sampleRate)
+                resultMap.putInt("numSpeakers", numSpeakers)
                 
                 Log.i(TAG, "===== TTS INITIALIZATION COMPLETE =====")
-                Log.i(TAG, "Result: ${if (initSuccess) "SUCCESS" else "FAILED: $initError"}")
-
+                
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error in initTts: ${e.message}")
+                Log.e(TAG, "Error initializing TTS: ${e.message}")
                 e.printStackTrace()
+                
+                // Release resources in case of error
+                releaseTtsResources()
+                
+                Log.i(TAG, "===== TTS INITIALIZATION FAILED =====")
+                
                 reactContext.runOnUiQueueThread {
-                    promise.reject("ERR_TTS_INIT", "Error initializing TTS: ${e.message}")
+                    promise.reject("ERR_TTS_INIT", "Failed to initialize TTS: ${e.message}")
                 }
             }
         }
@@ -408,69 +318,56 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun generateTts(text: String, speakerId: Int, speed: Float, playAudio: Boolean, promise: Promise) {
-        if (tts == null) {
-            Log.e(TAG, "TTS is not initialized before generateTts call")
-            promise.reject("ERR_TTS_NOT_INITIALIZED", "TTS is not initialized")
-            return
-        }
-
-        if (isGenerating) {
-            Log.e(TAG, "TTS is already generating speech")
-            promise.reject("ERR_TTS_BUSY", "TTS is already generating speech")
-            return
-        }
-
-        Log.d(TAG, "Generating TTS for text: '$text' with speakerId: $speakerId, speed: $speed, playAudio: $playAudio")
-        isGenerating = true
-
         executor.execute {
             try {
-                // Initialize or reset AudioTrack if needed
-                if (playAudio && audioTrack == null) {
-                    Log.d(TAG, "Initializing AudioTrack")
-                    initAudioTrack()
+                if (ttsPtr == 0L) {
+                    throw Exception("TTS is not initialized")
                 }
 
+                if (isGenerating) {
+                    throw Exception("TTS is already generating speech")
+                }
+
+                Log.d(TAG, "Generating TTS for text: '$text' with speakerId: $speakerId, speed: $speed, playAudio: $playAudio")
+                isGenerating = true
+
+                // Prepare audio playback if needed
                 if (playAudio) {
-                    Log.d(TAG, "Preparing AudioTrack for playback")
-                    audioTrack?.pause()
-                    audioTrack?.flush()
-                    audioTrack?.play()
+                    prepareAudioTrack()
                 }
 
                 // Generate speech
-                Log.d(TAG, "Starting speech generation")
                 val startTime = System.currentTimeMillis()
-                val audio = if (playAudio) {
+                val result = if (playAudio) {
                     Log.d(TAG, "Using generateWithCallback method")
-                    tts!!.generateWithCallback(
-                        text = text,
-                        sid = speakerId,
-                        speed = speed,
-                        callback = this::audioCallback
-                    )
+                    OfflineTts.generateWithCallbackImpl(ttsPtr, text, speakerId, speed) { samples ->
+                        if (!isGenerating) return@generateWithCallbackImpl 0  // Stop generating
+                        audioTrack?.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
+                        1  // Continue generating
+                    }
                 } else {
                     Log.d(TAG, "Using generate method without callback")
-                    tts!!.generate(
-                        text = text,
-                        sid = speakerId,
-                        speed = speed
-                    )
+                    OfflineTts.generateImpl(ttsPtr, text, speakerId, speed)
                 }
                 val endTime = System.currentTimeMillis()
+                
+                // Extract results
+                val samples = result[0] as FloatArray
+                val sampleRate = result[1] as Int
+                
                 Log.d(TAG, "Speech generation completed in ${endTime - startTime}ms")
-                Log.d(TAG, "Generated ${audio.samples.size} samples at ${audio.sampleRate}Hz")
+                Log.d(TAG, "Generated ${samples.size} samples at ${sampleRate}Hz")
 
-                // Save to file using AudioUtils
-                Log.d(TAG, "Saving audio to file")
+                // Save to file
                 val wavFile = File(reactContext.cacheDir, "generated_audio.wav")
-                val saved = AudioUtils.saveAsWav(audio.samples, audio.sampleRate, wavFile.absolutePath)
+                val saved = AudioUtils.saveAsWav(samples, sampleRate, wavFile.absolutePath)
                 Log.d(TAG, "Audio saved: $saved, file path: ${wavFile.absolutePath}")
 
+                // Prepare result
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
-                resultMap.putInt("sampleRate", audio.sampleRate)
-                resultMap.putInt("samplesLength", audio.samples.size)
+                resultMap.putInt("sampleRate", sampleRate)
+                resultMap.putInt("samplesLength", samples.size)
                 resultMap.putString("filePath", wavFile.absolutePath)
                 resultMap.putBoolean("saved", saved)
                 resultMap.putInt("durationMs", (endTime - startTime).toInt())
@@ -494,22 +391,34 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun stopTts(promise: Promise) {
-        if (isGenerating) {
-            isGenerating = false
-            
-            if (audioTrack != null) {
-                audioTrack?.pause()
-                audioTrack?.flush()
+        executor.execute {
+            try {
+                if (isGenerating) {
+                    isGenerating = false
+                    
+                    audioTrack?.pause()
+                    audioTrack?.flush()
+                    
+                    val resultMap = Arguments.createMap()
+                    resultMap.putBoolean("stopped", true)
+                    
+                    reactContext.runOnUiQueueThread {
+                        promise.resolve(resultMap)
+                    }
+                } else {
+                    val resultMap = Arguments.createMap()
+                    resultMap.putBoolean("stopped", false)
+                    resultMap.putString("message", "No TTS generation in progress")
+                    
+                    reactContext.runOnUiQueueThread {
+                        promise.resolve(resultMap)
+                    }
+                }
+            } catch (e: Exception) {
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_TTS_STOP", "Failed to stop TTS: ${e.message}")
+                }
             }
-            
-            val resultMap = Arguments.createMap()
-            resultMap.putBoolean("stopped", true)
-            promise.resolve(resultMap)
-        } else {
-            promise.resolve(Arguments.createMap().apply {
-                putBoolean("stopped", false)
-                putString("message", "No TTS generation in progress")
-            })
         }
     }
 
@@ -517,11 +426,7 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     fun releaseTts(promise: Promise) {
         executor.execute {
             try {
-                audioTrack?.release()
-                audioTrack = null
-                
-                tts?.free()
-                tts = null
+                releaseTtsResources()
                 
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("released", true)
@@ -539,241 +444,70 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         }
     }
 
-    private fun audioCallback(samples: FloatArray): Int {
-        if (!isGenerating) {
-            return 0  // Stop generating
-        }
-        
-        audioTrack?.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
-        return 1  // Continue generating
-    }
-
-    private fun initAudioTrack() {
-        val sampleRate = tts?.sampleRate() ?: 22050
-        
-        // Release existing AudioTrack if any
+    /**
+     * Release TTS resources
+     */
+    private fun releaseTtsResources() {
         audioTrack?.release()
+        audioTrack = null
         
-        val bufferSize = AudioTrack.getMinBufferSize(
-            sampleRate,
-            AudioFormat.CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_FLOAT
-        )
-
-        val audioAttributes = AudioAttributes.Builder()
-            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-            .setUsage(AudioAttributes.USAGE_MEDIA)
-            .build()
-
-        val audioFormat = AudioFormat.Builder()
-            .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
-            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-            .setSampleRate(sampleRate)
-            .build()
-
-        audioTrack = AudioTrack(
-            audioAttributes,
-            audioFormat,
-            bufferSize,
-            AudioTrack.MODE_STREAM,
-            AudioManager.AUDIO_SESSION_ID_GENERATE
-        )
+        if (ttsPtr != 0L) {
+            OfflineTts.delete(ttsPtr)
+            ttsPtr = 0L
+        }
     }
 
-    @ReactMethod
-    fun debugAssetPath(path: String, promise: Promise) {
+    /**
+     * Initialize the audio track for playback
+     */
+    private fun initAudioTrack(sampleRate: Int) {
         try {
-            val resultMap = Arguments.createMap()
-            resultMap.putString("requestedPath", path)
-            
-            // Try to open the file directly to see if it exists
-            var fileExists = false
-            try {
-                val inputStream = reactContext.assets.open(path)
-                val size = inputStream.available()
-                inputStream.close()
-                fileExists = true
-                resultMap.putBoolean("exists", true)
-                resultMap.putInt("size", size)
-            } catch (e: IOException) {
-                resultMap.putBoolean("exists", false)
-                resultMap.putString("error", e.message)
-            }
-            
-            // Try to list contents if it might be a directory
-            val possibleFiles = Arguments.createArray()
-            
-            try {
-                // Try to list the directory contents
-                val dirContents = reactContext.assets.list(path) ?: emptyArray()
-                resultMap.putBoolean("isDirectory", dirContents.isNotEmpty())
-                
-                // If it's a directory, also check the first few files
-                if (dirContents.isNotEmpty()) {
-                    resultMap.putInt("fileCount", dirContents.size)
-                    
-                    // Add up to 20 files to the list
-                    val filesToAdd = dirContents.take(20)
-                    for (file in filesToAdd) {
-                        possibleFiles.pushString(file)
-                    }
-                }
-            } catch (e: IOException) {
-                resultMap.putBoolean("isDirectory", false)
-            }
-            
-            resultMap.putArray("files", possibleFiles)
-            
-            // Try some variations of the path to see if those exist
-            val variations = Arguments.createMap()
-            
-            // Test with and without leading slashes
-            val pathVariations = listOf(
-                path,
-                if (path.startsWith("/")) path.substring(1) else "/$path",
-                "assets/$path",
-                "asset/$path",
-                if (path.contains("/")) path.substring(path.indexOf("/") + 1) else path
+            val bufferSize = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_FLOAT
             )
             
-            for (variant in pathVariations) {
-                if (variant != path) { // Skip the original path as we already checked it
-                    try {
-                        reactContext.assets.open(variant).close()
-                        variations.putBoolean(variant, true)
-                    } catch (e: IOException) {
-                        variations.putBoolean(variant, false)
-                    }
-                }
-            }
+            Log.d(TAG, "Creating AudioTrack with sample rate: $sampleRate, buffer size: $bufferSize")
             
-            resultMap.putMap("variations", variations)
-            
-            // Return the parent directory listing if this path doesn't exist
-            if (!fileExists) {
-                val lastSlash = path.lastIndexOf('/')
-                if (lastSlash > 0) {
-                    val parentDir = path.substring(0, lastSlash)
-                    try {
-                        val parentContents = reactContext.assets.list(parentDir) ?: emptyArray()
-                        val parentFiles = Arguments.createArray()
-                        for (file in parentContents) {
-                            parentFiles.pushString(file)
-                        }
-                        resultMap.putString("parentDir", parentDir)
-                        resultMap.putArray("parentContents", parentFiles)
-                    } catch (e: IOException) {
-                        resultMap.putString("parentDirError", e.message)
-                    }
-                }
-            }
-            
-            promise.resolve(resultMap)
+            audioTrack = AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setSampleRate(sampleRate)
+                        .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build()
+                )
+                .setBufferSizeInBytes(bufferSize)
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .build()
+                
+            Log.d(TAG, "AudioTrack created successfully")
         } catch (e: Exception) {
-            promise.reject("DEBUG_ASSET_PATH_ERROR", "Error debugging asset path: ${e.message}")
+            Log.e(TAG, "Error creating AudioTrack: ${e.message}")
+            audioTrack = null
         }
     }
 
-    @ReactMethod
-    fun debugModelDirectory(dirPath: String, promise: Promise) {
-        executor.execute {
-            try {
-                val cleanPath = dirPath.replace("file://", "")
-                val dir = File(cleanPath)
-                
-                val resultMap = Arguments.createMap()
-                resultMap.putString("path", cleanPath)
-                resultMap.putBoolean("exists", dir.exists())
-                resultMap.putBoolean("isDirectory", dir.isDirectory)
-                
-                if (dir.exists() && dir.isDirectory) {
-                    val files = Arguments.createArray()
-                    
-                    // First level files
-                    dir.listFiles()?.forEach { file ->
-                        val fileInfo = Arguments.createMap()
-                        fileInfo.putString("name", file.name)
-                        fileInfo.putBoolean("isDirectory", file.isDirectory)
-                        fileInfo.putInt("size", file.length().toInt())
-                        fileInfo.putString("path", file.absolutePath)
-                        
-                        // For directories, add first level content information
-                        if (file.isDirectory) {
-                            val subFiles = Arguments.createArray()
-                            file.listFiles()?.take(20)?.forEach { subFile ->
-                                val subFileInfo = Arguments.createMap()
-                                subFileInfo.putString("name", subFile.name)
-                                subFileInfo.putBoolean("isDirectory", subFile.isDirectory)
-                                subFileInfo.putInt("size", subFile.length().toInt())
-                                subFiles.pushMap(subFileInfo)
-                            }
-                            fileInfo.putArray("contents", subFiles)
-                        }
-                        
-                        files.pushMap(fileInfo)
-                    }
-                    
-                    resultMap.putArray("files", files)
-                    
-                    // Look for espeak-ng-data
-                    val espeakPaths = Arguments.createArray()
-                    
-                    // Check in current directory
-                    val espeakInDir = File(dir, "espeak-ng-data")
-                    if (espeakInDir.exists() && espeakInDir.isDirectory) {
-                        val info = Arguments.createMap()
-                        info.putString("path", espeakInDir.absolutePath)
-                        info.putBoolean("exists", true)
-                        
-                        // List some key files
-                        val keyFiles = listOf("phontab", "phonindex", "phondata")
-                        val espeakFiles = Arguments.createMap()
-                        
-                        keyFiles.forEach { fileName ->
-                            val file = File(espeakInDir, fileName)
-                            espeakFiles.putBoolean(fileName, file.exists())
-                        }
-                        
-                        info.putMap("keyFiles", espeakFiles)
-                        espeakPaths.pushMap(info)
-                    }
-                    
-                    // Check in subdirectories
-                    dir.listFiles { file -> file.isDirectory }?.forEach { subDir ->
-                        val espeakInSubDir = File(subDir, "espeak-ng-data")
-                        if (espeakInSubDir.exists() && espeakInSubDir.isDirectory) {
-                            val info = Arguments.createMap()
-                            info.putString("path", espeakInSubDir.absolutePath)
-                            info.putBoolean("exists", true)
-                            info.putString("containingDir", subDir.name)
-                            
-                            // List some key files
-                            val keyFiles = listOf("phontab", "phonindex", "phondata")
-                            val espeakFiles = Arguments.createMap()
-                            
-                            keyFiles.forEach { fileName ->
-                                val file = File(espeakInSubDir, fileName)
-                                espeakFiles.putBoolean(fileName, file.exists())
-                            }
-                            
-                            info.putMap("keyFiles", espeakFiles)
-                            espeakPaths.pushMap(info)
-                        }
-                    }
-                    
-                    resultMap.putArray("espeakPaths", espeakPaths)
-                }
-                
-                reactContext.runOnUiQueueThread {
-                    promise.resolve(resultMap)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error debugging model directory: ${e.message}")
-                e.printStackTrace()
-                reactContext.runOnUiQueueThread {
-                    promise.reject("ERR_DEBUG_MODEL_DIR", "Error debugging model directory: ${e.message}")
-                }
+    /**
+     * Prepare audio track for playback
+     */
+    private fun prepareAudioTrack() {
+        audioTrack?.let { track ->
+            if (track.state == AudioTrack.STATE_INITIALIZED) {
+                track.play()
+                Log.d(TAG, "AudioTrack started")
+            } else {
+                Log.e(TAG, "AudioTrack not initialized, state: ${track.state}")
             }
+        } ?: run {
+            Log.e(TAG, "AudioTrack is null, cannot prepare for playback")
         }
     }
 } 

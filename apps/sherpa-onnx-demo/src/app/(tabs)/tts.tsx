@@ -246,23 +246,45 @@ export default function TtsScreen() {
           modelFilesFound = true;
           foundModelFiles = baseResult.matches;
         } else {
-          // Check subdirectories
+          // Check subdirectories, especially kokoro-en-v0_19
           console.log(`Not all required files found in base directory, checking subdirectories...`);
           
-          for (const fileName of files) {
-            const itemPath = `${localPath}/${fileName}`;
-            const itemInfo = await FileSystem.getInfoAsync(itemPath);
+          // For kokoro models, specifically check the version-named subdirectory first
+          if (ttsModelType === 'kokoro') {
+            const modelVersion = modelId.includes('-') ? modelId.split('-').pop() : '';
+            const versionSubdir = modelState.metadata?.version ? `${modelId}-v${modelState.metadata.version.replace('.', '_')}` : '';
             
-            if (itemInfo.exists && itemInfo.isDirectory) {
-              console.log(`Checking directory: ${fileName}`);
+            if (versionSubdir && files.includes(versionSubdir)) {
+              console.log(`Found version-specific subdirectory: ${versionSubdir}`);
+              const versionDirPath = `${localPath}/${versionSubdir}`;
+              const versionDirResult = await checkDirectoryForFiles(versionDirPath);
               
-              const subDirResult = await checkDirectoryForFiles(itemPath);
-              if (subDirResult.found) {
-                console.log(`All required files found in subdirectory: ${fileName}`);
-                finalPath = itemPath;
+              if (versionDirResult.found) {
+                console.log(`All required files found in version subdirectory: ${versionSubdir}`);
+                finalPath = versionDirPath;
                 modelFilesFound = true;
-                foundModelFiles = subDirResult.matches;
-                break;
+                foundModelFiles = versionDirResult.matches;
+              }
+            }
+          }
+          
+          // If still not found, check all subdirectories
+          if (!modelFilesFound) {
+            for (const fileName of files) {
+              const itemPath = `${localPath}/${fileName}`;
+              const itemInfo = await FileSystem.getInfoAsync(itemPath);
+              
+              if (itemInfo.exists && itemInfo.isDirectory) {
+                console.log(`Checking directory: ${fileName}`);
+                
+                const subDirResult = await checkDirectoryForFiles(itemPath);
+                if (subDirResult.found) {
+                  console.log(`All required files found in subdirectory: ${fileName}`);
+                  finalPath = itemPath;
+                  modelFilesFound = true;
+                  foundModelFiles = subDirResult.matches;
+                  break;
+                }
               }
             }
           }
@@ -284,6 +306,34 @@ export default function TtsScreen() {
         } else if (ttsModelType === 'kokoro') {
           modelConfig.modelName = foundModelFiles['model.onnx'] ? foundModelFiles['model.onnx'].split('/').pop() : 'model.onnx';
           modelConfig.voices = foundModelFiles['voices.bin'] ? foundModelFiles['voices.bin'].split('/').pop() : 'voices.bin';
+          
+          // For Kokoro models, also verify that the espeak-ng-data directory is properly set up
+          if (modelFilesFound) {
+            // Check if the model directory contains an espeak-ng-data directory
+            const modelEspeakPath = `${finalPath}/espeak-ng-data`;
+            const modelEspeakInfo = await FileSystem.getInfoAsync(modelEspeakPath);
+            
+            if (modelEspeakInfo.exists && modelEspeakInfo.isDirectory) {
+              // Use espeak-ng-data from model directory
+              modelConfig.dataDir = modelEspeakPath.replace('file://', '');
+              console.log(`Using espeak-ng-data from model directory: ${modelConfig.dataDir}`);
+            } else {
+              // Log this important information
+              console.log(`No espeak-ng-data found in model directory, checking ${finalPath}/kokoro-en-v0_19/espeak-ng-data`);
+              
+              // Try one more location - sometimes it's in a subdirectory
+              const versionEspeakPath = `${finalPath}/kokoro-en-v0_19/espeak-ng-data`;
+              const versionEspeakInfo = await FileSystem.getInfoAsync(versionEspeakPath);
+              
+              if (versionEspeakInfo.exists && versionEspeakInfo.isDirectory) {
+                modelConfig.dataDir = versionEspeakPath.replace('file://', '');
+                console.log(`Using espeak-ng-data from version subdirectory: ${modelConfig.dataDir}`);
+              } else {
+                // Cannot find espeak-ng-data in model directory, fallback to app directory
+                console.log(`No espeak-ng-data found in model directories, need to download separately.`);
+              }
+            }
+          }
         } else if (ttsModelType === 'matcha') {
           modelConfig.acousticModelName = foundModelFiles['acoustic_model.onnx'] ? 
             foundModelFiles['acoustic_model.onnx'].split('/').pop() : 'acoustic_model.onnx';
