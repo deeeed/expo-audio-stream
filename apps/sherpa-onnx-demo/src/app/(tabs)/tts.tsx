@@ -73,6 +73,62 @@ const findEspeakData = async (basePath: string): Promise<string | null> => {
   return null;
 };
 
+/**
+ * Recursively search for an ONNX model file in a directory and its subdirectories
+ * @param basePath Base directory path to start searching
+ * @returns Object with modelDir and modelName if found, null otherwise
+ */
+const findModelFileRecursive = async (basePath: string): Promise<{ modelDir: string, modelName: string } | null> => {
+  console.log(`Recursively searching for model file in: ${basePath}`);
+  
+  const searchDirectory = async (dirPath: string, depth = 0): Promise<{ modelDir: string, modelName: string } | null> => {
+    if (depth > 5) {
+      // Limit recursion depth to prevent infinite loops
+      return null;
+    }
+    
+    try {
+      // Check files in this directory
+      const files = await FileSystem.readDirectoryAsync(`file://${dirPath}`);
+      console.log(`Files in ${dirPath}: ${files.join(', ')}`);
+      
+      // First look for model.onnx
+      if (files.includes('model.onnx')) {
+        return {
+          modelDir: dirPath,
+          modelName: 'model.onnx'
+        };
+      }
+      
+      // Then look for any .onnx file
+      const onnxFile = files.find(file => file.endsWith('.onnx'));
+      if (onnxFile) {
+        return {
+          modelDir: dirPath,
+          modelName: onnxFile
+        };
+      }
+      
+      // Recursively check subdirectories
+      for (const file of files) {
+        const subPath = `${dirPath}/${file}`;
+        const fileInfo = await FileSystem.getInfoAsync(`file://${subPath}`);
+        
+        if (fileInfo.exists && fileInfo.isDirectory) {
+          const result = await searchDirectory(subPath, depth + 1);
+          if (result) return result;
+        }
+      }
+    } catch (error) {
+      console.error(`Error searching directory ${dirPath}:`, error);
+    }
+    
+    return null;
+  };
+  
+  return await searchDirectory(basePath);
+};
+
 export default function TtsScreen() {
   const [text, setText] = useState(DEFAULT_TEXT);
   const [isLoading, setIsLoading] = useState(false);
@@ -354,9 +410,23 @@ export default function TtsScreen() {
 
         // Then continue with the model-specific configurations
         if (ttsModelType === 'vits') {
-          // Configure VITS model
-          modelConfig.modelName = foundModelFiles['model.onnx'] ? 
-            foundModelFiles['model.onnx'].split('/').pop() : 'model.onnx';
+          // If we couldn't find the model file with the existing approach
+          if (!foundModelFiles['model.onnx']) {
+            console.log('Standard search failed to find model.onnx, trying recursive search');
+            const modelFileResult = await findModelFileRecursive(cleanPath);
+            
+            if (modelFileResult) {
+              console.log(`Found model file through recursive search:`, modelFileResult);
+              modelConfig.modelDir = modelFileResult.modelDir;
+              modelConfig.modelName = modelFileResult.modelName;
+            } else {
+              console.error('Could not find model file with any search method');
+              throw new Error('Could not find the ONNX model file. Please check the model download.');
+            }
+          } else {
+            // Use the model file found by the standard search
+            modelConfig.modelName = foundModelFiles['model.onnx'].split('/').pop() || 'model.onnx';
+          }
           
           // If we don't have espeak data (dataDir) already set, try to find a lexicon
           if (!modelConfig.dataDir) {
@@ -375,14 +445,46 @@ export default function TtsScreen() {
           
           console.log(`Configuring VITS model: ${modelConfig.modelName}`);
         } else if (ttsModelType === 'kokoro') {
-          modelConfig.modelName = foundModelFiles['model.onnx'] ? 
-            foundModelFiles['model.onnx'].split('/').pop() : 'model.onnx';
+          // If we couldn't find the model file with the existing approach
+          if (!foundModelFiles['model.onnx']) {
+            console.log('Standard search failed to find model.onnx for Kokoro, trying recursive search');
+            const modelFileResult = await findModelFileRecursive(cleanPath);
+            
+            if (modelFileResult) {
+              console.log(`Found Kokoro model file through recursive search:`, modelFileResult);
+              modelConfig.modelDir = modelFileResult.modelDir;
+              modelConfig.modelName = modelFileResult.modelName;
+            } else {
+              console.error('Could not find Kokoro model file with any search method');
+              throw new Error('Could not find the ONNX model file. Please check the model download.');
+            }
+          } else {
+            // Use the model file found by the standard search
+            modelConfig.modelName = foundModelFiles['model.onnx'].split('/').pop() || 'model.onnx';
+          }
           // Only for Kokoro models, set the voices property
           modelConfig.voices = foundModelFiles['voices.bin'] ? 
             foundModelFiles['voices.bin'].split('/').pop() : 'voices.bin';
           
           console.log(`Configuring Kokoro model`);
         } else if (ttsModelType === 'matcha') {
+          // If we couldn't find the model file with the existing approach
+          if (!foundModelFiles['acoustic_model.onnx'] && !foundModelFiles['model-steps-3.onnx']) {
+            console.log('Standard search failed to find Matcha model files, trying recursive search');
+            const modelFileResult = await findModelFileRecursive(cleanPath);
+            
+            if (modelFileResult) {
+              console.log(`Found Matcha model file through recursive search:`, modelFileResult);
+              modelConfig.modelDir = modelFileResult.modelDir;
+              modelConfig.modelName = modelFileResult.modelName;
+            } else {
+              console.error('Could not find Matcha model file with any search method');
+              throw new Error('Could not find the ONNX model file. Please check the model download.');
+            }
+          } else {
+            // Use the existing Matcha configuration...
+          }
+          
           // Matcha model configuration
           console.log(`Configuring Matcha model`);
           
