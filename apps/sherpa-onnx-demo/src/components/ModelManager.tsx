@@ -51,6 +51,11 @@ const ModelCard: React.FC<ModelCardProps> = ({
     error?: string;
   }>>([]);
   const [fileListError, setFileListError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isDownloaded = state?.status === 'downloaded';
+  const isDownloading = state?.status === 'downloading';
+  const hasError = state?.status === 'error';
+  const hasDependencies = model.dependencies && model.dependencies.length > 0;
 
   const handleDownload = async () => {
     try {
@@ -188,6 +193,10 @@ const ModelCard: React.FC<ModelCardProps> = ({
     }
   };
 
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
   // Log progress updates when status is downloading 
   useEffect(() => {
     if (state?.status === 'downloading') {
@@ -199,6 +208,11 @@ const ModelCard: React.FC<ModelCardProps> = ({
     <View style={[cardStyles.card, isSelected && cardStyles.cardSelected]}>
       <View style={cardStyles.cardHeader}>
         <Text style={cardStyles.modelName}>{model.name}</Text>
+        {hasDependencies && (
+          <View style={cardStyles.dependencyBadge}>
+            <Text style={cardStyles.dependencyBadgeText}>Has Dependencies</Text>
+          </View>
+        )}
         <Text style={cardStyles.modelSize}>{formatBytes(model.size)}</Text>
       </View>
       
@@ -301,6 +315,32 @@ const ModelCard: React.FC<ModelCardProps> = ({
             </>
           )}
         </View>
+      )}
+
+      {/* Show dependencies if expanded and has dependencies */}
+      {isExpanded && hasDependencies && (
+        <View style={cardStyles.dependenciesContainer}>
+          <Text style={cardStyles.dependenciesTitle}>Dependencies:</Text>
+          {model.dependencies?.map((dependency) => (
+            <View key={dependency.id} style={cardStyles.dependencyItem}>
+              <Text style={cardStyles.dependencyName}>{dependency.name}</Text>
+              <Text style={cardStyles.dependencyDescription}>{dependency.description}</Text>
+              <Text style={cardStyles.dependencySize}>{formatBytes(dependency.size)}</Text>
+            </View>
+          ))}
+          <Text style={cardStyles.dependencyNote}>
+            These files will be downloaded automatically when you download the model.
+          </Text>
+        </View>
+      )}
+
+      {/* Add expand button if the model has dependencies */}
+      {hasDependencies && (
+        <TouchableOpacity onPress={toggleExpand} style={cardStyles.expandButton}>
+          <Text style={cardStyles.expandButtonText}>
+            {isExpanded ? 'Hide Dependencies' : 'Show Dependencies'}
+          </Text>
+        </TouchableOpacity>
       )}
 
       <View style={cardStyles.cardActions}>
@@ -679,6 +719,65 @@ const cardStyles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontWeight: '500',
+  },
+  dependencyBadge: {
+    backgroundColor: '#ff9800',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  dependencyBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  dependenciesContainer: {
+    padding: 12,
+    backgroundColor: '#f5f5f5',
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  dependenciesTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  dependencyItem: {
+    padding: 8,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+    borderRadius: 4,
+  },
+  dependencyName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  dependencyDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginVertical: 4,
+  },
+  dependencySize: {
+    fontSize: 12,
+    color: '#2196F3',
+  },
+  dependencyNote: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: '#666',
+    marginTop: 8,
+  },
+  expandButton: {
+    backgroundColor: '#e0e0e0',
+    padding: 6,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    alignItems: 'center',
+  },
+  expandButtonText: {
+    fontSize: 12,
+    color: '#444',
   },
 });
 

@@ -64,18 +64,52 @@ export async function extractTarBz2(
           };
         } else {
           console.warn(`ArchiveUtils: Native extraction failed: ${result.message}`);
-          // Fall back to creating mock files
-          return await createMockFiles(targetDir, archivePath);
+          // Check if there are any files already extracted
+          const existingFiles = await FileSystem.readDirectoryAsync(targetDir);
+          
+          if (existingFiles.length > 0) {
+            console.log(`ArchiveUtils: Found ${existingFiles.length} existing files in target directory`);
+            return {
+              success: true,
+              extractedFiles: existingFiles,
+              message: "Found existing files - skipping placeholder creation"
+            };
+          }
+          
+          return {
+            success: false,
+            message: `Native extraction failed: ${result.message} - No placeholder files will be created`,
+            extractedFiles: []
+          };
         }
       } catch (nativeError) {
         console.error(`ArchiveUtils: Error in native extraction:`, nativeError);
-        // Fall back to creating mock files
-        return await createMockFiles(targetDir, archivePath);
+        return {
+          success: false,
+          message: `Error in native extraction: ${nativeError instanceof Error ? nativeError.message : String(nativeError)} - No placeholder files will be created`,
+          extractedFiles: []
+        };
       }
     } else {
-      // On iOS or other platforms, just create mock files for now
-      console.log(`ArchiveUtils: Using mock files on ${Platform.OS} (native extraction not implemented)`);
-      return await createMockFiles(targetDir, archivePath);
+      // On iOS or other platforms
+      console.log(`ArchiveUtils: Native extraction not implemented on ${Platform.OS}`);
+      // Just check if there are any files already in the directory
+      const existingFiles = await FileSystem.readDirectoryAsync(targetDir);
+      
+      if (existingFiles.length > 0) {
+        console.log(`ArchiveUtils: Found ${existingFiles.length} existing files in target directory`);
+        return {
+          success: true,
+          extractedFiles: existingFiles,
+          message: "Found existing files in target directory"
+        };
+      }
+      
+      return {
+        success: false,
+        message: `Native extraction not implemented on ${Platform.OS} - No placeholder files will be created`,
+        extractedFiles: []
+      };
     }
   } catch (error) {
     console.error('ArchiveUtils: Error extracting tar.bz2:', error);
@@ -96,16 +130,65 @@ async function createMockFiles(targetDir: string, archivePath: string): Promise<
   const modelId = archiveFileName.replace('.tar.bz2', '');
   
   console.log(`ArchiveUtils: Extraction failed for model ${modelId}`);
-  console.log(`ArchiveUtils: Mock file creation is disabled - extraction is required`);
+  console.log(`ArchiveUtils: Mock file creation is completely disabled - extraction is required`);
   
-  // Check existing files
-  const files = await FileSystem.readDirectoryAsync(targetDir);
-  console.log(`ArchiveUtils: Found ${files.length} files in target directory:`, files);
+  // Check existing files only to report them in logs
+  let files: string[] = [];
+  try {
+    files = await FileSystem.readDirectoryAsync(targetDir);
+    console.log(`ArchiveUtils: Found ${files.length} files in target directory:`, files);
+  } catch (readError) {
+    console.error(`ArchiveUtils: Error reading directory:`, readError);
+  }
+  
+  // For Matcha models, we should still check if extraction actually succeeded partially
+  if (modelId.includes('matcha')) {
+    console.log(`ArchiveUtils: Checking for Matcha model files in subdirectories`);
+    
+    // Look for the matcha subdirectory
+    const matchaDir = files.find(file => 
+      file.includes('matcha') || 
+      (file.includes('en_US') && file.includes('ljspeech'))
+    );
+    
+    if (matchaDir) {
+      const matchaPath = `${targetDir}/${matchaDir}`;
+      
+      try {
+        const matchaInfo = await FileSystem.getInfoAsync(matchaPath);
+        
+        if (matchaInfo.exists && matchaInfo.isDirectory) {
+          console.log(`ArchiveUtils: Found Matcha subdirectory: ${matchaPath}`);
+          
+          // Get files in the Matcha subdirectory
+          const matchaFiles = await FileSystem.readDirectoryAsync(matchaPath);
+          console.log(`ArchiveUtils: Files in Matcha subdirectory: ${matchaFiles.join(', ')}`);
+          
+          // If the subdirectory has extracted files, especially the model file, extraction was likely successful
+          const hasModelFile = matchaFiles.some(file => 
+            file.includes('model-steps') || 
+            file.includes('acoustic_model')
+          );
+          
+          if (hasModelFile) {
+            console.log(`ArchiveUtils: Found model file in subdirectory, extraction appears successful`);
+            return {
+              success: true,
+              extractedFiles: files.concat(matchaFiles.map(file => `${matchaDir}/${file}`)),
+              message: "Archive extraction successful via subdirectory check."
+            };
+          }
+        }
+      } catch (error) {
+        console.error(`ArchiveUtils: Error checking Matcha subdirectory:`, error);
+      }
+    }
+  }
   
   return {
     success: false,
     extractedFiles: files,
-    message: "Archive extraction failed. Mock files won't be created - please check native extraction implementation."
+    message: "Archive extraction failed. Mock file creation is disabled - native extraction is required."
   };
 }
 
@@ -124,85 +207,31 @@ export async function extractModelFromAssets(
   targetDir: string
 ): Promise<ExtractionResult> {
   try {
-    console.log(`ArchiveUtils: Extracting model ${modelId} (type: ${modelType}) to ${targetDir}...`);
+    console.log(`ArchiveUtils: Extraction from assets is currently disabled for model ${modelId}`);
     
-    // Create the target directory if it doesn't exist
-    const dirInfo = await FileSystem.getInfoAsync(targetDir);
-    console.log(`ArchiveUtils: Target directory info:`, dirInfo);
-    
-    if (!dirInfo.exists) {
-      console.log(`ArchiveUtils: Creating target directory: ${targetDir}`);
-      await FileSystem.makeDirectoryAsync(targetDir, { intermediates: true });
-    }
-    
-    // Check if there are already files in the directory
+    // Check if there are already files in the directory - we'll just report these
     console.log(`ArchiveUtils: Checking existing files in ${targetDir}`);
-    const existingFiles = await FileSystem.readDirectoryAsync(targetDir);
-    console.log(`ArchiveUtils: Found ${existingFiles.length} existing files:`, existingFiles);
-    
-    // In a real implementation, you would:
-    // 1. Use a native module to list all assets in the bundle
-    // 2. Filter for files related to the requested model
-    // 3. Copy each file to the target directory
-    
-    console.log(`ArchiveUtils: IMPORTANT - This is a placeholder implementation`);
-    console.log(`ArchiveUtils: In a real implementation, you should copy actual model files from assets`);
-    
-    const modelPath = `${modelType}/${modelId}`;
-    console.log(`ArchiveUtils: Using model path ${modelPath} for asset lookup`);
-    
-    const requiredFiles = ['model.onnx', 'voices.bin', 'tokens.txt'];
-    console.log(`ArchiveUtils: Required files:`, requiredFiles);
-    
-    const extractedFiles: string[] = [];
-    
-    for (const file of requiredFiles) {
-      // In a real implementation, you would have code to:
-      // 1. Check if the asset exists in the bundle
-      // 2. Copy it to the target directory
-      
-      const targetFile = `${targetDir}/${file}`;
-      console.log(`ArchiveUtils: Creating (empty) file: ${targetFile}`);
-      
-      try {
-        // Check if file already exists
-        const fileInfo = await FileSystem.getInfoAsync(targetFile);
-        if (fileInfo.exists) {
-          console.log(`ArchiveUtils: File already exists: ${targetFile}`);
-          extractedFiles.push(file);
-          continue;
-        }
-        
-        // For demo purposes, let's create an empty file with a note inside
-        const content = `This is a placeholder file created by extractModelFromAssets\nReal implementation should copy the actual file content from assets`;
-        await FileSystem.writeAsStringAsync(targetFile, content);
-        console.log(`ArchiveUtils: Created placeholder file: ${targetFile}`);
-        extractedFiles.push(file);
-      } catch (fileError) {
-        console.error(`ArchiveUtils: Error creating file ${targetFile}:`, fileError);
-      }
+    let existingFiles: string[] = [];
+    try {
+      existingFiles = await FileSystem.readDirectoryAsync(targetDir);
+      console.log(`ArchiveUtils: Found ${existingFiles.length} existing files:`, existingFiles);
+    } catch (readError) {
+      console.error(`ArchiveUtils: Error reading directory:`, readError);
     }
     
-    console.log(`ArchiveUtils: Extraction completed. Extracted ${extractedFiles.length} files:`, extractedFiles);
+    // Skip placeholder file creation entirely
+    console.log(`ArchiveUtils: Placeholder file creation is now disabled`);
     
-    // Check if we actually created any files
-    if (extractedFiles.length === 0) {
-      console.warn(`ArchiveUtils: No files were extracted!`);
-      return {
-        success: false,
-        message: 'No files could be extracted from assets'
-      };
-    }
-    
-    return {
-      success: true,
-      extractedFiles
-    };
-  } catch (error) {
-    console.error('ArchiveUtils: Error extracting model from assets:', error);
     return {
       success: false,
-      message: `Error extracting model: ${error instanceof Error ? error.message : String(error)}`
+      message: 'Placeholder file creation is disabled, please use native extraction',
+      extractedFiles: existingFiles
+    };
+  } catch (error) {
+    console.error('ArchiveUtils: Error in extractModelFromAssets:', error);
+    return {
+      success: false,
+      message: `Error: ${error instanceof Error ? error.message : String(error)}`
     };
   }
 } 

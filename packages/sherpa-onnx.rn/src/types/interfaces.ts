@@ -109,6 +109,11 @@ export interface TtsModelConfig {
   modelDir: string;
 
   /**
+   * Model type (vits, matcha, kokoro)
+   */
+  modelType?: string;
+
+  /**
    * Model file name for VITS models
    */
   modelName?: string;

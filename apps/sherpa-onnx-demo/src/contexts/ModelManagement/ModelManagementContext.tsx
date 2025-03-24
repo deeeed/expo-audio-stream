@@ -127,6 +127,11 @@ export function ModelManagementProvider({
       // If extraction failed or didn't produce the required files,
       // try to extract from bundled assets as a fallback
       let missingFiles: string[] = [];
+      // Verify required files - read directory files first before checking
+      console.log(`Reading directory files for model ${modelId}...`);
+      const files = await FileSystem.readDirectoryAsync(modelDir);
+      console.log(`Found ${files.length} files in model directory:`, files);
+      
       if (model.requiredFiles && extractionResult.extractedFiles) {
         missingFiles = model.requiredFiles.filter(
           (file) => !extractionResult.extractedFiles?.includes(file)
@@ -135,44 +140,137 @@ export function ModelManagementProvider({
       
       if (missingFiles.length > 0) {
         console.log(`Missing required files after extraction: ${missingFiles.join(", ")}`);
-        console.log(`Trying to extract from bundled assets as fallback...`);
         
-        const assetExtractionResult = await extractModelFromAssets(
-          model.type,
-          modelId,
-          modelDir
-        );
+        // Instead of trying to create placeholder files, just log a warning
+        console.warn(`Some required files are missing: ${missingFiles.join(", ")}`);
+        console.warn(`Placeholder file creation is disabled - extraction must provide all files`);
         
-        if (assetExtractionResult.success) {
-          console.log(`Successfully extracted model files from assets`);
-          // Update the extracted files list to include both sources
-          if (extractionResult.extractedFiles && assetExtractionResult.extractedFiles) {
-            extractionResult.extractedFiles = [
-              ...new Set([
-                ...extractionResult.extractedFiles,
-                ...assetExtractionResult.extractedFiles
-              ])
-            ];
-          } else if (assetExtractionResult.extractedFiles) {
-            extractionResult.extractedFiles = assetExtractionResult.extractedFiles;
+        // If this is a Matcha model, check if we have the model files in a subdirectory
+        if (model.id.includes('matcha')) {
+          console.log(`Checking for Matcha model files in subdirectories...`);
+          
+          const matchaSubdir = files.find(file => 
+            file.includes('matcha') || 
+            (file.includes('en_US') && file.includes('ljspeech'))
+          );
+          
+          if (matchaSubdir) {
+            const matchaPath = `${modelDir}/${matchaSubdir}`;
+            try {
+              const matchaInfo = await FileSystem.getInfoAsync(matchaPath);
+              
+              if (matchaInfo.exists && matchaInfo.isDirectory) {
+                console.log(`Found Matcha subdirectory: ${matchaPath}`);
+                
+                // Check for model files in subdirectory
+                const subdirFiles = await FileSystem.readDirectoryAsync(matchaPath);
+                console.log(`Files in Matcha subdirectory: ${subdirFiles.join(', ')}`);
+                
+                // Look specifically for model-steps-3.onnx or acoustic_model.onnx
+                const hasModelFile = subdirFiles.some(file => 
+                  file.includes('model-steps') || 
+                  file === 'model-steps-3.onnx' ||
+                  file.includes('acoustic_model')
+                );
+                
+                if (hasModelFile) {
+                  console.log(`Found model file in subdirectory, extraction may be partially successful`);
+                  // Update the extracted files list with the correct paths
+                  const subdirFilePaths = subdirFiles.map(file => `${matchaSubdir}/${file}`);
+                  extractionResult.extractedFiles = [...files, ...subdirFilePaths];
+                }
+              }
+            } catch (error) {
+              console.error(`Error checking Matcha subdirectory:`, error);
+            }
           }
-        } else {
-          console.warn(`Failed to extract from assets: ${assetExtractionResult.message}`);
         }
       }
 
       // Verify required files
       console.log(`Verifying required files for model ${modelId}...`);
-      const files = await FileSystem.readDirectoryAsync(modelDir);
-      missingFiles = [];
-      if (model.requiredFiles) {
-        missingFiles = model.requiredFiles.filter((file) => !files.includes(file));
-      }
       
-      if (missingFiles.length > 0) {
-        throw new Error(`Missing required files: ${missingFiles.join(', ')}`);
+      // For non-Matcha models, enforce required files more strictly
+      if (!model.id.includes('matcha') && model.requiredFiles) {
+        missingFiles = model.requiredFiles.filter((file) => !files.includes(file));
+        
+        if (missingFiles.length > 0) {
+          throw new Error(`Missing required files: ${missingFiles.join(', ')}`);
+        }
       }
-      console.log(`All required files present for model ${modelId}`);
+      console.log(`Required file check passed for model ${modelId}`);
+      
+      // Clean up any placeholder files (small empty files)
+      const removeSmallPlaceholders = async () => {
+        console.log(`Checking for and removing any placeholder files...`);
+        
+        for (const file of files) {
+          // Skip directories
+          const filePath = `${modelDir}/${file}`;
+          const fileInfo = await FileSystem.getInfoAsync(filePath);
+          
+          if (fileInfo.exists && !fileInfo.isDirectory && 'size' in fileInfo) {
+            // If file is suspiciously small (< 1KB) it might be a placeholder
+            if (fileInfo.size < 1024) {
+              try {
+                // Read the first few bytes to check if it's a placeholder
+                const content = await FileSystem.readAsStringAsync(filePath, {
+                  encoding: FileSystem.EncodingType.UTF8,
+                  length: 100,  // Just read the first 100 chars
+                });
+                
+                if (content.includes('placeholder') || content.trim().length < 50) {
+                  console.log(`Removing placeholder file: ${filePath}`);
+                  await FileSystem.deleteAsync(filePath, { idempotent: true });
+                }
+              } catch (error) {
+                console.error(`Error checking placeholder file ${filePath}:`, error);
+              }
+            }
+          }
+        }
+      };
+      
+      await removeSmallPlaceholders();
+
+      // After extracting the main model, check and download any dependencies
+      if (model.dependencies && model.dependencies.length > 0) {
+        console.log(`Model ${modelId} has ${model.dependencies.length} dependencies to download...`);
+        
+        for (const dependency of model.dependencies) {
+          const dependencyFileName = dependency.url.split('/').pop() || '';
+          const dependencyPath = `${modelDir}/${dependencyFileName}`;
+          
+          console.log(`Downloading dependency ${dependency.name} (${dependency.id})...`);
+          updateModelState(modelId, {
+            status: 'downloading' as ModelStatus,
+            progress: 0.9, // Show progress as almost complete
+            error: undefined,
+          });
+          
+          try {
+            const depDownloadResumable = FileSystem.createDownloadResumable(
+              dependency.url,
+              dependencyPath,
+              {},
+              (downloadProgress) => {
+                // Calculate combined progress (90% main model, 10% for dependencies)
+                const depProgress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+                const combinedProgress = 0.9 + (depProgress * 0.1);
+                console.log(`Dependency download progress: ${depProgress * 100}%`);
+                updateModelState(modelId, { progress: combinedProgress });
+              }
+            );
+            
+            await depDownloadResumable.downloadAsync();
+            console.log(`Dependency ${dependency.name} downloaded successfully to ${dependencyPath}`);
+            
+          } catch (depError) {
+            console.error(`Error downloading dependency ${dependency.name}:`, depError);
+            // Continue with other dependencies even if one fails
+          }
+        }
+      }
 
       // Get file information
       const fileInfos = await Promise.all(
@@ -199,6 +297,139 @@ export function ModelManagementProvider({
         lastDownloaded: Date.now(),
         extractedFiles: extractionResult.extractedFiles,
       });
+
+      // After extraction check if model archive extracted to a subdirectory
+      // This often happens when the archive was created with the model files in a parent directory
+      const handleSubdirectoryExtraction = async () => {
+        try {
+          // Special handling for Matcha models which have a specific directory structure
+          const isMatchaModel = model.id.includes('matcha');
+          
+          // Check if we have a single directory and no other files (common case)
+          if (files.length === 1) {
+            const possibleSubdir = files[0];
+            const subdirPath = `${modelDir}/${possibleSubdir}`;
+            const subdirInfo = await FileSystem.getInfoAsync(subdirPath);
+            
+            if (subdirInfo.exists && subdirInfo.isDirectory) {
+              console.log(`Model extracted to subdirectory: ${possibleSubdir}`);
+              
+              // Check if this subdirectory contains the actual model files
+              const subdirFiles = await FileSystem.readDirectoryAsync(subdirPath);
+              console.log(`Files in subdirectory: ${subdirFiles.join(', ')}`);
+              
+              // If the subdirectory contains the model files, update the model path
+              if (subdirFiles.length > 0) {
+                console.log(`Found ${subdirFiles.length} files in subdirectory, updating model path`);
+                
+                // Update the model state to point to the subdirectory
+                updateModelState(modelId, {
+                  localPath: subdirPath,
+                  files: await Promise.all(
+                    subdirFiles.map(async (file) => {
+                      const filePath = `${subdirPath}/${file}`;
+                      const info = await FileSystem.getInfoAsync(filePath);
+                      return {
+                        path: file,
+                        size: info.exists && 'size' in info ? info.size || 0 : 0,
+                        lastModified: info.exists && 'modificationTime' in info ? info.modificationTime || Date.now() : Date.now(),
+                      };
+                    })
+                  ),
+                  extractedFiles: subdirFiles,
+                });
+                
+                console.log(`Updated model path to subdirectory: ${subdirPath}`);
+              }
+            }
+          }
+          // Special handling for Matcha TTS model structure
+          else if (isMatchaModel) {
+            console.log(`Special handling for Matcha model directory structure`);
+            
+            // Look for the matcha-icefall directory
+            const matchaSubdir = files.find(file => 
+              file.includes('matcha') || 
+              (file.includes('en_US') && file.includes('ljspeech'))
+            );
+            
+            if (matchaSubdir) {
+              const matchaPath = `${modelDir}/${matchaSubdir}`;
+              const matchaInfo = await FileSystem.getInfoAsync(matchaPath);
+              
+              if (matchaInfo.exists && matchaInfo.isDirectory) {
+                console.log(`Found Matcha model directory: ${matchaPath}`);
+                
+                // Check files in the Matcha subdirectory
+                const matchaFiles = await FileSystem.readDirectoryAsync(matchaPath);
+                console.log(`Files in Matcha subdirectory: ${matchaFiles.join(', ')}`);
+                
+                if (matchaFiles.length > 0) {
+                  // Find the model-steps-3.onnx file
+                  const modelFile = matchaFiles.find(file => 
+                    file.includes('model-steps') || 
+                    file.includes('acoustic_model')
+                  );
+                  
+                  // Find the tokens.txt file
+                  const tokensFile = matchaFiles.find(file => file === 'tokens.txt');
+                  
+                  // If we found the key model files, we need to update paths correctly
+                  if (modelFile || tokensFile) {
+                    console.log(`Found key Matcha model files in subdirectory`);
+                    
+                    // Get files directly from the subdirectory
+                    const matchaFilesInfo = await Promise.all(
+                      matchaFiles.map(async (file) => {
+                        const filePath = `${matchaPath}/${file}`;
+                        const info = await FileSystem.getInfoAsync(filePath);
+                        return {
+                          path: file,
+                          size: info.exists && 'size' in info ? info.size || 0 : 0,
+                          lastModified: info.exists && 'modificationTime' in info ? info.modificationTime || Date.now() : Date.now(),
+                        };
+                      })
+                    );
+                    
+                    // Remove placeholder files if they exist
+                    const placeholderFiles = [
+                      'model.onnx', 'voices.bin', 'tokens.txt'
+                    ];
+                    
+                    for (const placeholder of placeholderFiles) {
+                      const placeholderPath = `${modelDir}/${placeholder}`;
+                      const placeholderInfo = await FileSystem.getInfoAsync(placeholderPath);
+                      
+                      if (placeholderInfo.exists && placeholderInfo.size < 1000) {
+                        try {
+                          console.log(`Removing placeholder file: ${placeholderPath}`);
+                          await FileSystem.deleteAsync(placeholderPath, { idempotent: true });
+                        } catch (deleteError) {
+                          console.error(`Error deleting placeholder file: ${placeholderPath}`, deleteError);
+                        }
+                      }
+                    }
+                    
+                    // Update the model state to use the Matcha subdirectory
+                    updateModelState(modelId, {
+                      localPath: matchaPath,
+                      files: matchaFilesInfo,
+                      extractedFiles: matchaFiles,
+                    });
+                    
+                    console.log(`Updated Matcha model path to: ${matchaPath}`);
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error handling subdirectory extraction:', error);
+          // Don't fail the whole process if this check fails
+        }
+      };
+      
+      await handleSubdirectoryExtraction();
 
       // Clean up archive
       console.log(`Cleaning up archive for model ${modelId}...`);

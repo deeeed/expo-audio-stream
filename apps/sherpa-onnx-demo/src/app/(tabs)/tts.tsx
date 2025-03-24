@@ -161,8 +161,40 @@ export default function TtsScreen() {
       
       try {
         // Get the files in the base directory
-        const files = await FileSystem.readDirectoryAsync(localPath);
-        console.log(`Files in directory: ${files.join(', ')}`);
+        let files: string[] = [];
+        try {
+          files = await FileSystem.readDirectoryAsync(localPath);
+          console.log(`Files in directory: ${files.join(', ')}`);
+        } catch (readError) {
+          console.error(`Error reading directory: ${localPath}`, readError);
+          files = [];
+        }
+        
+        // Additional directory structure check
+        if (files.length === 0) {
+          console.warn(`No files found in directory: ${localPath}. Checking parent directory...`);
+          
+          // Try going up one level (sometimes localPath already points to a subdirectory)
+          const parentPathComponents = localPath.split('/');
+          parentPathComponents.pop(); // Remove the last component
+          const parentPath = parentPathComponents.join('/');
+          
+          console.log(`Trying parent path: ${parentPath}`);
+          
+          try {
+            const parentFiles = await FileSystem.readDirectoryAsync(parentPath);
+            console.log(`Files in parent directory: ${parentFiles.join(', ')}`);
+            
+            // If parent directory has files, use that instead
+            if (parentFiles.length > 0) {
+              localPath = parentPath;
+              files = parentFiles;
+              console.log(`Using parent directory: ${localPath}`);
+            }
+          } catch (parentReadError) {
+            console.error(`Error reading parent directory: ${parentPath}`, parentReadError);
+          }
+        }
         
         // Get model metadata to determine model type and required files
         const modelType = modelState.metadata?.type || 'unknown';
@@ -189,7 +221,7 @@ export default function TtsScreen() {
           if (ttsModelType === 'kokoro') {
             requiredFiles = ['model.onnx', 'voices.bin', 'tokens.txt'];
           } else if (ttsModelType === 'matcha') {
-            requiredFiles = ['acoustic_model.onnx', 'vocoder.onnx', 'tokens.txt'];
+            requiredFiles = ['acoustic_model.onnx', 'model-steps-3.onnx', 'tokens.txt'];
           } else {
             // VITS models
             requiredFiles = ['model.onnx', 'tokens.txt'];
@@ -216,94 +248,96 @@ export default function TtsScreen() {
         let modelFilesFound = false;
         let foundModelFiles: Record<string, string> = {};
         
-        // Function to check if a file matches any required pattern
-        const matchesRequirement = (filename: string, requirement: string): boolean => {
-          return filename.includes(requirement) || filename === requirement;
-        };
-        
-        // Check if files exist in the current directory
-        const checkDirectoryForFiles = async (dirPath: string): Promise<{
-          found: boolean;
-          matches: Record<string, string>;
-        }> => {
-          try {
-            const dirFiles = await FileSystem.readDirectoryAsync(dirPath);
-            console.log(`Files in ${dirPath}: ${dirFiles.join(', ')}`);
-            
-            const matches: Record<string, string> = {};
-            let allFound = true;
-            
-            // For each requirement, check if any file matches
-            for (const req of requiredFiles) {
-              const matchingFile = dirFiles.find(file => matchesRequirement(file, req));
-              if (matchingFile) {
-                matches[req] = `${dirPath}/${matchingFile}`;
-              } else {
-                allFound = false;
-              }
-            }
-            
-            return { found: allFound, matches };
-          } catch (error) {
-            console.error(`Error reading directory ${dirPath}:`, error);
-            return { found: false, matches: {} };
-          }
-        };
-        
-        // First check if files exist in the base directory
-        const baseResult = await checkDirectoryForFiles(localPath);
-        if (baseResult.found) {
-          console.log(`All required files found in base directory`);
-          modelFilesFound = true;
-          foundModelFiles = baseResult.matches;
-        } else {
-          // Check subdirectories, especially kokoro-en-v0_19
-          console.log(`Not all required files found in base directory, checking subdirectories...`);
+        // Enhanced file search: Check in all subdirectories if needed
+        const searchModelFilesInAllDirs = async (startPath: string): Promise<boolean> => {
+          console.log(`Searching for model files in: ${startPath}`);
+          const searchQueue = [startPath];
+          const visited = new Set<string>();
           
-          // For kokoro models, specifically check the version-named subdirectory first
-          if (ttsModelType === 'kokoro') {
-            const modelVersion = modelId.includes('-') ? modelId.split('-').pop() : '';
-            const versionSubdir = modelState.metadata?.version ? `${modelId}-v${modelState.metadata.version.replace('.', '_')}` : '';
+          while (searchQueue.length > 0) {
+            const currentPath = searchQueue.shift()!;
             
-            if (versionSubdir && files.includes(versionSubdir)) {
-              console.log(`Found version-specific subdirectory: ${versionSubdir}`);
-              const versionDirPath = `${localPath}/${versionSubdir}`;
-              const versionDirResult = await checkDirectoryForFiles(versionDirPath);
-              
-              if (versionDirResult.found) {
-                console.log(`All required files found in version subdirectory: ${versionSubdir}`);
-                finalPath = versionDirPath;
-                modelFilesFound = true;
-                foundModelFiles = versionDirResult.matches;
-              }
+            if (visited.has(currentPath)) {
+              continue;
             }
-          }
-          
-          // If still not found, check all subdirectories
-          if (!modelFilesFound) {
-            for (const fileName of files) {
-              const itemPath = `${localPath}/${fileName}`;
-              const itemInfo = await FileSystem.getInfoAsync(itemPath);
+            visited.add(currentPath);
+            
+            try {
+              console.log(`Checking directory: ${currentPath}`);
+              const dirFiles = await FileSystem.readDirectoryAsync(currentPath);
+              console.log(`Files found: ${dirFiles.join(', ')}`);
               
-              if (itemInfo.exists && itemInfo.isDirectory) {
-                console.log(`Checking directory: ${fileName}`);
-                
-                const subDirResult = await checkDirectoryForFiles(itemPath);
-                if (subDirResult.found) {
-                  console.log(`All required files found in subdirectory: ${fileName}`);
-                  finalPath = itemPath;
-                  modelFilesFound = true;
-                  foundModelFiles = subDirResult.matches;
-                  break;
+              // Check if this directory has the required files
+              let matchesFound = 0;
+              
+              for (const req of requiredFiles) {
+                // Special handling for matcha model which can have either acoustic_model.onnx
+                // or model-steps-3.onnx
+                if (ttsModelType === 'matcha' && 
+                   (req === 'acoustic_model.onnx' || req === 'model-steps-3.onnx')) {
+                  // Check for either file
+                  const matchingFile = dirFiles.find(file => 
+                    file === 'acoustic_model.onnx' || 
+                    file === 'model-steps-3.onnx' || 
+                    file === 'model.onnx');
+                  
+                  if (matchingFile) {
+                    matchesFound++;
+                    foundModelFiles[req] = `${currentPath}/${matchingFile}`;
+                    console.log(`Found match for ${req}: ${matchingFile}`);
+                  }
+                } else {
+                  // Normal case - look for exact match or similar pattern
+                  const matchingFile = dirFiles.find(file => 
+                    file === req || file.includes(req));
+                    
+                  if (matchingFile) {
+                    matchesFound++;
+                    foundModelFiles[req] = `${currentPath}/${matchingFile}`;
+                    console.log(`Found match for ${req}: ${matchingFile}`);
+                  }
                 }
               }
+              
+              // If we found all required files or a good portion in this directory, use it
+              if (matchesFound >= Math.max(1, Math.floor(requiredFiles.length * 0.7))) {
+                console.log(`Found most required files (${matchesFound}/${requiredFiles.length}) in: ${currentPath}`);
+                finalPath = currentPath;
+                modelFilesFound = true;
+                return true;
+              }
+              
+              // Add subdirectories to search queue
+              for (const file of dirFiles) {
+                const fullPath = `${currentPath}/${file}`;
+                const fileInfo = await FileSystem.getInfoAsync(fullPath);
+                if (fileInfo.exists && fileInfo.isDirectory) {
+                  searchQueue.push(fullPath);
+                }
+              }
+            } catch (error) {
+              console.error(`Error reading directory ${currentPath}:`, error);
             }
           }
+          
+          return false;
+        };
+        
+        // First check the current directory for required files
+        const searchResult = await searchModelFilesInAllDirs(localPath);
+        
+        if (!searchResult) {
+          // If files weren't found, do a full recursive search from the base path
+          console.log(`Doing a full recursive search for model files`);
+          await searchModelFilesInAllDirs(localPath);
         }
         
-        if (!modelFilesFound) {
-          throw new Error(`Could not find all required model files for ${modelType} models. Please check the model download.`);
+        if (Object.keys(foundModelFiles).length === 0) {
+          throw new Error(`Could not find model files in any directory. Please check the model download.`);
         }
+        
+        console.log(`Will use model files in: ${finalPath}`);
+        console.log(`Found model files:`, foundModelFiles);
         
         // Create model config with the final path and proper model type-specific fields
         const modelConfig: TtsModelConfig = {
@@ -349,10 +383,121 @@ export default function TtsScreen() {
           
           console.log(`Configuring Kokoro model`);
         } else if (ttsModelType === 'matcha') {
-          modelConfig.acousticModelName = foundModelFiles['acoustic_model.onnx'] ? 
-            foundModelFiles['acoustic_model.onnx'].split('/').pop() : 'acoustic_model.onnx';
-          modelConfig.vocoder = foundModelFiles['vocoder.onnx'] ? 
-            foundModelFiles['vocoder.onnx'].split('/').pop() : 'vocoder.onnx';
+          // Matcha model configuration
+          console.log(`Configuring Matcha model`);
+          
+          // Example 7 & 8 from documentation:
+          // modelDir = "matcha-icefall-en_US-ljspeech"
+          // acousticModelName = "model-steps-3.onnx"
+          // vocoder = "vocos-22khz-univ.onnx"
+          // dataDir = "matcha-icefall-en_US-ljspeech/espeak-ng-data"
+          
+          // Set model type explicitly
+          modelConfig.modelType = 'matcha';
+          
+          // CRITICAL: Native module expects:
+          // - modelName for the acoustic model (will become acousticModel in native code)
+          // - voices for the vocoder (will become vocoder in native code)
+          modelConfig.modelName = 'model-steps-3.onnx';
+          modelConfig.voices = 'vocos-22khz-univ.onnx';
+          
+          console.log(`Using standard Matcha configuration with native module parameters:`);
+          console.log(` - modelDir: ${modelConfig.modelDir}`);
+          console.log(` - modelName (acoustic model): ${modelConfig.modelName}`);
+          console.log(` - voices (vocoder): ${modelConfig.voices}`);
+          if (modelConfig.dataDir) {
+            console.log(` - dataDir: ${modelConfig.dataDir}`);
+          }
+          
+          // Verify files exist in the model directory
+          try {
+            const modelFiles = await FileSystem.readDirectoryAsync(finalPath);
+            console.log(`Files in Matcha directory: ${modelFiles.join(', ')}`);
+            
+            // Check for acoustic model
+            if (!modelFiles.includes(modelConfig.modelName)) {
+              console.warn(`Warning: ${modelConfig.modelName} not found in model directory.`);
+              
+              // Look for alternative acoustic model files
+              const acousticModelAlternative = modelFiles.find(file => 
+                file === 'acoustic_model.onnx' || 
+                file.includes('model-') ||
+                file === 'model.onnx'
+              );
+              
+              if (acousticModelAlternative) {
+                console.log(`Found alternative acoustic model: ${acousticModelAlternative}`);
+                modelConfig.modelName = acousticModelAlternative;
+                console.log(`Updated modelName to: ${modelConfig.modelName}`);
+              }
+            } else {
+              console.log(`Found acoustic model: ${modelConfig.modelName}`);
+            }
+            
+            // Check for vocoder
+            if (!modelFiles.includes(modelConfig.voices)) {
+              console.warn(`Warning: ${modelConfig.voices} not found in model directory.`);
+              
+              // Look for alternative vocoder files
+              const vocoderAlternative = modelFiles.find(file => 
+                file.includes('vocos') || 
+                file.includes('hifigan') ||
+                file === 'vocoder.onnx'
+              );
+              
+              if (vocoderAlternative) {
+                console.log(`Found alternative vocoder: ${vocoderAlternative}`);
+                modelConfig.voices = vocoderAlternative;
+                console.log(`Updated voices to: ${modelConfig.voices}`);
+              } else {
+                // If not found in model directory, check parent directory
+                console.log(`Checking parent directory for vocoder...`);
+                const pathParts = finalPath.split('/');
+                pathParts.pop();
+                const parentDir = pathParts.join('/');
+                
+                try {
+                  const parentFiles = await FileSystem.readDirectoryAsync(parentDir);
+                  console.log(`Files in parent directory: ${parentFiles.join(', ')}`);
+                  
+                  const parentVocoder = parentFiles.find(file => 
+                    file.includes('vocos') || 
+                    file === modelConfig.voices ||
+                    file.includes('hifigan') ||
+                    file === 'vocoder.onnx'
+                  );
+                  
+                  if (parentVocoder) {
+                    console.log(`Found vocoder in parent directory: ${parentVocoder}`);
+                    
+                    // Try to copy the vocoder to the model directory for better compatibility
+                    try {
+                      const sourceVocoderPath = `${parentDir}/${parentVocoder}`;
+                      const destVocoderPath = `${finalPath}/${parentVocoder}`;
+                      
+                      await FileSystem.copyAsync({
+                        from: sourceVocoderPath,
+                        to: destVocoderPath
+                      });
+                      
+                      console.log(`Successfully copied vocoder to model directory`);
+                      modelConfig.voices = parentVocoder;
+                      console.log(`Updated voices to: ${modelConfig.voices}`);
+                    } catch (copyError) {
+                      console.error(`Failed to copy vocoder: ${copyError}`);
+                      // Keep standard name, the native module will handle the path construction
+                    }
+                  }
+                } catch (error) {
+                  console.error(`Error checking parent directory: ${error}`);
+                }
+              }
+            } else {
+              console.log(`Found vocoder: ${modelConfig.voices}`);
+            }
+          } catch (error) {
+            console.error(`Error checking Matcha model files: ${error}`);
+          }
         }
 
         console.log('Initializing TTS with config:', JSON.stringify(modelConfig));

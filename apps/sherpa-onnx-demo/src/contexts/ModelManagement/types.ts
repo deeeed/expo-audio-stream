@@ -19,6 +19,14 @@ export interface ModelMetadata {
   language: string;
   requiredFiles?: string[];
   parameters?: Record<string, unknown>;
+  dependencies?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    url: string;
+    size: number;
+    description: string;
+  }>;
 }
 
 export interface ModelState {
