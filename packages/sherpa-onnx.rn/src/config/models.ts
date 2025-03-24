@@ -135,7 +135,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/matcha-icefall-en_US-ljspeech.tar.bz2',
     version: '1.0',
     language: 'en',
-    requiredFiles: ['tokens.txt'], // Only tokens.txt is required by default
+    requiredFiles: [], // Only tokens.txt is required by default
     parameters: {
       speed: 1.0,
       pitch: 1.0,
