@@ -27,8 +27,13 @@ interface ExtendedTtsResult extends TtsGenerateResult {
 
 const copyAudioFile = async (originalPath: string): Promise<string | null> => {
   try {
+    // Ensure the path has the file:// prefix for Expo FileSystem
+    const sourcePath = originalPath.startsWith('file://') 
+      ? originalPath 
+      : `file://${originalPath}`;
+    
     // Create a more accessible path in app documents directory
-    const fileName = originalPath.split('/').pop();
+    const fileName = sourcePath.split('/').pop();
     const destinationUri = `${FileSystem.documentDirectory}audio/${fileName}`;
     
     // Create directory if it doesn't exist
@@ -37,9 +42,9 @@ const copyAudioFile = async (originalPath: string): Promise<string | null> => {
       await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}audio`, { intermediates: true });
     }
     
-    // Copy the file
+    // Copy the file - now with the correct file:// prefix
     await FileSystem.copyAsync({
-      from: originalPath,
+      from: sourcePath,
       to: destinationUri
     });
     
@@ -60,6 +65,43 @@ const verifyFileExists = async (filePath: string): Promise<boolean> => {
     console.error(`Error checking file existence: ${filePath}`, error);
     return false;
   }
+};
+
+// First check for espeak-ng-data directory regardless of model type
+// This should be done before the model-specific configurations
+const findEspeakData = async (basePath: string): Promise<string | null> => {
+  // Check directly in the model directory
+  const directEspeakPath = `${basePath}/espeak-ng-data`;
+  const directInfo = await FileSystem.getInfoAsync(directEspeakPath);
+  if (directInfo.exists && directInfo.isDirectory) {
+    console.log(`Found espeak-ng-data directly in model directory: ${directEspeakPath}`);
+    return directEspeakPath.replace('file://', '');
+  }
+
+  // If not found directly, try to find it in subdirectories
+  try {
+    const files = await FileSystem.readDirectoryAsync(basePath);
+    for (const file of files) {
+      const subDirPath = `${basePath}/${file}`;
+      const fileInfo = await FileSystem.getInfoAsync(subDirPath);
+      
+      if (fileInfo.exists && fileInfo.isDirectory) {
+        // Check if this subdirectory contains espeak-ng-data
+        const subDirEspeakPath = `${subDirPath}/espeak-ng-data`;
+        const subDirEspeakInfo = await FileSystem.getInfoAsync(subDirEspeakPath);
+        
+        if (subDirEspeakInfo.exists && subDirEspeakInfo.isDirectory) {
+          console.log(`Found espeak-ng-data in subdirectory: ${subDirEspeakPath}`);
+          return subDirEspeakPath.replace('file://', '');
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error searching for espeak-ng-data:', error);
+  }
+
+  console.log('No espeak-ng-data directory found');
+  return null;
 };
 
 export default function TtsScreen() {
@@ -300,40 +342,43 @@ export default function TtsScreen() {
           numThreads: 2,
         };
         
-        // Add model type-specific configuration
+        // Now, find espeak data before configuring the model
+        const espeakDataDir = await findEspeakData(finalPath);
+        if (espeakDataDir) {
+          modelConfig.dataDir = espeakDataDir;
+          console.log(`Using espeak-ng-data from: ${modelConfig.dataDir}`);
+        }
+
+        // Then continue with the model-specific configurations
         if (ttsModelType === 'vits') {
-          modelConfig.modelName = foundModelFiles['model.onnx'] ? foundModelFiles['model.onnx'].split('/').pop() : 'model.onnx';
-        } else if (ttsModelType === 'kokoro') {
-          modelConfig.modelName = foundModelFiles['model.onnx'] ? foundModelFiles['model.onnx'].split('/').pop() : 'model.onnx';
-          modelConfig.voices = foundModelFiles['voices.bin'] ? foundModelFiles['voices.bin'].split('/').pop() : 'voices.bin';
+          // Configure VITS model
+          modelConfig.modelName = foundModelFiles['model.onnx'] ? 
+            foundModelFiles['model.onnx'].split('/').pop() : 'model.onnx';
           
-          // For Kokoro models, also verify that the espeak-ng-data directory is properly set up
-          if (modelFilesFound) {
-            // Check if the model directory contains an espeak-ng-data directory
-            const modelEspeakPath = `${finalPath}/espeak-ng-data`;
-            const modelEspeakInfo = await FileSystem.getInfoAsync(modelEspeakPath);
+          // If we don't have espeak data (dataDir) already set, try to find a lexicon
+          if (!modelConfig.dataDir) {
+            // Check if there's a lexicon file we can use instead
+            const lexiconPath = `${finalPath}/lexicon.txt`;
+            const lexiconInfo = await FileSystem.getInfoAsync(lexiconPath);
             
-            if (modelEspeakInfo.exists && modelEspeakInfo.isDirectory) {
-              // Use espeak-ng-data from model directory
-              modelConfig.dataDir = modelEspeakPath.replace('file://', '');
-              console.log(`Using espeak-ng-data from model directory: ${modelConfig.dataDir}`);
+            if (lexiconInfo.exists) {
+              modelConfig.lexicon = lexiconPath.replace('file://', '');
+              console.log(`Using lexicon file for VITS: ${modelConfig.lexicon}`);
             } else {
-              // Log this important information
-              console.log(`No espeak-ng-data found in model directory, checking ${finalPath}/kokoro-en-v0_19/espeak-ng-data`);
-              
-              // Try one more location - sometimes it's in a subdirectory
-              const versionEspeakPath = `${finalPath}/kokoro-en-v0_19/espeak-ng-data`;
-              const versionEspeakInfo = await FileSystem.getInfoAsync(versionEspeakPath);
-              
-              if (versionEspeakInfo.exists && versionEspeakInfo.isDirectory) {
-                modelConfig.dataDir = versionEspeakPath.replace('file://', '');
-                console.log(`Using espeak-ng-data from version subdirectory: ${modelConfig.dataDir}`);
-              } else {
-                // Cannot find espeak-ng-data in model directory, fallback to app directory
-                console.log(`No espeak-ng-data found in model directories, need to download separately.`);
-              }
+              // This is a critical warning - the model will likely crash without either dataDir or lexicon
+              console.warn(`WARNING: VITS model doesn't have espeak-ng-data directory or lexicon file. Initialization may fail.`);
             }
           }
+          
+          console.log(`Configuring VITS model: ${modelConfig.modelName}`);
+        } else if (ttsModelType === 'kokoro') {
+          modelConfig.modelName = foundModelFiles['model.onnx'] ? 
+            foundModelFiles['model.onnx'].split('/').pop() : 'model.onnx';
+          // Only for Kokoro models, set the voices property
+          modelConfig.voices = foundModelFiles['voices.bin'] ? 
+            foundModelFiles['voices.bin'].split('/').pop() : 'voices.bin';
+          
+          console.log(`Configuring Kokoro model`);
         } else if (ttsModelType === 'matcha') {
           modelConfig.acousticModelName = foundModelFiles['acoustic_model.onnx'] ? 
             foundModelFiles['acoustic_model.onnx'].split('/').pop() : 'acoustic_model.onnx';
@@ -342,6 +387,7 @@ export default function TtsScreen() {
         }
 
         console.log('Initializing TTS with config:', JSON.stringify(modelConfig));
+        console.log(`Model type: ${ttsModelType}`);
         const result = await SherpaOnnx.TTS.initialize(modelConfig);
         setInitResult(result);
         setTtsInitialized(result.success);
@@ -397,8 +443,29 @@ export default function TtsScreen() {
 
       if (result.success && result.filePath) {
         setStatusMessage('Speech generated successfully!');
-        await copyAudioFile(result.filePath);
-        setTtsResult(result);
+        
+        // Check file exists before attempting to copy
+        const fileExists = await verifyFileExists(
+          result.filePath.startsWith('file://') ? result.filePath : `file://${result.filePath}`
+        );
+        
+        if (fileExists) {
+          const accessiblePath = await copyAudioFile(result.filePath);
+          if (accessiblePath) {
+            // Store the accessible path in the result
+            setTtsResult({
+              ...result,
+              accessiblePath
+            });
+          } else {
+            // Still set the result but without the accessible path
+            setTtsResult(result);
+            console.warn('Could not copy audio file to accessible location');
+          }
+        } else {
+          console.error(`Generated audio file does not exist: ${result.filePath}`);
+          setTtsResult(result);
+        }
       } else {
         setErrorMessage('TTS generation failed or no file path returned');
       }

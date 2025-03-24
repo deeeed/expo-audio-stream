@@ -225,11 +225,26 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 val dataDir = modelConfig.getString("dataDir")?.replace("file://", "") ?: ""
                 var numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else 2
                 
+                // Try to determine model type from directory name or model name
+                val dirName = File(modelDir).name.lowercase()
+                val modelType = if (modelConfig.hasKey("modelType")) {
+                    modelConfig.getString("modelType")
+                } else if (dirName.contains("vits") || dirName.contains("icefall")) {
+                    "vits"
+                } else if (dirName.contains("kokoro")) {
+                    "kokoro"
+                } else if (dirName.contains("matcha")) {
+                    "matcha"
+                } else {
+                    "vits" // Default to VITS for backward compatibility
+                }
+                
                 Log.i(TAG, "Using exact paths provided by client:")
                 Log.i(TAG, "- modelDir: $modelDir")
                 Log.i(TAG, "- modelName: $modelName")
                 Log.i(TAG, "- voices: $voices")
                 Log.i(TAG, "- dataDir: $dataDir")
+                Log.i(TAG, "- modelType: $modelType")
                 Log.i(TAG, "- numThreads: $numThreads")
                 
                 // Build file paths
@@ -243,19 +258,62 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 Log.i(TAG, "Tokens file: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})")
                 Log.i(TAG, "Data dir: $dataDir (exists: ${File(dataDir).exists()})")
                 
-                // Create JNI configuration directly
-                val kokoroConfig = OfflineTtsKokoroModelConfig().apply {
-                    model = modelFile.absolutePath
-                    this.voices = voicesFile.absolutePath
-                    tokens = tokensFile.absolutePath
-                    this.dataDir = dataDir
-                    lengthScale = 1.0f
-                }
-                
+                // Create JNI configuration based on model type
                 var ttsModelConfig = OfflineTtsModelConfig().apply {
-                    kokoro = kokoroConfig
                     debug = true
                     provider = "cpu"
+                    this.numThreads = numThreads
+                }
+                
+                // Configure based on model type
+                if (modelType == "vits") {
+                    // Configure VITS model
+                    val vitsConfig = com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig().apply {
+                        model = modelFile.absolutePath
+                        tokens = tokensFile.absolutePath
+                        this.dataDir = dataDir
+                        // Set VITS-specific parameters
+                        noiseScale = 0.667f
+                        noiseScaleW = 0.8f
+                        lengthScale = 1.0f
+                    }
+                    ttsModelConfig.vits = vitsConfig
+                    Log.i(TAG, "Configured VITS model")
+                } else if (modelType == "kokoro") {
+                    // Configure Kokoro model
+                    val kokoroConfig = com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig().apply {
+                        model = modelFile.absolutePath
+                        this.voices = voicesFile.absolutePath
+                        tokens = tokensFile.absolutePath
+                        this.dataDir = dataDir
+                        lengthScale = 1.0f
+                    }
+                    ttsModelConfig.kokoro = kokoroConfig
+                    Log.i(TAG, "Configured Kokoro model")
+                } else if (modelType == "matcha") {
+                    // Configure Matcha model
+                    val matchaConfig = com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig().apply {
+                        acousticModel = modelFile.absolutePath
+                        vocoder = voicesFile.absolutePath
+                        tokens = tokensFile.absolutePath
+                        this.dataDir = dataDir
+                        noiseScale = 1.0f
+                        lengthScale = 1.0f
+                    }
+                    ttsModelConfig.matcha = matchaConfig
+                    Log.i(TAG, "Configured Matcha model")
+                } else {
+                    // Fallback to VITS as default for backward compatibility
+                    Log.i(TAG, "Unknown model type, defaulting to VITS model")
+                    val vitsConfig = com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig().apply {
+                        model = modelFile.absolutePath
+                        tokens = tokensFile.absolutePath
+                        this.dataDir = dataDir
+                        noiseScale = 0.667f
+                        noiseScaleW = 0.8f
+                        lengthScale = 1.0f
+                    }
+                    ttsModelConfig.vits = vitsConfig
                 }
                 
                 val config = OfflineTtsConfig().apply {
@@ -266,10 +324,10 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 
                 // Log the final JNI config
                 Log.i(TAG, "Final JNI config:")
-                Log.i(TAG, "- model: ${kokoroConfig.model}")
-                Log.i(TAG, "- voices: ${kokoroConfig.voices}")
-                Log.i(TAG, "- tokens: ${kokoroConfig.tokens}")
-                Log.i(TAG, "- dataDir: ${kokoroConfig.dataDir}")
+                Log.i(TAG, "- model type: $modelType")
+                Log.i(TAG, "- model: ${modelFile.absolutePath}")
+                Log.i(TAG, "- tokens: ${tokensFile.absolutePath}")
+                Log.i(TAG, "- dataDir: $dataDir")
                 
                 // Initialize TTS engine directly
                 val ptr = OfflineTts.newFromFile(config)
@@ -510,4 +568,5 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
             Log.e(TAG, "AudioTrack is null, cannot prepare for playback")
         }
     }
-} 
+
+}
