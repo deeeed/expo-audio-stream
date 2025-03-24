@@ -1,8 +1,8 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
-export default function TabsLayout() {
+export default function TabLayout() {
   return (
     <Tabs screenOptions={{ 
       headerShown: true,
@@ -20,9 +20,18 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="tts"
         options={{
-          title: 'Text-to-Speech',
+          title: 'Text to Speech',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="mic" size={size} color={color} />
+            <MaterialIcons name="record-voice-over" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="models"
+        options={{
+          title: 'Models',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="storage" size={size} color={color} />
           ),
         }}
       />

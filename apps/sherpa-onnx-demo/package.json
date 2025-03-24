@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
+    "@react-native-async-storage/async-storage": "1.23.1",
     "@siteed/sherpa-onnx.rn": "workspace:^",
     "expo": "^52.0.40",
     "expo-av": "~15.0.2",

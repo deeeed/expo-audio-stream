@@ -8607,6 +8607,7 @@ __metadata:
   dependencies:
     "@babel/core": "npm:^7.25.2"
     "@expo/vector-icons": "npm:^14.0.2"
+    "@react-native-async-storage/async-storage": "npm:1.23.1"
     "@siteed/sherpa-onnx.rn": "workspace:^"
     "@types/react": "npm:~18.3.12"
     dotenv-flow: "npm:^3.2.0"
