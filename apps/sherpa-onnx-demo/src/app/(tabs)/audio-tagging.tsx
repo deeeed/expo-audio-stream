@@ -1,7 +1,8 @@
 import type { 
   AudioEvent, 
   AudioTaggingInitResult, 
-  AudioTaggingModelConfig 
+  AudioTaggingModelConfig,
+  AudioTaggingResult
 } from '@siteed/sherpa-onnx.rn';
 import SherpaOnnx from '@siteed/sherpa-onnx.rn';
 import { Audio } from 'expo-av';
@@ -121,15 +122,21 @@ const findModelFileRecursive = async (basePath: string): Promise<{ modelDir: str
 };
 
 export default function AudioTaggingScreen() {
-  const { models, getDownloadedModels } = useModelManagement();
+  const { models, getDownloadedModels, getModelState } = useModelManagement();
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modelInfo, setModelInfo] = useState<{ modelDir: string, modelName: string } | null>(null);
   const [labelFilePath, setLabelFilePath] = useState<string | null>(null);
-  const [selectedAudio, setSelectedAudio] = useState<typeof SAMPLE_AUDIO_FILES[0] | null>(null);
+  const [selectedAudio, setSelectedAudio] = useState<{
+    id: string;
+    name: string;
+    module: number;
+    localUri: string;
+  } | null>(null);
   const [audioTaggingResults, setAudioTaggingResults] = useState<AudioEvent[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   
   // Add state for loaded audio assets
   const [loadedAudioFiles, setLoadedAudioFiles] = useState<Array<{
@@ -138,6 +145,24 @@ export default function AudioTaggingScreen() {
     module: number;
     localUri: string;
   }>>([]);
+  
+  // Add state for audio playback
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  
+  // Add new states for audio metadata
+  const [audioMetadata, setAudioMetadata] = useState<{
+    size?: number;
+    duration?: number;
+    isLoading: boolean;
+  }>({
+    isLoading: false
+  });
+  
+  // Get only relevant models for audio tagging
+  const availableModels = getDownloadedModels().filter(model => 
+    model.metadata.type === 'audio-tagging'
+  );
   
   // Load audio assets when component mounts
   useEffect(() => {
@@ -167,55 +192,44 @@ export default function AudioTaggingScreen() {
     loadAudioAssets();
   }, []);
   
-  // Find the models directory from downloaded models
-  const getModelDirectory = () => {
-    const downloadedModels = getDownloadedModels();
-    if (downloadedModels.length === 0) return null;
-    
-    // First try to find an audio-tagging model specifically
-    const audioTaggingModel = downloadedModels.find(m => m.metadata.type === 'audio-tagging');
-    if (audioTaggingModel?.localPath) {
-      return audioTaggingModel.localPath;
-    }
-    
-    // If no audio-tagging model, use the first available model's directory
-    // (We can search parent directory for audio-tagging model files)
-    const firstModel = downloadedModels[0];
-    if (firstModel?.localPath) {
-      // Get the parent directory (assuming models are in subdirectories)
-      const parts = firstModel.localPath.split('/');
-      parts.pop(); // Remove the last part (model dir)
-      return parts.join('/');
-    }
-    
-    return null;
-  };
-  
-  // Initialize on mount
+  // Cleanup on unmount
   useEffect(() => {
-    const modelDir = getModelDirectory();
-    if (modelDir) {
-      setupAudioTagging(modelDir);
-    } else {
-      setError('No model directory available. Please download a model first.');
-    }
-    
-    // Cleanup on unmount
     return () => {
       if (initialized) {
-        SherpaOnnx.releaseAudioTagging().catch(console.error);
+        console.log('Cleaning up audio tagging resources');
+        SherpaOnnx.AudioTagging.release().catch(err => 
+          console.error('Error releasing audio tagging resources:', err)
+        );
       }
     };
-  }, [models]);
+  }, [initialized]);
   
-  // Setup audio tagging
-  async function setupAudioTagging(modelDir: string) {
+  // Additional cleanup for sound object
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        sound.unloadAsync().catch(err => 
+          console.error('Error unloading audio during cleanup:', err)
+        );
+      }
+    };
+  }, [sound]);
+  
+  // Setup audio tagging with a specific model
+  async function setupAudioTagging(modelId: string) {
     setLoading(true);
     setError(null);
     
     try {
+      const modelState = getModelState(modelId);
+      if (!modelState?.localPath) {
+        throw new Error('Model files not found locally');
+      }
+      
+      console.log(`Using model path: ${modelState.localPath}`);
+      
       // Find an audio tagging model file recursively
-      const modelFile = await findModelFileRecursive(modelDir);
+      const modelFile = await findModelFileRecursive(modelState.localPath);
       if (!modelFile) {
         setError('Could not find audio tagging model in the model directory');
         setLoading(false);
@@ -235,6 +249,7 @@ export default function AudioTaggingScreen() {
       }
       
       setLabelFilePath(labelsPath);
+      setSelectedModelId(modelId);
       
       // Success, everything is ready
       setLoading(false);
@@ -296,7 +311,8 @@ export default function AudioTaggingScreen() {
       console.log('Files verified, initializing audio tagging engine...');
       
       try {
-        const result = await SherpaOnnx.initAudioTagging(config);
+        // Use the AudioTagging service instead of direct method
+        const result = await SherpaOnnx.AudioTagging.initialize(config);
         
         if (result.success) {
           setInitialized(true);
@@ -323,19 +339,66 @@ export default function AudioTaggingScreen() {
     }
   };
   
-  // Process an audio file
+  // Play an audio file
+  const handlePlayAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
+    try {
+      // Stop any currently playing audio
+      if (sound) {
+        await sound.stopAsync();
+        await sound.unloadAsync();
+        setSound(null);
+      }
+      
+      // Check if we have a valid local URI
+      if (!audioItem.localUri) {
+        throw new Error('Audio file not yet loaded');
+      }
+      
+      console.log(`Loading audio file: ${audioItem.localUri}`);
+      const soundInfo = await Audio.Sound.createAsync({ uri: audioItem.localUri });
+      setSound(soundInfo.sound);
+      
+      // Set up status update callback
+      soundInfo.sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded) {
+          setIsPlaying(status.isPlaying);
+          if (status.didJustFinish) {
+            setIsPlaying(false);
+          }
+        }
+      });
+      
+      await soundInfo.sound.playAsync();
+      setIsPlaying(true);
+      console.log('Audio playback started');
+    } catch (err) {
+      console.error('Error playing audio:', err);
+      setError(`Error playing audio: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+  
+  // Stop playing audio
+  const handleStopAudio = async () => {
+    if (sound) {
+      try {
+        await sound.stopAsync();
+        setIsPlaying(false);
+      } catch (err) {
+        console.error('Error stopping audio:', err);
+      }
+    }
+  };
+  
+  // Enhanced for safer processing
   const handleProcessAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
     if (!initialized) {
       Alert.alert('Error', 'Please initialize the audio tagging engine first');
       return;
     }
     
-    setSelectedAudio(audioItem);
     setProcessing(true);
     setAudioTaggingResults([]);
-    
-    // Define sound variable in the outer scope so it's accessible in the finally block
-    let sound: Audio.Sound | undefined;
+    setError(null); // Clear any previous errors
     
     try {
       // Check if we have a valid local URI
@@ -346,64 +409,37 @@ export default function AudioTaggingScreen() {
       const localFilePath = audioItem.localUri;
       console.log(`Using local audio file at: ${localFilePath}`);
       
-      // No need to check existence since we just downloaded it
-      
-      // Play the audio file using Expo's Audio API
       try {
-        console.log(`Loading audio file: ${localFilePath}`);
-        const soundInfo = await Audio.Sound.createAsync({ uri: localFilePath });
-        sound = soundInfo.sound;
-        await sound.playAsync();
-        console.log('Audio playback started');
-      } catch (audioError) {
-        console.error('Error playing audio:', audioError);
-        // Continue with processing even if audio playback fails
-      }
-      
-      // In a real app, we would load the actual audio file and decode it to PCM samples
-      // This is a simplified mock implementation that sends random data
-      try {
-        // Create a simulated audio buffer (16-bit PCM)
-        // In a real app, you would read from the actual audio file
-        console.log('Creating mock audio buffer...');
-        const audioBuffer = new Array(16000).fill(0).map(() => Math.random() * 2 - 1);
+        // Process the audio file and compute results in one call
+        console.log('Processing and analyzing audio file...');
         
-        // Process the audio through the tagging engine
-        console.log('Processing audio samples...');
-        const processResult = await SherpaOnnx.processAudioSamples(16000, audioBuffer);
-        
-        if (!processResult.success) {
-          throw new Error('Failed to process audio samples');
-        }
-        
-        console.log(`Successfully processed ${processResult.processedSamples} samples`);
-        
-        // Compute the results
-        console.log('Computing audio tagging results...');
-        const result = await SherpaOnnx.computeAudioTagging();
+        // Use the new processAndCompute method from the service
+        // This will now use our more robust native implementation for files
+        const result = await SherpaOnnx.AudioTagging.processAndCompute({
+          filePath: localFilePath
+        });
         
         if (!result.success) {
-          throw new Error('Failed to compute audio tagging results');
+          throw new Error(result.error || 'Failed to analyze audio');
         }
         
-        setAudioTaggingResults(result.events || []);
-        console.log(`Detected ${result.events?.length || 0} audio events in ${result.durationMs}ms`);
+        setAudioTaggingResults(result.events);
+        console.log(`Detected ${result.events.length} audio events in ${result.durationMs}ms`);
       } catch (processingError) {
         console.error('Error processing audio data:', processingError);
-        throw new Error(`Error processing audio data: ${processingError instanceof Error ? processingError.message : String(processingError)}`);
+        setError(`Error processing audio data: ${processingError instanceof Error ? processingError.message : String(processingError)}`);
+        
+        // Still show a helpful message to the user
+        Alert.alert(
+          'Processing Error',
+          'There was an error analyzing this audio. Try a different audio file or model.',
+          [{ text: 'OK' }]
+        );
       }
     } catch (err) {
       console.error('Error processing audio:', err);
       setError(`Error processing audio: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
-      // Cleanup sound if it was created
-      if (sound) {
-        try {
-          await sound.unloadAsync();
-        } catch (cleanupErr) {
-          console.warn('Error unloading audio:', cleanupErr);
-        }
-      }
       setProcessing(false);
     }
   };
@@ -414,7 +450,7 @@ export default function AudioTaggingScreen() {
     setLoading(true);
     
     try {
-      await SherpaOnnx.releaseAudioTagging();
+      await SherpaOnnx.AudioTagging.release();
       setInitialized(false);
       setAudioTaggingResults([]);
       Alert.alert('Success', 'Audio tagging resources released');
@@ -424,6 +460,95 @@ export default function AudioTaggingScreen() {
     } finally {
       setLoading(false);
     }
+  };
+  
+  // Enhanced function to get audio metadata
+  const getAudioMetadata = async (uri: string): Promise<{ size: number; duration: number }> => {
+    try {
+      // Get file size
+      const fileInfo = await FileSystem.getInfoAsync(uri, { size: true });
+      // Use optional chaining with a fallback for size
+      const size = fileInfo.exists ? (fileInfo as any).size || 0 : 0;
+      
+      // Get audio duration
+      const { sound, status } = await Audio.Sound.createAsync(
+        { uri },
+        { shouldPlay: false }
+      );
+      
+      // Get duration from status
+      let duration = 0;
+      if (status.isLoaded) {
+        duration = status.durationMillis || 0;
+      }
+      
+      // Clean up sound object
+      await sound.unloadAsync();
+      
+      return { size, duration };
+    } catch (error) {
+      console.error('Error getting audio metadata:', error);
+      return { size: 0, duration: 0 };
+    }
+  };
+  
+  // Enhanced handle select audio
+  const handleSelectAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
+    // If selecting the same item again, deselect it
+    if (selectedAudio?.id === audioItem.id) {
+      setSelectedAudio(null);
+      setAudioMetadata({ isLoading: false });
+      
+      // Stop playback if active
+      if (sound && isPlaying) {
+        handleStopAudio();
+      }
+    } else {
+      setSelectedAudio(audioItem);
+      setAudioMetadata({ isLoading: true });
+      
+      // Stop any current playback when selecting a new audio
+      if (sound && isPlaying) {
+        handleStopAudio();
+      }
+      
+      // Fetch metadata for the selected audio
+      if (audioItem.localUri) {
+        try {
+          const metadata = await getAudioMetadata(audioItem.localUri);
+          setAudioMetadata({
+            size: metadata.size,
+            duration: metadata.duration,
+            isLoading: false
+          });
+        } catch (err) {
+          console.error('Failed to get audio metadata:', err);
+          setAudioMetadata({ isLoading: false });
+        }
+      }
+    }
+  };
+  
+  // Helper function to format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+  
+  // Helper function to format duration
+  const formatDuration = (milliseconds: number): string => {
+    if (!milliseconds) return 'Unknown';
+    
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
   
   // Render item for the results list
@@ -439,9 +564,42 @@ export default function AudioTaggingScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Audio Tagging Demo</Text>
         
+        {/* Model Selection */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>1. Select Model</Text>
+          <View style={styles.pickerContainer}>
+            {availableModels.length === 0 ? (
+              <Text style={styles.emptyText}>
+                No audio tagging models downloaded. Please visit the Models screen to download a model.
+              </Text>
+            ) : (
+              availableModels.map((model) => (
+                <TouchableOpacity
+                  key={model.metadata.id}
+                  style={[
+                    styles.modelOption,
+                    selectedModelId === model.metadata.id && styles.modelOptionSelected
+                  ]}
+                  onPress={() => setupAudioTagging(model.metadata.id)}
+                  disabled={loading}
+                >
+                  <Text 
+                    style={[
+                      styles.modelOptionText,
+                      selectedModelId === model.metadata.id && styles.modelOptionTextSelected
+                    ]}
+                  >
+                    {model.metadata.name}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </View>
+        
         {/* Model info */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Model Information</Text>
+          <Text style={styles.sectionTitle}>2. Model Information</Text>
           {loading ? (
             <ActivityIndicator size="large" color="#0000ff" />
           ) : (
@@ -453,7 +611,7 @@ export default function AudioTaggingScreen() {
                   {labelFilePath && <Text>Labels File: {labelFilePath}</Text>}
                 </View>
               ) : (
-                <Text style={styles.errorText}>No audio tagging model found</Text>
+                <Text style={styles.infoText}>Please select a model first</Text>
               )}
             </>
           )}
@@ -461,11 +619,15 @@ export default function AudioTaggingScreen() {
         
         {/* Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Actions</Text>
+          <Text style={styles.sectionTitle}>3. Actions</Text>
           
           <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={[styles.button, initialized && styles.buttonDisabled]}
+              style={[
+                styles.button, 
+                styles.initButton,
+                (initialized || !modelInfo || loading) && styles.buttonDisabled
+              ]}
               onPress={handleInitAudioTagging}
               disabled={loading || initialized || !modelInfo}
             >
@@ -473,7 +635,11 @@ export default function AudioTaggingScreen() {
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.button, !initialized && styles.buttonDisabled]}
+              style={[
+                styles.button, 
+                styles.releaseButton,
+                (!initialized || loading) && styles.buttonDisabled
+              ]}
               onPress={handleReleaseAudioTagging}
               disabled={loading || !initialized}
             >
@@ -484,7 +650,7 @@ export default function AudioTaggingScreen() {
         
         {/* Sample Audio Files */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sample Audio Files</Text>
+          <Text style={styles.sectionTitle}>4. Sample Audio Files</Text>
           
           {loadedAudioFiles.length === 0 ? (
             <ActivityIndicator size="small" color="#0000ff" />
@@ -494,11 +660,10 @@ export default function AudioTaggingScreen() {
                 key={audio.id}
                 style={[
                   styles.audioItem,
-                  selectedAudio?.id === audio.id && styles.selectedAudio,
-                  !initialized && styles.buttonDisabled
+                  selectedAudio?.id === audio.id && styles.selectedAudio
                 ]}
-                onPress={() => handleProcessAudio(audio)}
-                disabled={processing || !initialized}
+                onPress={() => handleSelectAudio(audio)}
+                disabled={processing}
               >
                 <Text style={styles.audioName}>{audio.name}</Text>
               </TouchableOpacity>
@@ -506,25 +671,95 @@ export default function AudioTaggingScreen() {
           )}
         </View>
         
+        {/* Audio Actions */}
+        {selectedAudio && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>5. Audio Actions</Text>
+            <View style={styles.audioMetadataContainer}>
+              <Text style={styles.selectedAudioText}>
+                Selected: {selectedAudio.name}
+              </Text>
+              
+              {audioMetadata.isLoading ? (
+                <ActivityIndicator size="small" color="#0288d1" style={styles.metadataLoader} />
+              ) : (
+                <View style={styles.metadataDetails}>
+                  {audioMetadata.size !== undefined && (
+                    <Text style={styles.metadataText}>
+                      Size: {formatFileSize(audioMetadata.size)}
+                    </Text>
+                  )}
+                  {audioMetadata.duration !== undefined && (
+                    <Text style={styles.metadataText}>
+                      Duration: {formatDuration(audioMetadata.duration)}
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
+            
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[
+                  styles.button, 
+                  styles.playButton,
+                  isPlaying && styles.stopButton,
+                  processing && styles.buttonDisabled
+                ]}
+                onPress={() => {
+                  if (selectedAudio && 'localUri' in selectedAudio) {
+                    isPlaying ? handleStopAudio() : handlePlayAudio(selectedAudio);
+                  }
+                }}
+                disabled={processing}
+              >
+                <Text style={styles.buttonText}>{isPlaying ? 'Stop' : 'Play'}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.button, 
+                  styles.classifyButton,
+                  (!initialized || processing) && styles.buttonDisabled
+                ]}
+                onPress={() => {
+                  if (selectedAudio && 'localUri' in selectedAudio) {
+                    handleProcessAudio(selectedAudio);
+                  }
+                }}
+                disabled={!initialized || processing}
+              >
+                <Text style={styles.buttonText}>Classify</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+        
         {/* Results */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Results</Text>
+          <Text style={styles.sectionTitle}>
+            {selectedAudio ? '6. Results' : '5. Results'}
+          </Text>
           
           {processing ? (
             <ActivityIndicator size="large" color="#0000ff" />
           ) : (
             <>
               {audioTaggingResults.length > 0 ? (
-                <FlatList
-                  data={audioTaggingResults}
-                  renderItem={renderItem}
-                  keyExtractor={(item) => `${item.index}-${item.name}`}
-                  style={styles.resultsList}
-                />
+                <View style={styles.resultsList}>
+                  {audioTaggingResults.map((item) => (
+                    <View key={`${item.index}-${item.name}`} style={styles.resultItem}>
+                      <Text style={styles.resultName}>{item.name}</Text>
+                      <Text style={styles.resultProb}>{(item.probability * 100).toFixed(2)}%</Text>
+                    </View>
+                  ))}
+                </View>
               ) : (
                 <Text style={styles.infoText}>
                   {initialized
-                    ? 'Select an audio file to analyze'
+                    ? selectedAudio 
+                      ? 'Press "Classify" to analyze the selected audio'
+                      : 'Select an audio file first'
                     : 'Initialize the audio tagging engine first'}
                 </Text>
               )}
@@ -579,12 +814,17 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   button: {
-    backgroundColor: '#2196F3',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 6,
     minWidth: 120,
     alignItems: 'center',
+  },
+  initButton: {
+    backgroundColor: '#2196F3',
+  },
+  releaseButton: {
+    backgroundColor: '#757575',
   },
   buttonText: {
     color: 'white',
@@ -592,7 +832,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   buttonDisabled: {
-    backgroundColor: '#cccccc',
+    opacity: 0.5,
   },
   audioItem: {
     backgroundColor: '#e1f5fe',
@@ -641,5 +881,74 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     color: '#757575',
+  },
+  pickerContainer: {
+    marginBottom: 8,
+  },
+  modelOption: {
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  modelOptionSelected: {
+    backgroundColor: '#2196F3',
+  },
+  modelOptionText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  modelOptionTextSelected: {
+    color: '#fff',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 14,
+    marginTop: 8,
+  },
+  playButton: {
+    backgroundColor: '#4CAF50',
+  },
+  stopButton: {
+    backgroundColor: '#FF5722',
+  },
+  classifyButton: {
+    backgroundColor: '#2196F3',
+  },
+  selectedAudioText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 12,
+    color: '#0288d1',
+  },
+  audioMetadataContainer: {
+    marginBottom: 16,
+  },
+  metadataDetails: {
+    marginTop: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  metadataText: {
+    fontSize: 14,
+    color: '#555',
+    marginRight: 16,
+    marginBottom: 4,
+  },
+  metadataLoader: {
+    marginTop: 8,
   },
 }); 

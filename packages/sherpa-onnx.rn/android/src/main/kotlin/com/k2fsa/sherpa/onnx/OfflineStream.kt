@@ -24,18 +24,13 @@ class OfflineStream(
 
     fun release() = finalize()
 
-    fun acceptWaveform(sampleRate: Int, samples: FloatArray): Boolean {
-        return acceptWaveform(ptr, sampleRate, samples)
-    }
-
-    fun inputFinished() {
-        inputFinished(ptr)
+    fun acceptWaveform(samples: FloatArray, sampleRate: Int): Boolean {
+        return acceptWaveform(ptr, samples, sampleRate)
     }
 
     companion object {
         // Native methods
         @JvmStatic external fun delete(ptr: Long)
-        @JvmStatic external fun acceptWaveform(ptr: Long, sampleRate: Int, samples: FloatArray): Boolean
-        @JvmStatic external fun inputFinished(ptr: Long)
+        @JvmStatic external fun acceptWaveform(ptr: Long, samples: FloatArray, sampleRate: Int): Boolean
     }
 } 

@@ -13,6 +13,7 @@ export function ModelManagementProvider({
   baseUrl = FileSystem.documentDirectory || '',
 }: ModelManagementProviderProps) {
   const [modelStates, setModelStates] = useState<Record<string, ModelState>>({});
+  const [activeDownloads, setActiveDownloads] = useState<Record<string, FileSystem.DownloadResumable>>({});
 
   // Load saved model states on mount
   useEffect(() => {
@@ -97,8 +98,21 @@ export function ModelManagementProvider({
         }
       );
 
+      // Store the download resumable for possible cancellation
+      setActiveDownloads(prev => ({
+        ...prev,
+        [modelId]: downloadResumable
+      }));
+
       await downloadResumable.downloadAsync();
       console.log(`Download completed for model ${modelId}`);
+
+      // Remove from active downloads after completion
+      setActiveDownloads(prev => {
+        const newDownloads = { ...prev };
+        delete newDownloads[modelId];
+        return newDownloads;
+      });
 
       // Extract the archive
       console.log(`Extracting archive for model ${modelId}...`);
@@ -160,9 +174,22 @@ export function ModelManagementProvider({
                 updateModelState(modelId, { progress: combinedProgress });
               }
             );
+
+            // Store the dependency download resumable
+            setActiveDownloads(prev => ({
+              ...prev,
+              [`${modelId}_dep_${dependency.id}`]: depDownloadResumable
+            }));
             
             await depDownloadResumable.downloadAsync();
             console.log(`Dependency ${dependency.name} downloaded successfully to ${dependencyPath}`);
+            
+            // Remove from active downloads
+            setActiveDownloads(prev => {
+              const newDownloads = { ...prev };
+              delete newDownloads[`${modelId}_dep_${dependency.id}`];
+              return newDownloads;
+            });
             
           } catch (depError) {
             console.error(`Error downloading dependency ${dependency.name}:`, depError);
@@ -451,6 +478,67 @@ export function ModelManagementProvider({
     }
   };
 
+  const cancelDownload = async (modelId: string) => {
+    console.log(`Cancelling download for model ${modelId}...`);
+    
+    // Get the main download resumable
+    const downloadResumable = activeDownloads[modelId];
+    
+    if (downloadResumable) {
+      try {
+        // Cancel the download
+        await downloadResumable.cancelAsync();
+        console.log(`Successfully cancelled main download for model ${modelId}`);
+      } catch (error) {
+        console.error(`Error cancelling main download for model ${modelId}:`, error);
+      }
+      
+      // Remove from active downloads
+      setActiveDownloads(prev => {
+        const newDownloads = { ...prev };
+        delete newDownloads[modelId];
+        return newDownloads;
+      });
+    }
+    
+    // Cancel any dependency downloads
+    for (const key of Object.keys(activeDownloads)) {
+      if (key.startsWith(`${modelId}_dep_`)) {
+        try {
+          await activeDownloads[key].cancelAsync();
+          console.log(`Successfully cancelled dependency download ${key}`);
+        } catch (error) {
+          console.error(`Error cancelling dependency download ${key}:`, error);
+        }
+        
+        // Remove from active downloads
+        setActiveDownloads(prev => {
+          const newDownloads = { ...prev };
+          delete newDownloads[key];
+          return newDownloads;
+        });
+      }
+    }
+    
+    // Clean up the model directory
+    const state = modelStates[modelId];
+    if (state?.localPath) {
+      try {
+        await FileSystem.deleteAsync(state.localPath, { idempotent: true });
+        console.log(`Successfully cleaned up model directory for ${modelId}`);
+      } catch (error) {
+        console.error(`Error cleaning up model directory for ${modelId}:`, error);
+      }
+    }
+    
+    // Update model state
+    updateModelState(modelId, {
+      status: 'error' as ModelStatus,
+      error: 'Download cancelled by user',
+      progress: 0,
+    });
+  };
+
   return (
     <ModelManagementContext.Provider
       value={{
@@ -463,6 +551,7 @@ export function ModelManagementProvider({
         getAvailableModels,
         refreshModelStatus,
         clearAllModels,
+        cancelDownload,
       }}
     >
       {children}

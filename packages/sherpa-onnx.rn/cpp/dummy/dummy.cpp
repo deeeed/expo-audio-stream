@@ -6,6 +6,18 @@
 
 #include <jni.h>
 
+// ======== OfflineStream JNI Functions ========
+extern "C" JNIEXPORT void JNICALL
+Java_com_k2fsa_sherpa_onnx_OfflineStream_delete(JNIEnv *env, jclass clazz, jlong ptr) {
+    // Empty implementation
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_k2fsa_sherpa_onnx_OfflineStream_acceptWaveform(JNIEnv *env, jclass clazz, jlong ptr, jfloatArray samples, jint sampleRate) {
+    // Empty implementation
+    return JNI_TRUE;
+}
+
 // ======== OfflineTts JNI Functions ========
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_k2fsa_sherpa_onnx_OfflineTts_newFromAsset(JNIEnv *env, jclass clazz, jobject assetManager, jobject config) {
@@ -96,6 +108,32 @@ Java_com_k2fsa_sherpa_onnx_Vad_reset(JNIEnv *env, jclass clazz, jlong ptr) {
 extern "C" JNIEXPORT void JNICALL
 Java_com_k2fsa_sherpa_onnx_Vad_flush(JNIEnv *env, jclass clazz, jlong ptr) {
     // Empty implementation
+}
+
+// ======== AudioTagging JNI Functions ========
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_k2fsa_sherpa_onnx_AudioTagging_newFromAsset(JNIEnv *env, jclass clazz, jobject assetManager, jobject config) {
+    return 0;
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_k2fsa_sherpa_onnx_AudioTagging_newFromFile(JNIEnv *env, jclass clazz, jobject config) {
+    return 0;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_k2fsa_sherpa_onnx_AudioTagging_delete(JNIEnv *env, jclass clazz, jlong ptr) {
+    // Empty implementation
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_k2fsa_sherpa_onnx_AudioTagging_createStream(JNIEnv *env, jclass clazz, jlong ptr) {
+    return 0;
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_k2fsa_sherpa_onnx_AudioTagging_compute(JNIEnv *env, jclass clazz, jlong ptr, jlong streamPtr, jint topK) {
+    return NULL;
 }
 
 // ======== Add additional JNI function stubs as needed ========

@@ -31,7 +31,7 @@ data class AudioTaggingModelConfig(
 data class AudioTaggingConfig(
     var model: AudioTaggingModelConfig = AudioTaggingModelConfig(),
     var labels: String = "",
-    var topK: Int = 5,
+    var topK: Int = 3,
 )
 
 /**
@@ -74,8 +74,12 @@ class AudioTagging(
 
     protected fun finalize() {
         if (ptr != 0L) {
-            delete(ptr)
-            ptr = 0
+            try {
+                delete(ptr)
+                ptr = 0
+            } catch (e: Exception) {
+                Log.e(TAG, "Error releasing AudioTagging in finalize: ${e.message}")
+            }
         }
     }
 

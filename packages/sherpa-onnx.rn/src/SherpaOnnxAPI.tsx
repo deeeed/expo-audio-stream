@@ -1,4 +1,4 @@
-import NativeSherpaOnnx from './NativeSherpaOnnx';
+import { NativeModules } from 'react-native';
 import type {
   AssetListResult,
   TtsGenerateResult,
@@ -6,7 +6,13 @@ import type {
   TtsModelConfig,
   TtsOptions,
   ValidateResult,
+  AudioTaggingModelConfig,
+  AudioTaggingInitResult,
+  AudioTaggingResult,
 } from './types/interfaces';
+
+// Get the native module
+const NativeSherpaOnnx = NativeModules.SherpaOnnx;
 
 /**
  * Sherpa-onnx internal API wrapper for React Native
@@ -179,6 +185,95 @@ export class SherpaOnnxAPI {
       return await NativeSherpaOnnx.createMockModelFiles(targetDir, modelId);
     } catch (error: any) {
       console.error('Failed to create mock model files:', error);
+      throw error;
+    }
+  }
+
+  // Audio Tagging methods
+
+  /**
+   * Initialize the AudioTagging module with the provided configuration
+   * @param config AudioTagging model configuration
+   * @returns Promise resolving to initialization result
+   */
+  public static async initAudioTagging(
+    config: AudioTaggingModelConfig
+  ): Promise<AudioTaggingInitResult> {
+    try {
+      return await NativeSherpaOnnx.initAudioTagging(config);
+    } catch (error: any) {
+      console.error('Failed to initialize audio tagging:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process and compute audio tagging for file in a single call
+   * This is the most robust way to process audio files as it handles
+   * stream creation and management internally.
+   * @param options Processing options with filePath
+   * @returns Promise resolving to audio tagging result
+   */
+  public static async processAndComputeAudioTagging(options: {
+    filePath: string;
+  }): Promise<AudioTaggingResult> {
+    if (!options?.filePath) {
+      return Promise.reject(new Error('File path is required'));
+    }
+
+    try {
+      return await NativeSherpaOnnx.processAndComputeAudioTagging(
+        options.filePath
+      );
+    } catch (error: any) {
+      console.error('Failed to process and compute audio tagging:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process and compute audio tagging for samples in a single call
+   * This is the safest way to process audio samples as it handles
+   * stream creation and cleanup internally.
+   * @param options Processing options with samples and sampleRate
+   * @returns Promise resolving to audio tagging result
+   */
+  public static async processAndComputeAudioSamples(options: {
+    samples: number[];
+    sampleRate: number;
+  }): Promise<AudioTaggingResult> {
+    if (!options?.samples || !options?.sampleRate) {
+      return Promise.reject(new Error('Samples and sample rate are required'));
+    }
+
+    if (!Array.isArray(options.samples)) {
+      return Promise.reject(new Error('Samples must be an array'));
+    }
+
+    if (options.sampleRate <= 0) {
+      return Promise.reject(new Error('Sample rate must be positive'));
+    }
+
+    try {
+      return await NativeSherpaOnnx.processAndComputeAudioSamples(
+        options.sampleRate,
+        options.samples
+      );
+    } catch (error: any) {
+      console.error('Failed to process and compute audio samples:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Release AudioTagging resources
+   * @returns Promise that resolves when resources are released
+   */
+  public static async releaseAudioTagging(): Promise<{ released: boolean }> {
+    try {
+      return await NativeSherpaOnnx.releaseAudioTagging();
+    } catch (error: any) {
+      console.error('Failed to release audio tagging resources:', error);
       throw error;
     }
   }

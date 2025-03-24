@@ -9,6 +9,9 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.util.Log
 import com.facebook.react.bridge.*
 import java.io.File
@@ -27,6 +30,8 @@ import com.k2fsa.sherpa.onnx.AudioTagging
 import com.k2fsa.sherpa.onnx.AudioTaggingConfig
 import com.k2fsa.sherpa.onnx.AudioEvent
 import com.k2fsa.sherpa.onnx.OfflineStream
+import com.k2fsa.sherpa.onnx.AudioTaggingModelConfig
+import com.k2fsa.sherpa.onnx.OfflineZipformerAudioTaggingModelConfig
 
 class SherpaOnnxModule(private val reactContext: ReactApplicationContext) : 
     ReactContextBaseJavaModule(reactContext) {
@@ -46,6 +51,9 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         const val NAME = "SherpaOnnx"
         private const val TAG = "SherpaOnnxModule"
         private var isLibraryLoaded = false
+        
+        // Move the TIMEOUT_US constant here
+        private const val TIMEOUT_US = 10000L
         
         init {
             try {
@@ -584,27 +592,28 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
      */
     private fun releaseAudioTaggingResources() {
         try {
-            // Release stream first if it exists
-            if (stream != null) {
-                try {
-                    stream?.release()
-                    Log.i(TAG, "Released AudioTagging stream")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error releasing AudioTagging stream: ${e.message}")
-                } finally {
-                    stream = null
-                }
+            // Use non-null assertion only when we're sure stream is not null
+            // First nullify the reference before releasing to avoid racing conditions with GC
+            val streamToRelease = stream
+            stream = null
+            
+            // Then safely release the stream reference
+            try {
+                streamToRelease?.release()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error releasing stream: ${e.message}")
             }
             
             // Then release the main AudioTagging object
-            if (audioTagging != null) {
+            val taggerToRelease = audioTagging
+            audioTagging = null
+            
+            if (taggerToRelease != null) {
                 try {
-                    audioTagging?.release()
+                    taggerToRelease.release()
                     Log.i(TAG, "Released AudioTagging resources")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error releasing AudioTagging: ${e.message}")
-                } finally {
-                    audioTagging = null
                 }
             }
         } catch (e: Exception) {
@@ -790,8 +799,8 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 
                 Log.i(TAG, "Processing ${samples.size} audio samples at ${sampleRate}Hz")
                 
-                // Feed the samples to the stream - make sure parameters are in the right order
-                stream?.acceptWaveform(sampleRate, samples)
+                // Feed the samples to the stream
+                stream?.acceptWaveform(samples, sampleRate)
                 
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
@@ -877,24 +886,621 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     fun releaseAudioTagging(promise: Promise) {
         executor.execute {
             try {
-                Log.i(TAG, "===== RELEASING AUDIO TAGGING RESOURCES =====")
-                
                 releaseAudioTaggingResources()
                 
                 val resultMap = Arguments.createMap()
-                resultMap.putBoolean("released", true)
-                
-                Log.i(TAG, "AudioTagging resources released successfully")
+                resultMap.putBoolean("success", true)
                 
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error releasing AudioTagging resources: ${e.message}")
+                Log.e(TAG, "Error releasing audio tagging resources: ${e.message}")
                 e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
-                    promise.reject("ERR_RELEASE_AUDIO_TAGGING", "Failed to release AudioTagging resources: ${e.message}")
+                    promise.reject("ERR_RELEASE_AUDIO_TAGGING", "Failed to release audio tagging resources: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Process audio file and compute results in one call
+     * This method is safer as it handles all stream management internally
+     */
+    @ReactMethod
+    fun processAndComputeAudioTagging(filePath: String, promise: Promise) {
+        if (audioTagging == null) {
+            promise.reject("ERR_NOT_INITIALIZED", "AudioTagging is not initialized")
+            return
+        }
+        
+        executor.execute {
+            try {
+                // Clean the path (remove file:// prefix if present)
+                val cleanFilePath = filePath.replace("file://", "")
+                val file = File(cleanFilePath)
+                
+                if (!file.exists() || !file.canRead()) {
+                    val resultMap = Arguments.createMap()
+                    resultMap.putBoolean("success", false)
+                    resultMap.putString("error", "Audio file not found or not readable: $cleanFilePath")
+                    
+                    reactContext.runOnUiQueueThread {
+                        promise.resolve(resultMap)
+                    }
+                    return@execute
+                }
+                
+                Log.i(TAG, "Processing audio file: $cleanFilePath")
+                
+                // Create a local temporary stream for this operation ONLY
+                // This avoids race conditions with the shared stream
+                var tempStream: OfflineStream? = null
+                
+                try {
+                    // Check if this is a WAV file
+                    var audioData: AudioData? = null
+                    
+                    if (cleanFilePath.lowercase().endsWith(".wav")) {
+                        // For WAV files, use AudioUtils for direct parsing
+                        try {
+                            Log.i(TAG, "Using direct WAV file parsing with AudioUtils")
+                            val wavResult = AudioUtils.readWavFile(file.absolutePath)
+                            
+                            if (wavResult != null) {
+                                audioData = AudioData(wavResult.first, wavResult.second)
+                                Log.i(TAG, "Successfully read WAV file using AudioUtils: ${wavResult.first.size} samples at ${wavResult.second}Hz")
+                            } else {
+                                Log.e(TAG, "Failed to read WAV file with AudioUtils, falling back to MediaExtractor")
+                                audioData = extractAudioFromFile(file)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error reading WAV with AudioUtils: ${e.message}")
+                            // Fall back to MediaExtractor
+                            audioData = extractAudioFromFile(file)
+                        }
+                    } else {
+                        // For other formats, use MediaExtractor
+                        audioData = extractAudioFromFile(file)
+                    }
+                    
+                    if (audioData == null) {
+                        val resultMap = Arguments.createMap()
+                        resultMap.putBoolean("success", false)
+                        resultMap.putString("error", "Failed to extract audio data from file")
+                        
+                        reactContext.runOnUiQueueThread {
+                            promise.resolve(resultMap)
+                        }
+                        return@execute
+                    }
+                    
+                    // Create a new local stream for this operation
+                    tempStream = audioTagging?.createStream()
+                    
+                    if (tempStream == null) {
+                        throw Exception("Failed to create audio stream")
+                    }
+                    
+                    // Feed the samples to the local stream
+                    tempStream.acceptWaveform(audioData.samples, audioData.sampleRate)
+                    
+                    // Compute the results with safety checks
+                    val startTime = System.currentTimeMillis()
+                    val events = try {
+                        audioTagging?.compute(tempStream, -1) ?: ArrayList()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in native compute call: ${e.message}")
+                        e.printStackTrace()
+                        ArrayList() // Return empty list on error
+                    }
+                    val endTime = System.currentTimeMillis()
+                    
+                    Log.i(TAG, "Computed audio tagging in ${endTime - startTime}ms, found ${events.size} events")
+                    
+                    // Convert results to JS
+                    val resultMap = Arguments.createMap()
+                    resultMap.putBoolean("success", true)
+                    resultMap.putInt("durationMs", (endTime - startTime).toInt())
+                    
+                    val eventsArray = Arguments.createArray()
+                    for (event in events) {
+                        val eventMap = Arguments.createMap()
+                        eventMap.putString("name", event.name ?: "unknown")
+                        eventMap.putInt("index", event.index)
+                        eventMap.putDouble("probability", event.prob.toDouble())
+                        eventsArray.pushMap(eventMap)
+                    }
+                    resultMap.putArray("events", eventsArray)
+                    
+                    reactContext.runOnUiQueueThread {
+                        promise.resolve(resultMap)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing audio data: ${e.message}")
+                    throw e
+                } finally {
+                    // Always release the temporary stream, even on error
+                    try {
+                        // Make sure to null the reference first
+                        val streamRef = tempStream
+                        tempStream = null
+                        
+                        // Then release it safely
+                        streamRef?.release()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error releasing temporary stream: ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in processAndCompute: ${e.message}")
+                e.printStackTrace()
+                
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_PROCESS_AND_COMPUTE", "Failed to process and compute audio tagging: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Process an audio file directly on the native side
+     */
+    @ReactMethod
+    fun processAudioFile(filePath: String, promise: Promise) {
+        if (audioTagging == null) {
+            promise.reject("ERR_NOT_INITIALIZED", "AudioTagging is not initialized")
+            return
+        }
+        
+        executor.execute {
+            try {
+                // Clean the path (remove file:// prefix if present)
+                val cleanFilePath = filePath.replace("file://", "")
+                val file = File(cleanFilePath)
+                
+                if (!file.exists() || !file.canRead()) {
+                    val resultMap = Arguments.createMap()
+                    resultMap.putBoolean("success", false)
+                    resultMap.putString("error", "Audio file not found or not readable: $cleanFilePath")
+                    
+                    reactContext.runOnUiQueueThread {
+                        promise.resolve(resultMap)
+                    }
+                    return@execute
+                }
+                
+                Log.i(TAG, "Processing audio file: $cleanFilePath")
+                
+                // Check if this is a WAV file
+                var audioData: AudioData? = null
+                
+                try {
+                    if (cleanFilePath.lowercase().endsWith(".wav")) {
+                        // For WAV files, use AudioUtils for direct parsing
+                        try {
+                            Log.i(TAG, "Using direct WAV file parsing with AudioUtils")
+                            val wavResult = AudioUtils.readWavFile(file.absolutePath)
+                            
+                            if (wavResult != null) {
+                                audioData = AudioData(wavResult.first, wavResult.second)
+                                Log.i(TAG, "Successfully read WAV file using AudioUtils: ${wavResult.first.size} samples at ${wavResult.second}Hz")
+                            } else {
+                                Log.e(TAG, "Failed to read WAV file with AudioUtils, falling back to MediaExtractor")
+                                audioData = extractAudioFromFile(file)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error reading WAV with AudioUtils: ${e.message}")
+                            // Fall back to MediaExtractor
+                            audioData = extractAudioFromFile(file)
+                        }
+                    } else {
+                        // For other formats, use MediaExtractor
+                        audioData = extractAudioFromFile(file)
+                    }
+                    
+                    if (audioData == null) {
+                        val resultMap = Arguments.createMap()
+                        resultMap.putBoolean("success", false)
+                        resultMap.putString("error", "Failed to extract audio data from file")
+                        
+                        reactContext.runOnUiQueueThread {
+                            promise.resolve(resultMap)
+                        }
+                        return@execute
+                    }
+                    
+                    // Safely clean up the existing stream before creating a new one
+                    var oldStream: OfflineStream? = null
+                    try {
+                        // Store reference to old stream and clear shared variable
+                        oldStream = stream
+                        stream = null
+                        
+                        // Create new stream first
+                        val newStream = audioTagging?.createStream()
+                        if (newStream == null) {
+                            throw Exception("Failed to create new audio stream")
+                        }
+                        
+                        // Only after new stream is successfully created, release the old one
+                        try {
+                            oldStream?.release()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Non-fatal error releasing old stream: ${e.message}")
+                            // Continue even if there's an error releasing the old stream
+                        }
+                        
+                        // Set the new stream
+                        stream = newStream
+                        
+                        // Feed the samples to the stream
+                        stream?.acceptWaveform(audioData.samples, audioData.sampleRate)
+                        
+                        val resultMap = Arguments.createMap()
+                        resultMap.putBoolean("success", true)
+                        resultMap.putString("message", "Audio file processed successfully")
+                        resultMap.putInt("sampleRate", audioData.sampleRate)
+                        resultMap.putInt("samplesLength", audioData.samples.size)
+                        resultMap.putString("inputType", "file")
+                        resultMap.putInt("samplesProcessed", audioData.samples.size)
+                        
+                        reactContext.runOnUiQueueThread {
+                            promise.resolve(resultMap)
+                        }
+                    } catch (e: Exception) {
+                        // Restore the old stream if something went wrong
+                        if (stream == null && oldStream != null) {
+                            stream = oldStream
+                            oldStream = null // Prevent release
+                        }
+                        Log.e(TAG, "Error processing audio stream: ${e.message}")
+                        throw e
+                    } finally {
+                        // Ensure old stream is released if not restored
+                        try {
+                            oldStream?.release()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error releasing old stream in finally block: ${e.message}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing audio data: ${e.message}")
+                    throw e
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing audio file: ${e.message}")
+                e.printStackTrace()
+                
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_PROCESS_AUDIO_FILE", "Failed to process audio file: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Data class to hold extracted audio data
+     */
+    data class AudioData(val samples: FloatArray, val sampleRate: Int)
+    
+    /**
+     * Extract audio data from any supported audio file using MediaExtractor
+     * This handles MP3, WAV, AAC, and other formats supported by Android
+     */
+    private fun extractAudioFromFile(file: File): AudioData? {
+        val extractor = MediaExtractor()
+        val decoder = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_AUDIO_MPEG)
+        
+        try {
+            // Set the data source to our audio file
+            extractor.setDataSource(file.absolutePath)
+            
+            // Find the first audio track
+            val audioTrackIndex = selectAudioTrack(extractor)
+            if (audioTrackIndex < 0) {
+                Log.e(TAG, "No audio track found in the file")
+                return null
+            }
+            
+            // Select this track for extraction
+            extractor.selectTrack(audioTrackIndex)
+            
+            // Get the format for this track
+            val format = extractor.getTrackFormat(audioTrackIndex)
+            
+            // Get sample rate from format
+            val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            Log.i(TAG, "Audio sample rate: $sampleRate")
+            
+            // Get channel count
+            val channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            Log.i(TAG, "Audio channels: $channelCount")
+            
+            // Configure and start the decoder
+            decoder.configure(format, null, null, 0)
+            decoder.start()
+            
+            // Decode the audio to PCM
+            val pcmData = decodeAudioToPCM(extractor, format, decoder)
+            
+            // If this is stereo or multi-channel, convert to mono by averaging the channels
+            val monoSamples = if (channelCount > 1) {
+                convertToMono(pcmData, channelCount)
+            } else {
+                pcmData
+            }
+            
+            // Convert byte array to float array
+            val floatSamples = byteArrayToFloatArray(monoSamples)
+            
+            return AudioData(floatSamples, sampleRate)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting audio: ${e.message}")
+            e.printStackTrace()
+            return null
+        } finally {
+            try {
+                extractor.release()
+                decoder.stop()
+                decoder.release()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cleaning up MediaExtractor: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Find and select the first audio track in the media file
+     */
+    private fun selectAudioTrack(extractor: MediaExtractor): Int {
+        for (i in 0 until extractor.trackCount) {
+            val format = extractor.getTrackFormat(i)
+            val mime = format.getString(MediaFormat.KEY_MIME)
+            if (mime?.startsWith("audio/") == true) {
+                return i
+            }
+        }
+        return -1
+    }
+    
+    /**
+     * Decode audio data to raw PCM using MediaCodec
+     */
+    private fun decodeAudioToPCM(extractor: MediaExtractor, format: MediaFormat, decoder: MediaCodec): ByteArray {
+        val outputBuffers = mutableListOf<ByteArray>()
+        val bufferInfo = MediaCodec.BufferInfo()
+        var inputEOS = false
+        var outputEOS = false
+        
+        // Start decoding
+        while (!outputEOS) {
+            if (!inputEOS) {
+                val inputBufferId = decoder.dequeueInputBuffer(TIMEOUT_US)
+                if (inputBufferId >= 0) {
+                    val inputBuffer = decoder.getInputBuffer(inputBufferId)
+                    inputBuffer?.clear()
+                    
+                    val sampleSize = if (inputBuffer != null) {
+                        extractor.readSampleData(inputBuffer, 0)
+                    } else -1
+                    
+                    if (sampleSize < 0) {
+                        decoder.queueInputBuffer(
+                            inputBufferId, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                        )
+                        inputEOS = true
+                        Log.d(TAG, "End of audio stream reached")
+                    } else {
+                        decoder.queueInputBuffer(
+                            inputBufferId, 0, sampleSize, extractor.sampleTime, 0
+                        )
+                        extractor.advance()
+                    }
+                }
+            }
+            
+            // Get decoded data
+            val outputBufferId = decoder.dequeueOutputBuffer(bufferInfo, TIMEOUT_US)
+            if (outputBufferId >= 0) {
+                if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                    outputEOS = true
+                }
+                
+                // If we have valid output, copy it
+                if (bufferInfo.size > 0) {
+                    val outputBuffer = decoder.getOutputBuffer(outputBufferId)
+                    if (outputBuffer != null) {
+                        val data = ByteArray(bufferInfo.size)
+                        outputBuffer.position(bufferInfo.offset)
+                        outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
+                        outputBuffer.get(data)
+                        outputBuffers.add(data)
+                    }
+                }
+                
+                decoder.releaseOutputBuffer(outputBufferId, false)
+            }
+        }
+        
+        // Combine all output chunks into a single byte array
+        val totalSize = outputBuffers.sumOf { it.size }
+        val result = ByteArray(totalSize)
+        var offset = 0
+        
+        for (buffer in outputBuffers) {
+            System.arraycopy(buffer, 0, result, offset, buffer.size)
+            offset += buffer.size
+        }
+        
+        Log.i(TAG, "Decoded ${result.size} bytes of PCM audio data")
+        return result
+    }
+    
+    /**
+     * Convert multi-channel audio to mono by averaging all channels
+     */
+    private fun convertToMono(input: ByteArray, channels: Int): ByteArray {
+        // Assuming 16-bit PCM, 2 bytes per sample
+        val bytesPerSample = 2
+        val samplesPerFrame = channels
+        val bytesPerFrame = bytesPerSample * samplesPerFrame
+        val frameCount = input.size / bytesPerFrame
+        
+        val output = ByteArray(frameCount * bytesPerSample)
+        
+        for (i in 0 until frameCount) {
+            var sum = 0L
+            
+            // Average all channels
+            for (c in 0 until channels) {
+                val offset = i * bytesPerFrame + c * bytesPerSample
+                // Read 16-bit sample (little endian)
+                val sample = (input[offset].toInt() and 0xFF) or
+                             ((input[offset + 1].toInt() and 0xFF) shl 8)
+                sum += sample
+            }
+            
+            // Calculate the average
+            val average = (sum / channels).toInt()
+            
+            // Write back the mono sample (little endian)
+            val outOffset = i * bytesPerSample
+            output[outOffset] = (average and 0xFF).toByte()
+            output[outOffset + 1] = ((average shr 8) and 0xFF).toByte()
+        }
+        
+        return output
+    }
+    
+    /**
+     * Convert a PCM byte array to float array with values in range [-1.0, 1.0]
+     */
+    private fun byteArrayToFloatArray(input: ByteArray): FloatArray {
+        // Assuming 16-bit PCM, 2 bytes per sample
+        val bytesPerSample = 2
+        val sampleCount = input.size / bytesPerSample
+        val output = FloatArray(sampleCount)
+        
+        for (i in 0 until sampleCount) {
+            val offset = i * bytesPerSample
+            // Read 16-bit sample (little endian)
+            val sample = (input[offset].toInt() and 0xFF) or
+                         ((input[offset + 1].toInt() and 0xFF) shl 8)
+            
+            // Convert to signed value
+            val signedSample = if (sample >= 32768) sample - 65536 else sample
+            
+            // Normalize to [-1.0, 1.0]
+            output[i] = signedSample / 32768f
+        }
+        
+        return output
+    }
+
+    /**
+     * Process and compute audio samples in one call - safer implementation
+     * This creates a dedicated stream for each operation and cleans up properly
+     */
+    @ReactMethod
+    fun processAndComputeAudioSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        if (audioTagging == null) {
+            promise.reject("ERR_NOT_INITIALIZED", "AudioTagging is not initialized")
+            return
+        }
+        
+        executor.execute {
+            try {
+                // Convert ReadableArray to FloatArray with safety checks
+                val size = audioBuffer.size()
+                if (size <= 0) {
+                    val resultMap = Arguments.createMap()
+                    resultMap.putBoolean("success", false)
+                    resultMap.putString("error", "Empty audio buffer provided")
+                    
+                    reactContext.runOnUiQueueThread {
+                        promise.resolve(resultMap)
+                    }
+                    return@execute
+                }
+                
+                Log.i(TAG, "Processing ${size} audio samples at ${sampleRate}Hz in combined operation")
+                
+                // Create a local temporary stream for this operation ONLY
+                var tempStream: OfflineStream? = null
+                
+                try {
+                    // Convert buffer to FloatArray
+                    val samples = FloatArray(size)
+                    for (i in 0 until size) {
+                        samples[i] = audioBuffer.getDouble(i).toFloat()
+                    }
+                    
+                    // Create a new local stream for this operation
+                    tempStream = audioTagging?.createStream()
+                    
+                    if (tempStream == null) {
+                        throw Exception("Failed to create audio stream")
+                    }
+                    
+                    // Feed the samples to the local stream
+                    tempStream.acceptWaveform(samples, sampleRate)
+                    
+                    // Compute the results with safety checks
+                    val startTime = System.currentTimeMillis()
+                    val events = try {
+                        audioTagging?.compute(tempStream, -1) ?: ArrayList()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in native compute call: ${e.message}")
+                        e.printStackTrace()
+                        ArrayList() // Return empty list on error
+                    }
+                    val endTime = System.currentTimeMillis()
+                    
+                    Log.i(TAG, "Computed audio tagging in ${endTime - startTime}ms, found ${events.size} events")
+                    
+                    // Convert results to JS
+                    val resultMap = Arguments.createMap()
+                    resultMap.putBoolean("success", true)
+                    resultMap.putInt("durationMs", (endTime - startTime).toInt())
+                    
+                    val eventsArray = Arguments.createArray()
+                    for (event in events) {
+                        val eventMap = Arguments.createMap()
+                        eventMap.putString("name", event.name ?: "unknown")
+                        eventMap.putInt("index", event.index)
+                        eventMap.putDouble("probability", event.prob.toDouble())
+                        eventsArray.pushMap(eventMap)
+                    }
+                    resultMap.putArray("events", eventsArray)
+                    
+                    reactContext.runOnUiQueueThread {
+                        promise.resolve(resultMap)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing audio data: ${e.message}")
+                    throw e
+                } finally {
+                    // Always release the temporary stream, even on error
+                    try {
+                        // Make sure to null the reference first
+                        val streamRef = tempStream
+                        tempStream = null
+                        
+                        // Then release it safely
+                        streamRef?.release()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error releasing temporary stream: ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in processAndComputeAudioSamples: ${e.message}")
+                e.printStackTrace()
+                
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_PROCESS_AND_COMPUTE", "Failed to process and compute audio tagging for samples: ${e.message}")
                 }
             }
         }
