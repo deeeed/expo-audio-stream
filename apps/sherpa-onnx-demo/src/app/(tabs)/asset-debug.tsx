@@ -334,15 +334,19 @@ export default function AssetDebugScreen() {
           console.log(`  • File exists and is bundled correctly`);
           
           return asset.localUri; // Return the correct path if found
-        } catch (err) {
-          console.log(`  ❌ Error: ${err.message}`);
+        } catch (err: unknown) {
+          // Properly handle the unknown error type
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          console.log(`  ❌ Error: ${errorMessage}`);
         }
       }
       
       console.log("❌ None of the asset paths worked. Your models aren't correctly bundled.");
       return null;
-    } catch (err) {
-      console.log(`❌ Error validating assets: ${err.message}`);
+    } catch (err: unknown) {
+      // Properly handle the unknown error type
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.log(`❌ Error validating assets: ${errorMessage}`);
       return null;
     }
   };

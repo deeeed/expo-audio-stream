@@ -8,6 +8,7 @@
     "ios": "expo run:ios --port 7500",
     "open:android": "open -a \"Android Studio\" ./android",
     "open:ios": "open -a Xcode ./ios",
+    "typecheck": "tsc --noEmit",
     "web": "expo start --web --port 7500"
   },
   "dependencies": {
