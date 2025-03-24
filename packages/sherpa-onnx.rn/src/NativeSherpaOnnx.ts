@@ -30,6 +30,14 @@ interface SherpaOnnxInterface {
     count: number;
   }>;
   debugAssetPath(path: string): Promise<AssetListResult>;
+  extractTarBz2(
+    archivePath: string,
+    targetDir: string
+  ): Promise<{
+    success: boolean;
+    message?: string;
+    extractedFiles?: string[];
+  }>;
 }
 
 // Create a safer version that doesn't crash if the module is missing
