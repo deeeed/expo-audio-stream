@@ -1,11 +1,12 @@
-import type {
-  ValidateResult,
-  TtsModelConfig,
-  TtsInitResult,
-  TtsOptions,
-  TtsGenerateResult,
-} from './types/interfaces';
 import NativeSherpaOnnx from './NativeSherpaOnnx';
+import type {
+  AssetListResult,
+  TtsGenerateResult,
+  TtsInitResult,
+  TtsModelConfig,
+  TtsOptions,
+  ValidateResult,
+} from './types/interfaces';
 
 /**
  * Sherpa-onnx internal API wrapper for React Native
@@ -103,6 +104,37 @@ export class SherpaOnnxAPI {
       return await NativeSherpaOnnx.releaseTts();
     } catch (error: any) {
       console.error('Failed to release TTS resources:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * List all available assets in the application bundle
+   * This is helpful for debugging asset loading issues
+   * @returns Promise that resolves with a list of all assets and their count
+   */
+  public static async listAllAssets(): Promise<{
+    assets: string[];
+    count: number;
+  }> {
+    try {
+      return await NativeSherpaOnnx.listAllAssets();
+    } catch (error: any) {
+      console.error('Failed to list assets:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Debug asset path - useful for diagnosing asset issues
+   * @param path Path to debug
+   * @returns Promise that resolves with details about the asset path
+   */
+  public static async debugAssetPath(path: string): Promise<AssetListResult> {
+    try {
+      return await NativeSherpaOnnx.debugAssetPath(path);
+    } catch (error: any) {
+      console.error('Failed to debug asset path:', error);
       throw error;
     }
   }

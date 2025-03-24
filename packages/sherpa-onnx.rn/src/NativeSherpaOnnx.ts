@@ -1,5 +1,6 @@
 import { NativeModules } from 'react-native';
 import type {
+  AssetListResult,
   TtsGenerateResult,
   TtsInitResult,
   TtsModelConfig,
@@ -24,6 +25,11 @@ interface SherpaOnnxInterface {
   stopTts(): Promise<{ stopped: boolean; message?: string }>;
   releaseTts(): Promise<{ released: boolean }>;
   debugAssetLoading(): Promise<any>;
+  listAllAssets(): Promise<{
+    assets: string[];
+    count: number;
+  }>;
+  debugAssetPath(path: string): Promise<AssetListResult>;
 }
 
 // Create a safer version that doesn't crash if the module is missing

@@ -214,3 +214,18 @@ export interface ValidateResult {
    */
   status: string;
 }
+
+/**
+ * Result of listing all assets in the application bundle
+ */
+export interface AssetListResult {
+  /**
+   * Array of asset paths
+   */
+  assets: string[];
+
+  /**
+   * Total number of assets found
+   */
+  count: number;
+}

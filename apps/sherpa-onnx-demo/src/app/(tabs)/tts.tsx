@@ -15,6 +15,7 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Asset } from 'expo-asset';
 
 // Extended TTS result with accessible path
 interface ExtendedTtsResult extends TtsGenerateResult {
@@ -30,6 +31,12 @@ interface TtsModel {
   disabled?: boolean; // Make it optional
 }
 
+// Define interface for asset listing results
+interface AssetListResult {
+  assets: string[];
+  count: number;
+}
+
 export default function TtsScreen() {
   // State
   const [ttsInitialized, setTtsInitialized] = useState<boolean>(false);
@@ -37,6 +44,10 @@ export default function TtsScreen() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  
+  // Add new state for storing asset list
+  const [assetList, setAssetList] = useState<string[]>([]);
+  const [showAssetList, setShowAssetList] = useState<boolean>(false);
   
   // Sound object for playback
   const [sound, setSound] = useState<Audio.Sound | null>(null);
@@ -53,7 +64,7 @@ export default function TtsScreen() {
       id: 'kokoro-en-v0_19', 
       name: 'Kokoro English', 
       type: 'kokoro',
-      path: 'tts/kokoro-en-v0_19'
+      path: 'assets/tts/kokoro-en-v0_19'
     },
     { 
       id: 'kokoro-multi-lang-v1_0', 
@@ -67,6 +78,13 @@ export default function TtsScreen() {
       type: 'matcha', 
       path: 'tts/matcha-icefall-en_US-ljspeech',
       disabled: false 
+    },
+    {
+      id: 'vits-melo-tts-zh_en',
+      name: 'VITS Melo Chinese/English',
+      type: 'vits',
+      path: 'tts/vits-melo-tts-zh_en',
+      disabled: true
     },
   ];
   
@@ -92,10 +110,100 @@ export default function TtsScreen() {
     }
   };
 
+  const getAbsoluteModelPaths = async (modelId: string): Promise<{success: boolean, paths: {model?: string, voices?: string, tokens?: string}}> => {
+    try {
+      console.log(`Loading assets for model: ${modelId}...`);
+      
+      // Get model info
+      const model = availableModels.find(m => m.id === modelId);
+      if (!model) {
+        console.error("Model not found:", modelId);
+        return { success: false, paths: {} };
+      }
+      
+      // Use a switch statement to map model IDs to static require statements
+      let modelAsset;
+      let voicesAsset;
+      let tokensAsset;
+      
+      switch (modelId) {
+        case 'kokoro-en-v0_19':
+          try {
+            // Static requires - no template literals
+            const modelModule = require('../../../assets/tts/kokoro-en-v0_19/model.onnx');
+            const voicesModule = require('../../../assets/tts/kokoro-en-v0_19/voices.bin');
+            const tokensModule = require('../../../assets/tts/kokoro-en-v0_19/tokens.txt');
+            
+            // Load assets
+            const assets = await Asset.loadAsync([modelModule, voicesModule, tokensModule]);
+            modelAsset = assets[0];
+            voicesAsset = assets[1];
+            tokensAsset = assets[2];
+            
+            console.log("Loaded kokoro-en-v0_19 assets successfully!");
+          } catch (error) {
+            console.error("Error loading kokoro-en-v0_19:", error);
+            return { success: false, paths: {} };
+          }
+          break;
+          
+        case 'kokoro-multi-lang-v1_0':
+          try {
+            // Add similar static requires for this model
+            const modelModule = require('../../../assets/tts/kokoro-multi-lang-v1_0/model.onnx');
+            const voicesModule = require('../../../assets/tts/kokoro-multi-lang-v1_0/voices.bin');
+            const tokensModule = require('../../../assets/tts/kokoro-multi-lang-v1_0/tokens.txt');
+            
+            // Load assets
+            const assets = await Asset.loadAsync([modelModule, voicesModule, tokensModule]);
+            modelAsset = assets[0];
+            voicesAsset = assets[1];
+            tokensAsset = assets[2];
+            
+            console.log("Loaded kokoro-multi-lang-v1_0 assets successfully!");
+          } catch (error) {
+            console.error("Error loading kokoro-multi-lang-v1_0:", error);
+            return { success: false, paths: {} };
+          }
+          break;
+          
+        // Add cases for other models as needed
+          
+        default:
+          console.error("No static asset mapping for model:", modelId);
+          return { success: false, paths: {} };
+      }
+      
+      // Make sure we have all assets
+      if (!modelAsset || !voicesAsset || !tokensAsset) {
+        console.error("Failed to load all required assets");
+        return { success: false, paths: {} };
+      }
+      
+      // Log the loaded assets
+      console.log("Model asset:", modelAsset.localUri);
+      console.log("Voices asset:", voicesAsset.localUri);
+      console.log("Tokens asset:", tokensAsset.localUri);
+      
+      // Return paths with null to undefined conversion
+      return {
+        success: true,
+        paths: {
+          model: modelAsset.localUri ?? undefined,
+          voices: voicesAsset.localUri ?? undefined,
+          tokens: tokensAsset.localUri ?? undefined
+        }
+      };
+    } catch (error) {
+      console.error("Error getting model paths:", error);
+      return { success: false, paths: {} };
+    }
+  };
+
   const handleInitTts = async () => {
     setIsLoading(true);
     setErrorMessage('');
-    setStatusMessage('Initializing TTS...');
+    setStatusMessage('Loading model assets...');
     
     try {
       // Get the selected model
@@ -104,40 +212,43 @@ export default function TtsScreen() {
         throw new Error('Selected model not found');
       }
       
-      // Base configuration
-      const modelConfig: TtsModelConfig = {
-        modelDir: model.path,
-        numThreads: 2,
-      };
-      
-      if (model.type === 'matcha') {
-        // For Matcha model - ensure these files exist in your assets
-        modelConfig.acousticModelName = 'model-steps-3.onnx';
-        
-        // Use absolute path for vocoder - use the root tts directory
-        modelConfig.vocoder = 'tts/vocos-22khz-univ.onnx';
-        
-        // Also specify data directory if needed
-        modelConfig.dataDir = `${model.path}/espeak-ng-data`;
-      } 
-      else if (model.type === 'kokoro') {
-        // Common for all Kokoro models
-        modelConfig.modelName = 'model.onnx';
-        modelConfig.voices = 'voices.bin';
-        
-        if (model.id === 'kokoro-multi-lang-v1_0') {
-          // Use explicit paths for all resources
-          modelConfig.dataDir = `${model.path}/espeak-ng-data`;
-          
-          // Use explicit paths for lexicon files
-          modelConfig.lexicon = `${model.path}/lexicon-us-en.txt,${model.path}/lexicon-zh.txt,${model.path}/lexicon-gb-en.txt`;
-          
-          // Use explicit paths for rule files
-          modelConfig.ruleFsts = `${model.path}/phone-zh.fst,${model.path}/date-zh.fst,${model.path}/number-zh.fst`;
-        }
+      // Get absolute paths to model files
+      const modelAssets = await getAbsoluteModelPaths(model.id);
+      if (!modelAssets.success) {
+        throw new Error('Failed to load model assets');
       }
       
-      console.log('Using model config with explicit paths:', modelConfig);
+      setStatusMessage('Model assets loaded successfully. Initializing TTS...');
+      
+      // Helper function to strip file:// prefix from paths
+      const stripFilePrefix = (path?: string): string | undefined => {
+        if (!path) return undefined;
+        return path.replace(/^file:\/\//, '');
+      };
+
+      // Get raw file paths without file:// prefix
+      const rawModelPath = stripFilePrefix(modelAssets.paths.model);
+      const rawVoicesPath = stripFilePrefix(modelAssets.paths.voices);
+      const rawTokensPath = stripFilePrefix(modelAssets.paths.tokens);
+
+      console.log('Raw filesystem paths:');
+      console.log('- Model:', rawModelPath);
+      console.log('- Voices:', rawVoicesPath);
+      console.log('- Tokens:', rawTokensPath);
+
+      // Get the parent directory
+      const modelDir = rawModelPath ? rawModelPath.substring(0, rawModelPath.lastIndexOf('/')) : '';
+      console.log('Model directory:', modelDir);
+
+      // Use the parent directory and explicit file paths
+      const modelConfig: TtsModelConfig = {
+        modelDir: modelDir,
+        modelName: rawModelPath,  // Provide full path 
+        voices: rawVoicesPath,    // Provide full path
+        numThreads: 2,
+      };
+
+      console.log('Using model config with raw paths:', modelConfig);
       
       // Validate library is loaded
       const validation = await SherpaOnnx.validateLibraryLoaded();
@@ -151,11 +262,36 @@ export default function TtsScreen() {
       setTtsInitialized(result.success);
       
       if (result.success) {
-        setStatusMessage(`TTS initialized successfully. Sample rate: ${result.sampleRate}Hz, Speakers: ${result.numSpeakers}`);
+        setStatusMessage(`TTS initialized successfully with file path! Sample rate: ${result.sampleRate}Hz`);
       } else if (result.error) {
-        setErrorMessage(`TTS initialization failed: ${result.error}`);
+        setErrorMessage(`TTS initialization failed with file path: ${result.error}`);
+        
+        // ===== SECOND TEST - FULL PATHS =====
+        // If the first approach fails, try using full paths for each file
+        setStatusMessage('Trying with absolute file paths for each model file...');
+        
+        const fullPathConfig: TtsModelConfig = {
+          modelDir: "", // Empty to avoid confusion
+          modelName: rawModelPath,
+          voices: rawVoicesPath,
+          numThreads: 2,
+        };
+        
+        console.log('Using model config with normalized file paths:', fullPathConfig);
+        
+        const secondResult = await SherpaOnnx.TTS.initialize(fullPathConfig);
+        setInitResult(secondResult);
+        setTtsInitialized(secondResult.success);
+        
+        if (secondResult.success) {
+          setStatusMessage(`TTS initialized successfully with absolute file paths! Sample rate: ${secondResult.sampleRate}Hz`);
+        } else if (secondResult.error) {
+          setErrorMessage(`TTS initialization failed with absolute file paths: ${secondResult.error}`);
+        } else {
+          setErrorMessage('TTS initialization failed with absolute file paths');
+        }
       } else {
-        setErrorMessage('TTS initialization failed');
+        setErrorMessage('TTS initialization failed with file path');
       }
     } catch (error) {
       const errorMsg = `TTS init error: ${(error as Error).message}`;
@@ -628,6 +764,29 @@ export default function TtsScreen() {
     };
   }, []);
 
+  const handleListAssets = async () => {
+    try {
+      setIsLoading(true);
+      setErrorMessage('');
+      setStatusMessage('Listing all assets...');
+      
+      // Call the native module's listAllAssets method
+      const result = await SherpaOnnx.listAllAssets();
+      
+      if (result && result.assets) {
+        setAssetList(result.assets);
+        setShowAssetList(true);
+        setStatusMessage(`Found ${result.count} assets in the bundle`);
+      } else {
+        setErrorMessage('Failed to list assets or no assets found');
+      }
+    } catch (error) {
+      setErrorMessage(`Error listing assets: ${(error as Error).message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -641,6 +800,38 @@ export default function TtsScreen() {
         {statusMessage ? (
           <Text style={styles.statusText}>{statusMessage}</Text>
         ) : null}
+        
+        {/* Add Debug Button for Asset List */}
+        <View style={styles.buttonRow}>
+          <TouchableOpacity 
+            style={styles.debugButton} 
+            onPress={handleListAssets}
+          >
+            <Text style={styles.buttonText}>Debug: List Assets</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.debugButton} 
+            onPress={() => setShowAssetList(false)}
+            disabled={!showAssetList}
+          >
+            <Text style={styles.buttonText}>Hide Asset List</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Asset List Display */}
+        {showAssetList && (
+          <View style={styles.assetListContainer}>
+            <Text style={styles.sectionTitle}>Asset Files ({assetList.length})</Text>
+            <ScrollView style={styles.assetList}>
+              {assetList.map((asset, index) => (
+                <Text key={index} style={styles.assetItem}>
+                  {asset}
+                </Text>
+              ))}
+            </ScrollView>
+          </View>
+        )}
         
         {/* Model Selection */}
         <Text style={styles.sectionTitle}>1. Select TTS Model</Text>
@@ -912,5 +1103,30 @@ const styles = StyleSheet.create({
   },
   modelOptionTextDisabled: {
     color: '#999',
+  },
+  debugButton: {
+    backgroundColor: '#FF6B6B',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  assetListContainer: {
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#f9f9f9',
+  },
+  assetList: {
+    maxHeight: 200,
+  },
+  assetItem: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: '#555',
+    paddingVertical: 2,
   },
 }); 

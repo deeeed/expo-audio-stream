@@ -64,6 +64,75 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
+    fun listAllAssets(promise: Promise) {
+        try {
+            // Create a result map to return to JavaScript
+            val resultMap = Arguments.createMap()
+            val assetsList = Arguments.createArray()
+            
+            // Get all assets recursively
+            val allAssets = getAllAssetsRecursively("")
+            
+            // Add each asset path to the result array
+            for (assetPath in allAssets) {
+                assetsList.pushString(assetPath)
+            }
+            
+            resultMap.putArray("assets", assetsList)
+            resultMap.putInt("count", allAssets.size)
+            promise.resolve(resultMap)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error listing assets: ${e.message}")
+            promise.reject("ERR_LIST_ASSETS", "Failed to list assets: ${e.message}")
+        }
+    }
+
+    /**
+     * List all assets recursively
+     */
+    private fun getAllAssetsRecursively(path: String): List<String> {
+        val assets = mutableListOf<String>()
+        try {
+            // Get all items in the current path
+            val items = reactContext.assets.list(path) ?: return assets
+            
+            for (item in items) {
+                // Construct the full path
+                val fullPath = if (path.isEmpty()) item else "$path/$item"
+                
+                try {
+                    // Try to open as a file
+                    reactContext.assets.open(fullPath).use { inputStream ->
+                        // If we can open it as a file, add it to the list
+                        assets.add(fullPath)
+                        Log.d(TAG, "Found asset file: $fullPath")
+                    }
+                } catch (e: IOException) {
+                    // If we can't open it as a file, it might be a directory
+                    try {
+                        // Get all items in the potential directory
+                        val subItems = reactContext.assets.list(fullPath)
+                        
+                        // If it has items, it's a directory
+                        if (subItems != null && subItems.isNotEmpty()) {
+                            Log.d(TAG, "Found asset directory: $fullPath with ${subItems.size} items")
+                            
+                            // Recursively get all assets in the directory
+                            assets.addAll(getAllAssetsRecursively(fullPath))
+                        }
+                    } catch (e2: IOException) {
+                        Log.e(TAG, "Error listing assets in directory $fullPath: ${e2.message}")
+                    }
+                }
+            }
+        } catch (e: IOException) {
+            Log.e(TAG, "Error listing assets in $path: ${e.message}")
+        }
+        
+        return assets
+    }
+
+    @ReactMethod
     fun initTts(modelConfig: ReadableMap, promise: Promise) {
         if (!isLibraryLoaded) {
             promise.reject("ERR_LIBRARY_NOT_LOADED", "Sherpa ONNX library is not loaded")
@@ -85,166 +154,107 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 val ruleFars = modelConfig.getString("ruleFars") ?: ""
                 val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else null
                 
-                // Check if model exists in assets
-                val possiblePaths = listOf(
-                    modelDir, // Direct path
-                    "tts/$modelDir", // With tts/ prefix
-                    "$modelDir/$modelName", // Full model path
-                    "tts/$modelDir/$modelName", // Full path with tts/ prefix
-                    "$modelDir/model.onnx", // Default model name
-                    "tts/$modelDir/model.onnx" // Default with tts/ prefix
+                // Log all the config parameters for debugging
+                Log.i(TAG, "TTS Initialization with parameters:")
+                Log.i(TAG, "  modelDir: '$modelDir'")
+                Log.i(TAG, "  modelName: '$modelName'")
+                Log.i(TAG, "  acousticModelName: '$acousticModelName'")
+                Log.i(TAG, "  vocoder: '$vocoder'")
+                Log.i(TAG, "  voices: '$voices'")
+                Log.i(TAG, "  lexicon: '$lexicon'")
+                Log.i(TAG, "  dataDir: '$dataDir'")
+                Log.i(TAG, "  dictDir: '$dictDir'")
+                Log.i(TAG, "  ruleFsts: '$ruleFsts'")
+                Log.i(TAG, "  ruleFars: '$ruleFars'")
+                Log.i(TAG, "  numThreads: $numThreads")
+                
+                // ENHANCED DEBUGGING: List all assets in the app
+                Log.i(TAG, "====== COMPREHENSIVE ASSET LISTING BEGIN ======")
+                val allAssets = getAllAssetsRecursively("")
+                Log.i(TAG, "Found ${allAssets.size} assets in total")
+                Log.i(TAG, "Full asset list: ${allAssets.joinToString("\n")}")
+                Log.i(TAG, "====== COMPREHENSIVE ASSET LISTING END ======")
+                
+                // Specifically look for our model files
+                Log.i(TAG, "Searching for model files with these patterns:")
+                val searchPatterns = listOf(
+                    modelDir,
+                    "$modelDir/$modelName",
+                    "$modelDir/voices.bin",
+                    "$modelDir/tokens.txt",
+                    modelName,
+                    "voices.bin",
+                    "tokens.txt",
+                    "tts",
+                    "assets/$modelDir",
+                    "asset/$modelDir"
                 )
                 
-                var foundModelPath = ""
-                
-                val modelExists = possiblePaths.any { path ->
-                    val exists = if (path.endsWith(".onnx") || path.endsWith(".bin")) {
-                        assetExists(reactContext.assets, path)
-                    } else {
-                        val files = reactContext.assets.list(path)
-                        !files.isNullOrEmpty() && (
-                            files.contains("model.onnx") || 
-                            files.contains("voices.bin") ||
-                            files.contains(modelName) ||
-                            files.contains(acousticModelName)
-                        )
-                    }
-                    if (exists) {
-                        Log.d(TAG, "Found model files at: $path")
-                        foundModelPath = path
-                    }
-                    exists
+                for (pattern in searchPatterns) {
+                    Log.i(TAG, "Searching for assets containing: '$pattern'")
+                    val matchingAssets = allAssets.filter { it.contains(pattern) }
+                    Log.i(TAG, "Found ${matchingAssets.size} matching assets: ${matchingAssets.joinToString(", ")}")
                 }
                 
-                if (!modelExists) {
-                    Log.e(TAG, "Model files not found in assets for: $modelDir")
-                    
-                    reactContext.runOnUiQueueThread {
-                        val errorMap = Arguments.createMap()
-                        errorMap.putBoolean("success", false)
-                        errorMap.putString("error", "TTS model not found in the specified path")
-                        promise.resolve(errorMap)
-                    }
-                    return@execute
-                }
-
-                // Use the found path for the model directory
-                val actualModelDir = if (foundModelPath.isNotEmpty()) {
-                    // Strip trailing filename if present
-                    if (foundModelPath.endsWith(".onnx") || foundModelPath.endsWith(".bin")) {
-                        foundModelPath.substringBeforeLast("/")
-                    } else {
-                        foundModelPath
-                    }
-                } else {
-                    modelDir
-                }
+                // CRITICAL: BYPASS VERIFICATION COMPLETELY
+                Log.w(TAG, "⚠️ BYPASSING ASSET VERIFICATION - TREATING AS EXPO PROJECT ⚠️")
                 
-                Log.d(TAG, "Using model directory: $actualModelDir")
+                // Bypass the existing verification entirely
+                // Do not call AssetUtils.verifyModelAssets at all
                 
-                // Prepare directories if needed
-                var processedDataDir = dataDir
-                var processedDictDir = dictDir
-
-                if (dataDir.isNotEmpty()) {
-                    val newDir = copyAssetDir(dataDir)
-                    processedDataDir = "$newDir/$dataDir"
-                } else if (assetExists(reactContext.assets, "$actualModelDir/espeak-ng-data")) {
-                    // If dataDir not specified but espeak-ng-data exists in model dir
-                    val newDir = copyAssetDir("$actualModelDir/espeak-ng-data")
-                    processedDataDir = "$newDir/$actualModelDir/espeak-ng-data"
-                    Log.d(TAG, "Using espeak-ng-data from model directory: $processedDataDir")
-                }
-
-                if (dictDir.isNotEmpty()) {
-                    val newDir = copyAssetDir(dictDir)
-                    processedDictDir = "$newDir/$dictDir"
-                } else if (assetExists(reactContext.assets, "$actualModelDir/dict")) {
-                    // If dictDir not specified but dict exists in model dir
-                    val newDir = copyAssetDir("$actualModelDir/dict")
-                    processedDictDir = "$newDir/$actualModelDir/dict"
-                    Log.d(TAG, "Using dict from model directory: $processedDictDir")
-                }
+                // Get the base directory for extracted assets
+                val baseDir = reactContext.getExternalFilesDir(null) ?: reactContext.cacheDir
                 
-                // If modelName is not specified, try to use model.onnx
-                var usedModelName = modelName
-                if (usedModelName.isEmpty() && assetExists(reactContext.assets, "$actualModelDir/model.onnx")) {
-                    usedModelName = "model.onnx"
-                    Log.d(TAG, "Using default model.onnx from $actualModelDir")
-                }
-                
-                // If voices is not specified, try to use voices.bin
-                var usedVoices = voices
-                if (usedVoices.isEmpty() && assetExists(reactContext.assets, "$actualModelDir/voices.bin")) {
-                    usedVoices = "voices.bin"
-                    Log.d(TAG, "Using default voices.bin from $actualModelDir")
-                }
-
-                // Create TTS config
+                // Create TTS config with the exact configuration provided
                 val config = OfflineTtsConfig(
-                    modelDir = actualModelDir,  // Use found path
-                    modelName = usedModelName,
+                    modelDir = modelDir,
+                    modelName = modelName.ifEmpty { "model.onnx" },
                     acousticModelName = acousticModelName,
                     vocoder = vocoder,
-                    voices = usedVoices,
+                    voices = voices.ifEmpty { "voices.bin" },
                     lexicon = lexicon,
-                    dataDir = processedDataDir,
-                    dictDir = processedDictDir,
+                    dataDir = dataDir,
+                    dictDir = dictDir,
                     ruleFsts = ruleFsts,
                     ruleFars = ruleFars,
                     numThreads = numThreads
                 )
 
-                // Create TTS instance with try/catch to handle JNI crashes
+                // Initialize TTS
                 var initSuccess = false
                 var errorMessage = ""
                 
                 try {
-                    Log.d(TAG, "Creating OfflineTts instance with config: $config")
+                    Log.i(TAG, "Creating TTS engine with config: $config")
+                    tts = OfflineTts(reactContext.assets, config)
                     
-                    tts = OfflineTts(
-                        assetManager = reactContext.assets,
-                        config = config
-                    )
-                    
-                    // Check if TTS was initialized correctly
                     val sampleRate = try {
-                        tts?.sampleRate() ?: 0
+                        val rate = tts?.sampleRate() ?: 0
+                        Log.i(TAG, "TTS sample rate: $rate")
+                        rate
                     } catch (e: Throwable) {
                         Log.e(TAG, "Error getting sample rate: ${e.message}")
                         0
                     }
                     
-                    // Only proceed if we have a valid instance with proper sample rate
                     if (tts != null && sampleRate > 0) {
                         initSuccess = true
-                        
-                        // Initialize AudioTrack
-                        try {
-                            initAudioTrack()
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to initialize AudioTrack: ${e.message}")
-                            // Continue anyway - this isn't fatal
-                        }
+                        initAudioTrack()
+                        Log.i(TAG, "TTS engine initialized successfully!")
                     } else {
                         errorMessage = "TTS engine did not initialize properly"
                         Log.e(TAG, errorMessage)
-                        
-                        // Clean up the failed instance
                         tts?.free()
                         tts = null
                     }
                 } catch (e: Throwable) {
-                    // Handle any exception including JNI crashes
                     errorMessage = "TTS initialization failed: ${e.message}"
                     Log.e(TAG, errorMessage, e)
-                    
-                    // Clean up
                     tts?.free()
                     tts = null
                 }
                 
-                // Return result to React Native
+                // Return result
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", initSuccess)
                 
@@ -263,7 +273,6 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
-                    // Make sure we return a proper response rather than rejecting the promise
                     val errorMap = Arguments.createMap()
                     errorMap.putBoolean("success", false)
                     errorMap.putString("error", "Error initializing TTS: ${e.message}")
@@ -447,93 +456,97 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         )
     }
 
-    private fun copyAssetDir(dirPath: String): String {
+    @ReactMethod
+    fun debugAssetPath(path: String, promise: Promise) {
         try {
-            copyAssets(dirPath)
-            val externalDir = reactContext.getExternalFilesDir(null)?.absolutePath
-                ?: reactContext.cacheDir.absolutePath
-            return externalDir
-        } catch (e: Exception) {
-            Log.e(TAG, "Error copying asset directory: ${e.message}")
-            throw e
-        }
-    }
-
-    private fun copyAssets(path: String) {
-        try {
-            val assets = reactContext.assets.list(path)
+            val resultMap = Arguments.createMap()
+            resultMap.putString("requestedPath", path)
             
-            if (assets.isNullOrEmpty()) {
-                // It's a file, copy it
-                copyAssetFile(path)
-            } else {
-                // It's a directory, create it and copy contents
-                val fullPath = "${reactContext.getExternalFilesDir(null)}/$path"
-                val dir = File(fullPath)
-                if (!dir.exists()) {
-                    dir.mkdirs()
-                }
+            // Try to open the file directly to see if it exists
+            var fileExists = false
+            try {
+                val inputStream = reactContext.assets.open(path)
+                val size = inputStream.available()
+                inputStream.close()
+                fileExists = true
+                resultMap.putBoolean("exists", true)
+                resultMap.putInt("size", size)
+            } catch (e: IOException) {
+                resultMap.putBoolean("exists", false)
+                resultMap.putString("error", e.message)
+            }
+            
+            // Try to list contents if it might be a directory
+            val possibleFiles = Arguments.createArray()
+            
+            try {
+                // Try to list the directory contents
+                val dirContents = reactContext.assets.list(path) ?: emptyArray()
+                resultMap.putBoolean("isDirectory", dirContents.isNotEmpty())
                 
-                for (asset in assets) {
-                    val subPath = if (path.isEmpty()) asset else "$path/$asset"
-                    copyAssets(subPath)
+                // If it's a directory, also check the first few files
+                if (dirContents.isNotEmpty()) {
+                    resultMap.putInt("fileCount", dirContents.size)
+                    
+                    // Add up to 20 files to the list
+                    val filesToAdd = dirContents.take(20)
+                    for (file in filesToAdd) {
+                        possibleFiles.pushString(file)
+                    }
+                }
+            } catch (e: IOException) {
+                resultMap.putBoolean("isDirectory", false)
+            }
+            
+            resultMap.putArray("files", possibleFiles)
+            
+            // Try some variations of the path to see if those exist
+            val variations = Arguments.createMap()
+            
+            // Test with and without leading slashes
+            val pathVariations = listOf(
+                path,
+                if (path.startsWith("/")) path.substring(1) else "/$path",
+                "assets/$path",
+                "asset/$path",
+                if (path.contains("/")) path.substring(path.indexOf("/") + 1) else path
+            )
+            
+            for (variant in pathVariations) {
+                if (variant != path) { // Skip the original path as we already checked it
+                    try {
+                        reactContext.assets.open(variant).close()
+                        variations.putBoolean(variant, true)
+                    } catch (e: IOException) {
+                        variations.putBoolean(variant, false)
+                    }
                 }
             }
-        } catch (e: IOException) {
-            Log.e(TAG, "Failed to copy asset $path: ${e.message}")
-            throw e
-        }
-    }
-
-    private fun copyAssetFile(filename: String) {
-        try {
-            val inputStream = reactContext.assets.open(filename)
-            val outFile = File("${reactContext.getExternalFilesDir(null)}/$filename")
             
-            // Create parent directories if needed
-            outFile.parentFile?.mkdirs()
+            resultMap.putMap("variations", variations)
             
-            val outputStream = FileOutputStream(outFile)
-            val buffer = ByteArray(1024)
-            var read: Int
-            
-            while (inputStream.read(buffer).also { read = it } != -1) {
-                outputStream.write(buffer, 0, read)
+            // Return the parent directory listing if this path doesn't exist
+            if (!fileExists) {
+                val lastSlash = path.lastIndexOf('/')
+                if (lastSlash > 0) {
+                    val parentDir = path.substring(0, lastSlash)
+                    try {
+                        val parentContents = reactContext.assets.list(parentDir) ?: emptyArray()
+                        val parentFiles = Arguments.createArray()
+                        for (file in parentContents) {
+                            parentFiles.pushString(file)
+                        }
+                        resultMap.putString("parentDir", parentDir)
+                        resultMap.putArray("parentContents", parentFiles)
+                    } catch (e: IOException) {
+                        resultMap.putString("parentDirError", e.message)
+                    }
+                }
             }
             
-            inputStream.close()
-            outputStream.flush()
-            outputStream.close()
+            promise.resolve(resultMap)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to copy file $filename: ${e.message}")
-            throw e
-        }
-    }
-
-    /**
-     * Check if an asset exists
-     */
-    private fun assetExists(assetManager: AssetManager, path: String): Boolean {
-        try {
-            val fullPath = path.trim()
-            val directory = if (fullPath.contains("/")) {
-                fullPath.substringBeforeLast("/")
-            } else {
-                "" // Root directory
-            }
-            
-            val fileName = if (fullPath.contains("/")) {
-                fullPath.substringAfterLast("/")
-            } else {
-                fullPath
-            }
-            
-            // Try to list the directory to see if it contains our file
-            val files = assetManager.list(directory)
-            return files?.contains(fileName) == true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error checking if asset exists at $path: ${e.message}")
-            return false
+            promise.reject("DEBUG_ASSET_PATH_ERROR", "Error debugging asset path: ${e.message}")
         }
     }
 } 
