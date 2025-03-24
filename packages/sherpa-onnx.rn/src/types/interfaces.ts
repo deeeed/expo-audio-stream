@@ -247,3 +247,108 @@ export interface AssetListResult {
    */
   count: number;
 }
+
+/**
+ * Audio Tagging Model Configuration 
+ */
+export interface AudioTaggingModelConfig {
+  /**
+   * Directory containing model files
+   */
+  modelDir: string;
+  
+  /**
+   * Model file name (e.g., "model.onnx" or "model.int8.onnx")
+   */
+  modelName?: string;
+  
+  /**
+   * Model type (zipformer or ced)
+   */
+  modelType?: 'zipformer' | 'ced';
+  
+  /**
+   * Path to labels file (usually class_labels_indices.csv)
+   */
+  labelsPath?: string;
+  
+  /**
+   * Number of threads for processing
+   */
+  numThreads?: number;
+  
+  /**
+   * Top K results to return
+   */
+  topK?: number;
+}
+
+/**
+ * Result of AudioTagging initialization
+ */
+export interface AudioTaggingInitResult {
+  /**
+   * Whether initialization was successful
+   */
+  success: boolean;
+  
+  /**
+   * Error message if initialization failed
+   */
+  error?: string;
+}
+
+/**
+ * Result of audio sample processing
+ */
+export interface AudioProcessResult {
+  /**
+   * Whether processing was successful
+   */
+  success: boolean;
+  
+  /**
+   * Number of samples that were processed
+   */
+  processedSamples: number;
+}
+
+/**
+ * Detected audio event
+ */
+export interface AudioEvent {
+  /**
+   * Name/label of the detected audio event
+   */
+  name: string;
+  
+  /**
+   * Index of the event in the labels file
+   */
+  index: number;
+  
+  /**
+   * Probability score (0-1)
+   */
+  probability: number;
+}
+
+/**
+ * Result of audio tagging computation
+ */
+export interface AudioTaggingResult {
+  /**
+   * Whether computation was successful
+   */
+  success: boolean;
+  
+  /**
+   * Processing time in milliseconds
+   */
+  durationMs: number;
+  
+  /**
+   * Array of detected audio events
+   */
+  events: AudioEvent[];
+}

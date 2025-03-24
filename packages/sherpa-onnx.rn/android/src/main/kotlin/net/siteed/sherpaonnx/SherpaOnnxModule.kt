@@ -22,6 +22,12 @@ import com.k2fsa.sherpa.onnx.OfflineTtsConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig
 
+// Import the AudioTagging class
+import com.k2fsa.sherpa.onnx.AudioTagging
+import com.k2fsa.sherpa.onnx.AudioTaggingConfig
+import com.k2fsa.sherpa.onnx.AudioEvent
+import com.k2fsa.sherpa.onnx.OfflineStream
+
 class SherpaOnnxModule(private val reactContext: ReactApplicationContext) : 
     ReactContextBaseJavaModule(reactContext) {
 
@@ -31,6 +37,10 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     private var ttsPtr: Long = 0L
     private var isGenerating = false
     private var audioTrack: AudioTrack? = null
+    
+    // Audio tagging state
+    private var audioTagging: AudioTagging? = null
+    private var stream: OfflineStream? = null
 
     companion object {
         const val NAME = "SherpaOnnx"
@@ -567,6 +577,256 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         } ?: run {
             Log.e(TAG, "AudioTrack is null, cannot prepare for playback")
         }
+    }
+
+    /**
+     * Initialize the AudioTagging module with the provided configuration
+     */
+    @ReactMethod
+    fun initAudioTagging(modelConfig: ReadableMap, promise: Promise) {
+        if (!isLibraryLoaded) {
+            promise.reject("ERR_LIBRARY_NOT_LOADED", "Sherpa ONNX library is not loaded")
+            return
+        }
+
+        executor.execute {
+            try {
+                Log.i(TAG, "===== AUDIO TAGGING INITIALIZATION START =====")
+                Log.i(TAG, "Received model config: ${modelConfig.toHashMap()}")
+                
+                // Clean up any existing instances
+                releaseAudioTaggingResources()
+                
+                // Extract paths from the config (assuming clean paths from JavaScript)
+                val modelDir = modelConfig.getString("modelDir") ?: ""
+                val modelType = modelConfig.getString("modelType") ?: "zipformer"
+                val modelName = modelConfig.getString("modelName") ?: "model.int8.onnx"
+                val labelsPath = modelConfig.getString("labelsPath") ?: ""
+                val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else 2
+                val topK = if (modelConfig.hasKey("topK")) modelConfig.getInt("topK") else 3
+                
+                Log.i(TAG, "Using paths:")
+                Log.i(TAG, "- modelDir: $modelDir")
+                Log.i(TAG, "- modelType: $modelType")
+                Log.i(TAG, "- modelName: $modelName")
+                Log.i(TAG, "- labelsPath: $labelsPath")
+                Log.i(TAG, "- numThreads: $numThreads")
+                Log.i(TAG, "- topK: $topK")
+                
+                // Create AudioTagging configuration
+                val config = if (modelType == "zipformer") {
+                    AudioTaggingConfig(
+                        model = com.k2fsa.sherpa.onnx.AudioTaggingModelConfig(
+                            zipformer = com.k2fsa.sherpa.onnx.OfflineZipformerAudioTaggingModelConfig(
+                                model = "$modelDir/$modelName"
+                            ),
+                            numThreads = numThreads,
+                            debug = true
+                        ),
+                        labels = labelsPath,
+                        topK = topK
+                    )
+                } else {
+                    AudioTaggingConfig(
+                        model = com.k2fsa.sherpa.onnx.AudioTaggingModelConfig(
+                            ced = "$modelDir/$modelName",
+                            numThreads = numThreads,
+                            debug = true
+                        ),
+                        labels = labelsPath,
+                        topK = topK
+                    )
+                }
+                
+                // Validate model files
+                val modelFile = File("$modelDir/$modelName")
+                val labelsFile = File(labelsPath)
+                
+                if (!modelFile.exists() || !modelFile.canRead()) {
+                    throw Exception("Model file not found or not readable: ${modelFile.absolutePath}")
+                }
+                
+                if (!labelsFile.exists() || !labelsFile.canRead()) {
+                    throw Exception("Labels file not found or not readable: ${labelsFile.absolutePath}")
+                }
+                
+                Log.i(TAG, "Model file: ${modelFile.absolutePath} (exists: ${modelFile.exists()}, size: ${modelFile.length()})")
+                Log.i(TAG, "Labels file: ${labelsFile.absolutePath} (exists: ${labelsFile.exists()}, size: ${labelsFile.length()})")
+                
+                // Initialize the AudioTagging engine
+                audioTagging = AudioTagging(config = config)
+                
+                if (audioTagging == null) {
+                    throw Exception("Failed to initialize AudioTagging engine")
+                }
+                
+                // Create a stream for audio processing
+                stream = audioTagging?.createStream()
+                
+                if (stream == null) {
+                    throw Exception("Failed to create AudioTagging stream")
+                }
+                
+                Log.i(TAG, "AudioTagging initialized successfully")
+                Log.i(TAG, "===== AUDIO TAGGING INITIALIZATION COMPLETE =====")
+                
+                // Return success result
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("success", true)
+                
+                reactContext.runOnUiQueueThread {
+                    promise.resolve(resultMap)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error initializing AudioTagging: ${e.message}")
+                e.printStackTrace()
+                
+                // Release resources in case of error
+                releaseAudioTaggingResources()
+                
+                Log.i(TAG, "===== AUDIO TAGGING INITIALIZATION FAILED =====")
+                
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_AUDIO_TAGGING_INIT", "Failed to initialize AudioTagging: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Process audio samples through the AudioTagging engine
+     */
+    @ReactMethod
+    fun processAudioSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        if (audioTagging == null || stream == null) {
+            promise.reject("ERR_NOT_INITIALIZED", "AudioTagging is not initialized")
+            return
+        }
+        
+        executor.execute {
+            try {
+                // Convert ReadableArray to FloatArray
+                val samples = FloatArray(audioBuffer.size())
+                for (i in 0 until audioBuffer.size()) {
+                    samples[i] = audioBuffer.getDouble(i).toFloat()
+                }
+                
+                Log.i(TAG, "Processing ${samples.size} audio samples at ${sampleRate}Hz")
+                
+                // Feed the samples to the stream
+                val accepted = stream?.acceptWaveform(sampleRate, samples) ?: false
+                
+                if (!accepted) {
+                    Log.w(TAG, "Warning: Audio samples were not accepted by the stream")
+                }
+                
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("success", accepted)
+                resultMap.putInt("processedSamples", samples.size)
+                
+                reactContext.runOnUiQueueThread {
+                    promise.resolve(resultMap)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing audio samples: ${e.message}")
+                e.printStackTrace()
+                
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_PROCESS_AUDIO", "Failed to process audio samples: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Finalize audio processing and compute the audio tagging results
+     */
+    @ReactMethod
+    fun computeAudioTagging(topK: Int, promise: Promise) {
+        if (audioTagging == null || stream == null) {
+            promise.reject("ERR_NOT_INITIALIZED", "AudioTagging is not initialized")
+            return
+        }
+        
+        executor.execute {
+            try {
+                // Signal that audio input is finished
+                stream?.inputFinished()
+                
+                // Compute the results
+                val startTime = System.currentTimeMillis()
+                val events = audioTagging?.compute(stream!!, topK) ?: ArrayList()
+                val endTime = System.currentTimeMillis()
+                
+                Log.i(TAG, "Computed audio tagging in ${endTime - startTime}ms, found ${events.size} events")
+                
+                // Convert results to JS
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("success", true)
+                resultMap.putInt("durationMs", (endTime - startTime).toInt())
+                
+                val eventsArray = Arguments.createArray()
+                for (event in events) {
+                    val eventMap = Arguments.createMap()
+                    eventMap.putString("name", event.name)
+                    eventMap.putInt("index", event.index)
+                    eventMap.putDouble("probability", event.prob.toDouble())
+                    eventsArray.pushMap(eventMap)
+                }
+                resultMap.putArray("events", eventsArray)
+                
+                // Create a new stream for next audio processing
+                stream?.release()
+                stream = audioTagging?.createStream()
+                
+                reactContext.runOnUiQueueThread {
+                    promise.resolve(resultMap)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error computing audio tagging: ${e.message}")
+                e.printStackTrace()
+                
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_COMPUTE_TAGGING", "Failed to compute audio tagging: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Release AudioTagging resources
+     */
+    @ReactMethod
+    fun releaseAudioTagging(promise: Promise) {
+        executor.execute {
+            try {
+                releaseAudioTaggingResources()
+                
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("released", true)
+                
+                reactContext.runOnUiQueueThread {
+                    promise.resolve(resultMap)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error releasing AudioTagging: ${e.message}")
+                
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_AUDIO_TAGGING_RELEASE", "Failed to release AudioTagging resources: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Helper method to release AudioTagging resources
+     */
+    private fun releaseAudioTaggingResources() {
+        stream?.release()
+        stream = null
+        
+        audioTagging?.release()
+        audioTagging = null
     }
 
 }

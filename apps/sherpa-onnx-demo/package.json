@@ -12,10 +12,13 @@
     "web": "expo start --web --port 7500"
   },
   "dependencies": {
+    "@babel/plugin-proposal-decorators": "^7.25.9",
     "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@siteed/sherpa-onnx.rn": "workspace:^",
+    "babel-plugin-transform-import-meta": "^2.3.2",
     "expo": "^52.0.40",
+    "expo-asset": "~11.0.4",
     "expo-av": "~15.0.2",
     "expo-build-properties": "^0.13.2",
     "expo-constants": "~17.0.8",
@@ -26,12 +29,14 @@
     "expo-status-bar": "~2.0.1",
     "react": "18.3.1",
     "react-native": "0.76.7",
+    "react-native-reanimated": "^3.17.1",
     "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.4.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~18.3.12",
+    "babel-plugin-module-resolver": "^5.0.2",
     "dotenv-flow": "^3.2.0",
     "joi": "^17.9.2",
     "ts-node": "^10.9.1",
