@@ -25,37 +25,6 @@ interface ExtendedTtsResult extends TtsGenerateResult {
   accessiblePath?: string;
 }
 
-const copyAudioFile = async (originalPath: string): Promise<string | null> => {
-  try {
-    // Ensure the path has the file:// prefix for Expo FileSystem
-    const sourcePath = originalPath.startsWith('file://') 
-      ? originalPath 
-      : `file://${originalPath}`;
-    
-    // Create a more accessible path in app documents directory
-    const fileName = sourcePath.split('/').pop();
-    const destinationUri = `${FileSystem.documentDirectory}audio/${fileName}`;
-    
-    // Create directory if it doesn't exist
-    const dirInfo = await FileSystem.getInfoAsync(`${FileSystem.documentDirectory}audio`);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}audio`, { intermediates: true });
-    }
-    
-    // Copy the file - now with the correct file:// prefix
-    await FileSystem.copyAsync({
-      from: sourcePath,
-      to: destinationUri
-    });
-    
-    console.log(`Audio file copied to: ${destinationUri}`);
-    return destinationUri;
-  } catch (error) {
-    console.error('Error copying audio file:', error);
-    return null;
-  }
-};
-
 // Helper function to verify file existence
 const verifyFileExists = async (filePath: string): Promise<boolean> => {
   try {
@@ -444,24 +413,20 @@ export default function TtsScreen() {
       if (result.success && result.filePath) {
         setStatusMessage('Speech generated successfully!');
         
-        // Check file exists before attempting to copy
-        const fileExists = await verifyFileExists(
-          result.filePath.startsWith('file://') ? result.filePath : `file://${result.filePath}`
-        );
+        // Ensure the path has the file:// prefix for consistent usage
+        const accessiblePath = result.filePath.startsWith('file://') 
+          ? result.filePath 
+          : `file://${result.filePath}`;
+        
+        // Verify the file exists
+        const fileExists = await verifyFileExists(accessiblePath);
         
         if (fileExists) {
-          const accessiblePath = await copyAudioFile(result.filePath);
-          if (accessiblePath) {
-            // Store the accessible path in the result
-            setTtsResult({
-              ...result,
-              accessiblePath
-            });
-          } else {
-            // Still set the result but without the accessible path
-            setTtsResult(result);
-            console.warn('Could not copy audio file to accessible location');
-          }
+          console.log(`Generated audio file accessible at: ${accessiblePath}`);
+          setTtsResult({
+            ...result,
+            accessiblePath
+          });
         } else {
           console.error(`Generated audio file does not exist: ${result.filePath}`);
           setTtsResult(result);
