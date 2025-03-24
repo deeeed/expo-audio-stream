@@ -8601,6 +8601,71 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@siteed/sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo":
+  version: 0.0.0-use.local
+  resolution: "@siteed/sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo"
+  dependencies:
+    "@babel/core": "npm:^7.25.2"
+    "@expo/vector-icons": "npm:^14.0.2"
+    "@react-native-async-storage/async-storage": "npm:1.23.1"
+    "@siteed/sherpa-onnx.rn": "workspace:^"
+    "@types/react": "npm:~18.3.12"
+    dotenv-flow: "npm:^3.2.0"
+    expo: "npm:^52.0.40"
+    expo-av: "npm:~15.0.2"
+    expo-build-properties: "npm:^0.13.2"
+    expo-constants: "npm:~17.0.8"
+    expo-file-system: "npm:~18.0.11"
+    expo-linking: "npm:~7.0.5"
+    expo-router: "npm:^4.0.19"
+    expo-sharing: "npm:~13.0.1"
+    expo-status-bar: "npm:~2.0.1"
+    joi: "npm:^17.9.2"
+    react: "npm:18.3.1"
+    react-native: "npm:0.76.7"
+    react-native-safe-area-context: "npm:4.12.0"
+    react-native-screens: "npm:~4.4.0"
+    ts-node: "npm:^10.9.1"
+    typescript: "npm:^5.3.3"
+  languageName: unknown
+  linkType: soft
+
+"@siteed/sherpa-onnx.rn@workspace:^, @siteed/sherpa-onnx.rn@workspace:packages/sherpa-onnx.rn":
+  version: 0.0.0-use.local
+  resolution: "@siteed/sherpa-onnx.rn@workspace:packages/sherpa-onnx.rn"
+  dependencies:
+    "@babel/core": "npm:^7.26.10"
+    "@babel/preset-env": "npm:^7.26.9"
+    "@commitlint/config-conventional": "npm:^17.0.2"
+    "@evilmartians/lefthook": "npm:^1.5.0"
+    "@react-native/eslint-config": "npm:^0.73.1"
+    "@siteed/publisher": "npm:^0.6.0"
+    "@types/adm-zip": "npm:^0"
+    "@types/babel__core": "npm:^7"
+    "@types/babel__preset-env": "npm:^7"
+    "@types/jest": "npm:^29.5.5"
+    "@types/progress": "npm:^2"
+    "@types/react": "npm:^18.2.44"
+    adm-zip: "npm:^0.5.16"
+    commitlint: "npm:^17.0.2"
+    del-cli: "npm:^5.1.0"
+    eslint: "npm:^8.51.0"
+    eslint-config-prettier: "npm:^9.0.0"
+    eslint-plugin-prettier: "npm:^5.0.1"
+    jest: "npm:^29.7.0"
+    node-fetch: "npm:2"
+    prettier: "npm:^3.0.3"
+    progress: "npm:^2.0.3"
+    react: "npm:19.0.0"
+    react-native: "npm:0.78.0"
+    react-native-builder-bob: "npm:^0.37.0"
+    typescript: "npm:^5.2.2"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  languageName: unknown
+  linkType: soft
+
 "@sitespeed.io/tracium@npm:^0.3.3":
   version: 0.3.3
   resolution: "@sitespeed.io/tracium@npm:0.3.3"
@@ -16441,6 +16506,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dotenv-flow@npm:^3.2.0":
+  version: 3.3.0
+  resolution: "dotenv-flow@npm:3.3.0"
+  dependencies:
+    dotenv: "npm:^8.6.0"
+  checksum: 10/d7f63441d171493fc8b2e0fa5261b5dce75ac54df416c465fd132f349880f9e9f4450ce09c45689855cc4d817bdf6d0e0d0bbf1aa5dda73cc15855924a7d7270
+  languageName: node
+  linkType: hard
+
 "dotenv-flow@npm:^4.1.0":
   version: 4.1.0
   resolution: "dotenv-flow@npm:4.1.0"
@@ -16454,6 +16528,13 @@ __metadata:
   version: 16.4.7
   resolution: "dotenv@npm:16.4.7"
   checksum: 10/f13bfe97db88f0df4ec505eeffb8925ec51f2d56a3d0b6d916964d8b4af494e6fb1633ba5d09089b552e77ab2a25de58d70259b2c5ed45ec148221835fc99a0c
+  languageName: node
+  linkType: hard
+
+"dotenv@npm:^8.6.0":
+  version: 8.6.0
+  resolution: "dotenv@npm:8.6.0"
+  checksum: 10/31d7b5c010cebb80046ba6853d703f9573369b00b15129536494f04b0af4ea0060ce8646e3af58b455af2f6f1237879dd261a5831656410ec92561ae1ea44508
   languageName: node
   linkType: hard
 
@@ -18245,7 +18326,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-build-properties@npm:^0.13.1, expo-build-properties@npm:~0.13.2":
+"expo-build-properties@npm:^0.13.1, expo-build-properties@npm:^0.13.2, expo-build-properties@npm:~0.13.2":
   version: 0.13.2
   resolution: "expo-build-properties@npm:0.13.2"
   dependencies:
@@ -18682,7 +18763,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-router@npm:~4.0.19":
+"expo-router@npm:^4.0.19, expo-router@npm:~4.0.19":
   version: 4.0.19
   resolution: "expo-router@npm:4.0.19"
   dependencies:
@@ -18993,7 +19074,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo@npm:~52.0.40":
+"expo@npm:^52.0.40, expo@npm:~52.0.40":
   version: 52.0.40
   resolution: "expo@npm:52.0.40"
   dependencies:
@@ -34658,7 +34739,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-node@npm:^10.8.1, ts-node@npm:^10.9.2":
+"ts-node@npm:^10.8.1, ts-node@npm:^10.9.1, ts-node@npm:^10.9.2":
   version: 10.9.2
   resolution: "ts-node@npm:10.9.2"
   dependencies:
