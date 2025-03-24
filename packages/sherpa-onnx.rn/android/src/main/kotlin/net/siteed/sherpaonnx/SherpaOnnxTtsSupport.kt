@@ -55,56 +55,39 @@ typealias AudioCallback = (FloatArray) -> Int
 /**
  * Offline TTS class - Using JNI bridge
  */
-class OfflineTts(
-    private val assetManager: AssetManager,
-    private val config: OfflineTtsConfig
-) {
+class OfflineTts {
     private val tag = "OfflineTts"
     private var nativePtr: Long = 0
 
-    init {
+    constructor(config: OfflineTtsConfig) {
         try {
-            Log.i(tag, "Successfully loaded sherpa-onnx-jni library")
-            Log.i(tag, "Initializing OfflineTts with config: $config")
+            Log.i(tag, "Initializing OfflineTts with file-based config")
             
             // Convert from our config to the JNI config
             val jniConfig = convertToJniConfig(
                 modelDir = config.modelDir,
                 modelName = config.modelName,
-                acousticModelName = config.acousticModelName,
-                vocoder = config.vocoder,
                 voices = config.voices,
-                lexicon = config.lexicon,
-                dataDir = config.dataDir,
-                dictDir = config.dictDir,
-                ruleFsts = config.ruleFsts,
-                ruleFars = config.ruleFars,
+                // ... other params ...
                 numThreads = config.numThreads
             )
             
-            // Use the JNI bridge to call the native method with error handling
-            Log.d(tag, "Calling JNI newFromAsset with asset manager and config")
-            try {
-                // Use the standard method name for JNI compatibility
-                nativePtr = JniBridge.newFromAsset(
-                    assetManager,
-                    jniConfig
-                )
-                
-                if (nativePtr == 0L) {
-                    Log.e(tag, "Failed to create native TTS engine - returned null pointer")
-                } else {
-                    Log.i(tag, "Native TTS engine created successfully, handle: $nativePtr")
-                }
-            } catch (e: Throwable) {
-                Log.e(tag, "JNI call failed: ${e.message}")
-                nativePtr = 0L
+            // Use newFromFile for file-based initialization
+            nativePtr = JniBridge.newFromFile(jniConfig)
+            
+            if (nativePtr == 0L) {
+                Log.e(tag, "Failed to create native TTS engine - returned null pointer")
+            } else {
+                Log.i(tag, "Native TTS engine created successfully, handle: $nativePtr")
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(tag, "Error initializing native TTS engine: ${e.message}")
             nativePtr = 0L
+            throw e
         }
     }
+
+    constructor(assetManager: AssetManager, config: OfflineTtsConfig) : this(config)
 
     // Add validation method to check if instance is usable
     fun isInitialized(): Boolean {
@@ -231,13 +214,14 @@ class OfflineTts(
 
 /**
  * Helper function to convert from simple config to JNI config
+ * With enhanced logging
  */
 fun convertToJniConfig(
-    modelDir: String = "",
-    modelName: String = "",
+    modelDir: String,
+    modelName: String,
+    voices: String,
     acousticModelName: String = "",
     vocoder: String = "",
-    voices: String = "",
     lexicon: String = "",
     dataDir: String = "",
     dictDir: String = "",
@@ -245,121 +229,98 @@ fun convertToJniConfig(
     ruleFars: String = "",
     numThreads: Int? = null
 ): com.k2fsa.sherpa.onnx.OfflineTtsConfig {
-    // Log all input parameters for debugging
-    Log.d("SherpaOnnxTtsSupport", "Convert to JNI config with parameters:")
-    Log.d("SherpaOnnxTtsSupport", "  modelDir: $modelDir")
-    Log.d("SherpaOnnxTtsSupport", "  modelName: $modelName")
-    Log.d("SherpaOnnxTtsSupport", "  acousticModelName: $acousticModelName")
-    Log.d("SherpaOnnxTtsSupport", "  vocoder: $vocoder")
-    Log.d("SherpaOnnxTtsSupport", "  voices: $voices")
-    Log.d("SherpaOnnxTtsSupport", "  lexicon: $lexicon")
-    Log.d("SherpaOnnxTtsSupport", "  dataDir: $dataDir")
-    Log.d("SherpaOnnxTtsSupport", "  dictDir: $dictDir")
-    Log.d("SherpaOnnxTtsSupport", "  ruleFsts: $ruleFsts")
-    Log.d("SherpaOnnxTtsSupport", "  ruleFars: $ruleFars")
-    Log.d("SherpaOnnxTtsSupport", "  numThreads: $numThreads")
+    val tag = "SherpaOnnxTtsSupport"
     
-    // Determine which model type to use
-    val numberOfThreads = numThreads ?: if (voices.isNotEmpty()) 4 else 2
-    Log.d("SherpaOnnxTtsSupport", "Using $numberOfThreads threads")
+    // Debug full input parameters
+    Log.i(tag, "=== TTS Config Input Parameters ===")
+    Log.i(tag, "Model Directory: '$modelDir'")
+    Log.i(tag, "Model Name: '$modelName'")
+    Log.i(tag, "Voices: '$voices'")
+    Log.i(tag, "Acoustic Model: '$acousticModelName'")
+    Log.i(tag, "Vocoder: '$vocoder'")
+    Log.i(tag, "Lexicon: '$lexicon'")
+    Log.i(tag, "Data Dir: '$dataDir'")
+    Log.i(tag, "Dict Dir: '$dictDir'")
+    Log.i(tag, "Rule FSTs: '$ruleFsts'")
+    Log.i(tag, "Rule FARs: '$ruleFars'")
+    Log.i(tag, "Num Threads: ${numThreads ?: "null (will use default)"}")
     
-    // Determine model type
-    val modelType = when {
-        voices.isNotEmpty() -> "Kokoro"
-        acousticModelName.isNotEmpty() -> "Matcha"
-        modelName.isNotEmpty() -> "VITS"
-        else -> "Unknown"
-    }
-    Log.d("SherpaOnnxTtsSupport", "Detected model type: $modelType")
+    // Use absolute paths for files
+    val modelPath = File(modelDir, modelName).absolutePath
+    val voicesPath = File(modelDir, voices).absolutePath
+    val tokensPath = File(modelDir, "tokens.txt").absolutePath
     
-    // Respect the modelDir as provided by the user without adding any prefix
-    val actualModelDir = modelDir
-    
-    Log.d("SherpaOnnxTtsSupport", "Using model directory: $actualModelDir")
-    
-    // Helper function to create proper paths for model files
-    fun getModelPath(path: String, basePath: String = actualModelDir): String {
-        return when {
-            path.isEmpty() -> ""
-            path.startsWith("/") -> path // Absolute path
-            path.contains(":") -> path // Already contains a scheme (e.g., file:)
-            path.startsWith(basePath) -> path // Already contains the base path
-            basePath.isEmpty() -> path // No base path provided
-            else -> "$basePath/$path" // Relative to the base path
+    // Check for espeak-ng-data directory
+    var espeakDataPath = ""
+    if (dataDir.isNotEmpty()) {
+        espeakDataPath = dataDir
+        Log.i(tag, "Using provided dataDir: $espeakDataPath")
+    } else {
+        // Try to find espeak-ng-data in model directory
+        val espeakDir = File(modelDir, "espeak-ng-data")
+        if (espeakDir.exists() && espeakDir.isDirectory) {
+            espeakDataPath = espeakDir.absolutePath
+            Log.i(tag, "Found espeak-ng-data in model directory: $espeakDataPath")
+        } else {
+            Log.w(tag, "espeak-ng-data directory not found in model directory")
+            
+            // Try looking in parent directory if this is a versioned subdirectory
+            val parentEspeakDir = File(File(modelDir).parentFile, "espeak-ng-data")
+            if (parentEspeakDir.exists() && parentEspeakDir.isDirectory) {
+                espeakDataPath = parentEspeakDir.absolutePath
+                Log.i(tag, "Found espeak-ng-data in parent directory: $espeakDataPath")
+            } else {
+                Log.w(tag, "espeak-ng-data not found in parent directory either")
+            }
         }
     }
     
-    // For Kokoro model (with voices file)
-    val kokoro = if (voices.isNotEmpty()) {
-        val kokoroConfig = com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig(
-            model = getModelPath(modelName),
-            voices = getModelPath(voices),
-            tokens = getModelPath("tokens.txt"),
-            dataDir = dataDir, // Keep as is - respect user provided path
-            lexicon = when {
-                lexicon.isEmpty() -> lexicon
-                lexicon.contains(",") -> lexicon // Keep lexicon list as is
-                else -> getModelPath(lexicon)
-            },
-            dictDir = dictDir // Keep as is - respect user provided path
-        )
-        
-        Log.d("SherpaOnnxTtsSupport", "Created Kokoro config with model=${kokoroConfig.model}, voices=${kokoroConfig.voices}, tokens=${kokoroConfig.tokens}")
-        Log.d("SherpaOnnxTtsSupport", "Kokoro lexicon=${kokoroConfig.lexicon}, dataDir=${kokoroConfig.dataDir}, dictDir=${kokoroConfig.dictDir}")
-        
-        kokoroConfig
-    } else {
-        com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig()
-    }
+    // Verify file existence
+    Log.i(tag, "=== Verifying File Existence ===")
+    val modelFile = File(modelPath)
+    Log.i(tag, "Model file exists: ${modelFile.exists()} (${modelFile.length()} bytes)")
     
-    // For Matcha model (with acoustic model and vocoder)
-    val matcha = if (acousticModelName.isNotEmpty()) {
-        // Use vocoder path exactly as provided
-        Log.d("SherpaOnnxTtsSupport", "Using vocoder path: $vocoder")
-        
-        val matchaConfig = com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig(
-            acousticModel = "$modelDir/$acousticModelName",
-            vocoder = vocoder, // Use as provided - DO NOT MODIFY
-            lexicon = if (lexicon.isEmpty()) "" else "$modelDir/$lexicon",
-            tokens = "$modelDir/tokens.txt",
-            dataDir = dataDir,
-            dictDir = dictDir
-        )
-        
-        Log.d("SherpaOnnxTtsSupport", "Created Matcha config with acousticModel=${matchaConfig.acousticModel}, vocoder=${matchaConfig.vocoder}")
-        Log.d("SherpaOnnxTtsSupport", "Matcha tokens=${matchaConfig.tokens}, lexicon=${matchaConfig.lexicon}")
-        Log.d("SherpaOnnxTtsSupport", "Matcha dataDir=${matchaConfig.dataDir}, dictDir=${matchaConfig.dictDir}")
-        
-        matchaConfig
-    } else {
-        com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig()
-    }
+    val voicesFile = File(voicesPath)
+    Log.i(tag, "Voices file exists: ${voicesFile.exists()} (${voicesFile.length()} bytes)")
     
-    // For VITS model (just model name, no voices)
-    val vits = if (modelName.isNotEmpty() && voices.isEmpty() && acousticModelName.isEmpty()) {
-        val vitsConfig = com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig(
-            model = getModelPath(modelName),
-            lexicon = if (lexicon.isEmpty()) "" else getModelPath(lexicon),
-            tokens = getModelPath("tokens.txt"),
-            dataDir = dataDir, // Keep as is - respect user provided path
-            dictDir = dictDir  // Keep as is - respect user provided path
-        )
-        
-        Log.d("SherpaOnnxTtsSupport", "Created VITS config with model=${vitsConfig.model}, tokens=${vitsConfig.tokens}")
-        Log.d("SherpaOnnxTtsSupport", "VITS lexicon=${vitsConfig.lexicon}, dataDir=${vitsConfig.dataDir}, dictDir=${vitsConfig.dictDir}")
-        
-        vitsConfig
-    } else {
-        com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig()
-    }
+    val tokensFile = File(tokensPath)
+    Log.i(tag, "Tokens file exists: ${tokensFile.exists()} (${tokensFile.length()} bytes)")
     
-    // Log the final configuration for debugging
-    val config = com.k2fsa.sherpa.onnx.OfflineTtsConfig(
+    if (espeakDataPath.isNotEmpty()) {
+        val espeakDir = File(espeakDataPath)
+        Log.i(tag, "espeak-ng-data directory exists: ${espeakDir.exists()} and is directory: ${espeakDir.isDirectory}")
+        
+        // Check for key files in espeak-ng-data
+        val phontab = File(espeakDir, "phontab")
+        val phonindex = File(espeakDir, "phonindex")
+        Log.i(tag, "phontab exists: ${phontab.exists()}, phonindex exists: ${phonindex.exists()}")
+    }
+
+    // Create kokoro config
+    val kokoroConfig = com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig(
+        model = modelPath,
+        voices = voicesPath,
+        tokens = tokensPath,
+        dataDir = espeakDataPath,
+        lexicon = lexicon,
+        dictDir = dictDir,
+        lengthScale = 1.0f
+    )
+    
+    // Log complete config for debugging
+    Log.i(tag, "=== Final Kokoro Config ===")
+    Log.i(tag, "model = ${kokoroConfig.model}")
+    Log.i(tag, "voices = ${kokoroConfig.voices}")
+    Log.i(tag, "tokens = ${kokoroConfig.tokens}")
+    Log.i(tag, "dataDir = ${kokoroConfig.dataDir}")
+    Log.i(tag, "lexicon = ${kokoroConfig.lexicon}")
+    Log.i(tag, "dictDir = ${kokoroConfig.dictDir}")
+    
+    // Create the full config
+    val finalConfig = com.k2fsa.sherpa.onnx.OfflineTtsConfig(
         model = com.k2fsa.sherpa.onnx.OfflineTtsModelConfig(
-            vits = vits,
-            matcha = matcha,
-            kokoro = kokoro,
-            numThreads = numberOfThreads,
+            kokoro = kokoroConfig,
+            numThreads = numThreads ?: 2,
             debug = true,
             provider = "cpu"
         ),
@@ -367,12 +328,8 @@ fun convertToJniConfig(
         ruleFars = ruleFars
     )
     
-    Log.d("SherpaOnnxTtsSupport", "Created JNI Config for $modelType model")
-    Log.d("SherpaOnnxTtsSupport", "Final JNI config with provider=${config.model.provider}, threads=${config.model.numThreads}")
-    if (ruleFsts.isNotEmpty()) Log.d("SherpaOnnxTtsSupport", "Using ruleFsts: $ruleFsts")
-    if (ruleFars.isNotEmpty()) Log.d("SherpaOnnxTtsSupport", "Using ruleFars: $ruleFars")
-    
-    return config
+    Log.i(tag, "Configuration complete")
+    return finalConfig
 }
 
 // Add a helper method to check if a file exists in assets

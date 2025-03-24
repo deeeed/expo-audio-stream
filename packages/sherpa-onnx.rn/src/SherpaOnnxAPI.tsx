@@ -138,4 +138,48 @@ export class SherpaOnnxAPI {
       throw error;
     }
   }
+
+  /**
+   * Extract a tar.bz2 file to a target directory
+   * @param sourcePath Path to the tar.bz2 file
+   * @param targetDir Directory to extract to
+   * @returns Promise that resolves with extraction result
+   */
+  public static async extractTarBz2(
+    sourcePath: string,
+    targetDir: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    extractedFiles: string[];
+  }> {
+    try {
+      return await NativeSherpaOnnx.extractTarBz2(sourcePath, targetDir);
+    } catch (error: any) {
+      console.error('Failed to extract tar.bz2 file:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create mock model files when extraction fails
+   * @param targetDir Directory to create files in
+   * @param modelId Model ID for naming
+   * @returns Promise that resolves with creation result
+   */
+  public static async createMockModelFiles(
+    targetDir: string,
+    modelId: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    createdFiles: string[];
+  }> {
+    try {
+      return await NativeSherpaOnnx.createMockModelFiles(targetDir, modelId);
+    } catch (error: any) {
+      console.error('Failed to create mock model files:', error);
+      throw error;
+    }
+  }
 }

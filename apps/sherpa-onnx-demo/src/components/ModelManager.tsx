@@ -37,8 +37,46 @@ const ModelCard: React.FC<ModelCardProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
-  const [fileDetails, setFileDetails] = useState<Array<{name: string, size: number, exists: boolean}>>([]);
+  const [fileDetails, setFileDetails] = useState<Array<{
+    name: string;
+    size: number;
+    exists: boolean;
+    uri?: string;
+    isDirectory?: boolean;
+    error?: string;
+  }>>([]);
   const [fileListError, setFileListError] = useState<string | null>(null);
+
+  // Function to create mock files when extraction fails
+  const createMockFiles = async () => {
+    if (!state?.localPath) {
+      return;
+    }
+    
+    setIsLoading(true);
+    console.log("Creating mock files in empty directory");
+    try {
+      // Create mock files
+      const requiredFiles = ['model.onnx', 'voices.bin', 'tokens.txt'];
+      const createdFiles = [];
+      
+      for (const file of requiredFiles) {
+        const filePath = `${state.localPath}/${file}`;
+        const content = `Mock ${file} created for model ${model.id}`;
+        await FileSystem.writeAsStringAsync(filePath, content);
+        createdFiles.push(file);
+      }
+      
+      // Refresh file list
+      await toggleShowFiles();
+      
+    } catch (error) {
+      console.error("Error creating mock files:", error);
+      setFileListError(`Error creating files: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleDownload = async () => {
     try {
@@ -62,50 +100,109 @@ const ModelCard: React.FC<ModelCardProps> = ({
     }
   };
 
+  /**
+   * Toggle showing files for a model
+   */
   const toggleShowFiles = async () => {
-    if (showFiles) {
-      setShowFiles(false);
-      return;
-    }
-
-    if (!state?.localPath) {
-      setFileListError('Model path not available');
-      return;
-    }
-
     setIsLoading(true);
-    setFileListError(null);
-    
+    setFileListError('');
     try {
-      // Get directory info
-      const dirInfo = await FileSystem.getInfoAsync(state.localPath);
-      
-      if (!dirInfo.exists || !dirInfo.isDirectory) {
-        setFileListError(`Directory not found: ${state.localPath}`);
-        setShowFiles(true);
+      if (!state?.localPath) {
+        console.warn('Cannot show files: Model local path is not available');
+        setFileListError('Cannot show files: Model local path is not available');
+        setFileDetails([]);
+        setIsLoading(false);
         return;
       }
       
-      // Read directory contents
-      const files = await FileSystem.readDirectoryAsync(state.localPath);
+      // Log the current state
+      console.log(`Checking files for model ${model.id}:`);
+      console.log(`Local path: ${state.localPath}`);
+      console.log(`Model status: ${state.status}`);
       
-      // Get file info for each file
-      const fileInfoPromises = files.map(async (fileName) => {
-        const filePath = `${state.localPath}/${fileName}`;
-        const fileInfo = await FileSystem.getInfoAsync(filePath);
-        return {
-          name: fileName,
-          size: fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0,
-          exists: fileInfo.exists
-        };
-      });
-      
-      const detailedFiles = await Promise.all(fileInfoPromises);
-      setFileDetails(detailedFiles);
-      setShowFiles(true);
+      // Clean up the path
+      const cleanPath = state.localPath.replace('file://', '');
+      console.log(`Clean path: ${cleanPath}`);
+
+      const dirInfo = await FileSystem.getInfoAsync(state.localPath);
+      console.log(`Directory info:`, dirInfo);
+
+      if (!dirInfo.exists) {
+        console.warn(`Directory does not exist: ${state.localPath}`);
+        setFileListError(`Directory does not exist: ${state.localPath}`);
+        setFileDetails([]);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!dirInfo.isDirectory) {
+        console.warn(`Path exists but is not a directory: ${state.localPath}`);
+        setFileListError(`Path exists but is not a directory: ${state.localPath}`);
+        setFileDetails([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Define file detail type
+      type FileDetail = {
+        name: string;
+        exists: boolean;
+        size: number;
+        uri?: string;
+        isDirectory?: boolean;
+        error?: string;
+      };
+
+      // Function to scan a directory and its subdirectories
+      const scanDirectory = async (dirPath: string, prefix = ''): Promise<FileDetail[]> => {
+        const files = await FileSystem.readDirectoryAsync(dirPath);
+        console.log(`Found ${files.length} items in ${prefix || 'root directory'}:`, files);
+        
+        let fileList: FileDetail[] = [];
+        
+        for (const file of files) {
+          try {
+            const filePath = `${dirPath}/${file}`;
+            const fileInfo = await FileSystem.getInfoAsync(filePath);
+            const displayName = prefix ? `${prefix}/${file}` : file;
+            
+            fileList.push({
+              name: displayName,
+              exists: fileInfo.exists,
+              size: fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0,
+              uri: fileInfo.uri,
+              isDirectory: fileInfo.isDirectory || false,
+            });
+            
+            console.log(`File details for ${displayName}:`, fileInfo);
+            
+            // If this is a directory, recursively scan it
+            if (fileInfo.exists && fileInfo.isDirectory) {
+              const subdirFiles = await scanDirectory(filePath, displayName);
+              fileList = [...fileList, ...subdirFiles];
+            }
+          } catch (fileError) {
+            console.error(`Error getting info for file ${file}:`, fileError);
+            fileList.push({
+              name: prefix ? `${prefix}/${file}` : file,
+              exists: false,
+              size: 0,
+              error: String(fileError),
+            });
+          }
+        }
+        
+        return fileList;
+      };
+
+      // Scan the main directory and all subdirectories
+      const allFiles = await scanDirectory(state.localPath);
+      setFileDetails(allFiles);
+      setShowFiles(prev => !prev);
     } catch (error) {
-      console.error('Error getting file details:', error);
-      setFileListError(`Error listing files: ${(error as Error).message}`);
+      console.error('Error toggling file view:', error);
+      setFileListError(`Error listing files: ${error instanceof Error ? error.message : String(error)}`);
+      setFileDetails([]);
     } finally {
       setIsLoading(false);
     }
@@ -164,15 +261,34 @@ const ModelCard: React.FC<ModelCardProps> = ({
             <Text style={styles.errorText}>{fileListError}</Text>
           ) : (
             <>
-              <Text style={styles.modelPath}>Path: {state.localPath}</Text>
+              <Text style={styles.modelPath} selectable>Path: {state?.localPath || 'Not available'}</Text>
+              <Text style={styles.modelPath} selectable>Clean Path: {state?.localPath ? state.localPath.replace('file://', '') : 'Not available'}</Text>
               {fileDetails.length === 0 ? (
-                <Text style={styles.fileText}>No files found</Text>
+                <View>
+                  <Text style={styles.fileText}>No files found in directory</Text>
+                  <TouchableOpacity 
+                    style={[styles.miniButton, styles.createFilesButton]}
+                    onPress={createMockFiles}
+                    disabled={isLoading}
+                  >
+                    <Text style={styles.miniButtonText}>Create Mock Files</Text>
+                  </TouchableOpacity>
+                </View>
               ) : (
                 fileDetails.map((file, index) => (
                   <View key={index} style={styles.fileItem}>
-                    <Text style={styles.fileText}>
-                      • {file.name} {file.exists ? `(${formatBytes(file.size)})` : '(Missing)'}
+                    <Text 
+                      style={[
+                        styles.fileText, 
+                        file.isDirectory && styles.directoryText
+                      ]} 
+                      selectable
+                    >
+                      {file.isDirectory ? '📁' : '📄'} {file.name} {file.exists ? `(${formatBytes(file.size)})` : '(Missing)'}
                     </Text>
+                    {file.error && (
+                      <Text style={styles.fileErrorText}>{file.error}</Text>
+                    )}
                   </View>
                 ))
               )}
@@ -483,5 +599,28 @@ const styles = StyleSheet.create({
   },
   fileItem: {
     marginVertical: 2,
+  },
+  miniButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    backgroundColor: '#2196F3',
+  },
+  createFilesButton: {
+    backgroundColor: '#4CAF50',
+  },
+  miniButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    fontSize: 13,
+  },
+  directoryText: {
+    fontWeight: 'bold',
+  },
+  fileErrorText: {
+    color: '#f44336',
+    fontSize: 12,
+    marginLeft: 4,
   },
 }); 

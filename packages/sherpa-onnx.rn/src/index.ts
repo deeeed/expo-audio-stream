@@ -27,4 +27,24 @@ export default {
 
   // Add to your interface or export:
   debugAssetPath: SherpaOnnxAPI.debugAssetPath,
+
+  /**
+   * Extract a tar.bz2 file to a target directory
+   * This uses platform-specific native implementation
+   * 
+   * @param sourcePath Path to the tar.bz2 file 
+   * @param targetDir Directory to extract to
+   * @returns Promise with extraction result
+   */
+  extractTarBz2: SherpaOnnxAPI.extractTarBz2,
+
+  /**
+   * Create mock model files when extraction fails
+   * This creates placeholder files that can be used for testing
+   * 
+   * @param targetDir Directory to create files in
+   * @param modelId Model ID for naming the files
+   * @returns Promise with creation result
+   */
+  createMockModelFiles: SherpaOnnxAPI.createMockModelFiles,
 };

@@ -63,6 +63,93 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         promise.resolve(resultMap)
     }
 
+    /**
+     * Extract a tar.bz2 file to a target directory
+     * 
+     * @param sourcePath Path to the tar.bz2 file
+     * @param targetDir Directory to extract to
+     * @param promise Promise to resolve or reject
+     */
+    @ReactMethod
+    fun extractTarBz2(sourcePath: String, targetDir: String, promise: Promise) {
+        executor.execute {
+            try {
+                // Clean up the paths
+                val cleanSourcePath = sourcePath.replace("file://", "")
+                val cleanTargetDir = targetDir.replace("file://", "")
+                
+                Log.i(TAG, "Extracting tar.bz2 from $cleanSourcePath to $cleanTargetDir")
+                
+                // Use our ArchiveUtils to extract the file
+                val result = ArchiveUtils.extractTarBz2(reactContext, cleanSourcePath, cleanTargetDir)
+                
+                // Create a result map to return to JavaScript
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("success", result.success)
+                resultMap.putString("message", result.message)
+                
+                // Add extracted files list
+                val filesArray = Arguments.createArray()
+                for (file in result.extractedFiles) {
+                    filesArray.pushString(file)
+                }
+                resultMap.putArray("extractedFiles", filesArray)
+                
+                reactContext.runOnUiQueueThread {
+                    promise.resolve(resultMap)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in extractTarBz2: ${e.message}", e)
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_EXTRACT_TAR_BZ2", "Failed to extract tar.bz2: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Create mock model files when extraction fails
+     * 
+     * @param targetDir Directory to create mock files in
+     * @param modelId Model ID for logging purposes
+     * @param promise Promise to resolve or reject
+     */
+    @ReactMethod
+    fun createMockModelFiles(targetDir: String, modelId: String, promise: Promise) {
+        executor.execute {
+            try {
+                // Clean up the path
+                val cleanTargetDir = targetDir.replace("file://", "")
+                
+                Log.i(TAG, "Creating mock model files in $cleanTargetDir for model $modelId")
+                
+                // Use our ArchiveUtils to create mock files
+                val result = ArchiveUtils.createMockModelFiles(cleanTargetDir, modelId)
+                
+                // Create a result map to return to JavaScript
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("success", result.success)
+                resultMap.putString("message", result.message)
+                
+                // Add created files list
+                val filesArray = Arguments.createArray()
+                for (file in result.extractedFiles) {
+                    filesArray.pushString(file)
+                }
+                resultMap.putArray("createdFiles", filesArray)
+                
+                reactContext.runOnUiQueueThread {
+                    promise.resolve(resultMap)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in createMockModelFiles: ${e.message}", e)
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_CREATE_MOCK_FILES", "Failed to create mock files: ${e.message}")
+                }
+            }
+        }
+    }
+
     @ReactMethod
     fun listAllAssets(promise: Promise) {
         try {
@@ -93,43 +180,52 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     private fun getAllAssetsRecursively(path: String): List<String> {
         val assets = mutableListOf<String>()
         try {
-            // Get all items in the current path
             val items = reactContext.assets.list(path) ?: return assets
-            
             for (item in items) {
-                // Construct the full path
                 val fullPath = if (path.isEmpty()) item else "$path/$item"
-                
                 try {
-                    // Try to open as a file
-                    reactContext.assets.open(fullPath).use { inputStream ->
-                        // If we can open it as a file, add it to the list
+                    reactContext.assets.open(fullPath).use {
                         assets.add(fullPath)
-                        Log.d(TAG, "Found asset file: $fullPath")
                     }
                 } catch (e: IOException) {
-                    // If we can't open it as a file, it might be a directory
-                    try {
-                        // Get all items in the potential directory
-                        val subItems = reactContext.assets.list(fullPath)
-                        
-                        // If it has items, it's a directory
-                        if (subItems != null && subItems.isNotEmpty()) {
-                            Log.d(TAG, "Found asset directory: $fullPath with ${subItems.size} items")
-                            
-                            // Recursively get all assets in the directory
-                            assets.addAll(getAllAssetsRecursively(fullPath))
-                        }
-                    } catch (e2: IOException) {
-                        Log.e(TAG, "Error listing assets in directory $fullPath: ${e2.message}")
+                    val subItems = reactContext.assets.list(fullPath)
+                    if (subItems?.isNotEmpty() == true) {
+                        assets.addAll(getAllAssetsRecursively(fullPath))
                     }
                 }
             }
         } catch (e: IOException) {
             Log.e(TAG, "Error listing assets in $path: ${e.message}")
         }
-        
         return assets
+    }
+
+    private fun validateModelFiles(modelDir: String, modelName: String, voices: String): Triple<Boolean, String, List<String>> {
+        val requiredFiles = listOf(
+            File(modelDir, modelName),
+            File(modelDir, voices),
+            File(modelDir, "tokens.txt")
+        )
+        
+        val missingFiles = mutableListOf<String>()
+        var isValid = true
+        var errorMessage = ""
+
+        for (file in requiredFiles) {
+            if (!file.exists() || !file.canRead()) {
+                isValid = false
+                missingFiles.add(file.absolutePath)
+                Log.e(TAG, "Cannot access file: ${file.absolutePath}")
+            } else {
+                Log.i(TAG, "Found file: ${file.absolutePath} (${file.length()} bytes)")
+            }
+        }
+
+        if (!isValid) {
+            errorMessage = "Missing or unreadable files: ${missingFiles.joinToString(", ")}"
+        }
+
+        return Triple(isValid, errorMessage, missingFiles)
     }
 
     @ReactMethod
@@ -141,12 +237,14 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
 
         executor.execute {
             try {
+                Log.i(TAG, "===== TTS INITIALIZATION START =====")
+                Log.i(TAG, "Received model config: ${modelConfig.toHashMap()}")
+                
                 // Extract config values from the provided map
-                val modelDir = modelConfig.getString("modelDir") ?: ""
-                val modelName = modelConfig.getString("modelName") ?: ""
+                val modelDir = modelConfig.getString("modelDir")?.replace("file://", "") ?: ""
+                val modelName = modelConfig.getString("modelName") ?: "model.onnx"
+                val voices = modelConfig.getString("voices") ?: "voices.bin"
                 val acousticModelName = modelConfig.getString("acousticModelName") ?: ""
-                val vocoder = modelConfig.getString("vocoder") ?: ""
-                val voices = modelConfig.getString("voices") ?: ""
                 val lexicon = modelConfig.getString("lexicon") ?: ""
                 val dataDir = modelConfig.getString("dataDir") ?: ""
                 val dictDir = modelConfig.getString("dictDir") ?: ""
@@ -154,66 +252,97 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 val ruleFars = modelConfig.getString("ruleFars") ?: ""
                 val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else null
                 
-                // Log all the config parameters for debugging
-                Log.i(TAG, "TTS Initialization with parameters:")
-                Log.i(TAG, "  modelDir: '$modelDir'")
-                Log.i(TAG, "  modelName: '$modelName'")
-                Log.i(TAG, "  acousticModelName: '$acousticModelName'")
-                Log.i(TAG, "  vocoder: '$vocoder'")
-                Log.i(TAG, "  voices: '$voices'")
-                Log.i(TAG, "  lexicon: '$lexicon'")
-                Log.i(TAG, "  dataDir: '$dataDir'")
-                Log.i(TAG, "  dictDir: '$dictDir'")
-                Log.i(TAG, "  ruleFsts: '$ruleFsts'")
-                Log.i(TAG, "  ruleFars: '$ruleFars'")
-                Log.i(TAG, "  numThreads: $numThreads")
+                // Log extracted configuration
+                Log.i(TAG, "Extracted configuration:")
+                Log.i(TAG, "- modelDir: $modelDir")
+                Log.i(TAG, "- modelName: $modelName")
+                Log.i(TAG, "- voices: $voices")
+                Log.i(TAG, "- acousticModelName: $acousticModelName")
+                Log.i(TAG, "- lexicon: $lexicon")
+                Log.i(TAG, "- dataDir: $dataDir")
+                Log.i(TAG, "- dictDir: $dictDir")
+                Log.i(TAG, "- ruleFsts: $ruleFsts")
+                Log.i(TAG, "- ruleFars: $ruleFars")
+                Log.i(TAG, "- numThreads: $numThreads")
                 
-                // ENHANCED DEBUGGING: List all assets in the app
-                Log.i(TAG, "====== COMPREHENSIVE ASSET LISTING BEGIN ======")
-                val allAssets = getAllAssetsRecursively("")
-                Log.i(TAG, "Found ${allAssets.size} assets in total")
-                Log.i(TAG, "Full asset list: ${allAssets.joinToString("\n")}")
-                Log.i(TAG, "====== COMPREHENSIVE ASSET LISTING END ======")
+                // Inspect directory structure
+                val modelDirFile = File(modelDir)
+                Log.i(TAG, "Model directory exists: ${modelDirFile.exists()}, isDirectory: ${modelDirFile.isDirectory()}")
                 
-                // Specifically look for our model files
-                Log.i(TAG, "Searching for model files with these patterns:")
-                val searchPatterns = listOf(
-                    modelDir,
-                    "$modelDir/$modelName",
-                    "$modelDir/voices.bin",
-                    "$modelDir/tokens.txt",
-                    modelName,
-                    "voices.bin",
-                    "tokens.txt",
-                    "tts",
-                    "assets/$modelDir",
-                    "asset/$modelDir"
-                )
-                
-                for (pattern in searchPatterns) {
-                    Log.i(TAG, "Searching for assets containing: '$pattern'")
-                    val matchingAssets = allAssets.filter { it.contains(pattern) }
-                    Log.i(TAG, "Found ${matchingAssets.size} matching assets: ${matchingAssets.joinToString(", ")}")
+                if (modelDirFile.exists() && modelDirFile.isDirectory) {
+                    Log.i(TAG, "Files in model directory:")
+                    modelDirFile.listFiles()?.forEach { file ->
+                        Log.i(TAG, "- ${file.name} (${if (file.isDirectory) "directory" else "file"}, ${file.length()} bytes)")
+                    }
                 }
                 
-                // CRITICAL: BYPASS VERIFICATION COMPLETELY
-                Log.w(TAG, "⚠️ BYPASSING ASSET VERIFICATION - TREATING AS EXPO PROJECT ⚠️")
+                // Check for espeak-ng-data
+                val espeakDataDir = if (dataDir.isNotEmpty()) {
+                    File(dataDir)
+                } else {
+                    // Try to find in model dir
+                    File(modelDir, "espeak-ng-data")
+                }
                 
-                // Bypass the existing verification entirely
-                // Do not call AssetUtils.verifyModelAssets at all
+                Log.i(TAG, "espeak-ng-data path: ${espeakDataDir.absolutePath}")
+                Log.i(TAG, "espeak-ng-data exists: ${espeakDataDir.exists()}, isDirectory: ${espeakDataDir.isDirectory}")
                 
-                // Get the base directory for extracted assets
-                val baseDir = reactContext.getExternalFilesDir(null) ?: reactContext.cacheDir
+                if (espeakDataDir.exists() && espeakDataDir.isDirectory) {
+                    Log.i(TAG, "espeak-ng-data contents:")
+                    espeakDataDir.listFiles()?.take(10)?.forEach { file ->
+                        Log.i(TAG, "- ${file.name} (${if (file.isDirectory) "directory" else "file"}, ${file.length()} bytes)")
+                    }
+                }
                 
-                // Create TTS config with the exact configuration provided
+                // Validate files first
+                val (isValid, errorMessage, missingFiles) = validateModelFiles(modelDir, modelName, voices)
+                if (!isValid) {
+                    Log.e(TAG, "Model file validation failed: $errorMessage")
+                    reactContext.runOnUiQueueThread {
+                        promise.reject("ERR_TTS_INIT", "Model file validation failed: $errorMessage")
+                    }
+                    return@execute
+                }
+
+                // Try to auto-detect espeak-ng-data if not provided
+                var resolvedDataDir = dataDir
+                
+                if (resolvedDataDir.isEmpty()) {
+                    // Look in model dir first
+                    val espeakInModelDir = File(modelDir, "espeak-ng-data")
+                    if (espeakInModelDir.exists() && espeakInModelDir.isDirectory) {
+                        resolvedDataDir = espeakInModelDir.absolutePath
+                        Log.i(TAG, "Auto-detected espeak-ng-data in model directory: $resolvedDataDir")
+                    } else {
+                        // Look in subdirectories
+                        val subDirs = modelDirFile.listFiles { file -> file.isDirectory }
+                        var found = false
+                        
+                        subDirs?.forEach { subDir ->
+                            val espeakInSubDir = File(subDir, "espeak-ng-data")
+                            if (espeakInSubDir.exists() && espeakInSubDir.isDirectory) {
+                                resolvedDataDir = espeakInSubDir.absolutePath
+                                Log.i(TAG, "Auto-detected espeak-ng-data in subdirectory: $resolvedDataDir")
+                                found = true
+                                return@forEach
+                            }
+                        }
+                        
+                        if (!found) {
+                            Log.w(TAG, "Could not find espeak-ng-data directory")
+                        }
+                    }
+                }
+
+                // Create TTS config with validated paths
                 val config = OfflineTtsConfig(
                     modelDir = modelDir,
-                    modelName = modelName.ifEmpty { "model.onnx" },
+                    modelName = modelName,
                     acousticModelName = acousticModelName,
-                    vocoder = vocoder,
-                    voices = voices.ifEmpty { "voices.bin" },
+                    vocoder = "",
+                    voices = voices,
                     lexicon = lexicon,
-                    dataDir = dataDir,
+                    dataDir = resolvedDataDir,
                     dictDir = dictDir,
                     ruleFsts = ruleFsts,
                     ruleFars = ruleFars,
@@ -222,61 +351,56 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
 
                 // Initialize TTS
                 var initSuccess = false
-                var errorMessage = ""
+                var initError = ""
                 
                 try {
-                    Log.i(TAG, "Creating TTS engine with config: $config")
+                    Log.i(TAG, "Creating TTS engine with config")
+                    Log.i(TAG, "Using dataDir: $resolvedDataDir")
+                    
+                    // Keep using the AssetManager constructor but with validated paths
                     tts = OfflineTts(reactContext.assets, config)
                     
-                    val sampleRate = try {
-                        val rate = tts?.sampleRate() ?: 0
-                        Log.i(TAG, "TTS sample rate: $rate")
-                        rate
-                    } catch (e: Throwable) {
-                        Log.e(TAG, "Error getting sample rate: ${e.message}")
-                        0
-                    }
-                    
+                    val sampleRate = tts?.sampleRate() ?: 0
                     if (tts != null && sampleRate > 0) {
                         initSuccess = true
                         initAudioTrack()
-                        Log.i(TAG, "TTS engine initialized successfully!")
+                        Log.i(TAG, "TTS engine initialized successfully")
+                        Log.i(TAG, "Sample Rate: $sampleRate")
+                        Log.i(TAG, "Number of Speakers: ${tts?.numSpeakers() ?: 0}")
                     } else {
-                        errorMessage = "TTS engine did not initialize properly"
-                        Log.e(TAG, errorMessage)
+                        initError = "TTS engine did not initialize properly (sampleRate: $sampleRate)"
+                        Log.e(TAG, initError)
                         tts?.free()
                         tts = null
                     }
                 } catch (e: Throwable) {
-                    errorMessage = "TTS initialization failed: ${e.message}"
-                    Log.e(TAG, errorMessage, e)
+                    initError = "TTS initialization failed: ${e.message}"
+                    Log.e(TAG, initError, e)
                     tts?.free()
                     tts = null
                 }
-                
+
                 // Return result
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", initSuccess)
-                
                 if (initSuccess) {
                     resultMap.putInt("sampleRate", tts?.sampleRate() ?: 0)
                     resultMap.putInt("numSpeakers", tts?.numSpeakers() ?: 0)
                 } else {
-                    resultMap.putString("error", errorMessage)
+                    resultMap.putString("error", initError)
                 }
                 
+                Log.i(TAG, "===== TTS INITIALIZATION COMPLETE =====")
+                Log.i(TAG, "Result: ${if (initSuccess) "SUCCESS" else "FAILED: $initError"}")
+
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in initTts: ${e.message}")
                 e.printStackTrace()
-                
                 reactContext.runOnUiQueueThread {
-                    val errorMap = Arguments.createMap()
-                    errorMap.putBoolean("success", false)
-                    errorMap.putString("error", "Error initializing TTS: ${e.message}")
-                    promise.resolve(errorMap)
+                    promise.reject("ERR_TTS_INIT", "Error initializing TTS: ${e.message}")
                 }
             }
         }
@@ -547,6 +671,109 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
             promise.resolve(resultMap)
         } catch (e: Exception) {
             promise.reject("DEBUG_ASSET_PATH_ERROR", "Error debugging asset path: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun debugModelDirectory(dirPath: String, promise: Promise) {
+        executor.execute {
+            try {
+                val cleanPath = dirPath.replace("file://", "")
+                val dir = File(cleanPath)
+                
+                val resultMap = Arguments.createMap()
+                resultMap.putString("path", cleanPath)
+                resultMap.putBoolean("exists", dir.exists())
+                resultMap.putBoolean("isDirectory", dir.isDirectory)
+                
+                if (dir.exists() && dir.isDirectory) {
+                    val files = Arguments.createArray()
+                    
+                    // First level files
+                    dir.listFiles()?.forEach { file ->
+                        val fileInfo = Arguments.createMap()
+                        fileInfo.putString("name", file.name)
+                        fileInfo.putBoolean("isDirectory", file.isDirectory)
+                        fileInfo.putInt("size", file.length().toInt())
+                        fileInfo.putString("path", file.absolutePath)
+                        
+                        // For directories, add first level content information
+                        if (file.isDirectory) {
+                            val subFiles = Arguments.createArray()
+                            file.listFiles()?.take(20)?.forEach { subFile ->
+                                val subFileInfo = Arguments.createMap()
+                                subFileInfo.putString("name", subFile.name)
+                                subFileInfo.putBoolean("isDirectory", subFile.isDirectory)
+                                subFileInfo.putInt("size", subFile.length().toInt())
+                                subFiles.pushMap(subFileInfo)
+                            }
+                            fileInfo.putArray("contents", subFiles)
+                        }
+                        
+                        files.pushMap(fileInfo)
+                    }
+                    
+                    resultMap.putArray("files", files)
+                    
+                    // Look for espeak-ng-data
+                    val espeakPaths = Arguments.createArray()
+                    
+                    // Check in current directory
+                    val espeakInDir = File(dir, "espeak-ng-data")
+                    if (espeakInDir.exists() && espeakInDir.isDirectory) {
+                        val info = Arguments.createMap()
+                        info.putString("path", espeakInDir.absolutePath)
+                        info.putBoolean("exists", true)
+                        
+                        // List some key files
+                        val keyFiles = listOf("phontab", "phonindex", "phondata")
+                        val espeakFiles = Arguments.createMap()
+                        
+                        keyFiles.forEach { fileName ->
+                            val file = File(espeakInDir, fileName)
+                            espeakFiles.putBoolean(fileName, file.exists())
+                        }
+                        
+                        info.putMap("keyFiles", espeakFiles)
+                        espeakPaths.pushMap(info)
+                    }
+                    
+                    // Check in subdirectories
+                    dir.listFiles { file -> file.isDirectory }?.forEach { subDir ->
+                        val espeakInSubDir = File(subDir, "espeak-ng-data")
+                        if (espeakInSubDir.exists() && espeakInSubDir.isDirectory) {
+                            val info = Arguments.createMap()
+                            info.putString("path", espeakInSubDir.absolutePath)
+                            info.putBoolean("exists", true)
+                            info.putString("containingDir", subDir.name)
+                            
+                            // List some key files
+                            val keyFiles = listOf("phontab", "phonindex", "phondata")
+                            val espeakFiles = Arguments.createMap()
+                            
+                            keyFiles.forEach { fileName ->
+                                val file = File(espeakInSubDir, fileName)
+                                espeakFiles.putBoolean(fileName, file.exists())
+                            }
+                            
+                            info.putMap("keyFiles", espeakFiles)
+                            espeakPaths.pushMap(info)
+                        }
+                    }
+                    
+                    resultMap.putArray("espeakPaths", espeakPaths)
+                }
+                
+                reactContext.runOnUiQueueThread {
+                    promise.resolve(resultMap)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error debugging model directory: ${e.message}")
+                e.printStackTrace()
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_DEBUG_MODEL_DIR", "Error debugging model directory: ${e.message}")
+                }
+            }
         }
     }
 } 

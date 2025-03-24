@@ -124,6 +124,9 @@ dependencies {
     implementation "androidx.core:core-ktx:1.9.0"
     implementation "androidx.media:media:1.6.0"  // For AudioTrack and related classes
 
+    // Apache Commons Compress for tar.bz2 extraction
+    implementation "org.apache.commons:commons-compress:1.23.0"
+    
     // Make sure we have the actual sherpa-onnx library dependencies
     // First check if there are prebuilt libraries in the jniLibs folder
     if (file("src/main/jniLibs").exists()) {

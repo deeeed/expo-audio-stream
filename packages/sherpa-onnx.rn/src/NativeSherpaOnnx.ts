@@ -30,13 +30,24 @@ interface SherpaOnnxInterface {
     count: number;
   }>;
   debugAssetPath(path: string): Promise<AssetListResult>;
+  
+  // New archive utility methods
   extractTarBz2(
-    archivePath: string,
+    sourcePath: string,
     targetDir: string
   ): Promise<{
     success: boolean;
-    message?: string;
-    extractedFiles?: string[];
+    message: string;
+    extractedFiles: string[];
+  }>;
+  
+  createMockModelFiles(
+    targetDir: string,
+    modelId: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    createdFiles: string[];
   }>;
 }
 
@@ -64,6 +75,27 @@ const SafeSherpaOnnx: SherpaOnnxInterface = SherpaOnnx
       debugAssetLoading: async () => {
         throw new Error('SherpaOnnx native module is not available');
       },
+      listAllAssets: async () => ({
+        assets: [],
+        count: 0,
+      }),
+      debugAssetPath: async () => ({
+        exists: false,
+        isDirectory: false,
+        contents: [],
+        error: 'SherpaOnnx native module is not available',
+      }),
+      // New archive utility methods
+      extractTarBz2: async () => ({
+        success: false,
+        message: 'SherpaOnnx native module is not available',
+        extractedFiles: [],
+      }),
+      createMockModelFiles: async () => ({
+        success: false,
+        message: 'SherpaOnnx native module is not available',
+        createdFiles: [],
+      }),
     };
 
 export default SafeSherpaOnnx;

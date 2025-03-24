@@ -110,10 +110,19 @@ export function ModelManagementProvider({
       const extractionResult = await extractTarBz2(archivePath, modelDir);
       
       if (!extractionResult.success) {
+        console.error(`Failed to extract archive: ${extractionResult.message}`);
         throw new Error(`Failed to extract archive: ${extractionResult.message}`);
       }
       
       console.log(`Archive extracted successfully for model ${modelId}`);
+      console.log(`Extracted ${extractionResult.extractedFiles?.length || 0} files from archive`);
+      
+      // Log the extracted files
+      if (extractionResult.extractedFiles && extractionResult.extractedFiles.length > 0) {
+        console.log('Extracted files:', extractionResult.extractedFiles);
+      } else {
+        console.warn('No files were extracted from the archive!');
+      }
       
       // If extraction failed or didn't produce the required files,
       // try to extract from bundled assets as a fallback
