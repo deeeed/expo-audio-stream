@@ -78,9 +78,9 @@ export default {
 
   // AudioTagging methods
   /**
-   * Initialize the AudioTagging module with the specified model
-   * @param config Configuration for the audio tagging model
-   * @returns Promise that resolves with initialization result
+   * Initialize the AudioTagging module with the provided configuration
+   * @param config AudioTagging model configuration
+   * @returns Promise resolving to initialization result
    */
   initAudioTagging(
     config: AudioTaggingModelConfig
@@ -89,30 +89,35 @@ export default {
   },
 
   /**
-   * Process audio samples through the AudioTagging engine
-   * @param sampleRate Sample rate of the audio data
-   * @param audioBuffer Float array of audio samples (-1.0 to 1.0)
-   * @returns Promise that resolves with processing result
+   * Process audio samples through the audio tagging engine
+   * @param sampleRate Sample rate of the audio in Hz
+   * @param samples Array of audio samples (raw PCM float samples)
+   * @returns Promise resolving to success status
    */
   processAudioSamples(
     sampleRate: number,
-    audioBuffer: number[]
+    samples: number[]
   ): Promise<AudioProcessResult> {
-    return SherpaOnnx.processAudioSamples(sampleRate, audioBuffer);
+    if (!Array.isArray(samples)) {
+      return Promise.reject(new Error('Samples must be an array'));
+    }
+    if (sampleRate <= 0) {
+      return Promise.reject(new Error('Sample rate must be positive'));
+    }
+    return SherpaOnnx.processAudioSamples(sampleRate, samples);
   },
 
   /**
-   * Compute audio tagging results from processed audio
-   * @param topK Number of top results to return (-1 for all)
-   * @returns Promise that resolves with audio tagging results
+   * Compute the audio tagging results after processing audio samples
+   * @returns Promise resolving to the audio tagging results
    */
-  computeAudioTagging(topK: number = -1): Promise<AudioTaggingResult> {
-    return SherpaOnnx.computeAudioTagging(topK);
+  computeAudioTagging(): Promise<AudioTaggingResult> {
+    return SherpaOnnx.computeAudioTagging();
   },
 
   /**
    * Release AudioTagging resources
-   * @returns Promise that resolves when resources are released
+   * @returns Promise resolving to release status
    */
   releaseAudioTagging(): Promise<{ released: boolean }> {
     return SherpaOnnx.releaseAudioTagging();

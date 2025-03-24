@@ -311,6 +311,11 @@ export interface AudioProcessResult {
    * Number of samples that were processed
    */
   processedSamples: number;
+  
+  /**
+   * Error message if processing failed
+   */
+  error?: string;
 }
 
 /**
@@ -351,4 +356,9 @@ export interface AudioTaggingResult {
    * Array of detected audio events
    */
   events: AudioEvent[];
+  
+  /**
+   * Error message if computation failed
+   */
+  error?: string;
 }

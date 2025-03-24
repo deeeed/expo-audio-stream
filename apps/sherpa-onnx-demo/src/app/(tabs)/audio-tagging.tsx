@@ -23,22 +23,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelManagement } from '../../contexts/ModelManagement';
 import { Asset } from 'expo-asset';
 
-// Sample audio files to test with (use module resolver alias)
+// Define sample audio with only name and module
 const SAMPLE_AUDIO_FILES = [
   {
     id: '1',
     name: 'Cat Meow',
-    path: require('@assets/audio/cat-meow.wav'),
+    module: require('@assets/audio/cat-meow.wav'),
   },
   {
     id: '2',
     name: 'Dog Bark',
-    path: require('@assets/audio/dog-bark.wav'),
+    module: require('@assets/audio/dog-bark.wav'),
   },
   {
     id: '3',
     name: 'Baby Cry',
-    path: require('@assets/audio/baby-cry.wav'),
+    module: require('@assets/audio/baby-cry.wav'),
   },
 ];
 
@@ -130,6 +130,42 @@ export default function AudioTaggingScreen() {
   const [labelFilePath, setLabelFilePath] = useState<string | null>(null);
   const [selectedAudio, setSelectedAudio] = useState<typeof SAMPLE_AUDIO_FILES[0] | null>(null);
   const [audioTaggingResults, setAudioTaggingResults] = useState<AudioEvent[]>([]);
+  
+  // Add state for loaded audio assets
+  const [loadedAudioFiles, setLoadedAudioFiles] = useState<Array<{
+    id: string;
+    name: string;
+    module: number;
+    localUri: string;
+  }>>([]);
+  
+  // Load audio assets when component mounts
+  useEffect(() => {
+    async function loadAudioAssets() {
+      try {
+        const assets = SAMPLE_AUDIO_FILES.map(file => 
+          Asset.fromModule(file.module)
+        );
+        
+        // Download all assets to local filesystem
+        await Promise.all(assets.map(asset => asset.downloadAsync()));
+        
+        // Create new array with local URIs
+        const loaded = SAMPLE_AUDIO_FILES.map((file, index) => ({
+          ...file,
+          localUri: assets[index].localUri || '',
+        }));
+        
+        setLoadedAudioFiles(loaded);
+        console.log('Audio assets loaded successfully:', loaded);
+      } catch (err) {
+        console.error('Failed to load audio assets:', err);
+        setError(`Failed to load audio assets: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    
+    loadAudioAssets();
+  }, []);
   
   // Find the models directory from downloaded models
   const getModelDirectory = () => {
@@ -230,6 +266,10 @@ export default function AudioTaggingScreen() {
       // So we strip the prefix when sending paths to native modules
       const cleanPath = (path: string) => path.replace(/^file:\/\//, '');
       
+      console.log('Setting up audio tagging with model in:', modelInfo.modelDir);
+      console.log('Model name:', modelInfo.modelName);
+      console.log('Labels file:', labelFilePath);
+      
       const config: AudioTaggingModelConfig = {
         modelDir: cleanPath(modelInfo.modelDir),
         modelName: modelInfo.modelName,
@@ -241,24 +281,50 @@ export default function AudioTaggingScreen() {
       
       console.log('Initializing audio tagging with config:', config);
       
-      const result = await SherpaOnnx.initAudioTagging(config);
+      // Check all paths exist before proceeding
+      const modelPath = `${modelInfo.modelDir}/${modelInfo.modelName}`;
+      const modelExists = await verifyFileExists(modelPath);
+      if (!modelExists) {
+        throw new Error(`Model file not found: ${modelPath}`);
+      }
       
-      if (result.success) {
-        setInitialized(true);
-        Alert.alert('Success', 'Audio tagging engine initialized successfully');
-      } else {
-        setError(`Failed to initialize audio tagging: ${result.error || 'Unknown error'}`);
+      const labelsExists = await verifyFileExists(labelFilePath);
+      if (!labelsExists) {
+        throw new Error(`Labels file not found: ${labelFilePath}`);
+      }
+      
+      console.log('Files verified, initializing audio tagging engine...');
+      
+      try {
+        const result = await SherpaOnnx.initAudioTagging(config);
+        
+        if (result.success) {
+          setInitialized(true);
+          Alert.alert('Success', 'Audio tagging engine initialized successfully');
+        } else {
+          throw new Error(result.error || 'Unknown initialization error');
+        }
+      } catch (initError) {
+        console.error('Native initialization error:', initError);
+        throw new Error(`Failed to initialize audio tagging engine: ${initError instanceof Error ? initError.message : String(initError)}`);
       }
     } catch (err) {
       console.error('Error initializing audio tagging:', err);
       setError(`Error initializing audio tagging: ${err instanceof Error ? err.message : String(err)}`);
+      
+      // Show alert to user
+      Alert.alert(
+        'Initialization Failed',
+        `Could not initialize audio tagging: ${err instanceof Error ? err.message : String(err)}`,
+        [{ text: 'OK' }]
+      );
     } finally {
       setLoading(false);
     }
   };
   
   // Process an audio file
-  const handleProcessAudio = async (audioItem: typeof SAMPLE_AUDIO_FILES[0]) => {
+  const handleProcessAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
     if (!initialized) {
       Alert.alert('Error', 'Please initialize the audio tagging engine first');
       return;
@@ -268,52 +334,76 @@ export default function AudioTaggingScreen() {
     setProcessing(true);
     setAudioTaggingResults([]);
     
+    // Define sound variable in the outer scope so it's accessible in the finally block
+    let sound: Audio.Sound | undefined;
+    
     try {
-      // Using Expo's Asset system for better asset management
-      const asset = Asset.fromModule(audioItem.path);
-      await asset.downloadAsync();
-      
-      const fileExists = await verifyFileExists(asset.localUri || '');
-      
-      if (!fileExists) {
-        setError(`Audio file not found: ${asset.localUri}`);
-        setProcessing(false);
-        return;
+      // Check if we have a valid local URI
+      if (!audioItem.localUri) {
+        throw new Error('Audio file not yet loaded');
       }
+      
+      const localFilePath = audioItem.localUri;
+      console.log(`Using local audio file at: ${localFilePath}`);
+      
+      // No need to check existence since we just downloaded it
       
       // Play the audio file using Expo's Audio API
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: asset.localUri || '' }
-      );
-      await sound.playAsync();
-      
-      // Read the audio file as a float array
-      // Note: This is simplified - in a real app, you'd need to decode the audio file
-      // to get the raw PCM samples. This would depend on the format of your audio files.
-      
-      // Mock implementation - replace with actual audio processing
-      const audioBuffer = new Array(16000).fill(0).map(() => Math.random() * 2 - 1);
-      
-      // Process the audio through the tagging engine
-      // Only pass clean data to native modules, no file:// prefix
-      await SherpaOnnx.processAudioSamples(16000, audioBuffer);
-      
-      // Compute the results
-      const result = await SherpaOnnx.computeAudioTagging();
-      
-      if (result.success) {
-        setAudioTaggingResults(result.events);
-        console.log(`Detected ${result.events.length} audio events in ${result.durationMs}ms`);
-      } else {
-        setError('Failed to compute audio tagging results');
+      try {
+        console.log(`Loading audio file: ${localFilePath}`);
+        const soundInfo = await Audio.Sound.createAsync({ uri: localFilePath });
+        sound = soundInfo.sound;
+        await sound.playAsync();
+        console.log('Audio playback started');
+      } catch (audioError) {
+        console.error('Error playing audio:', audioError);
+        // Continue with processing even if audio playback fails
       }
       
-      // Cleanup sound
-      await sound.unloadAsync();
+      // In a real app, we would load the actual audio file and decode it to PCM samples
+      // This is a simplified mock implementation that sends random data
+      try {
+        // Create a simulated audio buffer (16-bit PCM)
+        // In a real app, you would read from the actual audio file
+        console.log('Creating mock audio buffer...');
+        const audioBuffer = new Array(16000).fill(0).map(() => Math.random() * 2 - 1);
+        
+        // Process the audio through the tagging engine
+        console.log('Processing audio samples...');
+        const processResult = await SherpaOnnx.processAudioSamples(16000, audioBuffer);
+        
+        if (!processResult.success) {
+          throw new Error('Failed to process audio samples');
+        }
+        
+        console.log(`Successfully processed ${processResult.processedSamples} samples`);
+        
+        // Compute the results
+        console.log('Computing audio tagging results...');
+        const result = await SherpaOnnx.computeAudioTagging();
+        
+        if (!result.success) {
+          throw new Error('Failed to compute audio tagging results');
+        }
+        
+        setAudioTaggingResults(result.events || []);
+        console.log(`Detected ${result.events?.length || 0} audio events in ${result.durationMs}ms`);
+      } catch (processingError) {
+        console.error('Error processing audio data:', processingError);
+        throw new Error(`Error processing audio data: ${processingError instanceof Error ? processingError.message : String(processingError)}`);
+      }
     } catch (err) {
       console.error('Error processing audio:', err);
       setError(`Error processing audio: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
+      // Cleanup sound if it was created
+      if (sound) {
+        try {
+          await sound.unloadAsync();
+        } catch (cleanupErr) {
+          console.warn('Error unloading audio:', cleanupErr);
+        }
+      }
       setProcessing(false);
     }
   };
@@ -396,20 +486,24 @@ export default function AudioTaggingScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Sample Audio Files</Text>
           
-          {SAMPLE_AUDIO_FILES.map(audio => (
-            <TouchableOpacity
-              key={audio.id}
-              style={[
-                styles.audioItem,
-                selectedAudio?.id === audio.id && styles.selectedAudio,
-                !initialized && styles.buttonDisabled
-              ]}
-              onPress={() => handleProcessAudio(audio)}
-              disabled={processing || !initialized}
-            >
-              <Text style={styles.audioName}>{audio.name}</Text>
-            </TouchableOpacity>
-          ))}
+          {loadedAudioFiles.length === 0 ? (
+            <ActivityIndicator size="small" color="#0000ff" />
+          ) : (
+            loadedAudioFiles.map(audio => (
+              <TouchableOpacity
+                key={audio.id}
+                style={[
+                  styles.audioItem,
+                  selectedAudio?.id === audio.id && styles.selectedAudio,
+                  !initialized && styles.buttonDisabled
+                ]}
+                onPress={() => handleProcessAudio(audio)}
+                disabled={processing || !initialized}
+              >
+                <Text style={styles.audioName}>{audio.name}</Text>
+              </TouchableOpacity>
+            ))
+          )}
         </View>
         
         {/* Results */}

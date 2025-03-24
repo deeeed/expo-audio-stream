@@ -580,11 +580,45 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     }
 
     /**
+     * Release AudioTagging resources
+     */
+    private fun releaseAudioTaggingResources() {
+        try {
+            // Release stream first if it exists
+            if (stream != null) {
+                try {
+                    stream?.release()
+                    Log.i(TAG, "Released AudioTagging stream")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error releasing AudioTagging stream: ${e.message}")
+                } finally {
+                    stream = null
+                }
+            }
+            
+            // Then release the main AudioTagging object
+            if (audioTagging != null) {
+                try {
+                    audioTagging?.release()
+                    Log.i(TAG, "Released AudioTagging resources")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error releasing AudioTagging: ${e.message}")
+                } finally {
+                    audioTagging = null
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in releaseAudioTaggingResources: ${e.message}")
+        }
+    }
+    
+    /**
      * Initialize the AudioTagging module with the provided configuration
      */
     @ReactMethod
     fun initAudioTagging(modelConfig: ReadableMap, promise: Promise) {
         if (!isLibraryLoaded) {
+            Log.e(TAG, "Sherpa ONNX library is not loaded - rejecting initAudioTagging call")
             promise.reject("ERR_LIBRARY_NOT_LOADED", "Sherpa ONNX library is not loaded")
             return
         }
@@ -599,12 +633,21 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 
                 // Extract paths from the config (assuming clean paths from JavaScript)
                 val modelDir = modelConfig.getString("modelDir") ?: ""
+                if (modelDir.isEmpty()) {
+                    throw IllegalArgumentException("Model directory path is empty")
+                }
+                
                 val modelType = modelConfig.getString("modelType") ?: "zipformer"
                 val modelName = modelConfig.getString("modelName") ?: "model.int8.onnx"
                 val labelsPath = modelConfig.getString("labelsPath") ?: ""
+                if (labelsPath.isEmpty()) {
+                    throw IllegalArgumentException("Labels file path is empty") 
+                }
+                
                 val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else 2
                 val topK = if (modelConfig.hasKey("topK")) modelConfig.getInt("topK") else 3
                 
+                // Log the extracted configuration
                 Log.i(TAG, "Using paths:")
                 Log.i(TAG, "- modelDir: $modelDir")
                 Log.i(TAG, "- modelType: $modelType")
@@ -653,18 +696,41 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 Log.i(TAG, "Model file: ${modelFile.absolutePath} (exists: ${modelFile.exists()}, size: ${modelFile.length()})")
                 Log.i(TAG, "Labels file: ${labelsFile.absolutePath} (exists: ${labelsFile.exists()}, size: ${labelsFile.length()})")
                 
-                // Initialize the AudioTagging engine
-                audioTagging = AudioTagging(config = config)
-                
-                if (audioTagging == null) {
-                    throw Exception("Failed to initialize AudioTagging engine")
+                // Initialize the AudioTagging engine with proper error handling
+                try {
+                    Log.i(TAG, "Creating AudioTagging instance...")
+                    audioTagging = AudioTagging(config = config)
+                    
+                    if (audioTagging == null) {
+                        throw Exception("Failed to initialize AudioTagging engine (constructor returned null)")
+                    }
+                    
+                    Log.i(TAG, "AudioTagging instance created successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error creating AudioTagging instance: ${e.message}")
+                    e.printStackTrace()
+                    throw Exception("Failed to initialize AudioTagging engine: ${e.message}")
                 }
                 
-                // Create a stream for audio processing
-                stream = audioTagging?.createStream()
-                
-                if (stream == null) {
-                    throw Exception("Failed to create AudioTagging stream")
+                // Create a stream for audio processing with proper error handling
+                try {
+                    Log.i(TAG, "Creating OfflineStream...")
+                    stream = audioTagging?.createStream()
+                    
+                    if (stream == null) {
+                        throw Exception("Failed to create AudioTagging stream (returned null)")
+                    }
+                    
+                    Log.i(TAG, "OfflineStream created successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error creating OfflineStream: ${e.message}")
+                    e.printStackTrace()
+                    
+                    // Clean up the AudioTagging instance since stream creation failed
+                    audioTagging?.release()
+                    audioTagging = null
+                    
+                    throw Exception("Failed to create audio stream: ${e.message}")
                 }
                 
                 Log.i(TAG, "AudioTagging initialized successfully")
@@ -705,23 +771,30 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         
         executor.execute {
             try {
-                // Convert ReadableArray to FloatArray
-                val samples = FloatArray(audioBuffer.size())
-                for (i in 0 until audioBuffer.size()) {
+                // Convert ReadableArray to FloatArray with safety checks
+                val size = audioBuffer.size()
+                if (size <= 0) {
+                    val resultMap = Arguments.createMap()
+                    resultMap.putBoolean("success", false)
+                    resultMap.putInt("processedSamples", 0)
+                    reactContext.runOnUiQueueThread {
+                        promise.resolve(resultMap)
+                    }
+                    return@execute
+                }
+                
+                val samples = FloatArray(size)
+                for (i in 0 until size) {
                     samples[i] = audioBuffer.getDouble(i).toFloat()
                 }
                 
                 Log.i(TAG, "Processing ${samples.size} audio samples at ${sampleRate}Hz")
                 
-                // Feed the samples to the stream
-                val accepted = stream?.acceptWaveform(sampleRate, samples) ?: false
-                
-                if (!accepted) {
-                    Log.w(TAG, "Warning: Audio samples were not accepted by the stream")
-                }
+                // Feed the samples to the stream - make sure parameters are in the right order
+                stream?.acceptWaveform(sampleRate, samples)
                 
                 val resultMap = Arguments.createMap()
-                resultMap.putBoolean("success", accepted)
+                resultMap.putBoolean("success", true)
                 resultMap.putInt("processedSamples", samples.size)
                 
                 reactContext.runOnUiQueueThread {
@@ -742,7 +815,7 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
      * Finalize audio processing and compute the audio tagging results
      */
     @ReactMethod
-    fun computeAudioTagging(topK: Int, promise: Promise) {
+    fun computeAudioTagging(promise: Promise) {
         if (audioTagging == null || stream == null) {
             promise.reject("ERR_NOT_INITIALIZED", "AudioTagging is not initialized")
             return
@@ -750,12 +823,20 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         
         executor.execute {
             try {
-                // Signal that audio input is finished
-                stream?.inputFinished()
+                // Use default topK value of -1 (use the configured value)
+                val topK = -1
                 
-                // Compute the results
+                Log.i(TAG, "Computing audio tagging results")
+                
+                // Compute the results with safety checks
                 val startTime = System.currentTimeMillis()
-                val events = audioTagging?.compute(stream!!, topK) ?: ArrayList()
+                val events = try {
+                    audioTagging?.compute(stream!!, topK) ?: ArrayList()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in native compute call: ${e.message}")
+                    e.printStackTrace()
+                    ArrayList() // Return empty list on error
+                }
                 val endTime = System.currentTimeMillis()
                 
                 Log.i(TAG, "Computed audio tagging in ${endTime - startTime}ms, found ${events.size} events")
@@ -768,16 +849,12 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 val eventsArray = Arguments.createArray()
                 for (event in events) {
                     val eventMap = Arguments.createMap()
-                    eventMap.putString("name", event.name)
+                    eventMap.putString("name", event.name ?: "unknown")
                     eventMap.putInt("index", event.index)
                     eventMap.putDouble("probability", event.prob.toDouble())
                     eventsArray.pushMap(eventMap)
                 }
                 resultMap.putArray("events", eventsArray)
-                
-                // Create a new stream for next audio processing
-                stream?.release()
-                stream = audioTagging?.createStream()
                 
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
@@ -787,46 +864,40 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
-                    promise.reject("ERR_COMPUTE_TAGGING", "Failed to compute audio tagging: ${e.message}")
+                    promise.reject("ERR_COMPUTE_AUDIO_TAGGING", "Failed to compute audio tagging: ${e.message}")
                 }
             }
         }
     }
     
     /**
-     * Release AudioTagging resources
+     * Release the AudioTagging resources
      */
     @ReactMethod
     fun releaseAudioTagging(promise: Promise) {
         executor.execute {
             try {
+                Log.i(TAG, "===== RELEASING AUDIO TAGGING RESOURCES =====")
+                
                 releaseAudioTaggingResources()
                 
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("released", true)
                 
+                Log.i(TAG, "AudioTagging resources released successfully")
+                
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error releasing AudioTagging: ${e.message}")
+                Log.e(TAG, "Error releasing AudioTagging resources: ${e.message}")
+                e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
-                    promise.reject("ERR_AUDIO_TAGGING_RELEASE", "Failed to release AudioTagging resources: ${e.message}")
+                    promise.reject("ERR_RELEASE_AUDIO_TAGGING", "Failed to release AudioTagging resources: ${e.message}")
                 }
             }
         }
-    }
-    
-    /**
-     * Helper method to release AudioTagging resources
-     */
-    private fun releaseAudioTaggingResources() {
-        stream?.release()
-        stream = null
-        
-        audioTagging?.release()
-        audioTagging = null
     }
 
 }
