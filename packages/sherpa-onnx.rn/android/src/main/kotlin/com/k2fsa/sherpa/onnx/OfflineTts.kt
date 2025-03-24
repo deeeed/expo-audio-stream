@@ -82,11 +82,19 @@ class OfflineTtsAudio(
 /**
  * Bridge class for JNI access - this is the class that the JNI methods will find
  */
-class OfflineTts {
+class OfflineTts(
+    private val assetManager: AssetManager,
+    var config: OfflineTtsConfig,
+) {
+    private var ptr: Long = 0
+
+    init {
+        ptr = newFromAsset(assetManager, config)
+    }
+
     companion object {
         private const val TAG = "OfflineTtsBridge"
         
-        // System.loadLibrary should be called here so it's in the correct class
         init {
             try {
                 System.loadLibrary("sherpa-onnx-jni")
@@ -97,22 +105,14 @@ class OfflineTts {
             }
         }
         
-        // Use the original method name - DON'T RENAME IT
         @JvmStatic external fun newFromAsset(
             assetManager: AssetManager,
             config: OfflineTtsConfig
         ): Long
         
-        // Use try-catch wrapper separately
-        @JvmStatic
-        fun safeNewFromAsset(assetManager: AssetManager, config: OfflineTtsConfig): Long {
-            try {
-                return newFromAsset(assetManager, config)
-            } catch (e: Throwable) {
-                Log.e(TAG, "JNI newFromAsset call failed: ${e.message}")
-                return 0L
-            }
-        }
+        @JvmStatic external fun newFromFile(
+            config: OfflineTtsConfig
+        ): Long
         
         @JvmStatic external fun generateImpl(
             ptr: Long, 
@@ -132,5 +132,34 @@ class OfflineTts {
         @JvmStatic external fun getSampleRate(ptr: Long): Int
         @JvmStatic external fun getNumSpeakers(ptr: Long): Int
         @JvmStatic external fun delete(ptr: Long)
+    }
+
+    fun sampleRate() = getSampleRate(ptr)
+    fun numSpeakers() = getNumSpeakers(ptr)
+    fun free() = delete(ptr)
+
+    fun generate(
+        text: String,
+        sid: Int = 0,
+        speed: Float = 1.0f
+    ): OfflineTtsAudio {
+        val objArray = generateImpl(ptr, text, sid, speed)
+        return OfflineTtsAudio(
+            samples = objArray[0] as FloatArray,
+            sampleRate = objArray[1] as Int
+        )
+    }
+
+    fun generateWithCallback(
+        text: String,
+        sid: Int = 0,
+        speed: Float = 1.0f,
+        callback: (FloatArray) -> Int
+    ): OfflineTtsAudio {
+        val objArray = generateWithCallbackImpl(ptr, text, sid, speed, callback)
+        return OfflineTtsAudio(
+            samples = objArray[0] as FloatArray,
+            sampleRate = objArray[1] as Int
+        )
     }
 } 
