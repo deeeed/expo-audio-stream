@@ -12,6 +12,7 @@ import {
 import { ModelState, ModelMetadata } from '../contexts/ModelManagement/types';
 import { useModelManagement } from '../contexts/ModelManagement/ModelManagementContext';
 import { formatBytes } from '../utils/formatters';
+import * as FileSystem from 'expo-file-system';
 
 interface ModelCardProps {
   model: ModelMetadata;
@@ -35,6 +36,9 @@ const ModelCard: React.FC<ModelCardProps> = ({
   isSelected
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [showFiles, setShowFiles] = useState(false);
+  const [fileDetails, setFileDetails] = useState<Array<{name: string, size: number, exists: boolean}>>([]);
+  const [fileListError, setFileListError] = useState<string | null>(null);
 
   const handleDownload = async () => {
     try {
@@ -53,6 +57,55 @@ const ModelCard: React.FC<ModelCardProps> = ({
       await onDelete();
     } catch (error) {
       Alert.alert('Delete Error', (error as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleShowFiles = async () => {
+    if (showFiles) {
+      setShowFiles(false);
+      return;
+    }
+
+    if (!state?.localPath) {
+      setFileListError('Model path not available');
+      return;
+    }
+
+    setIsLoading(true);
+    setFileListError(null);
+    
+    try {
+      // Get directory info
+      const dirInfo = await FileSystem.getInfoAsync(state.localPath);
+      
+      if (!dirInfo.exists || !dirInfo.isDirectory) {
+        setFileListError(`Directory not found: ${state.localPath}`);
+        setShowFiles(true);
+        return;
+      }
+      
+      // Read directory contents
+      const files = await FileSystem.readDirectoryAsync(state.localPath);
+      
+      // Get file info for each file
+      const fileInfoPromises = files.map(async (fileName) => {
+        const filePath = `${state.localPath}/${fileName}`;
+        const fileInfo = await FileSystem.getInfoAsync(filePath);
+        return {
+          name: fileName,
+          size: fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0,
+          exists: fileInfo.exists
+        };
+      });
+      
+      const detailedFiles = await Promise.all(fileInfoPromises);
+      setFileDetails(detailedFiles);
+      setShowFiles(true);
+    } catch (error) {
+      console.error('Error getting file details:', error);
+      setFileListError(`Error listing files: ${(error as Error).message}`);
     } finally {
       setIsLoading(false);
     }
@@ -103,6 +156,31 @@ const ModelCard: React.FC<ModelCardProps> = ({
         </View>
       )}
 
+      {/* Show file list when toggled */}
+      {showFiles && state?.status === 'downloaded' && (
+        <View style={styles.filesContainer}>
+          <Text style={styles.filesTitle}>Model Files:</Text>
+          {fileListError ? (
+            <Text style={styles.errorText}>{fileListError}</Text>
+          ) : (
+            <>
+              <Text style={styles.modelPath}>Path: {state.localPath}</Text>
+              {fileDetails.length === 0 ? (
+                <Text style={styles.fileText}>No files found</Text>
+              ) : (
+                fileDetails.map((file, index) => (
+                  <View key={index} style={styles.fileItem}>
+                    <Text style={styles.fileText}>
+                      • {file.name} {file.exists ? `(${formatBytes(file.size)})` : '(Missing)'}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </>
+          )}
+        </View>
+      )}
+
       <View style={styles.cardActions}>
         {state?.status === 'downloaded' ? (
           <>
@@ -114,6 +192,17 @@ const ModelCard: React.FC<ModelCardProps> = ({
                 {isSelected ? 'Selected' : 'Select'}
               </Text>
             </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.button, styles.infoButton]}
+              onPress={toggleShowFiles}
+              disabled={isLoading}
+            >
+              <Text style={styles.buttonText}>
+                {showFiles ? 'Hide Files' : 'Show Files'}
+              </Text>
+            </TouchableOpacity>
+            
             <TouchableOpacity
               style={[styles.button, styles.deleteButton]}
               onPress={handleDelete}
@@ -382,5 +471,17 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 14,
     marginTop: 8,
+  },
+  infoButton: {
+    backgroundColor: '#4CAF50',
+  },
+  modelPath: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+    fontStyle: 'italic',
+  },
+  fileItem: {
+    marginVertical: 2,
   },
 }); 

@@ -17,7 +17,7 @@ export interface ModelMetadata {
   url: string;
   version: string;
   language: string;
-  requiredFiles: string[];
+  requiredFiles?: string[];
   parameters?: Record<string, unknown>;
 }
 

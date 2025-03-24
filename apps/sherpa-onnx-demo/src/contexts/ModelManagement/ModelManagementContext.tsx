@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AVAILABLE_MODELS, type ModelMetadata } from '@siteed/sherpa-onnx.rn/src/config/models';
 import * as FileSystem from 'expo-file-system';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { extractModelFromAssets, extractTarBz2 } from '../../utils/archiveUtils';
 import type { ModelManagementContextType, ModelManagementProviderProps, ModelState, ModelStatus } from './types';
 
 const ModelManagementContext = createContext<ModelManagementContextType | undefined>(undefined);
@@ -101,18 +102,64 @@ export function ModelManagementProvider({
 
       // Extract the archive
       console.log(`Extracting archive for model ${modelId}...`);
-      // Note: We'll need to implement tar.bz2 extraction
-      // For now, we'll just verify the archive exists
-      const archiveInfo = await FileSystem.getInfoAsync(archivePath);
-      if (!archiveInfo.exists) {
-        throw new Error('Archive file not found');
+      updateModelState(modelId, {
+        status: 'extracting' as ModelStatus,
+      });
+      
+      // Use our new utility to extract the archive
+      const extractionResult = await extractTarBz2(archivePath, modelDir);
+      
+      if (!extractionResult.success) {
+        throw new Error(`Failed to extract archive: ${extractionResult.message}`);
       }
-      console.log(`Archive exists for model ${modelId}, size: ${archiveInfo.size}`);
+      
+      console.log(`Archive extracted successfully for model ${modelId}`);
+      
+      // If extraction failed or didn't produce the required files,
+      // try to extract from bundled assets as a fallback
+      let missingFiles: string[] = [];
+      if (model.requiredFiles && extractionResult.extractedFiles) {
+        missingFiles = model.requiredFiles.filter(
+          (file) => !extractionResult.extractedFiles?.includes(file)
+        );
+      }
+      
+      if (missingFiles.length > 0) {
+        console.log(`Missing required files after extraction: ${missingFiles.join(", ")}`);
+        console.log(`Trying to extract from bundled assets as fallback...`);
+        
+        const assetExtractionResult = await extractModelFromAssets(
+          model.type,
+          modelId,
+          modelDir
+        );
+        
+        if (assetExtractionResult.success) {
+          console.log(`Successfully extracted model files from assets`);
+          // Update the extracted files list to include both sources
+          if (extractionResult.extractedFiles && assetExtractionResult.extractedFiles) {
+            extractionResult.extractedFiles = [
+              ...new Set([
+                ...extractionResult.extractedFiles,
+                ...assetExtractionResult.extractedFiles
+              ])
+            ];
+          } else if (assetExtractionResult.extractedFiles) {
+            extractionResult.extractedFiles = assetExtractionResult.extractedFiles;
+          }
+        } else {
+          console.warn(`Failed to extract from assets: ${assetExtractionResult.message}`);
+        }
+      }
 
       // Verify required files
       console.log(`Verifying required files for model ${modelId}...`);
       const files = await FileSystem.readDirectoryAsync(modelDir);
-      const missingFiles = model.requiredFiles?.filter((file) => !files.includes(file)) || [];
+      missingFiles = [];
+      if (model.requiredFiles) {
+        missingFiles = model.requiredFiles.filter((file) => !files.includes(file));
+      }
+      
       if (missingFiles.length > 0) {
         throw new Error(`Missing required files: ${missingFiles.join(', ')}`);
       }
@@ -141,6 +188,7 @@ export function ModelManagementProvider({
         localPath: modelDir,
         files: fileInfos,
         lastDownloaded: Date.now(),
+        extractedFiles: extractionResult.extractedFiles,
       });
 
       // Clean up archive
@@ -191,7 +239,12 @@ export function ModelManagementProvider({
   };
 
   const getAvailableModels = (): ModelMetadata[] => {
-    return AVAILABLE_MODELS;
+    // Convert AVAILABLE_MODELS to our local ModelMetadata type
+    return AVAILABLE_MODELS.map(model => ({
+      ...model,
+      // Ensure requiredFiles is defined (defaults to empty array if undefined)
+      requiredFiles: model.requiredFiles || []
+    }));
   };
 
   const refreshModelStatus = async (modelId: string) => {
@@ -211,7 +264,7 @@ export function ModelManagementProvider({
         const files = await FileSystem.readDirectoryAsync(state.localPath);
         const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
         if (model) {
-          const missingFiles = model.requiredFiles.filter((file) => !files.includes(file));
+          const missingFiles = model.requiredFiles?.filter((file) => !files.includes(file)) || [] ;
           if (missingFiles.length > 0) {
             updateModelState(modelId, {
               status: 'error' as ModelStatus,
