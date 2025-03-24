@@ -1,0 +1,131 @@
+buildscript {
+    ext.safeExtGet = { prop, fallback ->
+        rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+    }
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath("com.android.tools.build:gradle:7.2.1")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.0")
+    }
+}
+
+// For backwards compatibility with older React Native versions
+def REACT_NATIVE_VERSION = safeExtGet('reactNativeVersion', '+')
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-parcelize'  // Add this for Kotlin synthetic properties
+
+android {
+    namespace "net.siteed.sherpaonnx"
+    compileSdkVersion safeExtGet('compileSdkVersion', 33)
+    buildToolsVersion safeExtGet('buildToolsVersion', '33.0.0')
+
+    defaultConfig {
+        minSdkVersion safeExtGet('minSdkVersion', 21)
+        targetSdkVersion safeExtGet('targetSdkVersion', 33)
+        versionCode 1
+        versionName "1.0"
+        
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+        }
+    }
+
+    sourceSets {
+        main {
+            // Include prebuilt libraries in the correct location
+            jniLibs.srcDirs = ['src/main/jniLibs']
+            
+            // Add Kotlin source directory
+            kotlin.srcDirs = ['src/main/kotlin']
+            
+            // Add Java source directory for compatibility
+            java.srcDirs = ['src/main/java']
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    // IMPORTANT: These Java compatibility settings must match the React Native app
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    packagingOptions {
+        pickFirst '**/*.so'
+    }
+    
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+        }
+    }
+}
+
+// Add back the New Architecture detection
+def isNewArchitectureEnabled() {
+    // Return false to disable New Architecture completely for now
+    return false
+    // When ready to re-enable:
+    // return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
+}
+
+// Conditional New Architecture setup
+if (isNewArchitectureEnabled()) {
+    apply plugin: "com.facebook.react"
+    react {
+        jsRootDir = file("../src/")
+        libraryName = "sherpa_onnx_rn"
+        codegenJavaPackageName = "net.siteed.sherpaonnx"
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    // Kotlin standard library must come first - this is critical
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.0"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.0"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-common:1.8.0"
+    implementation "org.jetbrains.kotlin:kotlin-reflect:1.8.0"
+    
+    // React Native dependencies
+    implementation "com.facebook.react:react-native:${REACT_NATIVE_VERSION}"
+    
+    // Android support libraries
+    implementation "androidx.annotation:annotation:1.5.0"
+    implementation "androidx.core:core-ktx:1.9.0"
+    implementation "androidx.media:media:1.6.0"  // For AudioTrack and related classes
+
+    // Make sure we have the actual sherpa-onnx library dependencies
+    if (file("src/main/jniLibs").exists()) {
+        println("Using prebuilt sherpa-onnx libraries from jniLibs directory")
+    } else {
+        println("WARNING: No prebuilt libraries found in jniLibs directory!")
+    }
+
+    // Add New Architecture dependencies conditionally
+    if (isNewArchitectureEnabled()) {
+        implementation "com.facebook.react:react-native-jni:0.72.6"
+    }
+} 

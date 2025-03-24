@@ -71,6 +71,7 @@ playground/vendor/
 apps/playground/.env.development
 apps/playground/.env.production
 apps/playground/audioplayground-b0b0f366d11e.json
+apps/sherpa-onnx-demo/assets/tts
 
 # FFmpeg libraries and headers
 packages/react-native-essentia/android/src/main/jniLibs/**/ffmpeg/
@@ -80,3 +81,7 @@ packages/react-native-essentia/third_party/essentia_sim/
 packages/react-native-essentia/build_arm64_sim/
 packages/react-native-essentia/build_minimal/
 packages/react-native-essentia/third_party/essentia
+packages/sherpa-onnx.rn/third_party/sherpa-onnx
+packages/sherpa-onnx.rn/prebuilt/
+packages/sherpa-onnx.rn/lib/
+packages/sherpa-onnx.rn/android/src/main/jniLibs/**/*.so
