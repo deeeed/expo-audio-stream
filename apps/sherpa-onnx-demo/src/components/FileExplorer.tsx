@@ -111,6 +111,13 @@ export function FileExplorer({
         );
         
         setItems(itemsWithInfo);
+
+        // Log detailed file list after setting items
+        console.log('Files in directory:', itemsWithInfo.map(item => ({
+          name: item.name,
+          isDirectory: item.isDirectory,
+          size: item.size
+        })));
       } else {
         // This is the root of the browse models view - display downloaded models
         if (currentPath === '') {
@@ -184,6 +191,7 @@ export function FileExplorer({
 
   const handleItemPress = (item: FileItem) => {
     if (item.isDirectory) {
+      console.log(`Navigating to folder: ${item.path}`);
       onNavigate(item.path);
     } else {
       console.log('Selected file:', item.path);

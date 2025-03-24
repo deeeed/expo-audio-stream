@@ -9,8 +9,6 @@ export interface ModelMetadata {
   url: string;
   version: string;
   language: string;
-  requiredFiles?: string[];
-  parameters?: Record<string, unknown>;
   dependencies?: Array<{
     id: string;
     name: string;
@@ -118,11 +116,6 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2',
     version: '0.19',
     language: 'en',
-    parameters: {
-      expressiveness: 0.5,
-      speed: 1.0,
-      pitch: 1.0,
-    },
   },
 
   {
@@ -135,11 +128,6 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/matcha-icefall-en_US-ljspeech.tar.bz2',
     version: '1.0',
     language: 'en',
-    requiredFiles: [], // Only tokens.txt is required by default
-    parameters: {
-      speed: 1.0,
-      pitch: 1.0,
-    },
     dependencies: [
       {
         id: 'vocos-vocoder',
@@ -147,7 +135,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
         type: 'vocoder',
         url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/vocoder-models/vocos-22khz-univ.onnx',
         size: 5.8 * 1024 * 1024, // Approximate size
-        description: 
+        description:
           'Universal 22kHz vocoder for Matcha TTS models (required for speech generation)',
       },
     ],

@@ -132,107 +132,6 @@ export function ModelManagementProvider({
       const files = await FileSystem.readDirectoryAsync(modelDir);
       console.log(`Found ${files.length} files in model directory:`, files);
       
-      if (model.requiredFiles && extractionResult.extractedFiles) {
-        missingFiles = model.requiredFiles.filter(
-          (file) => !extractionResult.extractedFiles?.includes(file)
-        );
-      }
-      
-      if (missingFiles.length > 0) {
-        console.log(`Missing required files after extraction: ${missingFiles.join(", ")}`);
-        
-        // Instead of trying to create placeholder files, just log a warning
-        console.warn(`Some required files are missing: ${missingFiles.join(", ")}`);
-        console.warn(`Placeholder file creation is disabled - extraction must provide all files`);
-        
-        // If this is a Matcha model, check if we have the model files in a subdirectory
-        if (model.id.includes('matcha')) {
-          console.log(`Checking for Matcha model files in subdirectories...`);
-          
-          const matchaSubdir = files.find(file => 
-            file.includes('matcha') || 
-            (file.includes('en_US') && file.includes('ljspeech'))
-          );
-          
-          if (matchaSubdir) {
-            const matchaPath = `${modelDir}/${matchaSubdir}`;
-            try {
-              const matchaInfo = await FileSystem.getInfoAsync(matchaPath);
-              
-              if (matchaInfo.exists && matchaInfo.isDirectory) {
-                console.log(`Found Matcha subdirectory: ${matchaPath}`);
-                
-                // Check for model files in subdirectory
-                const subdirFiles = await FileSystem.readDirectoryAsync(matchaPath);
-                console.log(`Files in Matcha subdirectory: ${subdirFiles.join(', ')}`);
-                
-                // Look specifically for model-steps-3.onnx or acoustic_model.onnx
-                const hasModelFile = subdirFiles.some(file => 
-                  file.includes('model-steps') || 
-                  file === 'model-steps-3.onnx' ||
-                  file.includes('acoustic_model')
-                );
-                
-                if (hasModelFile) {
-                  console.log(`Found model file in subdirectory, extraction may be partially successful`);
-                  // Update the extracted files list with the correct paths
-                  const subdirFilePaths = subdirFiles.map(file => `${matchaSubdir}/${file}`);
-                  extractionResult.extractedFiles = [...files, ...subdirFilePaths];
-                }
-              }
-            } catch (error) {
-              console.error(`Error checking Matcha subdirectory:`, error);
-            }
-          }
-        }
-      }
-
-      // Verify required files
-      console.log(`Verifying required files for model ${modelId}...`);
-      
-      // For non-Matcha models, enforce required files more strictly
-      if (!model.id.includes('matcha') && model.requiredFiles) {
-        missingFiles = model.requiredFiles.filter((file) => !files.includes(file));
-        
-        if (missingFiles.length > 0) {
-          throw new Error(`Missing required files: ${missingFiles.join(', ')}`);
-        }
-      }
-      console.log(`Required file check passed for model ${modelId}`);
-      
-      // Clean up any placeholder files (small empty files)
-      const removeSmallPlaceholders = async () => {
-        console.log(`Checking for and removing any placeholder files...`);
-        
-        for (const file of files) {
-          // Skip directories
-          const filePath = `${modelDir}/${file}`;
-          const fileInfo = await FileSystem.getInfoAsync(filePath);
-          
-          if (fileInfo.exists && !fileInfo.isDirectory && 'size' in fileInfo) {
-            // If file is suspiciously small (< 1KB) it might be a placeholder
-            if (fileInfo.size < 1024) {
-              try {
-                // Read the first few bytes to check if it's a placeholder
-                const content = await FileSystem.readAsStringAsync(filePath, {
-                  encoding: FileSystem.EncodingType.UTF8,
-                  length: 100,  // Just read the first 100 chars
-                });
-                
-                if (content.includes('placeholder') || content.trim().length < 50) {
-                  console.log(`Removing placeholder file: ${filePath}`);
-                  await FileSystem.deleteAsync(filePath, { idempotent: true });
-                }
-              } catch (error) {
-                console.error(`Error checking placeholder file ${filePath}:`, error);
-              }
-            }
-          }
-        }
-      };
-      
-      await removeSmallPlaceholders();
-
       // After extracting the main model, check and download any dependencies
       if (model.dependencies && model.dependencies.length > 0) {
         console.log(`Model ${modelId} has ${model.dependencies.length} dependencies to download...`);
@@ -480,11 +379,7 @@ export function ModelManagementProvider({
 
   const getAvailableModels = (): ModelMetadata[] => {
     // Convert AVAILABLE_MODELS to our local ModelMetadata type
-    return AVAILABLE_MODELS.map(model => ({
-      ...model,
-      // Ensure requiredFiles is defined (defaults to empty array if undefined)
-      requiredFiles: model.requiredFiles || []
-    }));
+    return AVAILABLE_MODELS;
   };
 
   const refreshModelStatus = async (modelId: string) => {
@@ -504,38 +399,29 @@ export function ModelManagementProvider({
         const files = await FileSystem.readDirectoryAsync(state.localPath);
         const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
         if (model) {
-          const missingFiles = model.requiredFiles?.filter((file) => !files.includes(file)) || [] ;
-          if (missingFiles.length > 0) {
-            updateModelState(modelId, {
-              status: 'error' as ModelStatus,
-              error: `Missing required files: ${missingFiles.join(', ')}`,
-            });
-            return;
-          }
+          // Get file information
+          const fileInfos = await Promise.all(
+            files.map(async (file) => {
+              const filePath = `${state.localPath}/${file}`;
+              const info = await FileSystem.getInfoAsync(filePath);
+              if (!info.exists) {
+                throw new Error(`File ${file} not found`);
+              }
+              return {
+                path: file,
+                size: info.size || 0,
+                lastModified: info.modificationTime || Date.now(),
+              };
+            })
+          );
+
+          updateModelState(modelId, {
+            status: 'downloaded' as ModelStatus,
+            files: fileInfos,
+            lastDownloaded: state.lastDownloaded,
+          });
+          console.log(`Status refresh completed for model ${modelId}`);
         }
-
-        // Get file information
-        const fileInfos = await Promise.all(
-          files.map(async (file) => {
-            const filePath = `${state.localPath}/${file}`;
-            const info = await FileSystem.getInfoAsync(filePath);
-            if (!info.exists) {
-              throw new Error(`File ${file} not found`);
-            }
-            return {
-              path: file,
-              size: info.size || 0,
-              lastModified: info.modificationTime || Date.now(),
-            };
-          })
-        );
-
-        updateModelState(modelId, {
-          status: 'downloaded' as ModelStatus,
-          files: fileInfos,
-          lastDownloaded: state.lastDownloaded,
-        });
-        console.log(`Status refresh completed for model ${modelId}`);
       } catch (error) {
         console.error(`Error refreshing status for model ${modelId}:`, error);
         updateModelState(modelId, {
