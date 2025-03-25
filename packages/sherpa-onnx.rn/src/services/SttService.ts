@@ -2,81 +2,119 @@
  * STT Service for speech-to-text functionality
  */
 
-import NativeSherpaOnnx from '../NativeSherpaOnnx';
-import type { SttInitResult, SttModelConfig, SttRecognizeResult } from '../types/interfaces';
+import { SherpaOnnxAPI } from '../SherpaOnnxAPI';
+import type {
+  SttModelConfig,
+  SttInitResult,
+  SttRecognizeResult,
+  ValidateResult,
+} from '../types/interfaces';
 
 /**
- * SttService provides methods for speech recognition (ASR)
+ * Service for Speech-to-Text functionality
  */
-export const SttService = {
-  /**
-   * Initialize the STT engine with a model
-   * 
-   * @param modelConfig Configuration for the STT model
-   * @returns Promise with initialization result
-   */
-  async initialize(modelConfig: SttModelConfig): Promise<SttInitResult> {
-    try {
-      return await NativeSherpaOnnx.initStt(modelConfig);
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  },
+export class SttService {
+  private static initialized = false;
+  private static sampleRate = 0;
+  private static modelType = '';
 
   /**
-   * Recognize speech from audio samples (PCM float array)
-   * 
-   * @param sampleRate Sample rate of the audio (e.g., 16000)
-   * @param audioBuffer Float array of audio samples
-   * @returns Promise with recognition result
+   * Validate that the Sherpa-ONNX library is properly loaded
+   * @returns Promise that resolves with validation result
    */
-  async recognizeFromSamples(
-    sampleRate: number,
-    audioBuffer: number[]
-  ): Promise<SttRecognizeResult> {
+  public static validateLibrary(): Promise<ValidateResult> {
+    return SherpaOnnxAPI.validateLibraryLoaded();
+  }
+
+  /**
+   * Initialize the STT engine
+   * @param config The STT model configuration
+   * @returns Promise resolving to initialization result
+   */
+  public static async initialize(
+    config: SttModelConfig
+  ): Promise<SttInitResult> {
     try {
-      return await NativeSherpaOnnx.recognizeFromSamples(sampleRate, audioBuffer);
+      // First validate library
+      const validation = await SherpaOnnxAPI.validateLibraryLoaded();
+      if (!validation.loaded) {
+        throw new Error(`Library validation failed: ${validation.status}`);
+      }
+
+      const result = await SherpaOnnxAPI.initStt(config);
+      this.initialized = result.success;
+      this.sampleRate = result.sampleRate ?? 0;
+      this.modelType = result.modelType ?? '';
+      return result;
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      this.initialized = false;
+      throw error;
     }
-  },
+  }
+
+  /**
+   * Get the initialized status
+   */
+  public static isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  /**
+   * Get the sample rate
+   */
+  public static getSampleRate(): number {
+    return this.sampleRate;
+  }
+
+  /**
+   * Get the model type
+   */
+  public static getModelType(): string {
+    return this.modelType;
+  }
+
+  /**
+   * Recognize speech from audio samples
+   * @param sampleRate The sample rate of the audio
+   * @param samples Float array of audio samples
+   * @returns Promise resolving to recognition result
+   */
+  public static async recognizeFromSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<SttRecognizeResult> {
+    if (!this.initialized) {
+      throw new Error('STT is not initialized. Call initialize() first.');
+    }
+
+    return SherpaOnnxAPI.recognizeFromSamples(sampleRate, samples);
+  }
 
   /**
    * Recognize speech from an audio file
-   * 
-   * @param filePath Path to the audio file (support for wav, mp3, etc. depends on platform)
-   * @returns Promise with recognition result
+   * @param filePath Path to the audio file
+   * @returns Promise resolving to recognition result
    */
-  async recognizeFromFile(filePath: string): Promise<SttRecognizeResult> {
-    try {
-      return await NativeSherpaOnnx.recognizeFromFile(filePath);
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+  public static async recognizeFromFile(
+    filePath: string
+  ): Promise<SttRecognizeResult> {
+    if (!this.initialized) {
+      throw new Error('STT is not initialized. Call initialize() first.');
     }
-  },
+
+    return SherpaOnnxAPI.recognizeFromFile(filePath);
+  }
 
   /**
    * Release STT resources
-   * Call this when you're done with STT to free up resources
-   * 
-   * @returns Promise that resolves when resources are released
    */
-  async release(): Promise<{ released: boolean }> {
-    try {
-      return await NativeSherpaOnnx.releaseStt();
-    } catch (error) {
-      return {
-        released: false
-      };
+  public static async release(): Promise<{ released: boolean }> {
+    const result = await SherpaOnnxAPI.releaseStt();
+    if (result.released) {
+      this.initialized = false;
+      this.sampleRate = 0;
+      this.modelType = '';
     }
-  },
-}; 
+    return result;
+  }
+}

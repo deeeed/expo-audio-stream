@@ -8,6 +8,9 @@ import type {
   AudioTaggingModelConfig,
   AudioTaggingInitResult,
   AudioTaggingResult,
+  SttModelConfig,
+  SttInitResult,
+  SttRecognizeResult,
 } from './types/interfaces';
 
 // Get the native module
@@ -109,6 +112,67 @@ export class SherpaOnnxAPI {
       return await NativeSherpaOnnx.releaseTts();
     } catch (error: any) {
       console.error('Failed to release TTS resources:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize the STT engine with the provided model configuration
+   * @param config Configuration for the STT model
+   * @returns Promise that resolves with initialization result
+   */
+  public static async initStt(config: SttModelConfig): Promise<SttInitResult> {
+    try {
+      return await NativeSherpaOnnx.initStt(config);
+    } catch (error: any) {
+      console.error('Failed to initialize STT:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Recognize speech from audio samples
+   * @param sampleRate Sample rate of the audio
+   * @param samples Audio samples as float array
+   * @returns Promise that resolves with recognition result
+   */
+  public static async recognizeFromSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<SttRecognizeResult> {
+    try {
+      return await NativeSherpaOnnx.recognizeFromSamples(sampleRate, samples);
+    } catch (error: any) {
+      console.error('Failed to recognize speech from samples:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Recognize speech from an audio file
+   * @param filePath Path to the audio file
+   * @returns Promise that resolves with recognition result
+   */
+  public static async recognizeFromFile(
+    filePath: string
+  ): Promise<SttRecognizeResult> {
+    try {
+      return await NativeSherpaOnnx.recognizeFromFile(filePath);
+    } catch (error: any) {
+      console.error('Failed to recognize speech from file:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Release STT resources
+   * @returns Promise that resolves when resources are released
+   */
+  public static async releaseStt(): Promise<{ released: boolean }> {
+    try {
+      return await NativeSherpaOnnx.releaseStt();
+    } catch (error: any) {
+      console.error('Failed to release STT resources:', error);
       throw error;
     }
   }

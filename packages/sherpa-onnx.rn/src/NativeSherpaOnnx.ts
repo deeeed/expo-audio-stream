@@ -1,11 +1,12 @@
 import { NativeModules } from 'react-native';
 import type {
-  TtsGenerateResult,
-  TtsInitResult,
   TtsModelConfig,
-  SttInitResult,
+  TtsInitResult,
+  TtsGenerateResult,
   SttModelConfig,
+  SttInitResult,
   SttRecognizeResult,
+  ValidateResult,
 } from './types/interfaces';
 
 // Get the native module using the old architecture
@@ -13,13 +14,11 @@ const { SherpaOnnx } = NativeModules;
 
 // Define the interface for type safety
 interface SherpaOnnxInterface {
-  validateLibraryLoaded(): Promise<{
-    loaded: boolean;
-    status: string;
-  }>;
+  // Library validation
+  validateLibraryLoaded(): Promise<ValidateResult>;
   
   // TTS methods
-  initTts(modelConfig: TtsModelConfig): Promise<TtsInitResult>;
+  initTts(config: TtsModelConfig): Promise<TtsInitResult>;
   generateTts(
     text: string,
     speakerId: number,
@@ -30,26 +29,22 @@ interface SherpaOnnxInterface {
   releaseTts(): Promise<{ released: boolean }>;
   
   // STT methods
-  initStt(modelConfig: SttModelConfig): Promise<SttInitResult>;
+  initStt(config: SttModelConfig): Promise<SttInitResult>;
   recognizeFromSamples(
     sampleRate: number,
-    audioBuffer: number[]
+    samples: number[]
   ): Promise<SttRecognizeResult>;
-  recognizeFromFile(
-    filePath: string
-  ): Promise<SttRecognizeResult>;
+  recognizeFromFile(filePath: string): Promise<SttRecognizeResult>;
   releaseStt(): Promise<{ released: boolean }>;
   
-  // Debug & Utility methods
-  debugAssetLoading(): Promise<any>;
-  // Archive utility method
+  // Archive methods
   extractTarBz2(
     sourcePath: string,
     targetDir: string
   ): Promise<{
     success: boolean;
-    message: string;
-    extractedFiles: string[];
+    extractedFiles?: string[];
+    error?: string;
   }>;
 }
 
@@ -88,10 +83,7 @@ const SafeSherpaOnnx: SherpaOnnxInterface = SherpaOnnx
       releaseStt: async () => ({
         released: false,
       }),
-      // Debug & Utility methods
-      debugAssetLoading: async () => {
-        throw new Error('SherpaOnnx native module is not available');
-      },
+      // Archive methods
       extractTarBz2: async () => ({
         success: false,
         message: 'SherpaOnnx native module is not available',

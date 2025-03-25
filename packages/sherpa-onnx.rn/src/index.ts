@@ -1,6 +1,5 @@
-import NativeSherpaOnnx from './NativeSherpaOnnx';
+import { SherpaOnnxAPI } from './SherpaOnnxAPI';
 import { TtsService } from './services/TtsService';
-import { AudioTaggingService } from './services/AudioTaggingService';
 import { SttService } from './services/SttService';
 import { ArchiveService } from './services/archive-service';
 import type {
@@ -20,47 +19,12 @@ import type {
 // Re-export types
 export * from './types/interfaces';
 
-// Main export
-export default {
-  /**
-   * Check if the native library is loaded correctly
-   */
-  async validateLibraryLoaded() {
-    return NativeSherpaOnnx.validateLibraryLoaded();
-  },
+/**
+ * Sherpa ONNX React Native module
+ */
+export default SherpaOnnxAPI;
 
-  /**
-   * TTS service for text-to-speech functionality
-   */
-  TTS: TtsService,
-
-  /**
-   * STT service for speech-to-text functionality
-   */
-  STT: SttService,
-
-  /**
-   * AudioTagging service for audio classification
-   */
-  AudioTagging: AudioTaggingService,
-
-  /**
-   * Archive utilities for working with compressed model files
-   */
-  Archive: ArchiveService,
-
-  /**
-   * Extract a tar.bz2 file to a target directory
-   * This uses platform-specific native implementation
-   *
-   * @param sourcePath Path to the tar.bz2 file
-   * @param targetDir Directory to extract to
-   * @returns Promise with extraction result
-   */
-  async extractTarBz2(sourcePath: string, targetDir: string) {
-    return NativeSherpaOnnx.extractTarBz2(sourcePath, targetDir);
-  },
-};
+export { TtsService, SttService, ArchiveService };
 
 // Type export
 export type {

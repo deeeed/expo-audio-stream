@@ -220,13 +220,14 @@ export interface TtsGenerateResult {
 }
 
 /**
- * Result of validating that the Sherpa ONNX library is properly loaded
+ * Result of library validation
  */
 export interface ValidateResult {
   /**
-   * True if the library is loaded successfully
+   * Whether the library is loaded
    */
   loaded: boolean;
+
   /**
    * Status message
    */
@@ -452,31 +453,31 @@ export interface AudioFileProcessResult {
 }
 
 /**
- * Configuration for STT model
+ * STT (Speech-to-Text) Model Configuration
  */
 export interface SttModelConfig {
   /**
-   * Directory containing model files
+   * Directory containing the STT model files
    */
   modelDir: string;
 
   /**
-   * Model type (transducer, paraformer, whisper)
+   * Type of model: 'transducer', 'paraformer', 'whisper', etc.
    */
   modelType?: string;
 
   /**
-   * Number of threads to use for processing
+   * Number of threads to use for inference
    */
   numThreads?: number;
 
   /**
-   * Decoding method for ASR (greedy_search, modified_beam_search)
+   * Decoding method, e.g., 'greedy_search', 'modified_beam_search'
    */
   decodingMethod?: string;
 
   /**
-   * Maximum number of active paths for beam search
+   * Max active paths for beam search (if applicable)
    */
   maxActivePaths?: number;
 }
@@ -491,14 +492,14 @@ export interface SttInitResult {
   success: boolean;
 
   /**
-   * The model type that was initialized
-   */
-  modelType?: string;
-
-  /**
-   * Sample rate used by the model
+   * Sample rate of the STT model
    */
   sampleRate?: number;
+
+  /**
+   * Type of the model that was initialized
+   */
+  modelType?: string;
 
   /**
    * Error message if initialization failed
@@ -521,17 +522,17 @@ export interface SttRecognizeResult {
   text?: string;
 
   /**
-   * Processing time in milliseconds
+   * Duration of the recognition process in milliseconds
    */
   durationMs?: number;
 
   /**
-   * Sample rate of the processed audio (if from file)
+   * Sample rate of the processed audio
    */
   sampleRate?: number;
 
   /**
-   * Number of samples processed (if from file)
+   * Length of the audio samples processed
    */
   samplesLength?: number;
 

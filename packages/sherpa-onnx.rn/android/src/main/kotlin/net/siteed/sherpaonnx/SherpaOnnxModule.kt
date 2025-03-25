@@ -97,11 +97,6 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     fun extractTarBz2(sourcePath: String, targetDir: String, promise: Promise) {
         archiveHandler.extractTarBz2(sourcePath, targetDir, promise)
     }
-    
-    @ReactMethod
-    fun createMockModelFiles(targetDir: String, modelId: String, promise: Promise) {
-        archiveHandler.createMockModelFiles(targetDir, modelId, promise)
-    }
 
     // =========================================================================
     // TTS Methods - Delegated to TtsHandler

@@ -24,18 +24,13 @@ const SAMPLE_AUDIO_FILES = [
   {
     id: '1',
     name: 'English Sentence',
-    module: require('@assets/audio/english-sentence.wav'),
+    module: require('@assets/audio/jfk.wav'),
   },
   {
     id: '2',
     name: 'Numbers',
-    module: require('@assets/audio/numbers.wav'),
-  },
-  {
-    id: '3',
-    name: 'Weather Report',
-    module: require('@assets/audio/weather-report.wav'),
-  },
+    module: require('@assets/audio/en.wav'),
+  }
 ];
 
 // Helper function to verify file existence - requires Expo URI format with file:// prefix
