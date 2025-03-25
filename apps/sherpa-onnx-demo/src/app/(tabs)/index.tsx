@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, Platform, TouchableOpacity, ScrollView, NativeModules } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SherpaOnnx } from '@siteed/sherpa-onnx.rn';
 import { useRouter } from 'expo-router';
-import SherpaOnnx from '@siteed/sherpa-onnx.rn';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, NativeModules } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ValidateResult } from '@siteed/sherpa-onnx.rn/src/types/interfaces';
 
 const SherpaOnnxDemo: React.FC = () => {
   const router = useRouter();
@@ -32,9 +33,9 @@ const SherpaOnnxDemo: React.FC = () => {
       setModuleInfo(`Module loaded: ${hasModule ? 'Yes' : 'No'}`);
       
       // Try to validate the library
-      if (hasModule && SherpaOnnx.validateLibraryLoaded) {
+      if (hasModule) {
         SherpaOnnx.validateLibraryLoaded()
-          .then((result: any) => {
+          .then((result: ValidateResult) => {
             setValidationResult(`Library validation: ${result.loaded ? 'Success' : 'Failed'} - ${result.status}`);
             
             // Add more details on error
@@ -103,16 +104,20 @@ const SherpaOnnxDemo: React.FC = () => {
             </TouchableOpacity>
           </View>
           
-          <View style={[styles.featureItem, styles.featureItemDisabled]}>
+          <View style={[styles.featureItem]}>
             <View style={styles.featureTextContainer}>
-              <Text style={styles.featureName}>Speech-to-Text</Text>
+              <Text style={styles.featureName}>Automatic Speech Recognition</Text>
               <Text style={styles.featureDesc}>
-                Convert speech to text using Sherpa-ONNX models (Coming soon)
+                Convert speech to text using Sherpa-ONNX models
               </Text>
             </View>
             
-            <TouchableOpacity style={[styles.featureButton, styles.buttonDisabled]}>
-              <Text style={styles.featureButtonText}>Coming Soon</Text>
+            <TouchableOpacity 
+              style={[styles.featureButton, !isAvailable && styles.buttonDisabled]}
+              onPress={() => router.push('/asr')}
+              disabled={!isAvailable}
+            >
+              <Text style={styles.featureButtonText}>Try ASR</Text>
             </TouchableOpacity>
           </View>
         </View>

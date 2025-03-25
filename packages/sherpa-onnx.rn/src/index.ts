@@ -1,55 +1,22 @@
 import { SherpaOnnxAPI } from './SherpaOnnxAPI';
+import { AsrService } from './services/AsrService';
 import { TtsService } from './services/TtsService';
 import { AudioTaggingService } from './services/AudioTaggingService';
-import type {
-  AudioEvent,
-  AudioFileProcessResult,
-  AudioProcessResult,
-  AudioTaggingInitResult,
-  AudioTaggingModelConfig,
-  AudioTaggingProcessOptions,
-  AudioTaggingProcessResult,
-  AudioTaggingResult,
-  TtsGenerateResult,
-  TtsInitResult,
-  TtsModelConfig,
-} from './types/interfaces';
+import { ArchiveService } from './services/archive-service';
+
+// Export the services
+export const TTS = TtsService;
+export const ASR = AsrService;
+export const AudioTagging = AudioTaggingService;
+
+// Export the Sherpa Onnx object with static methods
+export const SherpaOnnx = {
+  validateLibraryLoaded: SherpaOnnxAPI.validateLibraryLoaded,
+  TTS,
+  ASR,
+  AudioTagging,
+  ArchiveService,
+};
 
 // Export types
 export * from './types/interfaces';
-
-// Create the default export
-export default {
-  /**
-   * Validate that the Sherpa-ONNX library is properly loaded
-   */
-  validateLibraryLoaded: SherpaOnnxAPI.validateLibraryLoaded,
-
-  // Services
-  TTS: TtsService,
-  AudioTagging: AudioTaggingService,
-  /**
-   * Extract a tar.bz2 file to a target directory
-   * This uses platform-specific native implementation
-   *
-   * @param sourcePath Path to the tar.bz2 file
-   * @param targetDir Directory to extract to
-   * @returns Promise with extraction result
-   */
-  extractTarBz2: SherpaOnnxAPI.extractTarBz2,
-};
-
-// Type export
-export type {
-  AudioEvent,
-  AudioFileProcessResult,
-  AudioProcessResult,
-  AudioTaggingInitResult,
-  AudioTaggingModelConfig,
-  AudioTaggingProcessOptions,
-  AudioTaggingProcessResult,
-  AudioTaggingResult,
-  TtsGenerateResult,
-  TtsInitResult,
-  TtsModelConfig,
-};

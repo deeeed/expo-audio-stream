@@ -39,4 +39,24 @@ RCT_EXPORT_METHOD(validateLibraryLoaded:(RCTPromiseResolveBlock)resolve
     resolve(result);
 }
 
+RCT_EXPORT_METHOD(generateTts:(NSDictionary *)config
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+    // Extract parameters from config dictionary
+    NSString *text = [config objectForKey:@"text"] ? [config objectForKey:@"text"] : @"";
+    NSInteger speakerId = [config objectForKey:@"speakerId"] ? [[config objectForKey:@"speakerId"] integerValue] : 0;
+    float speed = [config objectForKey:@"speakingRate"] ? [[config objectForKey:@"speakingRate"] floatValue] : 1.0f;
+    BOOL playAudio = [config objectForKey:@"playAudio"] ? [[config objectForKey:@"playAudio"] boolValue] : NO;
+    NSString *fileNamePrefix = [config objectForKey:@"fileNamePrefix"];
+    NSNumber *lengthScale = [config objectForKey:@"lengthScale"];
+    NSNumber *noiseScale = [config objectForKey:@"noiseScale"];
+    NSNumber *noiseScaleW = [config objectForKey:@"noiseScaleW"];
+    
+    // Implementation for iOS would go here
+    // Currently, just return a not implemented error
+    NSString *errorMsg = @"TTS functionality is not yet implemented on iOS";
+    reject(@"ERR_NOT_IMPLEMENTED", errorMsg, nil);
+}
+
 @end 

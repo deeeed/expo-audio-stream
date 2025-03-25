@@ -1,69 +1,56 @@
-import { NativeModules } from 'react-native';
-import type {
-  TtsGenerateResult,
-  TtsInitResult,
-  TtsModelConfig,
-} from './types/interfaces';
+import { NativeModules, Platform } from 'react-native';
 
-// Get the native module using the old architecture
-const { SherpaOnnx } = NativeModules;
-
-// Define the interface for type safety
 interface SherpaOnnxInterface {
-  validateLibraryLoaded(): Promise<{
-    loaded: boolean;
-    status: string;
-  }>;
-  initTts(modelConfig: TtsModelConfig): Promise<TtsInitResult>;
-  generateTts(
-    text: string,
-    speakerId: number,
-    speakingRate: number,
-    playAudio: boolean
-  ): Promise<TtsGenerateResult>;
-  stopTts(): Promise<{ stopped: boolean; message?: string }>;
-  releaseTts(): Promise<{ released: boolean }>;
-  debugAssetLoading(): Promise<any>;
-  // Archive utility method
-  extractTarBz2(
-    sourcePath: string,
-    targetDir: string
-  ): Promise<{
-    success: boolean;
-    message: string;
-    extractedFiles: string[];
-  }>;
+  // TTS methods
+  initTts: (config: any) => Promise<any>;
+  generateTts: (config: {
+    text: string;
+    speakerId?: number;
+    speakingRate?: number;
+    playAudio?: boolean;
+    fileNamePrefix?: string | null;
+    lengthScale?: number | null;
+    noiseScale?: number | null;
+    noiseScaleW?: number | null;
+  }) => Promise<any>;
+  stopTts: () => Promise<any>;
+  releaseTts: () => Promise<any>;
+  // ASR methods
+  initAsr: (config: any) => Promise<any>;
+  recognizeFromSamples: (sampleRate: number, samples: number[]) => Promise<any>;
+  recognizeFromFile: (filePath: string) => Promise<any>;
+  releaseAsr: () => Promise<any>;
+  // Audio tagging methods
+  initAudioTagging: (config: any) => Promise<any>;
+  processAudioSamples: (sampleRate: number, samples: number[]) => Promise<any>;
+  computeAudioTagging: () => Promise<any>;
+  processAndComputeAudioTagging: (filePath: string) => Promise<any>;
+  processAndComputeAudioSamples: (
+    sampleRate: number,
+    samples: number[]
+  ) => Promise<any>;
+  processAudioFile: (filePath: string) => Promise<any>;
+  releaseAudioTagging: () => Promise<any>;
+  // Utility methods
+  extractTarBz2: (sourcePath: string, targetDir: string) => Promise<any>;
+  validateLibraryLoaded: () => Promise<any>;
 }
 
-// Create a safer version that doesn't crash if the module is missing
-const SafeSherpaOnnx: SherpaOnnxInterface = SherpaOnnx
-  ? SherpaOnnx
-  : {
-      validateLibraryLoaded: async () => ({
-        loaded: false,
-        status: 'SherpaOnnx native module is not available',
-      }),
-      initTts: async () => {
-        throw new Error('SherpaOnnx native module is not available');
-      },
-      generateTts: async () => {
-        throw new Error('SherpaOnnx native module is not available');
-      },
-      stopTts: async () => ({
-        stopped: false,
-        message: 'SherpaOnnx native module is not available',
-      }),
-      releaseTts: async () => ({
-        released: false,
-      }),
-      debugAssetLoading: async () => {
-        throw new Error('SherpaOnnx native module is not available');
-      },
-      extractTarBz2: async () => ({
-        success: false,
-        message: 'SherpaOnnx native module is not available',
-        extractedFiles: [],
-      }),
-    };
+const LINKING_ERROR =
+  `The package '@siteed/sherpa-onnx.rn' doesn't seem to be linked. Make sure: \n\n` +
+  Platform.select({ ios: "- You have run 'pod install'\n", default: '' }) +
+  '- You rebuilt the app after installing the package\n' +
+  '- You are not using Expo Go\n';
 
-export default SafeSherpaOnnx;
+const NativeSherpaOnnx: SherpaOnnxInterface = NativeModules.SherpaOnnx
+  ? NativeModules.SherpaOnnx
+  : new Proxy(
+      {},
+      {
+        get() {
+          throw new Error(LINKING_ERROR);
+        },
+      }
+    );
+
+export default NativeSherpaOnnx;

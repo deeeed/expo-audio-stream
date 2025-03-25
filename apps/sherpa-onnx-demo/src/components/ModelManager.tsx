@@ -56,6 +56,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const isDownloaded = state?.status === 'downloaded';
   const isDownloading = state?.status === 'downloading';
+  const isExtracting = state?.status === 'extracting';
   const hasError = state?.status === 'error';
   const hasDependencies = model.dependencies && model.dependencies.length > 0;
 
@@ -278,6 +279,25 @@ const ModelCard: React.FC<ModelCardProps> = ({
             <Text style={cardStyles.progressText}>
               Extracting model files...
             </Text>
+            {onCancelDownload && (
+              <TouchableOpacity 
+                style={cardStyles.cancelButton}
+                onPress={async () => {
+                  try {
+                    setIsLoading(true);
+                    await onCancelDownload(model.id);
+                  } catch (error) {
+                    Alert.alert('Cancel Error', (error as Error).message);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                disabled={isLoading}
+              >
+                <Ionicons name="close-circle" size={18} color="#ff4444" />
+                <Text style={cardStyles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <View style={cardStyles.progressBarContainer}>
             <View style={cardStyles.progressBarOuter}>
@@ -292,10 +312,17 @@ const ModelCard: React.FC<ModelCardProps> = ({
           <Text style={cardStyles.errorText}>{state.error}</Text>
           {state.extractedFiles && state.extractedFiles.length > 0 && (
             <View style={cardStyles.filesContainer}>
-              <Text style={cardStyles.filesTitle}>Extracted Files:</Text>
+              <Text style={cardStyles.filesTitle}>Partially Extracted Files:</Text>
               {state.extractedFiles.map((file: string, index: number) => (
                 <Text key={index} style={cardStyles.fileText}>• {file}</Text>
               ))}
+              <TouchableOpacity
+                style={[cardStyles.button, cardStyles.deleteButton, { alignSelf: 'flex-start', marginTop: 8 }]}
+                onPress={handleDelete}
+                disabled={isLoading}
+              >
+                <Text style={cardStyles.buttonText}>Clean Up Files</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -365,7 +392,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
       )}
 
       <View style={cardStyles.cardActions}>
-        {state?.status === 'downloaded' ? (
+        {isDownloaded ? (
           <>
             <TouchableOpacity
               style={[cardStyles.button, cardStyles.selectButton]}
@@ -394,11 +421,19 @@ const ModelCard: React.FC<ModelCardProps> = ({
               <Text style={cardStyles.buttonText}>Delete</Text>
             </TouchableOpacity>
           </>
+        ) : isExtracting ? (
+          <TouchableOpacity
+            style={[cardStyles.button, cardStyles.deleteButton]}
+            onPress={handleDelete}
+            disabled={isLoading}
+          >
+            <Text style={cardStyles.buttonText}>Abort & Delete</Text>
+          </TouchableOpacity>
         ) : (
           <TouchableOpacity
             style={[cardStyles.button, cardStyles.downloadButton]}
             onPress={handleDownload}
-            disabled={isLoading || state?.status === 'downloading'}
+            disabled={isLoading || isDownloading || isExtracting}
           >
             <Text style={cardStyles.buttonText}>Download</Text>
           </TouchableOpacity>

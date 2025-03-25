@@ -2,7 +2,6 @@
 package com.k2fsa.sherpa.onnx
 
 import android.content.res.AssetManager
-import android.util.Log
 
 data class SileroVadModelConfig(
     var model: String = "",
@@ -23,89 +22,79 @@ data class VadModelConfig(
 
 class SpeechSegment(val start: Int, val samples: FloatArray)
 
-/**
- * Bridge class for VAD (Voice Activity Detection) JNI access
- */
 class Vad(
     assetManager: AssetManager? = null,
     var config: VadModelConfig,
 ) {
-    private var ptr: Long = 0
-    
-    companion object {
-        private const val TAG = "VadBridge"
-        
-        init {
-            try {
-                System.loadLibrary("sherpa-onnx-jni")
-                Log.i(TAG, "Successfully loaded sherpa-onnx-jni library in VAD bridge")
-            } catch (e: UnsatisfiedLinkError) {
-                Log.e(TAG, "Failed to load sherpa-onnx-jni library: ${e.message}")
-                e.printStackTrace()
-            }
-        }
-
-        @JvmStatic external fun delete(ptr: Long)
-        
-        @JvmStatic external fun newFromAsset(
-            assetManager: AssetManager,
-            config: VadModelConfig
-        ): Long
-
-        @JvmStatic external fun newFromFile(
-            config: VadModelConfig
-        ): Long
-        
-        @JvmStatic external fun acceptWaveform(ptr: Long, samples: FloatArray)
-        @JvmStatic external fun empty(ptr: Long): Boolean
-        @JvmStatic external fun pop(ptr: Long)
-        @JvmStatic external fun clear(ptr: Long)
-        @JvmStatic external fun front(ptr: Long): Array<Any>
-        @JvmStatic external fun isSpeechDetected(ptr: Long): Boolean
-        @JvmStatic external fun reset(ptr: Long)
-        @JvmStatic external fun flush(ptr: Long)
-    }
+    private var ptr: Long
 
     init {
-        try {
-            ptr = if (assetManager != null) {
-                Vad.newFromAsset(assetManager, config)
-            } else {
-                Vad.newFromFile(config)
-            }
-            Log.i(TAG, "VAD initialized with ptr: $ptr")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error initializing VAD: ${e.message}")
-            ptr = 0
-            throw e
+        if (assetManager != null) {
+            ptr = newFromAsset(assetManager, config)
+        } else {
+            ptr = newFromFile(config)
         }
     }
 
     protected fun finalize() {
         if (ptr != 0L) {
-            Vad.delete(ptr)
+            delete(ptr)
             ptr = 0
         }
     }
 
     fun release() = finalize()
 
-    fun acceptWaveform(samples: FloatArray) = Vad.acceptWaveform(ptr, samples)
-    fun empty(): Boolean = Vad.empty(ptr)
-    fun pop() = Vad.pop(ptr)
+    fun acceptWaveform(samples: FloatArray) = acceptWaveform(ptr, samples)
+
+    fun empty(): Boolean = empty(ptr)
+    fun pop() = pop(ptr)
 
     fun front(): SpeechSegment {
-        val segment = Vad.front(ptr)
+        val segment = front(ptr)
         return SpeechSegment(segment[0] as Int, segment[1] as FloatArray)
     }
 
-    fun clear() = Vad.clear(ptr)
-    fun isSpeechDetected(): Boolean = Vad.isSpeechDetected(ptr)
-    fun reset() = Vad.reset(ptr)
-    fun flush() = Vad.flush(ptr)
+    fun clear() = clear(ptr)
+
+    fun isSpeechDetected(): Boolean = isSpeechDetected(ptr)
+
+    fun reset() = reset(ptr)
+
+    fun flush() = flush(ptr)
+
+    private external fun delete(ptr: Long)
+
+    private external fun newFromAsset(
+        assetManager: AssetManager,
+        config: VadModelConfig,
+    ): Long
+
+    private external fun newFromFile(
+        config: VadModelConfig,
+    ): Long
+
+    private external fun acceptWaveform(ptr: Long, samples: FloatArray)
+    private external fun empty(ptr: Long): Boolean
+    private external fun pop(ptr: Long)
+    private external fun clear(ptr: Long)
+    private external fun front(ptr: Long): Array<Any>
+    private external fun isSpeechDetected(ptr: Long): Boolean
+    private external fun reset(ptr: Long)
+    private external fun flush(ptr: Long)
+
+    companion object {
+        init {
+            System.loadLibrary("sherpa-onnx-jni")
+        }
+    }
 }
 
-// Helper function to get default VAD model configuration
+// Please visit
+// https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx
+// to download silero_vad.onnx
+// and put it inside the assets/
+// directory
 fun getVadModelConfig(type: Int): VadModelConfig? {
     when (type) {
         0 -> {
@@ -124,4 +113,4 @@ fun getVadModelConfig(type: Int): VadModelConfig? {
         }
     }
     return null
-} 
+}

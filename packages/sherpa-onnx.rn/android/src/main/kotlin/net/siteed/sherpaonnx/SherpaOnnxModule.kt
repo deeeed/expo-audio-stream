@@ -4,6 +4,9 @@
  */
 package net.siteed.sherpaonnx
 
+import android.app.Activity
+import android.content.pm.PackageManager
+import android.content.Context
 import android.content.res.AssetManager
 import android.media.AudioAttributes
 import android.media.AudioFormat
@@ -14,6 +17,9 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.util.Log
 import com.facebook.react.bridge.*
+import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.ReactContextBaseJavaModule
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -51,6 +57,7 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     private val ttsHandler = TtsHandler(reactContext)
     private val audioTaggingHandler = AudioTaggingHandler(reactContext)
     private val archiveHandler = ArchiveHandler(reactContext)
+    private val asrHandler = ASRHandler(reactContext)
 
     companion object {
         const val NAME = "SherpaOnnx"
@@ -62,7 +69,7 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         
         init {
             try {
-                // Check if the library is loaded by accessing the JNI bridge class
+                // Check if the library is loaded
                 isLibraryLoaded = com.k2fsa.sherpa.onnx.OfflineTts::class.java != null
                 Log.i(TAG, "Sherpa ONNX JNI library is available")
             } catch (e: UnsatisfiedLinkError) {
@@ -96,11 +103,6 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     fun extractTarBz2(sourcePath: String, targetDir: String, promise: Promise) {
         archiveHandler.extractTarBz2(sourcePath, targetDir, promise)
     }
-    
-    @ReactMethod
-    fun createMockModelFiles(targetDir: String, modelId: String, promise: Promise) {
-        archiveHandler.createMockModelFiles(targetDir, modelId, promise)
-    }
 
     // =========================================================================
     // TTS Methods - Delegated to TtsHandler
@@ -112,8 +114,45 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     }
     
     @ReactMethod
-    fun generateTts(text: String, speakerId: Int, speed: Float, playAudio: Boolean, promise: Promise) {
-        ttsHandler.generate(text, speakerId, speed, playAudio, promise)
+    fun generateTts(config: ReadableMap, promise: Promise) {
+        // Extract parameters from config map
+        val text = config.getString("text") ?: ""
+        val speakerId = if (config.hasKey("speakerId")) config.getInt("speakerId") else 0
+        
+        // Safely extract double values - first check if key exists, then check if it's null
+        val speakingRate = if (config.hasKey("speakingRate") && !config.isNull("speakingRate")) 
+            config.getDouble("speakingRate").toFloat() 
+        else 1.0f
+        
+        val playAudio = if (config.hasKey("playAudio")) config.getBoolean("playAudio") else false
+        val fileNamePrefix = if (config.hasKey("fileNamePrefix") && !config.isNull("fileNamePrefix")) 
+            config.getString("fileNamePrefix") 
+        else null
+        
+        // Safely extract optional numeric parameters
+        val lengthScale = if (config.hasKey("lengthScale") && !config.isNull("lengthScale")) 
+            config.getDouble("lengthScale").toFloat() 
+        else null
+        
+        val noiseScale = if (config.hasKey("noiseScale") && !config.isNull("noiseScale")) 
+            config.getDouble("noiseScale").toFloat() 
+        else null
+        
+        val noiseScaleW = if (config.hasKey("noiseScaleW") && !config.isNull("noiseScaleW")) 
+            config.getDouble("noiseScaleW").toFloat() 
+        else null
+        
+        ttsHandler.generate(
+            text, 
+            speakerId, 
+            speakingRate, 
+            playAudio, 
+            fileNamePrefix,
+            lengthScale,
+            noiseScale,
+            noiseScaleW,
+            promise
+        )
     }
     
     @ReactMethod
@@ -124,6 +163,30 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun releaseTts(promise: Promise) {
         ttsHandler.release(promise)
+    }
+
+    // =========================================================================
+    // ASR Methods - Delegated to ASRHandler
+    // =========================================================================
+
+    @ReactMethod
+    fun initAsr(modelConfig: ReadableMap, promise: Promise) {
+        asrHandler.init(modelConfig, promise)
+    }
+
+    @ReactMethod
+    fun recognizeFromSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        asrHandler.recognizeFromSamples(sampleRate, audioBuffer, promise)
+    }
+
+    @ReactMethod
+    fun recognizeFromFile(filePath: String, promise: Promise) {
+        asrHandler.recognizeFromFile(filePath, promise)
+    }
+
+    @ReactMethod
+    fun releaseAsr(promise: Promise) {
+        asrHandler.release(promise)
     }
 
     // =========================================================================
