@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
-import SherpaOnnx from '@siteed/sherpa-onnx.rn';
+import { ArchiveService } from '@siteed/sherpa-onnx.rn';
 
 /**
  * Interface for extraction result
@@ -49,21 +49,21 @@ export async function extractTarBz2(
     }
     
     // Use platform-specific extraction methods
-    if (Platform.OS === 'android' && SherpaOnnx) {
+    if (Platform.OS === 'android') {
       console.log(`ArchiveUtils: Using native module to extract tar.bz2 on Android`);
       try {
-        // Call the native module's extractTarBz2 method
-        const result = await SherpaOnnx.extractTarBz2(archivePath, targetDir);
+        // Call the ArchiveService extractTarBz2 method
+        const result = await ArchiveService.extractTarBz2(archivePath, targetDir);
         console.log(`ArchiveUtils: Native extraction result:`, result);
         
         if (result.success) {
           return {
             success: true,
             extractedFiles: result.extractedFiles,
-            message: result.message
+            message: "Extraction successful"
           };
         } else {
-          console.warn(`ArchiveUtils: Native extraction failed: ${result.message}`);
+          console.warn(`ArchiveUtils: Native extraction failed: ${result.error}`);
           // Check if there are any files already extracted
           const existingFiles = await FileSystem.readDirectoryAsync(targetDir);
           
@@ -78,7 +78,7 @@ export async function extractTarBz2(
           
           return {
             success: false,
-            message: `Native extraction failed: ${result.message} - No placeholder files will be created`,
+            message: `Native extraction failed: ${result.error} - No placeholder files will be created`,
             extractedFiles: []
           };
         }

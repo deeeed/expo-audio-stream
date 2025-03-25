@@ -4,10 +4,10 @@ import type {
   AudioTaggingModelConfig,
   AudioTaggingResult
 } from '@siteed/sherpa-onnx.rn';
-import SherpaOnnx from '@siteed/sherpa-onnx.rn';
+import { AudioTaggingService } from '@siteed/sherpa-onnx.rn';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -121,6 +121,9 @@ const findModelFileRecursive = async (basePath: string): Promise<{ modelDir: str
   return searchDirectory(expoBasePath);
 };
 
+// Create an instance of the AudioTaggingService
+const audioTaggingService = new AudioTaggingService();
+
 export default function AudioTaggingScreen() {
   const { models, getDownloadedModels, getModelState } = useModelManagement();
   const [initialized, setInitialized] = useState(false);
@@ -135,7 +138,7 @@ export default function AudioTaggingScreen() {
     module: number;
     localUri: string;
   } | null>(null);
-  const [audioTaggingResults, setAudioTaggingResults] = useState<AudioEvent[]>([]);
+  const [audioTaggingResults, setAudioTaggingResults] = useState<AudioTaggingResult | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   
   // Add state for loaded audio assets
@@ -197,23 +200,18 @@ export default function AudioTaggingScreen() {
     return () => {
       if (initialized) {
         console.log('Cleaning up audio tagging resources');
-        SherpaOnnx.AudioTagging.release().catch(err => 
+        audioTaggingService.release().catch(err => 
           console.error('Error releasing audio tagging resources:', err)
         );
       }
-    };
-  }, [initialized]);
-  
-  // Additional cleanup for sound object
-  useEffect(() => {
-    return () => {
+      
       if (sound) {
         sound.unloadAsync().catch(err => 
           console.error('Error unloading audio during cleanup:', err)
         );
       }
     };
-  }, [sound]);
+  }, []);
   
   // Setup audio tagging with a specific model
   async function setupAudioTagging(modelId: string) {
@@ -294,7 +292,7 @@ export default function AudioTaggingScreen() {
         topK: 5
       };
       
-      console.log('Initializing audio tagging with config:', config);
+      console.log('Initializing audio tagging with config:', JSON.stringify(config));
       
       // Check all paths exist before proceeding
       const modelPath = `${modelInfo.modelDir}/${modelInfo.modelName}`;
@@ -310,9 +308,11 @@ export default function AudioTaggingScreen() {
       
       console.log('Files verified, initializing audio tagging engine...');
       
+      // Add a log before initializing audio tagging to debug the connection
+      console.log('Audio tagging initialization: About to call AudioTaggingService.initialize with config:', config);
+      
       try {
-        // Use the AudioTagging service instead of direct method
-        const result = await SherpaOnnx.AudioTagging.initialize(config);
+        const result = await audioTaggingService.initialize(config);
         
         if (result.success) {
           setInitialized(true);
@@ -397,7 +397,7 @@ export default function AudioTaggingScreen() {
     }
     
     setProcessing(true);
-    setAudioTaggingResults([]);
+    setAudioTaggingResults(null);
     setError(null); // Clear any previous errors
     
     try {
@@ -413,9 +413,7 @@ export default function AudioTaggingScreen() {
         // Process the audio file and compute results in one call
         console.log('Processing and analyzing audio file...');
         
-        // Use the new processAndCompute method from the service
-        // This will now use our more robust native implementation for files
-        const result = await SherpaOnnx.AudioTagging.processAndCompute({
+        const result = await audioTaggingService.processAndCompute({
           filePath: localFilePath
         });
         
@@ -423,8 +421,8 @@ export default function AudioTaggingScreen() {
           throw new Error(result.error || 'Failed to analyze audio');
         }
         
-        setAudioTaggingResults(result.events);
-        console.log(`Detected ${result.events.length} audio events in ${result.durationMs}ms`);
+        setAudioTaggingResults(result as unknown as AudioTaggingResult);
+        console.log(`Detected ${result.events?.length || 0} audio events in ${result.durationMs}ms`);
       } catch (processingError) {
         console.error('Error processing audio data:', processingError);
         setError(`Error processing audio data: ${processingError instanceof Error ? processingError.message : String(processingError)}`);
@@ -450,9 +448,9 @@ export default function AudioTaggingScreen() {
     setLoading(true);
     
     try {
-      await SherpaOnnx.AudioTagging.release();
+      const result = await audioTaggingService.release();
       setInitialized(false);
-      setAudioTaggingResults([]);
+      setAudioTaggingResults(null);
       Alert.alert('Success', 'Audio tagging resources released');
     } catch (err) {
       console.error('Error releasing audio tagging resources:', err);
@@ -558,6 +556,17 @@ export default function AudioTaggingScreen() {
       <Text style={styles.resultProb}>{(item.probability * 100).toFixed(2)}%</Text>
     </View>
   );
+  
+  // Initialize when screen comes into focus
+  useEffect(() => {
+    if (!initialized && modelInfo) {
+      handleInitAudioTagging();
+    }
+    
+    return () => {
+      handleReleaseAudioTagging();
+    };
+  }, [initialized, modelInfo]);
   
   return (
     <SafeAreaView style={styles.container}>
@@ -745,9 +754,9 @@ export default function AudioTaggingScreen() {
             <ActivityIndicator size="large" color="#0000ff" />
           ) : (
             <>
-              {audioTaggingResults.length > 0 ? (
+              {audioTaggingResults && audioTaggingResults.events && audioTaggingResults.events.length > 0 ? (
                 <View style={styles.resultsList}>
-                  {audioTaggingResults.map((item) => (
+                  {audioTaggingResults.events.map((item) => (
                     <View key={`${item.index}-${item.name}`} style={styles.resultItem}>
                       <Text style={styles.resultName}>{item.name}</Text>
                       <Text style={styles.resultProb}>{(item.probability * 100).toFixed(2)}%</Text>

@@ -1,153 +1,242 @@
 import NativeSherpaOnnx from './NativeSherpaOnnx';
 import type {
+  ValidateResult,
   TtsModelConfig,
   TtsInitResult,
   TtsOptions,
   TtsGenerateResult,
-  ValidateResult,
   SttModelConfig,
   SttInitResult,
   SttRecognizeResult,
+  AudioTaggingModelConfig,
+  AudioTaggingInitResult,
+  AudioTaggingResult,
 } from './types/interfaces';
 
 /**
- * Interface defining the Sherpa ONNX API
+ * Api interface for the Sherpa-ONNX native module
+ * This provides type-safe access to the native methods
  */
-export interface SherpaOnnxAPIInterface {
-  // Library validation
-  validateLibraryLoaded(): Promise<ValidateResult>;
-
-  // TTS Methods
-  initTts(config: TtsModelConfig): Promise<TtsInitResult>;
-  generateTts(text: string, options: TtsOptions): Promise<TtsGenerateResult>;
-  stopTts(): Promise<{ stopped: boolean; message?: string }>;
-  releaseTts(): Promise<{ released: boolean }>;
-
-  // STT Methods
-  initStt(config: SttModelConfig): Promise<SttInitResult>;
-  recognizeFromSamples(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<SttRecognizeResult>;
-  recognizeFromFile(filePath: string): Promise<SttRecognizeResult>;
-  releaseStt(): Promise<{ released: boolean }>;
-
-  // Archive Methods
-  extractTarBz2(
-    sourcePath: string,
-    targetDir: string
-  ): Promise<{
-    success: boolean;
-    extractedFiles?: string[];
-    error?: string;
-  }>;
-}
-
-/**
- * API for Sherpa ONNX functionality
- */
-export const SherpaOnnxAPI: SherpaOnnxAPIInterface = {
+export class SherpaOnnxAPI {
   /**
-   * Validate that the Sherpa-ONNX library is properly loaded
+   * Check if the library is loaded
+   * @returns Promise that resolves with validation result
    */
-  validateLibraryLoaded(): Promise<ValidateResult> {
+  public static validateLibraryLoaded(): Promise<ValidateResult> {
     return NativeSherpaOnnx.validateLibraryLoaded();
-  },
-
-  // TTS Methods
-
+  }
+  
   /**
-   * Initialize the TTS engine
-   * @param config TTS model configuration
+   * Initialize the TTS engine with the provided model configuration
+   * @param config Configuration for the TTS model
+   * @returns Promise that resolves with initialization result
    */
-  initTts(config: TtsModelConfig): Promise<TtsInitResult> {
-    return NativeSherpaOnnx.initTts(config);
-  },
-
+  public static async initTts(config: TtsModelConfig): Promise<TtsInitResult> {
+    try {
+      return await NativeSherpaOnnx.initTts(config);
+    } catch (error: any) {
+      console.error('Failed to initialize TTS:', error);
+      throw error;
+    }
+  }
+  
   /**
-   * Generate speech from text
+   * Generate speech from text using the TTS engine
    * @param text Text to synthesize
-   * @param options TTS options
+   * @param options Options for speech generation
+   * @returns Promise that resolves with generation result
    */
-  generateTts(
+  public static async generateTts(
     text: string,
     options: TtsOptions = {}
   ): Promise<TtsGenerateResult> {
     const { speakerId = 0, speakingRate = 1.0, playAudio = false } = options;
-    return NativeSherpaOnnx.generateTts(
-      text,
-      speakerId,
-      speakingRate,
-      playAudio
-    );
-  },
-
+    
+    try {
+      return await NativeSherpaOnnx.generateTts(
+        text,
+        speakerId,
+        speakingRate,
+        playAudio
+      );
+    } catch (error: any) {
+      console.error('Failed to generate TTS:', error);
+      throw error;
+    }
+  }
+  
   /**
-   * Stop ongoing TTS generation
+   * Stop ongoing TTS playback
+   * @returns Promise that resolves when playback is stopped
    */
-  stopTts(): Promise<{ stopped: boolean; message?: string }> {
-    return NativeSherpaOnnx.stopTts();
-  },
-
+  public static async stopTts(): Promise<{ stopped: boolean; message?: string }> {
+    try {
+      return await NativeSherpaOnnx.stopTts();
+    } catch (error: any) {
+      console.error('Failed to stop TTS:', error);
+      throw error;
+    }
+  }
+  
   /**
    * Release TTS resources
+   * @returns Promise that resolves when resources are released
    */
-  releaseTts(): Promise<{ released: boolean }> {
-    return NativeSherpaOnnx.releaseTts();
-  },
-
-  // STT Methods
-
+  public static async releaseTts(): Promise<{ released: boolean }> {
+    try {
+      return await NativeSherpaOnnx.releaseTts();
+    } catch (error: any) {
+      console.error('Failed to release TTS resources:', error);
+      throw error;
+    }
+  }
+  
   /**
-   * Initialize the STT engine
-   * @param config STT model configuration
+   * Initialize the STT engine with the provided model configuration
+   * @param config Configuration for the STT model
+   * @returns Promise that resolves with initialization result
    */
-  initStt(config: SttModelConfig): Promise<SttInitResult> {
-    return NativeSherpaOnnx.initStt(config);
-  },
-
+  public static async initStt(config: SttModelConfig): Promise<SttInitResult> {
+    try {
+      return await NativeSherpaOnnx.initStt(config);
+    } catch (error: any) {
+      console.error('Failed to initialize STT:', error);
+      throw error;
+    }
+  }
+  
   /**
    * Recognize speech from audio samples
    * @param sampleRate Sample rate of the audio
    * @param samples Audio samples as float array
+   * @returns Promise that resolves with recognition result
    */
-  recognizeFromSamples(
+  public static async recognizeFromSamples(
     sampleRate: number,
     samples: number[]
   ): Promise<SttRecognizeResult> {
-    return NativeSherpaOnnx.recognizeFromSamples(sampleRate, samples);
-  },
-
+    try {
+      return await NativeSherpaOnnx.recognizeFromSamples(sampleRate, samples);
+    } catch (error: any) {
+      console.error('Failed to recognize speech from samples:', error);
+      throw error;
+    }
+  }
+  
   /**
    * Recognize speech from an audio file
    * @param filePath Path to the audio file
+   * @returns Promise that resolves with recognition result
    */
-  recognizeFromFile(filePath: string): Promise<SttRecognizeResult> {
-    return NativeSherpaOnnx.recognizeFromFile(filePath);
-  },
-
+  public static async recognizeFromFile(
+    filePath: string
+  ): Promise<SttRecognizeResult> {
+    try {
+      return await NativeSherpaOnnx.recognizeFromFile(filePath);
+    } catch (error: any) {
+      console.error('Failed to recognize speech from file:', error);
+      throw error;
+    }
+  }
+  
   /**
    * Release STT resources
+   * @returns Promise that resolves when resources are released
    */
-  releaseStt(): Promise<{ released: boolean }> {
-    return NativeSherpaOnnx.releaseStt();
-  },
-
-  // Archive Methods
-
+  public static async releaseStt(): Promise<{ released: boolean }> {
+    try {
+      return await NativeSherpaOnnx.releaseStt();
+    } catch (error: any) {
+      console.error('Failed to release STT resources:', error);
+      throw error;
+    }
+  }
+  
   /**
-   * Extract a tar.bz2 archive
-   * @param sourcePath Path to the tar.bz2 file
-   * @param targetDir Directory to extract to
+   * Initialize the Audio Tagging engine with the provided model configuration
+   * @param config Configuration for the audio tagging model
+   * @returns Promise that resolves with initialization result
    */
-  extractTarBz2(
+  public static async initAudioTagging(
+    config: AudioTaggingModelConfig
+  ): Promise<AudioTaggingInitResult> {
+    try {
+      return await NativeSherpaOnnx.initAudioTagging(config);
+    } catch (error: any) {
+      console.error('Failed to initialize audio tagging:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Process and compute audio tagging for a file in a single operation
+   * @param filePath Path to the audio file to process
+   * @returns Promise that resolves with audio tagging result
+   */
+  public static async processAndComputeAudioTagging(
+    filePath: string
+  ): Promise<AudioTaggingResult> {
+    try {
+      return await NativeSherpaOnnx.processAndComputeAudioTagging(filePath);
+    } catch (error: any) {
+      console.error('Failed to process and compute audio tagging:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Process and compute audio tagging for samples
+   * @param sampleRate Sample rate of the audio
+   * @param samples Audio samples as float array
+   * @returns Promise that resolves with audio tagging result
+   */
+  public static async processAndComputeAudioSamples(
+    sampleRate: number, 
+    samples: number[]
+  ): Promise<AudioTaggingResult> {
+    try {
+      return await NativeSherpaOnnx.processAndComputeAudioSamples(
+        sampleRate,
+        samples
+      );
+    } catch (error: any) {
+      console.error('Failed to process and compute audio samples:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Release Audio Tagging resources
+   * @returns Promise that resolves when resources are released
+   */
+  public static async releaseAudioTagging(): Promise<{ released: boolean }> {
+    try {
+      return await NativeSherpaOnnx.releaseAudioTagging();
+    } catch (error: any) {
+      console.error('Failed to release audio tagging resources:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Extract a tar.bz2 archive to a directory
+   * @param sourcePath Path to the tar.bz2 file
+   * @param targetDir Directory where files should be extracted
+   * @returns Promise that resolves with extraction result
+   */
+  public static async extractTarBz2(
     sourcePath: string,
     targetDir: string
   ): Promise<{
     success: boolean;
-    extractedFiles?: string[];
-    error?: string;
+    message: string;
+    extractedFiles: string[];
   }> {
-    return NativeSherpaOnnx.extractTarBz2(sourcePath, targetDir);
-  },
-};
+    try {
+      return await NativeSherpaOnnx.extractTarBz2(sourcePath, targetDir);
+    } catch (error: any) {
+      console.error('Failed to extract archive:', error);
+      throw error;
+    }
+  }
+}

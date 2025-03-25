@@ -32,8 +32,8 @@ const SherpaOnnxDemo: React.FC = () => {
       setModuleInfo(`Module loaded: ${hasModule ? 'Yes' : 'No'}`);
       
       // Try to validate the library
-      if (hasModule && SherpaOnnx.validateLibraryLoaded) {
-        SherpaOnnx.validateLibraryLoaded()
+      if (hasModule && SherpaOnnx.API) {
+        SherpaOnnx.API.validateLibraryLoaded()
           .then((result: any) => {
             setValidationResult(`Library validation: ${result.loaded ? 'Success' : 'Failed'} - ${result.status}`);
             

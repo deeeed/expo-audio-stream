@@ -1,4 +1,4 @@
-import SherpaOnnx, { SttInitResult, SttModelConfig, SttRecognizeResult } from '@siteed/sherpa-onnx.rn';
+import { SttService, SttInitResult, SttModelConfig, SttRecognizeResult } from '@siteed/sherpa-onnx.rn';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import React, { useEffect, useState } from 'react';
@@ -206,7 +206,7 @@ export default function SttScreen() {
     return () => {
       if (initialized) {
         console.log('Cleaning up STT resources');
-        SherpaOnnx.STT.release().catch((err: Error) => 
+        SttService.release().catch((err: Error) => 
           console.error('Error releasing STT resources:', err)
         );
       }
@@ -258,19 +258,15 @@ export default function SttScreen() {
         decodingMethod: 'greedy_search'
       };
       
-      console.log('Initializing STT with config:', config);
+      console.log('Initializing STT with config:', JSON.stringify(config));
       
-      try {
-        const result = await SherpaOnnx.STT.initialize(config);
-        
-        if (result.success) {
-          setInitialized(true);
-          Alert.alert('Success', 'Speech recognition engine initialized successfully');
-        } else {
-          setError(`Failed to initialize STT: ${result.error}`);
-        }
-      } catch (err) {
-        setError(`Error initializing STT: ${err instanceof Error ? err.message : String(err)}`);
+      const result = await SttService.initialize(config);
+      
+      setInitialized(result.success);
+      if (result.success) {
+        Alert.alert('Success', 'Speech recognition engine initialized successfully');
+      } else {
+        setError(`Failed to initialize STT: ${result.error}`);
       }
     } catch (err) {
       setError(`Error setting up STT: ${err instanceof Error ? err.message : String(err)}`);
@@ -345,7 +341,7 @@ export default function SttScreen() {
       console.log(`Processing audio file: ${selectedAudio.localUri}`);
       
       // Recognize from file (handles mp3, wav, etc.)
-      const result = await SherpaOnnx.STT.recognizeFromFile(selectedAudio.localUri);
+      const result = await SttService.recognizeFromFile(selectedAudio.localUri);
       
       if (result.success) {
         console.log('Recognition successful:', result);
@@ -368,16 +364,12 @@ export default function SttScreen() {
     
     setLoading(true);
     try {
-      const result = await SherpaOnnx.STT.release();
+      const result = await SttService.release();
       
-      if (result.released) {
-        setInitialized(false);
-        setModelInfo(null);
-        setRecognitionResult('');
-        Alert.alert('Success', 'STT resources released successfully');
-      } else {
-        setError('Failed to release STT resources');
-      }
+      setInitialized(false);
+      setModelInfo(null);
+      setRecognitionResult('');
+      Alert.alert('Success', 'STT resources released successfully');
     } catch (err) {
       setError(`Error releasing STT resources: ${err instanceof Error ? err.message : String(err)}`);
     } finally {

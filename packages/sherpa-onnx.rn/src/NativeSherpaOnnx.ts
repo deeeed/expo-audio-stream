@@ -7,15 +7,16 @@ import type {
   SttInitResult,
   SttRecognizeResult,
   ValidateResult,
+  AudioTaggingModelConfig,
+  AudioTaggingInitResult,
+  AudioTaggingResult,
 } from './types/interfaces';
-
-// Get the native module using the old architecture
-const { SherpaOnnx } = NativeModules;
 
 // Define the interface for type safety
 interface SherpaOnnxInterface {
   // Library validation
   validateLibraryLoaded(): Promise<ValidateResult>;
+  debugAssetLoading(): Promise<any>;
   
   // TTS methods
   initTts(config: TtsModelConfig): Promise<TtsInitResult>;
@@ -37,56 +38,126 @@ interface SherpaOnnxInterface {
   recognizeFromFile(filePath: string): Promise<SttRecognizeResult>;
   releaseStt(): Promise<{ released: boolean }>;
   
+  // Audio tagging methods
+  initAudioTagging(config: AudioTaggingModelConfig): Promise<AudioTaggingInitResult>;
+  processAndComputeAudioTagging(filePath: string): Promise<AudioTaggingResult>;
+  processAndComputeAudioSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<AudioTaggingResult>;
+  releaseAudioTagging(): Promise<{ released: boolean }>;
+  
   // Archive methods
   extractTarBz2(
     sourcePath: string,
     targetDir: string
   ): Promise<{
     success: boolean;
-    extractedFiles?: string[];
-    error?: string;
+    message: string;
+    extractedFiles: string[];
   }>;
 }
+
+// Get the native module or create a fallback that logs errors
+const { SherpaOnnx } = NativeModules;
+
+// Log whether the module is available for debugging
+if (!SherpaOnnx) {
+  console.error(
+    'SherpaOnnx native module is not available. This could be due to:' +
+    '\n1. The native module has not been linked - run `npx pod-install` for iOS or rebuild for Android' +
+    '\n2. The native code is crashing on initialization' +
+    '\n3. The package is not correctly configured in your app'
+  );
+}
+
+// Standard error message for not available module
+const notAvailableError = 'SherpaOnnx native module is not available. Please check native module installation.';
 
 // Create a safer version that doesn't crash if the module is missing
 const SafeSherpaOnnx: SherpaOnnxInterface = SherpaOnnx
   ? SherpaOnnx
   : {
+      // Library validation
       validateLibraryLoaded: async () => ({
         loaded: false,
-        status: 'SherpaOnnx native module is not available',
+        status: notAvailableError,
       }),
+      debugAssetLoading: async () => {
+        throw new Error(notAvailableError);
+      },
+      
       // TTS methods
-      initTts: async () => {
-        throw new Error('SherpaOnnx native module is not available');
-      },
-      generateTts: async () => {
-        throw new Error('SherpaOnnx native module is not available');
-      },
+      initTts: async () => ({
+        success: false,
+        error: notAvailableError,
+        sampleRate: 0,
+        numSpeakers: 0
+      }),
+      generateTts: async () => ({
+        success: false,
+        error: notAvailableError,
+        filePath: '',
+        durationMs: 0,
+        sampleRate: 0
+      }),
       stopTts: async () => ({
         stopped: false,
-        message: 'SherpaOnnx native module is not available',
+        message: notAvailableError,
       }),
       releaseTts: async () => ({
         released: false,
       }),
+      
       // STT methods
-      initStt: async () => {
-        throw new Error('SherpaOnnx native module is not available');
-      },
-      recognizeFromSamples: async () => {
-        throw new Error('SherpaOnnx native module is not available');
-      },
-      recognizeFromFile: async () => {
-        throw new Error('SherpaOnnx native module is not available');
-      },
+      initStt: async () => ({
+        success: false,
+        error: notAvailableError,
+        sampleRate: 0,
+        modelType: ''
+      }),
+      recognizeFromSamples: async () => ({
+        success: false,
+        error: notAvailableError,
+        text: '',
+        durationMs: 0
+      }),
+      recognizeFromFile: async () => ({
+        success: false,
+        error: notAvailableError,
+        text: '',
+        durationMs: 0
+      }),
       releaseStt: async () => ({
         released: false,
       }),
+      
+      // Audio tagging methods
+      initAudioTagging: async () => ({
+        success: false,
+        error: notAvailableError,
+        sampleRate: 0
+      }),
+      processAndComputeAudioTagging: async () => ({
+        success: false,
+        error: notAvailableError,
+        events: [],
+        durationMs: 0
+      }),
+      processAndComputeAudioSamples: async () => ({
+        success: false,
+        error: notAvailableError,
+        events: [],
+        durationMs: 0
+      }),
+      releaseAudioTagging: async () => ({
+        released: false,
+      }),
+      
       // Archive methods
       extractTarBz2: async () => ({
         success: false,
-        message: 'SherpaOnnx native module is not available',
+        message: notAvailableError,
         extractedFiles: [],
       }),
     };
