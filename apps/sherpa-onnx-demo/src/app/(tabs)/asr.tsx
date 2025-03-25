@@ -23,12 +23,12 @@ import { Asset } from 'expo-asset';
 const SAMPLE_AUDIO_FILES = [
   {
     id: '1',
-    name: 'English Sentence',
+    name: 'JFK Speech Extract',
     module: require('@assets/audio/jfk.wav'),
   },
   {
     id: '2',
-    name: 'Numbers',
+    name: 'Random English Voice',
     module: require('@assets/audio/en.wav'),
   }
 ];
@@ -71,6 +71,10 @@ interface ExtendedAsrModelConfig extends Omit<AsrModelConfig, 'modelType'> {
     | 'lstm'
     | 'zipformer2';
   streaming?: boolean;
+  featConfig?: {
+    sampleRate?: number;
+    featureDim?: number;
+  };
 }
 
 // Update the ASRConfig interface to include the new model types
@@ -237,6 +241,219 @@ const exploreDirectoryStructure = async (basePath: string, maxDepth = 3) => {
   await explore(basePath);
 };
 
+// Define a component for advanced ASR settings
+interface AdvancedAsrSettingsProps {
+  config: Partial<ExtendedAsrModelConfig>;
+  onChange: (newConfig: Partial<ExtendedAsrModelConfig>) => void;
+  enabled: boolean;
+}
+
+const AdvancedAsrSettings: React.FC<AdvancedAsrSettingsProps> = ({
+  config,
+  onChange,
+  enabled
+}) => {
+  if (!enabled) return null;
+
+  const handleChange = (key: keyof ExtendedAsrModelConfig, value: any) => {
+    onChange({ ...config, [key]: value });
+  };
+  
+  const handleFeatureConfigChange = (key: string, value: any) => {
+    onChange({
+      ...config,
+      featConfig: {
+        ...config.featConfig,
+        [key]: value
+      }
+    });
+    
+    // Log feature configuration changes for debugging
+    console.log(`Updated feature config: ${key} = ${value}`);
+  };
+
+  return (
+    <View style={styles.advancedSettingsContainer}>
+      <Text style={styles.sectionTitle}>Advanced Settings</Text>
+      
+      {/* Decoding method */}
+      <View style={styles.settingRow}>
+        <Text style={styles.settingLabel}>Decoding Method:</Text>
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={[
+              styles.optionButton,
+              config.decodingMethod === 'greedy_search' && styles.optionButtonSelected
+            ]}
+            onPress={() => handleChange('decodingMethod', 'greedy_search')}
+          >
+            <Text style={[
+              styles.optionButtonText,
+              config.decodingMethod === 'greedy_search' && styles.optionButtonTextSelected
+            ]}>Greedy Search</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.optionButton,
+              config.decodingMethod === 'beam_search' && styles.optionButtonSelected
+            ]}
+            onPress={() => handleChange('decodingMethod', 'beam_search')}
+          >
+            <Text style={[
+              styles.optionButtonText,
+              config.decodingMethod === 'beam_search' && styles.optionButtonTextSelected
+            ]}>Beam Search</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      
+      {/* Number of threads */}
+      <View style={styles.settingRow}>
+        <Text style={styles.settingLabel}>Threads:</Text>
+        <View style={styles.buttonGroup}>
+          {[1, 2, 4, 8].map(numThreads => (
+            <TouchableOpacity
+              key={numThreads}
+              style={[
+                styles.optionButton,
+                config.numThreads === numThreads && styles.optionButtonSelected
+              ]}
+              onPress={() => handleChange('numThreads', numThreads)}
+            >
+              <Text style={[
+                styles.optionButtonText,
+                config.numThreads === numThreads && styles.optionButtonTextSelected
+              ]}>{numThreads}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+      
+      {/* Max active paths (for beam search) */}
+      <View style={styles.settingRow}>
+        <Text style={styles.settingLabel}>Max Active Paths:</Text>
+        <View style={styles.buttonGroup}>
+          {[4, 8, 16, 32].map(paths => (
+            <TouchableOpacity
+              key={paths}
+              style={[
+                styles.optionButton,
+                config.maxActivePaths === paths && styles.optionButtonSelected
+              ]}
+              onPress={() => handleChange('maxActivePaths', paths)}
+              disabled={config.decodingMethod !== 'beam_search'}
+            >
+              <Text style={[
+                styles.optionButtonText,
+                config.maxActivePaths === paths && styles.optionButtonTextSelected
+              ]}>{paths}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+      
+      {/* Feature extraction settings - new section */}
+      <View style={styles.settingSection}>
+        <Text style={styles.sectionSubTitle}>Feature Extraction</Text>
+        
+        {/* Sample Rate */}
+        <View style={styles.settingRow}>
+          <Text style={styles.settingLabel}>Sample Rate:</Text>
+          <View style={styles.buttonGroup}>
+            {[8000, 16000, 22050, 44100].map(rate => (
+              <TouchableOpacity
+                key={rate}
+                style={[
+                  styles.optionButton,
+                  (config.featConfig?.sampleRate === rate) && styles.optionButtonSelected
+                ]}
+                onPress={() => handleFeatureConfigChange('sampleRate', rate)}
+              >
+                <Text style={[
+                  styles.optionButtonText,
+                  (config.featConfig?.sampleRate === rate) && styles.optionButtonTextSelected
+                ]}>{rate}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        
+        {/* Feature Dimension */}
+        <View style={styles.settingRow}>
+          <Text style={styles.settingLabel}>Feature Dim:</Text>
+          <View style={styles.buttonGroup}>
+            {[39, 40, 80, 320].map(dim => (
+              <TouchableOpacity
+                key={dim}
+                style={[
+                  styles.optionButton,
+                  (config.featConfig?.featureDim === dim) && styles.optionButtonSelected
+                ]}
+                onPress={() => handleFeatureConfigChange('featureDim', dim)}
+              >
+                <Text style={[
+                  styles.optionButtonText,
+                  (config.featConfig?.featureDim === dim) && styles.optionButtonSelected
+                ]}>{dim}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
+      
+      {/* Streaming mode */}
+      <View style={styles.settingRow}>
+        <Text style={styles.settingLabel}>Streaming Mode:</Text>
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={[
+              styles.optionButton,
+              config.streaming === true && styles.optionButtonSelected
+            ]}
+            onPress={() => handleChange('streaming', true)}
+          >
+            <Text style={styles.optionButtonText}>On</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.optionButton,
+              config.streaming === false && styles.optionButtonSelected
+            ]}
+            onPress={() => handleChange('streaming', false)}
+          >
+            <Text style={styles.optionButtonText}>Off</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      
+      {/* Debug mode */}
+      <View style={styles.settingRow}>
+        <Text style={styles.settingLabel}>Debug Mode:</Text>
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={[
+              styles.optionButton,
+              config.debug === true && styles.optionButtonSelected
+            ]}
+            onPress={() => handleChange('debug', true)}
+          >
+            <Text style={styles.optionButtonText}>On</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.optionButton,
+              config.debug === false && styles.optionButtonSelected
+            ]}
+            onPress={() => handleChange('debug', false)}
+          >
+            <Text style={styles.optionButtonText}>Off</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+};
+
 export default function AsrScreen() {
   const { getDownloadedModels, getModelState } = useModelManagement();
   const [initialized, setInitialized] = useState(false);
@@ -272,6 +489,20 @@ export default function AsrScreen() {
     isLoading: boolean;
   }>({
     isLoading: false
+  });
+  
+  // Add state for advanced settings
+  const [advancedSettingsVisible, setAdvancedSettingsVisible] = useState(false);
+  const [asrConfig, setAsrConfig] = useState<Partial<ExtendedAsrModelConfig>>({
+    numThreads: 2,
+    decodingMethod: 'greedy_search',
+    maxActivePaths: 4,
+    streaming: false,
+    debug: true,
+    featConfig: {
+      sampleRate: 16000,
+      featureDim: 39   // Set default feature dimension to 39 (common for MFCC)
+    }
   });
   
   // Get only relevant models for ASR
@@ -376,23 +607,54 @@ export default function AsrScreen() {
       // Clean path for native module (remove file:// prefix)
       const cleanPath = modelInfo.modelDir.replace(/^file:\/\//, '');
       
-      // Check if this is a zipformer model based on path
-      const isZipformerModel = cleanPath.toLowerCase().includes('zipformer');
+      // Auto-detect if this is a streaming model based on path and model type
+      const detectStreamingMode = () => {
+        // Check path for streaming indicators
+        const pathIndicatesStreaming = cleanPath.toLowerCase().includes('streaming') || 
+                                       cleanPath.toLowerCase().includes('online');
+        
+        // Check model type for streaming compatibility
+        const modelTypeSupportsStreaming = modelInfo.modelType === 'transducer' ||
+                                           modelInfo.modelType === 'zipformer' ||
+                                           modelInfo.modelType === 'zipformer2';
+        
+        // Default to streaming mode if path indicates streaming or model type supports it
+        const isStreamingMode = pathIndicatesStreaming || 
+                                (modelTypeSupportsStreaming && asrConfig.streaming !== false);
+        
+        console.log(`Auto-detected streaming mode: ${isStreamingMode}`);
+        
+        return isStreamingMode;
+      };
       
-      // Base configuration
+      // Determine streaming mode
+      const isStreamingMode = detectStreamingMode();
+      
+      // Update the config in state so the UI reflects the automatic detection
+      if (asrConfig.streaming !== isStreamingMode) {
+        setAsrConfig(prev => ({
+          ...prev,
+          streaming: isStreamingMode
+        }));
+      }
+      
+      // Base configuration - use advanced settings but override streaming based on auto-detection
       const config: ExtendedAsrModelConfig = {
         modelDir: cleanPath,
-        // Force "transducer" type for zipformer models
-        modelType: isZipformerModel ? 'transducer' : modelInfo.modelType,
-        numThreads: 2,
-        decodingMethod: 'greedy_search',
-        maxActivePaths: 4,
-        // Explicitly set streaming to true if model path contains "streaming"
-        streaming: cleanPath.toLowerCase().includes('streaming'),
+        modelType: modelInfo.modelType,
+        numThreads: asrConfig.numThreads ?? 2,
+        decodingMethod: asrConfig.decodingMethod ?? 'greedy_search',
+        maxActivePaths: asrConfig.maxActivePaths ?? 4,
+        streaming: isStreamingMode, // Use auto-detected value
+        debug: asrConfig.debug ?? true,
+        featConfig: {
+          sampleRate: asrConfig.featConfig?.sampleRate ?? 16000,
+          featureDim: asrConfig.featConfig?.featureDim ?? 39
+        },
         modelFiles: {}
       };
 
-      console.log(`Detected model type: ${isZipformerModel ? 'zipformer' : modelInfo.modelType}, using as transducer for JNI compatibility, streaming mode: ${config.streaming}`);
+      console.log(`Initializing ASR with model type: ${modelInfo.modelType}, streaming mode: ${isStreamingMode}`);
 
       // List directory contents to check what files actually exist
       try {
@@ -403,7 +665,8 @@ export default function AsrScreen() {
         if (dirContents.length === 1) {
           const possibleSubdir = dirContents[0];
           // Check if it's a directory with a name that looks like a model directory
-          if (possibleSubdir.includes('sherpa') || possibleSubdir.includes('zipformer') || possibleSubdir.includes('model')) {
+          if (possibleSubdir.includes('sherpa') || possibleSubdir.includes('zipformer') || 
+              possibleSubdir.includes('model') || possibleSubdir.includes('whisper')) {
             try {
               // Check if it's a directory
               const subdirInfo = await FileSystem.getInfoAsync(`${modelInfo.modelDir}/${possibleSubdir}`);
@@ -419,165 +682,153 @@ export default function AsrScreen() {
                 const subdirContents = await FileSystem.readDirectoryAsync(`${modelInfo.modelDir}/${possibleSubdir}`);
                 console.log('Subdirectory contents:', subdirContents);
                 
-                // Use subdirectory contents for finding model files
-                dirContents.splice(0, dirContents.length, ...subdirContents);
+                // Use subdirectory contents for model files detection
+                findModelFiles(subdirContents, config);
               }
             } catch (e) {
               console.error('Error checking subdirectory:', e);
             }
           }
-        }
-        
-        // Look for both regular and int8 versions
-        let encoderFile = dirContents.find(file => 
-          file.includes('encoder') && file.includes('int8') && file.endsWith('.onnx')
-        );
-        
-        // If int8 version not found, fallback to regular version
-        if (!encoderFile) {
-          encoderFile = dirContents.find(file => 
-            file.includes('encoder') && file.endsWith('.onnx')
-          );
-        }
-        
-        // Same for decoder and joiner
-        let decoderFile = dirContents.find(file => 
-          file.includes('decoder') && file.endsWith('.onnx')
-        );
-        
-        let joinerFile = dirContents.find(file => 
-          file.includes('joiner') && file.includes('int8') && file.endsWith('.onnx')
-        );
-        
-        // If int8 joiner not found, fallback to regular version
-        if (!joinerFile) {
-          joinerFile = dirContents.find(file => 
-            file.includes('joiner') && file.endsWith('.onnx')
-          );
-        }
-        
-        // Check if this is likely a zipformer model from the directory name
-        const isZipformerModel = cleanPath.toLowerCase().includes('zipformer');
-        
-        console.log(`Model detection: isZipformerModel=${isZipformerModel}, encoderFile=${encoderFile}, joinerFile=${joinerFile}`);
-        
-        // Configure model files and type based on detected files and model type
-        if (config.modelType === 'whisper') {
-          // Look for the specific files in this Whisper model version
-          const encoderFile = dirContents.find(file => 
-            file.toLowerCase().includes('encoder') && file.endsWith('.onnx')
-          );
-          const decoderFile = dirContents.find(file => 
-            file.toLowerCase().includes('decoder') && file.endsWith('.onnx')
-          );
-          const tokensFile = dirContents.find(file => 
-            file.toLowerCase().includes('tokens') && file.endsWith('.txt')
-          );
-          
-          if (encoderFile && decoderFile && tokensFile) {
-            console.log("Detected encoder/decoder format for Whisper model - not supported by native library");
-            setError('This Whisper model uses encoder-decoder format which is not supported by the native library. Please use a single-file Whisper model.');
-            setLoading(false);
-            return;
-          } else {
-            // Traditional Whisper model format
-            config.modelFiles = {
-              model: dirContents.find(file => file.includes('model') && file.endsWith('.onnx')) || 'model.onnx',
-              tokens: dirContents.find(file => file.includes('tokens') && file.endsWith('.txt')) || 'tokens.txt'
-            };
-          }
-        } else if (config.modelType === 'paraformer') {
-          config.modelFiles = {
-            encoder: encoderFile || 'encoder-epoch-99-avg-1.onnx',
-            decoder: decoderFile || 'decoder-epoch-99-avg-1.onnx',
-            tokens: 'tokens.txt'
-          };
-        } else if (isZipformerModel) {
-          // IMPORTANT: Force transducer model type for JNI compatibility
-          // While the actual model is a zipformer, the native code has problems with this model type
-          const isZipformer2 = cleanPath.toLowerCase().includes('zipformer2');
-          const actualModelType = isZipformer2 ? 'zipformer2' : 'zipformer';
-          config.modelType = 'transducer';
-          
-          // Use int8 files if they exist
-          const useInt8Encoder = encoderFile?.includes('int8') ?? false;
-          const useInt8Joiner = joinerFile?.includes('int8') ?? false;
-          
-          console.log(`Detected model type: ${actualModelType}, using as transducer for JNI compatibility, int8 encoder: ${useInt8Encoder}, int8 joiner: ${useInt8Joiner}`);
-          
-          config.modelFiles = {
-            encoder: encoderFile || (useInt8Encoder ? 'encoder-epoch-99-avg-1.int8.onnx' : 'encoder-epoch-99-avg-1.onnx'),
-            decoder: decoderFile || 'decoder-epoch-99-avg-1.onnx',
-            joiner: joinerFile || (useInt8Joiner ? 'joiner-epoch-99-avg-1.int8.onnx' : 'joiner-epoch-99-avg-1.onnx'),
-            tokens: 'tokens.txt'
-          };
         } else {
-          // For other transducer models
-          config.modelFiles = {
-            encoder: encoderFile || 'encoder-epoch-99-avg-1.onnx',
-            decoder: decoderFile || 'decoder-epoch-99-avg-1.onnx',
-            joiner: joinerFile || 'joiner-epoch-99-avg-1.onnx',
-            tokens: 'tokens.txt'
-          };
+          // Search model files in the main directory
+          findModelFiles(dirContents, config);
         }
         
-      } catch (dirErr) {
-        console.error('Error reading directory contents:', dirErr);
+        // Ensure we have the tokens file
+        const tokensFile = dirContents.find(file => file === 'tokens.txt');
+        if (tokensFile) {
+          config.modelFiles.tokens = tokensFile;
+        }
         
-        // Fallback to default file configurations
-        if (isZipformerModel) {
-          // For zipformer models, always use transducer file layout
-          config.modelFiles = {
-            encoder: 'encoder-epoch-99-avg-1.onnx',
-            decoder: 'decoder-epoch-99-avg-1.onnx',
-            joiner: 'joiner-epoch-99-avg-1.onnx', // Include joiner for transducer models
-            tokens: 'tokens.txt'
-          };
+        // Initialize ASR with the configuration
+        console.log('Starting ASR initialization with config:', config);
+        const result = await asrService.initialize(config);
+        
+        if (result.success) {
+          setInitialized(true);
+          console.log('ASR initialized successfully:', result);
         } else {
-          switch (config.modelType) {
-            case 'whisper':
-              config.modelFiles = {
-                model: 'model.onnx',
-                tokens: 'tokens.txt'
-              };
-              break;
-              
-            case 'paraformer':
-              config.modelFiles = {
-                encoder: 'encoder-epoch-99-avg-1.onnx',
-                decoder: 'decoder-epoch-99-avg-1.onnx',
-                tokens: 'tokens.txt'
-              };
-              break;
-              
-            case 'transducer':
-            default:
-              config.modelFiles = {
-                encoder: 'encoder-epoch-99-avg-1.onnx',
-                decoder: 'decoder-epoch-99-avg-1.onnx',
-                joiner: 'joiner-epoch-99-avg-1.onnx',
-                tokens: 'tokens.txt'
-              };
-              break;
-          }
+          setError(`Failed to initialize ASR: ${result.error}`);
         }
-      }
-      
-      console.log('Initializing ASR with config:', JSON.stringify(config));
-      
-      // Cast to AsrModelConfig to satisfy the type system
-      const result = await asrService.initialize(config as AsrModelConfig);
-      
-      setInitialized(result.success);
-      if (result.success) {
-        Alert.alert('Success', 'Speech recognition engine initialized successfully');
-      } else {
-        setError(`Failed to initialize ASR: ${result.error}`);
+        
+        setLoading(false);
+      } catch (e) {
+        console.error('Error during initialization:', e);
+        setError(`Error during initialization: ${e instanceof Error ? e.message : String(e)}`);
+        setLoading(false);
       }
     } catch (err) {
-      setError(`Error initializing ASR: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
+      console.error('Error setting up ASR:', err);
+      setError(`Error setting up ASR: ${err instanceof Error ? err.message : String(err)}`);
       setLoading(false);
+    }
+  };
+  
+  // Helper function to find model files in a directory
+  const findModelFiles = (dirContents: string[], config: ExtendedAsrModelConfig) => {
+    console.log('Finding model files in directory with contents:', dirContents);
+    
+    // Detect model type from file patterns
+    const isWhisperModel = config.modelDir.toLowerCase().includes('whisper') || 
+                           dirContents.some(file => file.toLowerCase().includes('whisper'));
+    
+    // Look for both regular and int8 versions of model files
+    // Encoder
+    let encoderFile = dirContents.find(file => 
+      file.includes('encoder') && file.includes('int8') && file.endsWith('.onnx')
+    );
+    
+    // If int8 version not found, fallback to regular version
+    if (!encoderFile) {
+      encoderFile = dirContents.find(file => 
+        file.includes('encoder') && file.endsWith('.onnx')
+      );
+    }
+    
+    // Decoder
+    let decoderFile = dirContents.find(file => 
+      file.includes('decoder') && file.includes('int8') && file.endsWith('.onnx')
+    );
+    
+    if (!decoderFile) {
+      decoderFile = dirContents.find(file => 
+        file.includes('decoder') && file.endsWith('.onnx')
+      );
+    }
+    
+    // Joiner
+    let joinerFile = dirContents.find(file => 
+      file.includes('joiner') && file.includes('int8') && file.endsWith('.onnx')
+    );
+    
+    if (!joinerFile) {
+      joinerFile = dirContents.find(file => 
+        file.includes('joiner') && file.endsWith('.onnx')
+      );
+    }
+    
+    // Main model file (for single-file models)
+    let modelFile = dirContents.find(file => 
+      file === 'model.int8.onnx' || file === 'model.onnx'
+    );
+    
+    // Preprocess file (for moonshine models)
+    let preprocessFile = dirContents.find(file => 
+      file.includes('preprocess') && file.endsWith('.onnx')
+    );
+    
+    // Uncached decoder (for moonshine models)
+    let uncachedDecoderFile = dirContents.find(file => 
+      file.includes('uncached_decode') && file.endsWith('.onnx')
+    );
+    
+    // Cached decoder (for moonshine models)
+    let cachedDecoderFile = dirContents.find(file => 
+      file.includes('cached_decode') && file.endsWith('.onnx')
+    );
+    
+    // Tokens file - with special handling for Whisper
+    let tokensFile;
+    if (isWhisperModel) {
+      // For Whisper, look for model-specific tokens file patterns first
+      tokensFile = dirContents.find(file => 
+        file.toLowerCase().includes('tokens') && file.endsWith('.txt')
+      );
+    } else {
+      // For other models, prefer generic tokens.txt first
+      tokensFile = dirContents.find(file => file === 'tokens.txt');
+      
+      // If not found, try any file with "tokens" in the name
+      if (!tokensFile) {
+        tokensFile = dirContents.find(file => 
+          file.toLowerCase().includes('tokens') && file.endsWith('.txt')
+        );
+      }
+    }
+    
+    // Set the model files in the config
+    if (encoderFile) config.modelFiles.encoder = encoderFile;
+    if (decoderFile) config.modelFiles.decoder = decoderFile;
+    if (joinerFile) config.modelFiles.joiner = joinerFile;
+    if (modelFile) config.modelFiles.model = modelFile;
+    if (preprocessFile) config.modelFiles.preprocessor = preprocessFile;
+    if (uncachedDecoderFile) config.modelFiles.uncachedDecoder = uncachedDecoderFile;
+    if (cachedDecoderFile) config.modelFiles.cachedDecoder = cachedDecoderFile;
+    if (tokensFile) config.modelFiles.tokens = tokensFile;
+    
+    // Log the detected model files
+    console.log('Detected model files:', config.modelFiles);
+    
+    // Extra debugging for Whisper models
+    if (isWhisperModel) {
+      console.log(`Whisper model detected. Tokens file found: ${tokensFile || 'None'}`);
+      
+      // Set model type to whisper explicitly if files match whisper pattern
+      if ((encoderFile && decoderFile) || 
+          (dirContents.some(file => file.toLowerCase().includes('whisper')))) {
+        config.modelType = 'whisper';
+        console.log('Setting model type explicitly to whisper based on file patterns');
+      }
     }
   };
   
@@ -627,59 +878,31 @@ export default function AsrScreen() {
     }
   };
   
-  // Process the selected audio file for speech recognition
-  const handleRecognizeAudio = async () => {
-    if (!initialized) {
-      setError('Please initialize the ASR engine first');
-      return;
-    }
-    
-    if (!selectedAudio) {
-      setError('Please select an audio file first');
+  // Update the handleRecognizeFromFile function to reinitialize with correct feature dimension 
+  const handleRecognizeFromFile = async () => {
+    if (!selectedAudio || !initialized) {
       return;
     }
     
     setProcessing(true);
-    setError(null);
     setRecognitionResult('');
     
     try {
+      console.log(`Recognizing file with feature dim: ${asrConfig.featConfig?.featureDim}`);
       console.log(`Processing audio file: ${selectedAudio.localUri}`);
       
-      // Recognize from file (handles mp3, wav, etc.)
       const result = await asrService.recognizeFromFile(selectedAudio.localUri);
       
       if (result.success) {
-        console.log('Recognition successful:', result);
         setRecognitionResult(result.text || '');
       } else {
         setError(`Recognition failed: ${result.error}`);
       }
     } catch (err) {
-      setError(`Error recognizing speech: ${err instanceof Error ? err.message : String(err)}`);
+      console.error('Failed to recognize speech from file:', err);
+      setError(`Failed to recognize: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setProcessing(false);
-    }
-  };
-  
-  // Release ASR resources
-  const handleReleaseAsr = async () => {
-    if (!initialized) {
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const result = await asrService.release();
-      
-      setInitialized(false);
-      setModelInfo(null);
-      setRecognitionResult('');
-      Alert.alert('Success', 'ASR resources released successfully');
-    } catch (err) {
-      setError(`Error releasing ASR resources: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setLoading(false);
     }
   };
   
@@ -757,6 +980,22 @@ export default function AsrScreen() {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
   
+  // Fix the handleReleaseAsr function reference by adding a new function
+  const handleReleaseAsr = async () => {
+    try {
+      const result = await asrService.release();
+      
+      setInitialized(false);
+      setModelInfo(null);
+      setRecognitionResult('');
+      Alert.alert('Success', 'ASR resources released successfully');
+    } catch (err) {
+      setError(`Error releasing ASR resources: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -826,6 +1065,23 @@ export default function AsrScreen() {
           )}
         </View>
         
+        {/* Toggle for advanced settings */}
+        <TouchableOpacity
+          style={styles.advancedSettingsToggle}
+          onPress={() => setAdvancedSettingsVisible(!advancedSettingsVisible)}
+        >
+          <Text style={styles.advancedSettingsToggleText}>
+            {advancedSettingsVisible ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+          </Text>
+        </TouchableOpacity>
+        
+        {/* Advanced settings component */}
+        <AdvancedAsrSettings
+          config={asrConfig}
+          onChange={setAsrConfig}
+          enabled={advancedSettingsVisible}
+        />
+        
         {/* Audio selection section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>2. Select Audio Sample</Text>
@@ -865,7 +1121,7 @@ export default function AsrScreen() {
               <View style={styles.buttonContainer}>
                 <Button
                   title={isPlaying ? "Stop" : "Play"}
-                  onPress={isPlaying ? handleStopAudio : () => handlePlayAudio(selectedAudio)}
+                  onPress={handleStopAudio}
                   disabled={!selectedAudio}
                 />
               </View>
@@ -877,8 +1133,8 @@ export default function AsrScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>3. Recognize Speech</Text>
           <Button
-            title="Recognize Audio"
-            onPress={handleRecognizeAudio}
+            title="Recognize"
+            onPress={handleRecognizeFromFile}
             disabled={!initialized || !selectedAudio || processing}
           />
           
@@ -1060,5 +1316,67 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#c62828',
+  },
+  advancedSettingsToggle: {
+    padding: 12,
+    marginVertical: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  advancedSettingsToggleText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#007AFF',
+  },
+  advancedSettingsContainer: {
+    marginVertical: 8,
+    padding: 12,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  settingLabel: {
+    width: 120,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  optionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 4,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  optionButtonSelected: {
+    backgroundColor: '#007AFF',
+  },
+  optionButtonText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  optionButtonTextSelected: {
+    color: 'white',
+  },
+  settingSection: {
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  sectionSubTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 8,
+    color: '#555',
   },
 }); 

@@ -522,7 +522,10 @@ export interface AsrModelConfig {
     | 'telespeech_ctc'
     | 'fire_red_asr'
     | 'moonshine'
-    | 'sense_voice';
+    | 'sense_voice'
+    | 'zipformer'
+    | 'lstm'
+    | 'zipformer2';
   numThreads?: number;
   decodingMethod?: 'greedy_search' | 'beam_search';
   maxActivePaths?: number;
@@ -532,7 +535,21 @@ export interface AsrModelConfig {
     joiner?: string;
     tokens?: string;
     model?: string;
+    preprocessor?: string;
+    uncachedDecoder?: string;
+    cachedDecoder?: string;
   };
+  /**
+   * Whether to use streaming (online) recognition
+   * Default: false
+   */
+  streaming?: boolean;
+
+  /**
+   * Enable debug mode for detailed logs
+   * Default: false
+   */
+  debug?: boolean;
 }
 
 /**
@@ -593,6 +610,11 @@ export interface AsrRecognizeResult {
    * Error message if recognition failed
    */
   error?: string;
+  
+  /**
+   * Whether an endpoint was detected (streaming mode only)
+   */
+  isEndpoint?: boolean;
 }
 
 export interface SherpaOnnxStatic {

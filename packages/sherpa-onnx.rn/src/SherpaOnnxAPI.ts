@@ -128,7 +128,38 @@ export class SherpaOnnxAPI {
    */
   public static async initAsr(config: AsrModelConfig): Promise<AsrInitResult> {
     try {
-      return await NativeSherpaOnnx.initAsr(config);
+      // Clean up the modelDir path to ensure proper file access
+      const cleanedModelDir = this.cleanFilePath(config.modelDir);
+
+      // Create a config object with clean file paths
+      const nativeConfig: Record<string, any> = {
+        modelDir: cleanedModelDir,
+        modelType: config.modelType,
+        numThreads: config.numThreads || 1,
+        decodingMethod: config.decodingMethod || 'greedy_search',
+        maxActivePaths: config.maxActivePaths || 4,
+        streaming: config.streaming || false,
+        debug: config.debug || false,
+      };
+
+      // Process modelFiles if provided
+      if (config.modelFiles) {
+        // Create a clean version of modelFiles for the native side
+        nativeConfig.modelFiles = {};
+        
+        // Process each model file entry
+        for (const [key, value] of Object.entries(config.modelFiles)) {
+          if (value) {
+            nativeConfig.modelFiles[key] = value;
+          }
+        }
+      }
+
+      console.log(
+        'Initializing ASR with config:',
+        JSON.stringify(nativeConfig)
+      );
+      return await NativeSherpaOnnx.initAsr(nativeConfig);
     } catch (error: any) {
       console.error('Failed to initialize ASR:', error);
       throw error;
