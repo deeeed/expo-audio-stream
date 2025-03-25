@@ -69,7 +69,7 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
         
         init {
             try {
-                // Check if the library is loaded by accessing the JNI bridge class
+                // Check if the library is loaded
                 isLibraryLoaded = com.k2fsa.sherpa.onnx.OfflineTts::class.java != null
                 Log.i(TAG, "Sherpa ONNX JNI library is available")
             } catch (e: UnsatisfiedLinkError) {
