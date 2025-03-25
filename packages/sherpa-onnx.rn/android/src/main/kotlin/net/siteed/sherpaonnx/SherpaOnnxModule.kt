@@ -4,6 +4,9 @@
  */
 package net.siteed.sherpaonnx
 
+import android.app.Activity
+import android.content.pm.PackageManager
+import android.content.Context
 import android.content.res.AssetManager
 import android.media.AudioAttributes
 import android.media.AudioFormat
@@ -14,6 +17,9 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.util.Log
 import com.facebook.react.bridge.*
+import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.ReactContextBaseJavaModule
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -51,7 +57,7 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     private val ttsHandler = TtsHandler(reactContext)
     private val audioTaggingHandler = AudioTaggingHandler(reactContext)
     private val archiveHandler = ArchiveHandler(reactContext)
-    private val sttHandler = STTHandler(reactContext)
+    private val asrHandler = ASRHandler(reactContext)
 
     companion object {
         const val NAME = "SherpaOnnx"
@@ -123,27 +129,27 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     }
 
     // =========================================================================
-    // STT Methods - Delegated to STTHandler
+    // ASR Methods - Delegated to ASRHandler
     // =========================================================================
 
     @ReactMethod
-    fun initStt(modelConfig: ReadableMap, promise: Promise) {
-        sttHandler.init(modelConfig, promise)
+    fun initAsr(modelConfig: ReadableMap, promise: Promise) {
+        asrHandler.init(modelConfig, promise)
     }
 
     @ReactMethod
     fun recognizeFromSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
-        sttHandler.recognizeFromSamples(sampleRate, audioBuffer, promise)
+        asrHandler.recognizeFromSamples(sampleRate, audioBuffer, promise)
     }
 
     @ReactMethod
     fun recognizeFromFile(filePath: String, promise: Promise) {
-        sttHandler.recognizeFromFile(filePath, promise)
+        asrHandler.recognizeFromFile(filePath, promise)
     }
 
     @ReactMethod
-    fun releaseStt(promise: Promise) {
-        sttHandler.release(promise)
+    fun releaseAsr(promise: Promise) {
+        asrHandler.release(promise)
     }
 
     // =========================================================================

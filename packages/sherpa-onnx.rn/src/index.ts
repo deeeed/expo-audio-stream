@@ -1,59 +1,32 @@
 import { SherpaOnnxAPI } from './SherpaOnnxAPI';
+import { AsrService } from './services/AsrService';
 import { TtsService } from './services/TtsService';
-import { SttService } from './services/SttService';
 import { AudioTaggingService } from './services/AudioTaggingService';
-import { ArchiveService } from './services/archive-service';
-import type {
-  AudioEvent,
-  AudioFileProcessResult,
-  AudioProcessResult,
-  AudioTaggingInitResult,
-  AudioTaggingModelConfig,
-  AudioTaggingProcessOptions,
-  AudioTaggingProcessResult,
-  AudioTaggingResult,
-  SttInitResult,
-  SttModelConfig,
-  SttRecognizeResult,
-  TtsGenerateResult,
-  TtsInitResult,
-  TtsModelConfig,
-} from './types/interfaces';
 
-// Re-export all types from interfaces
+// Export the services
+export const TTS = TtsService;
+export const ASR = AsrService;
+export const AudioTagging = AudioTaggingService;
+
+// Export the Sherpa Onnx object with static methods
+export const SherpaOnnx = {
+  validateLibraryLoaded: SherpaOnnxAPI.validateLibraryLoaded,
+  initTts: SherpaOnnxAPI.initTts,
+  generateTts: SherpaOnnxAPI.generateTts,
+  stopTts: SherpaOnnxAPI.stopTts,
+  releaseTts: SherpaOnnxAPI.releaseTts,
+  initAsr: SherpaOnnxAPI.initAsr,
+  recognizeFromSamples: SherpaOnnxAPI.recognizeFromSamples,
+  recognizeFromFile: SherpaOnnxAPI.recognizeFromFile,
+  releaseAsr: SherpaOnnxAPI.releaseAsr,
+  initAudioTagging: SherpaOnnxAPI.initAudioTagging,
+  processAndComputeAudioTagging: SherpaOnnxAPI.processAndComputeAudioTagging,
+  processAndComputeAudioSamples: SherpaOnnxAPI.processAndComputeAudioSamples,
+  releaseAudioTagging: SherpaOnnxAPI.releaseAudioTagging,
+  TTS,
+  ASR,
+  AudioTagging,
+};
+
+// Export types
 export * from './types/interfaces';
-
-// Export services
-export { TtsService, SttService, AudioTaggingService, ArchiveService };
-
-// Create a structured SherpaOnnx object for backwards compatibility
-const SherpaOnnx = {
-  // The low-level API
-  API: SherpaOnnxAPI,
-  // Service objects for easier access
-  TTS: TtsService,
-  STT: SttService,
-  AudioTagging: AudioTaggingService,
-  Archive: ArchiveService,
-};
-
-// Default export for easier imports
-export default SherpaOnnx;
-
-// Type export
-export type {
-  AudioEvent,
-  AudioFileProcessResult,
-  AudioProcessResult,
-  AudioTaggingInitResult,
-  AudioTaggingModelConfig,
-  AudioTaggingProcessOptions,
-  AudioTaggingProcessResult,
-  AudioTaggingResult,
-  SttInitResult,
-  SttModelConfig,
-  SttRecognizeResult,
-  TtsGenerateResult,
-  TtsInitResult,
-  TtsModelConfig,
-};

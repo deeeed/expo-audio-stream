@@ -1,4 +1,4 @@
-import { SttService, SttInitResult, SttModelConfig, SttRecognizeResult } from '@siteed/sherpa-onnx.rn';
+import { ASR, AsrInitResult, AsrModelConfig, AsrRecognizeResult } from '@siteed/sherpa-onnx.rn';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import React, { useEffect, useState } from 'react';
@@ -59,7 +59,7 @@ const findModelFilesRecursive = async (basePath: string): Promise<{ modelDir: st
   const expoBasePath = basePath.startsWith('file://') ? basePath : `file://${basePath}`;
   
   const searchDirectory = async (expoPath: string, depth = 0): Promise<{ modelDir: string, modelType: string } | null> => {
-    if (depth > 3) return null; // Limit recursion depth
+    if (depth > 5) return null; // Increased depth limit to 5
     
     try {
       console.log(`Searching directory: ${expoPath} (depth: ${depth})`);
@@ -76,9 +76,9 @@ const findModelFilesRecursive = async (basePath: string): Promise<{ modelDir: st
       console.log(`Found ${contents.length} items in ${expoPath}`);
       
       // Check for transducer model files (encoder, decoder, joiner)
-      const hasEncoder = contents.includes('encoder.onnx');
-      const hasDecoder = contents.includes('decoder.onnx');
-      const hasJoiner = contents.includes('joiner.onnx');
+      const hasEncoder = contents.includes('encoder.onnx') || contents.some(file => file.includes('encoder') && file.endsWith('.onnx'));
+      const hasDecoder = contents.includes('decoder.onnx') || contents.some(file => file.includes('decoder') && file.endsWith('.onnx'));
+      const hasJoiner = contents.includes('joiner.onnx') || contents.some(file => file.includes('joiner') && file.endsWith('.onnx'));
       const hasTokens = contents.includes('tokens.txt');
       
       if (hasEncoder && hasDecoder && hasJoiner && hasTokens) {
@@ -90,7 +90,7 @@ const findModelFilesRecursive = async (basePath: string): Promise<{ modelDir: st
       }
       
       // Check for whisper/single-file model
-      const hasModel = contents.some(file => file === 'model.onnx');
+      const hasModel = contents.some(file => file === 'model.onnx' || file.endsWith('.onnx'));
       
       if (hasModel && hasTokens) {
         console.log(`Found whisper/single-file model in ${expoPath}`);
@@ -131,7 +131,10 @@ const findModelFilesRecursive = async (basePath: string): Promise<{ modelDir: st
   return searchDirectory(expoBasePath);
 };
 
-export default function SttScreen() {
+// Create an instance of the ASR Service (renamed from STT)
+const asrService = ASR;
+
+export default function AsrScreen() {
   const { getDownloadedModels, getModelState } = useModelManagement();
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -168,7 +171,7 @@ export default function SttScreen() {
     isLoading: false
   });
   
-  // Get only relevant models for STT (ASR)
+  // Get only relevant models for ASR
   const availableModels = getDownloadedModels().filter(model => 
     model.metadata.type === 'asr'
   );
@@ -205,9 +208,9 @@ export default function SttScreen() {
   useEffect(() => {
     return () => {
       if (initialized) {
-        console.log('Cleaning up STT resources');
-        SttService.release().catch((err: Error) => 
-          console.error('Error releasing STT resources:', err)
+        console.log('Cleaning up ASR resources');
+        asrService.release().catch((err: Error) => 
+          console.error('Error releasing ASR resources:', err)
         );
       }
       
@@ -219,19 +222,13 @@ export default function SttScreen() {
     };
   }, [initialized, sound]);
   
-  // Initialize STT with the selected model
-  const handleInitStt = async () => {
-    if (!selectedModelId) {
-      setError('Please select a model first');
-      return;
-    }
-
+  // Setup ASR with a selected model
+  async function setupAsr(modelId: string) {
     setLoading(true);
     setError(null);
-    setInitialized(false);
     
     try {
-      const modelState = getModelState(selectedModelId);
+      const modelState = getModelState(modelId);
       if (!modelState?.localPath) {
         throw new Error('Model files not found locally');
       }
@@ -241,35 +238,57 @@ export default function SttScreen() {
       // Find ASR model files recursively
       const modelFiles = await findModelFilesRecursive(modelState.localPath);
       if (!modelFiles) {
-        setError('Could not find ASR model files in the model directory');
+        setError('Could not find ASR model files in the model directory. Please check the logs for more details.');
         setLoading(false);
         return;
       }
       
       setModelInfo(modelFiles);
+      setSelectedModelId(modelId);
       
+      // Success, everything is ready
+      setLoading(false);
+    } catch (err) {
+      console.error('Error setting up ASR:', err);
+      setError(`Error setting up ASR: ${err instanceof Error ? err.message : String(err)}`);
+      setLoading(false);
+    }
+  }
+  
+  // Initialize ASR with the selected model
+  const handleInitAsr = async () => {
+    if (!modelInfo) {
+      setError('Model information not available');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setInitialized(false);
+    
+    try {
       // Clean path for native module (remove file:// prefix)
-      const cleanPath = modelFiles.modelDir.replace(/^file:\/\//, '');
+      const cleanPath = modelInfo.modelDir.replace(/^file:\/\//, '');
       
-      const config: SttModelConfig = {
+      const config: AsrModelConfig = {
         modelDir: cleanPath,
-        modelType: modelFiles.modelType,
+        modelType: modelInfo.modelType,
         numThreads: 2,
         decodingMethod: 'greedy_search'
       };
       
-      console.log('Initializing STT with config:', JSON.stringify(config));
+      console.log('Initializing ASR with config:', JSON.stringify(config));
       
-      const result = await SttService.initialize(config);
+      const result = await asrService.initialize(config);
       
       setInitialized(result.success);
       if (result.success) {
         Alert.alert('Success', 'Speech recognition engine initialized successfully');
       } else {
-        setError(`Failed to initialize STT: ${result.error}`);
+        setError(`Failed to initialize ASR: ${result.error}`);
       }
     } catch (err) {
-      setError(`Error setting up STT: ${err instanceof Error ? err.message : String(err)}`);
+      setError(`Error initializing ASR: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }
@@ -324,7 +343,7 @@ export default function SttScreen() {
   // Process the selected audio file for speech recognition
   const handleRecognizeAudio = async () => {
     if (!initialized) {
-      setError('Please initialize the STT engine first');
+      setError('Please initialize the ASR engine first');
       return;
     }
     
@@ -341,7 +360,7 @@ export default function SttScreen() {
       console.log(`Processing audio file: ${selectedAudio.localUri}`);
       
       // Recognize from file (handles mp3, wav, etc.)
-      const result = await SttService.recognizeFromFile(selectedAudio.localUri);
+      const result = await asrService.recognizeFromFile(selectedAudio.localUri);
       
       if (result.success) {
         console.log('Recognition successful:', result);
@@ -356,22 +375,22 @@ export default function SttScreen() {
     }
   };
   
-  // Release STT resources
-  const handleReleaseStt = async () => {
+  // Release ASR resources
+  const handleReleaseAsr = async () => {
     if (!initialized) {
       return;
     }
     
     setLoading(true);
     try {
-      const result = await SttService.release();
+      const result = await asrService.release();
       
       setInitialized(false);
       setModelInfo(null);
       setRecognitionResult('');
-      Alert.alert('Success', 'STT resources released successfully');
+      Alert.alert('Success', 'ASR resources released successfully');
     } catch (err) {
-      setError(`Error releasing STT resources: ${err instanceof Error ? err.message : String(err)}`);
+      setError(`Error releasing ASR resources: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }
@@ -454,7 +473,7 @@ export default function SttScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Text style={styles.title}>Speech Recognition</Text>
+        <Text style={styles.title}>Automatic Speech Recognition</Text>
         
         {/* Model selection section */}
         <View style={styles.section}>
@@ -472,7 +491,7 @@ export default function SttScreen() {
                     styles.modelItem,
                     selectedModelId === model.metadata.id && styles.selectedModelItem
                   ]}
-                  onPress={() => setSelectedModelId(model.metadata.id)}
+                  onPress={() => setupAsr(model.metadata.id)}
                 >
                   <Text 
                     style={[
@@ -492,18 +511,32 @@ export default function SttScreen() {
           
           <View style={styles.buttonContainer}>
             <Button
-              title={initialized ? "Initialized" : "Initialize STT"}
-              onPress={handleInitStt}
-              disabled={!selectedModelId || initialized || loading}
+              title={initialized ? "Initialized" : "Initialize ASR"}
+              onPress={handleInitAsr}
+              disabled={!modelInfo || initialized || loading}
             />
             {initialized && (
               <Button
                 title="Release"
-                onPress={handleReleaseStt}
+                onPress={handleReleaseAsr}
                 color="#FF6B6B"
               />
             )}
           </View>
+          
+          {loading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#0000ff" />
+              <Text style={styles.loadingText}>Initializing ASR engine...</Text>
+            </View>
+          )}
+          
+          {modelInfo && (
+            <View style={styles.modelInfoBox}>
+              <Text style={styles.modelInfoText}>Model directory: {modelInfo.modelDir}</Text>
+              <Text style={styles.modelInfoText}>Model type: {modelInfo.modelType}</Text>
+            </View>
+          )}
         </View>
         
         {/* Audio selection section */}
@@ -649,6 +682,17 @@ const styles = StyleSheet.create({
   modelInfo: {
     fontSize: 12,
     color: '#666',
+  },
+  modelInfoBox: {
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 4,
+  },
+  modelInfoText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
   },
   buttonContainer: {
     marginTop: 12,

@@ -5,9 +5,9 @@ import type {
   TtsInitResult,
   TtsOptions,
   TtsGenerateResult,
-  SttModelConfig,
-  SttInitResult,
-  SttRecognizeResult,
+  AsrModelConfig,
+  AsrInitResult,
+  AsrRecognizeResult,
   AudioTaggingModelConfig,
   AudioTaggingInitResult,
   AudioTaggingResult,
@@ -25,7 +25,7 @@ export class SherpaOnnxAPI {
   public static validateLibraryLoaded(): Promise<ValidateResult> {
     return NativeSherpaOnnx.validateLibraryLoaded();
   }
-  
+
   /**
    * Initialize the TTS engine with the provided model configuration
    * @param config Configuration for the TTS model
@@ -39,7 +39,7 @@ export class SherpaOnnxAPI {
       throw error;
     }
   }
-  
+
   /**
    * Generate speech from text using the TTS engine
    * @param text Text to synthesize
@@ -51,7 +51,7 @@ export class SherpaOnnxAPI {
     options: TtsOptions = {}
   ): Promise<TtsGenerateResult> {
     const { speakerId = 0, speakingRate = 1.0, playAudio = false } = options;
-    
+
     try {
       return await NativeSherpaOnnx.generateTts(
         text,
@@ -64,12 +64,15 @@ export class SherpaOnnxAPI {
       throw error;
     }
   }
-  
+
   /**
    * Stop ongoing TTS playback
    * @returns Promise that resolves when playback is stopped
    */
-  public static async stopTts(): Promise<{ stopped: boolean; message?: string }> {
+  public static async stopTts(): Promise<{
+    stopped: boolean;
+    message?: string;
+  }> {
     try {
       return await NativeSherpaOnnx.stopTts();
     } catch (error: any) {
@@ -77,7 +80,7 @@ export class SherpaOnnxAPI {
       throw error;
     }
   }
-  
+
   /**
    * Release TTS resources
    * @returns Promise that resolves when resources are released
@@ -90,21 +93,21 @@ export class SherpaOnnxAPI {
       throw error;
     }
   }
-  
+
   /**
-   * Initialize the STT engine with the provided model configuration
-   * @param config Configuration for the STT model
+   * Initialize the ASR engine with the provided model configuration
+   * @param config Configuration for the ASR model
    * @returns Promise that resolves with initialization result
    */
-  public static async initStt(config: SttModelConfig): Promise<SttInitResult> {
+  public static async initAsr(config: AsrModelConfig): Promise<AsrInitResult> {
     try {
-      return await NativeSherpaOnnx.initStt(config);
+      return await NativeSherpaOnnx.initAsr(config);
     } catch (error: any) {
-      console.error('Failed to initialize STT:', error);
+      console.error('Failed to initialize ASR:', error);
       throw error;
     }
   }
-  
+
   /**
    * Recognize speech from audio samples
    * @param sampleRate Sample rate of the audio
@@ -114,7 +117,7 @@ export class SherpaOnnxAPI {
   public static async recognizeFromSamples(
     sampleRate: number,
     samples: number[]
-  ): Promise<SttRecognizeResult> {
+  ): Promise<AsrRecognizeResult> {
     try {
       return await NativeSherpaOnnx.recognizeFromSamples(sampleRate, samples);
     } catch (error: any) {
@@ -122,7 +125,7 @@ export class SherpaOnnxAPI {
       throw error;
     }
   }
-  
+
   /**
    * Recognize speech from an audio file
    * @param filePath Path to the audio file
@@ -130,7 +133,7 @@ export class SherpaOnnxAPI {
    */
   public static async recognizeFromFile(
     filePath: string
-  ): Promise<SttRecognizeResult> {
+  ): Promise<AsrRecognizeResult> {
     try {
       return await NativeSherpaOnnx.recognizeFromFile(filePath);
     } catch (error: any) {
@@ -138,20 +141,20 @@ export class SherpaOnnxAPI {
       throw error;
     }
   }
-  
+
   /**
-   * Release STT resources
+   * Release ASR resources
    * @returns Promise that resolves when resources are released
    */
-  public static async releaseStt(): Promise<{ released: boolean }> {
+  public static async releaseAsr(): Promise<{ released: boolean }> {
     try {
-      return await NativeSherpaOnnx.releaseStt();
+      return await NativeSherpaOnnx.releaseAsr();
     } catch (error: any) {
-      console.error('Failed to release STT resources:', error);
+      console.error('Failed to release ASR resources:', error);
       throw error;
     }
   }
-  
+
   /**
    * Initialize the Audio Tagging engine with the provided model configuration
    * @param config Configuration for the audio tagging model
@@ -167,7 +170,7 @@ export class SherpaOnnxAPI {
       throw error;
     }
   }
-  
+
   /**
    * Process and compute audio tagging for a file in a single operation
    * @param filePath Path to the audio file to process
@@ -183,7 +186,7 @@ export class SherpaOnnxAPI {
       throw error;
     }
   }
-  
+
   /**
    * Process and compute audio tagging for samples
    * @param sampleRate Sample rate of the audio
@@ -191,7 +194,7 @@ export class SherpaOnnxAPI {
    * @returns Promise that resolves with audio tagging result
    */
   public static async processAndComputeAudioSamples(
-    sampleRate: number, 
+    sampleRate: number,
     samples: number[]
   ): Promise<AudioTaggingResult> {
     try {
@@ -204,7 +207,7 @@ export class SherpaOnnxAPI {
       throw error;
     }
   }
-  
+
   /**
    * Release Audio Tagging resources
    * @returns Promise that resolves when resources are released
@@ -217,7 +220,7 @@ export class SherpaOnnxAPI {
       throw error;
     }
   }
-  
+
   /**
    * Extract a tar.bz2 archive to a directory
    * @param sourcePath Path to the tar.bz2 file

@@ -1,5 +1,5 @@
 /**
- * Handler for Speech-to-Text functionality
+ * Handler for Automatic Speech Recognition functionality
  */
 package net.siteed.sherpaonnx
 
@@ -28,11 +28,11 @@ import com.k2fsa.sherpa.onnx.OfflineTransducerModelConfig
 import com.k2fsa.sherpa.onnx.OfflineWhisperModelConfig
 
 /**
- * Handler for Speech-to-Text functionality in Sherpa-ONNX
- * Provides methods to initialize the STT engine, recognize audio from
+ * Handler for Automatic Speech Recognition functionality in Sherpa-ONNX
+ * Provides methods to initialize the ASR engine, recognize audio from
  * samples or files, and clean up resources.
  */
-class STTHandler(private val reactContext: ReactApplicationContext) {
+class ASRHandler(private val reactContext: ReactApplicationContext) {
     
     private val executor = Executors.newSingleThreadExecutor()
     private var recognizer: OfflineRecognizer? = null
@@ -40,7 +40,7 @@ class STTHandler(private val reactContext: ReactApplicationContext) {
     private var isRecognizing = false
     
     companion object {
-        private const val TAG = "SherpaOnnxSTT"
+        private const val TAG = "SherpaOnnxASR"
         private const val DEFAULT_SAMPLE_RATE = 16000
         private const val DEFAULT_FEATURE_DIM = 80
         private const val DEFAULT_DEBUG = false
@@ -51,7 +51,7 @@ class STTHandler(private val reactContext: ReactApplicationContext) {
     }
     
     /**
-     * Initialize the STT engine with the provided model configuration
+     * Initialize the ASR engine with the provided model configuration
      */
     fun init(modelConfig: ReadableMap, promise: Promise) {
         if (!SherpaOnnxModule.isLibraryLoaded) {
@@ -61,7 +61,7 @@ class STTHandler(private val reactContext: ReactApplicationContext) {
 
         executor.execute {
             try {
-                Log.i(TAG, "===== STT INITIALIZATION START =====")
+                Log.i(TAG, "===== ASR INITIALIZATION START =====")
                 Log.i(TAG, "Received model config: ${modelConfig.toHashMap()}")
                 
                 // Extract paths from config
@@ -203,7 +203,7 @@ class STTHandler(private val reactContext: ReactApplicationContext) {
                 Log.i(TAG, "Creating offline recognizer with config")
                 recognizer = OfflineRecognizer(config)
                 
-                Log.i(TAG, "STT initialized successfully")
+                Log.i(TAG, "ASR initialized successfully")
                 
                 // Return success result
                 val resultMap = Arguments.createMap()
@@ -211,22 +211,22 @@ class STTHandler(private val reactContext: ReactApplicationContext) {
                 resultMap.putString("modelType", modelType)
                 resultMap.putDouble("sampleRate", featureConfig.sampleRate.toDouble())
                 
-                Log.i(TAG, "===== STT INITIALIZATION COMPLETE =====")
+                Log.i(TAG, "===== ASR INITIALIZATION COMPLETE =====")
                 
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error initializing STT: ${e.message}")
+                Log.e(TAG, "Error initializing ASR: ${e.message}")
                 e.printStackTrace()
                 
                 // Release resources in case of error
                 releaseResources()
                 
-                Log.i(TAG, "===== STT INITIALIZATION FAILED =====")
+                Log.i(TAG, "===== ASR INITIALIZATION FAILED =====")
                 
                 reactContext.runOnUiQueueThread {
-                    promise.reject("ERR_STT_INIT", "Failed to initialize STT: ${e.message}")
+                    promise.reject("ERR_ASR_INIT", "Failed to initialize ASR: ${e.message}")
                 }
             }
         }
@@ -239,11 +239,11 @@ class STTHandler(private val reactContext: ReactApplicationContext) {
         executor.execute {
             try {
                 if (recognizer == null) {
-                    throw Exception("STT is not initialized")
+                    throw Exception("ASR is not initialized")
                 }
                 
                 if (isRecognizing) {
-                    throw Exception("STT is already processing audio")
+                    throw Exception("ASR is already processing audio")
                 }
                 
                 Log.d(TAG, "Recognizing audio from ${audioBuffer.size()} samples at ${sampleRate}Hz")
@@ -286,7 +286,7 @@ class STTHandler(private val reactContext: ReactApplicationContext) {
                 e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
-                    promise.reject("ERR_STT_RECOGNIZE", "Failed to recognize speech: ${e.message}")
+                    promise.reject("ERR_ASR_RECOGNIZE", "Failed to recognize speech: ${e.message}")
                 }
             } finally {
                 // Clean up stream
@@ -303,11 +303,11 @@ class STTHandler(private val reactContext: ReactApplicationContext) {
         executor.execute {
             try {
                 if (recognizer == null) {
-                    throw Exception("STT is not initialized")
+                    throw Exception("ASR is not initialized")
                 }
                 
                 if (isRecognizing) {
-                    throw Exception("STT is already processing audio")
+                    throw Exception("ASR is already processing audio")
                 }
                 
                 // Clean file path for native use
@@ -357,7 +357,7 @@ class STTHandler(private val reactContext: ReactApplicationContext) {
                 e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
-                    promise.reject("ERR_STT_RECOGNIZE_FILE", "Failed to recognize speech from file: ${e.message}")
+                    promise.reject("ERR_ASR_RECOGNIZE_FILE", "Failed to recognize speech from file: ${e.message}")
                 }
             } finally {
                 // Clean up stream
@@ -368,7 +368,7 @@ class STTHandler(private val reactContext: ReactApplicationContext) {
     }
     
     /**
-     * Release STT resources
+     * Release ASR resources
      */
     fun release(promise: Promise) {
         executor.execute {
@@ -382,17 +382,17 @@ class STTHandler(private val reactContext: ReactApplicationContext) {
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error releasing STT: ${e.message}")
+                Log.e(TAG, "Error releasing ASR: ${e.message}")
                 
                 reactContext.runOnUiQueueThread {
-                    promise.reject("ERR_STT_RELEASE", "Failed to release STT resources: ${e.message}")
+                    promise.reject("ERR_ASR_RELEASE", "Failed to release ASR resources: ${e.message}")
                 }
             }
         }
     }
     
     /**
-     * Release STT resources
+     * Release ASR resources
      */
     private fun releaseResources() {
         stream?.release()

@@ -1,3 +1,7 @@
+import { TtsService } from '../services/TtsService';
+import { AsrService } from '../services/AsrService';
+import { AudioTaggingService } from '../services/AudioTaggingService';
+
 /**
  * Type of model supported by Sherpa-onnx
  */
@@ -34,7 +38,7 @@ export interface SherpaOnnxConfig {
 }
 
 /**
- * Result from Sherpa-onnx STT processing
+ * Result from Sherpa-onnx ASR processing
  */
 export interface SherpaOnnxResult {
   /**
@@ -60,9 +64,9 @@ export interface SherpaOnnxResult {
 }
 
 /**
- * Options for speech-to-text processing
+ * Options for automatic speech recognition processing
  */
-export interface SttOptions {
+export interface AsrOptions {
   /**
    * Maximum audio length in seconds
    */
@@ -453,11 +457,11 @@ export interface AudioFileProcessResult {
 }
 
 /**
- * STT (Speech-to-Text) Model Configuration
+ * Configuration for ASR model
  */
-export interface SttModelConfig {
+export interface AsrModelConfig {
   /**
-   * Directory containing the STT model files
+   * Directory containing the ASR model files
    */
   modelDir: string;
 
@@ -483,16 +487,16 @@ export interface SttModelConfig {
 }
 
 /**
- * Result of STT initialization
+ * Result of ASR initialization
  */
-export interface SttInitResult {
+export interface AsrInitResult {
   /**
    * Whether initialization was successful
    */
   success: boolean;
 
   /**
-   * Sample rate of the STT model
+   * Sample rate of the ASR model
    */
   sampleRate?: number;
 
@@ -508,9 +512,9 @@ export interface SttInitResult {
 }
 
 /**
- * Result of speech recognition
+ * Result of ASR recognition
  */
-export interface SttRecognizeResult {
+export interface AsrRecognizeResult {
   /**
    * Whether recognition was successful
    */
@@ -541,3 +545,32 @@ export interface SttRecognizeResult {
    */
   error?: string;
 }
+
+export interface SherpaOnnxStatic {
+  validateLibraryLoaded(): Promise<ValidateResult>;
+  initTts(config: TtsModelConfig): Promise<TtsInitResult>;
+  generateTts(text: string, options?: TtsOptions): Promise<TtsGenerateResult>;
+  stopTts(): Promise<{ stopped: boolean; message?: string }>;
+  releaseTts(): Promise<{ released: boolean }>;
+  initAsr(config: AsrModelConfig): Promise<AsrInitResult>;
+  recognizeFromSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<AsrRecognizeResult>;
+  recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
+  releaseAsr(): Promise<{ released: boolean }>;
+  initAudioTagging(
+    config: AudioTaggingModelConfig
+  ): Promise<AudioTaggingInitResult>;
+  processAndComputeAudioTagging(filePath: string): Promise<AudioTaggingResult>;
+  processAndComputeAudioSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<AudioTaggingResult>;
+  releaseAudioTagging(): Promise<{ released: boolean }>;
+  TTS: typeof TtsService;
+  ASR: typeof AsrService;
+  AudioTagging: typeof AudioTaggingService;
+}
+
+export declare const SherpaOnnx: SherpaOnnxStatic;

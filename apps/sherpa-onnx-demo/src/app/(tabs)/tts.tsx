@@ -1,8 +1,7 @@
 import type { TtsGenerateResult, TtsInitResult, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
-import { TtsService } from '@siteed/sherpa-onnx.rn';
+import { TTS } from '@siteed/sherpa-onnx.rn';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -604,7 +603,7 @@ export default function TtsScreen() {
 
         console.log('Initializing TTS with config:', JSON.stringify(modelConfig));
         console.log(`Model type: ${ttsModelType}`);
-        const result = await TtsService.initialize(modelConfig);
+        const result = await TTS.initialize(modelConfig);
         setInitResult(result);
         setTtsInitialized(result.success);
 
@@ -651,7 +650,7 @@ export default function TtsScreen() {
     setStatusMessage('Generating speech...');
 
     try {
-      const result = await TtsService.generateSpeech(text, {
+      const result = await TTS.generateSpeech(text, {
         speakerId,
         speakingRate,
         playAudio: true
@@ -690,7 +689,7 @@ export default function TtsScreen() {
 
   const handleStopTts = async () => {
     try {
-      const result = await TtsService.stopSpeech();
+      const result = await TTS.stopSpeech();
       if (result.stopped) {
         setStatusMessage('TTS stopped successfully');
       } else {
@@ -703,7 +702,7 @@ export default function TtsScreen() {
 
   const handleReleaseTts = async () => {
     try {
-      const result = await TtsService.release();
+      const result = await TTS.release();
       if (result.released) {
         setTtsInitialized(false);
         setInitResult(null);

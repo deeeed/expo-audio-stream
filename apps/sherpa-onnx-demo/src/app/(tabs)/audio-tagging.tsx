@@ -1,18 +1,16 @@
-import type { 
-  AudioEvent, 
-  AudioTaggingInitResult, 
+import type {
+  AudioEvent,
   AudioTaggingModelConfig,
   AudioTaggingResult
 } from '@siteed/sherpa-onnx.rn';
-import { AudioTaggingService } from '@siteed/sherpa-onnx.rn';
+import { AudioTagging } from '@siteed/sherpa-onnx.rn';
+import { Asset } from 'expo-asset';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Button,
-  FlatList,
   Platform,
   ScrollView,
   StyleSheet,
@@ -22,7 +20,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelManagement } from '../../contexts/ModelManagement';
-import { Asset } from 'expo-asset';
 
 // Define sample audio with only name and module
 const SAMPLE_AUDIO_FILES = [
@@ -122,7 +119,7 @@ const findModelFileRecursive = async (basePath: string): Promise<{ modelDir: str
 };
 
 // Create an instance of the AudioTaggingService
-const audioTaggingService = new AudioTaggingService();
+const audioTaggingService = new AudioTagging();
 
 export default function AudioTaggingScreen() {
   const { models, getDownloadedModels, getModelState } = useModelManagement();
@@ -200,7 +197,7 @@ export default function AudioTaggingScreen() {
     return () => {
       if (initialized) {
         console.log('Cleaning up audio tagging resources');
-        audioTaggingService.release().catch(err => 
+        audioTaggingService.release().catch((err: Error) => 
           console.error('Error releasing audio tagging resources:', err)
         );
       }

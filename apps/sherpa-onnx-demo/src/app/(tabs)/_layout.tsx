@@ -1,8 +1,7 @@
-import React from 'react';
-import { Tabs } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import React from 'react';
 import { useColorScheme } from 'react-native';
-import { Colors } from 'react-native/Libraries/NewAppScreen';
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof Ionicons>['name'];
@@ -45,9 +44,9 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="stt"
+        name="asr"
         options={{
-          title: 'Speech to Text',
+          title: 'Automatic Speech Recognition',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="hearing" size={size} color={color} />
           ),

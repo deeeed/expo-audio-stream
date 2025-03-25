@@ -12,7 +12,6 @@ import { SherpaOnnxAPI } from '../SherpaOnnxAPI';
  */
 export class AudioTaggingService {
   private static initialized = false;
-  private sampleRate = 0;
 
   /**
    * Validate that the Sherpa-ONNX library is properly loaded
@@ -97,5 +96,3 @@ export class AudioTaggingService {
     return result;
   }
 }
-
-

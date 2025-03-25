@@ -1,19 +1,19 @@
 /**
- * STT Service for speech-to-text functionality
+ * ASR Service for automatic speech recognition functionality
  */
 
 import { SherpaOnnxAPI } from '../SherpaOnnxAPI';
 import type {
-  SttModelConfig,
-  SttInitResult,
-  SttRecognizeResult,
+  AsrModelConfig,
+  AsrInitResult,
+  AsrRecognizeResult,
   ValidateResult,
 } from '../types/interfaces';
 
 /**
- * Service for Speech-to-Text functionality
+ * Service for Automatic Speech Recognition functionality
  */
-export class SttService {
+export class AsrService {
   private static initialized = false;
   private static sampleRate = 0;
   private static modelType = '';
@@ -27,13 +27,13 @@ export class SttService {
   }
 
   /**
-   * Initialize the STT engine
-   * @param config The STT model configuration
+   * Initialize the ASR engine
+   * @param config The ASR model configuration
    * @returns Promise resolving to initialization result
    */
   public static async initialize(
-    config: SttModelConfig
-  ): Promise<SttInitResult> {
+    config: AsrModelConfig
+  ): Promise<AsrInitResult> {
     try {
       // First validate library
       const validation = await SherpaOnnxAPI.validateLibraryLoaded();
@@ -41,7 +41,7 @@ export class SttService {
         throw new Error(`Library validation failed: ${validation.status}`);
       }
 
-      const result = await SherpaOnnxAPI.initStt(config);
+      const result = await SherpaOnnxAPI.initAsr(config);
       this.initialized = result.success;
       this.sampleRate = result.sampleRate ?? 0;
       this.modelType = result.modelType ?? '';
@@ -82,9 +82,9 @@ export class SttService {
   public static async recognizeFromSamples(
     sampleRate: number,
     samples: number[]
-  ): Promise<SttRecognizeResult> {
+  ): Promise<AsrRecognizeResult> {
     if (!this.initialized) {
-      throw new Error('STT is not initialized. Call initialize() first.');
+      throw new Error('ASR is not initialized. Call initialize() first.');
     }
 
     return SherpaOnnxAPI.recognizeFromSamples(sampleRate, samples);
@@ -97,19 +97,19 @@ export class SttService {
    */
   public static async recognizeFromFile(
     filePath: string
-  ): Promise<SttRecognizeResult> {
+  ): Promise<AsrRecognizeResult> {
     if (!this.initialized) {
-      throw new Error('STT is not initialized. Call initialize() first.');
+      throw new Error('ASR is not initialized. Call initialize() first.');
     }
 
     return SherpaOnnxAPI.recognizeFromFile(filePath);
   }
 
   /**
-   * Release STT resources
+   * Release ASR resources
    */
   public static async release(): Promise<{ released: boolean }> {
-    const result = await SherpaOnnxAPI.releaseStt();
+    const result = await SherpaOnnxAPI.releaseAsr();
     if (result.released) {
       this.initialized = false;
       this.sampleRate = 0;
