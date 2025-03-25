@@ -15,6 +15,7 @@ import com.k2fsa.sherpa.onnx.AudioEvent
 // import com.k2fsa.sherpa.onnx.OfflineAudioTagger
 import java.io.File
 import java.util.concurrent.Executors
+import net.siteed.sherpaonnx.AssetUtils
 
 class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
     
@@ -44,10 +45,13 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                 Log.i(TAG, "Received model config: ${modelConfig.toHashMap()}")
                 
                 // Extract paths from config
-                val modelDir = modelConfig.getString("modelDir")?.replace("file://", "") ?: ""
+                val modelDir = AssetUtils.cleanFilePath(modelConfig.getString("modelDir") ?: "")
                 val modelFile = modelConfig.getString("modelFile") ?: "model.onnx"
                 val labelsFile = modelConfig.getString("labelsFile") ?: "labels.txt"
                 val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else 1
+                val topK = if (modelConfig.hasKey("topK")) modelConfig.getInt("topK") else 3
+                val modelType = modelConfig.getString("modelType") ?: "zipformer"
+                val debug = if (modelConfig.hasKey("debug")) modelConfig.getBoolean("debug") else false
                 
                 // Build file paths
                 val modelPath = File(modelDir, modelFile).absolutePath
@@ -56,22 +60,36 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                 // Log file existence
                 Log.i(TAG, "Model file: $modelPath (exists: ${File(modelPath).exists()})")
                 Log.i(TAG, "Labels file: $labelsPath (exists: ${File(labelsPath).exists()})")
+                Log.i(TAG, "Model type: $modelType")
                 
-                // Create zipformer config - don't use .apply which is causing issues
-                val zipformerConfig = OfflineZipformerAudioTaggingModelConfig()
-                zipformerConfig.model = modelPath
-                // Tokens property may not exist, so don't try to set it
+                // Create audio tagging config directly with all properties
+                val config = if (modelType.equals("zipformer", ignoreCase = true)) {
+                    AudioTaggingConfig(
+                        model = AudioTaggingModelConfig(
+                            zipformer = OfflineZipformerAudioTaggingModelConfig(model = modelPath),
+                            numThreads = numThreads,
+                            provider = "cpu",
+                            debug = debug
+                        ),
+                        labels = labelsPath,
+                        topK = topK
+                    )
+                } else if (modelType.equals("ced", ignoreCase = true)) {
+                    AudioTaggingConfig(
+                        model = AudioTaggingModelConfig(
+                            ced = modelPath,
+                            numThreads = numThreads,
+                            provider = "cpu",
+                            debug = debug
+                        ),
+                        labels = labelsPath,
+                        topK = topK
+                    )
+                } else {
+                    throw Exception("Unsupported model type: $modelType. Must be 'zipformer' or 'ced'")
+                }
                 
-                // Set model config properties
-                audioTaggingModelConfig.zipformer = zipformerConfig
-                // Don't use debugLevel if it doesn't exist
-                // audioTaggingModelConfig.debugLevel = 0
-                audioTaggingModelConfig.provider = "cpu"
-                audioTaggingModelConfig.numThreads = numThreads
-                
-                // Create audio tagging config
-                val config = AudioTaggingConfig()
-                config.model = audioTaggingModelConfig
+                Log.i(TAG, "Initializing with config: model=$modelPath, labels=$labelsPath, topK=$topK, debug=$debug")
                 
                 // Initialize audio tagging
                 audioTagging = AudioTagging(null, config)
@@ -177,20 +195,27 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                     
                     events?.forEach { event ->
                         val eventMap = Arguments.createMap()
-                        // Using safe access for label and confidence properties
-                        // These may be different property names based on the actual AudioEvent class
                         try {
-                            // Try to access various possible property names
-                            val label = event::class.java.getMethod("getLabel").invoke(event)?.toString() ?: ""
-                            val confidence = (event::class.java.getMethod("getConfidence").invoke(event) as? Float) ?: 0.0f
+                            // Direct property access - no reflection needed
+                            // Map both the original property names and new property names
+                            eventMap.putString("name", event.name)
+                            eventMap.putString("label", event.name) // For backward compatibility
+                            eventMap.putDouble("prob", event.prob.toDouble())
+                            eventMap.putDouble("confidence", event.prob.toDouble()) // For backward compatibility
+                            eventMap.putDouble("probability", event.prob.toDouble()) // Additional alias
                             
-                            eventMap.putString("label", label)
-                            eventMap.putDouble("confidence", confidence.toDouble())
+                            // Add index property if it's valid
+                            if (event.index >= 0) {
+                                eventMap.putInt("index", event.index)
+                            }
                         } catch (e: Exception) {
+                            // Fall back to defaults if any access fails
                             Log.w(TAG, "Could not extract event properties: ${e.message}")
-                            // Set default values
+                            eventMap.putString("name", "unknown")
                             eventMap.putString("label", "unknown")
+                            eventMap.putDouble("prob", 0.0)
                             eventMap.putDouble("confidence", 0.0)
+                            eventMap.putDouble("probability", 0.0)
                         }
                         eventsArray.pushMap(eventMap)
                     }
@@ -230,8 +255,12 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                     throw Exception("Audio tagging is not initialized")
                 }
                 
+                // Clean the file path to remove any file:/ or file:// prefixes
+                val cleanedFilePath = AssetUtils.cleanFilePath(filePath)
+                Log.i(TAG, "Processing audio file: $cleanedFilePath")
+                
                 // Extract audio from file - fix type mismatch by creating a File object
-                val audioData = AudioExtractor.extractAudioFromFile(File(filePath))
+                val audioData = AudioExtractor.extractAudioFromFile(File(cleanedFilePath))
                 
                 // Create stream
                 val newStream = audioTagging?.createStream()
@@ -254,19 +283,27 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                 
                 events?.forEach { event ->
                     val eventMap = Arguments.createMap()
-                    // Same fix for accessing properties safely
                     try {
-                        // Try to access various possible property names
-                        val label = event::class.java.getMethod("getLabel").invoke(event)?.toString() ?: ""
-                        val confidence = (event::class.java.getMethod("getConfidence").invoke(event) as? Float) ?: 0.0f
+                        // Direct property access - no reflection needed
+                        // Map both the original property names and new property names
+                        eventMap.putString("name", event.name)
+                        eventMap.putString("label", event.name) // For backward compatibility
+                        eventMap.putDouble("prob", event.prob.toDouble())
+                        eventMap.putDouble("confidence", event.prob.toDouble()) // For backward compatibility
+                        eventMap.putDouble("probability", event.prob.toDouble()) // Additional alias
                         
-                        eventMap.putString("label", label)
-                        eventMap.putDouble("confidence", confidence.toDouble())
+                        // Add index property if it's valid
+                        if (event.index >= 0) {
+                            eventMap.putInt("index", event.index)
+                        }
                     } catch (e: Exception) {
+                        // Fall back to defaults if any access fails
                         Log.w(TAG, "Could not extract event properties: ${e.message}")
-                        // Set default values
+                        eventMap.putString("name", "unknown")
                         eventMap.putString("label", "unknown")
+                        eventMap.putDouble("prob", 0.0)
                         eventMap.putDouble("confidence", 0.0)
+                        eventMap.putDouble("probability", 0.0)
                     }
                     eventsArray.pushMap(eventMap)
                 }

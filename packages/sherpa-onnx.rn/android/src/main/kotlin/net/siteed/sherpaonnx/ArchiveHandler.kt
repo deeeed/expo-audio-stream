@@ -27,8 +27,8 @@ class ArchiveHandler(private val reactContext: ReactApplicationContext) {
         executor.execute {
             try {
                 // Clean up the paths
-                val cleanSourcePath = sourcePath.replace("file://", "")
-                val cleanTargetDir = targetDir.replace("file://", "")
+                val cleanSourcePath = AssetUtils.cleanFilePath(sourcePath)
+                val cleanTargetDir = AssetUtils.cleanFilePath(targetDir)
                 
                 Log.i(TAG, "Extracting tar.bz2 from $cleanSourcePath to $cleanTargetDir")
                 

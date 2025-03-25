@@ -264,28 +264,46 @@ export interface AudioTaggingModelConfig {
 
   /**
    * Model file name (e.g., "model.onnx" or "model.int8.onnx")
+   * Default: "model.onnx"
    */
   modelName?: string;
 
   /**
-   * Model type (zipformer or ced)
+   * Model file to use, automatically constructed from modelDir and modelName
+   * This is used internally and doesn't need to be specified by client code
    */
-  modelType?: 'zipformer' | 'ced';
+  modelFile?: string;
 
   /**
-   * Path to labels file (usually class_labels_indices.csv)
+   * Model type (zipformer or ced)
+   * Must be specified to correctly initialize the model
+   * Default: "zipformer"
    */
-  labelsPath?: string;
+  modelType: 'zipformer' | 'ced';
+
+  /**
+   * Path to labels file
+   * Default: "labels.txt" in modelDir
+   */
+  labelsFile?: string;
 
   /**
    * Number of threads for processing
+   * Default: 1
    */
   numThreads?: number;
 
   /**
-   * Top K results to return
+   * Top K results to return from classification
+   * Default: 3
    */
   topK?: number;
+  
+  /**
+   * Enable debug mode for more detailed logs
+   * Default: false
+   */
+  debug?: boolean;
 }
 
 /**
@@ -340,7 +358,22 @@ export interface AudioEvent {
   /**
    * Probability score (0-1)
    */
-  probability: number;
+  prob: number;
+  
+  /**
+   * @deprecated Use name instead
+   */
+  label?: string;
+  
+  /**
+   * @deprecated Use prob instead
+   */
+  confidence?: number;
+  
+  /**
+   * Probability alias for compatibility
+   */
+  probability?: number;
 }
 
 /**
@@ -460,6 +493,9 @@ export interface AudioFileProcessResult {
  * Configuration for ASR model
  */
 export interface AsrModelConfig {
+  /**
+   * Directory containing the ASR model files
+   */
   modelDir: string;
   modelType:
     | 'transducer'

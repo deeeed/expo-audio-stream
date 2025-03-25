@@ -164,7 +164,21 @@ export class SherpaOnnxAPI {
     config: AudioTaggingModelConfig
   ): Promise<AudioTaggingInitResult> {
     try {
-      return await NativeSherpaOnnx.initAudioTagging(config);
+      // Create a modified config object for the native module
+      const nativeConfig = {
+        modelDir: this.cleanFilePath(config.modelDir),
+        modelFile: config.modelFile || config.modelName || 'model.onnx',
+        labelsFile: config.labelsFile || 'labels.txt',
+        modelType: config.modelType, // Pass model type explicitly
+        numThreads: config.numThreads || 1,
+        topK: config.topK || 3,
+      };
+
+      console.log(
+        'Initializing audio tagging with native config:',
+        JSON.stringify(nativeConfig)
+      );
+      return await NativeSherpaOnnx.initAudioTagging(nativeConfig);
     } catch (error: any) {
       console.error('Failed to initialize audio tagging:', error);
       throw error;
@@ -180,11 +194,28 @@ export class SherpaOnnxAPI {
     filePath: string
   ): Promise<AudioTaggingResult> {
     try {
-      return await NativeSherpaOnnx.processAndComputeAudioTagging(filePath);
+      // Clean up file path before sending to native
+      const cleanedPath = this.cleanFilePath(filePath);
+      console.log('Processing audio file with path:', cleanedPath);
+      return await NativeSherpaOnnx.processAndComputeAudioTagging(cleanedPath);
     } catch (error: any) {
       console.error('Failed to process and compute audio tagging:', error);
       throw error;
     }
+  }
+
+  /**
+   * Helper function to clean file paths from Expo by removing file:// or file:/ prefixes
+   * @param path The file path to clean
+   * @returns The cleaned file path
+   */
+  private static cleanFilePath(path: string): string {
+    if (path.startsWith('file://')) {
+      return path.substring(7);
+    } else if (path.startsWith('file:/')) {
+      return path.substring(6);
+    }
+    return path;
   }
 
   /**

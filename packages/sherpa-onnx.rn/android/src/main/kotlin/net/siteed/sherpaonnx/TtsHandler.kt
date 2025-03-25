@@ -36,7 +36,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 Log.i(TAG, "Initializing TTS with config: ${modelConfig.toHashMap()}")
                 
                 // Extract model config options
-                val modelDir = modelConfig.getString("modelDir")?.replace("file://", "") ?: ""
+                val modelDir = AssetUtils.cleanFilePath(modelConfig.getString("modelDir") ?: "")
                 val modelFileName = modelConfig.getString("modelFile") ?: "model.onnx"
                 val tokensFileName = modelConfig.getString("tokensFile") ?: "tokens.txt"
                 val voicesFile = modelConfig.getString("voicesFile") ?: null

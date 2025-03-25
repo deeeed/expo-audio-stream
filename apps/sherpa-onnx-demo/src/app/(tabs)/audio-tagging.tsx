@@ -16,7 +16,9 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  TextInput,
+  Switch
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelManagement } from '../../contexts/ModelManagement';
@@ -52,6 +54,17 @@ const verifyFileExists = async (expoUri: string): Promise<boolean> => {
     console.error(`Error checking file existence: ${expoUri}`, error);
     return false;
   }
+};
+
+// Helper function to clean file paths to be compatible with both Expo and native code
+const cleanFilePath = (path: string): string => {
+  // Strip the file:// or file:/ prefix if present
+  if (path.startsWith('file://')) {
+    return path.substring(7);
+  } else if (path.startsWith('file:/')) {
+    return path.substring(6);
+  }
+  return path;
 };
 
 /**
@@ -159,6 +172,11 @@ export default function AudioTaggingScreen() {
     isLoading: false
   });
   
+  // Add state for configuration options
+  const [topK, setTopK] = useState<number>(5);
+  const [numThreads, setNumThreads] = useState<number>(2);
+  const [debugMode, setDebugMode] = useState<boolean>(false);
+  
   // Get only relevant models for audio tagging
   const availableModels = getDownloadedModels().filter(model => 
     model.metadata.type === 'audio-tagging'
@@ -238,12 +256,21 @@ export default function AudioTaggingScreen() {
       const labelsExists = await verifyFileExists(labelsPath);
       
       if (!labelsExists) {
-        setError('Could not find class_labels_indices.csv file');
-        setLoading(false);
-        return;
+        // Try labels.txt as a fallback
+        const fallbackLabelsPath = `${modelFile.modelDir}/labels.txt`;
+        const fallbackLabelsExist = await verifyFileExists(fallbackLabelsPath);
+        
+        if (!fallbackLabelsExist) {
+          setError('Could not find labels file (tried class_labels_indices.csv and labels.txt)');
+          setLoading(false);
+          return;
+        }
+        
+        setLabelFilePath(fallbackLabelsPath);
+      } else {
+        setLabelFilePath(labelsPath);
       }
       
-      setLabelFilePath(labelsPath);
       setSelectedModelId(modelId);
       
       // Success, everything is ready
@@ -266,27 +293,38 @@ export default function AudioTaggingScreen() {
     setError(null);
     
     try {
-      // Determine model type from directory name
+      // Determine model type based on directory name and file name
       const dirName = modelInfo.modelDir.toLowerCase();
-      const modelType = dirName.includes('zipformer') ? 'zipformer' : 'ced';
+      const fileName = modelInfo.modelName.toLowerCase();
+      // Check if the model is a zipformer or ced model based on dir and file name
+      const isZipformer = dirName.includes('zipformer') || fileName.includes('zipformer');
+      const isCed = dirName.includes('ced') || fileName.includes('ced');
+      
+      // Default to zipformer if can't determine precisely
+      const modelType = isCed ? 'ced' : 'zipformer';
       
       // IMPORTANT PATH HANDLING:
       // 1. Expo APIs (FileSystem, etc.) expect paths with 'file://' prefix
       // 2. Native modules expect clean paths WITHOUT 'file://' prefix
       // So we strip the prefix when sending paths to native modules
-      const cleanPath = (path: string) => path.replace(/^file:\/\//, '');
+      const cleanPath = cleanFilePath;
       
       console.log('Setting up audio tagging with model in:', modelInfo.modelDir);
       console.log('Model name:', modelInfo.modelName);
+      console.log('Model type:', modelType);
       console.log('Labels file:', labelFilePath);
+      
+      // Get the labels file basename (filename without path)
+      const labelsFileName = labelFilePath.split('/').pop() || 'labels.txt';
       
       const config: AudioTaggingModelConfig = {
         modelDir: cleanPath(modelInfo.modelDir),
-        modelName: modelInfo.modelName,
-        modelType,
-        labelsPath: cleanPath(labelFilePath),
-        numThreads: 2,
-        topK: 5
+        modelFile: modelInfo.modelName,
+        modelType: modelType as 'zipformer' | 'ced',
+        labelsFile: labelsFileName,
+        numThreads: numThreads,
+        topK: topK,
+        debug: debugMode
       };
       
       console.log('Initializing audio tagging with config:', JSON.stringify(config));
@@ -410,8 +448,15 @@ export default function AudioTaggingScreen() {
         // Process the audio file and compute results in one call
         console.log('Processing and analyzing audio file...');
         
+        // The native module expects a clean path without file:/ prefix
+        // But we need to make sure the file actually exists first
+        const fileExists = await verifyFileExists(localFilePath);
+        if (!fileExists) {
+          throw new Error(`Audio file not found: ${localFilePath}`);
+        }
+        
         const result = await audioTaggingService.processAndCompute({
-          filePath: localFilePath
+          filePath: localFilePath // The SherpaOnnxAPI will clean this path
         });
         
         if (!result.success) {
@@ -550,7 +595,7 @@ export default function AudioTaggingScreen() {
   const renderItem = ({ item }: { item: AudioEvent }) => (
     <View style={styles.resultItem}>
       <Text style={styles.resultName}>{item.name}</Text>
-      <Text style={styles.resultProb}>{(item.probability * 100).toFixed(2)}%</Text>
+      <Text style={styles.resultProb}>{(item.prob * 100).toFixed(2)}%</Text>
     </View>
   );
   
@@ -620,6 +665,42 @@ export default function AudioTaggingScreen() {
                 <Text style={styles.infoText}>Please select a model first</Text>
               )}
             </>
+          )}
+        </View>
+        
+        {/* Model Configuration */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>2. Model Configuration</Text>
+          {!loading && (
+            <View style={styles.configContainer}>
+              <View style={styles.configRow}>
+                <Text style={styles.configLabel}>Top K Results:</Text>
+                <TextInput 
+                  value={String(topK)}
+                  onChangeText={(text) => setTopK(Number(text) || 5)}
+                  keyboardType="numeric"
+                  style={styles.configInput}
+                />
+              </View>
+              
+              <View style={styles.configRow}>
+                <Text style={styles.configLabel}>Num Threads:</Text>
+                <TextInput 
+                  value={String(numThreads)}
+                  onChangeText={(text) => setNumThreads(Number(text) || 2)}
+                  keyboardType="numeric"
+                  style={styles.configInput}
+                />
+              </View>
+              
+              <View style={styles.configRow}>
+                <Text style={styles.configLabel}>Debug Mode:</Text>
+                <Switch 
+                  value={debugMode}
+                  onValueChange={setDebugMode}
+                />
+              </View>
+            </View>
           )}
         </View>
         
@@ -756,7 +837,7 @@ export default function AudioTaggingScreen() {
                   {audioTaggingResults.events.map((item) => (
                     <View key={`${item.index}-${item.name}`} style={styles.resultItem}>
                       <Text style={styles.resultName}>{item.name}</Text>
-                      <Text style={styles.resultProb}>{(item.probability * 100).toFixed(2)}%</Text>
+                      <Text style={styles.resultProb}>{(item.prob * 100).toFixed(2)}%</Text>
                     </View>
                   ))}
                 </View>
@@ -956,5 +1037,26 @@ const styles = StyleSheet.create({
   },
   metadataLoader: {
     marginTop: 8,
+  },
+  configContainer: {
+    marginVertical: 8,
+  },
+  configRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 8,
+  },
+  configLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  configInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    padding: 8,
+    minWidth: 80,
+    textAlign: 'center',
   },
 }); 

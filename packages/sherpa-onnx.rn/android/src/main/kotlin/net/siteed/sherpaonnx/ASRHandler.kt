@@ -90,7 +90,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 Log.i(TAG, "Received model config: ${modelConfig.toHashMap()}")
                 
                 // Extract paths from config
-                val modelDir = modelConfig.getString("modelDir")?.replace("file://", "") ?: ""
+                val modelDir = AssetUtils.cleanFilePath(modelConfig.getString("modelDir") ?: "")
                 val modelFile = modelConfig.getString("modelFile") ?: "encoder.onnx"
                 val decoderFile = modelConfig.getString("decoderFile") ?: "decoder.onnx"
                 val joinerFile = modelConfig.getString("joinerFile") ?: "joiner.onnx"
@@ -299,7 +299,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 }
                 
                 // Create File object from path
-                val fileObj = File(filePath.replace("file://", ""))
+                val fileObj = File(AssetUtils.cleanFilePath(filePath))
                 
                 // Extract audio from file
                 val audioData = AudioExtractor.extractAudioFromFile(fileObj)
