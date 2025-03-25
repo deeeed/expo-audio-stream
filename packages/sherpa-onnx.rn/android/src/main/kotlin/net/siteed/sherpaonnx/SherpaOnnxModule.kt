@@ -51,6 +51,7 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     private val ttsHandler = TtsHandler(reactContext)
     private val audioTaggingHandler = AudioTaggingHandler(reactContext)
     private val archiveHandler = ArchiveHandler(reactContext)
+    private val sttHandler = STTHandler(reactContext)
 
     companion object {
         const val NAME = "SherpaOnnx"
@@ -124,6 +125,30 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun releaseTts(promise: Promise) {
         ttsHandler.release(promise)
+    }
+
+    // =========================================================================
+    // STT Methods - Delegated to STTHandler
+    // =========================================================================
+
+    @ReactMethod
+    fun initStt(modelConfig: ReadableMap, promise: Promise) {
+        sttHandler.init(modelConfig, promise)
+    }
+
+    @ReactMethod
+    fun recognizeFromSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        sttHandler.recognizeFromSamples(sampleRate, audioBuffer, promise)
+    }
+
+    @ReactMethod
+    fun recognizeFromFile(filePath: String, promise: Promise) {
+        sttHandler.recognizeFromFile(filePath, promise)
+    }
+
+    @ReactMethod
+    fun releaseStt(promise: Promise) {
+        sttHandler.release(promise)
     }
 
     // =========================================================================

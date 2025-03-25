@@ -450,3 +450,93 @@ export interface AudioFileProcessResult {
    */
   error?: string;
 }
+
+/**
+ * Configuration for STT model
+ */
+export interface SttModelConfig {
+  /**
+   * Directory containing model files
+   */
+  modelDir: string;
+
+  /**
+   * Model type (transducer, paraformer, whisper)
+   */
+  modelType?: string;
+
+  /**
+   * Number of threads to use for processing
+   */
+  numThreads?: number;
+
+  /**
+   * Decoding method for ASR (greedy_search, modified_beam_search)
+   */
+  decodingMethod?: string;
+
+  /**
+   * Maximum number of active paths for beam search
+   */
+  maxActivePaths?: number;
+}
+
+/**
+ * Result of STT initialization
+ */
+export interface SttInitResult {
+  /**
+   * Whether initialization was successful
+   */
+  success: boolean;
+
+  /**
+   * The model type that was initialized
+   */
+  modelType?: string;
+
+  /**
+   * Sample rate used by the model
+   */
+  sampleRate?: number;
+
+  /**
+   * Error message if initialization failed
+   */
+  error?: string;
+}
+
+/**
+ * Result of speech recognition
+ */
+export interface SttRecognizeResult {
+  /**
+   * Whether recognition was successful
+   */
+  success: boolean;
+
+  /**
+   * Recognized text
+   */
+  text?: string;
+
+  /**
+   * Processing time in milliseconds
+   */
+  durationMs?: number;
+
+  /**
+   * Sample rate of the processed audio (if from file)
+   */
+  sampleRate?: number;
+
+  /**
+   * Number of samples processed (if from file)
+   */
+  samplesLength?: number;
+
+  /**
+   * Error message if recognition failed
+   */
+  error?: string;
+}

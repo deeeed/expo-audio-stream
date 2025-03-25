@@ -45,6 +45,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="stt"
+        options={{
+          title: 'Speech to Text',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="hearing" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="audio-tagging"
         options={{
           title: 'Audio Tagging',

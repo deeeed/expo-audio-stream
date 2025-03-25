@@ -3,11 +3,9 @@ package com.k2fsa.sherpa.onnx
 import android.util.Log
 
 /**
- * Represents an audio stream for processing by Sherpa ONNX
+ * Stream for handling audio data
  */
-class OfflineStream(
-    val ptr: Long
-) {
+class OfflineStream(var ptr: Long) {
     private val TAG = "OfflineStream"
 
     init {
@@ -16,21 +14,33 @@ class OfflineStream(
         }
     }
 
+    fun acceptWaveform(samples: FloatArray, sampleRate: Int) =
+        acceptWaveform(ptr, samples, sampleRate)
+
     protected fun finalize() {
         if (ptr != 0L) {
             delete(ptr)
+            ptr = 0
         }
     }
 
     fun release() = finalize()
 
-    fun acceptWaveform(samples: FloatArray, sampleRate: Int): Boolean {
-        return acceptWaveform(ptr, samples, sampleRate)
+    fun use(block: (OfflineStream) -> Unit) {
+        try {
+            block(this)
+        } finally {
+            release()
+        }
     }
 
     companion object {
         // Native methods
         @JvmStatic external fun delete(ptr: Long)
         @JvmStatic external fun acceptWaveform(ptr: Long, samples: FloatArray, sampleRate: Int): Boolean
+
+        init {
+            System.loadLibrary("sherpa-onnx-jni")
+        }
     }
 } 

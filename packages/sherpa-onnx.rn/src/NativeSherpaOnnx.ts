@@ -3,6 +3,9 @@ import type {
   TtsGenerateResult,
   TtsInitResult,
   TtsModelConfig,
+  SttInitResult,
+  SttModelConfig,
+  SttRecognizeResult,
 } from './types/interfaces';
 
 // Get the native module using the old architecture
@@ -14,6 +17,8 @@ interface SherpaOnnxInterface {
     loaded: boolean;
     status: string;
   }>;
+  
+  // TTS methods
   initTts(modelConfig: TtsModelConfig): Promise<TtsInitResult>;
   generateTts(
     text: string,
@@ -23,6 +28,19 @@ interface SherpaOnnxInterface {
   ): Promise<TtsGenerateResult>;
   stopTts(): Promise<{ stopped: boolean; message?: string }>;
   releaseTts(): Promise<{ released: boolean }>;
+  
+  // STT methods
+  initStt(modelConfig: SttModelConfig): Promise<SttInitResult>;
+  recognizeFromSamples(
+    sampleRate: number,
+    audioBuffer: number[]
+  ): Promise<SttRecognizeResult>;
+  recognizeFromFile(
+    filePath: string
+  ): Promise<SttRecognizeResult>;
+  releaseStt(): Promise<{ released: boolean }>;
+  
+  // Debug & Utility methods
   debugAssetLoading(): Promise<any>;
   // Archive utility method
   extractTarBz2(
@@ -43,6 +61,7 @@ const SafeSherpaOnnx: SherpaOnnxInterface = SherpaOnnx
         loaded: false,
         status: 'SherpaOnnx native module is not available',
       }),
+      // TTS methods
       initTts: async () => {
         throw new Error('SherpaOnnx native module is not available');
       },
@@ -56,6 +75,20 @@ const SafeSherpaOnnx: SherpaOnnxInterface = SherpaOnnx
       releaseTts: async () => ({
         released: false,
       }),
+      // STT methods
+      initStt: async () => {
+        throw new Error('SherpaOnnx native module is not available');
+      },
+      recognizeFromSamples: async () => {
+        throw new Error('SherpaOnnx native module is not available');
+      },
+      recognizeFromFile: async () => {
+        throw new Error('SherpaOnnx native module is not available');
+      },
+      releaseStt: async () => ({
+        released: false,
+      }),
+      // Debug & Utility methods
       debugAssetLoading: async () => {
         throw new Error('SherpaOnnx native module is not available');
       },
