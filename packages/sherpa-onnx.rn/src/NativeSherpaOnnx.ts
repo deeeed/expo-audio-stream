@@ -3,12 +3,16 @@ import { NativeModules, Platform } from 'react-native';
 interface SherpaOnnxInterface {
   // TTS methods
   initTts: (config: any) => Promise<any>;
-  generateTts: (
-    text: string,
-    speakerId: number,
-    speed: number,
-    playAudio: boolean
-  ) => Promise<any>;
+  generateTts: (config: {
+    text: string;
+    speakerId?: number;
+    speakingRate?: number;
+    playAudio?: boolean;
+    fileNamePrefix?: string | null;
+    lengthScale?: number | null;
+    noiseScale?: number | null;
+    noiseScaleW?: number | null;
+  }) => Promise<any>;
   stopTts: () => Promise<any>;
   releaseTts: () => Promise<any>;
   // ASR methods

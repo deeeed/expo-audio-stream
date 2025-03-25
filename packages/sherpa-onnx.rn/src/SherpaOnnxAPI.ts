@@ -33,7 +33,30 @@ export class SherpaOnnxAPI {
    */
   public static async initTts(config: TtsModelConfig): Promise<TtsInitResult> {
     try {
-      return await NativeSherpaOnnx.initTts(config);
+      // Clean up file paths in the config
+      const cleanedConfig: TtsModelConfig = {
+        ...config,
+        modelDir: this.cleanFilePath(config.modelDir),
+      };
+
+      // Handle model file configuration
+      if (!cleanedConfig.modelName) {
+        cleanedConfig.modelName = 'model.onnx';
+      }
+
+      // Ensure data directory is set properly
+      if (!cleanedConfig.dataDir) {
+        cleanedConfig.dataDir = cleanedConfig.modelDir;
+      } else {
+        cleanedConfig.dataDir = this.cleanFilePath(cleanedConfig.dataDir);
+      }
+
+      console.log(
+        'Initializing TTS with config:',
+        JSON.stringify(cleanedConfig)
+      );
+
+      return await NativeSherpaOnnx.initTts(cleanedConfig);
     } catch (error: any) {
       console.error('Failed to initialize TTS:', error);
       throw error;
@@ -50,15 +73,19 @@ export class SherpaOnnxAPI {
     text: string,
     options: TtsOptions = {}
   ): Promise<TtsGenerateResult> {
-    const { speakerId = 0, speakingRate = 1.0, playAudio = false } = options;
-
     try {
-      return await NativeSherpaOnnx.generateTts(
+      const config = {
         text,
-        speakerId,
-        speakingRate,
-        playAudio
-      );
+        speakerId: options.speakerId ?? 0,
+        speakingRate: options.speakingRate ?? 1.0,
+        playAudio: options.playAudio ?? false,
+        fileNamePrefix: options.fileNamePrefix ?? null,
+        lengthScale: options.lengthScale ?? null,
+        noiseScale: options.noiseScale ?? null,
+        noiseScaleW: options.noiseScaleW ?? null,
+      };
+      
+      return await NativeSherpaOnnx.generateTts(config);
     } catch (error: any) {
       console.error('Failed to generate TTS:', error);
       throw error;

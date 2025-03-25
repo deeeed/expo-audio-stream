@@ -86,24 +86,6 @@ export interface AsrOptions {
 }
 
 /**
- * Options for text-to-speech processing
- */
-export interface TtsOptions {
-  /**
-   * Speaker ID to use (default: 0)
-   */
-  speakerId?: number;
-  /**
-   * Speaking rate (0.5 to 2.0, default: 1.0)
-   */
-  speakingRate?: number;
-  /**
-   * Whether to play audio as it's generated
-   */
-  playAudio?: boolean;
-}
-
-/**
  * Configuration for TTS model
  */
 export interface TtsModelConfig {
@@ -166,6 +148,31 @@ export interface TtsModelConfig {
    * Number of threads to use for processing
    */
   numThreads?: number;
+
+  /**
+   * Enable debug mode for more detailed logs
+   * Default: false
+   */
+  debug?: boolean;
+
+  /**
+   * Noise scale for controlling voice variation
+   * - For VITS models: default is 0.667
+   * - For Matcha models: default is 1.0
+   */
+  noiseScale?: number;
+
+  /**
+   * Noise scale W for controlling phoneme duration variation (VITS models only)
+   * Default: 0.8
+   */
+  noiseScaleW?: number;
+
+  /**
+   * Length scale for controlling speech speed
+   * Default: 1.0
+   */
+  lengthScale?: number;
 }
 
 /**
@@ -211,6 +218,12 @@ export interface TtsGenerateResult {
    * Number of samples in the generated audio
    */
   samplesLength: number;
+
+  /**
+   * Number of samples in the generated audio
+   * This is the same as samplesLength, included for backwards compatibility
+   */
+  numSamples: number;
 
   /**
    * Path to the generated audio file
@@ -585,7 +598,16 @@ export interface AsrRecognizeResult {
 export interface SherpaOnnxStatic {
   validateLibraryLoaded(): Promise<ValidateResult>;
   initTts(config: TtsModelConfig): Promise<TtsInitResult>;
-  generateTts(text: string, options?: TtsOptions): Promise<TtsGenerateResult>;
+  generateTts(config: {
+    text: string;
+    speakerId?: number;
+    speakingRate?: number;
+    playAudio?: boolean;
+    fileNamePrefix?: string | null;
+    lengthScale?: number | null;
+    noiseScale?: number | null;
+    noiseScaleW?: number | null;
+  }): Promise<TtsGenerateResult>;
   stopTts(): Promise<{ stopped: boolean; message?: string }>;
   releaseTts(): Promise<{ released: boolean }>;
   initAsr(config: AsrModelConfig): Promise<AsrInitResult>;
@@ -610,3 +632,47 @@ export interface SherpaOnnxStatic {
 }
 
 export declare const SherpaOnnx: SherpaOnnxStatic;
+
+/**
+ * Options for text-to-speech processing
+ */
+export interface TtsOptions {
+  /**
+   * Speaker ID to use (default: 0)
+   */
+  speakerId?: number;
+
+  /**
+   * Speaking rate (0.5 to 2.0, default: 1.0)
+   */
+  speakingRate?: number;
+
+  /**
+   * Whether to play audio as it's generated
+   */
+  playAudio?: boolean;
+
+  /**
+   * Custom file name prefix for the generated audio file
+   * Default: "generated_audio_"
+   */
+  fileNamePrefix?: string;
+
+  /**
+   * Length scale override for this specific generation
+   * Allows fine-tuning the speaking speed (0.5 to 2.0, default: model setting)
+   */
+  lengthScale?: number;
+
+  /**
+   * Noise scale override for this specific generation
+   * Controls voice variation (default: model setting)
+   */
+  noiseScale?: number;
+
+  /**
+   * Noise scale W override for this specific generation (VITS models only)
+   * Controls randomness in phoneme duration (default: model setting)
+   */
+  noiseScaleW?: number;
+}

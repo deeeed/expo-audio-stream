@@ -11,6 +11,9 @@ import com.facebook.react.bridge.*
 import com.k2fsa.sherpa.onnx.OfflineTts
 import com.k2fsa.sherpa.onnx.OfflineTtsConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
+import com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig
+import com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig
+import com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -20,6 +23,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
     private var tts: OfflineTts? = null
     private var isGenerating = false
     private var audioTrack: AudioTrack? = null
+    private var ttsModelConfig: OfflineTtsModelConfig? = null
     
     companion object {
         private const val TAG = "SherpaOnnxTTS"
@@ -29,10 +33,16 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
      * Initialize the TTS engine with the provided model configuration
      */
     fun init(modelConfig: ReadableMap, promise: Promise) {
+        if (!SherpaOnnxModule.isLibraryLoaded) {
+            promise.reject("ERR_LIBRARY_NOT_LOADED", "Sherpa ONNX library is not loaded")
+            return
+        }
+
         // Execute initialization in a background thread
         executor.execute {
             try {
                 // Initialize the Sherpa ONNX TTS model
+                Log.i(TAG, "===== TTS INITIALIZATION START =====")
                 Log.i(TAG, "Initializing TTS with config: ${modelConfig.toHashMap()}")
                 
                 // Extract model config options
@@ -41,29 +51,29 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 val tokensFileName = modelConfig.getString("tokensFile") ?: "tokens.txt"
                 val voicesFile = modelConfig.getString("voicesFile") ?: null
                 val lexiconFile = modelConfig.getString("lexiconFile") ?: null
+                val dataDir = modelConfig.getString("dataDir") ?: modelDir
                 val modelType = modelConfig.getString("modelType") ?: "vits"
+                val sampleRate = if (modelConfig.hasKey("sampleRate")) modelConfig.getInt("sampleRate") else 16000
+                val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else 1
+                val debug = if (modelConfig.hasKey("debug")) modelConfig.getBoolean("debug") else false
                 
-                // Set sample rate if provided
-                val sampleRate = if (modelConfig.hasKey("sampleRate")) {
-                    modelConfig.getInt("sampleRate")
-                } else {
-                    16000
-                }
-                
-                // Log files for debugging
+                // Log configuration for debugging
                 Log.i(TAG, "Model dir: $modelDir")
                 Log.i(TAG, "Model file: $modelFileName")
                 Log.i(TAG, "Tokens file: $tokensFileName")
                 Log.i(TAG, "Voices file: $voicesFile")
                 Log.i(TAG, "Lexicon file: $lexiconFile")
+                Log.i(TAG, "Data dir: $dataDir")
                 Log.i(TAG, "Model type: $modelType")
+                Log.i(TAG, "Sample rate: $sampleRate")
+                Log.i(TAG, "Num threads: $numThreads")
+                Log.i(TAG, "Debug: $debug")
                 
                 // Build file paths
                 val modelAbsPath = File(modelDir, modelFileName).absolutePath
                 val tokensAbsPath = File(modelDir, tokensFileName).absolutePath
                 val voicesAbsPath = voicesFile?.let { File(modelDir, it).absolutePath }
                 val lexiconAbsPath = lexiconFile?.let { File(modelDir, it).absolutePath }
-                val dataDir = File(modelDir).absolutePath
                 
                 // Check if files exist
                 val modelFileObj = File(modelAbsPath)
@@ -91,144 +101,103 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                     }
                 }
                 
-                // Create TTS config based on model type
-                val ttsModelConfig = com.k2fsa.sherpa.onnx.OfflineTtsModelConfig()
-                val ttsConfig = com.k2fsa.sherpa.onnx.OfflineTtsConfig()
-                
-                // Use reflection to set properties since direct property access is giving errors
-                try {
-                    // Log sample rate and num threads values first
-                    Log.i(TAG, "Setting sample rate: $sampleRate")
-                    Log.i(TAG, "Setting num threads: ${if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else 1}")
-                    
-                    // Try using reflection for properties that might not be directly accessible
-                    val ttsConfigClass = ttsConfig.javaClass
-                    
-                    // Set sample rate
-                    try {
-                        val sampleRateField = ttsConfigClass.getDeclaredField("sampleRate")
-                        sampleRateField.isAccessible = true
-                        sampleRateField.setInt(ttsConfig, sampleRate)
-                        Log.i(TAG, "Set sample rate via reflection")
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Could not set sampleRate via reflection: ${e.message}")
-                    }
-                    
-                    // Set num threads
-                    try {
-                        val threadsVal = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else 1
-                        val numThreadsField = ttsConfigClass.getDeclaredField("numThreads")
-                        numThreadsField.isAccessible = true
-                        numThreadsField.setInt(ttsConfig, threadsVal)
-                        Log.i(TAG, "Set num threads via reflection")
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Could not set numThreads via reflection: ${e.message}")
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to set TTS config properties: ${e.message}")
-                }
+                // Create TTS model config and main config objects
+                val ttsModelConfig = OfflineTtsModelConfig()
                 
                 // Configure specific model type
                 when (modelType) {
                     "vits" -> {
-                        try {
-                            // Use constructor parameters for immutable properties
-                            val vitsConfig = com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig(
-                                model = modelAbsPath,
-                                lexicon = lexiconAbsPath ?: "",
-                                tokens = tokensAbsPath
-                            )
-                            
-                            vitsConfig.dataDir = dataDir
-                            ttsModelConfig.vits = vitsConfig
-                            
-                            Log.i(TAG, "Initialized vits config using constructor parameters")
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to initialize vits config with constructor: ${e.message}")
-                            throw Exception("Could not initialize VITS TTS model: ${e.message}")
-                        }
+                        Log.i(TAG, "Configuring VITS model")
+                        // Create VITS config
+                        val vitsConfig = OfflineTtsVitsModelConfig(
+                            model = modelAbsPath,
+                            lexicon = lexiconAbsPath ?: "",
+                            tokens = tokensAbsPath
+                        )
+                        
+                        // Set data directory and noise scale settings
+                        vitsConfig.dataDir = dataDir
+                        vitsConfig.noiseScale = 0.667f
+                        vitsConfig.noiseScaleW = 0.8f
+                        vitsConfig.lengthScale = 1.0f
+                        
+                        // Set in the model config
+                        ttsModelConfig.vits = vitsConfig
                     }
                     "kokoro" -> {
-                        // Create the kokoro config using constructor with parameters for immutable properties
-                        try {
-                            // Try using constructor with parameters for immutable properties
-                            val kokoroConfig = com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig(
-                                model = modelAbsPath,
-                                voices = voicesAbsPath ?: "", 
-                                tokens = tokensAbsPath
-                            )
-                            
-                            // Now set mutable properties
-                            kokoroConfig.dataDir = dataDir
-                            kokoroConfig.lengthScale = 1.0f
-                            
-                            ttsModelConfig.kokoro = kokoroConfig
-                            
-                            Log.i(TAG, "Initialized kokoro config using constructor parameters")
-                        } catch (e: Exception) {
-                            // Fall back - try using reflection or another approach if constructor fails
-                            Log.e(TAG, "Failed to initialize kokoro config with constructor: ${e.message}")
-                            throw Exception("Could not initialize Kokoro TTS model: ${e.message}")
-                        }
+                        Log.i(TAG, "Configuring Kokoro model")
+                        // Create Kokoro config
+                        val kokoroConfig = OfflineTtsKokoroModelConfig(
+                            model = modelAbsPath,
+                            voices = voicesAbsPath ?: "",
+                            tokens = tokensAbsPath
+                        )
+                        
+                        // Set data directory and other properties
+                        kokoroConfig.dataDir = dataDir
+                        kokoroConfig.lengthScale = 1.0f
+                        
+                        // Set in the model config
+                        ttsModelConfig.kokoro = kokoroConfig
                     }
                     "matcha" -> {
-                        try {
-                            // Create the config without using apply
-                            val matchaConfig = com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig()
-                            
-                            // Set properties directly - using the correct property names
-                            matchaConfig.acousticModel = modelAbsPath // instead of model
-                            matchaConfig.tokens = tokensAbsPath
-                            
-                            // Only set vocoder if it exists
-                            if (voicesAbsPath != null) {
-                                matchaConfig.vocoder = voicesAbsPath // vocoder, not voices
-                            }
-                            
-                            matchaConfig.dataDir = dataDir
-                            ttsModelConfig.matcha = matchaConfig
-                            
-                            Log.i(TAG, "Initialized matcha config using direct property assignment")
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to initialize matcha config: ${e.message}")
-                            throw Exception("Could not initialize Matcha TTS model: ${e.message}")
+                        Log.i(TAG, "Configuring Matcha model")
+                        // Create Matcha config
+                        val matchaConfig = OfflineTtsMatchaModelConfig()
+                        
+                        // Set properties
+                        matchaConfig.acousticModel = modelAbsPath
+                        matchaConfig.tokens = tokensAbsPath
+                        
+                        // Set vocoder if provided
+                        if (voicesAbsPath != null) {
+                            matchaConfig.vocoder = voicesAbsPath
                         }
+                        
+                        // Set data directory
+                        matchaConfig.dataDir = dataDir
+                        
+                        // Set in the model config
+                        ttsModelConfig.matcha = matchaConfig
                     }
                     else -> throw Exception("Unsupported model type: $modelType")
                 }
                 
+                // Set common model config properties
+                ttsModelConfig.numThreads = numThreads
+                ttsModelConfig.debug = debug
+                ttsModelConfig.provider = "cpu"
+                
+                // Create main TTS config
+                val ttsConfig = OfflineTtsConfig()
                 ttsConfig.model = ttsModelConfig
                 
-                // Create the TTS instance
+                // Save reference to model config for parameter overrides
+                this.ttsModelConfig = ttsModelConfig
+                
+                // Initialize the TTS instance
                 Log.i(TAG, "Creating TTS instance")
                 
-                // Handle different constructor signatures
+                // Log the configuration for debugging
+                Log.i(TAG, "TTS Config: ${ttsConfig}")
+                
+                // Try creating TTS with file access first (absolute paths)
                 try {
-                    // Try with AssetManager and config (since error indicates it might be expecting AssetManager)
-                    Log.i(TAG, "Trying constructor with AssetManager and config")
-                    // Use correct parameter order: AssetManager first, config second
-                    tts = com.k2fsa.sherpa.onnx.OfflineTts(reactContext.assets, ttsConfig)
+                    tts = OfflineTts(config = ttsConfig)
+                    Log.i(TAG, "Successfully created TTS instance using file paths")
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed with first constructor, trying alternatives: ${e.message}")
-                    try {
-                        // Try creating instance with a different signature
-                        Log.i(TAG, "Trying a different constructor with config")
-                        val constructor = com.k2fsa.sherpa.onnx.OfflineTts::class.java.getConstructor(com.k2fsa.sherpa.onnx.OfflineTtsConfig::class.java)
-                        tts = constructor.newInstance(ttsConfig)
-                        Log.i(TAG, "Successfully created OfflineTts instance with reflection")
-                    } catch (e2: Exception) {
-                        Log.e(TAG, "Failed to create with reflection: ${e2.message}")
-                        
-                        // Last resort - try with null and config
-                        Log.i(TAG, "Trying constructor with null and config")
-                        tts = com.k2fsa.sherpa.onnx.OfflineTts(null, ttsConfig)
-                    }
+                    Log.w(TAG, "Failed to initialize TTS with file paths: ${e.message}. Trying with assets.")
+                    // Fall back to using assets if file access fails
+                    tts = OfflineTts(reactContext.assets, ttsConfig)
                 }
                 
                 // Check if initialization was successful
                 if (tts == null) {
                     throw Exception("Failed to initialize TTS engine")
                 }
+                
+                // Initialize audio track with the sample rate
+                initAudioTrack(sampleRate)
                 
                 // Return success result
                 val resultMap = Arguments.createMap()
@@ -239,22 +208,53 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                     promise.resolve(resultMap)
                 }
                 
-                Log.i(TAG, "TTS initialized successfully")
+                Log.i(TAG, "===== TTS INITIALIZATION COMPLETE =====")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize TTS: ${e.message}")
                 e.printStackTrace()
                 
+                // Release any partially initialized resources
+                releaseTtsResources()
+                
                 reactContext.runOnUiQueueThread {
                     promise.reject("ERR_TTS_INIT", "Failed to initialize TTS: ${e.message}")
                 }
+                
+                Log.i(TAG, "===== TTS INITIALIZATION FAILED =====")
             }
         }
     }
     
     /**
      * Generate speech from text
+     * 
+     * @param text The text to convert to speech
+     * @param speakerId The speaker ID to use (0 is default)
+     * @param speed The speaking rate (1.0 is normal speed)
+     * @param playAudio Whether to play the generated audio immediately
+     * @param fileNamePrefix Custom prefix for the output file name
+     * @param lengthScale Override for length scale
+     * @param noiseScale Override for noise scale
+     * @param noiseScaleW Override for noise scale W
+     * @param promise The promise to resolve with the result
+     * 
+     * @return A Promise that resolves with:
+     *   - success: Whether generation was successful
+     *   - sampleRate: The sample rate of the generated audio
+     *   - numSamples: Number of audio samples generated
+     *   - filePath: Path to the generated WAV file on the device
      */
-    fun generate(text: String, speakerId: Int, speed: Float, playAudio: Boolean, promise: Promise) {
+    fun generate(
+        text: String, 
+        speakerId: Int, 
+        speed: Float, 
+        playAudio: Boolean,
+        fileNamePrefix: String?,
+        lengthScale: Float?,
+        noiseScale: Float?,
+        noiseScaleW: Float?,
+        promise: Promise
+    ) {
         executor.execute {
             try {
                 if (tts == null) {
@@ -266,16 +266,63 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 }
 
                 Log.d(TAG, "Generating TTS for text: '$text' with speakerId: $speakerId, speed: $speed, playAudio: $playAudio")
+                
+                // Log advanced parameters if provided
+                if (lengthScale != null || noiseScale != null || noiseScaleW != null) {
+                    Log.d(TAG, "Using advanced parameters - lengthScale: $lengthScale, noiseScale: $noiseScale, noiseScaleW: $noiseScaleW")
+                }
+                
                 isGenerating = true
 
-                // Prepare audio playback if needed
-                if (playAudio) {
-                    prepareAudioTrack()
+                // Apply custom parameters to the TTS model if provided
+                if (lengthScale != null || noiseScale != null || noiseScaleW != null) {
+                    // Store original values to restore later
+                    var originalLengthScale: Float? = null
+                    var originalNoiseScale: Float? = null
+                    var originalNoiseScaleW: Float? = null
+                    
+                    // Apply model-specific parameters
+                    when {
+                        ttsModelConfig?.vits != null -> {
+                            val vitsConfig = ttsModelConfig?.vits
+                            // Save original values
+                            originalLengthScale = vitsConfig?.lengthScale
+                            originalNoiseScale = vitsConfig?.noiseScale
+                            originalNoiseScaleW = vitsConfig?.noiseScaleW
+                            
+                            // Apply overrides
+                            if (lengthScale != null) vitsConfig?.lengthScale = lengthScale
+                            if (noiseScale != null) vitsConfig?.noiseScale = noiseScale
+                            if (noiseScaleW != null) vitsConfig?.noiseScaleW = noiseScaleW
+                        }
+                        ttsModelConfig?.kokoro != null -> {
+                            val kokoroConfig = ttsModelConfig?.kokoro
+                            // Save original values
+                            originalLengthScale = kokoroConfig?.lengthScale
+                            
+                            // Apply overrides
+                            if (lengthScale != null) kokoroConfig?.lengthScale = lengthScale
+                        }
+                        ttsModelConfig?.matcha != null -> {
+                            val matchaConfig = ttsModelConfig?.matcha
+                            // Save original values
+                            originalLengthScale = matchaConfig?.lengthScale
+                            originalNoiseScale = matchaConfig?.noiseScale
+                            
+                            // Apply overrides
+                            if (lengthScale != null) matchaConfig?.lengthScale = lengthScale
+                            if (noiseScale != null) matchaConfig?.noiseScale = noiseScale
+                        }
+                    }
                 }
 
                 // Generate speech
                 val startTime = System.currentTimeMillis()
-                val audio = if (playAudio) {
+                var audio = if (playAudio) {
+                    // Prepare audio playback
+                    prepareAudioTrack()
+                    
+                    // Generate and play in real-time
                     Log.d(TAG, "Using generateWithCallback method")
                     tts?.generateWithCallback(text, speakerId, speed) { samples ->
                         if (!isGenerating) return@generateWithCallback 0  // Stop generating
@@ -283,20 +330,32 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                         1  // Continue generating
                     }
                 } else {
+                    // Generate without playback
                     Log.d(TAG, "Using generate method without callback")
                     tts?.generate(text, speakerId, speed)
                 }
                 val endTime = System.currentTimeMillis()
                 
+                // If no audio was generated (unlikely but possible)
+                if (audio == null) {
+                    Log.w(TAG, "No audio generated, trying again without callback")
+                    // Fallback: try again without callback
+                    audio = tts?.generate(text, speakerId, speed)
+                    if (audio == null) {
+                        throw Exception("Failed to generate speech audio")
+                    }
+                }
+                
                 // Extract results
-                val samples = audio?.samples ?: FloatArray(0)
-                val sampleRate = audio?.sampleRate ?: 16000
+                val samples = audio.samples ?: FloatArray(0)
+                val sampleRate = audio.sampleRate ?: 16000
                 
                 Log.d(TAG, "Speech generation completed in ${endTime - startTime}ms")
                 Log.d(TAG, "Generated ${samples.size} samples at ${sampleRate}Hz")
 
-                // Save to file
-                val wavFile = File(reactContext.cacheDir, "generated_audio.wav")
+                // Save to file - always do this regardless of playAudio setting
+                val prefix = fileNamePrefix ?: "generated_audio_"
+                val wavFile = File(reactContext.cacheDir, "${prefix}${System.currentTimeMillis()}.wav")
                 val saved = AudioUtils.saveAsWav(samples, sampleRate, wavFile.absolutePath)
                 Log.d(TAG, "Audio saved: $saved, file path: ${wavFile.absolutePath}")
 
