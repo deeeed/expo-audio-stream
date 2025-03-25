@@ -298,7 +298,7 @@ export interface AudioTaggingModelConfig {
    * Default: 3
    */
   topK?: number;
-  
+
   /**
    * Enable debug mode for more detailed logs
    * Default: false
@@ -359,17 +359,17 @@ export interface AudioEvent {
    * Probability score (0-1)
    */
   prob: number;
-  
+
   /**
    * @deprecated Use name instead
    */
   label?: string;
-  
+
   /**
    * @deprecated Use prob instead
    */
   confidence?: number;
-  
+
   /**
    * Probability alias for compatibility
    */
