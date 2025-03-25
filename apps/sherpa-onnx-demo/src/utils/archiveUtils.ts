@@ -1,6 +1,8 @@
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
-import { ArchiveService } from '@siteed/sherpa-onnx.rn';
+import { SherpaOnnx } from '@siteed/sherpa-onnx.rn';
+
+const { ArchiveService } = SherpaOnnx;
 
 /**
  * Interface for extraction result
@@ -14,7 +16,8 @@ interface ExtractionResult {
 /**
  * Extracts a tar.bz2 file using platform-specific methods
  * On Android, uses the native module
- * On iOS, creates mock files for now until native implementation is added
+ * On iOS, returns error as extraction is not supported
+ * No mock files are created on extraction failure.
  * 
  * @param archivePath Path to the tar.bz2 file
  * @param targetDir Directory to extract to
@@ -52,7 +55,28 @@ export async function extractTarBz2(
     if (Platform.OS === 'android') {
       console.log(`ArchiveUtils: Using native module to extract tar.bz2 on Android`);
       try {
-        // Call the ArchiveService extractTarBz2 method
+        // Check if NativeSherpaOnnx is properly initialized
+        if (!ArchiveService || typeof ArchiveService.extractTarBz2 !== 'function') {
+          console.error('ArchiveUtils: NativeSherpaOnnx.extractTarBz2 is not available');
+          return {
+            success: false,
+            message: 'Native module not available',
+            extractedFiles: []
+          };
+        }
+        
+        // First validate that the library is loaded
+        const validationResult = await SherpaOnnx.validateLibraryLoaded();
+        if (!validationResult.loaded) {
+          console.error(`ArchiveUtils: Native library not loaded: ${validationResult.status}`);
+          return {
+            success: false,
+            message: `Native library not loaded: ${validationResult.status}`,
+            extractedFiles: []
+          };
+        }
+        
+        // Call the extractTarBz2 method directly from NativeSherpaOnnx
         const result = await ArchiveService.extractTarBz2(archivePath, targetDir);
         console.log(`ArchiveUtils: Native extraction result:`, result);
         
@@ -72,21 +96,38 @@ export async function extractTarBz2(
             return {
               success: true,
               extractedFiles: existingFiles,
-              message: "Found existing files - skipping placeholder creation"
+              message: "Found existing files in target directory"
             };
+          }
+          
+          // Clean up target directory on failure
+          try {
+            console.log(`ArchiveUtils: Cleaning up failed extraction directory: ${targetDir}`);
+            await FileSystem.deleteAsync(targetDir, { idempotent: true });
+          } catch (cleanupError) {
+            console.error(`ArchiveUtils: Error cleaning up directory:`, cleanupError);
           }
           
           return {
             success: false,
-            message: `Native extraction failed: ${result.error} - No placeholder files will be created`,
+            message: `Native extraction failed: ${result.error}`,
             extractedFiles: []
           };
         }
       } catch (nativeError) {
         console.error(`ArchiveUtils: Error in native extraction:`, nativeError);
+        
+        // Clean up target directory on error
+        try {
+          console.log(`ArchiveUtils: Cleaning up failed extraction directory: ${targetDir}`);
+          await FileSystem.deleteAsync(targetDir, { idempotent: true });
+        } catch (cleanupError) {
+          console.error(`ArchiveUtils: Error cleaning up directory:`, cleanupError);
+        }
+        
         return {
           success: false,
-          message: `Error in native extraction: ${nativeError instanceof Error ? nativeError.message : String(nativeError)} - No placeholder files will be created`,
+          message: `Error in native extraction: ${nativeError instanceof Error ? nativeError.message : String(nativeError)}`,
           extractedFiles: []
         };
       }
@@ -107,89 +148,27 @@ export async function extractTarBz2(
       
       return {
         success: false,
-        message: `Native extraction not implemented on ${Platform.OS} - No placeholder files will be created`,
+        message: `Native extraction not implemented on ${Platform.OS}`,
         extractedFiles: []
       };
     }
   } catch (error) {
     console.error('ArchiveUtils: Error extracting tar.bz2:', error);
+    
+    // Clean up target directory on general error
+    try {
+      console.log(`ArchiveUtils: Cleaning up failed extraction directory: ${targetDir}`);
+      await FileSystem.deleteAsync(targetDir, { idempotent: true });
+    } catch (cleanupError) {
+      console.error(`ArchiveUtils: Error cleaning up directory:`, cleanupError);
+    }
+    
     return {
       success: false,
-      message: `Error extracting archive: ${error instanceof Error ? error.message : String(error)}`
+      message: `Error extracting archive: ${error instanceof Error ? error.message : String(error)}`,
+      extractedFiles: []
     };
   }
-}
-
-/**
- * Helper function to inform that extraction failed and no mock files will be created
- */
-async function createMockFiles(targetDir: string, archivePath: string): Promise<ExtractionResult> {
-  // Extract the model ID from the archive path (last part of the path)
-  const parts = archivePath.split('/');
-  const archiveFileName = parts[parts.length - 1];
-  const modelId = archiveFileName.replace('.tar.bz2', '');
-  
-  console.log(`ArchiveUtils: Extraction failed for model ${modelId}`);
-  console.log(`ArchiveUtils: Mock file creation is completely disabled - extraction is required`);
-  
-  // Check existing files only to report them in logs
-  let files: string[] = [];
-  try {
-    files = await FileSystem.readDirectoryAsync(targetDir);
-    console.log(`ArchiveUtils: Found ${files.length} files in target directory:`, files);
-  } catch (readError) {
-    console.error(`ArchiveUtils: Error reading directory:`, readError);
-  }
-  
-  // For Matcha models, we should still check if extraction actually succeeded partially
-  if (modelId.includes('matcha')) {
-    console.log(`ArchiveUtils: Checking for Matcha model files in subdirectories`);
-    
-    // Look for the matcha subdirectory
-    const matchaDir = files.find(file => 
-      file.includes('matcha') || 
-      (file.includes('en_US') && file.includes('ljspeech'))
-    );
-    
-    if (matchaDir) {
-      const matchaPath = `${targetDir}/${matchaDir}`;
-      
-      try {
-        const matchaInfo = await FileSystem.getInfoAsync(matchaPath);
-        
-        if (matchaInfo.exists && matchaInfo.isDirectory) {
-          console.log(`ArchiveUtils: Found Matcha subdirectory: ${matchaPath}`);
-          
-          // Get files in the Matcha subdirectory
-          const matchaFiles = await FileSystem.readDirectoryAsync(matchaPath);
-          console.log(`ArchiveUtils: Files in Matcha subdirectory: ${matchaFiles.join(', ')}`);
-          
-          // If the subdirectory has extracted files, especially the model file, extraction was likely successful
-          const hasModelFile = matchaFiles.some(file => 
-            file.includes('model-steps') || 
-            file.includes('acoustic_model')
-          );
-          
-          if (hasModelFile) {
-            console.log(`ArchiveUtils: Found model file in subdirectory, extraction appears successful`);
-            return {
-              success: true,
-              extractedFiles: files.concat(matchaFiles.map(file => `${matchaDir}/${file}`)),
-              message: "Archive extraction successful via subdirectory check."
-            };
-          }
-        }
-      } catch (error) {
-        console.error(`ArchiveUtils: Error checking Matcha subdirectory:`, error);
-      }
-    }
-  }
-  
-  return {
-    success: false,
-    extractedFiles: files,
-    message: "Archive extraction failed. Mock file creation is disabled - native extraction is required."
-  };
 }
 
 /**
@@ -207,25 +186,30 @@ export async function extractModelFromAssets(
   targetDir: string
 ): Promise<ExtractionResult> {
   try {
-    console.log(`ArchiveUtils: Extraction from assets is currently disabled for model ${modelId}`);
+    console.log(`ArchiveUtils: Attempting to extract model ${modelId} from assets to ${targetDir}`);
     
-    // Check if there are already files in the directory - we'll just report these
-    console.log(`ArchiveUtils: Checking existing files in ${targetDir}`);
+    // Check if there are already files in the directory
     let existingFiles: string[] = [];
     try {
       existingFiles = await FileSystem.readDirectoryAsync(targetDir);
       console.log(`ArchiveUtils: Found ${existingFiles.length} existing files:`, existingFiles);
+      
+      if (existingFiles.length > 0 && existingFiles.some(f => f.includes('.onnx'))) {
+        console.log(`ArchiveUtils: Found existing model files, skipping extraction`);
+        return {
+          success: true,
+          message: 'Model files already exist',
+          extractedFiles: existingFiles
+        };
+      }
     } catch (readError) {
       console.error(`ArchiveUtils: Error reading directory:`, readError);
     }
     
-    // Skip placeholder file creation entirely
-    console.log(`ArchiveUtils: Placeholder file creation is now disabled`);
-    
     return {
       success: false,
-      message: 'Placeholder file creation is disabled, please use native extraction',
-      extractedFiles: existingFiles
+      message: 'Asset extraction not implemented',
+      extractedFiles: []
     };
   } catch (error) {
     console.error('ArchiveUtils: Error in extractModelFromAssets:', error);
