@@ -14,6 +14,7 @@ export class TtsService {
   private static initialized = false;
   private static sampleRate = 0;
   private static numSpeakers = 0;
+  private static modelType?: string;
 
   /**
    * Validate that the Sherpa-ONNX library is properly loaded
@@ -38,10 +39,29 @@ export class TtsService {
         throw new Error(`Library validation failed: ${validation.status}`);
       }
 
+      // If we're already initialized, release resources
+      if (this.initialized) {
+        await this.release();
+      }
+
+      // Set default values for model parameters if not specified
+      if (config.modelType === 'vits' && config.noiseScale === undefined) {
+        config.noiseScale = 0.667;
+      }
+
+      if (config.modelType === 'vits' && config.noiseScaleW === undefined) {
+        config.noiseScaleW = 0.8;
+      }
+
+      if (config.lengthScale === undefined) {
+        config.lengthScale = 1.0;
+      }
+
       const result = await SherpaOnnxAPI.initTts(config);
       this.initialized = result.success;
       this.sampleRate = result.sampleRate;
       this.numSpeakers = result.numSpeakers;
+      this.modelType = config.modelType;
       return result;
     } catch (error) {
       this.initialized = false;
@@ -72,19 +92,37 @@ export class TtsService {
 
   /**
    * Generate speech from text
-   * @param text The text to synthesize
-   * @param options TTS options
-   * @returns Promise resolving to generation result
+   * @param text Text to synthesize
+   * @param options Options for speech generation
+   * @returns Promise resolving with generation result
    */
   public static async generateSpeech(
     text: string,
     options: TtsOptions = {}
   ): Promise<TtsGenerateResult> {
     if (!this.initialized) {
-      throw new Error('TTS is not initialized. Call initialize() first.');
+      throw new Error('TTS must be initialized first');
     }
 
-    return SherpaOnnxAPI.generateTts(text, options);
+    try {
+      const result = await SherpaOnnxAPI.generateTts(text, options);
+      
+      // Always ensure both numSamples and samplesLength are set correctly
+      if (result.numSamples !== undefined && result.samplesLength === undefined) {
+        result.samplesLength = result.numSamples;
+      } else if (result.samplesLength !== undefined && result.numSamples === undefined) {
+        result.numSamples = result.samplesLength;
+      } else if (result.samplesLength === undefined && result.numSamples === undefined) {
+        // If neither is defined (shouldn't happen, but just in case)
+        result.samplesLength = 0;
+        result.numSamples = 0;
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Failed to generate speech:', error);
+      throw error;
+    }
   }
 
   /**

@@ -27,8 +27,8 @@ class ArchiveHandler(private val reactContext: ReactApplicationContext) {
         executor.execute {
             try {
                 // Clean up the paths
-                val cleanSourcePath = sourcePath.replace("file://", "")
-                val cleanTargetDir = targetDir.replace("file://", "")
+                val cleanSourcePath = AssetUtils.cleanFilePath(sourcePath)
+                val cleanTargetDir = AssetUtils.cleanFilePath(targetDir)
                 
                 Log.i(TAG, "Extracting tar.bz2 from $cleanSourcePath to $cleanTargetDir")
                 
@@ -54,44 +54,6 @@ class ArchiveHandler(private val reactContext: ReactApplicationContext) {
                 Log.e(TAG, "Error in extractTarBz2: ${e.message}", e)
                 reactContext.runOnUiQueueThread {
                     promise.reject("ERR_EXTRACT_TAR_BZ2", "Failed to extract tar.bz2: ${e.message}")
-                }
-            }
-        }
-    }
-    
-    /**
-     * Create mock model files for testing
-     */
-    fun createMockModelFiles(targetDir: String, modelId: String, promise: Promise) {
-        executor.execute {
-            try {
-                // Clean up the paths
-                val cleanTargetDir = targetDir.replace("file://", "")
-                
-                Log.i(TAG, "Creating mock model files in $cleanTargetDir for model $modelId")
-                
-                // Use ArchiveUtils to create mock files
-                val result = ArchiveUtils.createMockModelFiles(cleanTargetDir, modelId)
-                
-                // Create a result map to return to JavaScript
-                val resultMap = Arguments.createMap()
-                resultMap.putBoolean("success", result.success)
-                resultMap.putString("message", result.message)
-                
-                // Add mock files list
-                val filesArray = Arguments.createArray()
-                for (file in result.extractedFiles) {
-                    filesArray.pushString(file)
-                }
-                resultMap.putArray("createdFiles", filesArray)
-                
-                reactContext.runOnUiQueueThread {
-                    promise.resolve(resultMap)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in createMockModelFiles: ${e.message}", e)
-                reactContext.runOnUiQueueThread {
-                    promise.reject("ERR_CREATE_MOCK_FILES", "Failed to create mock model files: ${e.message}")
                 }
             }
         }
