@@ -1,5 +1,19 @@
 import { SherpaOnnxAPI } from './SherpaOnnxAPI';
 import { TtsService } from './services/TtsService';
+import { AudioTaggingService } from './services/AudioTaggingService';
+import type {
+  AudioEvent,
+  AudioFileProcessResult,
+  AudioProcessResult,
+  AudioTaggingInitResult,
+  AudioTaggingModelConfig,
+  AudioTaggingProcessOptions,
+  AudioTaggingProcessResult,
+  AudioTaggingResult,
+  TtsGenerateResult,
+  TtsInitResult,
+  TtsModelConfig,
+} from './types/interfaces';
 
 // Export types
 export * from './types/interfaces';
@@ -11,40 +25,31 @@ export default {
    */
   validateLibraryLoaded: SherpaOnnxAPI.validateLibraryLoaded,
 
-  /**
-   * Debug asset loading - useful for diagnosing asset issues
-   */
-  debugAssetLoading: SherpaOnnxAPI.debugAssetLoading,
-
-  /**
-   * List all available assets in the application bundle
-   * This is helpful for debugging asset loading issues
-   */
-  listAllAssets: SherpaOnnxAPI.listAllAssets,
-
   // Services
   TTS: TtsService,
-
-  // Add to your interface or export:
-  debugAssetPath: SherpaOnnxAPI.debugAssetPath,
-
+  AudioTagging: AudioTaggingService,
   /**
    * Extract a tar.bz2 file to a target directory
    * This uses platform-specific native implementation
-   * 
-   * @param sourcePath Path to the tar.bz2 file 
+   *
+   * @param sourcePath Path to the tar.bz2 file
    * @param targetDir Directory to extract to
    * @returns Promise with extraction result
    */
   extractTarBz2: SherpaOnnxAPI.extractTarBz2,
+};
 
-  /**
-   * Create mock model files when extraction fails
-   * This creates placeholder files that can be used for testing
-   * 
-   * @param targetDir Directory to create files in
-   * @param modelId Model ID for naming the files
-   * @returns Promise with creation result
-   */
-  createMockModelFiles: SherpaOnnxAPI.createMockModelFiles,
+// Type export
+export type {
+  AudioEvent,
+  AudioFileProcessResult,
+  AudioProcessResult,
+  AudioTaggingInitResult,
+  AudioTaggingModelConfig,
+  AudioTaggingProcessOptions,
+  AudioTaggingProcessResult,
+  AudioTaggingResult,
+  TtsGenerateResult,
+  TtsInitResult,
+  TtsModelConfig,
 };

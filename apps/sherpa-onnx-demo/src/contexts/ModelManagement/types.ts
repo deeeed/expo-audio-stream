@@ -50,6 +50,7 @@ export interface ModelManagementContextType {
   getAvailableModels: () => ModelMetadata[];
   refreshModelStatus: (modelId: string) => Promise<void>;
   clearAllModels: () => Promise<void>;
+  cancelDownload: (modelId: string) => Promise<void>;
 }
 
 export interface ModelManagementProviderProps {

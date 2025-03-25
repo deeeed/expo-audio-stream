@@ -1,8 +1,26 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useColorScheme } from 'react-native';
+import { Colors } from 'react-native/Libraries/NewAppScreen';
+
+function TabBarIcon(props: {
+  name: React.ComponentProps<typeof Ionicons>['name'];
+  color: string;
+}) {
+  return <Ionicons size={24} style={{ marginBottom: -3 }} {...props} />;
+}
+
+function MaterialTabBarIcon(props: {
+  name: React.ComponentProps<typeof MaterialIcons>['name'];
+  color: string;
+}) {
+  return <MaterialIcons size={24} style={{ marginBottom: -3 }} {...props} />;
+}
 
 export default function TabLayout() {
+  const colorScheme = useColorScheme();
+
   return (
     <Tabs screenOptions={{ 
       headerShown: true,
@@ -23,6 +41,15 @@ export default function TabLayout() {
           title: 'Text to Speech',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="record-voice-over" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="audio-tagging"
+        options={{
+          title: 'Audio Tagging',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="music-note" size={size} color={color} />
           ),
         }}
       />

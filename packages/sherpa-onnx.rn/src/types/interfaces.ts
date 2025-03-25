@@ -247,3 +247,206 @@ export interface AssetListResult {
    */
   count: number;
 }
+
+/**
+ * Audio Tagging Model Configuration
+ */
+export interface AudioTaggingModelConfig {
+  /**
+   * Directory containing model files
+   */
+  modelDir: string;
+
+  /**
+   * Model file name (e.g., "model.onnx" or "model.int8.onnx")
+   */
+  modelName?: string;
+
+  /**
+   * Model type (zipformer or ced)
+   */
+  modelType?: 'zipformer' | 'ced';
+
+  /**
+   * Path to labels file (usually class_labels_indices.csv)
+   */
+  labelsPath?: string;
+
+  /**
+   * Number of threads for processing
+   */
+  numThreads?: number;
+
+  /**
+   * Top K results to return
+   */
+  topK?: number;
+}
+
+/**
+ * Result of AudioTagging initialization
+ */
+export interface AudioTaggingInitResult {
+  /**
+   * Whether initialization was successful
+   */
+  success: boolean;
+
+  /**
+   * Error message if initialization failed
+   */
+  error?: string;
+}
+
+/**
+ * Result of audio sample processing
+ */
+export interface AudioProcessResult {
+  /**
+   * Whether processing was successful
+   */
+  success: boolean;
+
+  /**
+   * Number of samples that were processed
+   */
+  processedSamples: number;
+
+  /**
+   * Error message if processing failed
+   */
+  error?: string;
+}
+
+/**
+ * Detected audio event
+ */
+export interface AudioEvent {
+  /**
+   * Name/label of the detected audio event
+   */
+  name: string;
+
+  /**
+   * Index of the event in the labels file
+   */
+  index: number;
+
+  /**
+   * Probability score (0-1)
+   */
+  probability: number;
+}
+
+/**
+ * Result of audio tagging computation
+ */
+export interface AudioTaggingResult {
+  /**
+   * Whether computation was successful
+   */
+  success: boolean;
+
+  /**
+   * Processing time in milliseconds
+   */
+  durationMs: number;
+
+  /**
+   * Array of detected audio events
+   */
+  events: AudioEvent[];
+
+  /**
+   * Error message if computation failed
+   */
+  error?: string;
+}
+
+/**
+ * Options for processing audio for tagging
+ */
+export interface AudioTaggingProcessOptions {
+  /**
+   * Path to audio file to process
+   * Use this for processing an entire audio file from disk
+   */
+  filePath?: string;
+
+  /**
+   * Raw audio samples
+   * Use this when you have PCM samples in memory
+   */
+  samples?: number[];
+
+  /**
+   * Sample rate of the audio (required when using samples)
+   */
+  sampleRate?: number;
+}
+
+/**
+ * Result of processing audio for tagging
+ */
+export interface AudioTaggingProcessResult {
+  /**
+   * Whether processing was successful
+   */
+  success: boolean;
+
+  /**
+   * Type of audio processed
+   */
+  inputType: 'file' | 'samples';
+
+  /**
+   * Message describing the result
+   */
+  message?: string;
+
+  /**
+   * Sample rate of the processed audio
+   */
+  sampleRate?: number;
+
+  /**
+   * Number of samples that were processed
+   */
+  samplesProcessed?: number;
+
+  /**
+   * Error message if processing failed
+   */
+  error?: string;
+}
+
+/**
+ * Result of processing an audio file
+ * @deprecated Use AudioTaggingProcessResult instead
+ */
+export interface AudioFileProcessResult {
+  /**
+   * Whether processing was successful
+   */
+  success: boolean;
+
+  /**
+   * Message describing the result
+   */
+  message?: string;
+
+  /**
+   * Sample rate of the processed audio
+   */
+  sampleRate: number;
+
+  /**
+   * Number of samples that were processed
+   */
+  samples: number;
+
+  /**
+   * Error message if processing failed
+   */
+  error?: string;
+}
