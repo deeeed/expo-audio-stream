@@ -1,6 +1,5 @@
 import { NativeModules } from 'react-native';
 import type {
-  AssetListResult,
   TtsGenerateResult,
   TtsInitResult,
   TtsModelConfig,
@@ -115,37 +114,6 @@ export class SherpaOnnxAPI {
   }
 
   /**
-   * List all available assets in the application bundle
-   * This is helpful for debugging asset loading issues
-   * @returns Promise that resolves with a list of all assets and their count
-   */
-  public static async listAllAssets(): Promise<{
-    assets: string[];
-    count: number;
-  }> {
-    try {
-      return await NativeSherpaOnnx.listAllAssets();
-    } catch (error: any) {
-      console.error('Failed to list assets:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Debug asset path - useful for diagnosing asset issues
-   * @param path Path to debug
-   * @returns Promise that resolves with details about the asset path
-   */
-  public static async debugAssetPath(path: string): Promise<AssetListResult> {
-    try {
-      return await NativeSherpaOnnx.debugAssetPath(path);
-    } catch (error: any) {
-      console.error('Failed to debug asset path:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Extract a tar.bz2 file to a target directory
    * @param sourcePath Path to the tar.bz2 file
    * @param targetDir Directory to extract to
@@ -168,33 +136,9 @@ export class SherpaOnnxAPI {
   }
 
   /**
-   * Create mock model files when extraction fails
-   * @param targetDir Directory to create files in
-   * @param modelId Model ID for naming
-   * @returns Promise that resolves with creation result
-   */
-  public static async createMockModelFiles(
-    targetDir: string,
-    modelId: string
-  ): Promise<{
-    success: boolean;
-    message: string;
-    createdFiles: string[];
-  }> {
-    try {
-      return await NativeSherpaOnnx.createMockModelFiles(targetDir, modelId);
-    } catch (error: any) {
-      console.error('Failed to create mock model files:', error);
-      throw error;
-    }
-  }
-
-  // Audio Tagging methods
-
-  /**
-   * Initialize the AudioTagging module with the provided configuration
-   * @param config AudioTagging model configuration
-   * @returns Promise resolving to initialization result
+   * Initialize audio tagging with the provided model configuration
+   * @param config Audio tagging model configuration
+   * @returns Promise that resolves with initialization result
    */
   public static async initAudioTagging(
     config: AudioTaggingModelConfig
