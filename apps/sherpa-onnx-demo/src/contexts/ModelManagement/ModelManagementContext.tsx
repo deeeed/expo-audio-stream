@@ -374,6 +374,16 @@ export function ModelManagementProvider({
   const deleteModel = async (modelId: string) => {
     console.log(`Starting deletion of model ${modelId}...`);
     const state = modelStates[modelId];
+    
+    // If model is in the extracting state, mark it as cancelled first
+    if (state?.status === 'extracting') {
+      console.log(`Model ${modelId} is currently being extracted, marking as cancelled first`);
+      updateModelState(modelId, {
+        status: 'error' as ModelStatus,
+        error: 'Extraction cancelled by user',
+      });
+    }
+    
     if (state?.localPath) {
       try {
         await FileSystem.deleteAsync(state.localPath, { idempotent: true });
@@ -481,60 +491,69 @@ export function ModelManagementProvider({
   const cancelDownload = async (modelId: string) => {
     console.log(`Cancelling download for model ${modelId}...`);
     
-    // Get the main download resumable
-    const downloadResumable = activeDownloads[modelId];
+    // Get the current model state
+    const currentState = modelStates[modelId];
     
-    if (downloadResumable) {
-      try {
-        // Cancel the download
-        await downloadResumable.cancelAsync();
-        console.log(`Successfully cancelled main download for model ${modelId}`);
-      } catch (error) {
-        console.error(`Error cancelling main download for model ${modelId}:`, error);
-      }
+    // Cancel based on current status
+    if (currentState?.status === 'downloading') {
+      // Get the main download resumable
+      const downloadResumable = activeDownloads[modelId];
       
-      // Remove from active downloads
-      setActiveDownloads(prev => {
-        const newDownloads = { ...prev };
-        delete newDownloads[modelId];
-        return newDownloads;
-      });
-    }
-    
-    // Cancel any dependency downloads
-    for (const key of Object.keys(activeDownloads)) {
-      if (key.startsWith(`${modelId}_dep_`)) {
+      if (downloadResumable) {
         try {
-          await activeDownloads[key].cancelAsync();
-          console.log(`Successfully cancelled dependency download ${key}`);
+          // Cancel the download
+          await downloadResumable.cancelAsync();
+          console.log(`Successfully cancelled main download for model ${modelId}`);
         } catch (error) {
-          console.error(`Error cancelling dependency download ${key}:`, error);
+          console.error(`Error cancelling main download for model ${modelId}:`, error);
         }
         
         // Remove from active downloads
         setActiveDownloads(prev => {
           const newDownloads = { ...prev };
-          delete newDownloads[key];
+          delete newDownloads[modelId];
           return newDownloads;
         });
       }
+      
+      // Cancel any dependency downloads
+      for (const key of Object.keys(activeDownloads)) {
+        if (key.startsWith(`${modelId}_dep_`)) {
+          try {
+            await activeDownloads[key].cancelAsync();
+            console.log(`Successfully cancelled dependency download ${key}`);
+          } catch (error) {
+            console.error(`Error cancelling dependency download ${key}:`, error);
+          }
+          
+          // Remove from active downloads
+          setActiveDownloads(prev => {
+            const newDownloads = { ...prev };
+            delete newDownloads[key];
+            return newDownloads;
+          });
+        }
+      }
     }
     
-    // Clean up the model directory
-    const state = modelStates[modelId];
-    if (state?.localPath) {
-      try {
-        await FileSystem.deleteAsync(state.localPath, { idempotent: true });
-        console.log(`Successfully cleaned up model directory for ${modelId}`);
-      } catch (error) {
-        console.error(`Error cleaning up model directory for ${modelId}:`, error);
+    // For both downloading and extracting, clean up the model directory
+    if (currentState?.status === 'downloading' || currentState?.status === 'extracting') {
+      // Clean up the model directory
+      const modelDir = currentState?.localPath || `${baseUrl}models/${modelId}`;
+      if (modelDir) {
+        try {
+          await FileSystem.deleteAsync(modelDir, { idempotent: true });
+          console.log(`Successfully cleaned up model directory for ${modelId}`);
+        } catch (error) {
+          console.error(`Error cleaning up model directory for ${modelId}:`, error);
+        }
       }
     }
     
     // Update model state
     updateModelState(modelId, {
       status: 'error' as ModelStatus,
-      error: 'Download cancelled by user',
+      error: 'Operation cancelled by user',
       progress: 0,
     });
   };

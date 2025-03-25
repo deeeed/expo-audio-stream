@@ -1,28 +1,27 @@
-import type { 
-  AudioEvent, 
-  AudioTaggingInitResult, 
+import type {
+  AudioEvent,
   AudioTaggingModelConfig,
   AudioTaggingResult
 } from '@siteed/sherpa-onnx.rn';
-import SherpaOnnx from '@siteed/sherpa-onnx.rn';
+import { AudioTagging } from '@siteed/sherpa-onnx.rn';
+import { Asset } from 'expo-asset';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Button,
-  FlatList,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  TextInput,
+  Switch
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelManagement } from '../../contexts/ModelManagement';
-import { Asset } from 'expo-asset';
 
 // Define sample audio with only name and module
 const SAMPLE_AUDIO_FILES = [
@@ -55,6 +54,17 @@ const verifyFileExists = async (expoUri: string): Promise<boolean> => {
     console.error(`Error checking file existence: ${expoUri}`, error);
     return false;
   }
+};
+
+// Helper function to clean file paths to be compatible with both Expo and native code
+const cleanFilePath = (path: string): string => {
+  // Strip the file:// or file:/ prefix if present
+  if (path.startsWith('file://')) {
+    return path.substring(7);
+  } else if (path.startsWith('file:/')) {
+    return path.substring(6);
+  }
+  return path;
 };
 
 /**
@@ -121,6 +131,9 @@ const findModelFileRecursive = async (basePath: string): Promise<{ modelDir: str
   return searchDirectory(expoBasePath);
 };
 
+// Create an instance of the AudioTaggingService
+const audioTaggingService = new AudioTagging();
+
 export default function AudioTaggingScreen() {
   const { models, getDownloadedModels, getModelState } = useModelManagement();
   const [initialized, setInitialized] = useState(false);
@@ -135,7 +148,7 @@ export default function AudioTaggingScreen() {
     module: number;
     localUri: string;
   } | null>(null);
-  const [audioTaggingResults, setAudioTaggingResults] = useState<AudioEvent[]>([]);
+  const [audioTaggingResults, setAudioTaggingResults] = useState<AudioTaggingResult | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   
   // Add state for loaded audio assets
@@ -158,6 +171,11 @@ export default function AudioTaggingScreen() {
   }>({
     isLoading: false
   });
+  
+  // Add state for configuration options
+  const [topK, setTopK] = useState<number>(5);
+  const [numThreads, setNumThreads] = useState<number>(2);
+  const [debugMode, setDebugMode] = useState<boolean>(false);
   
   // Get only relevant models for audio tagging
   const availableModels = getDownloadedModels().filter(model => 
@@ -197,23 +215,18 @@ export default function AudioTaggingScreen() {
     return () => {
       if (initialized) {
         console.log('Cleaning up audio tagging resources');
-        SherpaOnnx.AudioTagging.release().catch(err => 
+        audioTaggingService.release().catch((err: Error) => 
           console.error('Error releasing audio tagging resources:', err)
         );
       }
-    };
-  }, [initialized]);
-  
-  // Additional cleanup for sound object
-  useEffect(() => {
-    return () => {
+      
       if (sound) {
         sound.unloadAsync().catch(err => 
           console.error('Error unloading audio during cleanup:', err)
         );
       }
     };
-  }, [sound]);
+  }, []);
   
   // Setup audio tagging with a specific model
   async function setupAudioTagging(modelId: string) {
@@ -243,12 +256,21 @@ export default function AudioTaggingScreen() {
       const labelsExists = await verifyFileExists(labelsPath);
       
       if (!labelsExists) {
-        setError('Could not find class_labels_indices.csv file');
-        setLoading(false);
-        return;
+        // Try labels.txt as a fallback
+        const fallbackLabelsPath = `${modelFile.modelDir}/labels.txt`;
+        const fallbackLabelsExist = await verifyFileExists(fallbackLabelsPath);
+        
+        if (!fallbackLabelsExist) {
+          setError('Could not find labels file (tried class_labels_indices.csv and labels.txt)');
+          setLoading(false);
+          return;
+        }
+        
+        setLabelFilePath(fallbackLabelsPath);
+      } else {
+        setLabelFilePath(labelsPath);
       }
       
-      setLabelFilePath(labelsPath);
       setSelectedModelId(modelId);
       
       // Success, everything is ready
@@ -271,30 +293,41 @@ export default function AudioTaggingScreen() {
     setError(null);
     
     try {
-      // Determine model type from directory name
+      // Determine model type based on directory name and file name
       const dirName = modelInfo.modelDir.toLowerCase();
-      const modelType = dirName.includes('zipformer') ? 'zipformer' : 'ced';
+      const fileName = modelInfo.modelName.toLowerCase();
+      // Check if the model is a zipformer or ced model based on dir and file name
+      const isZipformer = dirName.includes('zipformer') || fileName.includes('zipformer');
+      const isCed = dirName.includes('ced') || fileName.includes('ced');
+      
+      // Default to zipformer if can't determine precisely
+      const modelType = isCed ? 'ced' : 'zipformer';
       
       // IMPORTANT PATH HANDLING:
       // 1. Expo APIs (FileSystem, etc.) expect paths with 'file://' prefix
       // 2. Native modules expect clean paths WITHOUT 'file://' prefix
       // So we strip the prefix when sending paths to native modules
-      const cleanPath = (path: string) => path.replace(/^file:\/\//, '');
+      const cleanPath = cleanFilePath;
       
       console.log('Setting up audio tagging with model in:', modelInfo.modelDir);
       console.log('Model name:', modelInfo.modelName);
+      console.log('Model type:', modelType);
       console.log('Labels file:', labelFilePath);
+      
+      // Get the labels file basename (filename without path)
+      const labelsFileName = labelFilePath.split('/').pop() || 'labels.txt';
       
       const config: AudioTaggingModelConfig = {
         modelDir: cleanPath(modelInfo.modelDir),
-        modelName: modelInfo.modelName,
-        modelType,
-        labelsPath: cleanPath(labelFilePath),
-        numThreads: 2,
-        topK: 5
+        modelFile: modelInfo.modelName,
+        modelType: modelType as 'zipformer' | 'ced',
+        labelsFile: labelsFileName,
+        numThreads: numThreads,
+        topK: topK,
+        debug: debugMode
       };
       
-      console.log('Initializing audio tagging with config:', config);
+      console.log('Initializing audio tagging with config:', JSON.stringify(config));
       
       // Check all paths exist before proceeding
       const modelPath = `${modelInfo.modelDir}/${modelInfo.modelName}`;
@@ -310,9 +343,11 @@ export default function AudioTaggingScreen() {
       
       console.log('Files verified, initializing audio tagging engine...');
       
+      // Add a log before initializing audio tagging to debug the connection
+      console.log('Audio tagging initialization: About to call AudioTaggingService.initialize with config:', config);
+      
       try {
-        // Use the AudioTagging service instead of direct method
-        const result = await SherpaOnnx.AudioTagging.initialize(config);
+        const result = await audioTaggingService.initialize(config);
         
         if (result.success) {
           setInitialized(true);
@@ -397,7 +432,7 @@ export default function AudioTaggingScreen() {
     }
     
     setProcessing(true);
-    setAudioTaggingResults([]);
+    setAudioTaggingResults(null);
     setError(null); // Clear any previous errors
     
     try {
@@ -413,18 +448,23 @@ export default function AudioTaggingScreen() {
         // Process the audio file and compute results in one call
         console.log('Processing and analyzing audio file...');
         
-        // Use the new processAndCompute method from the service
-        // This will now use our more robust native implementation for files
-        const result = await SherpaOnnx.AudioTagging.processAndCompute({
-          filePath: localFilePath
+        // The native module expects a clean path without file:/ prefix
+        // But we need to make sure the file actually exists first
+        const fileExists = await verifyFileExists(localFilePath);
+        if (!fileExists) {
+          throw new Error(`Audio file not found: ${localFilePath}`);
+        }
+        
+        const result = await audioTaggingService.processAndCompute({
+          filePath: localFilePath // The SherpaOnnxAPI will clean this path
         });
         
         if (!result.success) {
           throw new Error(result.error || 'Failed to analyze audio');
         }
         
-        setAudioTaggingResults(result.events);
-        console.log(`Detected ${result.events.length} audio events in ${result.durationMs}ms`);
+        setAudioTaggingResults(result as unknown as AudioTaggingResult);
+        console.log(`Detected ${result.events?.length || 0} audio events in ${result.durationMs}ms`);
       } catch (processingError) {
         console.error('Error processing audio data:', processingError);
         setError(`Error processing audio data: ${processingError instanceof Error ? processingError.message : String(processingError)}`);
@@ -450,9 +490,9 @@ export default function AudioTaggingScreen() {
     setLoading(true);
     
     try {
-      await SherpaOnnx.AudioTagging.release();
+      const result = await audioTaggingService.release();
       setInitialized(false);
-      setAudioTaggingResults([]);
+      setAudioTaggingResults(null);
       Alert.alert('Success', 'Audio tagging resources released');
     } catch (err) {
       console.error('Error releasing audio tagging resources:', err);
@@ -555,9 +595,20 @@ export default function AudioTaggingScreen() {
   const renderItem = ({ item }: { item: AudioEvent }) => (
     <View style={styles.resultItem}>
       <Text style={styles.resultName}>{item.name}</Text>
-      <Text style={styles.resultProb}>{(item.probability * 100).toFixed(2)}%</Text>
+      <Text style={styles.resultProb}>{(item.prob * 100).toFixed(2)}%</Text>
     </View>
   );
+  
+  // Initialize when screen comes into focus
+  useEffect(() => {
+    if (!initialized && modelInfo) {
+      handleInitAudioTagging();
+    }
+    
+    return () => {
+      handleReleaseAudioTagging();
+    };
+  }, [initialized, modelInfo]);
   
   return (
     <SafeAreaView style={styles.container}>
@@ -614,6 +665,42 @@ export default function AudioTaggingScreen() {
                 <Text style={styles.infoText}>Please select a model first</Text>
               )}
             </>
+          )}
+        </View>
+        
+        {/* Model Configuration */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>2. Model Configuration</Text>
+          {!loading && (
+            <View style={styles.configContainer}>
+              <View style={styles.configRow}>
+                <Text style={styles.configLabel}>Top K Results:</Text>
+                <TextInput 
+                  value={String(topK)}
+                  onChangeText={(text) => setTopK(Number(text) || 5)}
+                  keyboardType="numeric"
+                  style={styles.configInput}
+                />
+              </View>
+              
+              <View style={styles.configRow}>
+                <Text style={styles.configLabel}>Num Threads:</Text>
+                <TextInput 
+                  value={String(numThreads)}
+                  onChangeText={(text) => setNumThreads(Number(text) || 2)}
+                  keyboardType="numeric"
+                  style={styles.configInput}
+                />
+              </View>
+              
+              <View style={styles.configRow}>
+                <Text style={styles.configLabel}>Debug Mode:</Text>
+                <Switch 
+                  value={debugMode}
+                  onValueChange={setDebugMode}
+                />
+              </View>
+            </View>
           )}
         </View>
         
@@ -745,12 +832,12 @@ export default function AudioTaggingScreen() {
             <ActivityIndicator size="large" color="#0000ff" />
           ) : (
             <>
-              {audioTaggingResults.length > 0 ? (
+              {audioTaggingResults && audioTaggingResults.events && audioTaggingResults.events.length > 0 ? (
                 <View style={styles.resultsList}>
-                  {audioTaggingResults.map((item) => (
+                  {audioTaggingResults.events.map((item) => (
                     <View key={`${item.index}-${item.name}`} style={styles.resultItem}>
                       <Text style={styles.resultName}>{item.name}</Text>
-                      <Text style={styles.resultProb}>{(item.probability * 100).toFixed(2)}%</Text>
+                      <Text style={styles.resultProb}>{(item.prob * 100).toFixed(2)}%</Text>
                     </View>
                   ))}
                 </View>
@@ -950,5 +1037,26 @@ const styles = StyleSheet.create({
   },
   metadataLoader: {
     marginTop: 8,
+  },
+  configContainer: {
+    marginVertical: 8,
+  },
+  configRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 8,
+  },
+  configLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  configInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    padding: 8,
+    minWidth: 80,
+    textAlign: 'center',
   },
 }); 

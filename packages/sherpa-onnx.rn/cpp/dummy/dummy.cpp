@@ -563,3 +563,60 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_com_k2fsa_sherpa_onnx_WaveWriter_writeWaveToFile(JNIEnv *env, jclass obj, jstring filename, jfloatArray samples, jint sample_rate) {
     return JNI_TRUE;
 }
+
+// ======== OfflineRecognizer JNI Functions ========
+// OfflineRecognizer performs speech recognition on audio
+
+// Creates a new OfflineRecognizer instance from Android assets
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_newFromAsset(JNIEnv *env, jobject obj, jobject assetManager, jobject config) {
+    return 0;
+}
+
+// Creates a new OfflineRecognizer instance from files
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_newFromFile(JNIEnv *env, jobject obj, jobject config) {
+    return 0;
+}
+
+// Updates configuration settings for the recognizer
+extern "C" JNIEXPORT void JNICALL
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_setConfig(JNIEnv *env, jobject obj, jlong ptr, jobject config) {
+    // Empty implementation
+}
+
+// Creates a new stream for processing audio
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_createStream(JNIEnv *env, jobject obj, jlong ptr) {
+    return 0;
+}
+
+// Decodes audio from a stream and returns recognition results
+extern "C" JNIEXPORT jobject JNICALL
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_decode(JNIEnv *env, jobject obj, jlong ptr, jlong streamPtr) {
+    return nullptr;
+}
+
+// Gets the recognition result from a stream
+extern "C" JNIEXPORT jobject JNICALL
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_getResult(JNIEnv *env, jobject obj, jlong ptr, jlong streamPtr) {
+    return nullptr;
+}
+
+// Deletes an OfflineRecognizer instance
+extern "C" JNIEXPORT void JNICALL
+Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_delete(JNIEnv *env, jobject obj, jlong ptr) {
+    // Empty implementation
+}
+
+// Saves generated audio to a file
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_k2fsa_sherpa_onnx_GeneratedAudio_saveImpl(JNIEnv *env, jobject obj, jstring filename, jfloatArray samples, jint sample_rate) {
+    return JNI_TRUE;
+}
+
+// Processes generated audio with callback
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_k2fsa_sherpa_onnx_GeneratedAudio_processWithCallbackImpl(JNIEnv *env, jobject obj, jfloatArray samples, jint sample_rate, jobject callback) {
+    return JNI_TRUE;
+}

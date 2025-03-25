@@ -13,6 +13,20 @@ object AssetUtils {
     private const val TAG = "AssetUtils"
 
     /**
+     * Helper method to clean file paths by removing file:// or file:/ prefixes
+     * Useful for handling paths from Expo and React Native
+     * @param path The file path that might contain a prefix
+     * @return The cleaned path without file:// or file:/ prefixes
+     */
+    fun cleanFilePath(path: String): String {
+        return when {
+            path.startsWith("file://") -> path.substring(7)
+            path.startsWith("file:/") -> path.substring(6)
+            else -> path
+        }
+    }
+
+    /**
      * Verify if the required model assets exist
      */
     fun verifyModelAssets(

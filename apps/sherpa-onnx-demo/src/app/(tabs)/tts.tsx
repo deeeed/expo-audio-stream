@@ -1,8 +1,7 @@
 import type { TtsGenerateResult, TtsInitResult, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
-import SherpaOnnx from '@siteed/sherpa-onnx.rn';
+import { TTS } from '@siteed/sherpa-onnx.rn';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,7 +11,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Switch
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelManagement } from '../../contexts/ModelManagement';
@@ -21,8 +21,9 @@ import { useModelManagement } from '../../contexts/ModelManagement';
 const DEFAULT_TEXT = "Hello, this is a test of the Sherpa Onnx TTS system. I hope you're having a great day!";
 
 // Extended TTS result with accessible path
-interface ExtendedTtsResult extends TtsGenerateResult {
+interface ExtendedTtsResult extends Omit<TtsGenerateResult, 'numSamples'> {
   accessiblePath?: string;
+  numSamples?: number;
 }
 
 // Helper function to verify file existence
@@ -144,6 +145,8 @@ export default function TtsScreen() {
   const [ttsResult, setTtsResult] = useState<ExtendedTtsResult | null>(null);
   const [speakerId, setSpeakerId] = useState(0);
   const [speakingRate, setSpeakingRate] = useState(1.0);
+  const [debugMode, setDebugMode] = useState(false);
+  const [autoPlay, setAutoPlay] = useState(true);
 
   const {
     getDownloadedModels,
@@ -399,6 +402,7 @@ export default function TtsScreen() {
         const modelConfig: TtsModelConfig = {
           modelDir: finalPath.replace('file://', ''), // Remove file:// prefix for native module
           numThreads: 2,
+          debug: debugMode
         };
         
         // Now, find espeak data before configuring the model
@@ -604,7 +608,7 @@ export default function TtsScreen() {
 
         console.log('Initializing TTS with config:', JSON.stringify(modelConfig));
         console.log(`Model type: ${ttsModelType}`);
-        const result = await SherpaOnnx.TTS.initialize(modelConfig);
+        const result = await TTS.initialize(modelConfig);
         setInitResult(result);
         setTtsInitialized(result.success);
 
@@ -651,10 +655,10 @@ export default function TtsScreen() {
     setStatusMessage('Generating speech...');
 
     try {
-      const result = await SherpaOnnx.TTS.generateSpeech(text, {
+      const result = await TTS.generateSpeech(text, {
         speakerId,
         speakingRate,
-        playAudio: true
+        playAudio: autoPlay
       });
 
       if (result.success && result.filePath) {
@@ -674,9 +678,37 @@ export default function TtsScreen() {
             ...result,
             accessiblePath
           });
+          
+          // If not auto-playing but we want to play manually, create and play the sound
+          if (!autoPlay) {
+            // Create a new sound object and play it if requested
+            try {
+              if (sound) {
+                await sound.unloadAsync();
+              }
+              const { sound: newSound } = await Audio.Sound.createAsync({ uri: accessiblePath });
+              setSound(newSound);
+              
+              // Setup playback status listener
+              newSound.setOnPlaybackStatusUpdate((status) => {
+                if (status.isLoaded) {
+                  setIsPlaying(status.isPlaying);
+                  if (status.didJustFinish) {
+                    setIsPlaying(false);
+                  }
+                }
+              });
+              
+              setStatusMessage('Audio ready. Use the play button to listen.');
+            } catch (audioError) {
+              console.error('Error creating sound object:', audioError);
+              setErrorMessage(`Error preparing audio: ${(audioError as Error).message}`);
+            }
+          }
         } else {
           console.error(`Generated audio file does not exist: ${result.filePath}`);
           setTtsResult(result);
+          setErrorMessage('Generated audio file not found.');
         }
       } else {
         setErrorMessage('TTS generation failed or no file path returned');
@@ -690,7 +722,7 @@ export default function TtsScreen() {
 
   const handleStopTts = async () => {
     try {
-      const result = await SherpaOnnx.TTS.stopSpeech();
+      const result = await TTS.stopSpeech();
       if (result.stopped) {
         setStatusMessage('TTS stopped successfully');
       } else {
@@ -703,7 +735,7 @@ export default function TtsScreen() {
 
   const handleReleaseTts = async () => {
     try {
-      const result = await SherpaOnnx.TTS.release();
+      const result = await TTS.release();
       if (result.released) {
         setTtsInitialized(false);
         setInitResult(null);
@@ -714,6 +746,20 @@ export default function TtsScreen() {
       }
     } catch (error) {
       setErrorMessage(`Release TTS error: ${(error as Error).message}`);
+    }
+  };
+
+  const handlePlayAudio = async () => {
+    if (!ttsResult?.accessiblePath || !sound) {
+      setErrorMessage('No audio available to play');
+      return;
+    }
+    
+    try {
+      await sound.playAsync();
+      setIsPlaying(true);
+    } catch (error) {
+      setErrorMessage(`Error playing audio: ${(error as Error).message}`);
     }
   };
 
@@ -803,33 +849,7 @@ export default function TtsScreen() {
           placeholder="Enter text to speak"
         />
 
-        <View style={styles.buttonRow}>
-          <TouchableOpacity 
-            style={[
-              styles.button, 
-              styles.generateButton,
-              (!ttsInitialized || isLoading) && styles.buttonDisabled
-            ]} 
-            onPress={handleGenerateTts}
-            disabled={isLoading || !ttsInitialized}
-          >
-            <Text style={styles.buttonText}>Generate Speech</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[
-              styles.button, 
-              styles.stopButton,
-              (!ttsInitialized || isLoading) && styles.buttonDisabled
-            ]} 
-            onPress={handleStopTts}
-            disabled={isLoading || !ttsInitialized}
-          >
-            <Text style={styles.buttonText}>Stop Speech</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* TTS Configuration */}
+        {/* TTS Configuration - moved before generation buttons */}
         {ttsInitialized && (
           <View style={styles.configSection}>
             <Text style={styles.sectionTitle}>TTS Configuration</Text>
@@ -853,9 +873,65 @@ export default function TtsScreen() {
                 onChangeText={(value) => setSpeakingRate(parseFloat(value) || 1.0)}
               />
             </View>
+
+            <View style={styles.configRow}>
+              <Text style={styles.configLabel}>Debug Mode:</Text>
+              <Switch
+                value={debugMode}
+                onValueChange={setDebugMode}
+              />
+            </View>
+
+            <View style={styles.configRow}>
+              <Text style={styles.configLabel}>Auto-play Audio:</Text>
+              <Switch
+                value={autoPlay}
+                onValueChange={setAutoPlay}
+              />
+            </View>
           </View>
         )}
-        
+
+        <View style={styles.buttonRow}>
+          <TouchableOpacity 
+            style={[
+              styles.button, 
+              styles.generateButton,
+              (!ttsInitialized || isLoading) && styles.buttonDisabled
+            ]} 
+            onPress={handleGenerateTts}
+            disabled={isLoading || !ttsInitialized}
+          >
+            <Text style={styles.buttonText}>Generate Speech</Text>
+          </TouchableOpacity>
+          
+          {ttsResult?.accessiblePath && !autoPlay && (
+            <TouchableOpacity 
+              style={[
+                styles.button, 
+                styles.playButton,
+                (isPlaying || isLoading) && styles.buttonDisabled
+              ]} 
+              onPress={handlePlayAudio}
+              disabled={isPlaying || isLoading}
+            >
+              <Text style={styles.buttonText}>Play Audio</Text>
+            </TouchableOpacity>
+          )}
+          
+          <TouchableOpacity 
+            style={[
+              styles.button, 
+              styles.stopButton,
+              (!isLoading) && styles.buttonDisabled
+            ]} 
+            onPress={handleStopTts}
+            disabled={!isLoading}
+          >
+            <Text style={styles.buttonText}>Stop Speech</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* TTS Status */}
         {initResult && (
           <View style={styles.statusSection}>
@@ -867,6 +943,40 @@ export default function TtsScreen() {
               <Text style={styles.statusDetail}>
                 Sample Rate: {initResult.sampleRate}Hz
               </Text>
+            )}
+          </View>
+        )}
+        
+        {/* Generated Audio File Info */}
+        {ttsResult && ttsResult.accessiblePath && (
+          <View style={styles.statusSection}>
+            <Text style={styles.sectionTitle}>Generated Audio</Text>
+            <Text style={styles.statusDetail}>
+              File: {ttsResult.accessiblePath.split('/').pop()}
+            </Text>
+            {ttsResult.sampleRate && (
+              <Text style={styles.statusDetail}>
+                Sample Rate: {ttsResult.sampleRate}Hz
+              </Text>
+            )}
+            {ttsResult.numSamples && (
+              <Text style={styles.statusDetail}>
+                Duration: ~{(ttsResult.numSamples / ttsResult.sampleRate).toFixed(2)}s
+              </Text>
+            )}
+            {!autoPlay && (
+              <TouchableOpacity 
+                style={[
+                  styles.audioPlayButton,
+                  isPlaying && styles.audioPlayButtonDisabled
+                ]} 
+                onPress={handlePlayAudio}
+                disabled={isPlaying}
+              >
+                <Text style={styles.audioPlayButtonText}>
+                  {isPlaying ? 'Playing...' : 'Play Audio'}
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
         )}
@@ -999,6 +1109,9 @@ const styles = StyleSheet.create({
   stopButton: {
     backgroundColor: '#F44336',
   },
+  playButton: {
+    backgroundColor: '#9C27B0',
+  },
   configSection: {
     margin: 16,
     padding: 16,
@@ -1033,5 +1146,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     marginBottom: 8,
+  },
+  audioPlayButton: {
+    backgroundColor: '#9C27B0',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  audioPlayButtonDisabled: {
+    opacity: 0.6,
+  },
+  audioPlayButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 }); 

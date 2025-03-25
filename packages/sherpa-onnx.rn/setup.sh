@@ -29,6 +29,7 @@ mkdir -p prebuilt
 # Clone sherpa-onnx repository if not already present
 if [ ! -d "third_party/sherpa-onnx" ]; then
   echo -e "${BLUE}Cloning sherpa-onnx repository...${NC}"
+  # could add --depth 1 to speed up the cloning process and avoid getting the entire history
   git clone https://github.com/k2-fsa/sherpa-onnx.git third_party/sherpa-onnx
 else
   echo -e "${BLUE}Updating sherpa-onnx repository...${NC}"
