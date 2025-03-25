@@ -377,28 +377,6 @@ const AdvancedAsrSettings: React.FC<AdvancedAsrSettingsProps> = ({
             ))}
           </View>
         </View>
-        
-        {/* Feature Dimension */}
-        <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>Feature Dim:</Text>
-          <View style={styles.buttonGroup}>
-            {[39, 40, 80, 320].map(dim => (
-              <TouchableOpacity
-                key={dim}
-                style={[
-                  styles.optionButton,
-                  (config.featConfig?.featureDim === dim) && styles.optionButtonSelected
-                ]}
-                onPress={() => handleFeatureConfigChange('featureDim', dim)}
-              >
-                <Text style={[
-                  styles.optionButtonText,
-                  (config.featConfig?.featureDim === dim) && styles.optionButtonSelected
-                ]}>{dim}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
       </View>
       
       {/* Streaming mode */}
@@ -500,8 +478,7 @@ export default function AsrScreen() {
     streaming: false,
     debug: true,
     featConfig: {
-      sampleRate: 16000,
-      featureDim: 39   // Set default feature dimension to 39 (common for MFCC)
+      sampleRate: 16000
     }
   });
   
@@ -649,7 +626,7 @@ export default function AsrScreen() {
         debug: asrConfig.debug ?? true,
         featConfig: {
           sampleRate: asrConfig.featConfig?.sampleRate ?? 16000,
-          featureDim: asrConfig.featConfig?.featureDim ?? 39
+          featureDim: 39  // Always use 39 as the model expects this dimension
         },
         modelFiles: {}
       };
