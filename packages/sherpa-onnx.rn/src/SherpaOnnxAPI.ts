@@ -84,7 +84,7 @@ export class SherpaOnnxAPI {
         noiseScale: options.noiseScale ?? null,
         noiseScaleW: options.noiseScaleW ?? null,
       };
-      
+
       return await NativeSherpaOnnx.generateTts(config);
     } catch (error: any) {
       console.error('Failed to generate TTS:', error);
@@ -146,7 +146,7 @@ export class SherpaOnnxAPI {
       if (config.modelFiles) {
         // Create a clean version of modelFiles for the native side
         nativeConfig.modelFiles = {};
-        
+
         // Process each model file entry
         for (const [key, value] of Object.entries(config.modelFiles)) {
           if (value) {

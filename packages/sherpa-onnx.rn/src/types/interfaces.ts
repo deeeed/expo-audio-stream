@@ -610,7 +610,7 @@ export interface AsrRecognizeResult {
    * Error message if recognition failed
    */
   error?: string;
-  
+
   /**
    * Whether an endpoint was detected (streaming mode only)
    */
