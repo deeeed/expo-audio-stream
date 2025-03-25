@@ -1,6 +1,5 @@
 import { NativeModules } from 'react-native';
 import type {
-  AssetListResult,
   TtsGenerateResult,
   TtsInitResult,
   TtsModelConfig,
@@ -25,13 +24,7 @@ interface SherpaOnnxInterface {
   stopTts(): Promise<{ stopped: boolean; message?: string }>;
   releaseTts(): Promise<{ released: boolean }>;
   debugAssetLoading(): Promise<any>;
-  listAllAssets(): Promise<{
-    assets: string[];
-    count: number;
-  }>;
-  debugAssetPath(path: string): Promise<AssetListResult>;
-  
-  // New archive utility methods
+  // Archive utility method
   extractTarBz2(
     sourcePath: string,
     targetDir: string
@@ -39,15 +32,6 @@ interface SherpaOnnxInterface {
     success: boolean;
     message: string;
     extractedFiles: string[];
-  }>;
-  
-  createMockModelFiles(
-    targetDir: string,
-    modelId: string
-  ): Promise<{
-    success: boolean;
-    message: string;
-    createdFiles: string[];
   }>;
 }
 
@@ -75,26 +59,10 @@ const SafeSherpaOnnx: SherpaOnnxInterface = SherpaOnnx
       debugAssetLoading: async () => {
         throw new Error('SherpaOnnx native module is not available');
       },
-      listAllAssets: async () => ({
-        assets: [],
-        count: 0,
-      }),
-      debugAssetPath: async () => ({
-        exists: false,
-        isDirectory: false,
-        contents: [],
-        error: 'SherpaOnnx native module is not available',
-      }),
-      // New archive utility methods
       extractTarBz2: async () => ({
         success: false,
         message: 'SherpaOnnx native module is not available',
         extractedFiles: [],
-      }),
-      createMockModelFiles: async () => ({
-        success: false,
-        message: 'SherpaOnnx native module is not available',
-        createdFiles: [],
       }),
     };
 

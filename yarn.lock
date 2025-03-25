@@ -8606,12 +8606,16 @@ __metadata:
   resolution: "@siteed/sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo"
   dependencies:
     "@babel/core": "npm:^7.25.2"
+    "@babel/plugin-proposal-decorators": "npm:^7.25.9"
     "@expo/vector-icons": "npm:^14.0.2"
     "@react-native-async-storage/async-storage": "npm:1.23.1"
     "@siteed/sherpa-onnx.rn": "workspace:^"
     "@types/react": "npm:~18.3.12"
+    babel-plugin-module-resolver: "npm:^5.0.2"
+    babel-plugin-transform-import-meta: "npm:^2.3.2"
     dotenv-flow: "npm:^3.2.0"
     expo: "npm:^52.0.40"
+    expo-asset: "npm:~11.0.4"
     expo-av: "npm:~15.0.2"
     expo-build-properties: "npm:^0.13.2"
     expo-constants: "npm:~17.0.8"
@@ -8623,6 +8627,7 @@ __metadata:
     joi: "npm:^17.9.2"
     react: "npm:18.3.1"
     react-native: "npm:0.76.7"
+    react-native-reanimated: "npm:^3.17.1"
     react-native-safe-area-context: "npm:4.12.0"
     react-native-screens: "npm:~4.4.0"
     ts-node: "npm:^10.9.1"
@@ -12522,6 +12527,18 @@ __metadata:
   peerDependencies:
     "@babel/core": ^7.10.0
   checksum: 10/d6db38b379e3e42ac9b42c412bb1106b6899663385e0991530168e12c7516c701f70a1f96fdcc29581891d2eebf6f744a71b6fcf1cb2ec78782e0ceabec3d75b
+  languageName: node
+  linkType: hard
+
+"babel-plugin-transform-import-meta@npm:^2.3.2":
+  version: 2.3.2
+  resolution: "babel-plugin-transform-import-meta@npm:2.3.2"
+  dependencies:
+    "@babel/template": "npm:^7.25.9"
+    tslib: "npm:^2.8.1"
+  peerDependencies:
+    "@babel/core": ^7.10.0
+  checksum: 10/a4a7896888046dc8bea7f01d30c4852a94beda5a7d448bb6305529576a2507e202df4a66e4b29af417861f16bb74089502af7fc65e54fd3131625fb69b7f0995
   languageName: node
   linkType: hard
 
@@ -30515,7 +30532,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-is-edge-to-edge@npm:^1.1.6":
+"react-native-is-edge-to-edge@npm:1.1.6, react-native-is-edge-to-edge@npm:^1.1.6":
   version: 1.1.6
   resolution: "react-native-is-edge-to-edge@npm:1.1.6"
   peerDependencies:
@@ -30578,6 +30595,30 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10/20b205612417a6c39452ad3ebd205d74fcfaa244832ec9e717b87ee075bf28076bf2445e8f690aad8cf0be6f3da89b4148eb8379d0b71d1c953bd06f66cc7c56
+  languageName: node
+  linkType: hard
+
+"react-native-reanimated@npm:^3.17.1":
+  version: 3.17.1
+  resolution: "react-native-reanimated@npm:3.17.1"
+  dependencies:
+    "@babel/plugin-transform-arrow-functions": "npm:^7.0.0-0"
+    "@babel/plugin-transform-class-properties": "npm:^7.0.0-0"
+    "@babel/plugin-transform-classes": "npm:^7.0.0-0"
+    "@babel/plugin-transform-nullish-coalescing-operator": "npm:^7.0.0-0"
+    "@babel/plugin-transform-optional-chaining": "npm:^7.0.0-0"
+    "@babel/plugin-transform-shorthand-properties": "npm:^7.0.0-0"
+    "@babel/plugin-transform-template-literals": "npm:^7.0.0-0"
+    "@babel/plugin-transform-unicode-regex": "npm:^7.0.0-0"
+    "@babel/preset-typescript": "npm:^7.16.7"
+    convert-source-map: "npm:^2.0.0"
+    invariant: "npm:^2.2.4"
+    react-native-is-edge-to-edge: "npm:1.1.6"
+  peerDependencies:
+    "@babel/core": ^7.0.0-0
+    react: "*"
+    react-native: "*"
+  checksum: 10/fc1f40c477534617cf57498fea89de75a9d1fc962477c42dad0cc2204e2e23b467f3ba0f8ca25d7683fd0daee0230aa499faa29ae20917f2b8101e0d19d34a25
   languageName: node
   linkType: hard
 
@@ -34807,7 +34848,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:^2.0.0, tslib@npm:^2.0.1, tslib@npm:^2.0.3, tslib@npm:^2.1.0, tslib@npm:^2.4.0, tslib@npm:^2.5.3, tslib@npm:^2.6.0, tslib@npm:^2.6.2":
+"tslib@npm:^2.0.0, tslib@npm:^2.0.1, tslib@npm:^2.0.3, tslib@npm:^2.1.0, tslib@npm:^2.4.0, tslib@npm:^2.5.3, tslib@npm:^2.6.0, tslib@npm:^2.6.2, tslib@npm:^2.8.1":
   version: 2.8.1
   resolution: "tslib@npm:2.8.1"
   checksum: 10/3e2e043d5c2316461cb54e5c7fe02c30ef6dccb3384717ca22ae5c6b5bc95232a6241df19c622d9c73b809bea33b187f6dbc73030963e29950c2141bc32a79f7

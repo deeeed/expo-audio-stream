@@ -24,6 +24,7 @@ interface ModelCardProps {
   onSelect: () => void;
   isSelected: boolean;
   onBrowseFiles?: (modelPath: string) => void;
+  onCancelDownload?: (modelId: string) => Promise<void>;
 }
 
 interface ModelManagerProps {
@@ -38,7 +39,8 @@ const ModelCard: React.FC<ModelCardProps> = ({
   onDelete,
   onSelect,
   isSelected,
-  onBrowseFiles
+  onBrowseFiles,
+  onCancelDownload
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
@@ -235,6 +237,25 @@ const ModelCard: React.FC<ModelCardProps> = ({
             <Text style={cardStyles.progressPercent}>
               {Math.round((state.progress || 0) * 100)}%
             </Text>
+            {onCancelDownload && (
+              <TouchableOpacity 
+                style={cardStyles.cancelButton}
+                onPress={async () => {
+                  try {
+                    setIsLoading(true);
+                    await onCancelDownload(model.id);
+                  } catch (error) {
+                    Alert.alert('Cancel Error', (error as Error).message);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                disabled={isLoading}
+              >
+                <Ionicons name="close-circle" size={18} color="#ff4444" />
+                <Text style={cardStyles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <View style={cardStyles.progressBarContainer}>
             <View style={cardStyles.progressBarOuter}>
@@ -396,7 +417,8 @@ export function ModelManager({ filterType = 'all', onBrowseFiles }: ModelManager
     deleteModel,
     isModelDownloaded,
     refreshModelStatus,
-    models: modelStates
+    models: modelStates,
+    cancelDownload
   } = useModelManagement();
 
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
@@ -462,6 +484,17 @@ export function ModelManager({ filterType = 'all', onBrowseFiles }: ModelManager
     }
   };
 
+  const handleCancelDownload = async (modelId: string) => {
+    try {
+      console.log(`Cancelling download for model: ${modelId}`);
+      await cancelDownload(modelId);
+      console.log(`Download cancelled for model: ${modelId}`);
+    } catch (error) {
+      console.error(`Cancel error for model ${modelId}:`, error);
+      Alert.alert('Cancel Error', (error as Error).message);
+    }
+  };
+
   const handleDelete = async (modelId: string) => {
     try {
       console.log(`Starting deletion for model: ${modelId}`);
@@ -509,6 +542,7 @@ export function ModelManager({ filterType = 'all', onBrowseFiles }: ModelManager
                 onSelect={() => handleSelect(model.metadata.id)}
                 isSelected={selectedModelId === model.metadata.id}
                 onBrowseFiles={onBrowseFiles}
+                onCancelDownload={handleCancelDownload}
               />
             );
           })
@@ -536,6 +570,7 @@ export function ModelManager({ filterType = 'all', onBrowseFiles }: ModelManager
                 onSelect={() => handleSelect(model.id)}
                 isSelected={selectedModelId === model.id}
                 onBrowseFiles={onBrowseFiles}
+                onCancelDownload={handleCancelDownload}
               />
             );
           })
@@ -778,6 +813,21 @@ const cardStyles = StyleSheet.create({
   expandButtonText: {
     fontSize: 12,
     color: '#444',
+  },
+  cancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#ffeeee',
+    borderRadius: 4,
+  },
+  cancelButtonText: {
+    color: '#ff4444',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
   },
 });
 
