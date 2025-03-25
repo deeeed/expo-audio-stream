@@ -460,30 +460,30 @@ export interface AudioFileProcessResult {
  * Configuration for ASR model
  */
 export interface AsrModelConfig {
-  /**
-   * Directory containing the ASR model files
-   */
   modelDir: string;
-
-  /**
-   * Type of model: 'transducer', 'paraformer', 'whisper', etc.
-   */
-  modelType?: string;
-
-  /**
-   * Number of threads to use for inference
-   */
+  modelType:
+    | 'transducer'
+    | 'nemo_transducer'
+    | 'paraformer'
+    | 'nemo_ctc'
+    | 'whisper'
+    | 'tdnn'
+    | 'zipformer2_ctc'
+    | 'wenet_ctc'
+    | 'telespeech_ctc'
+    | 'fire_red_asr'
+    | 'moonshine'
+    | 'sense_voice';
   numThreads?: number;
-
-  /**
-   * Decoding method, e.g., 'greedy_search', 'modified_beam_search'
-   */
-  decodingMethod?: string;
-
-  /**
-   * Max active paths for beam search (if applicable)
-   */
+  decodingMethod?: 'greedy_search' | 'beam_search';
   maxActivePaths?: number;
+  modelFiles: {
+    encoder?: string;
+    decoder?: string;
+    joiner?: string;
+    tokens?: string;
+    model?: string;
+  };
 }
 
 /**

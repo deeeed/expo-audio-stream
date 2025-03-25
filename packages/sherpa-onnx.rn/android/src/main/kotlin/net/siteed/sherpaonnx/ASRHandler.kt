@@ -7,7 +7,9 @@ import android.content.res.AssetManager
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReadableArray
@@ -16,8 +18,10 @@ import com.facebook.react.bridge.ReactApplicationContext
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.Executors
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
-// Import Sherpa ONNX classes
+// Import Sherpa ONNX classes for offline recognition
 import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
 import com.k2fsa.sherpa.onnx.OfflineParaformerModelConfig
@@ -27,17 +31,35 @@ import com.k2fsa.sherpa.onnx.OfflineStream
 import com.k2fsa.sherpa.onnx.OfflineTransducerModelConfig
 import com.k2fsa.sherpa.onnx.OfflineWhisperModelConfig
 
+// Import Sherpa ONNX classes for online recognition
+import com.k2fsa.sherpa.onnx.OnlineRecognizer
+import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
+import com.k2fsa.sherpa.onnx.OnlineStream
+import com.k2fsa.sherpa.onnx.OnlineModelConfig
+import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
+
 /**
  * Handler for Automatic Speech Recognition functionality in Sherpa-ONNX
  * Provides methods to initialize the ASR engine, recognize audio from
  * samples or files, and clean up resources.
+ * 
+ * Supports both offline and streaming (online) recognition.
  */
+@RequiresApi(Build.VERSION_CODES.CUPCAKE)
 class ASRHandler(private val reactContext: ReactApplicationContext) {
     
     private val executor = Executors.newSingleThreadExecutor()
-    private var recognizer: OfflineRecognizer? = null
-    private var stream: OfflineStream? = null
+    
+    // Offline recognition components
+    private var offlineRecognizer: OfflineRecognizer? = null
+    private var offlineStream: OfflineStream? = null
+    
+    // Online (streaming) recognition components
+    private var onlineRecognizer: OnlineRecognizer? = null
+    private var onlineStream: OnlineStream? = null
+    
     private var isRecognizing = false
+    private var isStreaming = false
     
     companion object {
         private const val TAG = "SherpaOnnxASR"
@@ -48,6 +70,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
         private const val DEFAULT_NUM_THREADS = 2
         private const val DEFAULT_DECODING_METHOD = "greedy_search"
         private const val DEFAULT_MAX_ACTIVE_PATHS = 4
+        private const val DEFAULT_STREAMING = false
     }
     
     /**
@@ -55,175 +78,145 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
      */
     fun init(modelConfig: ReadableMap, promise: Promise) {
         if (!SherpaOnnxModule.isLibraryLoaded) {
+            Log.e(TAG, "❌ Sherpa ONNX library is not loaded")
             promise.reject("ERR_LIBRARY_NOT_LOADED", "Sherpa ONNX library is not loaded")
             return
         }
 
         executor.execute {
             try {
-                Log.i(TAG, "===== ASR INITIALIZATION START =====")
-                Log.i(TAG, "Received model config: ${modelConfig.toHashMap()}")
+                Log.i(TAG, "🚀 ===== ASR INITIALIZATION START =====")
+                Log.d(TAG, "📦 Received model config: ${modelConfig.toHashMap()}")
                 
                 // Extract paths from config
                 val modelDir = modelConfig.getString("modelDir")?.replace("file://", "") ?: ""
                 val modelType = modelConfig.getString("modelType") ?: "transducer"
                 val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else DEFAULT_NUM_THREADS
+                val modelFiles = modelConfig.getMap("modelFiles") ?: throw Exception("modelFiles is required")
+                val isStreaming = if (modelConfig.hasKey("streaming")) modelConfig.getBoolean("streaming") else DEFAULT_STREAMING
                 
-                Log.i(TAG, "Using paths provided by client:")
-                Log.i(TAG, "- modelDir: $modelDir")
-                Log.i(TAG, "- modelType: $modelType")
-                Log.i(TAG, "- numThreads: $numThreads")
+                Log.i(TAG, """
+                    📂 Model Configuration:
+                    - Directory: $modelDir
+                    - Type: $modelType
+                    - Threads: $numThreads
+                    - Streaming: $isStreaming
+                    - Files Config: ${modelFiles.toHashMap()}
+                """.trimIndent())
                 
-                // Prepare base configuration
+                // Clean up any existing resources first
+                releaseResources()
+                
+                // Validate files exist
+                val modelPaths = mutableMapOf<String, String>()
+                
+                // Check required files based on model type
+                when (modelType) {
+                    "whisper" -> {
+                        val modelFile = File(modelDir, modelFiles.getString("model") ?: "model.onnx")
+                        val tokensFile = File(modelDir, modelFiles.getString("tokens") ?: "tokens.txt")
+                        
+                        Log.d(TAG, """
+                            🔍 Checking Whisper model files:
+                            - Model: ${modelFile.absolutePath} (exists: ${modelFile.exists()}, size: ${modelFile.length()})
+                            - Tokens: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})
+                        """.trimIndent())
+                        
+                        if (!modelFile.exists()) throw Exception("Model file not found: ${modelFile.absolutePath}")
+                        if (!tokensFile.exists()) throw Exception("Tokens file not found: ${tokensFile.absolutePath}")
+                        
+                        modelPaths["model"] = modelFile.absolutePath
+                        modelPaths["tokens"] = tokensFile.absolutePath
+                    }
+                    "paraformer" -> {
+                        val encoderFile = File(modelDir, modelFiles.getString("encoder") ?: "encoder.onnx")
+                        val decoderFile = File(modelDir, modelFiles.getString("decoder") ?: "decoder.onnx")
+                        val tokensFile = File(modelDir, modelFiles.getString("tokens") ?: "tokens.txt")
+                        
+                        Log.d(TAG, """
+                            🔍 Checking Paraformer model files:
+                            - Encoder: ${encoderFile.absolutePath} (exists: ${encoderFile.exists()}, size: ${encoderFile.length()})
+                            - Decoder: ${decoderFile.absolutePath} (exists: ${decoderFile.exists()}, size: ${decoderFile.length()})
+                            - Tokens: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})
+                        """.trimIndent())
+                        
+                        if (!encoderFile.exists()) throw Exception("Encoder file not found: ${encoderFile.absolutePath}")
+                        if (!decoderFile.exists()) throw Exception("Decoder file not found: ${decoderFile.absolutePath}")
+                        if (!tokensFile.exists()) throw Exception("Tokens file not found: ${tokensFile.absolutePath}")
+                        
+                        modelPaths["encoder"] = encoderFile.absolutePath
+                        modelPaths["decoder"] = decoderFile.absolutePath
+                        modelPaths["tokens"] = tokensFile.absolutePath
+                    }
+                    else -> {
+                        val encoderFile = File(modelDir, modelFiles.getString("encoder") ?: "encoder.onnx")
+                        val decoderFile = File(modelDir, modelFiles.getString("decoder") ?: "decoder.onnx")
+                        val joinerFile = File(modelDir, modelFiles.getString("joiner") ?: "joiner.onnx")
+                        val tokensFile = File(modelDir, modelFiles.getString("tokens") ?: "tokens.txt")
+                        
+                        Log.d(TAG, """
+                            🔍 Checking Transducer model files:
+                            - Encoder: ${encoderFile.absolutePath} (exists: ${encoderFile.exists()}, size: ${encoderFile.length()})
+                            - Decoder: ${decoderFile.absolutePath} (exists: ${decoderFile.exists()}, size: ${decoderFile.length()})
+                            - Joiner: ${joinerFile.absolutePath} (exists: ${joinerFile.exists()}, size: ${joinerFile.length()})
+                            - Tokens: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})
+                        """.trimIndent())
+                        
+                        if (!encoderFile.exists()) throw Exception("Encoder file not found: ${encoderFile.absolutePath}")
+                        if (!decoderFile.exists()) throw Exception("Decoder file not found: ${decoderFile.absolutePath}")
+                        if (!joinerFile.exists()) throw Exception("Joiner file not found: ${joinerFile.absolutePath}")
+                        if (!tokensFile.exists()) throw Exception("Tokens file not found: ${tokensFile.absolutePath}")
+                        
+                        modelPaths["encoder"] = encoderFile.absolutePath
+                        modelPaths["decoder"] = decoderFile.absolutePath
+                        modelPaths["joiner"] = joinerFile.absolutePath
+                        modelPaths["tokens"] = tokensFile.absolutePath
+                    }
+                }
+                
+                Log.i(TAG, "✅ All required model files found and validated")
+                
+                // Create and set up feature configuration
                 val featureConfig = FeatureConfig()
                 featureConfig.sampleRate = DEFAULT_SAMPLE_RATE
                 featureConfig.featureDim = DEFAULT_FEATURE_DIM
                 
-                val offlineModelConfig = OfflineModelConfig()
-                offlineModelConfig.debug = DEFAULT_DEBUG
-                offlineModelConfig.provider = DEFAULT_PROVIDER
-                offlineModelConfig.numThreads = numThreads
+                Log.d(TAG, """
+                    🎯 Feature Configuration:
+                    - Sample Rate: $DEFAULT_SAMPLE_RATE
+                    - Feature Dimension: $DEFAULT_FEATURE_DIM
+                """.trimIndent())
                 
-                // Configure based on model type
-                if (modelType == "transducer") {
-                    val encoderFile = File(modelDir, "encoder.onnx")
-                    val decoderFile = File(modelDir, "decoder.onnx")
-                    val joinerFile = File(modelDir, "joiner.onnx")
-                    val tokensFile = File(modelDir, "tokens.txt")
-                    
-                    Log.i(TAG, "Encoder file: ${encoderFile.absolutePath} (exists: ${encoderFile.exists()}, size: ${encoderFile.length()})")
-                    Log.i(TAG, "Decoder file: ${decoderFile.absolutePath} (exists: ${decoderFile.exists()}, size: ${decoderFile.length()})")
-                    Log.i(TAG, "Joiner file: ${joinerFile.absolutePath} (exists: ${joinerFile.exists()}, size: ${joinerFile.length()})")
-                    Log.i(TAG, "Tokens file: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})")
-                    
-                    val transducerConfig = OfflineTransducerModelConfig()
-                    transducerConfig.encoder = encoderFile.absolutePath
-                    transducerConfig.decoder = decoderFile.absolutePath
-                    transducerConfig.joiner = joinerFile.absolutePath
-                    
-                    offlineModelConfig.transducer = transducerConfig
-                    offlineModelConfig.tokens = tokensFile.absolutePath
-                    
-                    Log.i(TAG, "Configured Transducer model")
-                } else if (modelType == "paraformer") {
-                    val encoderFile = File(modelDir, "encoder.onnx")
-                    val decoderFile = File(modelDir, "decoder.onnx")
-                    val tokensFile = File(modelDir, "tokens.txt")
-                    
-                    Log.i(TAG, "Encoder file: ${encoderFile.absolutePath} (exists: ${encoderFile.exists()}, size: ${encoderFile.length()})")
-                    Log.i(TAG, "Decoder file: ${decoderFile.absolutePath} (exists: ${decoderFile.exists()}, size: ${decoderFile.length()})")
-                    Log.i(TAG, "Tokens file: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})")
-                    
-                    val paraformerConfig = OfflineParaformerModelConfig()
-                    paraformerConfig.encoder = encoderFile.absolutePath
-                    paraformerConfig.decoder = decoderFile.absolutePath
-                    
-                    offlineModelConfig.paraformer = paraformerConfig
-                    offlineModelConfig.tokens = tokensFile.absolutePath
-                    
-                    Log.i(TAG, "Configured Paraformer model")
-                } else if (modelType == "whisper") {
-                    val modelFile = File(modelDir, "model.onnx")
-                    val tokensFile = File(modelDir, "tokens.txt")
-                    
-                    Log.i(TAG, "Model file: ${modelFile.absolutePath} (exists: ${modelFile.exists()}, size: ${modelFile.length()})")
-                    Log.i(TAG, "Tokens file: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})")
-                    
-                    val whisperConfig = OfflineWhisperModelConfig()
-                    whisperConfig.model = modelFile.absolutePath
-                    
-                    offlineModelConfig.whisper = whisperConfig
-                    offlineModelConfig.tokens = tokensFile.absolutePath
-                    
-                    Log.i(TAG, "Configured Whisper model")
+                if (isStreaming) {
+                    // Initialize online recognizer
+                    initializeOnlineRecognizer(modelType, modelPaths, numThreads, featureConfig, modelConfig)
+                    this.isStreaming = true
                 } else {
-                    // Try to autodetect model type
-                    Log.i(TAG, "Attempting to auto-detect model type from files in directory")
-                    val files = File(modelDir).listFiles() ?: emptyArray()
-                    val fileNames = files.map { it.name.lowercase() }
-                    
-                    if (fileNames.contains("model.onnx") && fileNames.contains("tokens.txt")) {
-                        val modelFile = File(modelDir, "model.onnx")
-                        val tokensFile = File(modelDir, "tokens.txt")
-                        
-                        Log.i(TAG, "Detected Whisper or similar single-file model")
-                        Log.i(TAG, "Model file: ${modelFile.absolutePath} (exists: ${modelFile.exists()}, size: ${modelFile.length()})")
-                        Log.i(TAG, "Tokens file: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})")
-                        
-                        val whisperConfig = OfflineWhisperModelConfig()
-                        whisperConfig.model = modelFile.absolutePath
-                        
-                        offlineModelConfig.whisper = whisperConfig
-                        offlineModelConfig.tokens = tokensFile.absolutePath
-                        
-                        Log.i(TAG, "Configured as Whisper model")
-                    } else if (fileNames.contains("encoder.onnx") && fileNames.contains("decoder.onnx") && 
-                               fileNames.contains("joiner.onnx") && fileNames.contains("tokens.txt")) {
-                        val encoderFile = File(modelDir, "encoder.onnx")
-                        val decoderFile = File(modelDir, "decoder.onnx")
-                        val joinerFile = File(modelDir, "joiner.onnx")
-                        val tokensFile = File(modelDir, "tokens.txt")
-                        
-                        Log.i(TAG, "Detected Transducer model")
-                        Log.i(TAG, "Encoder file: ${encoderFile.absolutePath} (exists: ${encoderFile.exists()}, size: ${encoderFile.length()})")
-                        Log.i(TAG, "Decoder file: ${decoderFile.absolutePath} (exists: ${decoderFile.exists()}, size: ${decoderFile.length()})")
-                        Log.i(TAG, "Joiner file: ${joinerFile.absolutePath} (exists: ${joinerFile.exists()}, size: ${joinerFile.length()})")
-                        Log.i(TAG, "Tokens file: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})")
-                        
-                        val transducerConfig = OfflineTransducerModelConfig()
-                        transducerConfig.encoder = encoderFile.absolutePath
-                        transducerConfig.decoder = decoderFile.absolutePath
-                        transducerConfig.joiner = joinerFile.absolutePath
-                        
-                        offlineModelConfig.transducer = transducerConfig
-                        offlineModelConfig.tokens = tokensFile.absolutePath
-                        
-                        Log.i(TAG, "Configured as Transducer model")
-                    } else {
-                        throw Exception("Could not determine model type from files. Please specify model type explicitly.")
-                    }
+                    // Initialize offline recognizer
+                    initializeOfflineRecognizer(modelType, modelPaths, numThreads, featureConfig, modelConfig)
+                    this.isStreaming = false
                 }
-                
-                // Create the final config
-                val config = OfflineRecognizerConfig()
-                config.featConfig = featureConfig
-                config.modelConfig = offlineModelConfig
-                config.decodingMethod = if (modelConfig.hasKey("decodingMethod")) {
-                    modelConfig.getString("decodingMethod") ?: DEFAULT_DECODING_METHOD
-                } else {
-                    DEFAULT_DECODING_METHOD
-                }
-                config.maxActivePaths = if (modelConfig.hasKey("maxActivePaths")) {
-                    modelConfig.getInt("maxActivePaths")
-                } else {
-                    DEFAULT_MAX_ACTIVE_PATHS
-                }
-                
-                // Initialize recognizer
-                Log.i(TAG, "Creating offline recognizer with config")
-                recognizer = OfflineRecognizer(config)
-                
-                Log.i(TAG, "ASR initialized successfully")
                 
                 // Return success result
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
                 resultMap.putString("modelType", modelType)
-                resultMap.putDouble("sampleRate", featureConfig.sampleRate.toDouble())
+                resultMap.putBoolean("streaming", isStreaming)
+                resultMap.putDouble("sampleRate", DEFAULT_SAMPLE_RATE.toDouble())
                 
-                Log.i(TAG, "===== ASR INITIALIZATION COMPLETE =====")
+                Log.i(TAG, "✨ ===== ASR INITIALIZATION COMPLETE =====")
                 
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error initializing ASR: ${e.message}")
+                Log.e(TAG, "❌ Error initializing ASR: ${e.message}")
                 e.printStackTrace()
                 
                 // Release resources in case of error
                 releaseResources()
                 
-                Log.i(TAG, "===== ASR INITIALIZATION FAILED =====")
+                Log.i(TAG, "💥 ===== ASR INITIALIZATION FAILED =====")
                 
                 reactContext.runOnUiQueueThread {
                     promise.reject("ERR_ASR_INIT", "Failed to initialize ASR: ${e.message}")
@@ -233,20 +226,203 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
     }
     
     /**
-     * Recognize speech from audio samples
+     * Initialize offline recognition engine
+     */
+    private fun initializeOfflineRecognizer(
+        modelType: String,
+        modelPaths: Map<String, String>,
+        numThreads: Int,
+        featureConfig: FeatureConfig,
+        modelConfig: com.facebook.react.bridge.ReadableMap
+    ) {
+        // Initialize model with validated paths
+        val config = OfflineRecognizerConfig()
+        
+        // Set feature configuration
+        config.featConfig = featureConfig
+        
+        // Set model configuration
+        val offlineModelConfig = OfflineModelConfig()
+        offlineModelConfig.debug = DEFAULT_DEBUG
+        offlineModelConfig.provider = DEFAULT_PROVIDER
+        offlineModelConfig.numThreads = numThreads
+        offlineModelConfig.tokens = modelPaths["tokens"] ?: ""
+        offlineModelConfig.modelType = modelType
+        
+        // Configure model type specific settings
+        when (modelType) {
+            "whisper" -> {
+                val whisperConfig = OfflineWhisperModelConfig()
+                whisperConfig.model = modelPaths["model"] ?: ""
+                offlineModelConfig.whisper = whisperConfig
+                Log.d(TAG, "🎯 Configured Whisper model: ${modelPaths["model"]}")
+            }
+            "paraformer" -> {
+                val paraformerConfig = OfflineParaformerModelConfig()
+                paraformerConfig.encoder = modelPaths["encoder"] ?: ""
+                paraformerConfig.decoder = modelPaths["decoder"] ?: ""
+                offlineModelConfig.paraformer = paraformerConfig
+                Log.d(TAG, """
+                    🎯 Configured Paraformer model:
+                    - Encoder: ${modelPaths["encoder"]}
+                    - Decoder: ${modelPaths["decoder"]}
+                """.trimIndent())
+            }
+            else -> {
+                val transducerConfig = OfflineTransducerModelConfig()
+                transducerConfig.encoder = modelPaths["encoder"] ?: ""
+                transducerConfig.decoder = modelPaths["decoder"] ?: ""
+                transducerConfig.joiner = modelPaths["joiner"] ?: ""
+                offlineModelConfig.transducer = transducerConfig
+                Log.d(TAG, """
+                    🎯 Configured Transducer model:
+                    - Encoder: ${modelPaths["encoder"]}
+                    - Decoder: ${modelPaths["decoder"]}
+                    - Joiner: ${modelPaths["joiner"]}
+                """.trimIndent())
+            }
+        }
+        
+        // Set model config
+        config.modelConfig = offlineModelConfig
+        
+        // Set decoding options
+        config.decodingMethod = modelConfig.getString("decodingMethod") ?: DEFAULT_DECODING_METHOD
+        config.maxActivePaths = if (modelConfig.hasKey("maxActivePaths")) {
+            modelConfig.getInt("maxActivePaths")
+        } else {
+            DEFAULT_MAX_ACTIVE_PATHS
+        }
+        
+        Log.d(TAG, """
+            🎯 Decoding Configuration:
+            - Method: ${config.decodingMethod}
+            - Max Active Paths: ${config.maxActivePaths}
+        """.trimIndent())
+        
+        // Log final configuration
+        Log.d(TAG, """
+            📋 Final Offline Configuration:
+            - Feature Config: ${config.featConfig.sampleRate}Hz, ${config.featConfig.featureDim}dim
+            - Model Config: ${config.modelConfig.modelType}, ${config.modelConfig.numThreads} threads
+            - Decoding: ${config.decodingMethod}, ${config.maxActivePaths} paths
+        """.trimIndent())
+        
+        // Validate configuration before creating recognizer
+        if (config.modelConfig == null) throw Exception("Model configuration is null")
+        if (config.featConfig == null) throw Exception("Feature configuration is null")
+        if (config.decodingMethod == null || config.decodingMethod.isEmpty()) throw Exception("Decoding method is not set")
+        
+        // Initialize recognizer
+        Log.i(TAG, "🔄 Creating offline recognizer with validated configuration")
+        try {
+            // Create recognizer with config
+            offlineRecognizer = OfflineRecognizer(null, config)
+            Log.i(TAG, "✅ Offline recognizer created successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to create offline recognizer: ${e.message}")
+            Log.e(TAG, "❌ Stack trace: ${e.stackTraceToString()}")
+            throw e
+        }
+    }
+    
+    /**
+     * Initialize online (streaming) recognition engine
+     */
+    private fun initializeOnlineRecognizer(
+        modelType: String,
+        modelPaths: Map<String, String>,
+        numThreads: Int,
+        featureConfig: FeatureConfig,
+        modelConfig: com.facebook.react.bridge.ReadableMap
+    ) {
+        // Initialize model with validated paths
+        val config = OnlineRecognizerConfig()
+        
+        // Set feature configuration
+        config.featConfig = featureConfig
+        
+        // Set model configuration
+        val onlineModelConfig = OnlineModelConfig()
+        onlineModelConfig.debug = DEFAULT_DEBUG
+        onlineModelConfig.provider = DEFAULT_PROVIDER
+        onlineModelConfig.numThreads = numThreads
+        onlineModelConfig.tokens = modelPaths["tokens"] ?: ""
+        onlineModelConfig.modelType = modelType
+        
+        // Configure model type specific settings
+        // Currently only Transducer model is supported for streaming (online) recognition
+        if (modelType != "transducer") {
+            throw Exception("Only Transducer models are supported for streaming recognition")
+        }
+        
+        val transducerConfig = OnlineTransducerModelConfig()
+        transducerConfig.encoder = modelPaths["encoder"] ?: ""
+        transducerConfig.decoder = modelPaths["decoder"] ?: ""
+        transducerConfig.joiner = modelPaths["joiner"] ?: ""
+        onlineModelConfig.transducer = transducerConfig
+        
+        Log.d(TAG, """
+            🎯 Configured Online Transducer model:
+            - Encoder: ${modelPaths["encoder"]}
+            - Decoder: ${modelPaths["decoder"]}
+            - Joiner: ${modelPaths["joiner"]}
+        """.trimIndent())
+        
+        // Set model config
+        config.modelConfig = onlineModelConfig
+        
+        // Set decoding options
+        config.decodingMethod = modelConfig.getString("decodingMethod") ?: DEFAULT_DECODING_METHOD
+        config.maxActivePaths = if (modelConfig.hasKey("maxActivePaths")) {
+            modelConfig.getInt("maxActivePaths")
+        } else {
+            DEFAULT_MAX_ACTIVE_PATHS
+        }
+        
+        // Log final configuration
+        Log.d(TAG, """
+            📋 Final Online Configuration:
+            - Feature Config: ${config.featConfig.sampleRate}Hz, ${config.featConfig.featureDim}dim
+            - Model Config: ${onlineModelConfig.numThreads} threads
+            - Decoding: ${config.decodingMethod}, ${config.maxActivePaths} paths
+        """.trimIndent())
+        
+        // Initialize recognizer
+        Log.i(TAG, "🔄 Creating online recognizer with validated configuration")
+        try {
+            // Create recognizer with config
+            onlineRecognizer = OnlineRecognizer(reactContext.assets, config)
+            Log.i(TAG, "✅ Online recognizer created successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to create online recognizer: ${e.message}")
+            Log.e(TAG, "❌ Stack trace: ${e.stackTraceToString()}")
+            throw e
+        }
+    }
+    
+    /**
+     * Recognize speech from audio samples (offline mode)
      */
     fun recognizeFromSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
         executor.execute {
             try {
-                if (recognizer == null) {
-                    throw Exception("ASR is not initialized")
+                if (isStreaming) {
+                    Log.e(TAG, "❌ Cannot use recognizeFromSamples with streaming mode, use streamAudio instead")
+                    throw Exception("Wrong recognition mode: use streamAudio for streaming recognition")
+                }
+                
+                if (offlineRecognizer == null) {
+                    Log.e(TAG, "❌ Offline ASR is not initialized")
+                    throw Exception("Offline ASR is not initialized")
                 }
                 
                 if (isRecognizing) {
+                    Log.e(TAG, "❌ ASR is already processing audio")
                     throw Exception("ASR is already processing audio")
                 }
                 
-                Log.d(TAG, "Recognizing audio from ${audioBuffer.size()} samples at ${sampleRate}Hz")
+                Log.i(TAG, "🎤 Starting recognition of ${audioBuffer.size()} samples at ${sampleRate}Hz")
                 isRecognizing = true
                 
                 // Convert JS array to float array
@@ -255,25 +431,34 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                     samples[i] = audioBuffer.getDouble(i).toFloat()
                 }
                 
+                Log.d(TAG, "📊 Converted audio buffer to float array")
+                
                 // Create a new stream
-                stream = recognizer!!.createStream()
+                offlineStream = offlineRecognizer!!.createStream()
+                Log.d(TAG, "🌊 Created new recognition stream")
                 
                 // Add the samples to the stream
-                stream?.acceptWaveform(samples, sampleRate)
+                offlineStream?.acceptWaveform(samples, sampleRate)
+                Log.d(TAG, "➡️ Added samples to recognition stream")
                 
                 // Perform recognition
                 val startTime = System.currentTimeMillis()
-                val result = recognizer!!.decode(stream!!)
+                Log.i(TAG, "🔄 Starting recognition process")
+                val result = offlineRecognizer!!.decode(offlineStream!!)
                 val endTime = System.currentTimeMillis()
+                val duration = endTime - startTime
                 
-                Log.d(TAG, "Recognition completed in ${endTime - startTime}ms")
-                Log.d(TAG, "Recognized text: ${result.text}")
+                Log.i(TAG, """
+                    ✨ Recognition completed:
+                    - Duration: ${duration}ms
+                    - Text: "${result.text}"
+                """.trimIndent())
                 
                 // Prepare result
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
                 resultMap.putString("text", result.text)
-                resultMap.putInt("durationMs", (endTime - startTime).toInt())
+                resultMap.putInt("durationMs", duration.toInt())
                 
                 isRecognizing = false
                 
@@ -282,7 +467,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 }
             } catch (e: Exception) {
                 isRecognizing = false
-                Log.e(TAG, "Error recognizing speech: ${e.message}")
+                Log.e(TAG, "❌ Error recognizing speech: ${e.message}")
                 e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
@@ -290,30 +475,222 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 }
             } finally {
                 // Clean up stream
-                stream?.release()
-                stream = null
+                offlineStream?.release()
+                offlineStream = null
+                Log.d(TAG, "🧹 Cleaned up recognition stream")
             }
         }
     }
     
     /**
-     * Recognize speech from an audio file
+     * Initialize streaming recognition
+     */
+    fun startStreaming(promise: Promise) {
+        executor.execute {
+            try {
+                if (!isStreaming) {
+                    Log.e(TAG, "❌ ASR is not in streaming mode")
+                    throw Exception("ASR is not in streaming mode")
+                }
+                
+                if (onlineRecognizer == null) {
+                    Log.e(TAG, "❌ Online ASR is not initialized")
+                    throw Exception("Online ASR is not initialized")
+                }
+                
+                if (isRecognizing) {
+                    Log.e(TAG, "❌ ASR is already processing audio")
+                    throw Exception("ASR is already processing audio")
+                }
+                
+                // Create a new stream
+                onlineStream = onlineRecognizer!!.createStream()
+                isRecognizing = true
+                
+                Log.i(TAG, "🎧 Started streaming recognition")
+                
+                // Prepare result
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("success", true)
+                
+                reactContext.runOnUiQueueThread {
+                    promise.resolve(resultMap)
+                }
+            } catch (e: Exception) {
+                isRecognizing = false
+                Log.e(TAG, "❌ Error starting streaming: ${e.message}")
+                e.printStackTrace()
+                
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_ASR_STREAM_START", "Failed to start streaming: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Process audio chunks for streaming recognition
+     */
+    fun streamAudio(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        executor.execute {
+            try {
+                if (!isStreaming) {
+                    Log.e(TAG, "❌ ASR is not in streaming mode")
+                    throw Exception("ASR is not in streaming mode")
+                }
+                
+                if (onlineRecognizer == null || onlineStream == null) {
+                    Log.e(TAG, "❌ Streaming not started or initialized")
+                    throw Exception("Streaming not started or initialized")
+                }
+                
+                if (!isRecognizing) {
+                    Log.e(TAG, "❌ Streaming not active, call startStreaming first")
+                    throw Exception("Streaming not active, call startStreaming first")
+                }
+                
+                // Convert JS array to float array
+                val samples = FloatArray(audioBuffer.size())
+                for (i in 0 until audioBuffer.size()) {
+                    samples[i] = audioBuffer.getDouble(i).toFloat()
+                }
+                
+                // Add the samples to the stream
+                onlineStream?.acceptWaveform(sampleRate, samples)
+                
+                // Process the audio (decode)
+                onlineRecognizer!!.decode(onlineStream!!)
+                
+                // Check if we have results and if the recognizer is ready
+                val isReady = onlineRecognizer!!.isReady(onlineStream!!)
+                val result = if (isReady) onlineRecognizer!!.getResult(onlineStream!!) else null
+                
+                // Check if we've reached an endpoint (silence or end of utterance)
+                val isEndpoint = onlineRecognizer!!.isEndpoint(onlineStream!!)
+                
+                // Prepare result
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("success", true)
+                resultMap.putBoolean("isReady", isReady)
+                resultMap.putBoolean("isEndpoint", isEndpoint)
+                
+                if (result != null) {
+                    resultMap.putString("text", result.text)
+                    
+                    // If we reached an endpoint, we can reset the stream
+                    if (isEndpoint) {
+                        onlineRecognizer!!.reset(onlineStream!!)
+                        resultMap.putBoolean("utteranceComplete", true)
+                    }
+                }
+                
+                reactContext.runOnUiQueueThread {
+                    promise.resolve(resultMap)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error streaming audio: ${e.message}")
+                e.printStackTrace()
+                
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_ASR_STREAM", "Failed to process streaming audio: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Stop streaming recognition
+     */
+    fun stopStreaming(promise: Promise) {
+        executor.execute {
+            try {
+                if (!isStreaming) {
+                    Log.e(TAG, "❌ ASR is not in streaming mode")
+                    throw Exception("ASR is not in streaming mode")
+                }
+                
+                if (!isRecognizing) {
+                    Log.i(TAG, "ℹ️ Streaming is not active, nothing to stop")
+                    
+                    val resultMap = Arguments.createMap()
+                    resultMap.putBoolean("success", true)
+                    resultMap.putString("text", "")
+                    
+                    reactContext.runOnUiQueueThread {
+                        promise.resolve(resultMap)
+                    }
+                    return@execute
+                }
+                
+                // Get final result before stopping
+                var finalText = ""
+                if (onlineRecognizer != null && onlineStream != null) {
+                    try {
+                        // Try to get final result
+                        val result = onlineRecognizer!!.getResult(onlineStream!!)
+                        finalText = result.text
+                    } catch (e: Exception) {
+                        Log.e(TAG, "❌ Error getting final result: ${e.message}")
+                    }
+                }
+                
+                // Clean up stream
+                onlineStream?.release()
+                onlineStream = null
+                
+                isRecognizing = false
+                
+                Log.i(TAG, "🛑 Stopped streaming recognition with final text: \"$finalText\"")
+                
+                // Prepare result
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("success", true)
+                resultMap.putString("text", finalText)
+                
+                reactContext.runOnUiQueueThread {
+                    promise.resolve(resultMap)
+                }
+            } catch (e: Exception) {
+                isRecognizing = false
+                Log.e(TAG, "❌ Error stopping streaming: ${e.message}")
+                e.printStackTrace()
+                
+                // Still clean up resources
+                onlineStream?.release()
+                onlineStream = null
+                
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_ASR_STREAM_STOP", "Failed to stop streaming: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Recognize speech from an audio file (offline mode only)
      */
     fun recognizeFromFile(filePath: String, promise: Promise) {
         executor.execute {
             try {
-                if (recognizer == null) {
-                    throw Exception("ASR is not initialized")
+                if (isStreaming) {
+                    Log.e(TAG, "❌ Cannot use recognizeFromFile with streaming mode")
+                    throw Exception("Wrong recognition mode: streaming mode doesn't support file recognition")
+                }
+                
+                if (offlineRecognizer == null) {
+                    Log.e(TAG, "❌ Offline ASR is not initialized")
+                    throw Exception("Offline ASR is not initialized")
                 }
                 
                 if (isRecognizing) {
+                    Log.e(TAG, "❌ ASR is already processing audio")
                     throw Exception("ASR is already processing audio")
                 }
                 
                 // Clean file path for native use
                 val cleanFilePath = filePath.replace("file://", "")
                 
-                Log.d(TAG, "Recognizing audio from file: $cleanFilePath")
+                Log.i(TAG, "🎵 Processing audio file: $cleanFilePath")
                 isRecognizing = true
                 
                 // Load the audio file
@@ -322,27 +699,39 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                     throw Exception("Failed to load audio file")
                 }
                 
-                Log.d(TAG, "Loaded audio file with ${audioData.samples.size} samples at ${audioData.sampleRate}Hz")
+                Log.d(TAG, """
+                    📊 Audio file loaded:
+                    - Samples: ${audioData.samples.size}
+                    - Sample Rate: ${audioData.sampleRate}Hz
+                    - Duration: ${audioData.samples.size / audioData.sampleRate.toFloat()}s
+                """.trimIndent())
                 
                 // Create a new stream
-                stream = recognizer!!.createStream()
+                offlineStream = offlineRecognizer!!.createStream()
+                Log.d(TAG, "🌊 Created new recognition stream")
                 
                 // Add the samples to the stream
-                stream?.acceptWaveform(audioData.samples, audioData.sampleRate)
+                offlineStream?.acceptWaveform(audioData.samples, audioData.sampleRate)
+                Log.d(TAG, "➡️ Added samples to recognition stream")
                 
                 // Perform recognition
                 val startTime = System.currentTimeMillis()
-                val result = recognizer!!.decode(stream!!)
+                Log.i(TAG, "🔄 Starting recognition process")
+                val result = offlineRecognizer!!.decode(offlineStream!!)
                 val endTime = System.currentTimeMillis()
+                val duration = endTime - startTime
                 
-                Log.d(TAG, "Recognition completed in ${endTime - startTime}ms")
-                Log.d(TAG, "Recognized text: ${result.text}")
+                Log.i(TAG, """
+                    ✨ Recognition completed:
+                    - Duration: ${duration}ms
+                    - Text: "${result.text}"
+                """.trimIndent())
                 
                 // Prepare result
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
                 resultMap.putString("text", result.text)
-                resultMap.putInt("durationMs", (endTime - startTime).toInt())
+                resultMap.putInt("durationMs", duration.toInt())
                 resultMap.putInt("sampleRate", audioData.sampleRate)
                 resultMap.putInt("samplesLength", audioData.samples.size)
                 
@@ -353,7 +742,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 }
             } catch (e: Exception) {
                 isRecognizing = false
-                Log.e(TAG, "Error recognizing speech from file: ${e.message}")
+                Log.e(TAG, "❌ Error recognizing speech from file: ${e.message}")
                 e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
@@ -361,8 +750,9 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 }
             } finally {
                 // Clean up stream
-                stream?.release()
-                stream = null
+                offlineStream?.release()
+                offlineStream = null
+                Log.d(TAG, "🧹 Cleaned up recognition stream")
             }
         }
     }
@@ -395,12 +785,21 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
      * Release ASR resources
      */
     private fun releaseResources() {
-        stream?.release()
-        stream = null
+        // Release offline resources
+        offlineStream?.release()
+        offlineStream = null
         
-        recognizer?.release()
-        recognizer = null
+        offlineRecognizer?.release()
+        offlineRecognizer = null
+        
+        // Release online resources
+        onlineStream?.release()
+        onlineStream = null
+        
+        onlineRecognizer?.release()
+        onlineRecognizer = null
         
         isRecognizing = false
+        isStreaming = false
     }
 } 

@@ -8,225 +8,151 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.util.Log
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import kotlin.String
+import kotlin.Int
+import kotlin.FloatArray
+import kotlin.Unit
+import kotlin.Boolean
+import kotlin.collections.List
+import kotlin.collections.mutableListOf
+import kotlin.collections.toFloatArray
 
 /**
- * Utility for extracting audio data from media files
+ * Utility class for extracting audio data from various audio file formats
  */
 object AudioExtractor {
     private const val TAG = "AudioExtractor"
-    private const val TIMEOUT_US = 10000L
-    
+    private const val BUFFER_SIZE = 1024 * 1024 // 1MB buffer
+
     /**
-     * Extract audio data from any supported audio file using MediaExtractor
-     * This handles MP3, WAV, AAC, and other formats supported by Android
+     * Extract audio data from a file
+     * @param file The audio file to extract from
+     * @return AudioData containing the samples and sample rate, or null if failed
      */
     fun extractAudioFromFile(file: File): AudioData? {
-        val extractor = MediaExtractor()
-        val decoder = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_AUDIO_MPEG)
-        
         try {
-            // Set the data source to our audio file
+            val extractor = MediaExtractor()
             extractor.setDataSource(file.absolutePath)
-            
-            // Find the first audio track
-            val audioTrackIndex = selectAudioTrack(extractor)
-            if (audioTrackIndex < 0) {
-                Log.e(TAG, "No audio track found in the file")
+
+            // Find the audio track
+            var audioTrackIndex = -1
+            var audioFormat: MediaFormat? = null
+
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME)
+                if (mime?.startsWith("audio/") == true) {
+                    audioTrackIndex = i
+                    audioFormat = format
+                    break
+                }
+            }
+
+            if (audioTrackIndex == -1 || audioFormat == null) {
+                Log.e(TAG, "No audio track found in file: ${file.absolutePath}")
                 return null
             }
-            
-            // Select this track for extraction
+
+            // Get audio parameters
+            val sampleRate = audioFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            val channelCount = audioFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+
+            // Select the audio track
             extractor.selectTrack(audioTrackIndex)
-            
-            // Get the format for this track
-            val format = extractor.getTrackFormat(audioTrackIndex)
-            
-            // Get sample rate from format
-            val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-            Log.i(TAG, "Audio sample rate: $sampleRate")
-            
-            // Get channel count
-            val channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-            Log.i(TAG, "Audio channels: $channelCount")
-            
-            // Configure and start the decoder
-            decoder.configure(format, null, null, 0)
+
+            // Create decoder
+            val decoder = MediaCodec.createDecoderByType(audioFormat.getString(MediaFormat.KEY_MIME)!!)
+            decoder.configure(audioFormat, null, null, 0)
             decoder.start()
-            
-            // Decode the audio to PCM
-            val pcmData = decodeAudioToPCM(extractor, format, decoder)
-            
-            // If this is stereo or multi-channel, convert to mono by averaging the channels
-            val monoSamples = if (channelCount > 1) {
-                convertToMono(pcmData, channelCount)
-            } else {
-                pcmData
+
+            // Prepare buffers
+            val inputBuffers = decoder.inputBuffers
+            val outputBuffers = decoder.outputBuffers
+            val bufferInfo = MediaCodec.BufferInfo()
+            val buffer = ByteBuffer.allocate(BUFFER_SIZE)
+
+            // Process the audio data
+            val samples = mutableListOf<Float>()
+            var isEOS = false
+
+            while (!isEOS) {
+                // Feed input to decoder
+                if (!isEOS) {
+                    val inputBufferIndex = decoder.dequeueInputBuffer(10000)
+                    if (inputBufferIndex >= 0) {
+                        val inputBuffer = inputBuffers[inputBufferIndex]
+                        val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                        if (sampleSize < 0) {
+                            isEOS = true
+                            decoder.queueInputBuffer(inputBufferIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                        } else {
+                            decoder.queueInputBuffer(inputBufferIndex, 0, sampleSize, extractor.sampleTime, 0)
+                            extractor.advance()
+                        }
+                    }
+                }
+
+                // Get decoded output
+                val outputBufferIndex = decoder.dequeueOutputBuffer(bufferInfo, 10000)
+                if (outputBufferIndex >= 0) {
+                    val outputBuffer = outputBuffers[outputBufferIndex]
+                    outputBuffer.position(bufferInfo.offset)
+                    outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
+
+                    // Convert to float samples
+                    val sampleData = ByteArray(bufferInfo.size)
+                    outputBuffer.get(sampleData)
+
+                    // Convert to float samples based on format
+                    when (audioFormat.getString(MediaFormat.KEY_MIME)) {
+                        "audio/raw" -> {
+                            // Raw PCM data
+                            val numSamples = sampleData.size / 2 // Assuming 16-bit PCM
+                            for (i in 0 until numSamples) {
+                                val sample = (sampleData[i * 2].toInt() and 0xFF) or
+                                        ((sampleData[i * 2 + 1].toInt() and 0xFF) shl 8)
+                                samples.add(sample / 32768f)
+                            }
+                        }
+                        else -> {
+                            Log.e(TAG, "Unsupported audio format: ${audioFormat.getString(MediaFormat.KEY_MIME)}")
+                            return null
+                        }
+                    }
+
+                    decoder.releaseOutputBuffer(outputBufferIndex, false)
+                }
             }
-            
-            // Convert byte array to float array
-            val floatSamples = byteArrayToFloatArray(monoSamples)
-            
-            return AudioData(floatSamples, sampleRate)
+
+            // Clean up
+            decoder.stop()
+            decoder.release()
+            extractor.release()
+
+            // Convert to float array
+            val floatSamples = samples.toFloatArray()
+
+            // If stereo, convert to mono by averaging channels
+            val monoSamples = if (channelCount > 1) {
+                val frameCount = floatSamples.size / channelCount
+                FloatArray(frameCount) { i ->
+                    var sum = 0f
+                    for (c in 0 until channelCount) {
+                        sum += floatSamples[i * channelCount + c]
+                    }
+                    sum / channelCount
+                }
+            } else {
+                floatSamples
+            }
+
+            return AudioData(monoSamples, sampleRate)
         } catch (e: Exception) {
             Log.e(TAG, "Error extracting audio: ${e.message}")
             e.printStackTrace()
             return null
-        } finally {
-            try {
-                extractor.release()
-                decoder.stop()
-                decoder.release()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error cleaning up MediaExtractor: ${e.message}")
-            }
         }
-    }
-    
-    /**
-     * Find and select the first audio track in the media file
-     */
-    private fun selectAudioTrack(extractor: MediaExtractor): Int {
-        for (i in 0 until extractor.trackCount) {
-            val format = extractor.getTrackFormat(i)
-            val mime = format.getString(MediaFormat.KEY_MIME)
-            if (mime?.startsWith("audio/") == true) {
-                return i
-            }
-        }
-        return -1
-    }
-    
-    /**
-     * Decode audio data to raw PCM using MediaCodec
-     */
-    private fun decodeAudioToPCM(extractor: MediaExtractor, format: MediaFormat, decoder: MediaCodec): ByteArray {
-        val outputBuffers = mutableListOf<ByteArray>()
-        val bufferInfo = MediaCodec.BufferInfo()
-        var inputEOS = false
-        var outputEOS = false
-        
-        // Start decoding
-        while (!outputEOS) {
-            if (!inputEOS) {
-                val inputBufferId = decoder.dequeueInputBuffer(TIMEOUT_US)
-                if (inputBufferId >= 0) {
-                    val inputBuffer = decoder.getInputBuffer(inputBufferId)
-                    inputBuffer?.clear()
-                    
-                    val sampleSize = if (inputBuffer != null) {
-                        extractor.readSampleData(inputBuffer, 0)
-                    } else -1
-                    
-                    if (sampleSize < 0) {
-                        decoder.queueInputBuffer(
-                            inputBufferId, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM
-                        )
-                        inputEOS = true
-                        Log.d(TAG, "End of audio stream reached")
-                    } else {
-                        decoder.queueInputBuffer(
-                            inputBufferId, 0, sampleSize, extractor.sampleTime, 0
-                        )
-                        extractor.advance()
-                    }
-                }
-            }
-            
-            // Get decoded data
-            val outputBufferId = decoder.dequeueOutputBuffer(bufferInfo, TIMEOUT_US)
-            if (outputBufferId >= 0) {
-                if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                    outputEOS = true
-                }
-                
-                // If we have valid output, copy it
-                if (bufferInfo.size > 0) {
-                    val outputBuffer = decoder.getOutputBuffer(outputBufferId)
-                    if (outputBuffer != null) {
-                        val data = ByteArray(bufferInfo.size)
-                        outputBuffer.position(bufferInfo.offset)
-                        outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
-                        outputBuffer.get(data)
-                        outputBuffers.add(data)
-                    }
-                }
-                
-                decoder.releaseOutputBuffer(outputBufferId, false)
-            }
-        }
-        
-        // Combine all output chunks into a single byte array
-        val totalSize = outputBuffers.sumOf { it.size }
-        val result = ByteArray(totalSize)
-        var offset = 0
-        
-        for (buffer in outputBuffers) {
-            System.arraycopy(buffer, 0, result, offset, buffer.size)
-            offset += buffer.size
-        }
-        
-        Log.i(TAG, "Decoded ${result.size} bytes of PCM audio data")
-        return result
-    }
-    
-    /**
-     * Convert multi-channel audio to mono by averaging all channels
-     */
-    private fun convertToMono(input: ByteArray, channels: Int): ByteArray {
-        // Assuming 16-bit PCM, 2 bytes per sample
-        val bytesPerSample = 2
-        val samplesPerFrame = channels
-        val bytesPerFrame = bytesPerSample * samplesPerFrame
-        val frameCount = input.size / bytesPerFrame
-        
-        val output = ByteArray(frameCount * bytesPerSample)
-        
-        for (i in 0 until frameCount) {
-            var sum = 0L
-            
-            // Average all channels
-            for (c in 0 until channels) {
-                val offset = i * bytesPerFrame + c * bytesPerSample
-                // Read 16-bit sample (little endian)
-                val sample = (input[offset].toInt() and 0xFF) or
-                             ((input[offset + 1].toInt() and 0xFF) shl 8)
-                sum += sample
-            }
-            
-            // Calculate the average
-            val average = (sum / channels).toInt()
-            
-            // Write back the mono sample (little endian)
-            val outOffset = i * bytesPerSample
-            output[outOffset] = (average and 0xFF).toByte()
-            output[outOffset + 1] = ((average shr 8) and 0xFF).toByte()
-        }
-        
-        return output
-    }
-    
-    /**
-     * Convert a PCM byte array to float array with values in range [-1.0, 1.0]
-     */
-    private fun byteArrayToFloatArray(input: ByteArray): FloatArray {
-        // Assuming 16-bit PCM, 2 bytes per sample
-        val bytesPerSample = 2
-        val sampleCount = input.size / bytesPerSample
-        val output = FloatArray(sampleCount)
-        
-        for (i in 0 until sampleCount) {
-            val offset = i * bytesPerSample
-            // Read 16-bit sample (little endian)
-            val sample = (input[offset].toInt() and 0xFF) or
-                         ((input[offset + 1].toInt() and 0xFF) shl 8)
-            
-            // Convert to signed value
-            val signedSample = if (sample >= 32768) sample - 65536 else sample
-            
-            // Normalize to [-1.0, 1.0]
-            output[i] = signedSample / 32768f
-        }
-        
-        return output
     }
 } 

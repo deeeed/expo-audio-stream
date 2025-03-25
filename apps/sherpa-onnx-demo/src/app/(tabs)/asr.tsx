@@ -47,18 +47,54 @@ const verifyFileExists = async (expoUri: string): Promise<boolean> => {
   }
 };
 
+interface ModelInfo {
+  modelDir: string;
+  modelType: 'transducer' | 'whisper' | 'paraformer' | 'nemo_transducer' | 'nemo_ctc' | 'tdnn' | 'zipformer2_ctc' | 'wenet_ctc' | 'telespeech_ctc' | 'fire_red_asr' | 'moonshine' | 'sense_voice' | 'zipformer' | 'lstm' | 'zipformer2';
+}
+
+// Extend the AsrModelConfig to include additional model types not yet in the library
+interface ExtendedAsrModelConfig extends Omit<AsrModelConfig, 'modelType'> {
+  modelType:
+    | 'transducer'
+    | 'nemo_transducer'
+    | 'paraformer'
+    | 'nemo_ctc'
+    | 'whisper'
+    | 'tdnn'
+    | 'zipformer2_ctc'
+    | 'wenet_ctc'
+    | 'telespeech_ctc'
+    | 'fire_red_asr'
+    | 'moonshine'
+    | 'sense_voice'
+    | 'zipformer'
+    | 'lstm'
+    | 'zipformer2';
+}
+
+// Update the ASRConfig interface to include the new model types
+interface ASRConfig {
+  modelDir: string;
+  modelType: 'transducer' | 'whisper' | 'paraformer' | 'nemo_transducer' | 'nemo_ctc' | 'tdnn' | 'zipformer2_ctc' | 'wenet_ctc' | 'telespeech_ctc' | 'fire_red_asr' | 'moonshine' | 'sense_voice' | 'zipformer' | 'lstm' | 'zipformer2';
+  modelFiles: Record<string, string>;
+  numThreads: number;
+  decodingMethod: string;
+  maxActivePaths: number;
+  streaming: boolean;
+}
+
 /**
  * Recursively search for ASR model files in a directory and its subdirectories
  * @param basePath Base directory path to start searching
  * @returns Object with modelDir and detected modelType if found, null otherwise
  */
-const findModelFilesRecursive = async (basePath: string): Promise<{ modelDir: string, modelType: string } | null> => {
+const findModelFilesRecursive = async (basePath: string): Promise<ModelInfo | null> => {
   console.log(`Searching for ASR models in: ${basePath}`);
   
   // Ensure base path has file:// prefix for Expo FileSystem
   const expoBasePath = basePath.startsWith('file://') ? basePath : `file://${basePath}`;
   
-  const searchDirectory = async (expoPath: string, depth = 0): Promise<{ modelDir: string, modelType: string } | null> => {
+  const searchDirectory = async (expoPath: string, depth = 0): Promise<ModelInfo | null> => {
     if (depth > 5) return null; // Increased depth limit to 5
     
     try {
@@ -76,36 +112,48 @@ const findModelFilesRecursive = async (basePath: string): Promise<{ modelDir: st
       console.log(`Found ${contents.length} items in ${expoPath}`);
       
       // Check for transducer model files (encoder, decoder, joiner)
-      const hasEncoder = contents.includes('encoder.onnx') || contents.some(file => file.includes('encoder') && file.endsWith('.onnx'));
-      const hasDecoder = contents.includes('decoder.onnx') || contents.some(file => file.includes('decoder') && file.endsWith('.onnx'));
-      const hasJoiner = contents.includes('joiner.onnx') || contents.some(file => file.includes('joiner') && file.endsWith('.onnx'));
+      const hasEncoder = contents.some(file => file.includes('encoder') && file.endsWith('.onnx'));
+      const hasDecoder = contents.some(file => file.includes('decoder') && file.endsWith('.onnx'));
+      const hasJoiner = contents.some(file => file.includes('joiner') && file.endsWith('.onnx'));
       const hasTokens = contents.includes('tokens.txt');
       
-      if (hasEncoder && hasDecoder && hasJoiner && hasTokens) {
-        console.log(`Found transducer model files in ${expoPath}`);
+      // Check for whisper model files
+      const hasWhisperModel = contents.some(file => file.includes('model') && file.endsWith('.onnx'));
+      
+      // Check for paraformer model files
+      const hasParaformerEncoder = contents.some(file => file.includes('encoder') && file.endsWith('.onnx'));
+      const hasParaformerDecoder = contents.some(file => file.includes('decoder') && file.endsWith('.onnx'));
+      
+      // Check if this is likely a zipformer model from the directory name
+      let isLikelyZipformer = expoPath.toLowerCase().includes('zipformer');
+      if (isLikelyZipformer) {
+        // It's probably a zipformer model
+        // Depending on the directory structure, it might be 'zipformer' or 'zipformer2'
+        const isZipformer2 = expoPath.toLowerCase().includes('zipformer2');
         return {
           modelDir: expoPath,
-          modelType: 'transducer'
+          modelType: isZipformer2 ? 'zipformer2' : 'zipformer'
         };
       }
       
-      // Check for whisper/single-file model
-      const hasModel = contents.some(file => file === 'model.onnx' || file.endsWith('.onnx'));
-      
-      if (hasModel && hasTokens) {
-        console.log(`Found whisper/single-file model in ${expoPath}`);
-        return {
-          modelDir: expoPath,
-          modelType: 'whisper'
+      // Determine model type based on file presence
+      if (hasWhisperModel && hasTokens) {
+        return { modelDir: expoPath, modelType: 'whisper' as const };
+      } else if (hasEncoder && hasDecoder && hasJoiner && hasTokens) {
+        // This is a transducer model (with joiner)
+        return { 
+          modelDir: expoPath, 
+          modelType: 'transducer' as const
         };
-      }
-      
-      // Check for paraformer model files (encoder, decoder)
-      if (hasEncoder && hasDecoder && hasTokens) {
-        console.log(`Found paraformer model files in ${expoPath}`);
-        return {
-          modelDir: expoPath,
-          modelType: 'paraformer'
+      } else if (hasParaformerEncoder && hasParaformerDecoder && hasTokens && !hasJoiner && !isLikelyZipformer) {
+        // Only categorize as paraformer if it doesn't have a joiner and doesn't look like a zipformer
+        return { modelDir: expoPath, modelType: 'paraformer' as const };
+      } else if (isLikelyZipformer && hasEncoder && hasDecoder && hasTokens) {
+        // If it's missing a joiner but has zipformer in the name, treat as transducer
+        // We'll add the joiner file later in handleInitAsr
+        return { 
+          modelDir: expoPath, 
+          modelType: 'transducer' as const
         };
       }
       
@@ -140,7 +188,7 @@ export default function AsrScreen() {
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [modelInfo, setModelInfo] = useState<{ modelDir: string, modelType: string } | null>(null);
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
   const [selectedAudio, setSelectedAudio] = useState<{
     id: string;
     name: string;
@@ -270,16 +318,174 @@ export default function AsrScreen() {
       // Clean path for native module (remove file:// prefix)
       const cleanPath = modelInfo.modelDir.replace(/^file:\/\//, '');
       
-      const config: AsrModelConfig = {
+      // Check if this is a zipformer model based on path
+      const isZipformerModel = cleanPath.toLowerCase().includes('zipformer');
+      
+      // Base configuration
+      const config: ExtendedAsrModelConfig = {
         modelDir: cleanPath,
-        modelType: modelInfo.modelType,
+        // Force "transducer" type for zipformer models
+        modelType: isZipformerModel ? 'transducer' : modelInfo.modelType,
         numThreads: 2,
-        decodingMethod: 'greedy_search'
+        decodingMethod: 'greedy_search',
+        maxActivePaths: 4,
+        modelFiles: {}
       };
+
+      // List directory contents to check what files actually exist
+      try {
+        const dirContents = await FileSystem.readDirectoryAsync(modelInfo.modelDir);
+        console.log('Directory contents:', dirContents);
+        
+        // Check if this is a directory with a subdirectory containing the actual model files
+        if (dirContents.length === 1) {
+          const possibleSubdir = dirContents[0];
+          // Check if it's a directory with a name that looks like a model directory
+          if (possibleSubdir.includes('sherpa') || possibleSubdir.includes('zipformer') || possibleSubdir.includes('model')) {
+            try {
+              // Check if it's a directory
+              const subdirInfo = await FileSystem.getInfoAsync(`${modelInfo.modelDir}/${possibleSubdir}`);
+              if (subdirInfo.exists && subdirInfo.isDirectory) {
+                // Use this as the actual model directory
+                const newModelDir = `${cleanPath}/${possibleSubdir}`;
+                console.log(`Found model subdirectory, updating model path to: ${newModelDir}`);
+                
+                // Update the config modelDir
+                config.modelDir = newModelDir;
+                
+                // Get contents of the subdirectory to look for model files
+                const subdirContents = await FileSystem.readDirectoryAsync(`${modelInfo.modelDir}/${possibleSubdir}`);
+                console.log('Subdirectory contents:', subdirContents);
+                
+                // Use subdirectory contents for finding model files
+                dirContents.splice(0, dirContents.length, ...subdirContents);
+              }
+            } catch (e) {
+              console.error('Error checking subdirectory:', e);
+            }
+          }
+        }
+        
+        // Look for both regular and int8 versions
+        let encoderFile = dirContents.find(file => 
+          file.includes('encoder') && file.includes('int8') && file.endsWith('.onnx')
+        );
+        
+        // If int8 version not found, fallback to regular version
+        if (!encoderFile) {
+          encoderFile = dirContents.find(file => 
+            file.includes('encoder') && file.endsWith('.onnx')
+          );
+        }
+        
+        // Same for decoder and joiner
+        let decoderFile = dirContents.find(file => 
+          file.includes('decoder') && file.endsWith('.onnx')
+        );
+        
+        let joinerFile = dirContents.find(file => 
+          file.includes('joiner') && file.includes('int8') && file.endsWith('.onnx')
+        );
+        
+        // If int8 joiner not found, fallback to regular version
+        if (!joinerFile) {
+          joinerFile = dirContents.find(file => 
+            file.includes('joiner') && file.endsWith('.onnx')
+          );
+        }
+        
+        // Check if this is likely a zipformer model from the directory name
+        const isZipformerModel = cleanPath.toLowerCase().includes('zipformer');
+        
+        console.log(`Model detection: isZipformerModel=${isZipformerModel}, encoderFile=${encoderFile}, joinerFile=${joinerFile}`);
+        
+        // Configure model files and type based on detected files and model type
+        if (config.modelType === 'whisper') {
+          config.modelFiles = {
+            model: 'model.onnx',
+            tokens: 'tokens.txt'
+          };
+        } else if (config.modelType === 'paraformer') {
+          config.modelFiles = {
+            encoder: encoderFile || 'encoder-epoch-99-avg-1.onnx',
+            decoder: decoderFile || 'decoder-epoch-99-avg-1.onnx',
+            tokens: 'tokens.txt'
+          };
+        } else if (isZipformerModel) {
+          // IMPORTANT: Force transducer model type for JNI compatibility
+          // While the actual model is a zipformer, the native code has problems with this model type
+          const isZipformer2 = cleanPath.toLowerCase().includes('zipformer2');
+          const actualModelType = isZipformer2 ? 'zipformer2' : 'zipformer';
+          config.modelType = 'transducer';
+          
+          // Use int8 files if they exist
+          const useInt8Encoder = encoderFile?.includes('int8') ?? false;
+          const useInt8Joiner = joinerFile?.includes('int8') ?? false;
+          
+          console.log(`Detected model type: ${actualModelType}, using as transducer for JNI compatibility, int8 encoder: ${useInt8Encoder}, int8 joiner: ${useInt8Joiner}`);
+          
+          config.modelFiles = {
+            encoder: encoderFile || (useInt8Encoder ? 'encoder-epoch-99-avg-1.int8.onnx' : 'encoder-epoch-99-avg-1.onnx'),
+            decoder: decoderFile || 'decoder-epoch-99-avg-1.onnx',
+            joiner: joinerFile || (useInt8Joiner ? 'joiner-epoch-99-avg-1.int8.onnx' : 'joiner-epoch-99-avg-1.onnx'),
+            tokens: 'tokens.txt'
+          };
+        } else {
+          // For other transducer models
+          config.modelFiles = {
+            encoder: encoderFile || 'encoder-epoch-99-avg-1.onnx',
+            decoder: decoderFile || 'decoder-epoch-99-avg-1.onnx',
+            joiner: joinerFile || 'joiner-epoch-99-avg-1.onnx',
+            tokens: 'tokens.txt'
+          };
+        }
+        
+      } catch (dirErr) {
+        console.error('Error reading directory contents:', dirErr);
+        
+        // Fallback to default file configurations
+        if (isZipformerModel) {
+          // For zipformer models, always use transducer file layout
+          config.modelFiles = {
+            encoder: 'encoder-epoch-99-avg-1.onnx',
+            decoder: 'decoder-epoch-99-avg-1.onnx',
+            joiner: 'joiner-epoch-99-avg-1.onnx', // Include joiner for transducer models
+            tokens: 'tokens.txt'
+          };
+        } else {
+          switch (config.modelType) {
+            case 'whisper':
+              config.modelFiles = {
+                model: 'model.onnx',
+                tokens: 'tokens.txt'
+              };
+              break;
+              
+            case 'paraformer':
+              config.modelFiles = {
+                encoder: 'encoder-epoch-99-avg-1.onnx',
+                decoder: 'decoder-epoch-99-avg-1.onnx',
+                tokens: 'tokens.txt'
+              };
+              break;
+              
+            case 'transducer':
+            default:
+              config.modelFiles = {
+                encoder: 'encoder-epoch-99-avg-1.onnx',
+                decoder: 'decoder-epoch-99-avg-1.onnx',
+                joiner: 'joiner-epoch-99-avg-1.onnx',
+                tokens: 'tokens.txt'
+              };
+              break;
+          }
+        }
+      }
       
       console.log('Initializing ASR with config:', JSON.stringify(config));
       
-      const result = await asrService.initialize(config);
+      // Cast to AsrModelConfig to satisfy the type system
+      const result = await asrService.initialize(config as AsrModelConfig);
       
       setInitialized(result.success);
       if (result.success) {
