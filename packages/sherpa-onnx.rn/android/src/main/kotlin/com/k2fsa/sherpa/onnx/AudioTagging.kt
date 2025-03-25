@@ -1,22 +1,11 @@
-/**
- * JNI Bridge for sherpa-onnx native library - AudioTagging functionality
- * This class exists solely to match the JNI method signatures expected by the native library.
- */
 package com.k2fsa.sherpa.onnx
 
 import android.content.res.AssetManager
-import android.util.Log
 
-/**
- * Zipformer model configuration for audio tagging
- */
 data class OfflineZipformerAudioTaggingModelConfig(
     var model: String = "",
 )
 
-/**
- * Audio tagging model configuration
- */
 data class AudioTaggingModelConfig(
     var zipformer: OfflineZipformerAudioTaggingModelConfig = OfflineZipformerAudioTaggingModelConfig(),
     var ced: String = "",
@@ -25,61 +14,36 @@ data class AudioTaggingModelConfig(
     var provider: String = "cpu",
 )
 
-/**
- * Complete audio tagging configuration
- */
 data class AudioTaggingConfig(
     var model: AudioTaggingModelConfig = AudioTaggingModelConfig(),
     var labels: String = "",
-    var topK: Int = 3,
+    var topK: Int = 5,
 )
 
-/**
- * Represents a detected audio event
- */
 data class AudioEvent(
     val name: String,
     val index: Int,
     val prob: Float,
 )
 
-/**
- * Bridge class for JNI access to audio tagging functionality
- */
 class AudioTagging(
     assetManager: AssetManager? = null,
     config: AudioTaggingConfig,
 ) {
-    private val TAG = "AudioTagging"
-    private var ptr: Long = 0
+    private var ptr: Long
 
     init {
-        try {
-            ptr = if (assetManager != null) {
-                newFromAsset(assetManager, config)
-            } else {
-                newFromFile(config)
-            }
-            
-            if (ptr == 0L) {
-                Log.e(TAG, "Failed to initialize AudioTagging (null pointer)")
-            } else {
-                Log.i(TAG, "AudioTagging initialized successfully")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error initializing AudioTagging: ${e.message}")
-            throw e
+        ptr = if (assetManager != null) {
+            newFromAsset(assetManager, config)
+        } else {
+            newFromFile(config)
         }
     }
 
     protected fun finalize() {
         if (ptr != 0L) {
-            try {
-                delete(ptr)
-                ptr = 0
-            } catch (e: Exception) {
-                Log.e(TAG, "Error releasing AudioTagging in finalize: ${e.message}")
-            }
+            delete(ptr)
+            ptr = 0
         }
     }
 
@@ -109,39 +73,34 @@ class AudioTagging(
         return ans
     }
 
+    private external fun newFromAsset(
+        assetManager: AssetManager,
+        config: AudioTaggingConfig,
+    ): Long
+
+    private external fun newFromFile(
+        config: AudioTaggingConfig,
+    ): Long
+
+    private external fun delete(ptr: Long)
+
+    private external fun createStream(ptr: Long): Long
+
+    private external fun compute(ptr: Long, streamPtr: Long, topK: Int): Array<Any>
+
     companion object {
         init {
-            try {
-                System.loadLibrary("sherpa-onnx-jni")
-                Log.i("AudioTagging", "Successfully loaded sherpa-onnx-jni library")
-            } catch (e: UnsatisfiedLinkError) {
-                Log.e("AudioTagging", "Failed to load sherpa-onnx-jni library: ${e.message}")
-            }
+            System.loadLibrary("sherpa-onnx-jni")
         }
-        
-        @JvmStatic external fun newFromAsset(
-            assetManager: AssetManager,
-            config: AudioTaggingConfig
-        ): Long
-
-        @JvmStatic external fun newFromFile(
-            config: AudioTaggingConfig
-        ): Long
-
-        @JvmStatic external fun delete(ptr: Long)
-
-        @JvmStatic external fun createStream(ptr: Long): Long
-
-        @JvmStatic external fun compute(ptr: Long, streamPtr: Long, topK: Int): Array<Any>
     }
 }
 
-/**
- * Helper function to get a predefined audio tagging configuration
- * @param type The type of model to use (0-5)
- * @param numThreads Number of threads to use for computation
- * @return An AudioTaggingConfig for the selected model
- */
+// please refer to
+// https://github.com/k2-fsa/sherpa-onnx/releases/tag/audio-tagging-models
+// to download more models
+//
+// See also
+// https://k2-fsa.github.io/sherpa/onnx/audio-tagging/
 fun getAudioTaggingConfig(type: Int, numThreads: Int = 1): AudioTaggingConfig? {
     when (type) {
         0 -> {
@@ -224,4 +183,4 @@ fun getAudioTaggingConfig(type: Int, numThreads: Int = 1): AudioTaggingConfig? {
     }
 
     return null
-} 
+}

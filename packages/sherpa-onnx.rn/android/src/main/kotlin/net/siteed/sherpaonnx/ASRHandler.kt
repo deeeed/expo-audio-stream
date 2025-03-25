@@ -37,6 +37,8 @@ import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OnlineStream
 import com.k2fsa.sherpa.onnx.OnlineModelConfig
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
+import com.k2fsa.sherpa.onnx.OnlineLMConfig
+import com.k2fsa.sherpa.onnx.OnlineCtcFstDecoderConfig
 
 /**
  * Handler for Automatic Speech Recognition functionality in Sherpa-ONNX
@@ -93,7 +95,13 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 val modelType = modelConfig.getString("modelType") ?: "transducer"
                 val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else DEFAULT_NUM_THREADS
                 val modelFiles = modelConfig.getMap("modelFiles") ?: throw Exception("modelFiles is required")
-                val isStreaming = if (modelConfig.hasKey("streaming")) modelConfig.getBoolean("streaming") else DEFAULT_STREAMING
+                
+                // Check if model name contains 'streaming' to automatically set streaming mode
+                val isStreamingModel = modelDir.contains("streaming", ignoreCase = true)
+                val isStreaming = if (modelConfig.hasKey("streaming")) 
+                    modelConfig.getBoolean("streaming") 
+                else 
+                    isStreamingModel || DEFAULT_STREAMING
                 
                 Log.i(TAG, """
                     📂 Model Configuration:
@@ -113,20 +121,58 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 // Check required files based on model type
                 when (modelType) {
                     "whisper" -> {
-                        val modelFile = File(modelDir, modelFiles.getString("model") ?: "model.onnx")
-                        val tokensFile = File(modelDir, modelFiles.getString("tokens") ?: "tokens.txt")
+                        // Check if we're using encoder/decoder format vs single file
+                        val hasEncoder = modelFiles.hasKey("encoder") && !modelFiles.getString("encoder").isNullOrEmpty()
+                        val hasDecoder = modelFiles.hasKey("decoder") && !modelFiles.getString("decoder").isNullOrEmpty()
                         
-                        Log.d(TAG, """
-                            🔍 Checking Whisper model files:
-                            - Model: ${modelFile.absolutePath} (exists: ${modelFile.exists()}, size: ${modelFile.length()})
-                            - Tokens: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})
-                        """.trimIndent())
-                        
-                        if (!modelFile.exists()) throw Exception("Model file not found: ${modelFile.absolutePath}")
-                        if (!tokensFile.exists()) throw Exception("Tokens file not found: ${tokensFile.absolutePath}")
-                        
-                        modelPaths["model"] = modelFile.absolutePath
-                        modelPaths["tokens"] = tokensFile.absolutePath
+                        if (hasEncoder && hasDecoder) {
+                            // This is the encoder/decoder model format
+                            Log.w(TAG, "⚠️ Detected encoder/decoder Whisper format, but native library only supports single model file")
+                            
+                            // Check for the files
+                            val encoderPath = "${modelDir}/${modelFiles.getString("encoder")}"
+                            val decoderPath = "${modelDir}/${modelFiles.getString("decoder")}"
+                            val tokensPath = "${modelDir}/${modelFiles.getString("tokens")}"
+                            
+                            // Verify files exist
+                            val encoderFile = File(encoderPath)
+                            val decoderFile = File(decoderPath)
+                            val tokensFile = File(tokensPath)
+                            
+                            Log.d(TAG, """
+                                🔍 Checking Whisper encoder-decoder model files:
+                                - Encoder: ${encoderFile.absolutePath} (exists: ${encoderFile.exists()}, size: ${encoderFile.length()})
+                                - Decoder: ${decoderFile.absolutePath} (exists: ${decoderFile.exists()}, size: ${decoderFile.length()})
+                                - Tokens: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})
+                            """.trimIndent())
+                            
+                            if (!encoderFile.exists()) throw Exception("Encoder file not found: ${encoderFile.absolutePath}")
+                            if (!decoderFile.exists()) throw Exception("Decoder file not found: ${decoderFile.absolutePath}")
+                            if (!tokensFile.exists()) throw Exception("Tokens file not found: ${tokensFile.absolutePath}")
+                            
+                            // For now, use the encoder as the main model file
+                            // This won't work correctly but allows us to pass validation
+                            modelPaths["model"] = encoderFile.absolutePath
+                            modelPaths["tokens"] = tokensFile.absolutePath
+                            
+                            throw Exception("This Whisper model uses encoder-decoder format which is not supported by the native library. Please use a single-file Whisper model.")
+                        } else {
+                            // Traditional single-file Whisper model
+                            val modelFile = File(modelDir, modelFiles.getString("model") ?: "model.onnx")
+                            val tokensFile = File(modelDir, modelFiles.getString("tokens") ?: "tokens.txt")
+                            
+                            Log.d(TAG, """
+                                🔍 Checking Whisper single-file model files:
+                                - Model: ${modelFile.absolutePath} (exists: ${modelFile.exists()}, size: ${modelFile.length()})
+                                - Tokens: ${tokensFile.absolutePath} (exists: ${tokensFile.exists()}, size: ${tokensFile.length()})
+                            """.trimIndent())
+                            
+                            if (!modelFile.exists()) throw Exception("Model file not found: ${modelFile.absolutePath}")
+                            if (!tokensFile.exists()) throw Exception("Tokens file not found: ${tokensFile.absolutePath}")
+                            
+                            modelPaths["model"] = modelFile.absolutePath
+                            modelPaths["tokens"] = tokensFile.absolutePath
+                        }
                     }
                     "paraformer" -> {
                         val encoderFile = File(modelDir, modelFiles.getString("encoder") ?: "encoder.onnx")
@@ -352,8 +398,8 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
         
         // Configure model type specific settings
         // Currently only Transducer model is supported for streaming (online) recognition
-        if (modelType != "transducer") {
-            throw Exception("Only Transducer models are supported for streaming recognition")
+        if (modelType != "transducer" && modelType != "zipformer" && modelType != "zipformer2") {
+            throw Exception("Only Transducer/Zipformer models are supported for streaming recognition")
         }
         
         val transducerConfig = OnlineTransducerModelConfig()
@@ -392,7 +438,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
         Log.i(TAG, "🔄 Creating online recognizer with validated configuration")
         try {
             // Create recognizer with config
-            onlineRecognizer = OnlineRecognizer(reactContext.assets, config)
+            onlineRecognizer = OnlineRecognizer(null, config)
             Log.i(TAG, "✅ Online recognizer created successfully")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to create online recognizer: ${e.message}")

@@ -1,21 +1,8 @@
 package com.k2fsa.sherpa.onnx
 
-import android.util.Log
-
-/**
- * Stream for handling online audio data
- */
-class OnlineStream(var ptr: Long) {
-    private val TAG = "OnlineStream"
-
-    init {
-        if (ptr == 0L) {
-            Log.e(TAG, "Invalid stream pointer")
-        }
-    }
-
-    fun acceptWaveform(sampleRate: Int, waveform: FloatArray): Boolean =
-        acceptWaveform(ptr, sampleRate, waveform)
+class OnlineStream(var ptr: Long = 0) {
+    fun acceptWaveform(samples: FloatArray, sampleRate: Int) =
+        acceptWaveform(ptr, samples, sampleRate)
 
     fun inputFinished() = inputFinished(ptr)
 
@@ -36,13 +23,14 @@ class OnlineStream(var ptr: Long) {
         }
     }
 
-    private external fun acceptWaveform(ptr: Long, sampleRate: Int, waveform: FloatArray): Boolean
+    private external fun acceptWaveform(ptr: Long, samples: FloatArray, sampleRate: Int)
     private external fun inputFinished(ptr: Long)
     private external fun delete(ptr: Long)
+
 
     companion object {
         init {
             System.loadLibrary("sherpa-onnx-jni")
         }
     }
-} 
+}

@@ -70,6 +70,7 @@ interface ExtendedAsrModelConfig extends Omit<AsrModelConfig, 'modelType'> {
     | 'zipformer'
     | 'lstm'
     | 'zipformer2';
+  streaming?: boolean;
 }
 
 // Update the ASRConfig interface to include the new model types
@@ -111,14 +112,30 @@ const findModelFilesRecursive = async (basePath: string): Promise<ModelInfo | nu
       const contents = await FileSystem.readDirectoryAsync(expoPath);
       console.log(`Found ${contents.length} items in ${expoPath}`);
       
+      // Debug output the actual file list to help identify model files
+      console.log(`Files in directory: ${contents.join(', ')}`);
+      
+      // Look specifically for any .onnx files as potential model files
+      const onnxFiles = contents.filter(file => file.endsWith('.onnx'));
+      if (onnxFiles.length > 0) {
+        console.log(`Found ONNX files: ${onnxFiles.join(', ')}`);
+      }
+      
       // Check for transducer model files (encoder, decoder, joiner)
       const hasEncoder = contents.some(file => file.includes('encoder') && file.endsWith('.onnx'));
       const hasDecoder = contents.some(file => file.includes('decoder') && file.endsWith('.onnx'));
       const hasJoiner = contents.some(file => file.includes('joiner') && file.endsWith('.onnx'));
-      const hasTokens = contents.includes('tokens.txt');
+      const hasTokens = contents.some(file => 
+        file === 'tokens.txt' || 
+        file.toLowerCase().includes('tokens') && file.toLowerCase().endsWith('.txt')
+      );
       
       // Check for whisper model files
-      const hasWhisperModel = contents.some(file => file.includes('model') && file.endsWith('.onnx'));
+      const hasWhisperModel = contents.some(file => 
+        (file.includes('model') && file.endsWith('.onnx')) || 
+        (file.toLowerCase().includes('whisper') && file.endsWith('.onnx')) ||
+        (file.toLowerCase().includes('encoder') && file.toLowerCase().includes('.onnx'))
+      );
       
       // Check for paraformer model files
       const hasParaformerEncoder = contents.some(file => file.includes('encoder') && file.endsWith('.onnx'));
@@ -134,6 +151,18 @@ const findModelFilesRecursive = async (basePath: string): Promise<ModelInfo | nu
           modelDir: expoPath,
           modelType: isZipformer2 ? 'zipformer2' : 'zipformer'
         };
+      }
+      
+      // Log what we found to help debug
+      console.log(`Directory check: hasWhisperModel=${hasWhisperModel}, hasTokens=${hasTokens}`);
+      
+      // Specific handling for this Whisper model structure
+      if (expoPath.toLowerCase().includes('whisper') && 
+          contents.some(file => file.toLowerCase().includes('encoder') && file.endsWith('.onnx')) &&
+          contents.some(file => file.toLowerCase().includes('tokens') && file.endsWith('.txt'))) {
+        
+        console.log("Detected special Whisper model structure with encoder/decoder format");
+        return { modelDir: expoPath, modelType: 'whisper' as const };
       }
       
       // Determine model type based on file presence
@@ -181,6 +210,32 @@ const findModelFilesRecursive = async (basePath: string): Promise<ModelInfo | nu
 
 // Create an instance of the ASR Service (renamed from STT)
 const asrService = ASR;
+
+// Add this debugging function
+const exploreDirectoryStructure = async (basePath: string, maxDepth = 3) => {
+  const explore = async (path: string, depth = 0): Promise<void> => {
+    if (depth > maxDepth) return;
+    
+    try {
+      const contents = await FileSystem.readDirectoryAsync(path);
+      console.log(`[EXPLORER] Level ${depth}: ${path} contains ${contents.length} items: ${contents.join(', ')}`);
+      
+      for (const item of contents) {
+        const itemPath = `${path}/${item}`;
+        const info = await FileSystem.getInfoAsync(itemPath);
+        if (info.isDirectory) {
+          await explore(itemPath, depth + 1);
+        } else if (item.endsWith('.onnx') || item === 'tokens.txt') {
+          console.log(`[EXPLORER] Found important file: ${itemPath}`);
+        }
+      }
+    } catch (err) {
+      console.error(`[EXPLORER] Error exploring ${path}:`, err);
+    }
+  };
+  
+  await explore(basePath);
+};
 
 export default function AsrScreen() {
   const { getDownloadedModels, getModelState } = useModelManagement();
@@ -294,6 +349,9 @@ export default function AsrScreen() {
       setModelInfo(modelFiles);
       setSelectedModelId(modelId);
       
+      // Call this in your setupAsr function
+      exploreDirectoryStructure(modelState.localPath);
+      
       // Success, everything is ready
       setLoading(false);
     } catch (err) {
@@ -329,8 +387,12 @@ export default function AsrScreen() {
         numThreads: 2,
         decodingMethod: 'greedy_search',
         maxActivePaths: 4,
+        // Explicitly set streaming to true if model path contains "streaming"
+        streaming: cleanPath.toLowerCase().includes('streaming'),
         modelFiles: {}
       };
+
+      console.log(`Detected model type: ${isZipformerModel ? 'zipformer' : modelInfo.modelType}, using as transducer for JNI compatibility, streaming mode: ${config.streaming}`);
 
       // List directory contents to check what files actually exist
       try {
@@ -401,10 +463,29 @@ export default function AsrScreen() {
         
         // Configure model files and type based on detected files and model type
         if (config.modelType === 'whisper') {
-          config.modelFiles = {
-            model: 'model.onnx',
-            tokens: 'tokens.txt'
-          };
+          // Look for the specific files in this Whisper model version
+          const encoderFile = dirContents.find(file => 
+            file.toLowerCase().includes('encoder') && file.endsWith('.onnx')
+          );
+          const decoderFile = dirContents.find(file => 
+            file.toLowerCase().includes('decoder') && file.endsWith('.onnx')
+          );
+          const tokensFile = dirContents.find(file => 
+            file.toLowerCase().includes('tokens') && file.endsWith('.txt')
+          );
+          
+          if (encoderFile && decoderFile && tokensFile) {
+            console.log("Detected encoder/decoder format for Whisper model - not supported by native library");
+            setError('This Whisper model uses encoder-decoder format which is not supported by the native library. Please use a single-file Whisper model.');
+            setLoading(false);
+            return;
+          } else {
+            // Traditional Whisper model format
+            config.modelFiles = {
+              model: dirContents.find(file => file.includes('model') && file.endsWith('.onnx')) || 'model.onnx',
+              tokens: dirContents.find(file => file.includes('tokens') && file.endsWith('.txt')) || 'tokens.txt'
+            };
+          }
         } else if (config.modelType === 'paraformer') {
           config.modelFiles = {
             encoder: encoderFile || 'encoder-epoch-99-avg-1.onnx',

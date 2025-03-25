@@ -46,6 +46,18 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
   },
 
   {
+    id: 'streaming-zipformer-bilingual-zh-en',
+    name: 'Streaming Zipformer (Bilingual)',
+    description:
+      'Bilingual streaming model supporting Chinese and English transcription, larger size with enhanced cross-language capabilities.',
+    type: 'asr',
+    size: 488 * 1024 * 1024, // 488 MB
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2',
+    version: '2023-02-20',
+    language: 'zh-en',
+  },
+
+  {
     id: 'whisper-tiny-en',
     name: 'Whisper Tiny (English)',
     description:
@@ -67,6 +79,18 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small.tar.bz2',
     version: 'small',
     language: 'multilingual',
+  },
+
+  {
+    id: 'zipformer-en-general',
+    name: 'Zipformer (Non-streaming)',
+    description:
+      'Standard non-streaming English zipformer model offering high accuracy for offline transcription tasks.',
+    type: 'asr',
+    size: 293 * 1024 * 1024, // 293 MB
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-en-2023-06-26.tar.bz2',
+    version: '2023-06-26',
+    language: 'en',
   },
 
   // TTS Models

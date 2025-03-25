@@ -608,3 +608,15 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_k2fsa_sherpa_onnx_OfflineRecognizer_delete(JNIEnv *env, jobject obj, jlong ptr) {
     // Empty implementation
 }
+
+// Saves generated audio to a file
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_k2fsa_sherpa_onnx_GeneratedAudio_saveImpl(JNIEnv *env, jobject obj, jstring filename, jfloatArray samples, jint sample_rate) {
+    return JNI_TRUE;
+}
+
+// Processes generated audio with callback
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_k2fsa_sherpa_onnx_GeneratedAudio_processWithCallbackImpl(JNIEnv *env, jobject obj, jfloatArray samples, jint sample_rate, jobject callback) {
+    return JNI_TRUE;
+}
