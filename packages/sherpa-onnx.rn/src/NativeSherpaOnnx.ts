@@ -1,4 +1,21 @@
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules, Platform, TurboModuleRegistry } from 'react-native';
+
+// Add type declaration to avoid TS errors for bridgeless mode detection
+declare global {
+  // Safe access to global in both web and React Native
+  interface Window {
+    RN$Bridgeless?: boolean;
+    __turboModuleProxy?: unknown;
+  }
+}
+
+// Safely check global properties
+const getGlobal = (): any => {
+  if (typeof globalThis !== 'undefined') return globalThis;
+  if (typeof global !== 'undefined') return global;
+  if (typeof window !== 'undefined') return window;
+  return {};
+};
 
 interface SherpaOnnxInterface {
   // TTS methods
@@ -60,15 +77,119 @@ const LINKING_ERROR =
   '- You rebuilt the app after installing the package\n' +
   '- You are not using Expo Go\n';
 
-const NativeSherpaOnnx: SherpaOnnxInterface = NativeModules.SherpaOnnx
-  ? NativeModules.SherpaOnnx
-  : new Proxy(
-      {},
-      {
-        get() {
-          throw new Error(LINKING_ERROR);
-        },
-      }
+// First try to get the TurboModule implementation for new architecture
+// If that doesn't exist, fall back to NativeModules for old architecture
+let SherpaOnnxModule: SherpaOnnxInterface | null = null;
+
+// Check if we're in Bridgeless mode - safely
+const globalObj = getGlobal();
+const isBridgeless = !!globalObj.RN$Bridgeless;
+console.log('Bridgeless mode detected:', isBridgeless);
+
+// ===== NEW ARCHITECTURE APPROACH =====
+// Try using TurboModuleRegistry first if available
+// This works in both standard new architecture and some bridgeless configurations
+try {
+  if (
+    typeof TurboModuleRegistry !== 'undefined' &&
+    TurboModuleRegistry.get &&
+    globalObj.__turboModuleProxy
+  ) {
+    console.log('Trying TurboModuleRegistry.get approach');
+    // @ts-ignore - Type mismatch is expected since TurboModule API doesn't match our interface
+    SherpaOnnxModule = TurboModuleRegistry.get('SherpaOnnx');
+
+    if (SherpaOnnxModule) {
+      console.log('SUCCESS: SherpaOnnx loaded via TurboModuleRegistry');
+    }
+  }
+} catch (e) {
+  console.warn('TurboModuleRegistry approach failed:', e);
+}
+
+// ===== BRIDGELESS DIRECT APPROACH =====
+// If still not found and we're in bridgeless mode, try direct access
+// In pure bridgeless mode, modules should be available directly in NativeModules
+if (!SherpaOnnxModule && isBridgeless) {
+  console.log('Trying direct NativeModules access for Bridgeless mode');
+  SherpaOnnxModule = NativeModules.SherpaOnnx || null;
+
+  if (SherpaOnnxModule) {
+    console.log(
+      'SUCCESS: SherpaOnnx loaded directly from NativeModules in Bridgeless mode'
     );
+  } else {
+    console.warn(
+      'Failed to find SherpaOnnx in NativeModules in Bridgeless mode'
+    );
+  }
+}
+
+// ===== OLD ARCHITECTURE FALLBACK =====
+// Finally fallback to old architecture approach
+if (!SherpaOnnxModule) {
+  console.log('Trying old architecture approach');
+
+  // Deep debug what modules are available
+  console.log('All NativeModules:', JSON.stringify(NativeModules, null, 2));
+
+  // Check for both possible naming conventions
+  SherpaOnnxModule = NativeModules.SherpaOnnx || null;
+
+  if (SherpaOnnxModule) {
+    console.log(
+      'Found SherpaOnnx with methods:',
+      Object.keys(SherpaOnnxModule)
+    );
+    // Explicitly check the validateLibraryLoaded method
+    console.log(
+      'validateLibraryLoaded exists?',
+      typeof SherpaOnnxModule.validateLibraryLoaded === 'function'
+    );
+    console.log('Method type:', typeof SherpaOnnxModule.validateLibraryLoaded);
+  }
+
+  if (!SherpaOnnxModule) {
+    SherpaOnnxModule = NativeModules.SherpaOnnxRnModule || null;
+
+    if (SherpaOnnxModule) {
+      console.log(
+        'Found SherpaOnnxRnModule with methods:',
+        Object.keys(SherpaOnnxModule)
+      );
+      // Explicitly check the validateLibraryLoaded method
+      console.log(
+        'validateLibraryLoaded exists?',
+        typeof SherpaOnnxModule.validateLibraryLoaded === 'function'
+      );
+      console.log(
+        'Method type:',
+        typeof SherpaOnnxModule.validateLibraryLoaded
+      );
+    }
+  }
+
+  if (SherpaOnnxModule) {
+    console.log(
+      'SUCCESS: SherpaOnnx loaded via old architecture NativeModules as',
+      NativeModules.SherpaOnnx ? 'SherpaOnnx' : 'SherpaOnnxRnModule'
+    );
+  } else {
+    console.error(
+      'FAILED: Could not find SherpaOnnx module in any architecture'
+    );
+    console.log('Available native modules:', Object.keys(NativeModules));
+  }
+}
+
+// Create a default implementation that throws the linking error
+const NativeSherpaOnnx: SherpaOnnxInterface = SherpaOnnxModule
+  ? SherpaOnnxModule
+  : new Proxy({} as SherpaOnnxInterface, {
+      get() {
+        console.error('SherpaOnnx module not found in either architecture');
+        throw new Error(LINKING_ERROR);
+      },
+    });
 
 export default NativeSherpaOnnx;

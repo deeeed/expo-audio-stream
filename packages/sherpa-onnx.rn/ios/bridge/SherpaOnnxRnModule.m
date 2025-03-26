@@ -1,9 +1,22 @@
 #import "SherpaOnnxRnModule.h"
 #import "sherpa-onnx-rn-Swift.h"  // Generated Swift header
 
+#ifdef RCT_NEW_ARCH_ENABLED
+// Import the spec for new architecture
+#import <React/RCTTurboModuleManager.h>
+// You'd typically use a generated spec like:
+// #import <SherpaOnnxSpec/SherpaOnnxSpec.h>
+#endif
+
 @implementation SherpaOnnxRnModule
 
-RCT_EXPORT_MODULE();
+// Use the same module name for both architectures - make it explicit
+RCT_EXPORT_MODULE(SherpaOnnx)
+
+// Add this to ensure this module runs on the main thread
++ (BOOL)requiresMainQueueSetup {
+  return YES;
+}
 
 - (NSArray<NSString *> *)supportedEvents {
     return @[@"onResult", @"onEndpoint"];
@@ -369,5 +382,14 @@ RCT_EXPORT_METHOD(isEndpoint:(RCTPromiseResolveBlock)resolve
         });
     });
 }
+
+// End of the implementation, add the TurboModule method
+#ifdef RCT_NEW_ARCH_ENABLED
+- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
+    (const facebook::react::ObjCTurboModule::InitParams &)params
+{
+    return std::make_shared<facebook::react::NativeSherpaOnnxSpecJSI>(params);
+}
+#endif
 
 @end 

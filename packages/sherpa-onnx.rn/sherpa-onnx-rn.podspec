@@ -1,5 +1,8 @@
 require "json"
 
+# Folly compiler flags for React Native New Architecture
+folly_compiler_flags = '-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1 -Wno-comma -Wno-shorten-64-to-32'
+
 package = JSON.parse(File.read(File.join(__dir__, "package.json")))
 
 Pod::Spec.new do |s|
@@ -13,7 +16,8 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => "11.0" }
   s.source       = { :git => "https://github.com/deeeed/expo-audio-stream.git", :tag => "#{s.version}" }
 
-  s.source_files = ["ios/bridge/*.{h,m,mm,swift}"]
+  # Include both files for both architectures
+  s.source_files = ["ios/bridge/*.{h,m,mm,swift}", "ios/*.{h,m,mm}"]
 
   # Vendored libraries pointing to a dynamic 'current' directory
   s.vendored_libraries = [
@@ -79,4 +83,31 @@ Pod::Spec.new do |s|
   }
 
   install_modules_dependencies(s)
+
+  # React Native New Architecture support
+  s.dependency "React-Core"
+  
+  # Enable both old and new architecture
+  if ENV['RCT_NEW_ARCH_ENABLED'] == '1' then
+    s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
+    
+    # We need to define all config settings at once, can't read and modify the existing one
+    s.pod_target_xcconfig = {
+      "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
+      "OTHER_LDFLAGS" => "-lstdc++ -framework CoreML -framework Accelerate -framework CoreVideo",
+      "DEFINES_MODULE" => "YES",
+      "SWIFT_OBJC_BRIDGING_HEADER" => "",
+      "SWIFT_INSTALL_OBJC_HEADER" => "YES",
+      "SWIFT_OBJC_INTERFACE_HEADER_NAME" => "sherpa-onnx-rn-Swift.h",
+      "APPLICATION_EXTENSION_API_ONLY" => "NO",
+      "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\" \"$(PODS_ROOT)/boost\" \"$(PODS_ROOT)/boost-for-react-native\" \"$(PODS_ROOT)/RCT-Folly\" \"${PODS_ROOT}/Headers/Public/React-Codegen/react/renderer/components\""
+    }
+
+    s.dependency "React-RCTFabric"
+    s.dependency "React-Codegen"
+    s.dependency "RCT-Folly"
+    s.dependency "RCTRequired"
+    s.dependency "RCTTypeSafety"
+    s.dependency "ReactCommon/turbomodule/core"
+  end
 end
