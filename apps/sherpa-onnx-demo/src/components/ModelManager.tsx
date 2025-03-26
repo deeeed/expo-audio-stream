@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import { useModelManagement } from '../contexts/ModelManagement/ModelManagementC
 import { formatBytes } from '../utils/formatters';
 import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
+import type { ModelType } from '@siteed/sherpa-onnx.rn';
+import type { ModelTypeOption } from '../types/models';
 
 interface ModelCardProps {
   model: ModelMetadata;
@@ -28,8 +30,9 @@ interface ModelCardProps {
 }
 
 interface ModelManagerProps {
-  filterType?: 'all' | 'tts' | 'asr' | 'vad' | 'kws' | 'speaker' | 'language' | 'audio-tagging' | 'punctuation';
-  onBrowseFiles?: (modelPath: string) => void;
+  filterType: ModelType | 'all';
+  onModelSelect: (modelPath: string) => void;
+  onBackToDownloads: () => void;
 }
 
 const ModelCard: React.FC<ModelCardProps> = ({
@@ -443,7 +446,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
   );
 };
 
-export function ModelManager({ filterType = 'all', onBrowseFiles }: ModelManagerProps) {
+export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: ModelManagerProps) {
   const {
     getAvailableModels,
     getDownloadedModels,
@@ -457,94 +460,61 @@ export function ModelManager({ filterType = 'all', onBrowseFiles }: ModelManager
   } = useModelManagement();
 
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [progressUpdateCounter, setProgressUpdateCounter] = useState(0);
+  const [expandedSection, setExpandedSection] = useState<'downloaded' | 'available' | null>(null);
 
-  const availableModels = getAvailableModels();
-  const downloadedModels = getDownloadedModels();
+  // Get models once on mount
+  const availableModels = useMemo(() => getAvailableModels(), []);
+  const downloadedModels = useMemo(() => getDownloadedModels(), []);
 
   // Filter models based on type
-  const filteredAvailableModels = filterType === 'all' 
-    ? availableModels 
-    : availableModels.filter(model => model.type === filterType);
+  const filteredAvailableModels = useMemo(() => 
+    filterType === 'all' 
+      ? availableModels 
+      : availableModels.filter(model => model.type === filterType),
+    [availableModels, filterType]
+  );
 
-  const filteredDownloadedModels = filterType === 'all'
-    ? downloadedModels
-    : downloadedModels.filter(model => model.metadata.type === filterType);
+  const filteredDownloadedModels = useMemo(() => 
+    filterType === 'all'
+      ? downloadedModels
+      : downloadedModels.filter(model => model.metadata.type === filterType),
+    [downloadedModels, filterType]
+  );
 
-  // Force component to rerender when any model is downloading
-  useEffect(() => {
-    // Check if any model is currently downloading
-    const anyModelDownloading = Object.values(modelStates).some(
-      model => model.status === 'downloading'
-    );
-
-    if (anyModelDownloading) {
-      // Set up an interval to periodically increment the counter to force rerenders
-      const intervalId = setInterval(() => {
-        setProgressUpdateCounter(prev => prev + 1);
-      }, 500); // Check every half second
-      return () => clearInterval(intervalId);
-    }
-  }, [modelStates]);
-
-  useEffect(() => {
-    // Refresh status of all downloaded models on mount
-    refreshAllModelStatuses();
-    setIsLoading(false);
-  }, []);
-
-  const refreshAllModelStatuses = async () => {
-    setIsRefreshing(true);
+  // Memoize handlers
+  const handleDownload = useCallback(async (modelId: string) => {
     try {
-      await Promise.all(
-        downloadedModels.map(model => refreshModelStatus(model.metadata.id))
-      );
-    } catch (error) {
-      console.error('Error refreshing model statuses:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const handleDownload = async (modelId: string) => {
-    try {
-      console.log(`Starting download for model: ${modelId}`);
       await downloadModel(modelId);
-      console.log(`Download completed for model: ${modelId}`);
     } catch (error) {
-      console.error(`Download error for model ${modelId}:`, error);
       Alert.alert('Download Error', (error as Error).message);
     }
-  };
+  }, [downloadModel]);
 
-  const handleCancelDownload = async (modelId: string) => {
+  const handleCancelDownload = useCallback(async (modelId: string) => {
     try {
-      console.log(`Cancelling download for model: ${modelId}`);
       await cancelDownload(modelId);
-      console.log(`Download cancelled for model: ${modelId}`);
     } catch (error) {
-      console.error(`Cancel error for model ${modelId}:`, error);
       Alert.alert('Cancel Error', (error as Error).message);
     }
-  };
+  }, [cancelDownload]);
 
-  const handleDelete = async (modelId: string) => {
+  const handleDelete = useCallback(async (modelId: string) => {
     try {
-      console.log(`Starting deletion for model: ${modelId}`);
       await deleteModel(modelId);
-      console.log(`Deletion completed for model: ${modelId}`);
     } catch (error) {
-      console.error(`Delete error for model ${modelId}:`, error);
       Alert.alert('Delete Error', (error as Error).message);
     }
-  };
+  }, [deleteModel]);
 
-  const handleSelect = (modelId: string) => {
-    console.log(`Selected model: ${modelId}`);
+  const handleSelect = useCallback((modelId: string) => {
     setSelectedModelId(modelId);
-  };
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    setIsLoading(false);
+  }, []);
 
   if (isLoading) {
     return (
@@ -555,60 +525,79 @@ export function ModelManager({ filterType = 'all', onBrowseFiles }: ModelManager
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      key={`model-manager-${filterType}`}
+    >
       {/* Downloaded Models Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Downloaded Models</Text>
-        {filteredDownloadedModels.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No downloaded models</Text>
-          </View>
-        ) : (
-          filteredDownloadedModels.map(model => {
-            // Get the most current state for this model from context
-            const currentState = modelStates[model.metadata.id];
-            return (
-              <ModelCard
-                key={model.metadata.id}
-                model={model.metadata}
-                state={currentState || model}
-                onDownload={() => handleDownload(model.metadata.id)}
-                onDelete={() => handleDelete(model.metadata.id)}
-                onSelect={() => handleSelect(model.metadata.id)}
-                isSelected={selectedModelId === model.metadata.id}
-                onBrowseFiles={onBrowseFiles}
-                onCancelDownload={handleCancelDownload}
-              />
-            );
-          })
+        <TouchableOpacity 
+          style={styles.sectionHeader}
+          onPress={() => setExpandedSection(expandedSection === 'downloaded' ? null : 'downloaded')}
+        >
+          <Text style={styles.sectionTitle}>Downloaded Models</Text>
+          <Text style={styles.sectionCount}>({filteredDownloadedModels.length})</Text>
+        </TouchableOpacity>
+        
+        {expandedSection === 'downloaded' && (
+          filteredDownloadedModels.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No downloaded models</Text>
+            </View>
+          ) : (
+            filteredDownloadedModels.map(model => {
+              const currentState = modelStates[model.metadata.id];
+              return (
+                <ModelCard
+                  key={model.metadata.id}
+                  model={model.metadata}
+                  state={currentState || model}
+                  onDownload={() => handleDownload(model.metadata.id)}
+                  onDelete={() => handleDelete(model.metadata.id)}
+                  onSelect={() => handleSelect(model.metadata.id)}
+                  isSelected={selectedModelId === model.metadata.id}
+                  onBrowseFiles={onModelSelect}
+                  onCancelDownload={handleCancelDownload}
+                />
+              );
+            })
+          )
         )}
       </View>
 
       {/* Available Models Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Available Models</Text>
-        {filteredAvailableModels.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No models available for the selected type</Text>
-          </View>
-        ) : (
-          filteredAvailableModels.map(model => {
-            // Get the current state for this model (if it exists) from context
-            const currentState = modelStates[model.id];
-            return (
-              <ModelCard
-                key={model.id}
-                model={model}
-                state={currentState}
-                onDownload={() => handleDownload(model.id)}
-                onDelete={() => handleDelete(model.id)}
-                onSelect={() => handleSelect(model.id)}
-                isSelected={selectedModelId === model.id}
-                onBrowseFiles={onBrowseFiles}
-                onCancelDownload={handleCancelDownload}
-              />
-            );
-          })
+        <TouchableOpacity 
+          style={styles.sectionHeader}
+          onPress={() => setExpandedSection(expandedSection === 'available' ? null : 'available')}
+        >
+          <Text style={styles.sectionTitle}>Available Models</Text>
+          <Text style={styles.sectionCount}>({filteredAvailableModels.length})</Text>
+        </TouchableOpacity>
+        
+        {expandedSection === 'available' && (
+          filteredAvailableModels.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No models available for the selected type</Text>
+            </View>
+          ) : (
+            filteredAvailableModels.map(model => {
+              const currentState = modelStates[model.id];
+              return (
+                <ModelCard
+                  key={model.id}
+                  model={model}
+                  state={currentState}
+                  onDownload={() => handleDownload(model.id)}
+                  onDelete={() => handleDelete(model.id)}
+                  onSelect={() => handleSelect(model.id)}
+                  isSelected={selectedModelId === model.id}
+                  onBrowseFiles={onModelSelect}
+                  onCancelDownload={handleCancelDownload}
+                />
+              );
+            })
+          )
         )}
       </View>
     </ScrollView>
@@ -880,10 +869,23 @@ const styles = StyleSheet.create({
   section: {
     padding: 16,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 16,
+  },
+  sectionCount: {
+    fontSize: 14,
+    color: '#666',
   },
   emptyContainer: {
     padding: 24,
