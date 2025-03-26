@@ -16,10 +16,14 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.util.Log
-import com.facebook.react.bridge.*
-import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
+import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableArray
+import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.modules.core.DeviceEventManagerModule
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -38,6 +42,12 @@ import com.k2fsa.sherpa.onnx.AudioEvent
 import com.k2fsa.sherpa.onnx.OfflineStream
 import com.k2fsa.sherpa.onnx.AudioTaggingModelConfig
 import com.k2fsa.sherpa.onnx.OfflineZipformerAudioTaggingModelConfig
+
+// Import Speaker identification related classes
+import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractor
+import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractorConfig
+import com.k2fsa.sherpa.onnx.SpeakerEmbeddingManager
+import com.k2fsa.sherpa.onnx.OnlineStream
 
 class SherpaOnnxModule(private val reactContext: ReactApplicationContext) : 
     ReactContextBaseJavaModule(reactContext) {
@@ -58,6 +68,7 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     private val audioTaggingHandler = AudioTaggingHandler(reactContext)
     private val archiveHandler = ArchiveHandler(reactContext)
     private val asrHandler = ASRHandler(reactContext)
+    private val speakerIdHandler = SpeakerIdHandler(reactContext)
 
     companion object {
         const val NAME = "SherpaOnnx"
@@ -72,6 +83,15 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
                 // Check if the library is loaded
                 isLibraryLoaded = com.k2fsa.sherpa.onnx.OfflineTts::class.java != null
                 Log.i(TAG, "Sherpa ONNX JNI library is available")
+                
+                // Also check if Apache Commons Compress is available
+                try {
+                    Class.forName("org.apache.commons.compress.archivers.tar.TarArchiveInputStream")
+                    Log.i(TAG, "Apache Commons Compress library is available")
+                } catch (e: ClassNotFoundException) {
+                    Log.e(TAG, "Failed to load Apache Commons Compress: ${e.message}")
+                    isLibraryLoaded = false
+                }
             } catch (e: UnsatisfiedLinkError) {
                 Log.e(TAG, "Failed to load sherpa-onnx-jni: ${e.message}")
                 isLibraryLoaded = false
@@ -101,6 +121,10 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     
     @ReactMethod
     fun extractTarBz2(sourcePath: String, targetDir: String, promise: Promise) {
+        if (!isLibraryLoaded) {
+            promise.reject("ERR_NOT_INITIALIZED", "Native module is not properly initialized")
+            return
+        }
         archiveHandler.extractTarBz2(sourcePath, targetDir, promise)
     }
 
@@ -221,6 +245,60 @@ class SherpaOnnxModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun processAudioFile(filePath: String, promise: Promise) {
         audioTaggingHandler.processAudioFile(filePath, promise)
+    }
+
+    // =========================================================================
+    // Speaker ID Methods - Delegated to SpeakerIdHandler
+    // =========================================================================
+    
+    @ReactMethod
+    fun initSpeakerId(modelConfig: ReadableMap, promise: Promise) {
+        speakerIdHandler.init(modelConfig, promise)
+    }
+    
+    @ReactMethod
+    fun processSpeakerIdSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        speakerIdHandler.processAudioSamples(sampleRate, audioBuffer, promise)
+    }
+    
+    @ReactMethod
+    fun computeSpeakerEmbedding(promise: Promise) {
+        speakerIdHandler.computeEmbedding(promise)
+    }
+    
+    @ReactMethod
+    fun registerSpeaker(name: String, embedding: ReadableArray, promise: Promise) {
+        speakerIdHandler.registerSpeaker(name, embedding, promise)
+    }
+    
+    @ReactMethod
+    fun removeSpeaker(name: String, promise: Promise) {
+        speakerIdHandler.removeSpeaker(name, promise)
+    }
+    
+    @ReactMethod
+    fun getSpeakers(promise: Promise) {
+        speakerIdHandler.getSpeakers(promise)
+    }
+    
+    @ReactMethod
+    fun identifySpeaker(embedding: ReadableArray, threshold: Float, promise: Promise) {
+        speakerIdHandler.identifySpeaker(embedding, threshold, promise)
+    }
+    
+    @ReactMethod
+    fun verifySpeaker(name: String, embedding: ReadableArray, threshold: Float, promise: Promise) {
+        speakerIdHandler.verifySpeaker(name, embedding, threshold, promise)
+    }
+    
+    @ReactMethod
+    fun processSpeakerIdFile(filePath: String, promise: Promise) {
+        speakerIdHandler.processAudioFile(filePath, promise)
+    }
+    
+    @ReactMethod
+    fun releaseSpeakerId(promise: Promise) {
+        speakerIdHandler.release(promise)
     }
 
     /**

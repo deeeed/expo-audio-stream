@@ -59,4 +59,148 @@ RCT_EXPORT_METHOD(generateTts:(NSDictionary *)config
     reject(@"ERR_NOT_IMPLEMENTED", errorMsg, nil);
 }
 
+// Speaker Identification Methods
+
+RCT_EXPORT_METHOD(initSpeakerId:(NSDictionary *)config
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+    if (!libraryLoaded) {
+        reject(@"ERR_NOT_INITIALIZED", @"Library not loaded", nil);
+        return;
+    }
+
+    // Implementation for iOS would go here
+    NSString *errorMsg = @"Speaker ID functionality is not yet implemented on iOS";
+    reject(@"ERR_NOT_IMPLEMENTED", errorMsg, nil);
+}
+
+RCT_EXPORT_METHOD(processSpeakerIdSamples:(NSNumber *)sampleRate
+                 samples:(NSArray *)samples
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+    if (!libraryLoaded) {
+        reject(@"ERR_NOT_INITIALIZED", @"Library not loaded", nil);
+        return;
+    }
+
+    // Implementation for iOS would go here
+    NSString *errorMsg = @"Speaker ID functionality is not yet implemented on iOS";
+    reject(@"ERR_NOT_IMPLEMENTED", errorMsg, nil);
+}
+
+RCT_EXPORT_METHOD(computeSpeakerEmbedding:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+    if (!libraryLoaded) {
+        reject(@"ERR_NOT_INITIALIZED", @"Library not loaded", nil);
+        return;
+    }
+
+    // Implementation for iOS would go here
+    NSString *errorMsg = @"Speaker ID functionality is not yet implemented on iOS";
+    reject(@"ERR_NOT_IMPLEMENTED", errorMsg, nil);
+}
+
+RCT_EXPORT_METHOD(registerSpeaker:(NSString *)name
+                 embedding:(NSArray *)embedding
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+    if (!libraryLoaded) {
+        reject(@"ERR_NOT_INITIALIZED", @"Library not loaded", nil);
+        return;
+    }
+
+    // Implementation for iOS would go here
+    NSString *errorMsg = @"Speaker ID functionality is not yet implemented on iOS";
+    reject(@"ERR_NOT_IMPLEMENTED", errorMsg, nil);
+}
+
+RCT_EXPORT_METHOD(removeSpeaker:(NSString *)name
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+    if (!libraryLoaded) {
+        reject(@"ERR_NOT_INITIALIZED", @"Library not loaded", nil);
+        return;
+    }
+
+    // Implementation for iOS would go here
+    NSString *errorMsg = @"Speaker ID functionality is not yet implemented on iOS";
+    reject(@"ERR_NOT_IMPLEMENTED", errorMsg, nil);
+}
+
+RCT_EXPORT_METHOD(getSpeakers:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+    if (!libraryLoaded) {
+        reject(@"ERR_NOT_INITIALIZED", @"Library not loaded", nil);
+        return;
+    }
+
+    // Implementation for iOS would go here
+    NSString *errorMsg = @"Speaker ID functionality is not yet implemented on iOS";
+    reject(@"ERR_NOT_IMPLEMENTED", errorMsg, nil);
+}
+
+RCT_EXPORT_METHOD(identifySpeaker:(NSArray *)embedding
+                 threshold:(NSNumber *)threshold
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+    if (!libraryLoaded) {
+        reject(@"ERR_NOT_INITIALIZED", @"Library not loaded", nil);
+        return;
+    }
+
+    // Implementation for iOS would go here
+    NSString *errorMsg = @"Speaker ID functionality is not yet implemented on iOS";
+    reject(@"ERR_NOT_IMPLEMENTED", errorMsg, nil);
+}
+
+RCT_EXPORT_METHOD(verifySpeaker:(NSString *)name
+                 embedding:(NSArray *)embedding
+                 threshold:(NSNumber *)threshold
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+    if (!libraryLoaded) {
+        reject(@"ERR_NOT_INITIALIZED", @"Library not loaded", nil);
+        return;
+    }
+
+    // Implementation for iOS would go here
+    NSString *errorMsg = @"Speaker ID functionality is not yet implemented on iOS";
+    reject(@"ERR_NOT_IMPLEMENTED", errorMsg, nil);
+}
+
+RCT_EXPORT_METHOD(processSpeakerIdFile:(NSString *)filePath
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+    if (!libraryLoaded) {
+        reject(@"ERR_NOT_INITIALIZED", @"Library not loaded", nil);
+        return;
+    }
+
+    // Implementation for iOS would go here
+    NSString *errorMsg = @"Speaker ID functionality is not yet implemented on iOS";
+    reject(@"ERR_NOT_IMPLEMENTED", errorMsg, nil);
+}
+
+RCT_EXPORT_METHOD(releaseSpeakerId:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+    if (!libraryLoaded) {
+        reject(@"ERR_NOT_INITIALIZED", @"Library not loaded", nil);
+        return;
+    }
+
+    // Implementation for iOS would go here
+    NSString *errorMsg = @"Speaker ID functionality is not yet implemented on iOS";
+    reject(@"ERR_NOT_IMPLEMENTED", errorMsg, nil);
+}
+
 @end 

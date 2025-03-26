@@ -1,6 +1,7 @@
 import { TtsService } from '../services/TtsService';
 import { AsrService } from '../services/AsrService';
 import { AudioTaggingService } from '../services/AudioTaggingService';
+import { ArchiveService } from '../services/ArchiveService';
 
 /**
  * Type of model supported by Sherpa-onnx
@@ -651,6 +652,7 @@ export interface SherpaOnnxStatic {
   TTS: typeof TtsService;
   ASR: typeof AsrService;
   AudioTagging: typeof AudioTaggingService;
+  Archive: typeof ArchiveService;
 }
 
 export declare const SherpaOnnx: SherpaOnnxStatic;
@@ -697,4 +699,279 @@ export interface TtsOptions {
    * Controls randomness in phoneme duration (default: model setting)
    */
   noiseScaleW?: number;
+}
+
+// ----------------------------------------------------------------------------------
+// Speaker Identification Interfaces
+// ----------------------------------------------------------------------------------
+
+/**
+ * Configuration for Speaker Identification model
+ */
+export interface SpeakerIdModelConfig {
+  /**
+   * Directory containing model files
+   */
+  modelDir: string;
+
+  /**
+   * Model file name (e.g., "model.onnx")
+   * Default: "model.onnx"
+   */
+  modelFile?: string;
+
+  /**
+   * Number of threads for processing
+   * Default: 1
+   */
+  numThreads?: number;
+
+  /**
+   * Provider for model inference (e.g., "cpu")
+   * Default: "cpu"
+   */
+  provider?: string;
+
+  /**
+   * Enable debug mode for more detailed logs
+   * Default: false
+   */
+  debug?: boolean;
+}
+
+/**
+ * Result of Speaker ID initialization
+ */
+export interface SpeakerIdInitResult {
+  /**
+   * Whether initialization was successful
+   */
+  success: boolean;
+
+  /**
+   * Dimension of the speaker embedding
+   */
+  embeddingDim: number;
+
+  /**
+   * Error message if initialization failed
+   */
+  error?: string;
+}
+
+/**
+ * Result of audio sample processing for Speaker ID
+ */
+export interface SpeakerIdProcessResult {
+  /**
+   * Whether processing was successful
+   */
+  success: boolean;
+
+  /**
+   * Number of samples that were processed
+   */
+  samplesProcessed: number;
+
+  /**
+   * Error message if processing failed
+   */
+  error?: string;
+}
+
+/**
+ * Result of speaker embedding computation
+ */
+export interface SpeakerEmbeddingResult {
+  /**
+   * Whether computation was successful
+   */
+  success: boolean;
+
+  /**
+   * Processing time in milliseconds
+   */
+  durationMs: number;
+
+  /**
+   * Speaker embedding vector
+   */
+  embedding: number[];
+
+  /**
+   * Dimension of the embedding
+   */
+  embeddingDim: number;
+
+  /**
+   * Error message if computation failed
+   */
+  error?: string;
+}
+
+/**
+ * Result of speaker registration
+ */
+export interface RegisterSpeakerResult {
+  /**
+   * Whether registration was successful
+   */
+  success: boolean;
+
+  /**
+   * Message describing the result
+   */
+  message?: string;
+
+  /**
+   * Error message if registration failed
+   */
+  error?: string;
+}
+
+/**
+ * Result of speaker removal
+ */
+export interface RemoveSpeakerResult {
+  /**
+   * Whether removal was successful
+   */
+  success: boolean;
+
+  /**
+   * Message describing the result
+   */
+  message?: string;
+
+  /**
+   * Error message if removal failed
+   */
+  error?: string;
+}
+
+/**
+ * Result of getting all speakers
+ */
+export interface GetSpeakersResult {
+  /**
+   * Whether the operation was successful
+   */
+  success: boolean;
+
+  /**
+   * Array of speaker names
+   */
+  speakers: string[];
+
+  /**
+   * Total number of speakers
+   */
+  count: number;
+
+  /**
+   * Error message if operation failed
+   */
+  error?: string;
+}
+
+/**
+ * Result of speaker identification
+ */
+export interface IdentifySpeakerResult {
+  /**
+   * Whether identification was successful
+   */
+  success: boolean;
+
+  /**
+   * Name of the identified speaker (empty if no match)
+   */
+  speakerName: string;
+
+  /**
+   * Whether a speaker was identified
+   */
+  identified: boolean;
+
+  /**
+   * Error message if identification failed
+   */
+  error?: string;
+}
+
+/**
+ * Result of speaker verification
+ */
+export interface VerifySpeakerResult {
+  /**
+   * Whether verification was successful
+   */
+  success: boolean;
+
+  /**
+   * Whether the speaker was verified (matches the provided embedding)
+   */
+  verified: boolean;
+
+  /**
+   * Error message if verification failed
+   */
+  error?: string;
+}
+
+/**
+ * Result of processing an audio file for speaker identification
+ */
+export interface SpeakerIdFileProcessResult {
+  /**
+   * Whether processing was successful
+   */
+  success: boolean;
+
+  /**
+   * Processing time in milliseconds
+   */
+  durationMs: number;
+
+  /**
+   * Speaker embedding vector
+   */
+  embedding: number[];
+
+  /**
+   * Dimension of the embedding
+   */
+  embeddingDim: number;
+
+  /**
+   * Sample rate of the processed audio
+   */
+  sampleRate: number;
+
+  /**
+   * Number of samples that were processed
+   */
+  samples: number;
+
+  /**
+   * Error message if processing failed
+   */
+  error?: string;
+}
+
+/**
+ * Options for speaker identification
+ */
+export interface SpeakerIdOptions {
+  /**
+   * Minimum threshold for speaker similarity (0-1)
+   * Default: 0.5
+   */
+  threshold?: number;
+
+  /**
+   * Minimum duration of audio required for reliable identification (in seconds)
+   * Default: 3
+   */
+  minDuration?: number;
 }

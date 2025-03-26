@@ -1,8 +1,6 @@
+import SherpaOnnx from '@siteed/sherpa-onnx.rn';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
-import { SherpaOnnx } from '@siteed/sherpa-onnx.rn';
-
-const { ArchiveService } = SherpaOnnx;
 
 /**
  * Interface for extraction result
@@ -10,6 +8,7 @@ const { ArchiveService } = SherpaOnnx;
 interface ExtractionResult {
   success: boolean;
   message?: string;
+  error?: string;
   extractedFiles?: string[];
 }
 
@@ -56,7 +55,7 @@ export async function extractTarBz2(
       console.log(`ArchiveUtils: Using native module to extract tar.bz2 on Android`);
       try {
         // Check if NativeSherpaOnnx is properly initialized
-        if (!ArchiveService || typeof ArchiveService.extractTarBz2 !== 'function') {
+        if (!SherpaOnnx.Archive || typeof SherpaOnnx.Archive.extractTarBz2 !== 'function') {
           console.error('ArchiveUtils: NativeSherpaOnnx.extractTarBz2 is not available');
           return {
             success: false,
@@ -77,7 +76,7 @@ export async function extractTarBz2(
         }
         
         // Call the extractTarBz2 method directly from NativeSherpaOnnx
-        const result = await ArchiveService.extractTarBz2(archivePath, targetDir);
+        const result = await SherpaOnnx.Archive.extractTarBz2(archivePath, targetDir);
         console.log(`ArchiveUtils: Native extraction result:`, result);
         
         if (result.success) {
@@ -87,7 +86,7 @@ export async function extractTarBz2(
             message: "Extraction successful"
           };
         } else {
-          console.warn(`ArchiveUtils: Native extraction failed: ${result.error}`);
+          console.warn(`ArchiveUtils: Native extraction failed: ${result.message}`);
           // Check if there are any files already extracted
           const existingFiles = await FileSystem.readDirectoryAsync(targetDir);
           
@@ -110,7 +109,7 @@ export async function extractTarBz2(
           
           return {
             success: false,
-            message: `Native extraction failed: ${result.error}`,
+            message: `Native extraction failed: ${result.message}`,
             extractedFiles: []
           };
         }

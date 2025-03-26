@@ -31,6 +31,24 @@ interface SherpaOnnxInterface {
   ) => Promise<any>;
   processAudioFile: (filePath: string) => Promise<any>;
   releaseAudioTagging: () => Promise<any>;
+  // Speaker ID methods
+  initSpeakerId: (config: any) => Promise<any>;
+  processSpeakerIdSamples: (
+    sampleRate: number,
+    samples: number[]
+  ) => Promise<any>;
+  computeSpeakerEmbedding: () => Promise<any>;
+  registerSpeaker: (name: string, embedding: number[]) => Promise<any>;
+  removeSpeaker: (name: string) => Promise<any>;
+  getSpeakers: () => Promise<any>;
+  identifySpeaker: (embedding: number[], threshold: number) => Promise<any>;
+  verifySpeaker: (
+    name: string,
+    embedding: number[],
+    threshold: number
+  ) => Promise<any>;
+  processSpeakerIdFile: (filePath: string) => Promise<any>;
+  releaseSpeakerId: () => Promise<any>;
   // Utility methods
   extractTarBz2: (sourcePath: string, targetDir: string) => Promise<any>;
   validateLibraryLoaded: () => Promise<any>;
