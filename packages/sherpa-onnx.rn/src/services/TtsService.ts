@@ -17,6 +17,13 @@ export class TtsService {
   private static modelType?: string;
 
   /**
+   * Get the model type
+   */
+  public static getModelType(): string | undefined {
+    return this.modelType;
+  }
+
+  /**
    * Validate that the Sherpa-ONNX library is properly loaded
    * @returns Promise that resolves with validation result
    */
@@ -106,13 +113,22 @@ export class TtsService {
 
     try {
       const result = await SherpaOnnxAPI.generateTts(text, options);
-      
+
       // Always ensure both numSamples and samplesLength are set correctly
-      if (result.numSamples !== undefined && result.samplesLength === undefined) {
+      if (
+        result.numSamples !== undefined &&
+        result.samplesLength === undefined
+      ) {
         result.samplesLength = result.numSamples;
-      } else if (result.samplesLength !== undefined && result.numSamples === undefined) {
+      } else if (
+        result.samplesLength !== undefined &&
+        result.numSamples === undefined
+      ) {
         result.numSamples = result.samplesLength;
-      } else if (result.samplesLength === undefined && result.numSamples === undefined) {
+      } else if (
+        result.samplesLength === undefined &&
+        result.numSamples === undefined
+      ) {
         // If neither is defined (shouldn't happen, but just in case)
         result.samplesLength = 0;
         result.numSamples = 0;

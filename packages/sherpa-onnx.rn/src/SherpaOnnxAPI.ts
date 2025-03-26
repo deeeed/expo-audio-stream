@@ -11,6 +11,16 @@ import type {
   AudioTaggingModelConfig,
   AudioTaggingInitResult,
   AudioTaggingResult,
+  SpeakerIdModelConfig,
+  SpeakerIdInitResult,
+  SpeakerIdProcessResult,
+  SpeakerEmbeddingResult,
+  RegisterSpeakerResult,
+  RemoveSpeakerResult,
+  GetSpeakersResult,
+  IdentifySpeakerResult,
+  VerifySpeakerResult,
+  SpeakerIdFileProcessResult,
 } from './types/interfaces';
 
 /**
@@ -330,5 +340,65 @@ export class SherpaOnnxAPI {
       console.error('Failed to extract archive:', error);
       throw error;
     }
+  }
+
+  // Speaker ID methods
+  public static async initSpeakerId(
+    config: SpeakerIdModelConfig
+  ): Promise<SpeakerIdInitResult> {
+    return NativeSherpaOnnx.initSpeakerId(config);
+  }
+
+  public static async processSpeakerIdSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<SpeakerIdProcessResult> {
+    return NativeSherpaOnnx.processSpeakerIdSamples(sampleRate, samples);
+  }
+
+  public static async computeSpeakerEmbedding(): Promise<SpeakerEmbeddingResult> {
+    return NativeSherpaOnnx.computeSpeakerEmbedding();
+  }
+
+  public static async registerSpeaker(
+    name: string,
+    embedding: number[]
+  ): Promise<RegisterSpeakerResult> {
+    return NativeSherpaOnnx.registerSpeaker(name, embedding);
+  }
+
+  public static async removeSpeaker(
+    name: string
+  ): Promise<RemoveSpeakerResult> {
+    return NativeSherpaOnnx.removeSpeaker(name);
+  }
+
+  public static async getSpeakers(): Promise<GetSpeakersResult> {
+    return NativeSherpaOnnx.getSpeakers();
+  }
+
+  public static async identifySpeaker(
+    embedding: number[],
+    threshold: number
+  ): Promise<IdentifySpeakerResult> {
+    return NativeSherpaOnnx.identifySpeaker(embedding, threshold);
+  }
+
+  public static async verifySpeaker(
+    name: string,
+    embedding: number[],
+    threshold: number
+  ): Promise<VerifySpeakerResult> {
+    return NativeSherpaOnnx.verifySpeaker(name, embedding, threshold);
+  }
+
+  public static async processSpeakerIdFile(
+    filePath: string
+  ): Promise<SpeakerIdFileProcessResult> {
+    return NativeSherpaOnnx.processSpeakerIdFile(filePath);
+  }
+
+  public static async releaseSpeakerId(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseSpeakerId();
   }
 }

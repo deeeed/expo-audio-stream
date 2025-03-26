@@ -144,7 +144,10 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
     fun processAudioSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
         executor.execute {
             try {
+                Log.d(TAG, "Processing audio samples - sampleRate: $sampleRate, bufferSize: ${audioBuffer.size()}")
+                
                 if (audioTagging == null || stream == null) {
+                    Log.e(TAG, "Audio tagging or stream not initialized")
                     throw Exception("Audio tagging is not initialized")
                 }
                 
@@ -154,18 +157,24 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                     samples[i] = audioBuffer.getDouble(i).toFloat()
                 }
                 
+                Log.d(TAG, "Converted ${samples.size} samples to FloatArray")
+                
                 // Accept waveform
                 stream?.acceptWaveform(samples, sampleRate)
+                Log.d(TAG, "Successfully accepted waveform")
                 
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
                 resultMap.putInt("samplesProcessed", samples.size)
+                
+                Log.d(TAG, "Successfully processed ${samples.size} samples")
                 
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing audio samples: ${e.message}")
+                e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
                     promise.reject("ERR_AUDIO_TAGGING_PROCESS", "Failed to process audio samples: ${e.message}")
@@ -180,7 +189,10 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
     fun computeAudioTagging(promise: Promise) {
         executor.execute {
             try {
+                Log.d(TAG, "Computing audio tagging results")
+                
                 if (audioTagging == null || stream == null) {
+                    Log.e(TAG, "Audio tagging or stream not initialized")
                     throw Exception("Audio tagging is not initialized")
                 }
                 
@@ -188,6 +200,7 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                 // Use explicit casting to avoid smart cast issue
                 val currentStream = stream
                 if (currentStream != null) {
+                    Log.d(TAG, "Computing audio events")
                     val events = audioTagging?.compute(currentStream)
                     
                     // Process events
@@ -208,6 +221,8 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                             if (event.index >= 0) {
                                 eventMap.putInt("index", event.index)
                             }
+                            
+                            Log.d(TAG, "Processed event: name=${event.name}, prob=${event.prob}, index=${event.index}")
                         } catch (e: Exception) {
                             // Fall back to defaults if any access fails
                             Log.w(TAG, "Could not extract event properties: ${e.message}")
@@ -220,23 +235,30 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                         eventsArray.pushMap(eventMap)
                     }
                     
+                    Log.d(TAG, "Found ${events?.size ?: 0} audio events")
+                    
                     // Prepare new stream for next recognition
                     stream?.release()
                     stream = audioTagging?.createStream()
+                    Log.d(TAG, "Created new stream for next recognition")
                     
                     // Return results
                     val resultMap = Arguments.createMap()
                     resultMap.putBoolean("success", true)
                     resultMap.putArray("events", eventsArray)
                     
+                    Log.d(TAG, "Successfully computed audio tagging results")
+                    
                     reactContext.runOnUiQueueThread {
                         promise.resolve(resultMap)
                     }
                 } else {
+                    Log.e(TAG, "Stream is null during processing")
                     throw Exception("Stream is null during processing")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error computing audio tagging: ${e.message}")
+                e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
                     promise.reject("ERR_AUDIO_TAGGING_COMPUTE", "Failed to compute audio tagging: ${e.message}")
@@ -251,31 +273,40 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
     fun processAudioFile(filePath: String, promise: Promise) {
         executor.execute {
             try {
+                Log.d(TAG, "Processing audio file: $filePath")
+                
                 if (audioTagging == null) {
+                    Log.e(TAG, "Audio tagging not initialized")
                     throw Exception("Audio tagging is not initialized")
                 }
                 
                 // Clean the file path to remove any file:/ or file:// prefixes
                 val cleanedFilePath = AssetUtils.cleanFilePath(filePath)
-                Log.i(TAG, "Processing audio file: $cleanedFilePath")
+                Log.d(TAG, "Cleaned file path: $cleanedFilePath")
                 
                 // Extract audio from file - fix type mismatch by creating a File object
+                Log.d(TAG, "Extracting audio from file")
                 val audioData = AudioExtractor.extractAudioFromFile(File(cleanedFilePath))
                 
                 // Create stream
                 val newStream = audioTagging?.createStream()
                 if (newStream == null) {
+                    Log.e(TAG, "Failed to create audio stream")
                     throw Exception("Failed to create audio stream")
                 }
+                Log.d(TAG, "Created new audio stream")
                 
                 // Process audio - use safe call operator to avoid null-related crashes
                 audioData?.samples?.let { samples ->
                     audioData.sampleRate?.let { sampleRate ->
+                        Log.d(TAG, "Processing audio data - samples: ${samples.size}, sampleRate: $sampleRate")
                         newStream.acceptWaveform(samples, sampleRate)
+                        Log.d(TAG, "Successfully accepted waveform")
                     }
                 }
                 
                 // Compute audio tagging
+                Log.d(TAG, "Computing audio events")
                 val events = audioTagging?.compute(newStream)
                 
                 // Process events
@@ -296,6 +327,8 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                         if (event.index >= 0) {
                             eventMap.putInt("index", event.index)
                         }
+                        
+                        Log.d(TAG, "Processed event: name=${event.name}, prob=${event.prob}, index=${event.index}")
                     } catch (e: Exception) {
                         // Fall back to defaults if any access fails
                         Log.w(TAG, "Could not extract event properties: ${e.message}")
@@ -308,19 +341,25 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                     eventsArray.pushMap(eventMap)
                 }
                 
+                Log.d(TAG, "Found ${events?.size ?: 0} audio events")
+                
                 // Release stream
                 newStream.release()
+                Log.d(TAG, "Released audio stream")
                 
                 // Return results
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
                 resultMap.putArray("events", eventsArray)
                 
+                Log.d(TAG, "Successfully processed audio file")
+                
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing audio file: ${e.message}")
+                e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
                     promise.reject("ERR_AUDIO_TAGGING_FILE", "Failed to process audio file: ${e.message}")
@@ -333,6 +372,7 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
      * Process and compute audio tagging
      */
     fun processAndComputeAudioTagging(filePath: String, promise: Promise) {
+        Log.d(TAG, "Processing and computing audio tagging for file: $filePath")
         processAudioFile(filePath, promise)
     }
     
@@ -342,16 +382,20 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
     fun release(promise: Promise) {
         executor.execute {
             try {
+                Log.d(TAG, "Releasing audio tagging resources")
                 releaseResources()
                 
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
+                
+                Log.d(TAG, "Successfully released resources")
                 
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error releasing audio tagging: ${e.message}")
+                e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
                     promise.reject("ERR_AUDIO_TAGGING_RELEASE", "Failed to release audio tagging: ${e.message}")
@@ -365,13 +409,17 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
      */
     private fun releaseResources() {
         try {
+            Log.d(TAG, "Releasing stream and audio tagging resources")
             stream?.release()
             stream = null
+            Log.d(TAG, "Released stream")
             
             audioTagging?.release()
             audioTagging = null
+            Log.d(TAG, "Released audio tagging")
         } catch (e: Exception) {
             Log.e(TAG, "Error releasing resources: ${e.message}")
+            e.printStackTrace()
         }
     }
 } 

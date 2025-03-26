@@ -23,6 +23,7 @@ SherpaOnnxTts.h/mm
 SherpaOnnxAudioTagging.h/mm
 SherpaOnnxASR.h/mm
 SherpaOnnxArchive.h/mm
+SherpaOnnxSpeakerId.h/mm
 ```
 
 These should mirror the functionality in the Android JNI classes:
@@ -30,6 +31,8 @@ These should mirror the functionality in the Android JNI classes:
 - `com.k2fsa.sherpa.onnx.AudioTagging`
 - `com.k2fsa.sherpa.onnx.OfflineStream`
 - `com.k2fsa.sherpa.onnx.OfflineRecognizer`
+- `com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractor`
+- `com.k2fsa.sherpa.onnx.SpeakerEmbeddingManager`
 
 ### 3. Implement Handler Classes
 
@@ -40,6 +43,7 @@ TtsHandler.h/mm
 AudioTaggingHandler.h/mm
 ArchiveHandler.h/mm
 ASRHandler.h/mm
+SpeakerIdHandler.h/mm
 ```
 
 Each handler should implement the same methods as its Android counterpart.
@@ -67,6 +71,18 @@ Expand the existing module with all required method exports:
 - `recognizeFromSamples`
 - `recognizeFromFile`
 - `releaseAsr`
+
+#### Speaker Identification Methods
+- `initSpeakerId`
+- `processSpeakerIdSamples`
+- `computeSpeakerEmbedding`
+- `registerSpeaker`
+- `removeSpeaker`
+- `getSpeakers`
+- `identifySpeaker`
+- `verifySpeaker`
+- `processSpeakerIdFile`
+- `releaseSpeakerId`
 
 #### Archive Methods
 - `extractTarBz2`
@@ -100,6 +116,8 @@ Create Objective-C++ equivalents for Android config classes:
 - `AudioTaggingConfig`
 - `AudioTaggingModelConfig`
 - `OfflineRecognizerConfig`
+- `SpeakerEmbeddingExtractorConfig`
+- `SpeakerEmbeddingManagerConfig`
 
 ### 8. Map React Native Types
 
@@ -128,12 +146,14 @@ ios/
 │   ├── TtsHandler.h/mm
 │   ├── AudioTaggingHandler.h/mm
 │   ├── ASRHandler.h/mm
-│   └── ArchiveHandler.h/mm
+│   ├── ArchiveHandler.h/mm
+│   └── SpeakerIdHandler.h/mm
 ├── Bridge/                     // C++ bridge to native library
 │   ├── SherpaOnnxTts.h/mm
 │   ├── SherpaOnnxAudioTagging.h/mm
 │   ├── SherpaOnnxASR.h/mm
-│   └── SherpaOnnxArchive.h/mm
+│   ├── SherpaOnnxArchive.h/mm
+│   └── SherpaOnnxSpeakerId.h/mm
 └── Utils/                      // Utility functions
     ├── AudioUtils.h/mm
     └── ConfigUtils.h/mm
