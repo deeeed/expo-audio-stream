@@ -335,9 +335,12 @@ class SpeakerIdHandler(private val reactContext: ReactApplicationContext) {
      * Identify a speaker based on embedding
      */
     fun identifySpeaker(embedding: ReadableArray, threshold: Float, promise: Promise) {
+        Log.i(TAG, "identifySpeaker called with threshold: $threshold")
         executor.execute {
+            Log.i(TAG, "Starting speaker identification in background thread")
             try {
                 if (speakerManager == null) {
+                    Log.e(TAG, "Speaker manager is null - not initialized")
                     throw Exception("Speaker ID is not initialized")
                 }
                 
@@ -348,7 +351,9 @@ class SpeakerIdHandler(private val reactContext: ReactApplicationContext) {
                 }
                 
                 // Search for matching speaker
+                Log.i(TAG, "Searching for matching speaker")
                 val speakerName = speakerManager!!.search(embeddingArray, threshold)
+                Log.i(TAG, "Search result: ${if (speakerName.isNotEmpty()) "Found: $speakerName" else "No match found"}")
                 
                 // Return results
                 val resultMap = Arguments.createMap()
@@ -356,17 +361,26 @@ class SpeakerIdHandler(private val reactContext: ReactApplicationContext) {
                 resultMap.putString("speakerName", speakerName)
                 resultMap.putBoolean("identified", speakerName.isNotEmpty())
                 
+                Log.i(TAG, "Sending identification result back to JS")
                 reactContext.runOnUiQueueThread {
+                    Log.i(TAG, "On UI thread: resolving promise with identification result")
                     promise.resolve(resultMap)
+                    Log.i(TAG, "Promise resolved")
                 }
+                Log.i(TAG, "Speaker identification completed successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "Error identifying speaker: ${e.message}")
                 
                 reactContext.runOnUiQueueThread {
+                    Log.e(TAG, "On UI thread: rejecting promise with error")
                     promise.reject("ERR_SPEAKER_ID_IDENTIFY", "Failed to identify speaker: ${e.message}")
+                    Log.e(TAG, "Promise rejected")
                 }
+                Log.e(TAG, "Speaker identification failed with exception")
             }
+            Log.i(TAG, "Exiting background thread for speaker identification")
         }
+        Log.i(TAG, "identifySpeaker method exited - processing continues in background")
     }
     
     /**
@@ -422,9 +436,12 @@ class SpeakerIdHandler(private val reactContext: ReactApplicationContext) {
      * Process audio file to create embedding
      */
     fun processAudioFile(filePath: String, promise: Promise) {
+        Log.i(TAG, "processAudioFile called with path: $filePath")
         executor.execute {
+            Log.i(TAG, "Starting audio file processing in background thread")
             try {
                 if (speakerExtractor == null) {
+                    Log.e(TAG, "Speaker extractor is null - not initialized")
                     throw Exception("Speaker ID is not initialized")
                 }
                 
@@ -433,26 +450,38 @@ class SpeakerIdHandler(private val reactContext: ReactApplicationContext) {
                 Log.i(TAG, "Processing audio file for speaker ID: $cleanedFilePath")
                 
                 // Extract audio from file
+                Log.i(TAG, "Starting audio extraction from file")
                 val audioData = AudioExtractor.extractAudioFromFile(File(cleanedFilePath))
                 
                 if (audioData == null) {
+                    Log.e(TAG, "Audio extraction failed - got null result")
                     throw Exception("Failed to extract audio from file")
                 }
                 
+                Log.i(TAG, "Audio extracted successfully: ${audioData.samples.size} samples at ${audioData.sampleRate}Hz")
+
                 // Create a new stream
+                Log.i(TAG, "Creating audio stream")
                 val newStream = speakerExtractor?.createStream()
                 if (newStream == null) {
+                    Log.e(TAG, "Failed to create speaker ID stream")
                     throw Exception("Failed to create audio stream")
                 }
                 
                 // Process audio
+                Log.i(TAG, "Feeding audio samples to stream")
                 newStream.acceptWaveform(audioData.samples, audioData.sampleRate)
                 
                 // Check if we have enough data
-                if (!speakerExtractor!!.isReady(newStream)) {
+                Log.i(TAG, "Checking if we have enough audio data")
+                val isReady = speakerExtractor!!.isReady(newStream)
+                Log.i(TAG, "Stream is ready: $isReady")
+                
+                if (!isReady) {
                     val resultMap = Arguments.createMap()
                     resultMap.putBoolean("success", false)
                     resultMap.putString("error", "Not enough audio data to compute embedding")
+                    Log.i(TAG, "Not enough audio data, returning error to JS")
                     reactContext.runOnUiQueueThread {
                         promise.resolve(resultMap)
                     }
@@ -460,20 +489,25 @@ class SpeakerIdHandler(private val reactContext: ReactApplicationContext) {
                 }
                 
                 // Compute embedding
+                Log.i(TAG, "Starting embedding computation")
                 val startTime = System.currentTimeMillis()
                 val embedding = speakerExtractor!!.compute(newStream)
                 val endTime = System.currentTimeMillis()
+                Log.i(TAG, "Embedding computed in ${endTime - startTime}ms, dimension: ${embedding.size}")
                 
                 // Release stream
+                Log.i(TAG, "Releasing stream")
                 newStream.release()
                 
                 // Convert embedding to JS array
+                Log.i(TAG, "Converting embedding to JS array")
                 val embeddingArray = Arguments.createArray()
                 for (value in embedding) {
                     embeddingArray.pushDouble(value.toDouble())
                 }
                 
                 // Return results
+                Log.i(TAG, "Preparing result map")
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
                 resultMap.putInt("durationMs", (endTime - startTime).toInt())
@@ -482,18 +516,27 @@ class SpeakerIdHandler(private val reactContext: ReactApplicationContext) {
                 resultMap.putInt("sampleRate", audioData.sampleRate)
                 resultMap.putInt("samples", audioData.samples.size)
                 
+                Log.i(TAG, "Sending result back to JS")
                 reactContext.runOnUiQueueThread {
+                    Log.i(TAG, "On UI thread: resolving promise with embedding result")
                     promise.resolve(resultMap)
+                    Log.i(TAG, "Promise resolved")
                 }
+                Log.i(TAG, "Audio processing completed successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing audio file for speaker ID: ${e.message}")
                 e.printStackTrace()
                 
                 reactContext.runOnUiQueueThread {
+                    Log.e(TAG, "On UI thread: rejecting promise with error")
                     promise.reject("ERR_SPEAKER_ID_PROCESS_FILE", "Failed to process audio file: ${e.message}")
+                    Log.e(TAG, "Promise rejected")
                 }
+                Log.e(TAG, "Audio processing failed with exception")
             }
+            Log.i(TAG, "Exiting background thread for audio processing")
         }
+        Log.i(TAG, "processAudioFile method exited - processing continues in background")
     }
     
     /**
