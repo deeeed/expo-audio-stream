@@ -46,6 +46,14 @@ const verifyFileExists = async (expoUri: string): Promise<boolean> => {
   }
 };
 
+// Helper function to properly join path segments
+const joinPaths = (...paths: string[]): string => {
+  return paths
+    .map(path => path.replace(/^\/+|\/+$/g, '')) // Remove leading/trailing slashes
+    .filter(Boolean) // Remove empty segments
+    .join('/');
+};
+
 interface ModelInfo {
   modelDir: string;
   modelType: string;
@@ -137,7 +145,7 @@ interface ModelState {
 }
 
 export default function SpeakerIdScreen() {
-  const { getDownloadedModels, getModelState } = useModelManagement();
+  const { getDownloadedModels, getModelState, refreshModelStatus } = useModelManagement();
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -155,6 +163,11 @@ export default function SpeakerIdScreen() {
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [registeredSpeakers, setRegisteredSpeakers] = useState<string[]>([]);
   const [speakerCount, setSpeakerCount] = useState(0);
+  
+  // Add a ref to track already refreshed model IDs
+  const refreshedModels = React.useRef<Set<string>>(new Set());
+  // Track if component is mounted
+  const isMounted = React.useRef(true);
   
   // Get only downloaded speaker ID models
   const availableModels = getDownloadedModels().filter(model => 
@@ -219,6 +232,7 @@ export default function SpeakerIdScreen() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      isMounted.current = false;
       if (initialized) {
         console.log('Cleaning up speaker ID resources');
         SpeakerId.release().catch((err: Error) => 
@@ -234,40 +248,125 @@ export default function SpeakerIdScreen() {
     };
   }, []);
   
+  // Fix the model refresh useEffect to prevent infinite loops
+  useEffect(() => {
+    async function refreshSelectedModel() {
+      if (!selectedModelId || !isMounted.current) return;
+      
+      // Skip if we've already refreshed this model - use a unique key
+      const modelRefreshKey = `refresh-${selectedModelId}`;
+      if (refreshedModels.current.has(modelRefreshKey)) {
+        console.log(`Skipping refresh for ${selectedModelId} - already refreshed`);
+        return;
+      }
+      
+      console.log(`Refreshing model status for ${selectedModelId} (once only)`);
+      try {
+        // Mark this model as refreshed to prevent future refreshes
+        refreshedModels.current.add(modelRefreshKey);
+        await refreshModelStatus(selectedModelId);
+      } catch (err) {
+        if (isMounted.current) {
+          console.error(`Error refreshing model status: ${err}`);
+        }
+      }
+    }
+    
+    refreshSelectedModel();
+    
+    // Add cleanup function
+    return () => {
+      // This will run before the next effect or on unmount
+    };
+  }, [selectedModelId]); // Remove refreshModelStatus from dependencies
+  
   // Setup speaker ID with a specific model
   async function setupSpeakerId(modelId: string) {
     setLoading(true);
     setError(null);
     
     try {
+      // Only refresh the model status if we haven't already done so
+      const modelRefreshKey = `refresh-${modelId}`;
+      if (!refreshedModels.current.has(modelRefreshKey)) {
+        console.log(`Refreshing model status before setup for ${modelId}`);
+        refreshedModels.current.add(modelRefreshKey);
+        await refreshModelStatus(modelId);
+      } else {
+        console.log(`Using cached model status for ${modelId}`);
+      }
+      
+      // Log available models for debugging
+      const downloadedModels = getDownloadedModels();
+      console.log(`Available speaker ID models: ${downloadedModels.length}`);
+      
+      // Get model state
       const modelState = getModelState(modelId);
-      if (!modelState?.localPath) {
-        throw new Error('Model files not found locally');
+      console.log(`Model state for ${modelId}: ${JSON.stringify(modelState, null, 2)}`);
+      
+      if (!modelState) {
+        throw new Error(`Model state not found for ID: ${modelId}`);
+      }
+      
+      if (!modelState.localPath) {
+        throw new Error('Model files not found locally - no localPath in model state');
       }
       
       console.log(`Using model path: ${modelState.localPath}`);
       
-      // For speaker ID models, we expect a single .onnx file
-      const modelFile = modelState.extractedFiles?.[0];
-      if (!modelFile) {
-        throw new Error('No model file found in the downloaded model directory');
+      // For speaker ID models, we need the .onnx file
+      let modelFile = '';
+      let modelDir = '';
+      
+      // Check if the localPath exists and what it is
+      const pathInfo = await FileSystem.getInfoAsync(modelState.localPath);
+      
+      if (!pathInfo.exists) {
+        throw new Error(`Path does not exist: ${modelState.localPath}`);
       }
       
-      // The localPath should already be the full file path for single-file models
-      const modelPath = modelState.localPath;
-      console.log(`Using model file: ${modelPath}`);
-      
-      // Check if the file exists
-      const fileInfo = await FileSystem.getInfoAsync(modelPath);
-      if (!fileInfo.exists) {
-        console.error(`File not found at path: ${modelPath}`);
-        throw new Error(`Model file not found at ${modelPath}`);
+      // Different handling based on whether the path is a file or directory
+      if (!pathInfo.isDirectory) {
+        // The localPath is directly to the model file
+        console.log('Local path is a direct file path');
+        modelFile = modelState.localPath.split('/').pop() || '';
+        modelDir = modelState.localPath.substring(0, modelState.localPath.lastIndexOf('/'));
+        console.log(`Extracted model file: ${modelFile}`);
+        console.log(`Extracted model directory: ${modelDir}`);
+      } else {
+        // The localPath is a directory
+        console.log('Local path is a directory');
+        modelDir = modelState.localPath;
+        
+        // Try to find the model file
+        if (modelState.extractedFiles && modelState.extractedFiles.length > 0) {
+          // Use first extracted file if available
+          modelFile = modelState.extractedFiles[0];
+          console.log(`Using extracted model file: ${modelFile}`);
+        } else {
+          // Try to find .onnx file in the directory
+          const dirContents = await FileSystem.readDirectoryAsync(modelDir);
+          const onnxFile = dirContents.find(file => file.endsWith('.onnx'));
+          if (onnxFile) {
+            modelFile = onnxFile;
+            console.log(`Found ONNX file in directory: ${modelFile}`);
+          } else {
+            throw new Error('No ONNX model file found in the model directory');
+          }
+        }
       }
       
-      console.log(`File exists: ${fileInfo.exists}, size: ${fileInfo.size}`);
+      // Verify the model file exists
+      const fullModelPath = joinPaths(modelDir, modelFile);
+      console.log(`Checking if model file exists at: ${fullModelPath}`);
+      const fileExists = await verifyFileExists(fullModelPath);
       
-      // For single-file models, use the directory containing the file
-      const modelDir = modelPath.substring(0, modelPath.lastIndexOf('/'));
+      if (!fileExists) {
+        console.error(`File not found at path: ${fullModelPath}`);
+        throw new Error(`Model file not found at ${fullModelPath}`);
+      }
+      
+      console.log(`File exists, proceeding with initialization`);
       
       setModelInfo({
         modelDir: modelDir,
@@ -276,7 +375,7 @@ export default function SpeakerIdScreen() {
       setModelFile(modelFile);
       
       // Initialize Speaker ID with the model file
-      await handleInitSpeakerId(modelDir, modelFile);
+      await handleInitSpeakerId(modelDir, modelFile, modelId);
       
     } catch (err) {
       console.error('Error setting up speaker ID:', err);
@@ -286,7 +385,7 @@ export default function SpeakerIdScreen() {
   }
   
   // Initialize the speaker ID engine
-  const handleInitSpeakerId = async (modelDir: string, modelFile: string) => {
+  const handleInitSpeakerId = async (modelDir: string, modelFile: string, modelId?: string) => {
     if (!modelDir || !modelFile) {
       setError('Model information not available');
       return;
@@ -301,15 +400,33 @@ export default function SpeakerIdScreen() {
       console.log('Setting up speaker ID with model in:', modelDir);
       console.log('Model file:', modelFile);
       
+      // Determine if modelFile is already a full path or just a filename
+      const isFullPath = modelFile.includes('/');
+      
       // Initialize Speaker ID
       const config: SpeakerIdModelConfig = {
         modelDir: cleanPath(modelDir),
-        modelFile: modelFile,
+        // If modelFile is a full path, use just the filename
+        modelFile: isFullPath ? modelFile.split('/').pop() || modelFile : modelFile,
         numThreads: numThreads,
         debug: debugMode
       };
       
       console.log('Initializing speaker ID with config:', JSON.stringify(config));
+      
+      // Log additional info for debugging
+      console.log(`Model directory: ${modelDir}`);
+      console.log(`Model filename: ${config.modelFile}`);
+      
+      // Check if the file exists in the directory
+      const fullModelPath = isFullPath ? modelFile : joinPaths(modelDir, config.modelFile || '');
+      const fileExists = await verifyFileExists(fullModelPath);
+      console.log(`Full model path: ${fullModelPath}`);
+      console.log(`Model file exists check: ${fileExists}`);
+      
+      if (!fileExists) {
+        throw new Error(`Model file not found at path: ${fullModelPath}`);
+      }
       
       // Initialize the speaker ID engine
       const result = await SpeakerId.init(config);
@@ -324,7 +441,9 @@ export default function SpeakerIdScreen() {
       await refreshSpeakerList();
       
       setInitialized(true);
-      setSelectedModelId(result.success ? selectedModelId : null);
+      if (result.success && modelId) {
+        setSelectedModelId(modelId);
+      }
       setLoading(false);
     } catch (err) {
       console.error('Error initializing speaker ID:', err);
@@ -602,17 +721,19 @@ export default function SpeakerIdScreen() {
                 <TouchableOpacity
                   style={[
                     styles.modelItem,
-                    selectedModelId === item.metadata.name && styles.selectedModelItem
+                    selectedModelId === item.metadata.id && styles.selectedModelItem
                   ]}
                   onPress={() => {
-                    setSelectedModelId(item.metadata.name);
-                    setupSpeakerId(item.metadata.name);
+                    console.log(`Selecting model with ID: ${item.metadata.id}`);
+                    // Use the model's ID property
+                    setSelectedModelId(item.metadata.id);
+                    // Don't immediately call setupSpeakerId - let the useEffect refresh the model first
                   }}
                 >
                   <Text
                     style={[
                       styles.modelItemText,
-                      selectedModelId === item.metadata.name && styles.selectedModelItemText
+                      selectedModelId === item.metadata.id && styles.selectedModelItemText
                     ]}
                   >
                     {item.metadata.name}
@@ -697,7 +818,16 @@ export default function SpeakerIdScreen() {
               title={initialized ? "Release" : "Initialize"}
               onPress={initialized ? handleReleaseSpeakerId : () => {
                 if (selectedModelId) {
-                  setupSpeakerId(selectedModelId);
+                  console.log(`Initializing model with ID: ${selectedModelId}`);
+                  // Get the latest model state from context
+                  const currentModelState = getModelState(selectedModelId);
+                  
+                  if (currentModelState && currentModelState.status === 'downloaded') {
+                    setupSpeakerId(selectedModelId);
+                  } else {
+                    setError(`Model not ready for initialization. Status: ${currentModelState?.status || 'unknown'}`);
+                    console.log(`Model state: ${JSON.stringify(currentModelState, null, 2)}`);
+                  }
                 } else {
                   setError('Please select a model first');
                 }
@@ -1002,4 +1132,4 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '500',
   },
-}); 
+});
