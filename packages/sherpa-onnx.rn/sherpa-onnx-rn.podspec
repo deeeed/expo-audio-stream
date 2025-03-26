@@ -13,44 +13,51 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => "11.0" }
   s.source       = { :git => "https://github.com/deeeed/expo-audio-stream.git", :tag => "#{s.version}" }
 
-  # Include both our bridge code and the official Sherpa ONNX Swift API
-  s.source_files = [
-    "ios/**/*.{swift,h,m,mm}",    # Our React Native bridge code
-    "prebuilt/swift/**/*.swift"    # Official Sherpa ONNX Swift API
+  # Include only our own implementation files
+  s.source_files = ["ios/bridge/*.{h,m,mm,swift}"]
+  
+  # Prebuilt static libraries - explicitly list the ONNX Runtime libraries
+  s.vendored_libraries = [
+    "prebuilt/ios/libonnxruntime.a",
+    "prebuilt/ios/libsherpa-onnx-c-api.a",
+    "prebuilt/ios/libsherpa-onnx-core.a",
+    "prebuilt/ios/libsherpa-onnx-cxx-api.a",
+    "prebuilt/ios/libsherpa-onnx-fst.a", 
+    "prebuilt/ios/libsherpa-onnx-fstfar.a",
+    "prebuilt/ios/libsherpa-onnx-kaldifst-core.a",
+    "prebuilt/ios/libkaldi-decoder-core.a",
+    "prebuilt/ios/libkaldi-native-fbank-core.a",
+    "prebuilt/ios/libpiper_phonemize.a",
+    "prebuilt/ios/libespeak-ng.a",
+    "prebuilt/ios/libssentencepiece_core.a",
+    "prebuilt/ios/libucd.a",
+    "prebuilt/ios/libcargs.a"
   ]
   
-  # Use libraries from prebuilt folder
-  s.vendored_libraries = "prebuilt/ios/*.a"
+  # Dependencies for ONNX Runtime
+  s.frameworks = "Foundation", "CoreML", "Accelerate", "CoreVideo"
   
-  # Include the Sherpa ONNX headers
-  s.preserve_paths = "prebuilt/include/**", "prebuilt/swift/**/*.h"
+  # Preserve header files and module map
+  s.preserve_paths = "prebuilt/include/**", "prebuilt/include/module.modulemap"
+  
+  # Search paths for headers and libraries
   s.xcconfig = {
-    "HEADER_SEARCH_PATHS" => "\"${PODS_TARGET_SRCROOT}/prebuilt/include\"",
-    "LIBRARY_SEARCH_PATHS" => "\"${PODS_TARGET_SRCROOT}/prebuilt/ios\""
+    "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\"",
+    "LIBRARY_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/ios\"",
+    "SWIFT_INCLUDE_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\""
   }
-
-  # Configure Swift
+  
+  # Swift module configuration
   s.pod_target_xcconfig = {
-    "DEFINES_MODULE" => "YES",
-    "SWIFT_OBJC_INTERFACE_HEADER_NAME" => "sherpa-onnx-rn-Swift.h",
-    "SWIFT_VERSION" => "5.0",
     "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
-    "OTHER_LDFLAGS" => "-lstdc++",
-    "SWIFT_INCLUDE_PATHS" => "\"${PODS_TARGET_SRCROOT}/prebuilt/include\"",
-    "SWIFT_OBJC_BRIDGING_HEADER" => "\"${PODS_TARGET_SRCROOT}/prebuilt/swift/sherpa-onnx/SherpaOnnx-Bridging-Header.h\""
+    "OTHER_LDFLAGS" => "-lstdc++ -framework CoreML -framework Accelerate -framework CoreVideo",
+    "DEFINES_MODULE" => "YES",
+    "SWIFT_OBJC_BRIDGING_HEADER" => "",
+    "SWIFT_INSTALL_OBJC_HEADER" => "YES",
+    "SWIFT_OBJC_INTERFACE_HEADER_NAME" => "sherpa-onnx-rn-Swift.h",
+    "APPLICATION_EXTENSION_API_ONLY" => "NO"
   }
   
-  # Set Swift version
-  s.swift_version = "5.0"
-
-  # Add resource bundles for model files
-  s.resource_bundles = {
-    'sherpa-onnx-models' => ['ios/models/**/*']
-  }
-  
-  # Enable Swift
-  s.requires_arc = true
-  s.static_framework = true
-  
+  # React Native dependencies
   install_modules_dependencies(s)
-end 
+end
