@@ -1,4 +1,5 @@
-import { SpeakerId, SpeakerIdModelConfig, SpeakerEmbeddingResult, IdentifySpeakerResult, RegisterSpeakerResult } from '@siteed/sherpa-onnx.rn';
+import { IdentifySpeakerResult, SpeakerEmbeddingResult, SpeakerId, SpeakerIdModelConfig } from '@siteed/sherpa-onnx.rn';
+import { Asset } from 'expo-asset';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import React, { useEffect, useState } from 'react';
@@ -7,18 +8,15 @@ import {
   Alert,
   Button,
   FlatList,
-  Platform,
-  ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  Switch
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useModelManagement } from '../../contexts/ModelManagement';
-import { Asset } from 'expo-asset';
+import { useModelManagement } from '../../contexts/ModelManagement/ModelManagementContext';
 
 // Define sample audio with only name and module
 const SAMPLE_AUDIO_FILES = [
@@ -139,7 +137,7 @@ interface ModelState {
 }
 
 export default function SpeakerIdScreen() {
-  const { models, getDownloadedModels, getModelState } = useModelManagement();
+  const { getDownloadedModels, getModelState } = useModelManagement();
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -157,6 +155,11 @@ export default function SpeakerIdScreen() {
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [registeredSpeakers, setRegisteredSpeakers] = useState<string[]>([]);
   const [speakerCount, setSpeakerCount] = useState(0);
+  
+  // Get only downloaded speaker ID models
+  const availableModels = getDownloadedModels().filter(model => 
+    model.metadata?.type === 'speaker-id'
+  );
   
   // Add state for loaded audio assets
   const [loadedAudioFiles, setLoadedAudioFiles] = useState<Array<{
@@ -184,11 +187,6 @@ export default function SpeakerIdScreen() {
   const [debugMode, setDebugMode] = useState<boolean>(false);
   const [threshold, setThreshold] = useState<number>(0.5);
   const [newSpeakerName, setNewSpeakerName] = useState<string>('');
-  
-  // Get only relevant models for speaker identification
-  const availableModels = getDownloadedModels().filter(model => 
-    model.metadata.type === 'speaker-id'
-  );
   
   // Load audio assets when component mounts
   useEffect(() => {
@@ -249,33 +247,36 @@ export default function SpeakerIdScreen() {
       
       console.log(`Using model path: ${modelState.localPath}`);
       
-      // Find a speaker ID model file recursively
-      const modelFileInfo = await findModelFilesRecursive(modelState.localPath);
-      if (!modelFileInfo) {
-        setError('Could not find speaker ID model in the model directory');
-        setLoading(false);
-        return;
+      // For speaker ID models, we expect a single .onnx file
+      const modelFile = modelState.extractedFiles?.[0];
+      if (!modelFile) {
+        throw new Error('No model file found in the downloaded model directory');
       }
       
-      setModelInfo(modelFileInfo);
+      // The localPath should already be the full file path for single-file models
+      const modelPath = modelState.localPath;
+      console.log(`Using model file: ${modelPath}`);
       
-      // Get actual model file name
-      const expoPath = modelFileInfo.modelDir;
-      const contents = await FileSystem.readDirectoryAsync(expoPath);
-      const onnxFile = contents.find(file => file.endsWith('.onnx'));
-      
-      if (!onnxFile) {
-        setError('Could not find .onnx model file in the model directory');
-        setLoading(false);
-        return;
+      // Check if the file exists
+      const fileInfo = await FileSystem.getInfoAsync(modelPath);
+      if (!fileInfo.exists) {
+        console.error(`File not found at path: ${modelPath}`);
+        throw new Error(`Model file not found at ${modelPath}`);
       }
       
-      setModelFile(onnxFile);
+      console.log(`File exists: ${fileInfo.exists}, size: ${fileInfo.size}`);
       
-      console.log(`Found model file: ${onnxFile} in ${expoPath}`);
+      // For single-file models, use the directory containing the file
+      const modelDir = modelPath.substring(0, modelPath.lastIndexOf('/'));
       
-      // Initialize Speaker ID
-      await handleInitSpeakerId(modelFileInfo.modelDir, onnxFile);
+      setModelInfo({
+        modelDir: modelDir,
+        modelType: 'speaker-embedding'
+      });
+      setModelFile(modelFile);
+      
+      // Initialize Speaker ID with the model file
+      await handleInitSpeakerId(modelDir, modelFile);
       
     } catch (err) {
       console.error('Error setting up speaker ID:', err);

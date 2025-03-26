@@ -66,13 +66,19 @@ export function ModelManagementProvider({
       throw new Error(`Model ${modelId} not found in available models`);
     }
 
-    const modelDir = `${baseUrl}models/${modelId}`;
+    // Determine if it's an archive or single file model
     const isArchive = model.url.endsWith('.tar.bz2');
     const fileName = model.url.split('/').pop() || '';
-    const filePath = isArchive ? `${modelDir}/${modelId}.tar.bz2` : `${modelDir}/${fileName}`;
+    const modelDir = `${baseUrl}models/${modelId}`;
+    
+    // For archives, we'll store the archive in the model dir and extract there
+    // For single files, we'll store the file directly in the model dir
+    const filePath = `${modelDir}/${fileName}`;
 
     try {
-      console.log(`Starting download for model ${modelId}...`);
+      console.log(`Starting download for model ${modelId} (${isArchive ? 'archive' : 'single file'})...`);
+      
+      // Update state to downloading
       updateModelState(modelId, {
         metadata: model,
         status: 'downloading' as ModelStatus,
@@ -88,7 +94,7 @@ export function ModelManagementProvider({
       }
 
       // Download the file
-      console.log(`Downloading file for model ${modelId}...`);
+      console.log(`Downloading file for model ${modelId} to ${filePath}...`);
       const downloadResumable = FileSystem.createDownloadResumable(
         model.url,
         filePath,
@@ -116,14 +122,24 @@ export function ModelManagementProvider({
         return newDownloads;
       });
 
+      // Verify the file exists and get its info
+      const fileInfo = await FileSystem.getInfoAsync(filePath);
+      if (!fileInfo.exists) {
+        throw new Error(`Downloaded file not found at ${filePath}`);
+      }
+      
+      console.log(`Downloaded file size: ${fileInfo.size} bytes`);
+
+      // For archives, we need to extract them
+      let extractedFiles: string[] = [];
+      
       if (isArchive) {
-        // Extract the archive
         console.log(`Extracting archive for model ${modelId}...`);
         updateModelState(modelId, {
           status: 'extracting' as ModelStatus,
         });
         
-        // Use our new utility to extract the archive
+        // Extract the archive
         const extractionResult = await extractTarBz2(filePath, modelDir);
         
         if (!extractionResult.success) {
@@ -132,37 +148,21 @@ export function ModelManagementProvider({
         }
         
         console.log(`Archive extracted successfully for model ${modelId}`);
-        console.log(`Extracted ${extractionResult.extractedFiles?.length || 0} files from archive`);
+        extractedFiles = extractionResult.extractedFiles || [];
         
-        // Log the extracted files
-        if (extractionResult.extractedFiles && extractionResult.extractedFiles.length > 0) {
-          console.log('Extracted files:', extractionResult.extractedFiles);
+        console.log(`Extracted ${extractedFiles.length} files from archive`);
+        if (extractedFiles.length > 0) {
+          console.log('Extracted files:', extractedFiles);
         } else {
           console.warn('No files were extracted from the archive!');
         }
       } else {
-        // For single files, update the state directly
-        console.log(`Single file model downloaded successfully for ${modelId}`);
-        const fileInfo = await FileSystem.getInfoAsync(filePath);
-        if (!fileInfo.exists) {
-          throw new Error(`Downloaded file not found at ${filePath}`);
-        }
-
-        updateModelState(modelId, {
-          status: 'downloaded' as ModelStatus,
-          progress: 1,
-          localPath: modelDir,
-          files: [{
-            path: fileName,
-            size: fileInfo.size || 0,
-            lastModified: fileInfo.modificationTime || Date.now(),
-          }],
-          lastDownloaded: Date.now(),
-          extractedFiles: [fileName],
-        });
+        // For single files, just add the file to the extracted files list
+        extractedFiles = [fileName];
+        console.log(`Single file model downloaded: ${fileName}`);
       }
-      
-      // After extracting the main model, check and download any dependencies
+
+      // After extraction, check for and download any dependencies
       if (model.dependencies && model.dependencies.length > 0) {
         console.log(`Model ${modelId} has ${model.dependencies.length} dependencies to download...`);
         
@@ -200,6 +200,9 @@ export function ModelManagementProvider({
             await depDownloadResumable.downloadAsync();
             console.log(`Dependency ${dependency.name} downloaded successfully to ${dependencyPath}`);
             
+            // Add the dependency file to the extracted files list
+            extractedFiles.push(dependencyFileName);
+            
             // Remove from active downloads
             setActiveDownloads(prev => {
               const newDownloads = { ...prev };
@@ -214,31 +217,43 @@ export function ModelManagementProvider({
         }
       }
 
-      // Get file information for the final state
-      const files = await FileSystem.readDirectoryAsync(modelDir);
+      // Get file information for all files in the model directory
+      const dirContents = await FileSystem.readDirectoryAsync(modelDir);
       const fileInfos = await Promise.all(
-        files.map(async (file) => {
-          const filePath = `${modelDir}/${file}`;
-          const info = await FileSystem.getInfoAsync(filePath);
-          if (!info.exists) {
-            throw new Error(`File ${file} not found`);
-          }
+        dirContents.map(async (file) => {
+          const itemPath = `${modelDir}/${file}`;
+          const info = await FileSystem.getInfoAsync(itemPath);
           return {
             path: file,
-            size: info.size || 0,
-            lastModified: info.modificationTime || Date.now(),
+            size: info.exists ? (info.size || 0) : 0,
+            lastModified: info.exists ? (info.modificationTime || Date.now()) : Date.now(),
           };
         })
       );
 
-      // Update final state
-      updateModelState(modelId, {
+      // Update the final state
+      const finalState = {
         status: 'downloaded' as ModelStatus,
         progress: 1,
-        localPath: modelDir,
+        localPath: isArchive ? modelDir : filePath,  // For archives, store the directory; for single files, store the file path
         files: fileInfos,
         lastDownloaded: Date.now(),
-      });
+        extractedFiles: extractedFiles,
+      };
+      
+      console.log(`Final state for model ${modelId}:`, finalState);
+      updateModelState(modelId, finalState);
+      
+      console.log(`Model ${modelId} successfully processed and ready to use.`);
+      console.log(`Model stored at: ${isArchive ? modelDir : filePath}`);
+      console.log(`State updated with localPath: ${isArchive ? modelDir : filePath}`);
+      
+      // Force a refresh to ensure the state is correctly updated
+      setTimeout(() => {
+        refreshModelStatus(modelId).catch(e => 
+          console.error(`Error during post-download refresh: ${e}`)
+        );
+      }, 500);
 
     } catch (error) {
       console.error(`Error downloading model ${modelId}:`, error);
@@ -263,45 +278,83 @@ export function ModelManagementProvider({
       });
     }
     
-    if (state?.localPath) {
+    // Cancel any active downloads for this model
+    if (state?.status === 'downloading') {
       try {
-        // Get the model metadata to determine if it's a single file
+        // Get the main download resumable
+        const downloadResumable = activeDownloads[modelId];
+        
+        if (downloadResumable) {
+          try {
+            // Cancel the download
+            await downloadResumable.cancelAsync();
+            console.log(`Successfully cancelled main download for model ${modelId}`);
+          } catch (error) {
+            console.error(`Error cancelling main download for model ${modelId}:`, error);
+          }
+          
+          // Remove from active downloads
+          setActiveDownloads(prev => {
+            const newDownloads = { ...prev };
+            delete newDownloads[modelId];
+            return newDownloads;
+          });
+        }
+        
+        // Cancel any dependency downloads
+        for (const key of Object.keys(activeDownloads)) {
+          if (key.startsWith(`${modelId}_dep_`)) {
+            try {
+              await activeDownloads[key].cancelAsync();
+              console.log(`Successfully cancelled dependency download ${key}`);
+            } catch (error) {
+              console.error(`Error cancelling dependency download ${key}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Error cancelling downloads for model ${modelId}:`, error);
+      }
+    }
+    
+    if (!state?.localPath) {
+      console.log(`No local path found for model ${modelId}, nothing to delete`);
+    } else {
+      try {
+        // Get the model metadata
         const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
         if (!model) {
           throw new Error(`Model ${modelId} not found in available models`);
         }
 
         const isArchive = model.url.endsWith('.tar.bz2');
-        const fileName = model.url.split('/').pop() || '';
-        const filePath = isArchive ? `${state.localPath}/${modelId}.tar.bz2` : `${state.localPath}/${fileName}`;
-
-        // Check if the file exists
-        const fileInfo = await FileSystem.getInfoAsync(filePath);
-        console.log(`Checking file path: ${filePath}, exists: ${fileInfo.exists}, isDirectory: ${fileInfo.isDirectory}`);
+        const path = state.localPath;
+        
+        // Check if the path exists
+        const fileInfo = await FileSystem.getInfoAsync(path);
+        console.log(`Checking path: ${path}, exists: ${fileInfo.exists}, isDirectory: ${fileInfo.isDirectory || false}`);
 
         if (fileInfo.exists) {
-          if (isArchive) {
-            // For archive models, delete the directory
-            await FileSystem.deleteAsync(state.localPath, { idempotent: true });
-            console.log(`Successfully deleted model directory for ${modelId}`);
-          } else {
-            // For single-file models, delete the file
-            await FileSystem.deleteAsync(filePath, { idempotent: true });
-            console.log(`Successfully deleted model file for ${modelId}`);
-
-            // Check if the parent directory is empty and delete it if so
-            const parentDir = state.localPath;
+          // Delete the path
+          await FileSystem.deleteAsync(path, { idempotent: true });
+          console.log(`Successfully deleted ${isArchive ? 'directory' : 'file'} at ${path}`);
+          
+          // If this is a single file, also check if we need to delete the parent directory
+          if (!isArchive && !fileInfo.isDirectory) {
+            const parentDir = path.substring(0, path.lastIndexOf('/'));
             const parentInfo = await FileSystem.getInfoAsync(parentDir);
+            
             if (parentInfo.exists && parentInfo.isDirectory) {
+              // Check if the parent directory is now empty
               const parentContents = await FileSystem.readDirectoryAsync(parentDir);
               if (parentContents.length === 0) {
                 await FileSystem.deleteAsync(parentDir, { idempotent: true });
-                console.log(`Successfully deleted empty parent directory for ${modelId}`);
+                console.log(`Successfully deleted empty parent directory at ${parentDir}`);
               }
             }
           }
         } else {
-          console.log(`File not found at path: ${filePath}`);
+          console.log(`Path not found: ${path}, nothing to delete`);
         }
       } catch (error) {
         console.error(`Error deleting model ${modelId}:`, error);
@@ -309,12 +362,13 @@ export function ModelManagementProvider({
       }
     }
 
-    // Update state immediately to reflect deletion
+    // Immediately remove the model from the state
     setModelStates((prev) => {
       const newStates = { ...prev };
       delete newStates[modelId];
       // Save the updated states
       saveModelStates(newStates);
+      console.log(`Model ${modelId} removed from state, UI will update`);
       return newStates;
     });
   };
@@ -339,50 +393,103 @@ export function ModelManagementProvider({
   const refreshModelStatus = async (modelId: string) => {
     console.log(`Refreshing status for model ${modelId}...`);
     const state = modelStates[modelId];
-    if (state?.localPath) {
-      try {
-        const dirInfo = await FileSystem.getInfoAsync(state.localPath);
-        if (!dirInfo.exists) {
-          updateModelState(modelId, {
-            status: 'error' as ModelStatus,
-            error: 'Model directory not found',
-          });
-          return;
-        }
+    if (!state) {
+      console.log(`No state found for model ${modelId}, skipping refresh`);
+      return;
+    }
 
-        const files = await FileSystem.readDirectoryAsync(state.localPath);
-        const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
-        if (model) {
-          // Get file information
-          const fileInfos = await Promise.all(
-            files.map(async (file) => {
-              const filePath = `${state.localPath}/${file}`;
-              const info = await FileSystem.getInfoAsync(filePath);
-              if (!info.exists) {
-                throw new Error(`File ${file} not found`);
-              }
-              return {
-                path: file,
-                size: info.size || 0,
-                lastModified: info.modificationTime || Date.now(),
-              };
-            })
-          );
-
-          updateModelState(modelId, {
-            status: 'downloaded' as ModelStatus,
-            files: fileInfos,
-            lastDownloaded: state.lastDownloaded,
-          });
-          console.log(`Status refresh completed for model ${modelId}`);
+    try {
+      // Get the model metadata
+      const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
+      if (!model) {
+        console.warn(`Model ${modelId} not found in available models, skipping refresh`);
+        return;
+      }
+      
+      const isArchive = model.url.endsWith('.tar.bz2');
+      
+      // For single file models, store the full file path
+      const modelDir = `${baseUrl}models/${modelId}`;
+      const fileName = model.url.split('/').pop() || '';
+      const filePath = `${modelDir}/${fileName}`;
+      
+      // Check if the directory or file exists
+      const dirInfo = await FileSystem.getInfoAsync(modelDir);
+      let fileInfo = { exists: false, size: 0, modificationTime: 0 };
+      
+      if (!isArchive) {
+        const result = await FileSystem.getInfoAsync(filePath);
+        if (result.exists) {
+          fileInfo = {
+            exists: true,
+            size: result.size || 0,
+            modificationTime: result.modificationTime || Date.now()
+          };
         }
-      } catch (error) {
-        console.error(`Error refreshing status for model ${modelId}:`, error);
+      }
+      
+      // Log for debugging
+      console.log(`Model ${modelId} refresh: Dir exists: ${dirInfo.exists}, File exists: ${fileInfo.exists}`);
+      
+      if (!dirInfo.exists && !fileInfo.exists) {
+        console.log(`Neither directory nor file exists for model ${modelId}`);
         updateModelState(modelId, {
           status: 'error' as ModelStatus,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: 'Model files not found',
         });
+        return;
       }
+      
+      // If single file model, just check the file
+      if (!isArchive && fileInfo.exists) {
+        console.log(`Single file model ${modelId} found at ${filePath}`);
+        updateModelState(modelId, {
+          status: 'downloaded' as ModelStatus,
+          localPath: filePath,
+          files: [{
+            path: fileName,
+            size: fileInfo.size,
+            lastModified: fileInfo.modificationTime,
+          }],
+          extractedFiles: [fileName],
+          lastDownloaded: state.lastDownloaded || Date.now(),
+        });
+        console.log(`Status refresh completed for model ${modelId} (single file)`);
+        return;
+      }
+      
+      // For archive models, check the directory
+      if (dirInfo.exists && dirInfo.isDirectory) {
+        const files = await FileSystem.readDirectoryAsync(modelDir);
+        
+        // Get file information
+        const fileInfos = await Promise.all(
+          files.map(async (file) => {
+            const itemPath = `${modelDir}/${file}`;
+            const info = await FileSystem.getInfoAsync(itemPath);
+            return {
+              path: file,
+              size: info.exists ? (info.size || 0) : 0,
+              lastModified: info.exists ? (info.modificationTime || Date.now()) : Date.now(),
+            };
+          })
+        );
+
+        updateModelState(modelId, {
+          status: 'downloaded' as ModelStatus,
+          localPath: isArchive ? modelDir : filePath,
+          files: fileInfos,
+          extractedFiles: files,
+          lastDownloaded: state.lastDownloaded || Date.now(),
+        });
+        console.log(`Status refresh completed for model ${modelId} (archive)`);
+      }
+    } catch (error) {
+      console.error(`Error refreshing status for model ${modelId}:`, error);
+      updateModelState(modelId, {
+        status: 'error' as ModelStatus,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
   };
   
@@ -466,4 +573,4 @@ export function useModelManagement() {
     throw new Error('useModelManagement must be used within a ModelManagementProvider');
   }
   return context;
-} 
+}

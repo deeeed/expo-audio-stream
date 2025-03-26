@@ -48,6 +48,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
   const [fileDetails, setFileDetails] = useState<Array<{
+    id: string;
     name: string;
     size: number;
     exists: boolean;
@@ -98,97 +99,87 @@ const ModelCard: React.FC<ModelCardProps> = ({
     setIsLoading(true);
     setFileListError('');
     try {
-      if (!state?.localPath) {
+      if (!state) {
+        console.warn('Cannot show files: State is not available');
+        setFileListError('Cannot show files: State is not available');
+        setFileDetails([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!state.localPath) {
         console.warn('Cannot show files: Model local path is not available');
         setFileListError('Cannot show files: Model local path is not available');
+        
+        // Add more detailed error info
+        console.error(`Model: ${model.id}`);
+        console.error(`State: ${JSON.stringify(state, null, 2)}`);
+        
         setFileDetails([]);
         setIsLoading(false);
         return;
       }
       
-      // Log the current state
-      console.log(`Checking files for model ${model.id}:`);
+      console.log(`=== Model Files: ${model.id} ===`);
       console.log(`Local path: ${state.localPath}`);
       console.log(`Model status: ${state.status}`);
+      console.log(`Is archive: ${model.url.endsWith('.tar.bz2')}`);
+      console.log(`Extracted files: ${state.extractedFiles?.join(', ') || 'none'}`);
       
-      // Clean up the path
-      const cleanPath = state.localPath.replace('file://', '');
-      console.log(`Clean path: ${cleanPath}`);
+      // Check if the path exists
+      const fileInfo = await FileSystem.getInfoAsync(state.localPath);
+      console.log(`Path info:`, fileInfo);
 
-      const dirInfo = await FileSystem.getInfoAsync(state.localPath);
-      console.log(`Directory info:`, dirInfo);
-
-      if (!dirInfo.exists) {
-        console.warn(`Directory does not exist: ${state.localPath}`);
-        setFileListError(`Directory does not exist: ${state.localPath}`);
+      if (!fileInfo.exists) {
+        console.warn(`Path does not exist: ${state.localPath}`);
+        setFileListError(`Path does not exist: ${state.localPath}`);
         setFileDetails([]);
         setIsLoading(false);
         return;
       }
 
-      if (!dirInfo.isDirectory) {
-        console.warn(`Path exists but is not a directory: ${state.localPath}`);
-        setFileListError(`Path exists but is not a directory: ${state.localPath}`);
-        setFileDetails([]);
+      // If it's a single file (not a directory), show just that file
+      if (!fileInfo.isDirectory) {
+        console.log(`Path is a single file`);
+        // Get the filename from the path
+        const fileName = state.localPath.split('/').pop() || 'Unknown file';
+        
+        setFileDetails([{
+          id: `${model.id}_file_${fileName}`,
+          name: fileName,
+          exists: true,
+          size: fileInfo.size || 0,
+          uri: fileInfo.uri,
+          isDirectory: false,
+        }]);
+        
+        setShowFiles(prev => !prev);
         setIsLoading(false);
         return;
       }
 
-      // Define file detail type
-      type FileDetail = {
-        name: string;
-        exists: boolean;
-        size: number;
-        uri?: string;
-        isDirectory?: boolean;
-        error?: string;
-      };
-
-      // Function to scan a directory and its subdirectories
-      const scanDirectory = async (dirPath: string, prefix = ''): Promise<FileDetail[]> => {
-        const files = await FileSystem.readDirectoryAsync(dirPath);
-        console.log(`Found ${files.length} items in ${prefix || 'root directory'}:`, files);
-        
-        let fileList: FileDetail[] = [];
-        
-        for (const file of files) {
-          try {
-            const filePath = `${dirPath}/${file}`;
-            const fileInfo = await FileSystem.getInfoAsync(filePath);
-            const displayName = prefix ? `${prefix}/${file}` : file;
-            
-            fileList.push({
-              name: displayName,
-              exists: fileInfo.exists,
-              size: fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0,
-              uri: fileInfo.uri,
-              isDirectory: fileInfo.isDirectory || false,
-            });
-            
-            console.log(`File details for ${displayName}:`, fileInfo);
-            
-            // If this is a directory, recursively scan it
-            if (fileInfo.exists && fileInfo.isDirectory) {
-              const subdirFiles = await scanDirectory(filePath, displayName);
-              fileList = [...fileList, ...subdirFiles];
-            }
-          } catch (fileError) {
-            console.error(`Error getting info for file ${file}:`, fileError);
-            fileList.push({
-              name: prefix ? `${prefix}/${file}` : file,
-              exists: false,
-              size: 0,
-              error: String(fileError),
-            });
-          }
-        }
-        
-        return fileList;
-      };
-
-      // Scan the main directory and all subdirectories
-      const allFiles = await scanDirectory(state.localPath);
-      setFileDetails(allFiles);
+      // For directories, get the contents
+      console.log(`Scanning directory: ${state.localPath}`);
+      const dirContents = await FileSystem.readDirectoryAsync(state.localPath);
+      console.log(`Found ${dirContents.length} items in directory`);
+      
+      // Get details for each file
+      const details = await Promise.all(
+        dirContents.map(async (file, index) => {
+          const filePath = `${state.localPath}/${file}`;
+          const info = await FileSystem.getInfoAsync(filePath);
+          return {
+            id: `${model.id}_file_${index}`, // Unique ID for each file
+            name: file,
+            exists: info.exists,
+            size: info.exists ? (info.size || 0) : 0,
+            uri: info.uri,
+            isDirectory: info.isDirectory || false,
+          };
+        })
+      );
+      
+      setFileDetails(details);
       setShowFiles(prev => !prev);
     } catch (error) {
       console.error('Error toggling file view:', error);
@@ -340,14 +331,13 @@ const ModelCard: React.FC<ModelCardProps> = ({
           ) : (
             <>
               <Text style={cardStyles.modelPath} selectable>Path: {state?.localPath || 'Not available'}</Text>
-              <Text style={cardStyles.modelPath} selectable>Clean Path: {state?.localPath ? state.localPath.replace('file://', '') : 'Not available'}</Text>
               {fileDetails.length === 0 ? (
                 <View>
-                  <Text style={cardStyles.fileText}>No files found in directory</Text>
+                  <Text style={cardStyles.fileText}>No files found</Text>
                 </View>
               ) : (
                 fileDetails.map((file, index) => (
-                  <View key={index} style={cardStyles.fileItem}>
+                  <View key={file.id || `file_${model.id}_${index}`} style={cardStyles.fileItem}>
                     <Text 
                       style={[
                         cardStyles.fileText, 
@@ -465,20 +455,20 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
 
   // Get models once on mount
   const availableModels = useMemo(() => getAvailableModels(), []);
-  const downloadedModels = useMemo(() => getDownloadedModels(), []);
+  const downloadedModels = useMemo(() => getDownloadedModels(), [modelStates]);
 
   // Filter models based on type
   const filteredAvailableModels = useMemo(() => 
     filterType === 'all' 
       ? availableModels 
-      : availableModels.filter(model => model.type === filterType),
+      : availableModels.filter((model: ModelMetadata) => model.type === filterType),
     [availableModels, filterType]
   );
 
   const filteredDownloadedModels = useMemo(() => 
     filterType === 'all'
       ? downloadedModels
-      : downloadedModels.filter(model => model.metadata.type === filterType),
+      : downloadedModels.filter((model: ModelState) => model.metadata.type === filterType),
     [downloadedModels, filterType]
   );
 
@@ -545,7 +535,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
               <Text style={styles.emptyText}>No downloaded models</Text>
             </View>
           ) : (
-            filteredDownloadedModels.map(model => {
+            filteredDownloadedModels.map((model: ModelState) => {
               const currentState = modelStates[model.metadata.id];
               return (
                 <ModelCard
@@ -581,7 +571,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
               <Text style={styles.emptyText}>No models available for the selected type</Text>
             </View>
           ) : (
-            filteredAvailableModels.map(model => {
+            filteredAvailableModels.map((model: ModelMetadata) => {
               const currentState = modelStates[model.id];
               return (
                 <ModelCard
