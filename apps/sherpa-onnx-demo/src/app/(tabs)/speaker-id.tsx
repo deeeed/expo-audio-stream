@@ -13,7 +13,9 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Platform,
+  ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelManagement } from '../../contexts/ModelManagement/ModelManagementContext';
@@ -526,12 +528,22 @@ export default function SpeakerIdScreen() {
     setError(null);
     
     try {
+      console.log('Processing audio file:', audioItem.localUri);
+      
       // Process the audio file to get embedding
       const result = await SpeakerId.processFile(audioItem.localUri);
       
       if (!result.success) {
         throw new Error(result.error || 'Unknown error during audio processing');
       }
+      
+      console.log('Embedding result:', {
+        success: result.success,
+        embeddingDim: result.embeddingDim,
+        durationMs: result.durationMs,
+        embeddingLength: result.embedding.length,
+        firstFewValues: result.embedding.slice(0, 5)
+      });
       
       setEmbeddingResult(result);
       
@@ -707,267 +719,278 @@ export default function SpeakerIdScreen() {
   
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Speaker Identification</Text>
-          
-          {/* Model Selection */}
-          <View style={styles.modelSelection}>
-            <Text style={styles.label}>Select Model:</Text>
-            <FlatList
-              data={availableModels}
-              keyExtractor={item => item.metadata.name}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.modelItem,
-                    selectedModelId === item.metadata.id && styles.selectedModelItem
-                  ]}
-                  onPress={() => {
-                    console.log(`Selecting model with ID: ${item.metadata.id}`);
-                    // Use the model's ID property
-                    setSelectedModelId(item.metadata.id);
-                    // Don't immediately call setupSpeakerId - let the useEffect refresh the model first
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.modelItemText,
-                      selectedModelId === item.metadata.id && styles.selectedModelItemText
-                    ]}
-                  >
-                    {item.metadata.name}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <View style={styles.emptyList}>
-                  <Text style={styles.emptyListText}>
-                    No speaker identification models available.
-                    Please download a model from the Models tab.
-                  </Text>
-                </View>
-              }
-            />
-          </View>
-          
-          {/* Advanced Configuration */}
-          <View style={styles.configSection}>
-            <Text style={styles.label}>Advanced Configuration:</Text>
-            
-            <View style={styles.configRow}>
-              <Text>Threads:</Text>
-              <TextInput
-                style={styles.numberInput}
-                value={numThreads.toString()}
-                onChangeText={(text) => {
-                  const num = parseInt(text, 10);
-                  if (!isNaN(num) && num > 0) {
-                    setNumThreads(num);
-                  }
-                }}
-                keyboardType="numeric"
-                editable={!initialized}
-              />
-            </View>
-            
-            <View style={styles.configRow}>
-              <Text>Debug Mode:</Text>
-              <Switch
-                value={debugMode}
-                onValueChange={(value) => setDebugMode(value)}
-                disabled={initialized}
-              />
-            </View>
-            
-            <View style={styles.configRow}>
-              <Text>Similarity Threshold:</Text>
-              <TextInput
-                style={styles.numberInput}
-                value={threshold.toString()}
-                onChangeText={(text) => {
-                  const value = parseFloat(text);
-                  if (!isNaN(value) && value >= 0 && value <= 1) {
-                    setThreshold(value);
-                  }
-                }}
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-          
-          {/* Status */}
-          <View style={styles.statusSection}>
-            <Text style={styles.label}>Status:</Text>
-            <Text>
-              {initialized 
-                ? `Initialized with model: ${modelFile || 'Unknown'}`
-                : 'Not initialized'}
-            </Text>
-            <Text>
-              Registered Speakers: {speakerCount}
-            </Text>
-            {error && (
-              <Text style={styles.errorText}>Error: {error}</Text>
-            )}
-          </View>
-          
-          {/* Control Buttons */}
-          <View style={styles.buttonContainer}>
-            <Button
-              title={initialized ? "Release" : "Initialize"}
-              onPress={initialized ? handleReleaseSpeakerId : () => {
-                if (selectedModelId) {
-                  console.log(`Initializing model with ID: ${selectedModelId}`);
-                  // Get the latest model state from context
-                  const currentModelState = getModelState(selectedModelId);
-                  
-                  if (currentModelState && currentModelState.status === 'downloaded') {
-                    setupSpeakerId(selectedModelId);
-                  } else {
-                    setError(`Model not ready for initialization. Status: ${currentModelState?.status || 'unknown'}`);
-                    console.log(`Model state: ${JSON.stringify(currentModelState, null, 2)}`);
-                  }
-                } else {
-                  setError('Please select a model first');
-                }
-              }}
-              disabled={loading || (!initialized && !selectedModelId)}
-            />
-          </View>
-        </View>
-        
-        {initialized && (
-          <>
-            {/* Audio Selection */}
+      <FlatList
+        data={[{ key: 'content' }]}
+        renderItem={() => (
+          <View style={styles.content}>
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Test Audio</Text>
+              <Text style={styles.sectionTitle}>Speaker Identification</Text>
               
-              <FlatList
-                data={loadedAudioFiles}
-                keyExtractor={item => item.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.audioItem,
-                      selectedAudio?.id === item.id && styles.selectedAudioItem
-                    ]}
-                    onPress={() => handleSelectAudio(item)}
-                    disabled={processing}
-                  >
-                    <Text style={styles.audioName}>{item.name}</Text>
-                  </TouchableOpacity>
-                )}
-              />
-              
-              {selectedAudio && (
-                <View style={styles.selectedAudioInfo}>
-                  <Text style={styles.label}>Selected: {selectedAudio.name}</Text>
-                  
-                  {audioMetadata.isLoading ? (
-                    <ActivityIndicator size="small" />
-                  ) : (
-                    <>
-                      {audioMetadata.size !== undefined && (
-                        <Text>Size: {formatFileSize(audioMetadata.size)}</Text>
-                      )}
-                      {audioMetadata.duration !== undefined && (
-                        <Text>Duration: {formatDuration(audioMetadata.duration)}</Text>
-                      )}
-                    </>
-                  )}
-                  
-                  <View style={styles.audioControls}>
-                    <Button
-                      title={isPlaying ? "Stop" : "Play"}
-                      onPress={isPlaying ? handleStopAudio : () => handlePlayAudio(selectedAudio)}
-                      disabled={processing}
-                    />
-                    <Button
-                      title="Process"
-                      onPress={() => handleProcessAudio(selectedAudio)}
-                      disabled={processing || isPlaying}
-                    />
-                  </View>
+              {/* Model Selection */}
+              <View style={styles.modelSelection}>
+                <Text style={styles.label}>Select Model:</Text>
+                <View style={styles.modelList}>
+                  {availableModels.map((item) => (
+                    <TouchableOpacity
+                      key={item.metadata.id}
+                      style={[
+                        styles.modelItem,
+                        selectedModelId === item.metadata.id && styles.selectedModelItem
+                      ]}
+                      onPress={() => {
+                        console.log(`Selecting model with ID: ${item.metadata.id}`);
+                        setSelectedModelId(item.metadata.id);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.modelItemText,
+                          selectedModelId === item.metadata.id && styles.selectedModelItemText
+                        ]}
+                      >
+                        {item.metadata.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              )}
-            </View>
-            
-            {/* Processing Results */}
-            {(processing || embeddingResult) && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Results</Text>
-                
-                {processing ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#0000ff" />
-                    <Text style={styles.loadingText}>Processing audio...</Text>
-                  </View>
-                ) : embeddingResult && (
-                  <View style={styles.resultContainer}>
-                    <Text>Embedding computed successfully</Text>
-                    <Text>Dimension: {embeddingResult.embeddingDim}</Text>
-                    <Text>Processing time: {embeddingResult.durationMs} ms</Text>
-                    
-                    {identifyResult && (
-                      <View style={styles.identifyResult}>
-                        <Text style={styles.label}>Identification Result:</Text>
-                        {identifyResult.identified ? (
-                          <Text style={styles.identifiedText}>
-                            Speaker identified: {identifyResult.speakerName}
-                          </Text>
-                        ) : (
-                          <Text>No matching speaker found</Text>
-                        )}
-                      </View>
-                    )}
-                    
-                    {/* Register New Speaker */}
-                    <View style={styles.registerSection}>
-                      <Text style={styles.label}>Register as:</Text>
-                      <TextInput
-                        style={styles.textInput}
-                        value={newSpeakerName}
-                        onChangeText={setNewSpeakerName}
-                        placeholder="Enter speaker name"
-                      />
-                      <Button
-                        title="Register Speaker"
-                        onPress={handleRegisterSpeaker}
-                        disabled={!newSpeakerName.trim() || processing}
-                      />
-                    </View>
+                {availableModels.length === 0 && (
+                  <View style={styles.emptyList}>
+                    <Text style={styles.emptyListText}>
+                      No speaker identification models available.
+                      Please download a model from the Models tab.
+                    </Text>
                   </View>
                 )}
               </View>
-            )}
-            
-            {/* Registered Speakers */}
-            {registeredSpeakers.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Registered Speakers</Text>
+              
+              {/* Advanced Configuration */}
+              <View style={styles.configSection}>
+                <Text style={styles.label}>Advanced Configuration:</Text>
                 
-                <FlatList
-                  data={registeredSpeakers}
-                  keyExtractor={(item) => item}
-                  renderItem={({ item }) => (
-                    <View style={styles.speakerItem}>
-                      <Text style={styles.speakerName}>{item}</Text>
-                      <TouchableOpacity
-                        style={styles.removeButton}
-                        onPress={() => handleRemoveSpeaker(item)}
-                        disabled={processing}
-                      >
-                        <Text style={styles.removeButtonText}>Remove</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                <View style={styles.configRow}>
+                  <Text>Threads:</Text>
+                  <TextInput
+                    style={styles.numberInput}
+                    value={numThreads.toString()}
+                    onChangeText={(text) => {
+                      const num = parseInt(text, 10);
+                      if (!isNaN(num) && num > 0) {
+                        setNumThreads(num);
+                      }
+                    }}
+                    keyboardType="numeric"
+                    editable={!initialized}
+                  />
+                </View>
+                
+                <View style={styles.configRow}>
+                  <Text>Debug Mode:</Text>
+                  <Switch
+                    value={debugMode}
+                    onValueChange={(value) => setDebugMode(value)}
+                    disabled={initialized}
+                  />
+                </View>
+                
+                <View style={styles.configRow}>
+                  <Text>Similarity Threshold:</Text>
+                  <TextInput
+                    style={styles.numberInput}
+                    value={threshold.toString()}
+                    onChangeText={(text) => {
+                      const value = parseFloat(text);
+                      if (!isNaN(value) && value >= 0 && value <= 1) {
+                        setThreshold(value);
+                      }
+                    }}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+              
+              {/* Status */}
+              <View style={styles.statusSection}>
+                <Text style={styles.label}>Status:</Text>
+                <Text>
+                  {initialized 
+                    ? `Initialized with model: ${modelFile || 'Unknown'}`
+                    : 'Not initialized'}
+                </Text>
+                <Text>
+                  Registered Speakers: {speakerCount}
+                </Text>
+                {error && (
+                  <Text style={styles.errorText}>Error: {error}</Text>
+                )}
+              </View>
+              
+              {/* Control Buttons */}
+              <View style={styles.buttonContainer}>
+                <Button
+                  title={initialized ? "Release" : "Initialize"}
+                  onPress={initialized ? handleReleaseSpeakerId : () => {
+                    if (selectedModelId) {
+                      console.log(`Initializing model with ID: ${selectedModelId}`);
+                      // Get the latest model state from context
+                      const currentModelState = getModelState(selectedModelId);
+                      
+                      if (currentModelState && currentModelState.status === 'downloaded') {
+                        setupSpeakerId(selectedModelId);
+                      } else {
+                        setError(`Model not ready for initialization. Status: ${currentModelState?.status || 'unknown'}`);
+                        console.log(`Model state: ${JSON.stringify(currentModelState, null, 2)}`);
+                      }
+                    } else {
+                      setError('Please select a model first');
+                    }
+                  }}
+                  disabled={loading || (!initialized && !selectedModelId)}
                 />
               </View>
+            </View>
+            
+            {initialized && (
+              <>
+                {/* Audio Selection */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Test Audio</Text>
+                  
+                  <View style={styles.audioList}>
+                    {loadedAudioFiles.map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[
+                          styles.audioItem,
+                          selectedAudio?.id === item.id && styles.selectedAudioItem
+                        ]}
+                        onPress={() => handleSelectAudio(item)}
+                        disabled={processing}
+                      >
+                        <Text style={styles.audioName}>{item.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  
+                  {selectedAudio && (
+                    <View style={styles.selectedAudioInfo}>
+                      <Text style={styles.label}>Selected: {selectedAudio.name}</Text>
+                      
+                      {audioMetadata.isLoading ? (
+                        <ActivityIndicator size="small" />
+                      ) : (
+                        <>
+                          {audioMetadata.size !== undefined && (
+                            <Text>Size: {formatFileSize(audioMetadata.size)}</Text>
+                          )}
+                          {audioMetadata.duration !== undefined && (
+                            <Text>Duration: {formatDuration(audioMetadata.duration)}</Text>
+                          )}
+                        </>
+                      )}
+                      
+                      <View style={styles.audioControls}>
+                        <Button
+                          title={isPlaying ? "Stop" : "Play"}
+                          onPress={isPlaying ? handleStopAudio : () => handlePlayAudio(selectedAudio)}
+                          disabled={processing}
+                        />
+                        <Button
+                          title="Process"
+                          onPress={() => handleProcessAudio(selectedAudio)}
+                          disabled={processing || isPlaying}
+                        />
+                      </View>
+                    </View>
+                  )}
+                </View>
+                
+                {/* Processing Results */}
+                {(processing || embeddingResult) && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Results</Text>
+                    
+                    {processing ? (
+                      <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#0000ff" />
+                        <Text style={styles.loadingText}>Processing audio...</Text>
+                      </View>
+                    ) : embeddingResult && (
+                      <View style={styles.resultContainer}>
+                        <Text style={styles.resultTitle}>Embedding Results:</Text>
+                        <Text style={styles.resultText}>Dimension: {embeddingResult.embeddingDim}</Text>
+                        <Text style={styles.resultText}>Processing time: {embeddingResult.durationMs} ms</Text>
+                        
+                        {/* Display first few values of the embedding vector */}
+                        <Text style={styles.embeddingTitle}>First 5 embedding values:</Text>
+                        <Text style={styles.embeddingValues}>
+                          {embeddingResult.embedding.slice(0, 5).map((value, index) => 
+                            `${value.toFixed(4)}${index < 4 ? ', ' : ''}`
+                          )}
+                        </Text>
+                        
+                        {identifyResult && (
+                          <View style={styles.identifyResult}>
+                            <Text style={styles.label}>Identification Result:</Text>
+                            {identifyResult.identified ? (
+                              <Text style={styles.identifiedText}>
+                                Speaker identified: {identifyResult.speakerName}
+                              </Text>
+                            ) : (
+                              <Text>No matching speaker found</Text>
+                            )}
+                          </View>
+                        )}
+                        
+                        {/* Register New Speaker */}
+                        <View style={styles.registerSection}>
+                          <Text style={styles.label}>Register as:</Text>
+                          <TextInput
+                            style={styles.textInput}
+                            value={newSpeakerName}
+                            onChangeText={setNewSpeakerName}
+                            placeholder="Enter speaker name"
+                          />
+                          <Button
+                            title="Register Speaker"
+                            onPress={handleRegisterSpeaker}
+                            disabled={!newSpeakerName.trim() || processing}
+                          />
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
+                
+                {/* Registered Speakers */}
+                {registeredSpeakers.length > 0 && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Registered Speakers</Text>
+                    
+                    <FlatList
+                      data={registeredSpeakers}
+                      keyExtractor={(item) => item}
+                      renderItem={({ item }) => (
+                        <View style={styles.speakerItem}>
+                          <Text style={styles.speakerName}>{item}</Text>
+                          <TouchableOpacity
+                            style={styles.removeButton}
+                            onPress={() => handleRemoveSpeaker(item)}
+                            disabled={processing}
+                          >
+                            <Text style={styles.removeButtonText}>Remove</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    />
+                  </View>
+                )}
+              </>
             )}
-          </>
+          </View>
         )}
-      </View>
+        keyExtractor={(item) => item.key}
+        contentContainerStyle={styles.scrollContent}
+      />
     </SafeAreaView>
   );
 }
@@ -976,6 +999,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  scrollContent: {
+    padding: 16,
   },
   content: {
     flex: 1,
@@ -1002,6 +1028,11 @@ const styles = StyleSheet.create({
   },
   modelSelection: {
     marginBottom: 16,
+  },
+  modelList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   modelItem: {
     padding: 8,
@@ -1087,6 +1118,23 @@ const styles = StyleSheet.create({
   resultContainer: {
     padding: 8,
   },
+  resultTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  embeddingTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  embeddingValues: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 12,
+  },
   identifyResult: {
     marginTop: 16,
     padding: 8,
@@ -1131,5 +1179,12 @@ const styles = StyleSheet.create({
   removeButtonText: {
     color: 'white',
     fontWeight: '500',
+  },
+  resultText: {
+    marginBottom: 4,
+    color: '#333',
+  },
+  audioList: {
+    gap: 8,
   },
 });
