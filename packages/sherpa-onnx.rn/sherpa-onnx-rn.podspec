@@ -13,41 +13,36 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => "11.0" }
   s.source       = { :git => "https://github.com/deeeed/expo-audio-stream.git", :tag => "#{s.version}" }
 
-  # Include only our own implementation files
   s.source_files = ["ios/bridge/*.{h,m,mm,swift}"]
-  
-  # Prebuilt static libraries - explicitly list the ONNX Runtime libraries
+
+  # Vendored libraries pointing to a dynamic 'current' directory
   s.vendored_libraries = [
-    "prebuilt/ios/libonnxruntime.a",
-    "prebuilt/ios/libsherpa-onnx-c-api.a",
-    "prebuilt/ios/libsherpa-onnx-core.a",
-    "prebuilt/ios/libsherpa-onnx-cxx-api.a",
-    "prebuilt/ios/libsherpa-onnx-fst.a", 
-    "prebuilt/ios/libsherpa-onnx-fstfar.a",
-    "prebuilt/ios/libsherpa-onnx-kaldifst-core.a",
-    "prebuilt/ios/libkaldi-decoder-core.a",
-    "prebuilt/ios/libkaldi-native-fbank-core.a",
-    "prebuilt/ios/libpiper_phonemize.a",
-    "prebuilt/ios/libespeak-ng.a",
-    "prebuilt/ios/libssentencepiece_core.a",
-    "prebuilt/ios/libucd.a",
-    "prebuilt/ios/libcargs.a"
+    "prebuilt/ios/current/libonnxruntime.a",
+    "prebuilt/ios/current/libsherpa-onnx-c-api.a",
+    "prebuilt/ios/current/libsherpa-onnx-core.a",
+    "prebuilt/ios/current/libsherpa-onnx-cxx-api.a",
+    "prebuilt/ios/current/libsherpa-onnx-fst.a",
+    "prebuilt/ios/current/libsherpa-onnx-fstfar.a",
+    "prebuilt/ios/current/libsherpa-onnx-kaldifst-core.a",
+    "prebuilt/ios/current/libkaldi-decoder-core.a",
+    "prebuilt/ios/current/libkaldi-native-fbank-core.a",
+    "prebuilt/ios/current/libpiper_phonemize.a",
+    "prebuilt/ios/current/libespeak-ng.a",
+    "prebuilt/ios/current/libssentencepiece_core.a",
+    "prebuilt/ios/current/libucd.a",
+    "prebuilt/ios/current/libcargs.a"
   ]
-  
-  # Dependencies for ONNX Runtime
+
   s.frameworks = "Foundation", "CoreML", "Accelerate", "CoreVideo"
-  
-  # Preserve header files and module map
+
   s.preserve_paths = "prebuilt/include/**", "prebuilt/include/module.modulemap"
-  
-  # Search paths for headers and libraries
+
   s.xcconfig = {
     "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\"",
-    "LIBRARY_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/ios\"",
+    "LIBRARY_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/ios/current\"",
     "SWIFT_INCLUDE_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\""
   }
-  
-  # Swift module configuration
+
   s.pod_target_xcconfig = {
     "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
     "OTHER_LDFLAGS" => "-lstdc++ -framework CoreML -framework Accelerate -framework CoreVideo",
@@ -57,7 +52,31 @@ Pod::Spec.new do |s|
     "SWIFT_OBJC_INTERFACE_HEADER_NAME" => "sherpa-onnx-rn-Swift.h",
     "APPLICATION_EXTENSION_API_ONLY" => "NO"
   }
-  
-  # React Native dependencies
+
+  # Set up initial symlinks to device libraries
+  s.prepare_command = <<-CMD
+    mkdir -p prebuilt/ios/current
+    for lib in libonnxruntime.a libsherpa-onnx-c-api.a libsherpa-onnx-core.a libsherpa-onnx-cxx-api.a libsherpa-onnx-fst.a libsherpa-onnx-fstfar.a libsherpa-onnx-kaldifst-core.a libkaldi-decoder-core.a libkaldi-native-fbank-core.a libpiper_phonemize.a libespeak-ng.a libssentencepiece_core.a libucd.a libcargs.a; do
+      ln -sf ../device/$lib prebuilt/ios/current/$lib
+    done
+  CMD
+
+  # Dynamically update symlinks based on platform
+  s.script_phase = {
+    :name => "Link Sherpa ONNX Libraries",
+    :script => '
+      if [[ "$PLATFORM_NAME" == *simulator* ]]; then
+        echo "Symlinking simulator libraries"
+        rm -rf "${PODS_TARGET_SRCROOT}/prebuilt/ios/current/*"
+        for lib in libonnxruntime.a libsherpa-onnx-c-api.a libsherpa-onnx-core.a libsherpa-onnx-fst.a libsherpa-onnx-fstfar.a libsherpa-onnx-kaldifst-core.a libkaldi-decoder-core.a libkaldi-native-fbank-core.a libpiper_phonemize.a libespeak-ng.a libssentencepiece_core.a libucd.a; do
+          ln -sf ../simulator/$lib "${PODS_TARGET_SRCROOT}/prebuilt/ios/current/$lib"
+        done
+      else
+        echo "Using device libraries"
+      fi
+    ',
+    :execution_position => :before_compile
+  }
+
   install_modules_dependencies(s)
 end
