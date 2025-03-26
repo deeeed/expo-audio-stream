@@ -32,8 +32,14 @@ mkdir -p prebuilt/ios
 cp third_party/sherpa-onnx/build-ios/install/lib/*.a prebuilt/ios/
 cp third_party/sherpa-onnx/build-ios/install/lib/*.dylib prebuilt/ios/ 2>/dev/null || true
 
-# Copy headers
-mkdir -p prebuilt/include
-cp -r third_party/sherpa-onnx/sherpa-onnx/c-api/*.h prebuilt/include/
+# Copy headers with correct structure
+mkdir -p prebuilt/include/sherpa-onnx/c-api
+cp third_party/sherpa-onnx/sherpa-onnx/c-api/*.h prebuilt/include/sherpa-onnx/c-api/
 
-echo -e "${GREEN}iOS libraries built successfully!${NC}" 
+# Copy Swift API files
+echo -e "${BLUE}Copying Swift API files...${NC}"
+mkdir -p prebuilt/swift/sherpa-onnx
+cp third_party/sherpa-onnx/swift-api-examples/SherpaOnnx.swift prebuilt/swift/sherpa-onnx/
+cp third_party/sherpa-onnx/swift-api-examples/SherpaOnnx-Bridging-Header.h prebuilt/swift/sherpa-onnx/
+
+echo -e "${GREEN}iOS libraries and Swift API files copied successfully!${NC}"
