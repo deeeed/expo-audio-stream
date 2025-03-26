@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import { useModelManagement } from '../contexts/ModelManagement/ModelManagementC
 import { formatBytes } from '../utils/formatters';
 import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
+import type { ModelType } from '@siteed/sherpa-onnx.rn';
+import type { ModelTypeOption } from '../types/models';
 
 interface ModelCardProps {
   model: ModelMetadata;
@@ -28,8 +30,9 @@ interface ModelCardProps {
 }
 
 interface ModelManagerProps {
-  filterType?: 'all' | 'tts' | 'asr' | 'vad' | 'kws' | 'speaker' | 'language' | 'audio-tagging' | 'punctuation';
-  onBrowseFiles?: (modelPath: string) => void;
+  filterType: ModelType | 'all';
+  onModelSelect: (modelPath: string) => void;
+  onBackToDownloads: () => void;
 }
 
 const ModelCard: React.FC<ModelCardProps> = ({
@@ -45,6 +48,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
   const [fileDetails, setFileDetails] = useState<Array<{
+    id: string;
     name: string;
     size: number;
     exists: boolean;
@@ -95,97 +99,87 @@ const ModelCard: React.FC<ModelCardProps> = ({
     setIsLoading(true);
     setFileListError('');
     try {
-      if (!state?.localPath) {
+      if (!state) {
+        console.warn('Cannot show files: State is not available');
+        setFileListError('Cannot show files: State is not available');
+        setFileDetails([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!state.localPath) {
         console.warn('Cannot show files: Model local path is not available');
         setFileListError('Cannot show files: Model local path is not available');
+        
+        // Add more detailed error info
+        console.error(`Model: ${model.id}`);
+        console.error(`State: ${JSON.stringify(state, null, 2)}`);
+        
         setFileDetails([]);
         setIsLoading(false);
         return;
       }
       
-      // Log the current state
-      console.log(`Checking files for model ${model.id}:`);
+      console.log(`=== Model Files: ${model.id} ===`);
       console.log(`Local path: ${state.localPath}`);
       console.log(`Model status: ${state.status}`);
+      console.log(`Is archive: ${model.url.endsWith('.tar.bz2')}`);
+      console.log(`Extracted files: ${state.extractedFiles?.join(', ') || 'none'}`);
       
-      // Clean up the path
-      const cleanPath = state.localPath.replace('file://', '');
-      console.log(`Clean path: ${cleanPath}`);
+      // Check if the path exists
+      const fileInfo = await FileSystem.getInfoAsync(state.localPath);
+      console.log(`Path info:`, fileInfo);
 
-      const dirInfo = await FileSystem.getInfoAsync(state.localPath);
-      console.log(`Directory info:`, dirInfo);
-
-      if (!dirInfo.exists) {
-        console.warn(`Directory does not exist: ${state.localPath}`);
-        setFileListError(`Directory does not exist: ${state.localPath}`);
+      if (!fileInfo.exists) {
+        console.warn(`Path does not exist: ${state.localPath}`);
+        setFileListError(`Path does not exist: ${state.localPath}`);
         setFileDetails([]);
         setIsLoading(false);
         return;
       }
 
-      if (!dirInfo.isDirectory) {
-        console.warn(`Path exists but is not a directory: ${state.localPath}`);
-        setFileListError(`Path exists but is not a directory: ${state.localPath}`);
-        setFileDetails([]);
+      // If it's a single file (not a directory), show just that file
+      if (!fileInfo.isDirectory) {
+        console.log(`Path is a single file`);
+        // Get the filename from the path
+        const fileName = state.localPath.split('/').pop() || 'Unknown file';
+        
+        setFileDetails([{
+          id: `${model.id}_file_${fileName}`,
+          name: fileName,
+          exists: true,
+          size: fileInfo.size || 0,
+          uri: fileInfo.uri,
+          isDirectory: false,
+        }]);
+        
+        setShowFiles(prev => !prev);
         setIsLoading(false);
         return;
       }
 
-      // Define file detail type
-      type FileDetail = {
-        name: string;
-        exists: boolean;
-        size: number;
-        uri?: string;
-        isDirectory?: boolean;
-        error?: string;
-      };
-
-      // Function to scan a directory and its subdirectories
-      const scanDirectory = async (dirPath: string, prefix = ''): Promise<FileDetail[]> => {
-        const files = await FileSystem.readDirectoryAsync(dirPath);
-        console.log(`Found ${files.length} items in ${prefix || 'root directory'}:`, files);
-        
-        let fileList: FileDetail[] = [];
-        
-        for (const file of files) {
-          try {
-            const filePath = `${dirPath}/${file}`;
-            const fileInfo = await FileSystem.getInfoAsync(filePath);
-            const displayName = prefix ? `${prefix}/${file}` : file;
-            
-            fileList.push({
-              name: displayName,
-              exists: fileInfo.exists,
-              size: fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0,
-              uri: fileInfo.uri,
-              isDirectory: fileInfo.isDirectory || false,
-            });
-            
-            console.log(`File details for ${displayName}:`, fileInfo);
-            
-            // If this is a directory, recursively scan it
-            if (fileInfo.exists && fileInfo.isDirectory) {
-              const subdirFiles = await scanDirectory(filePath, displayName);
-              fileList = [...fileList, ...subdirFiles];
-            }
-          } catch (fileError) {
-            console.error(`Error getting info for file ${file}:`, fileError);
-            fileList.push({
-              name: prefix ? `${prefix}/${file}` : file,
-              exists: false,
-              size: 0,
-              error: String(fileError),
-            });
-          }
-        }
-        
-        return fileList;
-      };
-
-      // Scan the main directory and all subdirectories
-      const allFiles = await scanDirectory(state.localPath);
-      setFileDetails(allFiles);
+      // For directories, get the contents
+      console.log(`Scanning directory: ${state.localPath}`);
+      const dirContents = await FileSystem.readDirectoryAsync(state.localPath);
+      console.log(`Found ${dirContents.length} items in directory`);
+      
+      // Get details for each file
+      const details = await Promise.all(
+        dirContents.map(async (file, index) => {
+          const filePath = `${state.localPath}/${file}`;
+          const info = await FileSystem.getInfoAsync(filePath);
+          return {
+            id: `${model.id}_file_${index}`, // Unique ID for each file
+            name: file,
+            exists: info.exists,
+            size: info.exists ? (info.size || 0) : 0,
+            uri: info.uri,
+            isDirectory: info.isDirectory || false,
+          };
+        })
+      );
+      
+      setFileDetails(details);
       setShowFiles(prev => !prev);
     } catch (error) {
       console.error('Error toggling file view:', error);
@@ -337,14 +331,13 @@ const ModelCard: React.FC<ModelCardProps> = ({
           ) : (
             <>
               <Text style={cardStyles.modelPath} selectable>Path: {state?.localPath || 'Not available'}</Text>
-              <Text style={cardStyles.modelPath} selectable>Clean Path: {state?.localPath ? state.localPath.replace('file://', '') : 'Not available'}</Text>
               {fileDetails.length === 0 ? (
                 <View>
-                  <Text style={cardStyles.fileText}>No files found in directory</Text>
+                  <Text style={cardStyles.fileText}>No files found</Text>
                 </View>
               ) : (
                 fileDetails.map((file, index) => (
-                  <View key={index} style={cardStyles.fileItem}>
+                  <View key={file.id || `file_${model.id}_${index}`} style={cardStyles.fileItem}>
                     <Text 
                       style={[
                         cardStyles.fileText, 
@@ -443,7 +436,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
   );
 };
 
-export function ModelManager({ filterType = 'all', onBrowseFiles }: ModelManagerProps) {
+export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: ModelManagerProps) {
   const {
     getAvailableModels,
     getDownloadedModels,
@@ -457,94 +450,61 @@ export function ModelManager({ filterType = 'all', onBrowseFiles }: ModelManager
   } = useModelManagement();
 
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [progressUpdateCounter, setProgressUpdateCounter] = useState(0);
+  const [expandedSection, setExpandedSection] = useState<'downloaded' | 'available' | null>(null);
 
-  const availableModels = getAvailableModels();
-  const downloadedModels = getDownloadedModels();
+  // Get models once on mount
+  const availableModels = useMemo(() => getAvailableModels(), []);
+  const downloadedModels = useMemo(() => getDownloadedModels(), [modelStates]);
 
   // Filter models based on type
-  const filteredAvailableModels = filterType === 'all' 
-    ? availableModels 
-    : availableModels.filter(model => model.type === filterType);
+  const filteredAvailableModels = useMemo(() => 
+    filterType === 'all' 
+      ? availableModels 
+      : availableModels.filter((model: ModelMetadata) => model.type === filterType),
+    [availableModels, filterType]
+  );
 
-  const filteredDownloadedModels = filterType === 'all'
-    ? downloadedModels
-    : downloadedModels.filter(model => model.metadata.type === filterType);
+  const filteredDownloadedModels = useMemo(() => 
+    filterType === 'all'
+      ? downloadedModels
+      : downloadedModels.filter((model: ModelState) => model.metadata.type === filterType),
+    [downloadedModels, filterType]
+  );
 
-  // Force component to rerender when any model is downloading
-  useEffect(() => {
-    // Check if any model is currently downloading
-    const anyModelDownloading = Object.values(modelStates).some(
-      model => model.status === 'downloading'
-    );
-
-    if (anyModelDownloading) {
-      // Set up an interval to periodically increment the counter to force rerenders
-      const intervalId = setInterval(() => {
-        setProgressUpdateCounter(prev => prev + 1);
-      }, 500); // Check every half second
-      return () => clearInterval(intervalId);
-    }
-  }, [modelStates]);
-
-  useEffect(() => {
-    // Refresh status of all downloaded models on mount
-    refreshAllModelStatuses();
-    setIsLoading(false);
-  }, []);
-
-  const refreshAllModelStatuses = async () => {
-    setIsRefreshing(true);
+  // Memoize handlers
+  const handleDownload = useCallback(async (modelId: string) => {
     try {
-      await Promise.all(
-        downloadedModels.map(model => refreshModelStatus(model.metadata.id))
-      );
-    } catch (error) {
-      console.error('Error refreshing model statuses:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const handleDownload = async (modelId: string) => {
-    try {
-      console.log(`Starting download for model: ${modelId}`);
       await downloadModel(modelId);
-      console.log(`Download completed for model: ${modelId}`);
     } catch (error) {
-      console.error(`Download error for model ${modelId}:`, error);
       Alert.alert('Download Error', (error as Error).message);
     }
-  };
+  }, [downloadModel]);
 
-  const handleCancelDownload = async (modelId: string) => {
+  const handleCancelDownload = useCallback(async (modelId: string) => {
     try {
-      console.log(`Cancelling download for model: ${modelId}`);
       await cancelDownload(modelId);
-      console.log(`Download cancelled for model: ${modelId}`);
     } catch (error) {
-      console.error(`Cancel error for model ${modelId}:`, error);
       Alert.alert('Cancel Error', (error as Error).message);
     }
-  };
+  }, [cancelDownload]);
 
-  const handleDelete = async (modelId: string) => {
+  const handleDelete = useCallback(async (modelId: string) => {
     try {
-      console.log(`Starting deletion for model: ${modelId}`);
       await deleteModel(modelId);
-      console.log(`Deletion completed for model: ${modelId}`);
     } catch (error) {
-      console.error(`Delete error for model ${modelId}:`, error);
       Alert.alert('Delete Error', (error as Error).message);
     }
-  };
+  }, [deleteModel]);
 
-  const handleSelect = (modelId: string) => {
-    console.log(`Selected model: ${modelId}`);
+  const handleSelect = useCallback((modelId: string) => {
     setSelectedModelId(modelId);
-  };
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    setIsLoading(false);
+  }, []);
 
   if (isLoading) {
     return (
@@ -555,60 +515,79 @@ export function ModelManager({ filterType = 'all', onBrowseFiles }: ModelManager
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      key={`model-manager-${filterType}`}
+    >
       {/* Downloaded Models Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Downloaded Models</Text>
-        {filteredDownloadedModels.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No downloaded models</Text>
-          </View>
-        ) : (
-          filteredDownloadedModels.map(model => {
-            // Get the most current state for this model from context
-            const currentState = modelStates[model.metadata.id];
-            return (
-              <ModelCard
-                key={model.metadata.id}
-                model={model.metadata}
-                state={currentState || model}
-                onDownload={() => handleDownload(model.metadata.id)}
-                onDelete={() => handleDelete(model.metadata.id)}
-                onSelect={() => handleSelect(model.metadata.id)}
-                isSelected={selectedModelId === model.metadata.id}
-                onBrowseFiles={onBrowseFiles}
-                onCancelDownload={handleCancelDownload}
-              />
-            );
-          })
+        <TouchableOpacity 
+          style={styles.sectionHeader}
+          onPress={() => setExpandedSection(expandedSection === 'downloaded' ? null : 'downloaded')}
+        >
+          <Text style={styles.sectionTitle}>Downloaded Models</Text>
+          <Text style={styles.sectionCount}>({filteredDownloadedModels.length})</Text>
+        </TouchableOpacity>
+        
+        {expandedSection === 'downloaded' && (
+          filteredDownloadedModels.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No downloaded models</Text>
+            </View>
+          ) : (
+            filteredDownloadedModels.map((model: ModelState) => {
+              const currentState = modelStates[model.metadata.id];
+              return (
+                <ModelCard
+                  key={model.metadata.id}
+                  model={model.metadata}
+                  state={currentState || model}
+                  onDownload={() => handleDownload(model.metadata.id)}
+                  onDelete={() => handleDelete(model.metadata.id)}
+                  onSelect={() => handleSelect(model.metadata.id)}
+                  isSelected={selectedModelId === model.metadata.id}
+                  onBrowseFiles={onModelSelect}
+                  onCancelDownload={handleCancelDownload}
+                />
+              );
+            })
+          )
         )}
       </View>
 
       {/* Available Models Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Available Models</Text>
-        {filteredAvailableModels.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No models available for the selected type</Text>
-          </View>
-        ) : (
-          filteredAvailableModels.map(model => {
-            // Get the current state for this model (if it exists) from context
-            const currentState = modelStates[model.id];
-            return (
-              <ModelCard
-                key={model.id}
-                model={model}
-                state={currentState}
-                onDownload={() => handleDownload(model.id)}
-                onDelete={() => handleDelete(model.id)}
-                onSelect={() => handleSelect(model.id)}
-                isSelected={selectedModelId === model.id}
-                onBrowseFiles={onBrowseFiles}
-                onCancelDownload={handleCancelDownload}
-              />
-            );
-          })
+        <TouchableOpacity 
+          style={styles.sectionHeader}
+          onPress={() => setExpandedSection(expandedSection === 'available' ? null : 'available')}
+        >
+          <Text style={styles.sectionTitle}>Available Models</Text>
+          <Text style={styles.sectionCount}>({filteredAvailableModels.length})</Text>
+        </TouchableOpacity>
+        
+        {expandedSection === 'available' && (
+          filteredAvailableModels.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No models available for the selected type</Text>
+            </View>
+          ) : (
+            filteredAvailableModels.map((model: ModelMetadata) => {
+              const currentState = modelStates[model.id];
+              return (
+                <ModelCard
+                  key={model.id}
+                  model={model}
+                  state={currentState}
+                  onDownload={() => handleDownload(model.id)}
+                  onDelete={() => handleDelete(model.id)}
+                  onSelect={() => handleSelect(model.id)}
+                  isSelected={selectedModelId === model.id}
+                  onBrowseFiles={onModelSelect}
+                  onCancelDownload={handleCancelDownload}
+                />
+              );
+            })
+          )
         )}
       </View>
     </ScrollView>
@@ -880,10 +859,23 @@ const styles = StyleSheet.create({
   section: {
     padding: 16,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 16,
+  },
+  sectionCount: {
+    fontSize: 14,
+    color: '#666',
   },
   emptyContainer: {
     padding: 24,

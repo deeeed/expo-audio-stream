@@ -1,22 +1,30 @@
 import { SherpaOnnxAPI } from './SherpaOnnxAPI';
-import { AsrService } from './services/AsrService';
 import { TtsService } from './services/TtsService';
+import { AsrService } from './services/AsrService';
 import { AudioTaggingService } from './services/AudioTaggingService';
-import { ArchiveService } from './services/archive-service';
+import { SpeakerIdService } from './services/SpeakerIdService';
+import { ArchiveService } from './services/ArchiveService';
 
-// Export the services
-export const TTS = TtsService;
-export const ASR = AsrService;
-export const AudioTagging = AudioTaggingService;
-
-// Export the Sherpa Onnx object with static methods
-export const SherpaOnnx = {
+// Create a default implementation of the SherpaOnnx API
+const SherpaOnnx = {
+  ...SherpaOnnxAPI,
   validateLibraryLoaded: SherpaOnnxAPI.validateLibraryLoaded,
-  TTS,
-  ASR,
-  AudioTagging,
-  ArchiveService,
+  TTS: TtsService,
+  ASR: AsrService,
+  AudioTagging: AudioTaggingService,
+  SpeakerId: SpeakerIdService,
+  Archive: ArchiveService,
 };
+
+// Set up namespace exports
+export { TtsService as TTS };
+export { AsrService as ASR };
+export { AudioTaggingService as AudioTagging };
+export { SpeakerIdService as SpeakerId };
+export { ArchiveService as Archive };
+
+// Export default object
+export default SherpaOnnx;
 
 // Export types
 export * from './types/interfaces';

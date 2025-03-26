@@ -8,5 +8,7 @@
 @property (nonatomic, assign) void* audioTaggingPtr;
 @property (nonatomic, assign) void* streamPtr;
 @property (nonatomic, assign) void* asrPtr;
+@property (nonatomic, assign) void* speakerIdPtr;
+@property (nonatomic, assign) void* speakerManagerPtr;
 
 @end 
