@@ -1,0 +1,10 @@
+module CSherpaOnnx {
+    umbrella header "sherpa-onnx/c-api/c-api.h"
+    header "sherpa-onnx/c-api/c-api.h"
+    export *
+}
+
+module COnnxRuntime {
+    header "onnxruntime/core/session/onnxruntime_c_api.h"
+    export *
+} 

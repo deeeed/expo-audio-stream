@@ -39,7 +39,7 @@ Pod::Spec.new do |s|
 
   s.frameworks = "Foundation", "CoreML", "Accelerate", "CoreVideo"
 
-  s.preserve_paths = "prebuilt/include/**", "prebuilt/include/module.modulemap"
+  s.preserve_paths = "prebuilt/include/**", "ios/module.modulemap"
 
   s.xcconfig = {
     "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\"",
