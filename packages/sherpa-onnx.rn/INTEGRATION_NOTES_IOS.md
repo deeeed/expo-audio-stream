@@ -197,6 +197,45 @@ For each adapted class and method, verify:
 - [ ] Return types have been adapted for Objective-C compatibility
 - [ ] Memory management is handled properly in deinitializers
 
+### 3.5 Handling C Structs in the Objective-C Bridge
+
+**CRITICAL ISSUE**: C structs from imported modules cannot be directly exposed as parameters in Swift methods tagged with `@objc`. This creates an incompatibility when trying to initialize objects with C structs across the Objective-C bridge.
+
+**Solution Pattern**: Use a factory method approach:
+
+1. Create a static factory method that accepts Objective-C compatible types (dictionaries, arrays, primitives)
+2. Within the Swift implementation, convert these to C structs
+3. Use a private initializer that works with the C structs directly
+4. Expose only the factory method to Objective-C/React Native
+
+Example implementation:
+
+```swift
+// ❌ PROBLEMATIC: Cannot be called from Objective-C
+@objc public init(config: UnsafePointer<CSherpaOnnx.SherpaOnnxOnlineRecognizerConfig>) {
+  // This will fail to compile or work at runtime
+}
+
+// ✅ SOLUTION: Factory method pattern
+@objc public class SomeClass: NSObject {
+  // Factory method with Objective-C compatible parameters
+  @objc public static func createWithConfig(_ dict: [String: Any]) -> SomeClass? {
+    // Convert dictionary to C struct
+    var cStruct = createCStructFromDictionary(dict)
+    // Call private initializer
+    return SomeClass(unsafeConfig: &cStruct)
+  }
+  
+  // Private initializer that uses C struct directly
+  private init(unsafeConfig: UnsafePointer<CSomeStruct>) {
+    // Implementation using C API
+    super.init()
+  }
+}
+```
+
+This pattern preserves all functionality while maintaining compatibility with the Objective-C runtime required by React Native.
+
 ## 4. Library Management Details
 
 The podspec uses a script phase to dynamically update library symlinks during build:

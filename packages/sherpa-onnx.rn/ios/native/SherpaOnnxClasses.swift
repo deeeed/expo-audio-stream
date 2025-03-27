@@ -1,6 +1,5 @@
+// packages/sherpa-onnx.rn/ios/bridge/SherpaOnnxClasses.swift
 import Foundation
-
-// Import only CSherpaOnnx for C functions
 import CSherpaOnnx
 
 // These are declarations we need directly from the C API
@@ -123,13 +122,52 @@ func sherpaOnnxOnlineRecognizerConfig(
   }
 }
 
-// Our own implementation of the recognizer class
+/**
+ * SherpaOnlineRecognizer - Speech recognition handler
+ * 
+ * IMPORTANT ARCHITECTURE NOTE: We use a factory method pattern instead of exposing
+ * C structs directly in the initializer. This is because C structs from imported
+ * modules cannot be directly exposed across the Objective-C bridge when used as
+ * parameters in Swift methods tagged with @objc. This factory method approach allows
+ * us to maintain compatibility with both old and new React Native architectures.
+ */
 @objc public class SherpaOnlineRecognizer: NSObject {
   private let recognizer: OpaquePointer!
   private var stream: OpaquePointer!
 
-  @objc public init(config: UnsafePointer<SherpaOnnxOnlineRecognizerConfig>) {
-    recognizer = SherpaOnnxCreateOnlineRecognizer(config)
+  // Factory method to create a recognizer from a dictionary configuration
+  // This avoids exposing C struct types to Objective-C runtime
+  @objc public static func createWithConfig(_ configDict: [String: Any]) -> SherpaOnlineRecognizer? {
+    // Create a feature config
+    let featConfig = sherpaOnnxFeatureConfig(
+      sampleRate: configDict["sampleRate"] as? Int ?? 16000, 
+      featureDim: configDict["featureDim"] as? Int ?? 80
+    )
+    
+    // Create a transducer model config (using empty strings as defaults)
+    let transducerConfig = sherpaOnnxOnlineTransducerModelConfig()
+    
+    // Create the model config
+    let modelConfig = sherpaOnnxOnlineModelConfig(
+      tokens: configDict["tokens"] as? String ?? "",
+      transducer: transducerConfig
+    )
+    
+    // Create the recognizer config
+    var recognizerConfig = sherpaOnnxOnlineRecognizerConfig(
+      featConfig: featConfig,
+      modelConfig: modelConfig,
+      enableEndpoint: configDict["enableEndpoint"] as? Bool ?? false
+    )
+    
+    // Create and return the recognizer through the private initializer
+    return SherpaOnlineRecognizer(unsafeConfig: &recognizerConfig)
+  }
+  
+  // Private initializer that uses the unsafe pointer directly
+  // This keeps the C struct handling internal to Swift
+  private init(unsafeConfig: UnsafePointer<SherpaOnnxOnlineRecognizerConfig>) {
+    recognizer = SherpaOnnxCreateOnlineRecognizer(unsafeConfig)
     stream = SherpaOnnxCreateOnlineStream(recognizer)
     super.init()
   }
