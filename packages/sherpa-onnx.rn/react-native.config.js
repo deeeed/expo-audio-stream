@@ -15,7 +15,7 @@ module.exports = {
   },
   // Enable codegen for the New Architecture
   codegenConfig: {
-    name: "RNSherpaOnnxSpec",
+    name: "SherpaOnnx",
     type: "modules",
     jsSrcsDir: "src",
   },

@@ -95,10 +95,15 @@ RCT_EXPORT_METHOD(createRecognizer:(NSDictionary *)config
 // Add other RCT_EXPORT_METHODs here as needed...
 
 #ifdef RCT_NEW_ARCH_ENABLED
-// Use a generic parameter type to avoid relying on specific implementations
-- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:(void *)params {
-  // Simple implementation that will work with any React Native version
-  return nullptr;
+// Simplest implementation for now
+- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:(const std::shared_ptr<facebook::react::CallInvoker> &)invoker 
+{
+//   // Log the issue for debugging
+//   NSLog(@"WARNING: SherpaOnnx returning nullptr from getTurboModule - methods will be undefined in JS");
+//   return nullptr; // Will compile but module methods won't be available in JS
+
+  return std::make_shared<facebook::react::NativeSherpaOnnxSpecJSI>(self, invoker);
+
 }
 #endif
 
