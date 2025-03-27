@@ -50,12 +50,13 @@ packages/sherpa-onnx.rn/
 │   │   ├── SherpaOnnxClasses.swift   # Our Swift adaptation
 │   │   ├── SherpaOnnxRnModule.h      # React Native module header
 │   │   └── SherpaOnnxRnModule.m      # React Native module implementation
-│   ├── module.modulemap              # Maps C API to Swift module
 │   └── SherpaOnnxSpec.*              # TurboModule specifications
 ├── prebuilt/
-│   ├── include/                      # C headers
-│   │   └── sherpa-onnx/
-│   │       └── c-api/
+│   ├── include/                      # C headers and module map
+│   │   ├── module.modulemap          # Generated during build
+│   │   ├── sherpa-onnx/
+│   │   │   └── c-api/
+│   │   └── onnxruntime/
 │   ├── ios/
 │   │   ├── current/ -> symlinks      # Dynamic symlinks to active architecture
 │   │   ├── device/                   # arm64 libraries
@@ -90,11 +91,16 @@ Follow these precise steps when adapting the Sherpa-ONNX Swift API:
 
 ### 3.1 Module Map Configuration
 
-The `module.modulemap` file is crucial for exposing C functions to Swift without a bridging header:
+The `module.modulemap` file is automatically generated during the build process in `prebuilt/include/module.modulemap`. This file is crucial for exposing C functions to Swift without a bridging header:
 
 ```
 module CSherpaOnnx {
-  header "prebuilt/include/sherpa-onnx/c-api/c-api.h"
+  header "sherpa-onnx/c-api/c-api.h"
+  export *
+}
+
+module COnnxRuntime {
+  header "onnxruntime/core/session/onnxruntime_c_api.h"
   export *
 }
 ```
@@ -103,7 +109,10 @@ This allows our Swift code to directly import the C functions:
 
 ```swift
 import CSherpaOnnx
+import COnnxRuntime
 ```
+
+The module map is generated during the build process by `build-sherpa-ios.sh` and should not be manually modified. If you need to update the module map, modify the build script instead.
 
 ### 3.2 Copy and Adapt Swift Classes - Critical Guidelines
 

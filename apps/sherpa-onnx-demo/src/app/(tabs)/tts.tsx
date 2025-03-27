@@ -402,7 +402,8 @@ export default function TtsScreen() {
         const modelConfig: TtsModelConfig = {
           modelDir: finalPath.replace('file://', ''), // Remove file:// prefix for native module
           numThreads: 2,
-          debug: debugMode
+          debug: debugMode,
+          modelType: ttsModelType // Add the model type to the config
         };
         
         // Now, find espeak data before configuring the model
@@ -491,12 +492,6 @@ export default function TtsScreen() {
           
           // Matcha model configuration
           console.log(`Configuring Matcha model`);
-          
-          // Example 7 & 8 from documentation:
-          // modelDir = "matcha-icefall-en_US-ljspeech"
-          // acousticModelName = "model-steps-3.onnx"
-          // vocoder = "vocos-22khz-univ.onnx"
-          // dataDir = "matcha-icefall-en_US-ljspeech/espeak-ng-data"
           
           // Set model type explicitly
           modelConfig.modelType = 'matcha';
@@ -661,57 +656,63 @@ export default function TtsScreen() {
         playAudio: autoPlay
       });
 
-      if (result.success && result.filePath) {
+      // Success case - either we have a file path or the audio was played directly
+      if (result.success || result.filePath) {
         setStatusMessage('Speech generated successfully!');
         
-        // Ensure the path has the file:// prefix for consistent usage
-        const accessiblePath = result.filePath.startsWith('file://') 
-          ? result.filePath 
-          : `file://${result.filePath}`;
-        
-        // Verify the file exists
-        const fileExists = await verifyFileExists(accessiblePath);
-        
-        if (fileExists) {
-          console.log(`Generated audio file accessible at: ${accessiblePath}`);
-          setTtsResult({
-            ...result,
-            accessiblePath
-          });
+        if (result.filePath) {
+          // Ensure the path has the file:// prefix for consistent usage
+          const accessiblePath = result.filePath.startsWith('file://') 
+            ? result.filePath 
+            : `file://${result.filePath}`;
           
-          // If not auto-playing but we want to play manually, create and play the sound
-          if (!autoPlay) {
-            // Create a new sound object and play it if requested
-            try {
-              if (sound) {
-                await sound.unloadAsync();
-              }
-              const { sound: newSound } = await Audio.Sound.createAsync({ uri: accessiblePath });
-              setSound(newSound);
-              
-              // Setup playback status listener
-              newSound.setOnPlaybackStatusUpdate((status) => {
-                if (status.isLoaded) {
-                  setIsPlaying(status.isPlaying);
-                  if (status.didJustFinish) {
-                    setIsPlaying(false);
-                  }
+          // Verify the file exists
+          const fileExists = await verifyFileExists(accessiblePath);
+          
+          if (fileExists) {
+            console.log(`Generated audio file accessible at: ${accessiblePath}`);
+            setTtsResult({
+              ...result,
+              accessiblePath
+            });
+            
+            // If not auto-playing but we want to play manually, create and play the sound
+            if (!autoPlay) {
+              // Create a new sound object and play it if requested
+              try {
+                if (sound) {
+                  await sound.unloadAsync();
                 }
-              });
-              
-              setStatusMessage('Audio ready. Use the play button to listen.');
-            } catch (audioError) {
-              console.error('Error creating sound object:', audioError);
-              setErrorMessage(`Error preparing audio: ${(audioError as Error).message}`);
+                const { sound: newSound } = await Audio.Sound.createAsync({ uri: accessiblePath });
+                setSound(newSound);
+                
+                // Setup playback status listener
+                newSound.setOnPlaybackStatusUpdate((status) => {
+                  if (status.isLoaded) {
+                    setIsPlaying(status.isPlaying);
+                    if (status.didJustFinish) {
+                      setIsPlaying(false);
+                    }
+                  }
+                });
+                
+                setStatusMessage('Audio ready. Use the play button to listen.');
+              } catch (audioError) {
+                console.error('Error creating sound object:', audioError);
+                setErrorMessage(`Error preparing audio: ${(audioError as Error).message}`);
+              }
             }
+          } else {
+            console.error(`Generated audio file does not exist: ${result.filePath}`);
+            setTtsResult(result);
+            setErrorMessage('Generated audio file not found.');
           }
-        } else {
-          console.error(`Generated audio file does not exist: ${result.filePath}`);
-          setTtsResult(result);
-          setErrorMessage('Generated audio file not found.');
+        } else if (autoPlay) {
+          // Audio was played directly without saving to file
+          setStatusMessage('Speech played successfully!');
         }
       } else {
-        setErrorMessage('TTS generation failed or no file path returned');
+        setErrorMessage('TTS generation failed');
       }
     } catch (error) {
       setErrorMessage(`TTS generation error: ${(error as Error).message}`);
@@ -785,33 +786,35 @@ export default function TtsScreen() {
         ) : null}
 
         {/* Model Selection */}
-        <Text style={styles.sectionTitle}>1. Select TTS Model</Text>
-        <View style={styles.pickerContainer}>
-          {availableModels.length === 0 ? (
-            <Text style={styles.emptyText}>
-              No TTS models downloaded. Please visit the Models screen to download a model.
-            </Text>
-          ) : (
-            availableModels.map((model) => (
-              <TouchableOpacity
-                key={model.metadata.id}
-                style={[
-                  styles.modelOption,
-                  selectedModelId === model.metadata.id && styles.modelOptionSelected
-                ]}
-                onPress={() => setSelectedModelId(model.metadata.id)}
-              >
-                <Text 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>1. Select TTS Model</Text>
+          <View style={styles.pickerContainer}>
+            {availableModels.length === 0 ? (
+              <Text style={styles.emptyText}>
+                No TTS models downloaded. Please visit the Models screen to download a model.
+              </Text>
+            ) : (
+              availableModels.map((model) => (
+                <TouchableOpacity
+                  key={model.metadata.id}
                   style={[
-                    styles.modelOptionText,
-                    selectedModelId === model.metadata.id && styles.modelOptionTextSelected
+                    styles.modelOption,
+                    selectedModelId === model.metadata.id && styles.modelOptionSelected
                   ]}
+                  onPress={() => setSelectedModelId(model.metadata.id)}
                 >
-                  {model.metadata.name}
-                </Text>
-              </TouchableOpacity>
-            ))
-          )}
+                  <Text 
+                    style={[
+                      styles.modelOptionText,
+                      selectedModelId === model.metadata.id && styles.modelOptionTextSelected
+                    ]}
+                  >
+                    {model.metadata.name}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
         </View>
 
         {/* TTS Controls */}
@@ -849,7 +852,7 @@ export default function TtsScreen() {
           placeholder="Enter text to speak"
         />
 
-        {/* TTS Configuration - moved before generation buttons */}
+        {/* TTS Configuration */}
         {ttsInitialized && (
           <View style={styles.configSection}>
             <Text style={styles.sectionTitle}>TTS Configuration</Text>
@@ -989,6 +992,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  section: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   loadingOverlay: {
     position: 'absolute',

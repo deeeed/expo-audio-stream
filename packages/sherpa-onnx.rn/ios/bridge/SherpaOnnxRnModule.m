@@ -383,6 +383,18 @@ RCT_EXPORT_METHOD(isEndpoint:(RCTPromiseResolveBlock)resolve
     });
 }
 
+RCT_EXPORT_METHOD(testOnnxIntegration:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        // Use Swift implementation to test integration
+        SherpaOnnxTester *tester = [[SherpaOnnxTester alloc] init];
+        [tester testIntegration:^(NSDictionary *result) {
+            resolve(result);
+        }];
+    });
+}
+
 // End of the implementation, add the TurboModule method
 #ifdef RCT_NEW_ARCH_ENABLED
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:

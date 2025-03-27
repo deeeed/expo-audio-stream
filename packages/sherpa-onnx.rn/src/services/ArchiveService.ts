@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system';
-import { ModelType } from '../types/interfaces';
-import NativeSherpaOnnx from '../NativeSherpaOnnx';
+import type { ModelType } from '../types/interfaces';
+import type { ApiInterface } from '../types/api';
 
 interface DownloadProgress {
   totalBytesWritten: number;
@@ -14,85 +14,18 @@ interface ExtractionResult {
 }
 
 export class ArchiveService {
-  private static instance: ArchiveService;
   private baseDir: string;
+  private api: ApiInterface;
 
-  private constructor() {
+  constructor(api: ApiInterface) {
     this.baseDir = `${FileSystem.documentDirectory}sherpa-onnx/`;
-  }
-
-  public static getInstance(): ArchiveService {
-    if (!ArchiveService.instance) {
-      ArchiveService.instance = new ArchiveService();
-    }
-    return ArchiveService.instance;
-  }
-
-  // Static methods that delegate to instance methods
-  public static async ensureBaseDir(): Promise<void> {
-    return ArchiveService.getInstance().ensureBaseDir();
-  }
-
-  public static async getModelPath(
-    modelType: ModelType,
-    modelName: string
-  ): Promise<string> {
-    return ArchiveService.getInstance().getModelPath(modelType, modelName);
-  }
-
-  public static async isModelDownloaded(
-    modelType: ModelType,
-    modelName: string
-  ): Promise<boolean> {
-    return ArchiveService.getInstance().isModelDownloaded(modelType, modelName);
-  }
-
-  public static async downloadModel(
-    modelType: ModelType,
-    modelName: string,
-    url: string,
-    onProgress?: (progress: number) => void
-  ): Promise<string> {
-    return ArchiveService.getInstance().downloadModel(modelType, modelName, url, onProgress);
-  }
-
-  public static async deleteModel(
-    modelType: ModelType,
-    modelName: string
-  ): Promise<void> {
-    return ArchiveService.getInstance().deleteModel(modelType, modelName);
-  }
-
-  public static async getModelSize(
-    modelType: ModelType,
-    modelName: string
-  ): Promise<number> {
-    return ArchiveService.getInstance().getModelSize(modelType, modelName);
+    this.api = api;
   }
 
   /**
-   * Extract a tar.bz2 file to a target directory
-   * @param sourcePath Path to the tar.bz2 file
-   * @param targetDir Directory to extract to
-   * @returns Promise with extraction result
+   * Ensure the base directory exists
    */
-  public static async extractTarBz2(
-    sourcePath: string,
-    targetDir: string
-  ): Promise<ExtractionResult> {
-    try {
-      return await NativeSherpaOnnx.extractTarBz2(sourcePath, targetDir);
-    } catch (error) {
-      console.error('Error extracting tar.bz2:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
-
-  // Instance methods
-  private async ensureBaseDir(): Promise<void> {
+  public async ensureBaseDir(): Promise<void> {
     const dirInfo = await FileSystem.getInfoAsync(this.baseDir);
     if (!dirInfo.exists) {
       await FileSystem.makeDirectoryAsync(this.baseDir, {
@@ -101,7 +34,13 @@ export class ArchiveService {
     }
   }
 
-  private async getModelPath(
+  /**
+   * Get the path for a model
+   * @param modelType Type of the model
+   * @param modelName Name of the model
+   * @returns Promise resolving to the model path
+   */
+  public async getModelPath(
     modelType: ModelType,
     modelName: string
   ): Promise<string> {
@@ -109,7 +48,13 @@ export class ArchiveService {
     return `${this.baseDir}${modelType}/${modelName}`;
   }
 
-  private async isModelDownloaded(
+  /**
+   * Check if a model is downloaded
+   * @param modelType Type of the model
+   * @param modelName Name of the model
+   * @returns Promise resolving to whether the model is downloaded
+   */
+  public async isModelDownloaded(
     modelType: ModelType,
     modelName: string
   ): Promise<boolean> {
@@ -118,7 +63,15 @@ export class ArchiveService {
     return modelInfo.exists;
   }
 
-  private async downloadModel(
+  /**
+   * Download a model
+   * @param modelType Type of the model
+   * @param modelName Name of the model
+   * @param url URL to download from
+   * @param onProgress Optional progress callback
+   * @returns Promise resolving to the model path
+   */
+  public async downloadModel(
     modelType: ModelType,
     modelName: string,
     url: string,
@@ -151,7 +104,13 @@ export class ArchiveService {
     return modelPath;
   }
 
-  private async deleteModel(
+  /**
+   * Delete a model
+   * @param modelType Type of the model
+   * @param modelName Name of the model
+   * @returns Promise resolving when deletion is complete
+   */
+  public async deleteModel(
     modelType: ModelType,
     modelName: string
   ): Promise<void> {
@@ -162,12 +121,39 @@ export class ArchiveService {
     }
   }
 
-  private async getModelSize(
+  /**
+   * Get the size of a model
+   * @param modelType Type of the model
+   * @param modelName Name of the model
+   * @returns Promise resolving to the model size in bytes
+   */
+  public async getModelSize(
     modelType: ModelType,
     modelName: string
   ): Promise<number> {
     const modelPath = await this.getModelPath(modelType, modelName);
     const modelInfo = await FileSystem.getInfoAsync(modelPath);
     return modelInfo.exists ? modelInfo.size || 0 : 0;
+  }
+
+  /**
+   * Extract a tar.bz2 file to a target directory
+   * @param sourcePath Path to the tar.bz2 file
+   * @param targetDir Directory to extract to
+   * @returns Promise with extraction result
+   */
+  public async extractTarBz2(
+    sourcePath: string,
+    targetDir: string
+  ): Promise<ExtractionResult> {
+    try {
+      return await this.api.extractTarBz2(sourcePath, targetDir);
+    } catch (error) {
+      console.error('Error extracting tar.bz2:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 }

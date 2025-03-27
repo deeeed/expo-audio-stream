@@ -1,3 +1,4 @@
+import type { ApiInterface } from '../types/api';
 import type {
   SpeakerIdModelConfig,
   SpeakerIdInitResult,
@@ -11,19 +12,23 @@ import type {
   SpeakerIdFileProcessResult,
   ValidateResult,
 } from '../types/interfaces';
-import { SherpaOnnxAPI } from '../SherpaOnnxAPI';
 
 /**
  * Service for Speaker Identification functionality
  */
 export class SpeakerIdService {
-  private static initialized = false;
-  private static embeddingDim = 0;
+  private initialized = false;
+  private embeddingDim = 0;
+  private api: ApiInterface;
+
+  constructor(api: ApiInterface) {
+    this.api = api;
+  }
 
   /**
    * Get the embedding dimension
    */
-  public static getEmbeddingDim(): number {
+  public getEmbeddingDim(): number {
     return this.embeddingDim;
   }
 
@@ -31,8 +36,8 @@ export class SpeakerIdService {
    * Validate that the Sherpa-ONNX library is properly loaded
    * @returns Promise that resolves with validation result
    */
-  public static validateLibrary(): Promise<ValidateResult> {
-    return SherpaOnnxAPI.validateLibraryLoaded();
+  public validateLibrary(): Promise<ValidateResult> {
+    return this.api.validateLibraryLoaded();
   }
 
   /**
@@ -40,7 +45,7 @@ export class SpeakerIdService {
    * @param config Configuration for Speaker ID model
    * @returns Promise that resolves with initialization result
    */
-  public static async init(
+  public async init(
     config: SpeakerIdModelConfig
   ): Promise<SpeakerIdInitResult> {
     try {
@@ -54,7 +59,7 @@ export class SpeakerIdService {
         };
       }
 
-      const result = await SherpaOnnxAPI.initSpeakerId(config);
+      const result = await this.api.initSpeakerId(config);
 
       if (result.success) {
         this.initialized = true;
@@ -77,7 +82,7 @@ export class SpeakerIdService {
    * @param samples Audio samples as number array
    * @returns Promise that resolves with processing result
    */
-  public static async processSamples(
+  public async processSamples(
     sampleRate: number,
     samples: number[]
   ): Promise<SpeakerIdProcessResult> {
@@ -90,7 +95,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await SherpaOnnxAPI.processSpeakerIdSamples(sampleRate, samples);
+      return await this.api.processSpeakerIdSamples(sampleRate, samples);
     } catch (error) {
       return {
         success: false,
@@ -104,7 +109,7 @@ export class SpeakerIdService {
    * Compute speaker embedding from processed audio
    * @returns Promise that resolves with embedding result
    */
-  public static async computeEmbedding(): Promise<SpeakerEmbeddingResult> {
+  public async computeEmbedding(): Promise<SpeakerEmbeddingResult> {
     try {
       if (!this.initialized) {
         return {
@@ -116,7 +121,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await SherpaOnnxAPI.computeSpeakerEmbedding();
+      return await this.api.computeSpeakerEmbedding();
     } catch (error) {
       return {
         success: false,
@@ -134,7 +139,7 @@ export class SpeakerIdService {
    * @param embedding Speaker's embedding vector
    * @returns Promise that resolves with registration result
    */
-  public static async registerSpeaker(
+  public async registerSpeaker(
     name: string,
     embedding: number[]
   ): Promise<RegisterSpeakerResult> {
@@ -146,7 +151,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await SherpaOnnxAPI.registerSpeaker(name, embedding);
+      return await this.api.registerSpeaker(name, embedding);
     } catch (error) {
       return {
         success: false,
@@ -160,9 +165,7 @@ export class SpeakerIdService {
    * @param name Name of the speaker to remove
    * @returns Promise that resolves with removal result
    */
-  public static async removeSpeaker(
-    name: string
-  ): Promise<RemoveSpeakerResult> {
+  public async removeSpeaker(name: string): Promise<RemoveSpeakerResult> {
     try {
       if (!this.initialized) {
         return {
@@ -171,7 +174,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await SherpaOnnxAPI.removeSpeaker(name);
+      return await this.api.removeSpeaker(name);
     } catch (error) {
       return {
         success: false,
@@ -184,7 +187,7 @@ export class SpeakerIdService {
    * Get all registered speakers
    * @returns Promise that resolves with speakers result
    */
-  public static async getSpeakers(): Promise<GetSpeakersResult> {
+  public async getSpeakers(): Promise<GetSpeakersResult> {
     try {
       if (!this.initialized) {
         return {
@@ -195,7 +198,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await SherpaOnnxAPI.getSpeakers();
+      return await this.api.getSpeakers();
     } catch (error) {
       return {
         success: false,
@@ -212,7 +215,7 @@ export class SpeakerIdService {
    * @param threshold Similarity threshold (0-1), default: 0.5
    * @returns Promise that resolves with identification result
    */
-  public static async identifySpeaker(
+  public async identifySpeaker(
     embedding: number[],
     threshold: number = 0.5
   ): Promise<IdentifySpeakerResult> {
@@ -226,7 +229,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await SherpaOnnxAPI.identifySpeaker(embedding, threshold);
+      return await this.api.identifySpeaker(embedding, threshold);
     } catch (error) {
       return {
         success: false,
@@ -244,7 +247,7 @@ export class SpeakerIdService {
    * @param threshold Similarity threshold (0-1), default: 0.5
    * @returns Promise that resolves with verification result
    */
-  public static async verifySpeaker(
+  public async verifySpeaker(
     name: string,
     embedding: number[],
     threshold: number = 0.5
@@ -258,7 +261,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await SherpaOnnxAPI.verifySpeaker(name, embedding, threshold);
+      return await this.api.verifySpeaker(name, embedding, threshold);
     } catch (error) {
       return {
         success: false,
@@ -273,7 +276,7 @@ export class SpeakerIdService {
    * @param filePath Path to the audio file
    * @returns Promise that resolves with file processing result
    */
-  public static async processFile(
+  public async processFile(
     filePath: string
   ): Promise<SpeakerIdFileProcessResult> {
     try {
@@ -289,7 +292,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await SherpaOnnxAPI.processSpeakerIdFile(filePath);
+      return await this.api.processSpeakerIdFile(filePath);
     } catch (error) {
       return {
         success: false,
@@ -309,7 +312,7 @@ export class SpeakerIdService {
    * @param threshold Similarity threshold (0-1), default: 0.5
    * @returns Promise that resolves with identification result
    */
-  public static async identifyFromFile(
+  public async identifyFromFile(
     filePath: string,
     threshold: number = 0.5
   ): Promise<IdentifySpeakerResult> {
@@ -353,7 +356,7 @@ export class SpeakerIdService {
    * @param filePath Path to the audio file
    * @returns Promise that resolves with registration result
    */
-  public static async registerFromFile(
+  public async registerFromFile(
     name: string,
     filePath: string
   ): Promise<RegisterSpeakerResult> {
@@ -389,9 +392,9 @@ export class SpeakerIdService {
    * Release Speaker ID resources
    * @returns Promise that resolves with release result
    */
-  public static async release(): Promise<{ released: boolean }> {
+  public async release(): Promise<{ released: boolean }> {
     try {
-      const result = await SherpaOnnxAPI.releaseSpeakerId();
+      const result = await this.api.releaseSpeakerId();
 
       if (result.released) {
         this.initialized = false;

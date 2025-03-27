@@ -1,4 +1,4 @@
-import { SherpaOnnxAPI } from '../SherpaOnnxAPI';
+import type { ApiInterface } from '../types/api';
 import type {
   TtsModelConfig,
   TtsInitResult,
@@ -11,15 +11,20 @@ import type {
  * Service for Text-to-Speech functionality
  */
 export class TtsService {
-  private static initialized = false;
-  private static sampleRate = 0;
-  private static numSpeakers = 0;
-  private static modelType?: string;
+  private initialized = false;
+  private sampleRate = 0;
+  private numSpeakers = 0;
+  private modelType?: string;
+  private api: ApiInterface;
+
+  constructor(api: ApiInterface) {
+    this.api = api;
+  }
 
   /**
    * Get the model type
    */
-  public static getModelType(): string | undefined {
+  public getModelType(): string | undefined {
     return this.modelType;
   }
 
@@ -27,8 +32,8 @@ export class TtsService {
    * Validate that the Sherpa-ONNX library is properly loaded
    * @returns Promise that resolves with validation result
    */
-  public static validateLibrary(): Promise<ValidateResult> {
-    return SherpaOnnxAPI.validateLibraryLoaded();
+  public validateLibrary(): Promise<ValidateResult> {
+    return this.api.validateLibraryLoaded();
   }
 
   /**
@@ -36,12 +41,10 @@ export class TtsService {
    * @param config The TTS model configuration
    * @returns Promise resolving to initialization result
    */
-  public static async initialize(
-    config: TtsModelConfig
-  ): Promise<TtsInitResult> {
+  public async initialize(config: TtsModelConfig): Promise<TtsInitResult> {
     try {
       // First validate library
-      const validation = await SherpaOnnxAPI.validateLibraryLoaded();
+      const validation = await this.api.validateLibraryLoaded();
       if (!validation.loaded) {
         throw new Error(`Library validation failed: ${validation.status}`);
       }
@@ -64,7 +67,7 @@ export class TtsService {
         config.lengthScale = 1.0;
       }
 
-      const result = await SherpaOnnxAPI.initTts(config);
+      const result = await this.api.initTts(config);
       this.initialized = result.success;
       this.sampleRate = result.sampleRate;
       this.numSpeakers = result.numSpeakers;
@@ -79,21 +82,21 @@ export class TtsService {
   /**
    * Get the initialized status
    */
-  public static isInitialized(): boolean {
+  public isInitialized(): boolean {
     return this.initialized;
   }
 
   /**
    * Get the sample rate
    */
-  public static getSampleRate(): number {
+  public getSampleRate(): number {
     return this.sampleRate;
   }
 
   /**
    * Get the number of available speakers
    */
-  public static getNumSpeakers(): number {
+  public getNumSpeakers(): number {
     return this.numSpeakers;
   }
 
@@ -103,7 +106,7 @@ export class TtsService {
    * @param options Options for speech generation
    * @returns Promise resolving with generation result
    */
-  public static async generateSpeech(
+  public async generateSpeech(
     text: string,
     options: TtsOptions = {}
   ): Promise<TtsGenerateResult> {
@@ -112,7 +115,16 @@ export class TtsService {
     }
 
     try {
-      const result = await SherpaOnnxAPI.generateTts(text, options);
+      const result = await this.api.generateTts({
+        text,
+        speakerId: options.speakerId ?? 0,
+        speakingRate: options.speakingRate ?? 1.0,
+        playAudio: options.playAudio ?? false,
+        fileNamePrefix: options.fileNamePrefix,
+        lengthScale: options.lengthScale,
+        noiseScale: options.noiseScale,
+        noiseScaleW: options.noiseScaleW,
+      });
 
       // Always ensure both numSamples and samplesLength are set correctly
       if (
@@ -144,18 +156,18 @@ export class TtsService {
   /**
    * Stop ongoing speech generation
    */
-  public static async stopSpeech(): Promise<{
+  public async stopSpeech(): Promise<{
     stopped: boolean;
     message?: string;
   }> {
-    return SherpaOnnxAPI.stopTts();
+    return this.api.stopTts();
   }
 
   /**
    * Release TTS resources
    */
-  public static async release(): Promise<{ released: boolean }> {
-    const result = await SherpaOnnxAPI.releaseTts();
+  public async release(): Promise<{ released: boolean }> {
+    const result = await this.api.releaseTts();
     if (result.released) {
       this.initialized = false;
       this.sampleRate = 0;

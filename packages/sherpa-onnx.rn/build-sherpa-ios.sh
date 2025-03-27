@@ -89,4 +89,19 @@ cp third_party/sherpa-onnx/swift-api-examples/SherpaOnnx-Bridging-Header.h prebu
 mkdir -p ios/include/sherpa-onnx/c-api
 cp third_party/sherpa-onnx/sherpa-onnx/c-api/*.h ios/include/sherpa-onnx/c-api/
 
+# Create module.modulemap file
+echo -e "${BLUE}Creating module.modulemap file...${NC}"
+mkdir -p prebuilt/include/module.modulemap
+cat > prebuilt/include/module.modulemap << 'EOL'
+module CSherpaOnnx {
+    umbrella header "sherpa-onnx/c-api/c-api.h"
+    export *
+}
+
+module COnnxRuntime {
+    header "onnxruntime/core/session/onnxruntime_c_api.h"
+    export *
+}
+EOL
+
 echo -e "${GREEN}iOS libraries and Swift API files copied successfully!${NC}"

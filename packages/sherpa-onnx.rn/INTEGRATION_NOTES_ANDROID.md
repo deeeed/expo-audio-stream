@@ -20,12 +20,14 @@ This creates an integration challenge we must resolve:
 1. **Native Library Loading**
    - The Sherpa-ONNX library consists of `libsherpa-onnx-jni.so` and `libonnxruntime.so` which must be properly included and loaded
    - These libraries must be available for multiple architectures (arm64-v8a, armeabi-v7a, x86_64)
+   - Support for both old and new React Native architectures 
 
 2. **React Native Module Requirements**
    - All Kotlin classes must be properly exposed to the React Native bridge
    - Promise-based API for asynchronous operations
    - Event emission for streaming functionality
    - Type conversion between JavaScript and Kotlin data structures
+   - Dual architecture implementation using TurboModules for new architecture
 
 3. **Architecture Support**
    - Android apps need to support multiple architectures (arm64-v8a, armeabi-v7a, x86_64)
@@ -145,7 +147,23 @@ Follow these guidelines when implementing or modifying the Android module:
 
 ### 4.1 React Native Module Requirements
 
-1. **Method Annotations**
+1. **Architecture Support**
+   - Implement both old architecture and new architecture (Fabric) support
+   - Use `codegenNativeComponent` for new architecture components
+   - Maintain backward compatibility with legacy modules
+   - Example:
+     ```kotlin
+     @ReactModule(name = SherpaOnnxModule.NAME)
+     class SherpaOnnxModule : ReactContextBaseJavaModule {
+         companion object {
+             const val NAME = "SherpaOnnx"
+         }
+         
+         // Implementation for both architectures
+     }
+     ```
+
+2. **Method Annotations**
    - Mark all methods exposed to JavaScript with `@ReactMethod`
    - Example:
      ```kotlin
@@ -155,7 +173,7 @@ Follow these guidelines when implementing or modifying the Android module:
      }
      ```
 
-2. **Promise-Based API**
+3. **Promise-Based API**
    - Use `Promise` for asynchronous operations
    - Always handle exceptions and call either `promise.resolve()` or `promise.reject()`
    - Return results in structured maps:
@@ -166,7 +184,7 @@ Follow these guidelines when implementing or modifying the Android module:
      promise.resolve(resultMap)
      ```
 
-3. **Parameter Type Conversion**
+4. **Parameter Type Conversion**
    - Convert JavaScript types to Kotlin types:
      - `ReadableArray` → `FloatArray`, `List<*>`, etc.
      - `ReadableMap` → Kotlin data classes

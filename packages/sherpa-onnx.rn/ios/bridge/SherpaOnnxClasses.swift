@@ -182,4 +182,22 @@ func sherpaOnnxOnlineRecognizerConfig(
   @objc public func isEndpoint() -> Bool {
     return SherpaOnnxOnlineStreamIsEndpoint(recognizer, stream) == 1
   }
+}
+
+@objc public class SherpaOnnxTester: NSObject {
+    @objc public func testIntegration(_ completion: @escaping ([String: Any]) -> Void) {
+        let result = SherpaOnnxFileExists("/tmp")
+        
+        var response: [String: Any] = [:]
+        
+        if result >= 0 {
+            response["status"] = "C library integration successful"
+            response["success"] = true
+        } else {
+            response["status"] = "C library integration failed"
+            response["success"] = false
+        }
+        
+        completion(response)
+    }
 } 
