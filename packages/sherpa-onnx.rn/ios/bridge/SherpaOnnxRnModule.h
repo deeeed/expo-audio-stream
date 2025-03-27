@@ -4,6 +4,10 @@
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventEmitter.h>
 
+#ifdef RCT_NEW_ARCH_ENABLED
+#import "SherpaOnnxSpec.h"  // Add this import for the new architecture
+#endif
+
 // Forward declaration for Swift classes
 @class SherpaOnlineRecognizer;
 
