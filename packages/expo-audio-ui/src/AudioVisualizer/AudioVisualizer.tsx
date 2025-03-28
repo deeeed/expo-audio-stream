@@ -2,10 +2,8 @@
 import { SkFont } from '@shopify/react-native-skia'
 import {
     AudioAnalysis,
-    DataPoint,
-    extractPreview,
-    getWavFileInfo,
     ConsoleLike,
+    DataPoint,
 } from '@siteed/expo-audio-studio'
 import React, {
     useCallback,
@@ -19,12 +17,12 @@ import { LayoutChangeEvent, View } from 'react-native'
 import { useSharedValue } from 'react-native-reanimated'
 
 import {
+    AmplitudeScalingMode,
     AudioVisualizerState,
     AudioVisualizerTheme,
     CandleData,
-    UpdateActivePointsResult,
-    AmplitudeScalingMode,
     DecibelVisualizationConfig,
+    UpdateActivePointsResult,
 } from './AudioVisualiser.types'
 import {
     calculateReferenceLinePosition,
