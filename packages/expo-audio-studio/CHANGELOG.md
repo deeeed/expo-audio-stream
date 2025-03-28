@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.2.0] - 2025-03-28
+### Changed
+- refactor(audio-studio): implement platform-specific CRC32 handling ([b61a3d7](https://github.com/deeeed/expo-audio-stream/commit/b61a3d743914e66888ec6cc4cb8e010ff1992698))
+- chore: update Expo dependencies and remove invalid design-system version ([16e5007](https://github.com/deeeed/expo-audio-stream/commit/16e50077690b55977c22fbcb08be75834146ff47))
+- fix: linting issues ([741589d](https://github.com/deeeed/expo-audio-stream/commit/741589d60485a2d049e7adf529d3fd2b999fa098))
+- feat: Enhance Audio Processing and Transcription Capabilities in Playground App (#171) ([1ec6026](https://github.com/deeeed/expo-audio-stream/commit/1ec6026ff75fc3ff7122b5df72e8dcd15ce848bd))
+- feat: Enhance Essentia Integration with iOS and Android Build Improvements (#169) ([422fd50](https://github.com/deeeed/expo-audio-stream/commit/422fd501a5ec71f30df660d56559bc410084b797))
+- feat: Enhance Audio Analysis with Mel Spectrogram Comparison and Pipeline Support (#164) ([541e13c](https://github.com/deeeed/expo-audio-stream/commit/541e13c6e01b8ff9947bc69dc7c29ffed6d8ee07))
+- feat: Integrate Essentia Audio Analysis Library into React Native for Android (#163) ([4cac310](https://github.com/deeeed/expo-audio-stream/commit/4cac310e4af47ddda528dee0f2840e3a336c6823))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.1.1 ([1b17ac6](https://github.com/deeeed/expo-audio-stream/commit/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3))
 ## [2.1.1] - 2025-03-04
 ### Changed
 - feat: Rename`@siteed/expo-audio-stream` to `@siteed/expo-audio-studio` (#160) ([1b99191](https://github.com/deeeed/expo-audio-stream/commit/1b9919143413a900aefed94c20fc9a8b0e6050d3))
@@ -171,7 +181,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.1.1...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.2.0...HEAD
+[2.2.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.1.1...@siteed/expo-audio-studio@2.2.0
 [2.1.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.1.0...@siteed/expo-audio-studio@2.1.1
 [2.1.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@2.0.1...@siteed/expo-audio-stream@2.1.0
 [2.0.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@2.0.0...@siteed/expo-audio-stream@2.0.1
