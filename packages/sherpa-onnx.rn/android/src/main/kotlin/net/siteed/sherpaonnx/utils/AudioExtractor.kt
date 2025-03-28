@@ -1,24 +1,16 @@
-/**
- * Utility class for audio file extraction
- */
-package net.siteed.sherpaonnx
+package net.siteed.sherpaonnx.utils
 
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.util.Log
+import net.siteed.sherpaonnx.AudioData
 import java.io.File
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import kotlin.String
-import kotlin.Int
-import kotlin.FloatArray
-import kotlin.Unit
-import kotlin.Boolean
-import kotlin.collections.List
-import kotlin.collections.mutableListOf
-import kotlin.collections.toFloatArray
 
+/**
+ * Utility class for audio file extraction
+ */
 /**
  * Utility class for extracting audio data from various audio file formats
  */
@@ -117,7 +109,8 @@ object AudioExtractor {
                             }
                         }
                         else -> {
-                            Log.e(TAG, "Unsupported audio format: ${audioFormat.getString(MediaFormat.KEY_MIME)}")
+                            Log.e(TAG, "Unsupported audio format: ${audioFormat.getString(
+                                MediaFormat.KEY_MIME)}")
                             return null
                         }
                     }
@@ -155,4 +148,4 @@ object AudioExtractor {
             return null
         }
     }
-} 
+}

@@ -1,4 +1,5 @@
-import { ASR, AsrInitResult, AsrModelConfig, AsrRecognizeResult } from '@siteed/sherpa-onnx.rn';
+import { ASR, AsrModelConfig } from '@siteed/sherpa-onnx.rn';
+import { Asset } from 'expo-asset';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import React, { useEffect, useState } from 'react';
@@ -7,17 +8,14 @@ import {
   Alert,
   Button,
   FlatList,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelManagement } from '../../contexts/ModelManagement';
-import { Asset } from 'expo-asset';
 
 // Define sample audio with only name and module
 const SAMPLE_AUDIO_FILES = [
@@ -100,50 +98,56 @@ const findModelFilesRecursive = async (basePath: string): Promise<ModelInfo | nu
   const expoBasePath = basePath.startsWith('file://') ? basePath : `file://${basePath}`;
   
   const searchDirectory = async (expoPath: string, depth = 0): Promise<ModelInfo | null> => {
-    if (depth > 5) return null; // Increased depth limit to 5
+    if (depth > 5) return null;
     
     try {
-      console.log(`Searching directory: ${expoPath} (depth: ${depth})`);
-      
       const dirInfo = await FileSystem.getInfoAsync(expoPath);
       
       if (!dirInfo.exists || !dirInfo.isDirectory) {
-        console.log(`Path is not a valid directory: ${expoPath}`);
         return null;
       }
       
-      // Get directory contents
       const contents = await FileSystem.readDirectoryAsync(expoPath);
-      console.log(`Found ${contents.length} items in ${expoPath}`);
+      
+      // If we find a single directory that looks like a model directory, use that
+      if (depth === 0 && contents.length === 1 && contents[0].includes('sherpa-onnx')) {
+        const subDirPath = `${expoPath}/${contents[0]}`;
+        console.log(`Found potential model directory: ${subDirPath}`);
+        return searchDirectory(subDirPath, depth + 1);
+      }
+      
+      // Get directory contents
+      const dirContents = await FileSystem.readDirectoryAsync(expoPath);
+      console.log(`Found ${dirContents.length} items in ${expoPath}`);
       
       // Debug output the actual file list to help identify model files
-      console.log(`Files in directory: ${contents.join(', ')}`);
+      console.log(`Files in directory: ${dirContents.join(', ')}`);
       
       // Look specifically for any .onnx files as potential model files
-      const onnxFiles = contents.filter(file => file.endsWith('.onnx'));
+      const onnxFiles = dirContents.filter(file => file.endsWith('.onnx'));
       if (onnxFiles.length > 0) {
         console.log(`Found ONNX files: ${onnxFiles.join(', ')}`);
       }
       
       // Check for transducer model files (encoder, decoder, joiner)
-      const hasEncoder = contents.some(file => file.includes('encoder') && file.endsWith('.onnx'));
-      const hasDecoder = contents.some(file => file.includes('decoder') && file.endsWith('.onnx'));
-      const hasJoiner = contents.some(file => file.includes('joiner') && file.endsWith('.onnx'));
-      const hasTokens = contents.some(file => 
+      const hasEncoder = dirContents.some(file => file.includes('encoder') && file.endsWith('.onnx'));
+      const hasDecoder = dirContents.some(file => file.includes('decoder') && file.endsWith('.onnx'));
+      const hasJoiner = dirContents.some(file => file.includes('joiner') && file.endsWith('.onnx'));
+      const hasTokens = dirContents.some(file => 
         file === 'tokens.txt' || 
         file.toLowerCase().includes('tokens') && file.toLowerCase().endsWith('.txt')
       );
       
       // Check for whisper model files
-      const hasWhisperModel = contents.some(file => 
+      const hasWhisperModel = dirContents.some(file => 
         (file.includes('model') && file.endsWith('.onnx')) || 
         (file.toLowerCase().includes('whisper') && file.endsWith('.onnx')) ||
         (file.toLowerCase().includes('encoder') && file.toLowerCase().includes('.onnx'))
       );
       
       // Check for paraformer model files
-      const hasParaformerEncoder = contents.some(file => file.includes('encoder') && file.endsWith('.onnx'));
-      const hasParaformerDecoder = contents.some(file => file.includes('decoder') && file.endsWith('.onnx'));
+      const hasParaformerEncoder = dirContents.some(file => file.includes('encoder') && file.endsWith('.onnx'));
+      const hasParaformerDecoder = dirContents.some(file => file.includes('decoder') && file.endsWith('.onnx'));
       
       // Check if this is likely a zipformer model from the directory name
       let isLikelyZipformer = expoPath.toLowerCase().includes('zipformer');
@@ -162,8 +166,8 @@ const findModelFilesRecursive = async (basePath: string): Promise<ModelInfo | nu
       
       // Specific handling for this Whisper model structure
       if (expoPath.toLowerCase().includes('whisper') && 
-          contents.some(file => file.toLowerCase().includes('encoder') && file.endsWith('.onnx')) &&
-          contents.some(file => file.toLowerCase().includes('tokens') && file.endsWith('.txt'))) {
+          dirContents.some(file => file.toLowerCase().includes('encoder') && file.endsWith('.onnx')) &&
+          dirContents.some(file => file.toLowerCase().includes('tokens') && file.endsWith('.txt'))) {
         
         console.log("Detected special Whisper model structure with encoder/decoder format");
         return { modelDir: expoPath, modelType: 'whisper' as const };
@@ -191,7 +195,7 @@ const findModelFilesRecursive = async (basePath: string): Promise<ModelInfo | nu
       }
       
       // Recursively check subdirectories
-      for (const item of contents) {
+      for (const item of dirContents) {
         const subDirPath = `${expoPath}/${item}`;
         const subDirInfo = await FileSystem.getInfoAsync(subDirPath);
         
@@ -515,7 +519,7 @@ export default function AsrScreen() {
     loadAudioAssets();
   }, []);
   
-  // Cleanup on unmount
+  // ASR cleanup - only on unmount (empty dependency array)
   useEffect(() => {
     return () => {
       if (initialized) {
@@ -524,14 +528,19 @@ export default function AsrScreen() {
           console.error('Error releasing ASR resources:', err)
         );
       }
-      
+    };
+  }, []); // Empty dependency array = only runs on unmount
+  
+  // Sound cleanup - runs when sound changes
+  useEffect(() => {
+    return () => {
       if (sound) {
         sound.unloadAsync().catch(err => 
           console.error('Error unloading audio during cleanup:', err)
         );
       }
     };
-  }, [initialized, sound]);
+  }, [sound]);
   
   // Setup ASR with a selected model
   async function setupAsr(modelId: string) {
@@ -584,241 +593,105 @@ export default function AsrScreen() {
       // Clean path for native module (remove file:// prefix)
       const cleanPath = modelInfo.modelDir.replace(/^file:\/\//, '');
       
-      // Auto-detect if this is a streaming model based on path and model type
-      const detectStreamingMode = () => {
-        // Check path for streaming indicators
-        const pathIndicatesStreaming = cleanPath.toLowerCase().includes('streaming') || 
-                                       cleanPath.toLowerCase().includes('online');
-        
-        // Check model type for streaming compatibility
-        const modelTypeSupportsStreaming = modelInfo.modelType === 'transducer' ||
-                                           modelInfo.modelType === 'zipformer' ||
-                                           modelInfo.modelType === 'zipformer2';
-        
-        // Default to streaming mode if path indicates streaming or model type supports it
-        const isStreamingMode = pathIndicatesStreaming || 
-                                (modelTypeSupportsStreaming && asrConfig.streaming !== false);
-        
-        console.log(`Auto-detected streaming mode: ${isStreamingMode}`);
-        
-        return isStreamingMode;
-      };
-      
-      // Determine streaming mode
-      const isStreamingMode = detectStreamingMode();
-      
-      // Update the config in state so the UI reflects the automatic detection
-      if (asrConfig.streaming !== isStreamingMode) {
-        setAsrConfig(prev => ({
-          ...prev,
-          streaming: isStreamingMode
-        }));
-      }
-      
-      // Base configuration - use advanced settings but override streaming based on auto-detection
-      const config: ExtendedAsrModelConfig = {
-        modelDir: cleanPath,
-        modelType: modelInfo.modelType,
-        numThreads: asrConfig.numThreads ?? 2,
-        decodingMethod: asrConfig.decodingMethod ?? 'greedy_search',
-        maxActivePaths: asrConfig.maxActivePaths ?? 4,
-        streaming: isStreamingMode, // Use auto-detected value
-        debug: asrConfig.debug ?? true,
-        featConfig: {
-          sampleRate: asrConfig.featConfig?.sampleRate ?? 16000,
-          featureDim: 39  // Always use 39 as the model expects this dimension
-        },
-        modelFiles: {}
-      };
-
-      console.log(`Initializing ASR with model type: ${modelInfo.modelType}, streaming mode: ${isStreamingMode}`);
-
       // List directory contents to check what files actually exist
-      try {
-        const dirContents = await FileSystem.readDirectoryAsync(modelInfo.modelDir);
-        console.log('Directory contents:', dirContents);
+      const dirContents = await FileSystem.readDirectoryAsync(modelInfo.modelDir);
+      console.log('Directory contents:', dirContents);
+      
+      // Check if this is a directory with a subdirectory containing the actual model files
+      if (dirContents.length >= 1) {
+        const possibleSubdir = dirContents.find(name => 
+          name.includes('sherpa-onnx') && !name.endsWith('.tar.bz2')
+        );
         
-        // Check if this is a directory with a subdirectory containing the actual model files
-        if (dirContents.length === 1) {
-          const possibleSubdir = dirContents[0];
-          // Check if it's a directory with a name that looks like a model directory
-          if (possibleSubdir.includes('sherpa') || possibleSubdir.includes('zipformer') || 
-              possibleSubdir.includes('model') || possibleSubdir.includes('whisper')) {
-            try {
-              // Check if it's a directory
-              const subdirInfo = await FileSystem.getInfoAsync(`${modelInfo.modelDir}/${possibleSubdir}`);
-              if (subdirInfo.exists && subdirInfo.isDirectory) {
-                // Use this as the actual model directory
-                const newModelDir = `${cleanPath}/${possibleSubdir}`;
-                console.log(`Found model subdirectory, updating model path to: ${newModelDir}`);
+        if (possibleSubdir) {
+          try {
+            // Check if it's a directory
+            const subdirPath = `${modelInfo.modelDir}/${possibleSubdir}`;
+            const subdirInfo = await FileSystem.getInfoAsync(subdirPath);
+            
+            if (subdirInfo.exists && subdirInfo.isDirectory) {
+              // Use this as the actual model directory
+              const newModelDir = `${cleanPath}/${possibleSubdir}`;
+              console.log(`Found model subdirectory, updating model path to: ${newModelDir}`);
+              
+              // Get contents of the subdirectory to look for model files
+              const subdirContents = await FileSystem.readDirectoryAsync(subdirPath);
+              console.log('Subdirectory contents:', subdirContents);
+              
+              // Base configuration with updated model directory
+              const config: ExtendedAsrModelConfig = {
+                modelDir: newModelDir,
+                modelType: modelInfo.modelType,
+                numThreads: asrConfig.numThreads ?? 2,
+                decodingMethod: asrConfig.decodingMethod ?? 'greedy_search',
+                maxActivePaths: asrConfig.maxActivePaths ?? 4,
+                streaming: true, // Force streaming for this model
+                debug: asrConfig.debug ?? true,
+                featConfig: {
+                  sampleRate: asrConfig.featConfig?.sampleRate ?? 16000,
+                  featureDim: 39
+                },
+                modelFiles: {}
+              };
+              
+              // Find and set model files
+              const modelFiles = {
+                encoder: subdirContents.find(f => f.includes('encoder') && f.endsWith('.onnx')),
+                decoder: subdirContents.find(f => f.includes('decoder') && f.endsWith('.onnx')),
+                joiner: subdirContents.find(f => f.includes('joiner') && f.endsWith('.onnx')),
+                tokens: subdirContents.find(f => f === 'tokens.txt' || f.includes('tokens') && f.endsWith('.txt'))
+              };
+              
+              if (modelFiles.encoder && modelFiles.decoder && modelFiles.joiner && modelFiles.tokens) {
+                config.modelFiles = {
+                  encoder: modelFiles.encoder,
+                  decoder: modelFiles.decoder,
+                  joiner: modelFiles.joiner,
+                  tokens: modelFiles.tokens
+                };
                 
-                // Update the config modelDir
-                config.modelDir = newModelDir;
+                console.log('Found all required model files:', config.modelFiles);
                 
-                // Get contents of the subdirectory to look for model files
-                const subdirContents = await FileSystem.readDirectoryAsync(`${modelInfo.modelDir}/${possibleSubdir}`);
-                console.log('Subdirectory contents:', subdirContents);
+                // Initialize ASR with the configuration
+                const result = await asrService.initialize(config);
                 
-                // Use subdirectory contents for model files detection
-                findModelFiles(subdirContents, config);
+                if (result.success) {
+                  setInitialized(true);
+                  console.log('ASR initialized successfully:', result);
+                } else {
+                  setError(`Failed to initialize ASR: ${result.error}`);
+                }
+              } else {
+                throw new Error('Missing required model files in the subdirectory');
               }
-            } catch (e) {
-              console.error('Error checking subdirectory:', e);
             }
+          } catch (e) {
+            console.error('Error checking subdirectory:', e);
+            throw e;
           }
         } else {
-          // Search model files in the main directory
-          findModelFiles(dirContents, config);
+          throw new Error('Could not find valid model subdirectory');
         }
-        
-        // Ensure we have the tokens file
-        const tokensFile = dirContents.find(file => file === 'tokens.txt');
-        if (tokensFile) {
-          config.modelFiles.tokens = tokensFile;
-        }
-        
-        // Initialize ASR with the configuration
-        console.log('Starting ASR initialization with config:', config);
-        const result = await asrService.initialize(config);
-        
-        if (result.success) {
-          setInitialized(true);
-          console.log('ASR initialized successfully:', result);
-        } else {
-          setError(`Failed to initialize ASR: ${result.error}`);
-        }
-        
-        setLoading(false);
-      } catch (e) {
-        console.error('Error during initialization:', e);
-        setError(`Error during initialization: ${e instanceof Error ? e.message : String(e)}`);
-        setLoading(false);
+      } else {
+        throw new Error('Empty model directory');
       }
     } catch (err) {
-      console.error('Error setting up ASR:', err);
-      setError(`Error setting up ASR: ${err instanceof Error ? err.message : String(err)}`);
+      console.error('Error during initialization:', err);
+      setError(`Error during initialization: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
       setLoading(false);
-    }
-  };
-  
-  // Helper function to find model files in a directory
-  const findModelFiles = (dirContents: string[], config: ExtendedAsrModelConfig) => {
-    console.log('Finding model files in directory with contents:', dirContents);
-    
-    // Detect model type from file patterns
-    const isWhisperModel = config.modelDir.toLowerCase().includes('whisper') || 
-                           dirContents.some(file => file.toLowerCase().includes('whisper'));
-    
-    // Look for both regular and int8 versions of model files
-    // Encoder
-    let encoderFile = dirContents.find(file => 
-      file.includes('encoder') && file.includes('int8') && file.endsWith('.onnx')
-    );
-    
-    // If int8 version not found, fallback to regular version
-    if (!encoderFile) {
-      encoderFile = dirContents.find(file => 
-        file.includes('encoder') && file.endsWith('.onnx')
-      );
-    }
-    
-    // Decoder
-    let decoderFile = dirContents.find(file => 
-      file.includes('decoder') && file.includes('int8') && file.endsWith('.onnx')
-    );
-    
-    if (!decoderFile) {
-      decoderFile = dirContents.find(file => 
-        file.includes('decoder') && file.endsWith('.onnx')
-      );
-    }
-    
-    // Joiner
-    let joinerFile = dirContents.find(file => 
-      file.includes('joiner') && file.includes('int8') && file.endsWith('.onnx')
-    );
-    
-    if (!joinerFile) {
-      joinerFile = dirContents.find(file => 
-        file.includes('joiner') && file.endsWith('.onnx')
-      );
-    }
-    
-    // Main model file (for single-file models)
-    let modelFile = dirContents.find(file => 
-      file === 'model.int8.onnx' || file === 'model.onnx'
-    );
-    
-    // Preprocess file (for moonshine models)
-    let preprocessFile = dirContents.find(file => 
-      file.includes('preprocess') && file.endsWith('.onnx')
-    );
-    
-    // Uncached decoder (for moonshine models)
-    let uncachedDecoderFile = dirContents.find(file => 
-      file.includes('uncached_decode') && file.endsWith('.onnx')
-    );
-    
-    // Cached decoder (for moonshine models)
-    let cachedDecoderFile = dirContents.find(file => 
-      file.includes('cached_decode') && file.endsWith('.onnx')
-    );
-    
-    // Tokens file - with special handling for Whisper
-    let tokensFile;
-    if (isWhisperModel) {
-      // For Whisper, look for model-specific tokens file patterns first
-      tokensFile = dirContents.find(file => 
-        file.toLowerCase().includes('tokens') && file.endsWith('.txt')
-      );
-    } else {
-      // For other models, prefer generic tokens.txt first
-      tokensFile = dirContents.find(file => file === 'tokens.txt');
-      
-      // If not found, try any file with "tokens" in the name
-      if (!tokensFile) {
-        tokensFile = dirContents.find(file => 
-          file.toLowerCase().includes('tokens') && file.endsWith('.txt')
-        );
-      }
-    }
-    
-    // Set the model files in the config
-    if (encoderFile) config.modelFiles.encoder = encoderFile;
-    if (decoderFile) config.modelFiles.decoder = decoderFile;
-    if (joinerFile) config.modelFiles.joiner = joinerFile;
-    if (modelFile) config.modelFiles.model = modelFile;
-    if (preprocessFile) config.modelFiles.preprocessor = preprocessFile;
-    if (uncachedDecoderFile) config.modelFiles.uncachedDecoder = uncachedDecoderFile;
-    if (cachedDecoderFile) config.modelFiles.cachedDecoder = cachedDecoderFile;
-    if (tokensFile) config.modelFiles.tokens = tokensFile;
-    
-    // Log the detected model files
-    console.log('Detected model files:', config.modelFiles);
-    
-    // Extra debugging for Whisper models
-    if (isWhisperModel) {
-      console.log(`Whisper model detected. Tokens file found: ${tokensFile || 'None'}`);
-      
-      // Set model type to whisper explicitly if files match whisper pattern
-      if ((encoderFile && decoderFile) || 
-          (dirContents.some(file => file.toLowerCase().includes('whisper')))) {
-        config.modelType = 'whisper';
-        console.log('Setting model type explicitly to whisper based on file patterns');
-      }
     }
   };
   
   // Handle playing audio samples
   const handlePlayAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
     try {
-      // Stop current playback if any
-      if (sound && isPlaying) {
-        await sound.stopAsync();
-        setSound(null);
-        setIsPlaying(false);
+      if (isPlaying) {
+        // If already playing, stop the current playback
+        await handleStopAudio();
+        return;
       }
-      
+
       console.log(`Playing audio: ${audioItem.name} from ${audioItem.localUri}`);
       
       // Create a new sound object
@@ -833,8 +706,11 @@ export default function AsrScreen() {
       
       // Set up listener for playback status
       newSound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && !status.isPlaying && status.didJustFinish) {
+        if (!status.isLoaded) return;
+        
+        if (status.didJustFinish) {
           setIsPlaying(false);
+          setSound(null);
         }
       });
     } catch (err) {
@@ -848,9 +724,12 @@ export default function AsrScreen() {
     if (sound) {
       try {
         await sound.stopAsync();
+        await sound.unloadAsync();
+        setSound(null);
         setIsPlaying(false);
       } catch (err) {
         console.error('Error stopping audio:', err);
+        setError(`Failed to stop audio: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   };
@@ -858,22 +737,35 @@ export default function AsrScreen() {
   // Update the handleRecognizeFromFile function to reinitialize with correct feature dimension 
   const handleRecognizeFromFile = async () => {
     if (!selectedAudio || !initialized) {
+      setError('Please select an audio file and initialize ASR first');
       return;
+    }
+    
+    // Stop any playing audio before recognition
+    if (isPlaying) {
+      await handleStopAudio();
     }
     
     setProcessing(true);
     setRecognitionResult('');
+    setError(null);
     
     try {
       console.log(`Recognizing file with feature dim: ${asrConfig.featConfig?.featureDim}`);
       console.log(`Processing audio file: ${selectedAudio.localUri}`);
       
-      const result = await asrService.recognizeFromFile(selectedAudio.localUri);
+      // Ensure the URI has the correct format
+      const normalizedUri = selectedAudio.localUri.startsWith('file://')
+        ? selectedAudio.localUri
+        : `file://${selectedAudio.localUri}`;
+      
+      const result = await asrService.recognizeFromFile(normalizedUri);
       
       if (result.success) {
         setRecognitionResult(result.text || '');
+        console.log('Recognition result:', result.text);
       } else {
-        setError(`Recognition failed: ${result.error}`);
+        throw new Error(result.error || 'Recognition failed');
       }
     } catch (err) {
       console.error('Failed to recognize speech from file:', err);
@@ -1098,8 +990,7 @@ export default function AsrScreen() {
               <View style={styles.buttonContainer}>
                 <Button
                   title={isPlaying ? "Stop" : "Play"}
-                  onPress={handleStopAudio}
-                  disabled={!selectedAudio}
+                  onPress={() => handlePlayAudio(selectedAudio)}
                 />
               </View>
             </View>
@@ -1227,6 +1118,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     minWidth: 120,
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   selectedAudioItem: {
     borderColor: '#2196f3',
@@ -1355,5 +1247,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginBottom: 8,
     color: '#555',
+  },
+  audioControls: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playbackStatus: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
   },
 }); 

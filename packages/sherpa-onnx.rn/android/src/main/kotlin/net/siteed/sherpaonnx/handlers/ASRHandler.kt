@@ -1,12 +1,8 @@
 /**
  * Handler for Automatic Speech Recognition (ASR) functionality
  */
-package net.siteed.sherpaonnx
+package net.siteed.sherpaonnx.handlers
 
-import android.content.res.AssetManager
-import android.media.AudioAttributes
-import android.media.AudioFormat
-import android.media.AudioTrack
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -15,11 +11,11 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ReactApplicationContext
+import net.siteed.sherpaonnx.SherpaOnnxImpl
+import net.siteed.sherpaonnx.utils.AssetUtils
+import net.siteed.sherpaonnx.utils.AudioExtractor
 import java.io.File
-import java.io.IOException
 import java.util.concurrent.Executors
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 // Import Sherpa ONNX classes for offline recognition
 import com.k2fsa.sherpa.onnx.FeatureConfig
@@ -41,10 +37,6 @@ import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OnlineStream
 import com.k2fsa.sherpa.onnx.OnlineModelConfig
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
-import com.k2fsa.sherpa.onnx.OnlineLMConfig
-import com.k2fsa.sherpa.onnx.OnlineCtcFstDecoderConfig
-import com.k2fsa.sherpa.onnx.EndpointConfig
-import com.k2fsa.sherpa.onnx.EndpointRule
 
 /**
  * Handler for Automatic Speech Recognition functionality in Sherpa-ONNX
@@ -88,7 +80,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
      * Initialize ASR with the provided model configuration
      */
     fun init(modelConfig: ReadableMap, promise: Promise) {
-        if (!SherpaOnnxModule.isLibraryLoaded) {
+        if (!SherpaOnnxImpl.isLibraryLoaded) {
             promise.reject("ERR_LIBRARY_NOT_LOADED", "Sherpa ONNX library is not loaded")
             return
         }

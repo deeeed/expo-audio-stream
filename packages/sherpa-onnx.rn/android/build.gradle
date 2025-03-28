@@ -42,17 +42,21 @@ android {
             // Include prebuilt libraries in the correct location
             jniLibs.srcDirs = ['src/main/jniLibs']
             
-            // Add Kotlin source directory
-            kotlin.srcDirs = ['src/main/kotlin']
-            
             // Add Java source directory for compatibility
             java.srcDirs = ['src/main/java']
         }
-        
-        // We'll add newArch source set back when we actually use it
-        // newArch {
-        //     kotlin.srcDirs = ['src/newarch/kotlin']
-        // }
+    }
+
+    // Configure Kotlin source directories
+    kotlin {
+        sourceSets {
+            main {
+                kotlin.srcDirs = ['src/main/kotlin']
+            }
+            if (isNewArchitectureEnabled()) {
+                main.kotlin.srcDirs += ['src/newarch/kotlin']
+            }
+        }
     }
 
     buildTypes {
@@ -87,20 +91,7 @@ android {
 
 // Add back the New Architecture detection
 def isNewArchitectureEnabled() {
-    // Return false to disable New Architecture completely for now
-    return false
-    // When ready to re-enable:
-    // return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
-}
-
-// Conditional New Architecture setup
-if (isNewArchitectureEnabled()) {
-    apply plugin: "com.facebook.react"
-    react {
-        jsRootDir = file("../src/")
-        libraryName = "sherpa_onnx_rn"
-        codegenJavaPackageName = "net.siteed.sherpaonnx"
-    }
+    return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
 }
 
 repositories {
@@ -137,7 +128,8 @@ dependencies {
 
     // Add New Architecture dependencies conditionally
     if (isNewArchitectureEnabled()) {
-        // Use a specific version instead of '+'
-        implementation "com.facebook.react:react-native-jni:0.72.6"
+        implementation "com.facebook.react:react-native:${REACT_NATIVE_VERSION}"
+        // implementation "com.facebook.react:react-native-bridge:${REACT_NATIVE_VERSION}"
+        // implementation "com.facebook.react:react-native-turbomodule-core:${REACT_NATIVE_VERSION}"
     }
 } 

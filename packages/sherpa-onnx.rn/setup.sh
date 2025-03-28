@@ -22,14 +22,13 @@ command -v make >/dev/null 2>&1 || { echo -e "${RED}Error: make is not installed
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Create directories if they don't exist
+# Create directories
 mkdir -p third_party
 mkdir -p prebuilt
 
 # Clone sherpa-onnx repository if not already present
 if [ ! -d "third_party/sherpa-onnx" ]; then
   echo -e "${BLUE}Cloning sherpa-onnx repository...${NC}"
-  # could add --depth 1 to speed up the cloning process and avoid getting the entire history
   git clone https://github.com/k2-fsa/sherpa-onnx.git third_party/sherpa-onnx
 else
   echo -e "${BLUE}Updating sherpa-onnx repository...${NC}"

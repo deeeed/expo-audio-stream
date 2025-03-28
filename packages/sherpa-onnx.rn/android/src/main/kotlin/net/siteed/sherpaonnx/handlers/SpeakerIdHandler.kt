@@ -1,14 +1,21 @@
 /**
  * Handler for Speaker Identification functionality
  */
-package net.siteed.sherpaonnx
+package net.siteed.sherpaonnx.handlers
 
 import android.util.Log
-import com.facebook.react.bridge.*
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.Promise
+import com.facebook.react.bridge.ReadableArray
+import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.ReactApplicationContext
 import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractor
 import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractorConfig
 import com.k2fsa.sherpa.onnx.SpeakerEmbeddingManager
 import com.k2fsa.sherpa.onnx.OnlineStream
+import net.siteed.sherpaonnx.SherpaOnnxImpl
+import net.siteed.sherpaonnx.utils.AssetUtils
+import net.siteed.sherpaonnx.utils.AudioExtractor
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -27,7 +34,7 @@ class SpeakerIdHandler(private val reactContext: ReactApplicationContext) {
      * Initialize speaker identification with the provided model configuration
      */
     fun init(modelConfig: ReadableMap, promise: Promise) {
-        if (!SherpaOnnxModule.isLibraryLoaded) {
+        if (!SherpaOnnxImpl.isLibraryLoaded) {
             promise.reject("ERR_LIBRARY_NOT_LOADED", "Sherpa ONNX library is not loaded")
             return
         }
@@ -79,10 +86,6 @@ class SpeakerIdHandler(private val reactContext: ReactApplicationContext) {
                 // Initialize speaker manager
                 val embeddingDim = speakerExtractor?.dim() ?: 0
                 speakerManager = SpeakerEmbeddingManager(embeddingDim)
-                
-                if (speakerManager == null) {
-                    throw Exception("Failed to initialize speaker embedding manager")
-                }
                 
                 Log.i(TAG, "Speaker ID initialized successfully with embedding dimension: $embeddingDim")
                 

@@ -1,4 +1,4 @@
-package net.siteed.sherpaonnx
+package net.siteed.sherpaonnx.utils
 
 import android.content.res.AssetManager
 import android.util.Log

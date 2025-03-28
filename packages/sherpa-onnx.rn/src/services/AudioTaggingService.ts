@@ -1,3 +1,4 @@
+import type { ApiInterface } from '../types/api';
 import type {
   AudioTaggingModelConfig,
   AudioTaggingInitResult,
@@ -5,20 +6,24 @@ import type {
   AudioTaggingProcessOptions,
   ValidateResult,
 } from '../types/interfaces';
-import { SherpaOnnxAPI } from '../SherpaOnnxAPI';
 
 /**
  * Service for Audio Tagging functionality
  */
 export class AudioTaggingService {
-  private static initialized = false;
+  private initialized = false;
+  private api: ApiInterface;
+
+  constructor(api: ApiInterface) {
+    this.api = api;
+  }
 
   /**
    * Validate that the Sherpa-ONNX library is properly loaded
    * @returns Promise that resolves with validation result
    */
   public validateLibrary(): Promise<ValidateResult> {
-    return SherpaOnnxAPI.validateLibraryLoaded();
+    return this.api.validateLibraryLoaded();
   }
 
   /**
@@ -31,16 +36,16 @@ export class AudioTaggingService {
   ): Promise<AudioTaggingInitResult> {
     try {
       // First validate library
-      const validation = await SherpaOnnxAPI.validateLibraryLoaded();
+      const validation = await this.api.validateLibraryLoaded();
       if (!validation.loaded) {
         throw new Error(`Library validation failed: ${validation.status}`);
       }
 
-      const result = await SherpaOnnxAPI.initAudioTagging(config);
-      AudioTaggingService.initialized = result.success;
+      const result = await this.api.initAudioTagging(config);
+      this.initialized = result.success;
       return result;
     } catch (error) {
-      AudioTaggingService.initialized = false;
+      this.initialized = false;
       throw error;
     }
   }
@@ -49,7 +54,7 @@ export class AudioTaggingService {
    * Get the initialized status
    */
   public isInitialized(): boolean {
-    return AudioTaggingService.initialized;
+    return this.initialized;
   }
 
   /**
@@ -62,7 +67,7 @@ export class AudioTaggingService {
   public async processAndCompute(
     options: AudioTaggingProcessOptions
   ): Promise<AudioTaggingResult> {
-    if (!AudioTaggingService.initialized) {
+    if (!this.initialized) {
       throw new Error(
         'Audio Tagging is not initialized. Call initialize() first.'
       );
@@ -71,10 +76,10 @@ export class AudioTaggingService {
     // Use our safer dedicated methods for both files and samples
     if (options.filePath) {
       // Pass the filePath directly to the native method
-      return SherpaOnnxAPI.processAndComputeAudioTagging(options.filePath);
+      return this.api.processAndComputeAudioTagging(options.filePath);
     } else if (options.samples && options.sampleRate) {
       // Pass the samples and sampleRate separately to the native method
-      return SherpaOnnxAPI.processAndComputeAudioSamples(
+      return this.api.processAndComputeAudioSamples(
         options.sampleRate,
         options.samples
       );
@@ -89,9 +94,9 @@ export class AudioTaggingService {
    * Release Audio Tagging resources
    */
   public async release(): Promise<{ released: boolean }> {
-    const result = await SherpaOnnxAPI.releaseAudioTagging();
+    const result = await this.api.releaseAudioTagging();
     if (result.released) {
-      AudioTaggingService.initialized = false;
+      this.initialized = false;
     }
     return result;
   }

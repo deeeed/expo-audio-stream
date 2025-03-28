@@ -8,14 +8,13 @@ import {
   Alert,
   Button,
   FlatList,
+  Platform,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  Platform,
-  ScrollView
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelManagement } from '../../contexts/ModelManagement/ModelManagementContext';

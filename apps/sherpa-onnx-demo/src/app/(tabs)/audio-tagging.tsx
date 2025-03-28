@@ -132,9 +132,9 @@ const findModelFileRecursive = async (basePath: string): Promise<{ modelDir: str
 };
 
 // Create an instance of the AudioTaggingService
-const audioTaggingService = new AudioTagging();
+// const audioTaggingService = new AudioTagging();
 
-export default function AudioTaggingScreen() {
+function AudioTaggingScreen() {
   const { models, getDownloadedModels, getModelState } = useModelManagement();
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -215,9 +215,9 @@ export default function AudioTaggingScreen() {
     return () => {
       if (initialized) {
         console.log('Cleaning up audio tagging resources');
-        audioTaggingService.release().catch((err: Error) => 
-          console.error('Error releasing audio tagging resources:', err)
-        );
+        // audioTaggingService.release().catch((err: Error) => 
+        //   console.error('Error releasing audio tagging resources:', err)
+        // );
       }
       
       if (sound) {
@@ -347,7 +347,7 @@ export default function AudioTaggingScreen() {
       console.log('Audio tagging initialization: About to call AudioTaggingService.initialize with config:', config);
       
       try {
-        const result = await audioTaggingService.initialize(config);
+        const result = await AudioTagging.initialize(config);
         
         if (result.success) {
           setInitialized(true);
@@ -455,7 +455,7 @@ export default function AudioTaggingScreen() {
           throw new Error(`Audio file not found: ${localFilePath}`);
         }
         
-        const result = await audioTaggingService.processAndCompute({
+        const result = await AudioTagging.processAndCompute({
           filePath: localFilePath // The SherpaOnnxAPI will clean this path
         });
         
@@ -490,7 +490,7 @@ export default function AudioTaggingScreen() {
     setLoading(true);
     
     try {
-      const result = await audioTaggingService.release();
+      const result = await AudioTagging.release();
       setInitialized(false);
       setAudioTaggingResults(null);
       Alert.alert('Success', 'Audio tagging resources released');
@@ -864,6 +864,8 @@ export default function AudioTaggingScreen() {
     </SafeAreaView>
   );
 }
+
+export default AudioTaggingScreen;
 
 const styles = StyleSheet.create({
   container: {
