@@ -135,6 +135,26 @@ func sherpaOnnxOnlineRecognizerConfig(
   private let recognizer: OpaquePointer!
   private var stream: OpaquePointer!
 
+  // Class method to check if the library is properly loaded
+  @objc public static func isLibraryLoaded() -> [String: Any] {
+    // Try to use a simple API call to verify library is loaded and accessible
+    let tempDir = FileManager.default.temporaryDirectory.path
+    let result = SherpaOnnxFileExists(tempDir)
+    
+    var info: [String: Any] = [
+      "loaded": result >= 0,
+      "status": result >= 0 ? "Library is loaded and accessible" : "Library could not be accessed properly"
+    ]
+    
+    // Add some standard config values that might be useful
+    info["testConfig"] = [
+      "sampleRate": 16000,
+      "featureDim": 80
+    ]
+    
+    return info
+  }
+
   // Factory method to create a recognizer from a dictionary configuration
   // This avoids exposing C struct types to Objective-C runtime
   @objc public static func createWithConfig(_ configDict: [String: Any]) -> SherpaOnlineRecognizer? {

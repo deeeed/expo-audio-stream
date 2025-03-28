@@ -5,7 +5,8 @@
 #import <React/RCTEventEmitter.h>
 
 #ifdef RCT_NEW_ARCH_ENABLED
-#import "SherpaOnnxSpec.h"  // Add this import for the new architecture
+// Import the generated spec header
+#import "../codegen/SherpaOnnxSpec/SherpaOnnxSpec.h"
 #endif
 
 // Forward declaration for Swift classes
@@ -13,7 +14,7 @@
 
 @interface SherpaOnnxRnModule : RCTEventEmitter <RCTBridgeModule
 #ifdef RCT_NEW_ARCH_ENABLED
-, SherpaOnnxSpec  // Conform to the spec for new architecture
+, NativeSherpaOnnxSpecSpec
 #endif
 >
 @property (nonatomic, strong) SherpaOnlineRecognizer *recognizer;

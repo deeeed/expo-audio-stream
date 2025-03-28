@@ -1,4 +1,3 @@
-import NativeSherpaOnnx from './NativeSherpaOnnx';
 import type { ApiInterface } from './types/api';
 import type {
   TtsModelConfig,
@@ -25,6 +24,61 @@ import type {
   TestOnnxIntegrationResult,
 } from './types/interfaces';
 import { cleanFilePath } from './utils/fileUtils';
+
+// Import the native module and potentially substitute with web implementation
+import NativeModuleImport from './NativeSherpaOnnxSpec';
+import { Platform } from 'react-native';
+
+// Create a web placeholder implementation for WASM support in the future
+const createWebPlaceholder = (): ApiInterface => {
+  const notImplementedError = (): never => {
+    throw new Error(
+      'Web implementation not yet available - will support WASM in the future'
+    );
+  };
+
+  return {
+    // Return basic error-throwing implementations for each method
+    testOnnxIntegration: notImplementedError,
+    validateLibraryLoaded: notImplementedError,
+    initTts: notImplementedError,
+    generateTts: notImplementedError,
+    stopTts: notImplementedError,
+    releaseTts: notImplementedError,
+    initAsr: notImplementedError,
+    recognizeFromSamples: notImplementedError,
+    recognizeFromFile: notImplementedError,
+    releaseAsr: notImplementedError,
+    initAudioTagging: notImplementedError,
+    processAndComputeAudioTagging: notImplementedError,
+    processAndComputeAudioSamples: notImplementedError,
+    releaseAudioTagging: notImplementedError,
+    initSpeakerId: notImplementedError,
+    processSpeakerIdSamples: notImplementedError,
+    computeSpeakerEmbedding: notImplementedError,
+    registerSpeaker: notImplementedError,
+    removeSpeaker: notImplementedError,
+    getSpeakers: notImplementedError,
+    identifySpeaker: notImplementedError,
+    verifySpeaker: notImplementedError,
+    processSpeakerIdFile: notImplementedError,
+    releaseSpeakerId: notImplementedError,
+    extractTarBz2: notImplementedError,
+  };
+};
+
+// Use the native module if available, otherwise use a placeholder for web
+// This ensures we never have a null module - we either have a real implementation or a placeholder
+const NativeSherpaOnnx: ApiInterface =
+  NativeModuleImport ||
+  (Platform.OS === 'web' ? createWebPlaceholder() : createWebPlaceholder());
+
+// Log a warning if we're using the web placeholder on a non-web platform
+if (!NativeModuleImport && Platform.OS !== 'web') {
+  console.warn(
+    'SherpaOnnx native module not available on this platform, using fallback implementation'
+  );
+}
 
 /**
  * Implementation of the SherpaOnnx API
@@ -127,7 +181,7 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   // ASR methods
   initAsr(config: AsrModelConfig): Promise<AsrInitResult> {
-    return NativeSherpaOnnx.initAsr(config);
+    return NativeSherpaOnnx.initAsr(config as any);
   },
 
   recognizeFromSamples(
@@ -149,7 +203,7 @@ export const SherpaOnnxAPI: ApiInterface = {
   initAudioTagging(
     config: AudioTaggingModelConfig
   ): Promise<AudioTaggingInitResult> {
-    return NativeSherpaOnnx.initAudioTagging(config);
+    return NativeSherpaOnnx.initAudioTagging(config as any);
   },
 
   processAndComputeAudioTagging(filePath: string): Promise<AudioTaggingResult> {
@@ -169,7 +223,7 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   // Speaker ID methods
   initSpeakerId(config: SpeakerIdModelConfig): Promise<SpeakerIdInitResult> {
-    return NativeSherpaOnnx.initSpeakerId(config);
+    return NativeSherpaOnnx.initSpeakerId(config as any);
   },
 
   processSpeakerIdSamples(
