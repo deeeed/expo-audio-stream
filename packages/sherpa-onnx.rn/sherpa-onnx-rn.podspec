@@ -17,11 +17,15 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => "11.0" }
   s.source       = { :git => "https://github.com/deeeed/expo-audio-stream.git", :tag => "#{s.version}" }
 
-  # Initialize source_files once
-  source_files = [
+  # Base source files for both architectures
+  base_source_files = [
     "ios/*.{h,m,mm,swift}", 
     "ios/bridge/*.{h,m,mm,swift}", 
-    "ios/native/*.{h,m,mm,swift}", 
+    "ios/native/*.{h,m,mm,swift}"
+  ]
+
+  # New architecture specific source files
+  new_arch_source_files = [
     "ios/codegen/SherpaOnnxSpec/*.{h,mm}"
   ]
 
@@ -33,8 +37,13 @@ Pod::Spec.new do |s|
     "prebuilt/ios/simulator/**"
   ]
 
-  # Set the initial values
-  s.source_files = source_files
+  # Set source files based on architecture
+  if fabric_enabled
+    s.source_files = base_source_files + new_arch_source_files
+  else
+    s.source_files = base_source_files
+  end
+
   s.preserve_paths = preserve_paths
 
   # List of libraries to link
@@ -60,13 +69,22 @@ Pod::Spec.new do |s|
 
   s.frameworks = "Foundation", "CoreML", "Accelerate", "CoreVideo"
 
-  s.xcconfig = {
-    "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\" \"$(PODS_ROOT)/Headers/Public/React-Core\" \"$(PODS_TARGET_SRCROOT)/ios/codegen\"",
+  # Base xcconfig for both architectures
+  base_xcconfig = {
+    "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\" \"$(PODS_ROOT)/Headers/Public/React-Core\"",
     "LIBRARY_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/ios/current\"",
     "SWIFT_INCLUDE_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\""
   }
+  
+  # Add additional header paths for new architecture
+  if fabric_enabled
+    base_xcconfig["HEADER_SEARCH_PATHS"] += " \"$(PODS_TARGET_SRCROOT)/ios/codegen\" \"$(PODS_ROOT)/Headers/Public/ReactCommon\" \"$(PODS_ROOT)/Headers/Public/React-Codegen\" \"$(PODS_ROOT)/boost\" \"$(PODS_ROOT)/boost-for-react-native\" \"$(PODS_ROOT)/RCT-Folly\" \"${PODS_ROOT}/Headers/Public/React-Codegen/react/renderer/components\" \"$(PODS_CONFIGURATION_BUILD_DIR)/React-Codegen/React_Codegen.framework/Headers\""
+  end
+  
+  s.xcconfig = base_xcconfig
 
-  s.pod_target_xcconfig = {
+  # Base pod target xcconfig
+  pod_target_xcconfig = {
     "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
     "OTHER_LDFLAGS" => "-framework CoreML -framework Accelerate -framework CoreVideo",
     "DEFINES_MODULE" => "YES",
@@ -77,6 +95,13 @@ Pod::Spec.new do |s|
     "CLANG_ENABLE_MODULES" => "YES",
     "CLANG_ENABLE_CPP_STATIC_LIBRARY_TYPES" => "YES"
   }
+  
+  # Add compiler flags for new architecture
+  if fabric_enabled
+    pod_target_xcconfig["HEADER_SEARCH_PATHS"] = base_xcconfig["HEADER_SEARCH_PATHS"]
+  end
+  
+  s.pod_target_xcconfig = pod_target_xcconfig
 
   # Set up initial symlinks to device libraries - this runs during pod installation
   s.prepare_command = <<-CMD
@@ -164,26 +189,6 @@ Pod::Spec.new do |s|
   if fabric_enabled
     s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
     
-    # Append to preserve_paths
-    s.preserve_paths = preserve_paths + ["build/generated/ios/**"]
-    
-    # Add generated files to source files for new architecture
-    s.source_files = source_files + ["build/generated/ios/**/*.{h,mm,cpp}"]
-
-    # Define all header search paths explicitly for new architecture
-    s.pod_target_xcconfig = {
-      "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
-      "OTHER_LDFLAGS" => "-framework CoreML -framework Accelerate -framework CoreVideo",
-      "DEFINES_MODULE" => "YES",
-      "SWIFT_OBJC_BRIDGING_HEADER" => "",
-      "SWIFT_INSTALL_OBJC_HEADER" => "YES", 
-      "SWIFT_OBJC_INTERFACE_HEADER_NAME" => "sherpa-onnx-rn-Swift.h",
-      "APPLICATION_EXTENSION_API_ONLY" => "NO",
-      "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\" \"$(PODS_ROOT)/Headers/Public/React-Core\" \"$(PODS_TARGET_SRCROOT)/ios/codegen\" \"$(PODS_ROOT)/Headers/Public/ReactCommon\" \"$(PODS_ROOT)/Headers/Public/React-Codegen\" \"$(PODS_TARGET_SRCROOT)/build/generated/ios\" \"$(PODS_TARGET_SRCROOT)/build/generated/ios/SherpaOnnxSpec\" \"$(PODS_ROOT)/boost\" \"$(PODS_ROOT)/boost-for-react-native\" \"$(PODS_ROOT)/RCT-Folly\" \"${PODS_ROOT}/Headers/Public/React-Codegen/react/renderer/components\" \"$(PODS_CONFIGURATION_BUILD_DIR)/React-Codegen/React_Codegen.framework/Headers\"",
-      "CLANG_ENABLE_MODULES" => "YES",
-      "CLANG_ENABLE_CPP_STATIC_LIBRARY_TYPES" => "YES"
-    }
-
     # New Architecture dependencies
     s.dependency "React-RCTFabric"
     s.dependency "React-Codegen"
