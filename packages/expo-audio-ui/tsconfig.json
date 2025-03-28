@@ -29,8 +29,8 @@
         "target": "esnext",
         "verbatimModuleSyntax": false,
         "paths": {
-            "@siteed/expo-audio-studio": ["../expo-audio-stream/src/index"],
-            "@siteed/expo-audio-studio/*": ["../expo-audio-stream/src/*"]
+            "@siteed/expo-audio-studio": ["../expo-audio-studio/src/index"],
+            "@siteed/expo-audio-studio/*": ["../expo-audio-studio/src/*"]
         }
     },
     "include": ["src", "*.js", "declarations.d.ts"],

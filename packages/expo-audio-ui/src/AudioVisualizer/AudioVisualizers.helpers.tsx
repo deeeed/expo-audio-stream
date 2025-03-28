@@ -104,7 +104,7 @@ export const drawDottedLine = ({
     canvasHeight,
 }: DrawDottedLineParams): SkPath => {
     const path = Skia.Path.Make()
-    const dashLength = 5  // Increased from 3 for better visibility
+    const dashLength = 5 // Increased from 3 for better visibility
     const gapLength = 5
     const baseline = canvasHeight / 2
 
