@@ -293,8 +293,8 @@ WithDecibelGauge.args = {
     ...Default.args,
     showDecibelVisualization: {
         type: 'gauge',
-        position: 'top'
-    }
+        position: 'top',
+    },
 }
 
 export const WithDecibelMeter = Template.bind({})
@@ -302,8 +302,8 @@ WithDecibelMeter.args = {
     ...Default.args,
     showDecibelVisualization: {
         type: 'meter',
-        position: 'bottom'
-    }
+        position: 'bottom',
+    },
 }
 
 export const CustomDecibelTheme = Template.bind({})
@@ -311,7 +311,7 @@ CustomDecibelTheme.args = {
     ...Default.args,
     showDecibelVisualization: {
         type: 'gauge',
-        position: 'top'
+        position: 'top',
     },
     theme: {
         decibelVisualization: {
@@ -319,9 +319,9 @@ CustomDecibelTheme.args = {
                 colors: {
                     low: '#00FF00',
                     mid: '#FFFF00',
-                    high: '#FF0000'
-                }
-            }
-        }
-    }
+                    high: '#FF0000',
+                },
+            },
+        },
+    },
 }
