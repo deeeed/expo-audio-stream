@@ -28,4 +28,4 @@ The web implementation is a placeholder that returns dummy data.
 
 ## Defined in
 
-[src/AudioAnalysis/extractMelSpectrogram.ts:24](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/AudioAnalysis/extractMelSpectrogram.ts#L24)
+[src/AudioAnalysis/extractMelSpectrogram.ts:24](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/AudioAnalysis/extractMelSpectrogram.ts#L24)
