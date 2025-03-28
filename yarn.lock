@@ -8476,37 +8476,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@siteed/design-system@npm:^0.35.1":
-  version: 0.35.1
-  resolution: "@siteed/design-system@npm:0.35.1"
-  dependencies:
-    "@pchmn/expo-material3-theme": "npm:^1.3.2"
-    color: "npm:^4.2.3"
-    i18n-js: "npm:^4.4.3"
-    i18next: "npm:^23.10.1"
-    intl-pluralrules: "npm:^2.0.1"
-    react-i18next: "npm:^14.1.0"
-  peerDependencies:
-    "@expo/vector-icons": "*"
-    "@gorhom/bottom-sheet": "*"
-    "@gorhom/portal": "*"
-    "@react-native-async-storage/async-storage": "*"
-    "@react-native-community/slider": "*"
-    "@react-navigation/native": "*"
-    "@siteed/react-native-logger": "*"
-    expo: "*"
-    expo-localization: "*"
-    react: "*"
-    react-native: "*"
-    react-native-gesture-handler: "*"
-    react-native-paper: "*"
-    react-native-paper-dates: "*"
-    react-native-screens: "*"
-    react-native-vector-icons: "*"
-  checksum: 10/771c7c1933b55b3ae9ac2268a45a1ca2cdda6441739b6ac3c9e8a72335a8a571d01b8ccf0cc858bd9f31384d7fa59a41b9a22bcb2888288827d175a4badf951b
-  languageName: node
-  linkType: hard
-
 "@siteed/design-system@npm:^0.45.0":
   version: 0.45.0
   resolution: "@siteed/design-system@npm:0.45.0"
@@ -8570,7 +8539,6 @@ __metadata:
   resolution: "@siteed/expo-audio-studio@workspace:packages/expo-audio-studio"
   dependencies:
     "@expo/config-plugins": "npm:~9.0.0"
-    "@siteed/design-system": "npm:^0.35.1"
     "@siteed/publisher": "npm:^0.4.18"
     "@size-limit/preset-big-lib": "npm:^11.1.4"
     "@types/jest": "npm:^29.5.12"
@@ -8579,7 +8547,6 @@ __metadata:
     "@typescript-eslint/eslint-plugin": "npm:^7.7.0"
     "@typescript-eslint/parser": "npm:^7.7.0"
     bundle-size: "npm:^1.1.5"
-    crc-32: "npm:^1.2.2"
     eslint: "npm:^8.56.0"
     eslint-config-prettier: "npm:^9.1.0"
     eslint-config-universe: "npm:^12.0.0"
@@ -8603,6 +8570,9 @@ __metadata:
     expo: "*"
     react: "*"
     react-native: "*"
+  peerDependenciesMeta:
+    crc-32:
+      optional: true
   languageName: unknown
   linkType: soft
 
