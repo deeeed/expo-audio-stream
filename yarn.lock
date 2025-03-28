@@ -8511,7 +8511,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@siteed/expo-audio-stream@workspace:packages/expo-audio-stream"
   dependencies:
-    "@siteed/expo-audio-studio": "npm:2.1.1"
+    "@siteed/expo-audio-studio": "npm:2.2.0"
     typescript: "npm:~5.3.3"
   peerDependencies:
     expo: "*"
@@ -8534,7 +8534,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@siteed/expo-audio-studio@npm:2.1.1, @siteed/expo-audio-studio@workspace:^, @siteed/expo-audio-studio@workspace:packages/expo-audio-studio":
+"@siteed/expo-audio-studio@npm:2.2.0, @siteed/expo-audio-studio@workspace:^, @siteed/expo-audio-studio@workspace:packages/expo-audio-studio":
   version: 0.0.0-use.local
   resolution: "@siteed/expo-audio-studio@workspace:packages/expo-audio-studio"
   dependencies:
