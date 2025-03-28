@@ -31,4 +31,4 @@ If both time and byte ranges are provided or if required parameters are missing.
 
 ## Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:98](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/AudioAnalysis/extractAudioAnalysis.ts#L98)
+[src/AudioAnalysis/extractAudioAnalysis.ts:97](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/AudioAnalysis/extractAudioAnalysis.ts#L97)

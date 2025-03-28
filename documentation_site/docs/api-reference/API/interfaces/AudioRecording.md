@@ -16,7 +16,7 @@ Analysis data for the recording if processing was enabled
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:121](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L121)
+[src/ExpoAudioStream.types.ts:121](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L121)
 
 ***
 
@@ -28,7 +28,7 @@ Bit depth of the audio (8, 16, or 32 bits)
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:113](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L113)
+[src/ExpoAudioStream.types.ts:113](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L113)
 
 ***
 
@@ -40,7 +40,7 @@ Number of audio channels (1 for mono, 2 for stereo)
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:111](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L111)
+[src/ExpoAudioStream.types.ts:111](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L111)
 
 ***
 
@@ -60,7 +60,7 @@ URI to the compressed audio file
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:123](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L123)
+[src/ExpoAudioStream.types.ts:123](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L123)
 
 ***
 
@@ -72,7 +72,7 @@ Timestamp when the recording was created
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:117](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L117)
+[src/ExpoAudioStream.types.ts:117](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L117)
 
 ***
 
@@ -84,7 +84,7 @@ Duration of the recording in milliseconds
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:105](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L105)
+[src/ExpoAudioStream.types.ts:105](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L105)
 
 ***
 
@@ -96,7 +96,7 @@ Filename of the recorded audio
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:103](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L103)
+[src/ExpoAudioStream.types.ts:103](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L103)
 
 ***
 
@@ -108,7 +108,7 @@ URI to the recorded audio file
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:101](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L101)
+[src/ExpoAudioStream.types.ts:101](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L101)
 
 ***
 
@@ -120,7 +120,7 @@ MIME type of the recorded audio
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:109](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L109)
+[src/ExpoAudioStream.types.ts:109](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L109)
 
 ***
 
@@ -132,7 +132,7 @@ Sample rate of the audio in Hz
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:115](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L115)
+[src/ExpoAudioStream.types.ts:115](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L115)
 
 ***
 
@@ -144,7 +144,7 @@ Size of the recording in bytes
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:107](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L107)
+[src/ExpoAudioStream.types.ts:107](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L107)
 
 ***
 
@@ -156,4 +156,4 @@ Array of transcription data if available
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:119](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L119)
+[src/ExpoAudioStream.types.ts:119](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L119)
