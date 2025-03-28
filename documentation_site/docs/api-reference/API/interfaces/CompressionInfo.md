@@ -16,7 +16,7 @@ Bitrate of the compressed audio in bits per second
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:15](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L15)
+[src/ExpoAudioStream.types.ts:15](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L15)
 
 ***
 
@@ -28,7 +28,7 @@ URI to the compressed audio file if available
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:19](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L19)
+[src/ExpoAudioStream.types.ts:19](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L19)
 
 ***
 
@@ -40,7 +40,7 @@ Format of the compression (e.g., 'aac', 'opus')
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:17](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L17)
+[src/ExpoAudioStream.types.ts:17](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L17)
 
 ***
 
@@ -52,7 +52,7 @@ MIME type of the compressed audio (e.g., 'audio/aac', 'audio/opus')
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:13](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L13)
+[src/ExpoAudioStream.types.ts:13](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L13)
 
 ***
 
@@ -64,4 +64,4 @@ Size of the compressed audio data in bytes
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:11](https://github.com/deeeed/expo-audio-stream/blob/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L11)
+[src/ExpoAudioStream.types.ts:11](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L11)
