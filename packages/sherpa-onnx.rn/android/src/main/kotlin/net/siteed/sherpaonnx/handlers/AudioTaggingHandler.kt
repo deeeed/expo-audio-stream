@@ -1,21 +1,20 @@
 /**
  * Handler for Audio Tagging functionality
  */
-package net.siteed.sherpaonnx
+package net.siteed.sherpaonnx.handlers
 
 import android.util.Log
-import com.facebook.react.bridge.*
-import com.k2fsa.sherpa.onnx.AudioTagging
-import com.k2fsa.sherpa.onnx.AudioTaggingConfig
-import com.k2fsa.sherpa.onnx.AudioTaggingModelConfig
-import com.k2fsa.sherpa.onnx.OfflineZipformerAudioTaggingModelConfig
-import com.k2fsa.sherpa.onnx.OfflineStream
-import com.k2fsa.sherpa.onnx.AudioEvent
-// Temporary comment out until we verify this class exists
-// import com.k2fsa.sherpa.onnx.OfflineAudioTagger
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.Promise
+import com.facebook.react.bridge.ReadableArray
+import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.ReactApplicationContext
+import com.k2fsa.sherpa.onnx.*
+import net.siteed.sherpaonnx.SherpaOnnxImpl
+import net.siteed.sherpaonnx.utils.AssetUtils
+import net.siteed.sherpaonnx.utils.AudioExtractor
 import java.io.File
 import java.util.concurrent.Executors
-import net.siteed.sherpaonnx.AssetUtils
 
 class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
     
@@ -24,7 +23,6 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
     // Temporarily comment out since OfflineAudioTagger might not exist
     // private var audioTagger: OfflineAudioTagger? = null
     private var stream: OfflineStream? = null
-    private val audioTaggingModelConfig = AudioTaggingModelConfig()
     
     companion object {
         private const val TAG = "SherpaOnnxAudioTagging"
@@ -34,7 +32,7 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
      * Initialize audio tagging with the provided model configuration
      */
     fun init(modelConfig: ReadableMap, promise: Promise) {
-        if (!SherpaOnnxModule.isLibraryLoaded) {
+        if (!SherpaOnnxImpl.isLibraryLoaded) {
             promise.reject("ERR_LIBRARY_NOT_LOADED", "Sherpa ONNX library is not loaded")
             return
         }
@@ -297,11 +295,13 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                 Log.d(TAG, "Created new audio stream")
                 
                 // Process audio - use safe call operator to avoid null-related crashes
-                audioData?.samples?.let { samples ->
-                    audioData.sampleRate?.let { sampleRate ->
-                        Log.d(TAG, "Processing audio data - samples: ${samples.size}, sampleRate: $sampleRate")
-                        newStream.acceptWaveform(samples, sampleRate)
-                        Log.d(TAG, "Successfully accepted waveform")
+                audioData?.let { data ->
+                    data.samples.let { samples ->
+                        data.sampleRate.let { sampleRate ->
+                            Log.d(TAG, "Processing audio data - samples: ${samples.size}, sampleRate: $sampleRate")
+                            newStream.acceptWaveform(samples, sampleRate)
+                            Log.d(TAG, "Successfully accepted waveform")
+                        }
                     }
                 }
                 

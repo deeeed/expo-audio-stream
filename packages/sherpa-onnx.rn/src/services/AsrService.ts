@@ -2,7 +2,7 @@
  * ASR Service for automatic speech recognition functionality
  */
 
-import { SherpaOnnxAPI } from '../SherpaOnnxAPI';
+import type { ApiInterface } from '../types/api';
 import type {
   AsrModelConfig,
   AsrInitResult,
@@ -14,16 +14,21 @@ import type {
  * Service for Automatic Speech Recognition functionality
  */
 export class AsrService {
-  private static initialized = false;
-  private static sampleRate = 0;
-  private static modelType = '';
+  private initialized = false;
+  private sampleRate = 0;
+  private modelType = '';
+  private api: ApiInterface;
+
+  constructor(api: ApiInterface) {
+    this.api = api;
+  }
 
   /**
    * Validate that the Sherpa-ONNX library is properly loaded
    * @returns Promise that resolves with validation result
    */
-  public static validateLibrary(): Promise<ValidateResult> {
-    return SherpaOnnxAPI.validateLibraryLoaded();
+  public validateLibrary(): Promise<ValidateResult> {
+    return this.api.validateLibraryLoaded();
   }
 
   /**
@@ -31,17 +36,15 @@ export class AsrService {
    * @param config The ASR model configuration
    * @returns Promise resolving to initialization result
    */
-  public static async initialize(
-    config: AsrModelConfig
-  ): Promise<AsrInitResult> {
+  public async initialize(config: AsrModelConfig): Promise<AsrInitResult> {
     try {
       // First validate library
-      const validation = await SherpaOnnxAPI.validateLibraryLoaded();
+      const validation = await this.api.validateLibraryLoaded();
       if (!validation.loaded) {
         throw new Error(`Library validation failed: ${validation.status}`);
       }
 
-      const result = await SherpaOnnxAPI.initAsr(config);
+      const result = await this.api.initAsr(config);
       this.initialized = result.success;
       this.sampleRate = result.sampleRate ?? 0;
       this.modelType = result.modelType ?? '';
@@ -55,21 +58,21 @@ export class AsrService {
   /**
    * Get the initialized status
    */
-  public static isInitialized(): boolean {
+  public isInitialized(): boolean {
     return this.initialized;
   }
 
   /**
    * Get the sample rate
    */
-  public static getSampleRate(): number {
+  public getSampleRate(): number {
     return this.sampleRate;
   }
 
   /**
    * Get the model type
    */
-  public static getModelType(): string {
+  public getModelType(): string {
     return this.modelType;
   }
 
@@ -79,7 +82,7 @@ export class AsrService {
    * @param samples Float array of audio samples
    * @returns Promise resolving to recognition result
    */
-  public static async recognizeFromSamples(
+  public async recognizeFromSamples(
     sampleRate: number,
     samples: number[]
   ): Promise<AsrRecognizeResult> {
@@ -87,7 +90,7 @@ export class AsrService {
       throw new Error('ASR is not initialized. Call initialize() first.');
     }
 
-    return SherpaOnnxAPI.recognizeFromSamples(sampleRate, samples);
+    return this.api.recognizeFromSamples(sampleRate, samples);
   }
 
   /**
@@ -95,21 +98,21 @@ export class AsrService {
    * @param filePath Path to the audio file
    * @returns Promise resolving to recognition result
    */
-  public static async recognizeFromFile(
+  public async recognizeFromFile(
     filePath: string
   ): Promise<AsrRecognizeResult> {
     if (!this.initialized) {
       throw new Error('ASR is not initialized. Call initialize() first.');
     }
 
-    return SherpaOnnxAPI.recognizeFromFile(filePath);
+    return this.api.recognizeFromFile(filePath);
   }
 
   /**
    * Release ASR resources
    */
-  public static async release(): Promise<{ released: boolean }> {
-    const result = await SherpaOnnxAPI.releaseAsr();
+  public async release(): Promise<{ released: boolean }> {
+    const result = await this.api.releaseAsr();
     if (result.released) {
       this.initialized = false;
       this.sampleRate = 0;

@@ -1,36 +1,27 @@
-import { SherpaOnnx } from '@siteed/sherpa-onnx.rn';
+import SherpaOnnx from '@siteed/sherpa-onnx.rn';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, NativeModules } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ValidateResult } from '@siteed/sherpa-onnx.rn/src/types/interfaces';
 
 const SherpaOnnxDemo: React.FC = () => {
   const router = useRouter();
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
-  const [platformSupport, setPlatformSupport] = useState<string>('Checking...');
-  const [moduleInfo, setModuleInfo] = useState<string>('Checking...');
   const [validationResult, setValidationResult] = useState<string>('Not validated');
-  const [nativeModulesInfo, setNativeModulesInfo] = useState<string>('Loading...');
+  const [archInfo, setArchInfo] = useState<string>('Unknown');
+  const [integrationTestResult, setIntegrationTestResult] = useState<string>('Not tested');
 
   useEffect(() => {
-    // Simple check to see if we're on Android (current implementation only)
-    const isAndroid = Platform.OS === 'android';
-    setPlatformSupport(isAndroid ? 'Android: Supported' : 'iOS: Not yet implemented');
-    
-    // Check available native modules
-    try {
-      const availableModules = Object.keys(NativeModules);
-      setNativeModulesInfo(`Available native modules: ${availableModules.join(', ')}`);
-    } catch (error) {
-      setNativeModulesInfo(`Error getting native modules: ${(error as Error).message}`);
-    }
+    // Check architecture type
+    const isBridgeless = !!(global as any).RN$Bridgeless;
+    const archType = isBridgeless ? 'New/Bridgeless' : 'Old/Bridge';
+    setArchInfo(archType);
     
     try {
       // Check if the module is properly loaded
       const hasModule = SherpaOnnx !== undefined;
       setIsAvailable(hasModule);
-      setModuleInfo(`Module loaded: ${hasModule ? 'Yes' : 'No'}`);
       
       // Try to validate the library
       if (hasModule) {
@@ -50,23 +41,37 @@ const SherpaOnnxDemo: React.FC = () => {
       }
     } catch (error) {
       setIsAvailable(false);
-      setModuleInfo(`Error: ${(error as Error).message}`);
       console.error('Module loading error details:', error);
     }
   }, []);
+
+  const testNativeIntegration = async (): Promise<void> => {
+    try {
+      setIntegrationTestResult('Testing...');
+      
+      const result = await SherpaOnnx.testOnnxIntegration();
+      console.log('Integration test result:', result);
+      
+      setIntegrationTestResult(
+        `Test complete:\n` +
+        `Status: ${result.status}\n` +
+        `Success: ${result.success ? 'Yes' : 'No'}`
+      );
+    } catch (error) {
+      console.error('Test failed:', error);
+      setIntegrationTestResult(`Test failed: ${(error as Error).message}`);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Sherpa-ONNX Demo</Text>
-        <Text style={styles.subtitle}>Testing Native Integration</Text>
+        <Text style={styles.subtitle}>System Status</Text>
         
         <View style={styles.statusCard}>
-          <Text style={styles.statusTitle}>Platform Status:</Text>
-          <Text style={styles.status}>{platformSupport}</Text>
-          
-          <Text style={styles.statusTitle}>Native Modules:</Text>
-          <Text style={styles.status}>{nativeModulesInfo}</Text>
+          <Text style={styles.statusTitle}>Architecture:</Text>
+          <Text style={styles.status}>{archInfo}</Text>
           
           <Text style={styles.statusTitle}>Sherpa-ONNX Available:</Text>
           <Text style={[
@@ -76,12 +81,19 @@ const SherpaOnnxDemo: React.FC = () => {
           ]}>
             {isAvailable === null ? 'Checking...' : isAvailable ? 'Yes' : 'No'}
           </Text>
-
-          <Text style={styles.statusTitle}>Module Info:</Text>
-          <Text style={styles.status}>{moduleInfo}</Text>
           
           <Text style={styles.statusTitle}>Validation:</Text>
           <Text style={styles.status}>{validationResult}</Text>
+
+          <TouchableOpacity 
+            style={[styles.testButton, !isAvailable && styles.buttonDisabled]}
+            onPress={testNativeIntegration}
+            disabled={!isAvailable}
+          >
+            <Text style={styles.testButtonText}>Test C Library Integration</Text>
+          </TouchableOpacity>
+
+          <Text style={[styles.status, styles.testResult]}>{integrationTestResult}</Text>
         </View>
 
         <View style={styles.featuresCard}>
@@ -190,6 +202,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 8,
   },
+  testResult: {
+    marginTop: 8,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+  },
   positive: {
     color: '#4CAF50',
     fontWeight: 'bold',
@@ -231,9 +247,22 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 4,
   },
+  testButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    alignItems: 'center',
+  },
   featureButtonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  testButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   buttonDisabled: {
     backgroundColor: '#BDBDBD',
