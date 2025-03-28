@@ -121,8 +121,9 @@
         "registry": "https://registry.npmjs.org"
     },
     "dependencies": {
-        "@siteed/design-system": "^0.35.1",
-        "crc-32": "^1.2.2",
         "expo-modules-core": "~2.1.4"
+    },
+    "browser": {
+        "crc-32": "^1.2.2"
     }
 }
