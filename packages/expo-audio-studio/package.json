@@ -116,14 +116,16 @@
         "react": "*",
         "react-native": "*"
     },
+    "peerDependenciesMeta": {
+        "crc-32": {
+            "optional": true
+        }
+    },
     "publishConfig": {
         "access": "public",
         "registry": "https://registry.npmjs.org"
     },
     "dependencies": {
         "expo-modules-core": "~2.1.4"
-    },
-    "browser": {
-        "crc-32": "^1.2.2"
     }
 }

@@ -1,4 +1,3 @@
-import crc32 from 'crc-32'
 import { requireNativeModule } from 'expo-modules-core'
 import { Platform } from 'react-native'
 
@@ -14,6 +13,7 @@ import {
     ExpoAudioStreamWebProps,
 } from './ExpoAudioStream.web'
 import { processAudioBuffer } from './utils/audioProcessing'
+import crc32 from './utils/crc32'
 import { writeWavHeader } from './utils/writeWavHeader'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
