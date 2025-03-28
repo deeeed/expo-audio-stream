@@ -5,8 +5,6 @@
  * - `extractWavAudioAnalysis`: For analyzing WAV files without decoding, preserving original PCM values.
  * - `extractPreview`: For generating quick previews of audio waveforms, optimized for UI rendering.
  */
-import crc32 from 'crc-32'
-
 import { ConsoleLike } from '../ExpoAudioStream.types'
 import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
 import { isWeb } from '../constants'
@@ -18,6 +16,7 @@ import {
 } from './AudioAnalysis.types'
 import { processAudioBuffer } from '../utils/audioProcessing'
 import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
+import crc32 from '../utils/crc32'
 import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
 import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
 
