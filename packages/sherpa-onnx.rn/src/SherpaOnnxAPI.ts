@@ -1,9 +1,8 @@
-import NativeSherpaOnnx from './NativeSherpaOnnx';
+import type { ApiInterface } from './types/api';
 import type {
-  ValidateResult,
   TtsModelConfig,
   TtsInitResult,
-  TtsOptions,
+  TtsGenerateConfig,
   TtsGenerateResult,
   AsrModelConfig,
   AsrInitResult,
@@ -21,312 +20,263 @@ import type {
   IdentifySpeakerResult,
   VerifySpeakerResult,
   SpeakerIdFileProcessResult,
+  ValidateResult,
+  TestOnnxIntegrationResult,
 } from './types/interfaces';
+import { cleanFilePath } from './utils/fileUtils';
+
+// Import the native module and potentially substitute with web implementation
+import NativeModuleImport from './NativeSherpaOnnxSpec';
+import { Platform } from 'react-native';
+
+// Create a web placeholder implementation for WASM support in the future
+const createWebPlaceholder = (): ApiInterface => {
+  const notImplementedError = (): never => {
+    throw new Error(
+      'Web implementation not yet available - will support WASM in the future'
+    );
+  };
+
+  return {
+    // Return basic error-throwing implementations for each method
+    testOnnxIntegration: notImplementedError,
+    validateLibraryLoaded: notImplementedError,
+    initTts: notImplementedError,
+    generateTts: notImplementedError,
+    stopTts: notImplementedError,
+    releaseTts: notImplementedError,
+    initAsr: notImplementedError,
+    recognizeFromSamples: notImplementedError,
+    recognizeFromFile: notImplementedError,
+    releaseAsr: notImplementedError,
+    initAudioTagging: notImplementedError,
+    processAndComputeAudioTagging: notImplementedError,
+    processAndComputeAudioSamples: notImplementedError,
+    releaseAudioTagging: notImplementedError,
+    initSpeakerId: notImplementedError,
+    processSpeakerIdSamples: notImplementedError,
+    computeSpeakerEmbedding: notImplementedError,
+    registerSpeaker: notImplementedError,
+    removeSpeaker: notImplementedError,
+    getSpeakers: notImplementedError,
+    identifySpeaker: notImplementedError,
+    verifySpeaker: notImplementedError,
+    processSpeakerIdFile: notImplementedError,
+    releaseSpeakerId: notImplementedError,
+    extractTarBz2: notImplementedError,
+  };
+};
+
+// Use the native module if available, otherwise use a placeholder for web
+// This ensures we never have a null module - we either have a real implementation or a placeholder
+const NativeSherpaOnnx: ApiInterface =
+  NativeModuleImport ||
+  (Platform.OS === 'web' ? createWebPlaceholder() : createWebPlaceholder());
+
+// Log a warning if we're using the web placeholder on a non-web platform
+if (!NativeModuleImport && Platform.OS !== 'web') {
+  console.warn(
+    'SherpaOnnx native module not available on this platform, using fallback implementation'
+  );
+}
 
 /**
- * Api interface for the Sherpa-ONNX native module
+ * Implementation of the SherpaOnnx API
  * This provides type-safe access to the native methods
  */
-export class SherpaOnnxAPI {
-  /**
-   * Check if the library is loaded
-   * @returns Promise that resolves with validation result
-   */
-  public static validateLibraryLoaded(): Promise<ValidateResult> {
+export const SherpaOnnxAPI: ApiInterface = {
+  testOnnxIntegration(): Promise<TestOnnxIntegrationResult> {
+    return NativeSherpaOnnx.testOnnxIntegration();
+  },
+
+  validateLibraryLoaded(): Promise<ValidateResult> {
     return NativeSherpaOnnx.validateLibraryLoaded();
-  }
+  },
 
   /**
    * Initialize the TTS engine with the provided model configuration
    * @param config Configuration for the TTS model
    * @returns Promise that resolves with initialization result
    */
-  public static async initTts(config: TtsModelConfig): Promise<TtsInitResult> {
+  async initTts(config: TtsModelConfig): Promise<TtsInitResult> {
     try {
-      // Clean up file paths in the config
-      const cleanedConfig: TtsModelConfig = {
-        ...config,
-        modelDir: this.cleanFilePath(config.modelDir),
+      // Clean up file paths
+      const cleanedModelDir = cleanFilePath(config.modelDir);
+      const cleanedDataDir = config.dataDir
+        ? cleanFilePath(config.dataDir)
+        : cleanedModelDir;
+      const cleanedDictDir = config.dictDir
+        ? cleanFilePath(config.dictDir)
+        : undefined;
+
+      // Create base config with common properties
+      const nativeConfig: TtsModelConfig = {
+        modelDir: cleanedModelDir,
+        modelType: config.modelType,
+        numThreads: config.numThreads || 1,
+        debug: config.debug || false,
+        dataDir: cleanedDataDir,
+        dictDir: cleanedDictDir,
       };
 
-      // Handle model file configuration
-      if (!cleanedConfig.modelName) {
-        cleanedConfig.modelName = 'model.onnx';
+      // Set model-specific properties based on model type
+      switch (config.modelType) {
+        case 'vits':
+          nativeConfig.modelName = config.modelName || 'model.onnx';
+          nativeConfig.lexicon = config.lexicon;
+          nativeConfig.noiseScale = config.noiseScale ?? 0.667;
+          nativeConfig.noiseScaleW = config.noiseScaleW ?? 0.8;
+          nativeConfig.lengthScale = config.lengthScale ?? 1.0;
+          break;
+
+        case 'matcha':
+          nativeConfig.acousticModelName = config.acousticModelName;
+          nativeConfig.vocoder = config.vocoder;
+          nativeConfig.lexicon = config.lexicon;
+          nativeConfig.noiseScale = config.noiseScale ?? 1.0;
+          nativeConfig.lengthScale = config.lengthScale ?? 1.0;
+          break;
+
+        case 'kokoro':
+          nativeConfig.modelName = config.modelName;
+          nativeConfig.voices = config.voices;
+          nativeConfig.lexicon = config.lexicon;
+          nativeConfig.lengthScale = config.lengthScale ?? 1.0;
+          break;
+
+        default:
+          throw new Error(`Unsupported model type: ${config.modelType}`);
       }
 
-      // Ensure data directory is set properly
-      if (!cleanedConfig.dataDir) {
-        cleanedConfig.dataDir = cleanedConfig.modelDir;
-      } else {
-        cleanedConfig.dataDir = this.cleanFilePath(cleanedConfig.dataDir);
+      // Set optional rule files if provided
+      if (config.ruleFsts) {
+        nativeConfig.ruleFsts = cleanFilePath(config.ruleFsts);
+      }
+      if (config.ruleFars) {
+        nativeConfig.ruleFars = cleanFilePath(config.ruleFars);
       }
 
       console.log(
         'Initializing TTS with config:',
-        JSON.stringify(cleanedConfig)
+        JSON.stringify(nativeConfig)
       );
-
-      return await NativeSherpaOnnx.initTts(cleanedConfig);
-    } catch (error: any) {
+      return await NativeSherpaOnnx.initTts(nativeConfig);
+    } catch (error) {
       console.error('Failed to initialize TTS:', error);
       throw error;
     }
-  }
+  },
 
-  /**
-   * Generate speech from text using the TTS engine
-   * @param text Text to synthesize
-   * @param options Options for speech generation
-   * @returns Promise that resolves with generation result
-   */
-  public static async generateTts(
-    text: string,
-    options: TtsOptions = {}
-  ): Promise<TtsGenerateResult> {
-    try {
-      const config = {
-        text,
-        speakerId: options.speakerId ?? 0,
-        speakingRate: options.speakingRate ?? 1.0,
-        playAudio: options.playAudio ?? false,
-        fileNamePrefix: options.fileNamePrefix ?? null,
-        lengthScale: options.lengthScale ?? null,
-        noiseScale: options.noiseScale ?? null,
-        noiseScaleW: options.noiseScaleW ?? null,
-      };
+  generateTts(config: TtsGenerateConfig): Promise<TtsGenerateResult> {
+    return NativeSherpaOnnx.generateTts(config);
+  },
 
-      return await NativeSherpaOnnx.generateTts(config);
-    } catch (error: any) {
-      console.error('Failed to generate TTS:', error);
-      throw error;
-    }
-  }
+  stopTts(): Promise<{ stopped: boolean; message?: string }> {
+    return NativeSherpaOnnx.stopTts();
+  },
 
-  /**
-   * Stop ongoing TTS playback
-   * @returns Promise that resolves when playback is stopped
-   */
-  public static async stopTts(): Promise<{
-    stopped: boolean;
-    message?: string;
-  }> {
-    try {
-      return await NativeSherpaOnnx.stopTts();
-    } catch (error: any) {
-      console.error('Failed to stop TTS:', error);
-      throw error;
-    }
-  }
+  releaseTts(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseTts();
+  },
 
-  /**
-   * Release TTS resources
-   * @returns Promise that resolves when resources are released
-   */
-  public static async releaseTts(): Promise<{ released: boolean }> {
-    try {
-      return await NativeSherpaOnnx.releaseTts();
-    } catch (error: any) {
-      console.error('Failed to release TTS resources:', error);
-      throw error;
-    }
-  }
+  // ASR methods
+  initAsr(config: AsrModelConfig): Promise<AsrInitResult> {
+    return NativeSherpaOnnx.initAsr(config as any);
+  },
 
-  /**
-   * Initialize the ASR engine with the provided model configuration
-   * @param config Configuration for the ASR model
-   * @returns Promise that resolves with initialization result
-   */
-  public static async initAsr(config: AsrModelConfig): Promise<AsrInitResult> {
-    try {
-      // Clean up the modelDir path to ensure proper file access
-      const cleanedModelDir = this.cleanFilePath(config.modelDir);
-
-      // Create a config object with clean file paths
-      const nativeConfig: Record<string, any> = {
-        modelDir: cleanedModelDir,
-        modelType: config.modelType,
-        numThreads: config.numThreads || 1,
-        decodingMethod: config.decodingMethod || 'greedy_search',
-        maxActivePaths: config.maxActivePaths || 4,
-        streaming: config.streaming || false,
-        debug: config.debug || false,
-      };
-
-      // Process modelFiles if provided
-      if (config.modelFiles) {
-        // Create a clean version of modelFiles for the native side
-        nativeConfig.modelFiles = {};
-
-        // Process each model file entry
-        for (const [key, value] of Object.entries(config.modelFiles)) {
-          if (value) {
-            nativeConfig.modelFiles[key] = value;
-          }
-        }
-      }
-
-      console.log(
-        'Initializing ASR with config:',
-        JSON.stringify(nativeConfig)
-      );
-      return await NativeSherpaOnnx.initAsr(nativeConfig);
-    } catch (error: any) {
-      console.error('Failed to initialize ASR:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Recognize speech from audio samples
-   * @param sampleRate Sample rate of the audio
-   * @param samples Audio samples as float array
-   * @returns Promise that resolves with recognition result
-   */
-  public static async recognizeFromSamples(
+  recognizeFromSamples(
     sampleRate: number,
     samples: number[]
   ): Promise<AsrRecognizeResult> {
-    try {
-      return await NativeSherpaOnnx.recognizeFromSamples(sampleRate, samples);
-    } catch (error: any) {
-      console.error('Failed to recognize speech from samples:', error);
-      throw error;
-    }
-  }
+    return NativeSherpaOnnx.recognizeFromSamples(sampleRate, samples);
+  },
 
-  /**
-   * Recognize speech from an audio file
-   * @param filePath Path to the audio file
-   * @returns Promise that resolves with recognition result
-   */
-  public static async recognizeFromFile(
-    filePath: string
-  ): Promise<AsrRecognizeResult> {
-    try {
-      return await NativeSherpaOnnx.recognizeFromFile(filePath);
-    } catch (error: any) {
-      console.error('Failed to recognize speech from file:', error);
-      throw error;
-    }
-  }
+  recognizeFromFile(filePath: string): Promise<AsrRecognizeResult> {
+    return NativeSherpaOnnx.recognizeFromFile(filePath);
+  },
 
-  /**
-   * Release ASR resources
-   * @returns Promise that resolves when resources are released
-   */
-  public static async releaseAsr(): Promise<{ released: boolean }> {
-    try {
-      return await NativeSherpaOnnx.releaseAsr();
-    } catch (error: any) {
-      console.error('Failed to release ASR resources:', error);
-      throw error;
-    }
-  }
+  releaseAsr(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseAsr();
+  },
 
-  /**
-   * Initialize the Audio Tagging engine with the provided model configuration
-   * @param config Configuration for the audio tagging model
-   * @returns Promise that resolves with initialization result
-   */
-  public static async initAudioTagging(
+  // Audio tagging methods
+  initAudioTagging(
     config: AudioTaggingModelConfig
   ): Promise<AudioTaggingInitResult> {
-    try {
-      // Create a modified config object for the native module
-      const nativeConfig = {
-        modelDir: this.cleanFilePath(config.modelDir),
-        modelFile: config.modelFile || config.modelName || 'model.onnx',
-        labelsFile: config.labelsFile || 'labels.txt',
-        modelType: config.modelType, // Pass model type explicitly
-        numThreads: config.numThreads || 1,
-        topK: config.topK || 3,
-      };
+    return NativeSherpaOnnx.initAudioTagging(config as any);
+  },
 
-      console.log(
-        'Initializing audio tagging with native config:',
-        JSON.stringify(nativeConfig)
-      );
-      return await NativeSherpaOnnx.initAudioTagging(nativeConfig);
-    } catch (error: any) {
-      console.error('Failed to initialize audio tagging:', error);
-      throw error;
-    }
-  }
+  processAndComputeAudioTagging(filePath: string): Promise<AudioTaggingResult> {
+    return NativeSherpaOnnx.processAndComputeAudioTagging(filePath);
+  },
 
-  /**
-   * Process and compute audio tagging for a file in a single operation
-   * @param filePath Path to the audio file to process
-   * @returns Promise that resolves with audio tagging result
-   */
-  public static async processAndComputeAudioTagging(
-    filePath: string
-  ): Promise<AudioTaggingResult> {
-    try {
-      // Clean up file path before sending to native
-      const cleanedPath = this.cleanFilePath(filePath);
-      console.log('Processing audio file with path:', cleanedPath);
-      return await NativeSherpaOnnx.processAndComputeAudioTagging(cleanedPath);
-    } catch (error: any) {
-      console.error('Failed to process and compute audio tagging:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Helper function to clean file paths from Expo by removing file:// or file:/ prefixes
-   * @param path The file path to clean
-   * @returns The cleaned file path
-   */
-  private static cleanFilePath(path: string): string {
-    if (path.startsWith('file://')) {
-      return path.substring(7);
-    } else if (path.startsWith('file:/')) {
-      return path.substring(6);
-    }
-    return path;
-  }
-
-  /**
-   * Process and compute audio tagging for samples
-   * @param sampleRate Sample rate of the audio
-   * @param samples Audio samples as float array
-   * @returns Promise that resolves with audio tagging result
-   */
-  public static async processAndComputeAudioSamples(
+  processAndComputeAudioSamples(
     sampleRate: number,
     samples: number[]
   ): Promise<AudioTaggingResult> {
-    try {
-      return await NativeSherpaOnnx.processAndComputeAudioSamples(
-        sampleRate,
-        samples
-      );
-    } catch (error: any) {
-      console.error('Failed to process and compute audio samples:', error);
-      throw error;
-    }
-  }
+    return NativeSherpaOnnx.processAndComputeAudioSamples(sampleRate, samples);
+  },
 
-  /**
-   * Release Audio Tagging resources
-   * @returns Promise that resolves when resources are released
-   */
-  public static async releaseAudioTagging(): Promise<{ released: boolean }> {
-    try {
-      return await NativeSherpaOnnx.releaseAudioTagging();
-    } catch (error: any) {
-      console.error('Failed to release audio tagging resources:', error);
-      throw error;
-    }
-  }
+  releaseAudioTagging(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseAudioTagging();
+  },
 
-  /**
-   * Extract a tar.bz2 archive to a directory
-   * @param sourcePath Path to the tar.bz2 file
-   * @param targetDir Directory where files should be extracted
-   * @returns Promise that resolves with extraction result
-   */
-  public static async extractTarBz2(
+  // Speaker ID methods
+  initSpeakerId(config: SpeakerIdModelConfig): Promise<SpeakerIdInitResult> {
+    return NativeSherpaOnnx.initSpeakerId(config as any);
+  },
+
+  processSpeakerIdSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<SpeakerIdProcessResult> {
+    return NativeSherpaOnnx.processSpeakerIdSamples(sampleRate, samples);
+  },
+
+  computeSpeakerEmbedding(): Promise<SpeakerEmbeddingResult> {
+    return NativeSherpaOnnx.computeSpeakerEmbedding();
+  },
+
+  registerSpeaker(
+    name: string,
+    embedding: number[]
+  ): Promise<RegisterSpeakerResult> {
+    return NativeSherpaOnnx.registerSpeaker(name, embedding);
+  },
+
+  removeSpeaker(name: string): Promise<RemoveSpeakerResult> {
+    return NativeSherpaOnnx.removeSpeaker(name);
+  },
+
+  getSpeakers(): Promise<GetSpeakersResult> {
+    return NativeSherpaOnnx.getSpeakers();
+  },
+
+  identifySpeaker(
+    embedding: number[],
+    threshold: number
+  ): Promise<IdentifySpeakerResult> {
+    return NativeSherpaOnnx.identifySpeaker(embedding, threshold);
+  },
+
+  verifySpeaker(
+    name: string,
+    embedding: number[],
+    threshold: number
+  ): Promise<VerifySpeakerResult> {
+    return NativeSherpaOnnx.verifySpeaker(name, embedding, threshold);
+  },
+
+  processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult> {
+    return NativeSherpaOnnx.processSpeakerIdFile(filePath);
+  },
+
+  releaseSpeakerId(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseSpeakerId();
+  },
+
+  // Archive methods
+  extractTarBz2(
     sourcePath: string,
     targetDir: string
   ): Promise<{
@@ -334,71 +284,6 @@ export class SherpaOnnxAPI {
     message: string;
     extractedFiles: string[];
   }> {
-    try {
-      return await NativeSherpaOnnx.extractTarBz2(sourcePath, targetDir);
-    } catch (error: any) {
-      console.error('Failed to extract archive:', error);
-      throw error;
-    }
-  }
-
-  // Speaker ID methods
-  public static async initSpeakerId(
-    config: SpeakerIdModelConfig
-  ): Promise<SpeakerIdInitResult> {
-    return NativeSherpaOnnx.initSpeakerId(config);
-  }
-
-  public static async processSpeakerIdSamples(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<SpeakerIdProcessResult> {
-    return NativeSherpaOnnx.processSpeakerIdSamples(sampleRate, samples);
-  }
-
-  public static async computeSpeakerEmbedding(): Promise<SpeakerEmbeddingResult> {
-    return NativeSherpaOnnx.computeSpeakerEmbedding();
-  }
-
-  public static async registerSpeaker(
-    name: string,
-    embedding: number[]
-  ): Promise<RegisterSpeakerResult> {
-    return NativeSherpaOnnx.registerSpeaker(name, embedding);
-  }
-
-  public static async removeSpeaker(
-    name: string
-  ): Promise<RemoveSpeakerResult> {
-    return NativeSherpaOnnx.removeSpeaker(name);
-  }
-
-  public static async getSpeakers(): Promise<GetSpeakersResult> {
-    return NativeSherpaOnnx.getSpeakers();
-  }
-
-  public static async identifySpeaker(
-    embedding: number[],
-    threshold: number
-  ): Promise<IdentifySpeakerResult> {
-    return NativeSherpaOnnx.identifySpeaker(embedding, threshold);
-  }
-
-  public static async verifySpeaker(
-    name: string,
-    embedding: number[],
-    threshold: number
-  ): Promise<VerifySpeakerResult> {
-    return NativeSherpaOnnx.verifySpeaker(name, embedding, threshold);
-  }
-
-  public static async processSpeakerIdFile(
-    filePath: string
-  ): Promise<SpeakerIdFileProcessResult> {
-    return NativeSherpaOnnx.processSpeakerIdFile(filePath);
-  }
-
-  public static async releaseSpeakerId(): Promise<{ released: boolean }> {
-    return NativeSherpaOnnx.releaseSpeakerId();
-  }
-}
+    return NativeSherpaOnnx.extractTarBz2(sourcePath, targetDir);
+  },
+};

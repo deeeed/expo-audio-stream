@@ -1,19 +1,17 @@
 /**
  * Handler for Text-to-Speech functionality
  */
-package net.siteed.sherpaonnx
+package net.siteed.sherpaonnx.handlers
 
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.util.Log
 import com.facebook.react.bridge.*
-import com.k2fsa.sherpa.onnx.OfflineTts
-import com.k2fsa.sherpa.onnx.OfflineTtsConfig
-import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
-import com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig
-import com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig
-import com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig
+import com.k2fsa.sherpa.onnx.*
+import net.siteed.sherpaonnx.SherpaOnnxImpl
+import net.siteed.sherpaonnx.utils.AssetUtils
+import net.siteed.sherpaonnx.utils.AudioUtils
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -33,7 +31,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
      * Initialize the TTS engine with the provided model configuration
      */
     fun init(modelConfig: ReadableMap, promise: Promise) {
-        if (!SherpaOnnxModule.isLibraryLoaded) {
+        if (!SherpaOnnxImpl.isLibraryLoaded) {
             promise.reject("ERR_LIBRARY_NOT_LOADED", "Sherpa ONNX library is not loaded")
             return
         }
@@ -46,11 +44,11 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 Log.i(TAG, "Initializing TTS with config: ${modelConfig.toHashMap()}")
                 
                 // Extract model config options
-                val modelDir = AssetUtils.cleanFilePath(modelConfig.getString("modelDir") ?: "")
+                val modelDir = AssetUtils.cleanFilePath(modelConfig.getString("modelDir").orEmpty())
                 val modelFileName = modelConfig.getString("modelFile") ?: "model.onnx"
                 val tokensFileName = modelConfig.getString("tokensFile") ?: "tokens.txt"
-                val voicesFile = modelConfig.getString("voicesFile") ?: null
-                val lexiconFile = modelConfig.getString("lexiconFile") ?: null
+                val voicesFile = modelConfig.getString("voicesFile")
+                val lexiconFile = modelConfig.getString("lexiconFile")
                 val dataDir = modelConfig.getString("dataDir") ?: modelDir
                 val modelType = modelConfig.getString("modelType") ?: "vits"
                 val sampleRate = if (modelConfig.hasKey("sampleRate")) modelConfig.getInt("sampleRate") else 16000
@@ -179,7 +177,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 Log.i(TAG, "Creating TTS instance")
                 
                 // Log the configuration for debugging
-                Log.i(TAG, "TTS Config: ${ttsConfig}")
+                Log.i(TAG, "TTS Config: $ttsConfig")
                 
                 // Try creating TTS with file access first (absolute paths)
                 try {
@@ -226,162 +224,140 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
     }
     
     /**
-     * Generate speech from text
-     * 
-     * @param text The text to convert to speech
-     * @param speakerId The speaker ID to use (0 is default)
-     * @param speed The speaking rate (1.0 is normal speed)
-     * @param playAudio Whether to play the generated audio immediately
-     * @param fileNamePrefix Custom prefix for the output file name
-     * @param lengthScale Override for length scale
-     * @param noiseScale Override for noise scale
-     * @param noiseScaleW Override for noise scale W
-     * @param promise The promise to resolve with the result
-     * 
-     * @return A Promise that resolves with:
-     *   - success: Whether generation was successful
-     *   - sampleRate: The sample rate of the generated audio
-     *   - numSamples: Number of audio samples generated
-     *   - filePath: Path to the generated WAV file on the device
+     * Generate speech from text using a config map
      */
-    fun generate(
-        text: String, 
-        speakerId: Int, 
-        speed: Float, 
-        playAudio: Boolean,
-        fileNamePrefix: String?,
-        lengthScale: Float?,
-        noiseScale: Float?,
-        noiseScaleW: Float?,
-        promise: Promise
-    ) {
+    fun generate(config: ReadableMap, promise: Promise) {
+        if (!SherpaOnnxImpl.isLibraryLoaded) {
+            promise.reject("ERR_LIBRARY_NOT_LOADED", "Sherpa ONNX library is not loaded")
+            return
+        }
+
+        // Extract parameters from config with proper defaults
+        val text = config.getString("text") ?: ""
+        val speakerId = config.getInt("speakerId")
+        val speakingRate = config.getDouble("speakingRate").toFloat()
+        val playAudio = config.getBoolean("playAudio")
+        val fileNamePrefix = config.getString("fileNamePrefix")
+        val lengthScale = if (config.hasKey("lengthScale")) config.getDouble("lengthScale").toFloat() else null
+        val noiseScale = if (config.hasKey("noiseScale")) config.getDouble("noiseScale").toFloat() else null
+        val noiseScaleW = if (config.hasKey("noiseScaleW")) config.getDouble("noiseScaleW").toFloat() else null
+
+        // Validate text is not empty
+        if (text.isBlank()) {
+            promise.reject("ERR_INVALID_TEXT", "Text cannot be empty")
+            return
+        }
+
+        Log.d(TAG, "Generating TTS for text: '$text' with speakerId: $speakerId, speed: $speakingRate, playAudio: $playAudio")
+        
         executor.execute {
             try {
                 if (tts == null) {
-                    throw Exception("TTS is not initialized")
+                    throw Exception("TTS not initialized")
                 }
 
                 if (isGenerating) {
                     throw Exception("TTS is already generating speech")
                 }
 
-                Log.d(TAG, "Generating TTS for text: '$text' with speakerId: $speakerId, speed: $speed, playAudio: $playAudio")
-                
-                // Log advanced parameters if provided
-                if (lengthScale != null || noiseScale != null || noiseScaleW != null) {
-                    Log.d(TAG, "Using advanced parameters - lengthScale: $lengthScale, noiseScale: $noiseScale, noiseScaleW: $noiseScaleW")
-                }
-                
                 isGenerating = true
 
+                // Initialize audio track if needed and playAudio is true
+                if (playAudio) {
+                    initAudioTrack(22050)  // Sherpa ONNX TTS uses 22050Hz
+                }
+
                 // Apply custom parameters to the TTS model if provided
-                if (lengthScale != null || noiseScale != null || noiseScaleW != null) {
-                    // Store original values to restore later
-                    var originalLengthScale: Float? = null
-                    var originalNoiseScale: Float? = null
-                    var originalNoiseScaleW: Float? = null
-                    
-                    // Apply model-specific parameters
-                    when {
-                        ttsModelConfig?.vits != null -> {
-                            val vitsConfig = ttsModelConfig?.vits
-                            // Save original values
-                            originalLengthScale = vitsConfig?.lengthScale
-                            originalNoiseScale = vitsConfig?.noiseScale
-                            originalNoiseScaleW = vitsConfig?.noiseScaleW
-                            
-                            // Apply overrides
-                            if (lengthScale != null) vitsConfig?.lengthScale = lengthScale
-                            if (noiseScale != null) vitsConfig?.noiseScale = noiseScale
-                            if (noiseScaleW != null) vitsConfig?.noiseScaleW = noiseScaleW
-                        }
-                        ttsModelConfig?.kokoro != null -> {
-                            val kokoroConfig = ttsModelConfig?.kokoro
-                            // Save original values
-                            originalLengthScale = kokoroConfig?.lengthScale
-                            
-                            // Apply overrides
-                            if (lengthScale != null) kokoroConfig?.lengthScale = lengthScale
-                        }
-                        ttsModelConfig?.matcha != null -> {
-                            val matchaConfig = ttsModelConfig?.matcha
-                            // Save original values
-                            originalLengthScale = matchaConfig?.lengthScale
-                            originalNoiseScale = matchaConfig?.noiseScale
-                            
-                            // Apply overrides
-                            if (lengthScale != null) matchaConfig?.lengthScale = lengthScale
-                            if (noiseScale != null) matchaConfig?.noiseScale = noiseScale
-                        }
+                lengthScale?.let { 
+                    when (ttsModelConfig?.vits) {
+                        null -> {}
+                        else -> ttsModelConfig?.vits?.lengthScale = it
+                    }
+                }
+                noiseScale?.let { 
+                    when (ttsModelConfig?.vits) {
+                        null -> {}
+                        else -> ttsModelConfig?.vits?.noiseScale = it
+                    }
+                }
+                noiseScaleW?.let { 
+                    when (ttsModelConfig?.vits) {
+                        null -> {}
+                        else -> ttsModelConfig?.vits?.noiseScaleW = it
                     }
                 }
 
-                // Generate speech
                 val startTime = System.currentTimeMillis()
-                var audio = if (playAudio) {
-                    // Prepare audio playback
-                    prepareAudioTrack()
-                    
+                var audio: FloatArray? = null
+
+                if (playAudio) {
                     // Generate and play in real-time
                     Log.d(TAG, "Using generateWithCallback method")
-                    tts?.generateWithCallback(text, speakerId, speed) { samples ->
+                    tts?.generateWithCallback(text, speakerId, speakingRate) { samples ->
                         if (!isGenerating) return@generateWithCallback 0  // Stop generating
-                        audioTrack?.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
+                        // Ensure we're writing at the correct sample rate
+                        val written = audioTrack?.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING) ?: 0
+                        if (written != samples.size) {
+                            Log.w(TAG, "Failed to write all samples: $written/${samples.size}")
+                        }
                         1  // Continue generating
                     }
                 } else {
                     // Generate without playback
                     Log.d(TAG, "Using generate method without callback")
-                    tts?.generate(text, speakerId, speed)
+                    val generatedAudio = tts?.generate(text, speakerId, speakingRate)
+                    audio = generatedAudio?.samples
                 }
+
                 val endTime = System.currentTimeMillis()
-                
-                // If no audio was generated (unlikely but possible)
-                if (audio == null) {
+                val duration = endTime - startTime
+                Log.d(TAG, "Speech generation completed in ${duration}ms")
+
+                // Save audio to file if needed
+                if (audio != null) {
+                    val fileName = fileNamePrefix?.let { "${it}_${System.currentTimeMillis()}" }
+                        ?: "generated_audio_${System.currentTimeMillis()}"
+                    val filePath = "${reactContext.cacheDir.absolutePath}/$fileName.wav"
+                    
+                    val saved = AudioUtils.saveAsWav(audio, 22050, filePath)
+                    Log.d(TAG, "Audio saved: $saved, file path: $filePath")
+                    
+                    val resultMap = Arguments.createMap()
+                    resultMap.putBoolean("success", true)
+                    if (filePath != null) {
+                        resultMap.putString("filePath", filePath)
+                    }
+                    promise.resolve(resultMap)
+                } else {
+                    // If no audio was generated, try again without callback
                     Log.w(TAG, "No audio generated, trying again without callback")
                     // Fallback: try again without callback
-                    audio = tts?.generate(text, speakerId, speed)
+                    val generatedAudio = tts?.generate(text, speakerId, speakingRate)
+                    audio = generatedAudio?.samples
                     if (audio == null) {
                         throw Exception("Failed to generate speech audio")
                     }
-                }
-                
-                // Extract results
-                val samples = audio.samples ?: FloatArray(0)
-                val sampleRate = audio.sampleRate ?: 16000
-                
-                Log.d(TAG, "Speech generation completed in ${endTime - startTime}ms")
-                Log.d(TAG, "Generated ${samples.size} samples at ${sampleRate}Hz")
-
-                // Save to file - always do this regardless of playAudio setting
-                val prefix = fileNamePrefix ?: "generated_audio_"
-                val wavFile = File(reactContext.cacheDir, "${prefix}${System.currentTimeMillis()}.wav")
-                val saved = AudioUtils.saveAsWav(samples, sampleRate, wavFile.absolutePath)
-                Log.d(TAG, "Audio saved: $saved, file path: ${wavFile.absolutePath}")
-
-                // Prepare result
-                val resultMap = Arguments.createMap()
-                resultMap.putBoolean("success", true)
-                resultMap.putInt("sampleRate", sampleRate)
-                resultMap.putInt("numSamples", samples.size)
-                resultMap.putString("filePath", "file://${wavFile.absolutePath}")
-                
-                // Set generating flag back to false
-                isGenerating = false
-                
-                reactContext.runOnUiQueueThread {
+                    
+                    val fileName = fileNamePrefix?.let { "${it}_${System.currentTimeMillis()}" }
+                        ?: "generated_audio_${System.currentTimeMillis()}"
+                    val filePath = "${reactContext.cacheDir.absolutePath}/$fileName.wav"
+                    
+                    val saved = AudioUtils.saveAsWav(audio, 22050, filePath)
+                    Log.d(TAG, "Audio saved: $saved, file path: $filePath")
+                    
+                    val resultMap = Arguments.createMap()
+                    resultMap.putBoolean("success", true)
+                    if (filePath != null) {
+                        resultMap.putString("filePath", filePath)
+                    }
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error generating speech: ${e.message}")
-                e.printStackTrace()
-                
-                // Set generating flag back to false
+                promise.reject("ERR_GENERATION_FAILED", e.message)
+            } finally {
                 isGenerating = false
-                
-                reactContext.runOnUiQueueThread {
-                    promise.reject("ERR_TTS_GENERATE", "Failed to generate speech: ${e.message}")
-                }
+                // Don't stop the AudioTrack here as it might still be playing
             }
         }
     }
@@ -390,13 +366,13 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
      * Initialize audio track for playback
      */
     private fun initAudioTrack(sampleRate: Int) {
-        val bufferSize = AudioTrack.getMinBufferSize(
-            sampleRate,
-            AudioFormat.CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_FLOAT
-        )
-        
         try {
+            val minBufferSize = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_FLOAT
+            ) * 2  // Double the minimum buffer size for smoother playback
+
             audioTrack = AudioTrack.Builder()
                 .setAudioAttributes(
                     AudioAttributes.Builder()
@@ -406,36 +382,23 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 )
                 .setAudioFormat(
                     AudioFormat.Builder()
-                        .setSampleRate(sampleRate)
                         .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
+                        .setSampleRate(sampleRate)
                         .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                         .build()
                 )
-                .setBufferSizeInBytes(bufferSize)
+                .setBufferSizeInBytes(minBufferSize)
+                .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error initializing AudioTrack: ${e.message}")
-            e.printStackTrace()
-        }
-    }
-    
-    /**
-     * Prepare audio track for playback
-     */
-    private fun prepareAudioTrack() {
-        try {
-            if (audioTrack?.state == AudioTrack.STATE_INITIALIZED) {
-                if (audioTrack?.playState == AudioTrack.PLAYSTATE_PLAYING) {
-                    audioTrack?.pause()
-                    audioTrack?.flush()
-                }
-                audioTrack?.play()
-            } else {
-                Log.w(TAG, "AudioTrack is not initialized")
+
+            audioTrack?.apply {
+                // Set the playback rate to match the model's sample rate
+                playbackRate = sampleRate
+                play()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error preparing AudioTrack: ${e.message}")
-            e.printStackTrace()
+            Log.e(TAG, "Failed to initialize AudioTrack: ${e.message}")
+            throw e
         }
     }
     

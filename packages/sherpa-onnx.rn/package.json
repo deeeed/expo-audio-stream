@@ -57,9 +57,10 @@
     "build:android:force": "./build-sherpa-android.sh --force",
     "build:all": "./build-all.sh",
     "build:all:force": "./build-all.sh --force",
-    "copy:libs": "./android/scripts/copy-libs.sh",
-    "postinstall": "node ./install.js && npm run copy:libs",
-    "publish-static": "./publish-static-libs.sh"
+    "postinstall": "node ./install.js",
+    "publish-static": "./publish-static-libs.sh",
+    "codegen": "npx @react-native-community/cli codegen",
+    "regenerate-codegen": "npx react-native codegen && mkdir -p ios/generated/SherpaOnnxSpec && cp -R build/generated/ios/SherpaOnnxSpec/* ios/generated/SherpaOnnxSpec/"
   },
   "keywords": [
     "react-native",
@@ -86,11 +87,6 @@
     "access": "public"
   },
   "nativePackage": true,
-  "codegenConfig": {
-    "name": "RNSherpaOnnxSpec",
-    "type": "modules",
-    "jsSrcsDir": "src"
-  },
   "dependencies": {
     "adm-zip": "^0.5.16",
     "node-fetch": "2",
@@ -101,6 +97,7 @@
     "@babel/preset-env": "^7.26.9",
     "@commitlint/config-conventional": "^17.0.2",
     "@evilmartians/lefthook": "^1.5.0",
+    "@react-native-community/cli": "^18.0.0",
     "@react-native/eslint-config": "^0.73.1",
     "@siteed/publisher": "^0.6.0",
     "@types/adm-zip": "^0",
@@ -202,5 +199,13 @@
     "type": "legacy-module",
     "languages": "cpp",
     "version": "0.48.3"
+  },
+  "codegenConfig": {
+    "name": "SherpaOnnxSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "net.siteed.sherpaonnx"
+    }
   }
 }

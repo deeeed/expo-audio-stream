@@ -2,6 +2,7 @@ import { TtsService } from '../services/TtsService';
 import { AsrService } from '../services/AsrService';
 import { AudioTaggingService } from '../services/AudioTaggingService';
 import { ArchiveService } from '../services/ArchiveService';
+import { SpeakerIdService } from '../services/SpeakerIdService';
 
 /**
  * Type of model supported by Sherpa-onnx
@@ -202,38 +203,86 @@ export interface TtsInitResult {
 }
 
 /**
+ * Configuration for text-to-speech generation
+ */
+export interface TtsGenerateConfig {
+  /** The text to convert to speech */
+  text: string;
+  /** The speaker ID to use (0-based index) */
+  speakerId: number;
+  /** The speaking rate (1.0 is normal speed) */
+  speakingRate: number;
+  /** Whether to play the audio immediately */
+  playAudio: boolean;
+  /** Optional prefix for the generated audio file */
+  fileNamePrefix?: string;
+  /** Optional length scale for VITS model (affects speech duration) */
+  lengthScale?: number;
+  /** Optional noise scale for VITS model (affects speech quality) */
+  noiseScale?: number;
+  /** Optional noise scale W for VITS model (affects speech quality) */
+  noiseScaleW?: number;
+}
+
+/**
+ * Options for text-to-speech processing
+ */
+export interface TtsOptions {
+  /**
+   * Speaker ID to use (default: 0)
+   */
+  speakerId?: number;
+
+  /**
+   * Speaking rate (0.5 to 2.0, default: 1.0)
+   */
+  speakingRate?: number;
+
+  /**
+   * Whether to play audio as it's generated
+   */
+  playAudio?: boolean;
+
+  /**
+   * Custom file name prefix for the generated audio file
+   * Default: "generated_audio_"
+   */
+  fileNamePrefix?: string;
+
+  /**
+   * Length scale override for this specific generation
+   * Allows fine-tuning the speaking speed (0.5 to 2.0, default: model setting)
+   */
+  lengthScale?: number;
+
+  /**
+   * Noise scale override for this specific generation
+   * Controls voice variation (default: model setting)
+   */
+  noiseScale?: number;
+
+  /**
+   * Noise scale W override for this specific generation (VITS models only)
+   * Controls randomness in phoneme duration (default: model setting)
+   */
+  noiseScaleW?: number;
+}
+
+/**
  * Result of TTS generation
  */
 export interface TtsGenerateResult {
-  /**
-   * Whether generation was successful
-   */
-  success: boolean;
-
-  /**
-   * Sample rate of generated audio
-   */
-  sampleRate: number;
-
-  /**
-   * Number of samples in the generated audio
-   */
-  samplesLength: number;
-
-  /**
-   * Number of samples in the generated audio
-   * This is the same as samplesLength, included for backwards compatibility
-   */
-  numSamples: number;
-
-  /**
-   * Path to the generated audio file
-   */
+  /** The path to the generated audio file */
   filePath: string;
-
-  /**
-   * Whether the audio was saved to a file successfully
-   */
+  /** Whether generation was successful */
+  success: boolean;
+  /** Sample rate of generated audio */
+  sampleRate: number;
+  /** Number of samples in the generated audio */
+  samplesLength: number;
+  /** Number of samples in the generated audio (alias for samplesLength) */
+  numSamples: number;
+  /** Whether the audio was saved to a file successfully */
   saved: boolean;
 }
 
@@ -621,16 +670,7 @@ export interface AsrRecognizeResult {
 export interface SherpaOnnxStatic {
   validateLibraryLoaded(): Promise<ValidateResult>;
   initTts(config: TtsModelConfig): Promise<TtsInitResult>;
-  generateTts(config: {
-    text: string;
-    speakerId?: number;
-    speakingRate?: number;
-    playAudio?: boolean;
-    fileNamePrefix?: string | null;
-    lengthScale?: number | null;
-    noiseScale?: number | null;
-    noiseScaleW?: number | null;
-  }): Promise<TtsGenerateResult>;
+  generateTts(config: TtsGenerateConfig): Promise<TtsGenerateResult>;
   stopTts(): Promise<{ stopped: boolean; message?: string }>;
   releaseTts(): Promise<{ released: boolean }>;
   initAsr(config: AsrModelConfig): Promise<AsrInitResult>;
@@ -649,57 +689,47 @@ export interface SherpaOnnxStatic {
     samples: number[]
   ): Promise<AudioTaggingResult>;
   releaseAudioTagging(): Promise<{ released: boolean }>;
-  TTS: typeof TtsService;
-  ASR: typeof AsrService;
-  AudioTagging: typeof AudioTaggingService;
-  Archive: typeof ArchiveService;
+  initSpeakerId(config: SpeakerIdModelConfig): Promise<SpeakerIdInitResult>;
+  processSpeakerIdSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<SpeakerIdProcessResult>;
+  computeSpeakerEmbedding(): Promise<SpeakerEmbeddingResult>;
+  registerSpeaker(
+    name: string,
+    embedding: number[]
+  ): Promise<RegisterSpeakerResult>;
+  removeSpeaker(name: string): Promise<RemoveSpeakerResult>;
+  getSpeakers(): Promise<GetSpeakersResult>;
+  identifySpeaker(
+    embedding: number[],
+    threshold: number
+  ): Promise<IdentifySpeakerResult>;
+  verifySpeaker(
+    name: string,
+    embedding: number[],
+    threshold: number
+  ): Promise<VerifySpeakerResult>;
+  processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
+  releaseSpeakerId(): Promise<{ released: boolean }>;
+  extractTarBz2(
+    sourcePath: string,
+    targetDir: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    extractedFiles: string[];
+  }>;
+
+  // Service instances
+  TTS: TtsService;
+  ASR: AsrService;
+  AudioTagging: AudioTaggingService;
+  SpeakerId: SpeakerIdService;
+  Archive: ArchiveService;
 }
 
 export declare const SherpaOnnx: SherpaOnnxStatic;
-
-/**
- * Options for text-to-speech processing
- */
-export interface TtsOptions {
-  /**
-   * Speaker ID to use (default: 0)
-   */
-  speakerId?: number;
-
-  /**
-   * Speaking rate (0.5 to 2.0, default: 1.0)
-   */
-  speakingRate?: number;
-
-  /**
-   * Whether to play audio as it's generated
-   */
-  playAudio?: boolean;
-
-  /**
-   * Custom file name prefix for the generated audio file
-   * Default: "generated_audio_"
-   */
-  fileNamePrefix?: string;
-
-  /**
-   * Length scale override for this specific generation
-   * Allows fine-tuning the speaking speed (0.5 to 2.0, default: model setting)
-   */
-  lengthScale?: number;
-
-  /**
-   * Noise scale override for this specific generation
-   * Controls voice variation (default: model setting)
-   */
-  noiseScale?: number;
-
-  /**
-   * Noise scale W override for this specific generation (VITS models only)
-   * Controls randomness in phoneme duration (default: model setting)
-   */
-  noiseScaleW?: number;
-}
 
 // ----------------------------------------------------------------------------------
 // Speaker Identification Interfaces
@@ -974,4 +1004,153 @@ export interface SpeakerIdOptions {
    * Default: 3
    */
   minDuration?: number;
+}
+
+// Native module interface - what we expect from the native side
+export interface NativeSherpaOnnxInterface {
+  // Test methods
+  testOnnxIntegration(): Promise<TestOnnxIntegrationResult>;
+  validateLibraryLoaded(): Promise<ValidateResult>;
+
+  // TTS methods
+  initTts(config: TtsModelConfig): Promise<TtsInitResult>;
+  generateTts(config: TtsGenerateConfig): Promise<TtsGenerateResult>;
+  stopTts(): Promise<{ stopped: boolean; message?: string }>;
+  releaseTts(): Promise<{ released: boolean }>;
+
+  // ASR methods
+  initAsr(config: AsrModelConfig): Promise<AsrInitResult>;
+  recognizeFromSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<AsrRecognizeResult>;
+  recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
+  releaseAsr(): Promise<{ released: boolean }>;
+
+  // Audio tagging methods
+  initAudioTagging(
+    config: AudioTaggingModelConfig
+  ): Promise<AudioTaggingInitResult>;
+  processAndComputeAudioTagging(filePath: string): Promise<AudioTaggingResult>;
+  processAndComputeAudioSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<AudioTaggingResult>;
+  releaseAudioTagging(): Promise<{ released: boolean }>;
+
+  // Speaker ID methods
+  initSpeakerId(config: SpeakerIdModelConfig): Promise<SpeakerIdInitResult>;
+  processSpeakerIdSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<SpeakerIdProcessResult>;
+  computeSpeakerEmbedding(): Promise<SpeakerEmbeddingResult>;
+  registerSpeaker(
+    name: string,
+    embedding: number[]
+  ): Promise<RegisterSpeakerResult>;
+  removeSpeaker(name: string): Promise<RemoveSpeakerResult>;
+  getSpeakers(): Promise<GetSpeakersResult>;
+  identifySpeaker(
+    embedding: number[],
+    threshold: number
+  ): Promise<IdentifySpeakerResult>;
+  verifySpeaker(
+    name: string,
+    embedding: number[],
+    threshold: number
+  ): Promise<VerifySpeakerResult>;
+  processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
+  releaseSpeakerId(): Promise<{ released: boolean }>;
+
+  // Archive methods
+  extractTarBz2(
+    sourcePath: string,
+    targetDir: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    extractedFiles: string[];
+  }>;
+}
+
+// Public API interface - what we expose to users
+export interface SherpaOnnxInterface {
+  // Test methods
+  testOnnxIntegration(): Promise<TestOnnxIntegrationResult>;
+  validateLibraryLoaded(): Promise<ValidateResult>;
+
+  // TTS methods
+  initTts(config: TtsModelConfig): Promise<TtsInitResult>;
+  generateTts(config: TtsGenerateConfig): Promise<TtsGenerateResult>;
+  stopTts(): Promise<{ stopped: boolean; message?: string }>;
+  releaseTts(): Promise<{ released: boolean }>;
+
+  // ASR methods
+  initAsr(config: AsrModelConfig): Promise<AsrInitResult>;
+  recognizeFromSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<AsrRecognizeResult>;
+  recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
+  releaseAsr(): Promise<{ released: boolean }>;
+
+  // Audio tagging methods
+  initAudioTagging(
+    config: AudioTaggingModelConfig
+  ): Promise<AudioTaggingInitResult>;
+  processAndComputeAudioTagging(filePath: string): Promise<AudioTaggingResult>;
+  processAndComputeAudioSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<AudioTaggingResult>;
+  releaseAudioTagging(): Promise<{ released: boolean }>;
+
+  // Speaker ID methods
+  initSpeakerId(config: SpeakerIdModelConfig): Promise<SpeakerIdInitResult>;
+  processSpeakerIdSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<SpeakerIdProcessResult>;
+  computeSpeakerEmbedding(): Promise<SpeakerEmbeddingResult>;
+  registerSpeaker(
+    name: string,
+    embedding: number[]
+  ): Promise<RegisterSpeakerResult>;
+  removeSpeaker(name: string): Promise<RemoveSpeakerResult>;
+  getSpeakers(): Promise<GetSpeakersResult>;
+  identifySpeaker(
+    embedding: number[],
+    threshold: number
+  ): Promise<IdentifySpeakerResult>;
+  verifySpeaker(
+    name: string,
+    embedding: number[],
+    threshold: number
+  ): Promise<VerifySpeakerResult>;
+  processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
+  releaseSpeakerId(): Promise<{ released: boolean }>;
+
+  // Archive methods
+  extractTarBz2(
+    sourcePath: string,
+    targetDir: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    extractedFiles: string[];
+  }>;
+
+  // Service instances
+  TTS: TtsService;
+  ASR: AsrService;
+  AudioTagging: AudioTaggingService;
+  SpeakerId: SpeakerIdService;
+  Archive: ArchiveService;
+}
+
+// Result types
+export interface TestOnnxIntegrationResult {
+  status: string;
+  success: boolean;
 }
