@@ -5,7 +5,7 @@ module.exports = {
   // Add any configuration for the library's native module setup
   android: {
     // Android-specific configuration
-    package: "com.siteed.archiver",
+    package: "net.siteed.archiver",
     // Add any build.gradle modifications
     buildGradleModifications: [
       {

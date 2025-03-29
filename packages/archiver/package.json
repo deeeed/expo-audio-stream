@@ -185,7 +185,7 @@
       "android": "android/generated"
     },
     "android": {
-      "javaPackageName": "com.siteed.archiver"
+      "javaPackageName": "net.siteed.archiver"
     },
     "includesGeneratedCode": true
   },
