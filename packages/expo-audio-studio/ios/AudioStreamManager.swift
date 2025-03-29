@@ -12,6 +12,9 @@ import UIKit
 import MediaPlayer
 import UserNotifications
 
+// Constants
+internal let WAV_HEADER_SIZE: Int64 = 44  // Standard WAV header is 44 bytes
+
 // Helper to convert to little-endian byte array
 extension UInt32 {
     var littleEndianBytes: [UInt8] {
@@ -1096,17 +1099,17 @@ class AudioStreamManager: NSObject {
                 - Exists: true
                 - Size: \(wavFileSize) bytes
                 - Duration: \(finalDuration) seconds
-                - Expected minimum size: 44 bytes (WAV header)
+                - Expected minimum size: \(WAV_HEADER_SIZE) bytes (WAV header)
                 """)
             
             // Return nil if the file is too small
-            if wavFileSize <= 44 {
-                Logger.debug("Recording file is too small (≤ 44 bytes), likely no audio data was recorded")
+            if wavFileSize <= WAV_HEADER_SIZE {
+                Logger.debug("Recording file is too small (≤ \(WAV_HEADER_SIZE) bytes), likely no audio data was recorded")
                 return nil
             }
             
             // Update the WAV header with the correct file size
-            updateWavHeader(fileURL: fileURL, totalDataSize: wavFileSize - 44)
+            updateWavHeader(fileURL: fileURL, totalDataSize: wavFileSize - WAV_HEADER_SIZE)
             
             // Validate compressed file if enabled
             var compression: CompressedRecordingInfo?
@@ -1372,7 +1375,7 @@ class AudioStreamManager: NSObject {
     ///   - fileURL: The URL of the WAV file.
     ///   - totalDataSize: The total size of the audio data.
     private func updateWavHeader(fileURL: URL, totalDataSize: Int64) {
-        // Prevent negative values - minimum WAV file size should be at least the header size (44 bytes)
+        // Prevent negative values - minimum WAV file size should be at least the header size (WAV_HEADER_SIZE bytes)
         guard totalDataSize >= 0 else {
             Logger.debug("Invalid file size: total data size is negative")
             return
@@ -1383,7 +1386,7 @@ class AudioStreamManager: NSObject {
             defer { fileHandle.closeFile() }
 
             // Calculate sizes
-            let fileSize = totalDataSize + 44 - 8 // Total file size minus 8 bytes for 'RIFF' and size field itself
+            let fileSize = totalDataSize + WAV_HEADER_SIZE - 8 // Total file size minus 8 bytes for 'RIFF' and size field itself
             let dataSize = totalDataSize // Size of the 'data' sub-chunk
 
             // Update RIFF chunk size at offset 4
@@ -1585,8 +1588,19 @@ class AudioStreamManager: NSObject {
                     guard let self = self else { return }
                     if let processor = self.audioProcessor {
                         Logger.debug("Processing audio buffer of size: \(dataToProcess.count)")
+                        
+                        // Strip WAV header from the first buffer to avoid false amplitude detection
+                        let dataToAnalyze: Data
+                        if self.totalDataSizeAnalysis == 0 && dataToProcess.count > Int(WAV_HEADER_SIZE) {
+                            // This is the first buffer and may contain the WAV header
+                            dataToAnalyze = dataToProcess.subdata(in: Int(WAV_HEADER_SIZE)..<dataToProcess.count)
+                            Logger.debug("Removed WAV header (\(WAV_HEADER_SIZE) bytes) from first buffer for analysis")
+                        } else {
+                            dataToAnalyze = dataToProcess
+                        }
+                        
                         let processingResult = processor.processAudioBuffer(
-                            data: dataToProcess,
+                            data: dataToAnalyze,
                             sampleRate: Float(settings.sampleRate),
                             segmentDurationMs: settings.segmentDurationMs,
                             featureOptions: settings.featureOptions ?? [:],
@@ -1600,9 +1614,10 @@ class AudioStreamManager: NSObject {
                             }
                         }
 
-                            // Update state after emission
+                        // Update state after emission
                         self.lastEmissionTimeAnalysis = currentTime
-                        self.lastEmittedSizeAnalysis = totalDataSizeAnalysis
+                        // Update the total analysis data size to mark that we've processed data
+                        self.totalDataSizeAnalysis = self.totalDataSize
                         accumulatedAnalysisData.removeAll()
                     }
                 }
