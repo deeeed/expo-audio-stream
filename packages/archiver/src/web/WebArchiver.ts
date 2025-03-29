@@ -7,17 +7,17 @@ import type { ArchiveEntry, ArchiveHandler } from '../index';
  * Currently removing all web dependencies for compatibility.
  */
 export default class WebArchiver implements ArchiveHandler {
-  private _format: string | null = null;
+  private format: string | null = null;
   private entries: Array<ArchiveEntry> = [];
   private currentEntryIndex: number = 0;
-  private _destination: string | null = null;
+  private destination: string | null = null;
 
   async open(source: string, format?: string): Promise<void> {
     // Placeholder implementation
     console.warn(
       'WebArchiver.open() is a placeholder and does not yet have a full implementation'
     );
-    this._format = format || this.detectFormatFromPath(source);
+    this.format = format || this.detectFormatFromPath(source);
     this.entries = [];
     this.currentEntryIndex = 0;
   }
@@ -36,14 +36,12 @@ export default class WebArchiver implements ArchiveHandler {
     return null;
   }
 
-  async extractEntry(
-    _entry: ArchiveEntry,
-    _destination: string
-  ): Promise<void> {
+  async extractEntry(entry: ArchiveEntry, destination: string): Promise<void> {
     // Placeholder implementation
     console.warn(
       'WebArchiver.extractEntry() is a placeholder and does not yet have a full implementation'
     );
+    // No-op placeholder
   }
 
   async close(): Promise<void> {
@@ -53,6 +51,8 @@ export default class WebArchiver implements ArchiveHandler {
     );
     this.entries = [];
     this.currentEntryIndex = 0;
+    this.format = null;
+    this.destination = null;
   }
 
   async create(destination: string, format: string): Promise<void> {
@@ -60,15 +60,16 @@ export default class WebArchiver implements ArchiveHandler {
     console.warn(
       'WebArchiver.create() is a placeholder and does not yet have a full implementation'
     );
-    this._format = format;
-    this._destination = destination;
+    this.format = format;
+    this.destination = destination;
   }
 
-  async addEntry(_entry: ArchiveEntry): Promise<void> {
+  async addEntry(entry: ArchiveEntry): Promise<void> {
     // Placeholder implementation
     console.warn(
       'WebArchiver.addEntry() is a placeholder and does not yet have a full implementation'
     );
+    // No-op placeholder
   }
 
   async finalize(): Promise<void> {

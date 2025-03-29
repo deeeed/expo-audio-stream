@@ -214,11 +214,6 @@ else
   echo -e "${YELLOW}Skipping iOS build (not on macOS)${NC}"
 fi
 
-# Setup example project
-echo -e "${BLUE}Setting up example project...${NC}"
-cd example
-yarn install
-cd "$SCRIPT_DIR"
 
 # Build the TypeScript code
 echo -e "${YELLOW}Building TypeScript...${NC}"

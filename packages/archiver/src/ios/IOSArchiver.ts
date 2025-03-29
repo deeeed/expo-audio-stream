@@ -2,29 +2,32 @@ import type { ArchiveEntry, ArchiveHandler } from '../index';
 import NativeArchiver from '../NativeArchiver';
 
 export default class IOSArchiver implements ArchiveHandler {
-  private _nativeModule = NativeArchiver;
+  // @ts-ignore - Will be used in future implementation
+  private nativeModule = NativeArchiver;
   private currentEntries: ArchiveEntry[] = [];
   private currentEntryIndex: number = 0;
-  private _archivePath: string | null = null;
-  private _destinationPath: string | null = null;
-  private _currentFormat: string | null = null;
+  private archivePath: string | null = null;
+  private destinationPath: string | null = null;
+  private currentFormat: string | null = null;
 
   async open(source: string, format?: string): Promise<void> {
-    this._archivePath = source;
-    this._currentFormat = format || this.detectFormatFromPath(source);
+    this.archivePath = source;
+    this.currentFormat = format || this.detectFormatFromPath(source);
 
     // In a real implementation, would call native module
-    // await this._nativeModule.openArchive(source, this._currentFormat);
+    // await this.nativeModule.openArchive(source, this.currentFormat);
 
     // Placeholder implementation
-    console.warn('IOSArchiver: Native implementation required');
+    console.warn(
+      `IOSArchiver: Native implementation required for ${this.archivePath} with format ${this.currentFormat}`
+    );
     this.currentEntries = [];
     this.currentEntryIndex = 0;
   }
 
   async getNextEntry(): Promise<ArchiveEntry | null> {
     // In a real implementation, would call native module
-    // const nextEntry = await this._nativeModule.getNextEntry();
+    // const nextEntry = await this.nativeModule.getNextEntry();
 
     // Placeholder implementation
     if (this.currentEntryIndex >= this.currentEntries.length) {
@@ -37,7 +40,7 @@ export default class IOSArchiver implements ArchiveHandler {
 
   async extractEntry(entry: ArchiveEntry, destination: string): Promise<void> {
     // In a real implementation, would call native module
-    // await this._nativeModule.extractEntry(entry.name, destination);
+    // await this.nativeModule.extractEntry(entry.name, destination);
 
     // Placeholder implementation
     console.warn('IOSArchiver: Would extract', entry.name, 'to', destination);
@@ -45,48 +48,60 @@ export default class IOSArchiver implements ArchiveHandler {
 
   async close(): Promise<void> {
     // In a real implementation, would call native module
-    // await this._nativeModule.closeArchive();
+    // await this.nativeModule.closeArchive();
 
-    this._archivePath = null;
+    // Display debuggng information before clearing
+    if (this.archivePath) {
+      console.debug(`Closing archive at ${this.archivePath}`);
+    }
+    
+    this.archivePath = null;
     this.currentEntries = [];
     this.currentEntryIndex = 0;
+    this.currentFormat = null;
+    this.destinationPath = null;
   }
 
   async create(destination: string, format: string): Promise<void> {
-    this._destinationPath = destination;
-    this._currentFormat = format;
+    this.destinationPath = destination;
+    this.currentFormat = format;
 
     // In a real implementation, would call native module
-    // await this._nativeModule.createArchive(destination, format);
+    // await this.nativeModule.createArchive(destination, format);
 
     console.warn(
-      'IOSArchiver: Would create',
-      format,
-      'archive at',
-      destination
+      `IOSArchiver: Would create ${this.currentFormat} archive at ${this.destinationPath}`
     );
   }
 
   async addEntry(entry: ArchiveEntry): Promise<void> {
     // In a real implementation, would call native module
     // If entry is file:
-    // await this._nativeModule.addFileEntry(entry.name, entry.data);
+    // await this.nativeModule.addFileEntry(entry.name, entry.data);
     // If entry is directory:
-    // await this._nativeModule.addDirectoryEntry(entry.name);
+    // await this.nativeModule.addDirectoryEntry(entry.name);
 
-    console.warn('IOSArchiver: Would add entry', entry.name);
+    if (this.destinationPath) {
+      console.warn(`IOSArchiver: Would add entry ${entry.name} to ${this.destinationPath}`);
+    } else {
+      console.warn('IOSArchiver: Would add entry', entry.name);
+    }
   }
 
   async finalize(): Promise<void> {
     // In a real implementation, would call native module
-    // await this._nativeModule.finalizeArchive();
+    // await this.nativeModule.finalizeArchive();
 
-    console.warn('IOSArchiver: Would finalize archive');
+    if (this.destinationPath && this.currentFormat) {
+      console.warn(`IOSArchiver: Would finalize ${this.currentFormat} archive at ${this.destinationPath}`);
+    } else {
+      console.warn('IOSArchiver: Would finalize archive');
+    }
   }
 
   async supportedFormats(): Promise<string[]> {
     // In a real implementation, would call native module
-    // return await this._nativeModule.getSupportedFormats();
+    // return await this.nativeModule.getSupportedFormats();
 
     // iOS typically supports these formats via libarchive
     return ['zip', 'tar', 'tar.gz', 'tar.bz2'];

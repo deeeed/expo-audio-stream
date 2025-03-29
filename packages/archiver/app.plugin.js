@@ -46,7 +46,7 @@ const withArchiver = (config, props = {}) => {
   if (options.enableAndroid && config.android) {
     // Ensure the native module is properly linked in Android
     config.android.package =
-      config.android.package || 'com.siteed.archiverexample';
+      config.android.package || 'net.siteed.archiverexample';
     // Could add more Android-specific configuration here
   }
 
@@ -54,7 +54,7 @@ const withArchiver = (config, props = {}) => {
   if (options.enableIOS && config.ios) {
     // Ensure the native module is properly linked in iOS
     config.ios.bundleIdentifier =
-      config.ios.bundleIdentifier || 'com.siteed.archiverexample';
+      config.ios.bundleIdentifier || 'net.siteed.archiverexample';
     // Could add more iOS-specific configuration here
   }
 

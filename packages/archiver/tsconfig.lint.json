@@ -2,16 +2,16 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "noUnusedLocals": false,
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/__tests__/**/*.ts", "src/__tests__/**/*.tsx"],
   "exclude": [
     "node_modules",
     "lib",
     "build",
     "prebuilt",
     "third_party",
-    "**/__tests__",
     "**/__fixtures__",
     "**/__mocks__",
     "**/.*",

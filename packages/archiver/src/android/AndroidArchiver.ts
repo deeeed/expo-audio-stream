@@ -3,15 +3,15 @@ import NativeArchiver from '../NativeArchiver';
 
 export default class AndroidArchiver implements ArchiveHandler {
   private nativeModule = NativeArchiver;
-  private _currentEntries: ArchiveEntry[] = [];
-  private _currentEntryIndex: number = 0;
-  private _archivePath: string | null = null;
-  private _destinationPath: string | null = null;
+  private currentEntries: ArchiveEntry[] = [];
+  private currentEntryIndex: number = 0;
+  private archivePath: string | null = null;
+  private destinationPath: string | null = null;
   private currentFormat: string | null = null;
-  private _tempDir: string | null = null;
+  private tempDir: string | null = null;
 
   async open(source: string, format?: string): Promise<void> {
-    this._archivePath = source;
+    this.archivePath = source;
     this.currentFormat = format || this.detectFormatFromPath(source);
 
     try {
@@ -19,8 +19,8 @@ export default class AndroidArchiver implements ArchiveHandler {
       await this.nativeModule.openArchive(source, this.currentFormat);
 
       // Reset entry tracking
-      this._currentEntries = [];
-      this._currentEntryIndex = 0;
+      this.currentEntries = [];
+      this.currentEntryIndex = 0;
     } catch (error) {
       throw new Error(`Failed to open archive: ${error}`);
     }
@@ -61,9 +61,9 @@ export default class AndroidArchiver implements ArchiveHandler {
       // Call native module to close the archive
       await this.nativeModule.closeArchive();
 
-      this._archivePath = null;
-      this._currentEntries = [];
-      this._currentEntryIndex = 0;
+      this.archivePath = null;
+      this.currentEntries = [];
+      this.currentEntryIndex = 0;
     } catch (error) {
       throw new Error(`Failed to close archive: ${error}`);
     }
@@ -71,7 +71,7 @@ export default class AndroidArchiver implements ArchiveHandler {
 
   async create(destination: string, format: string): Promise<void> {
     try {
-      this._destinationPath = destination;
+      this.destinationPath = destination;
       this.currentFormat = format;
 
       // Call native module to create the archive

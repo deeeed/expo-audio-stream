@@ -12,6 +12,12 @@
       ],
       "@siteed/sherpa-onnx.rn/*": [
         "../../packages/sherpa-onnx.rn/src/*"
+      ],
+      "@siteed/archiver": [
+        "../../packages/archiver/src/index"
+      ],
+      "@siteed/archiver/*": [
+        "../../packages/archiver/src/*"
       ]
     }
   },

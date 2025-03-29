@@ -1,4 +1,4 @@
-package com.siteed.archiver
+package net.siteed.archiver
 
 import com.facebook.react.BaseReactPackage
 import com.facebook.react.bridge.NativeModule

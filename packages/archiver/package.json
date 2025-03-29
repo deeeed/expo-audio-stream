@@ -166,7 +166,12 @@
         "typescript",
         {
           "project": "tsconfig.build.json",
-          "esm": true
+          "esm": true,
+          "ignore": [
+            "**/web/WebArchiver.ts",
+            "**/ios/IOSArchiver.ts",
+            "**/android/AndroidArchiver.ts"
+          ]
         }
       ]
     ]

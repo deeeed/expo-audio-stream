@@ -1,4 +1,4 @@
-package com.siteed.archiver
+package net.siteed.archiver
 
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactMethod
