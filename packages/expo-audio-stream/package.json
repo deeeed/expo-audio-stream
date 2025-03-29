@@ -42,7 +42,7 @@
         "registry": "https://registry.npmjs.org"
     },
     "dependencies": {
-        "@siteed/expo-audio-studio": "2.2.0"
+        "@siteed/expo-audio-studio": "2.3.0"
     },
     "devDependencies": {
         "typescript": "~5.3.3"
