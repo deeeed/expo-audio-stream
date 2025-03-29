@@ -16,7 +16,7 @@ Array of transcribed text chunks with timestamps
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:96](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L96)
+[src/ExpoAudioStream.types.ts:96](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L96)
 
 ***
 
@@ -28,7 +28,7 @@ End time of the transcription in milliseconds
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:94](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L94)
+[src/ExpoAudioStream.types.ts:94](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L94)
 
 ***
 
@@ -40,7 +40,7 @@ Unique identifier for the transcription
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:86](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L86)
+[src/ExpoAudioStream.types.ts:86](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L86)
 
 ***
 
@@ -52,7 +52,7 @@ Indicates if the transcriber is currently processing
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:88](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L88)
+[src/ExpoAudioStream.types.ts:88](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L88)
 
 ***
 
@@ -64,7 +64,7 @@ Start time of the transcription in milliseconds
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:92](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L92)
+[src/ExpoAudioStream.types.ts:92](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L92)
 
 ***
 
@@ -76,4 +76,4 @@ Complete transcribed text
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:90](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L90)
+[src/ExpoAudioStream.types.ts:90](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L90)

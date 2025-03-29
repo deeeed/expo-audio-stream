@@ -18,7 +18,7 @@ The end time of the range in milliseconds.
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:479](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L479)
+[src/ExpoAudioStream.types.ts:479](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L479)
 
 ***
 
@@ -30,4 +30,4 @@ The start time of the range in milliseconds.
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:474](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L474)
+[src/ExpoAudioStream.types.ts:474](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L474)
