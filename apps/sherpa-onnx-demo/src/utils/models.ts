@@ -1,3 +1,4 @@
+import { Asset } from 'expo-asset';
 import type { ModelState as ContextModelState } from '../contexts/ModelManagement/types';
 
 /**
@@ -13,6 +14,7 @@ export type ModelType =
   | 'audio-tagging'
   | 'punctuation';
 
+export type AssetSourceType = Parameters<typeof Asset.fromModule>[0]
 export interface ModelMetadata {
   id: string;
   name: string;

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import type { ModelType } from '@siteed/sherpa-onnx.rn';
 import { useModelManagement } from '../contexts/ModelManagement/ModelManagementContext';
+import { ModelType } from '../utils/models';
 
 export interface ModelCounts {
   byType: Record<ModelType | 'all', {

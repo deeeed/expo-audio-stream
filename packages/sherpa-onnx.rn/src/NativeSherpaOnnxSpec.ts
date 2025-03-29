@@ -272,7 +272,7 @@ export interface Spec extends TurboModule {
 /**
  * Get the native module, with proper handling for different architectures and platforms
  */
-function getNativeModule(): NativeSherpaOnnxInterface | null {
+export function getNativeModule(): NativeSherpaOnnxInterface | null {
   // Web platform gets a null module (for now)
   if (Platform.OS === 'web') {
     return null;

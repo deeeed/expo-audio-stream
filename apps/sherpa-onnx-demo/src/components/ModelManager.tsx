@@ -1,22 +1,21 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+
+import * as FileSystem from 'expo-file-system';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
   Alert,
   Platform,
-  FlatList
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { ModelState, ModelMetadata } from '../contexts/ModelManagement/types';
 import { useModelManagement } from '../contexts/ModelManagement/ModelManagementContext';
+import { ModelMetadata, ModelState } from '../contexts/ModelManagement/types';
 import { formatBytes } from '../utils/formatters';
-import * as FileSystem from 'expo-file-system';
-import { Ionicons } from '@expo/vector-icons';
-import type { ModelType } from '@siteed/sherpa-onnx.rn';
-import type { ModelTypeOption } from '../types/models';
+import { ModelType } from '../utils/models';
 
 interface ModelCardProps {
   model: ModelMetadata;

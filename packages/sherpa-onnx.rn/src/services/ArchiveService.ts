@@ -1,7 +1,18 @@
 import * as FileSystem from 'expo-file-system';
-import type { ModelType } from '../types/interfaces';
 import type { ApiInterface } from '../types/api';
 
+/**
+ * Type of model supported by Sherpa-onnx
+ */
+type ModelType =
+  | 'asr'
+  | 'tts'
+  | 'vad'
+  | 'kws'
+  | 'speaker-id'
+  | 'language-id'
+  | 'audio-tagging'
+  | 'punctuation';
 interface DownloadProgress {
   totalBytesWritten: number;
   totalBytesExpectedToWrite: number;

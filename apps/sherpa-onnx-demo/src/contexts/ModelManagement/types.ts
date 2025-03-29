@@ -1,4 +1,3 @@
-import { Asset } from 'expo-asset';
 
 export type ModelStatus = 'pending' | 'downloading' | 'downloaded' | 'error' | 'extracting';
 
