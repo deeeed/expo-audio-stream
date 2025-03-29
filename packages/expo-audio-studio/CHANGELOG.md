@@ -6,10 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+
+## [2.3.0] - 2025-03-29
+### Changed
 - fix: always generate a new UUID unless filename is provided (#182) ([f98a9a5](https://github.com/deeeed/expo-audio-stream/commit/f98a9a52393829e6c4a79aee3575fbfcc9416c19))
 - refactor(audio-studio): introduce constants for silence threshold and WAV header size (#188) ([e8aa329](https://github.com/deeeed/expo-audio-stream/commit/e8aa3298bd6ba029d38898360b7df26b3fd5485f))
 - docs: enhance installation and API reference documentation for phone call handling (#187) ([fcaece1](https://github.com/deeeed/expo-audio-stream/commit/fcaece18cf046d970b9659f3f12a19deb096bceb))
-
 ## [2.2.0] - 2025-03-28
 ### Changed
 - refactor(audio-studio): implement platform-specific CRC32 handling ([b61a3d7](https://github.com/deeeed/expo-audio-stream/commit/b61a3d743914e66888ec6cc4cb8e010ff1992698))
@@ -179,7 +182,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.2.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.3.0...HEAD
+[2.3.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.2.0...@siteed/expo-audio-studio@2.3.0
 [2.2.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.1.1...@siteed/expo-audio-studio@2.2.0
 [2.1.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.1.0...@siteed/expo-audio-studio@2.1.1
 [2.1.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-stream@2.0.1...@siteed/expo-audio-stream@2.1.0
