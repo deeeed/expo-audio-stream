@@ -68,9 +68,16 @@ You can customize the plugin's behavior by providing options:
 
 #### Core Options
 - **enablePhoneStateHandling** (default: `true`): 
-  - Enables handling of phone state changes (calls, etc.)
-  - Adds telephony capabilities on iOS
-  - Adds READ_PHONE_STATE permission on Android
+  - Controls whether the app handles phone state changes (calls, etc.)
+  - When enabled (default):
+    - Adds telephony capabilities on iOS
+    - Adds READ_PHONE_STATE permission on Android
+    - Automatically pauses/resumes recording during phone calls
+    - Maintains backward compatibility with previous versions
+  - When disabled:
+    - No phone state permissions are requested
+    - Recording continues during phone calls
+    - Can be used to improve privacy by not requesting phone state permissions
 
 - **enableNotifications** (default: `true`):
   - Enables recording notifications and controls

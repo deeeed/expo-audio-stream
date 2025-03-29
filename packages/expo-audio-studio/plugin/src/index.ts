@@ -169,10 +169,9 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
 
         const optionalPermissions = [
             enableNotifications && 'android.permission.POST_NOTIFICATIONS',
-            enablePhoneStateHandling && 'android.permission.READ_PHONE_STATE',
+            enablePhoneStateHandling && 'android.permission.READ_PHONE_STATE', // Only add if enabled
             enableBackgroundAudio && 'android.permission.FOREGROUND_SERVICE',
-            enableBackgroundAudio &&
-                'android.permission.FOREGROUND_SERVICE_MICROPHONE',
+            enableBackgroundAudio && 'android.permission.FOREGROUND_SERVICE_MICROPHONE',
         ].filter(Boolean) as string[]
 
         const permissionsToAdd = [...basePermissions, ...optionalPermissions]
