@@ -27,4 +27,4 @@ A promise that resolves to the audio analysis data.
 
 ## Defined in
 
-[src/AudioAnalysis/extractAudioAnalysis.ts:222](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/AudioAnalysis/extractAudioAnalysis.ts#L222)
+[src/AudioAnalysis/extractAudioAnalysis.ts:222](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/AudioAnalysis/extractAudioAnalysis.ts#L222)

@@ -16,7 +16,7 @@ Icon to be displayed for the action (Android only)
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:354](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L354)
+[src/ExpoAudioStream.types.ts:354](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L354)
 
 ***
 
@@ -28,7 +28,7 @@ Unique identifier for the action
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:351](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L351)
+[src/ExpoAudioStream.types.ts:351](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L351)
 
 ***
 
@@ -40,4 +40,4 @@ Display title for the action
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:348](https://github.com/deeeed/expo-audio-stream/blob/848d80f7012b7408a6d37c824016aa00b78322ac/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L348)
+[src/ExpoAudioStream.types.ts:348](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L348)
