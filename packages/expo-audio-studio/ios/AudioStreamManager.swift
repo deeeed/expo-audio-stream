@@ -461,9 +461,8 @@ class AudioStreamManager: NSObject {
         let baseFilename: String
         if let existingFilename = recordingSettings?.filename {
             baseFilename = existingFilename
-        } else if let existingUUID = recordingUUID {
-            baseFilename = existingUUID.uuidString
         } else {
+            // Always create a new UUID for recording unless a filename is provided
             let newUUID = UUID()
             recordingUUID = newUUID
             baseFilename = newUUID.uuidString
