@@ -2,9 +2,11 @@
 import ExpoModulesCore
 import AVFoundation
 
-let audioDataEvent: String = "AudioData"
-let audioAnalysisEvent: String = "AudioAnalysis"
-let recordingInterruptedEvent: String = "onRecordingInterrupted"
+// Constants
+private let audioDataEvent: String = "AudioData"
+private let audioAnalysisEvent: String = "AudioAnalysis"
+private let recordingInterruptedEvent: String = "onRecordingInterrupted"
+private let DEFAULT_SEGMENT_DURATION_MS = 100
 
 public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     private var streamManager = AudioStreamManager()
@@ -60,7 +62,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             
             let features = options["features"] as? [String: Bool] ?? [:]
             let featureOptions = self.extractFeatureOptions(from: features)
-            let segmentDurationMs = options["segmentDurationMs"] as? Int ?? 100 // Default value of 100ms
+            let segmentDurationMs = options["segmentDurationMs"] as? Int ?? DEFAULT_SEGMENT_DURATION_MS // Default value of 100ms
             
             DispatchQueue.global().async(execute: {
                 do {
