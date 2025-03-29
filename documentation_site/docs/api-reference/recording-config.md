@@ -213,6 +213,12 @@ const config = {
 
 ### Platform Behavior
 
-- **iOS**: Interruptions are handled through the AVAudioSession system
-- **Android**: Interruptions are managed via AudioManager focus changes
-- **Web**: Interruptions are handled through the Web Audio API's state changes
+- **iOS**: 
+  - Interruptions are handled through the AVAudioSession system
+  - Phone call handling is enabled by default (can be disabled via `enablePhoneStateHandling: false`)
+- **Android**: 
+  - Interruptions are managed via AudioManager focus changes
+  - Phone call handling is enabled by default (can be disabled via `enablePhoneStateHandling: false`)
+- **Web**: 
+  - Interruptions are handled through the Web Audio API's state changes
+  - Phone call handling is not supported
