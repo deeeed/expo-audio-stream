@@ -37,7 +37,8 @@ class AudioRecorderManager(
     private val filesDir: File,
     private val permissionUtils: PermissionUtils,
     private val audioDataEncoder: AudioDataEncoder,
-    private val eventSender: EventSender
+    private val eventSender: EventSender,
+    private val enablePhoneStateHandling: Boolean = true
 ) {
     private var audioRecord: AudioRecord? = null
     private var bufferSizeInBytes = 0
@@ -348,8 +349,10 @@ class AudioRecorderManager(
     @RequiresApi(Build.VERSION_CODES.R)
     fun startRecording(options: Map<String, Any?>, promise: Promise) {
         try {
-            // Initialize phone state listener
-            initializePhoneStateListener()
+            // Initialize phone state listener only if enabled
+            if (enablePhoneStateHandling) {
+                initializePhoneStateListener()
+            }
 
             // Request audio focus
             if (!requestAudioFocus()) {
@@ -479,7 +482,8 @@ class AudioRecorderManager(
             return false
         }
 
-        if (!permissionUtils.checkPhoneStatePermission()) {
+        // Only check phone state permission if enabled
+        if (enablePhoneStateHandling && !permissionUtils.checkPhoneStatePermission()) {
             Log.w(Constants.TAG, "READ_PHONE_STATE permission not granted, phone call interruption handling will be disabled")
             // Don't reject here, just log warning as this is optional
         }
