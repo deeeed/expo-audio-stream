@@ -16,6 +16,7 @@ import java.util.zip.CRC32
 class ExpoAudioStreamModule : Module(), EventSender {
     private lateinit var audioRecorderManager: AudioRecorderManager
     private lateinit var audioProcessor: AudioProcessor
+    private var enablePhoneStateHandling: Boolean = true // Default to true for backward compatibility
 
     private val audioFileHandler by lazy { 
         AudioFileHandler(appContext.reactContext?.filesDir ?: throw IllegalStateException("React context not available")) 
@@ -174,9 +175,13 @@ class ExpoAudioStreamModule : Module(), EventSender {
         AsyncFunction("requestPermissionsAsync") { promise: Promise ->
             try {
                 val permissions = mutableListOf(
-                    Manifest.permission.RECORD_AUDIO,
-                    Manifest.permission.READ_PHONE_STATE
+                    Manifest.permission.RECORD_AUDIO
                 )
+
+                // Only add phone state permission if enabled
+                if (enablePhoneStateHandling) {
+                    permissions.add(Manifest.permission.READ_PHONE_STATE)
+                }
 
                 // Add foreground service permission for Android 14+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -198,9 +203,13 @@ class ExpoAudioStreamModule : Module(), EventSender {
 
         AsyncFunction("getPermissionsAsync") { promise: Promise ->
             val permissions = mutableListOf(
-                Manifest.permission.RECORD_AUDIO,
-                Manifest.permission.READ_PHONE_STATE
+                Manifest.permission.RECORD_AUDIO
             )
+
+            // Only add phone state permission if enabled
+            if (enablePhoneStateHandling) {
+                permissions.add(Manifest.permission.READ_PHONE_STATE)
+            }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 permissions.add(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
@@ -714,20 +723,18 @@ class ExpoAudioStreamModule : Module(), EventSender {
     }
 
     private fun initializeManager() {
-        val androidContext =
-            appContext.reactContext ?: throw IllegalStateException("Android context not available")
-        val permissionUtils = PermissionUtils(androidContext)
-        val audioEncoder = AudioDataEncoder()
-        audioRecorderManager =
-            AudioRecorderManager(androidContext, androidContext.filesDir, permissionUtils, audioEncoder, this)
-        audioRecorderManager = AudioRecorderManager.initialize(
-            androidContext,
-            androidContext.filesDir,
+        val filesDir = appContext.reactContext?.filesDir ?: throw IllegalStateException("React context not available")
+        val permissionUtils = PermissionUtils(appContext.reactContext!!)
+        val audioDataEncoder = AudioDataEncoder()
+        audioRecorderManager = AudioRecorderManager(
+            appContext.reactContext!!,
+            filesDir,
             permissionUtils,
-            audioEncoder,
-            this
+            audioDataEncoder,
+            this,
+            enablePhoneStateHandling
         )
-        audioProcessor = AudioProcessor(androidContext.filesDir)
+        audioProcessor = AudioProcessor(filesDir)
     }
 
 

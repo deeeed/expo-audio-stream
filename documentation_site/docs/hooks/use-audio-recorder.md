@@ -160,5 +160,35 @@ The `startRecording` function accepts a configuration object with the following 
 | `onRecordingInterrupted` | `(event: RecordingInterruptionEvent) => void` | Callback for recording interruptions |
 | `autoResumeAfterInterruption` | `boolean` | Whether to automatically resume recording after an interruption |
 
+### Phone Call Handling
+
+Phone call handling is controlled by the `enablePhoneStateHandling` option in your app's plugin configuration. By default, it is enabled to maintain backward compatibility with previous versions:
+
+```json
+{
+    "expo": {
+        "plugins": [
+            [
+                "@siteed/expo-audio-studio",
+                {
+                    "enablePhoneStateHandling": true  // Default value
+                }
+            ]
+        ]
+    }
+}
+```
+
+When enabled (default):
+- The app will automatically pause recording during phone calls
+- Recording will resume after the call ends (if `autoResumeAfterInterruption` is true)
+- The `onRecordingInterrupted` callback will receive `phoneCall` and `phoneCallEnded` events
+- Maintains backward compatibility with previous versions
+
+When disabled:
+- Recording will continue during phone calls
+- No phone state permissions are requested
+- Can be used to improve privacy by not requesting phone state permissions
+
 For more detailed examples, see the [Standalone Recording](../usage/standalone-recording.md) documentation.
 
