@@ -5,19 +5,6 @@ import { ArchiveService } from '../services/ArchiveService';
 import { SpeakerIdService } from '../services/SpeakerIdService';
 
 /**
- * Type of model supported by Sherpa-onnx
- */
-export type ModelType =
-  | 'asr'
-  | 'tts'
-  | 'vad'
-  | 'kws'
-  | 'speaker-id'
-  | 'language-id'
-  | 'audio-tagging'
-  | 'punctuation';
-
-/**
  * Configuration options for Sherpa-onnx
  */
 export interface SherpaOnnxConfig {

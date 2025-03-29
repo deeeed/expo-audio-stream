@@ -1,4 +1,3 @@
-import type { ModelType } from '@siteed/sherpa-onnx.rn';
 import * as FileSystem from 'expo-file-system';
 import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
@@ -10,6 +9,7 @@ import { ViewModeSelector } from '../../components/ViewModeSelector';
 import { useModelManagement } from '../../contexts/ModelManagement/ModelManagementContext';
 import { useModelCounts } from '../../hooks/useModelCounts';
 import type { ViewMode } from '../../types/models';
+import { ModelType } from '../../utils/models';
 
 export default function ModelsScreen() {
   const [selectedType, setSelectedType] = useState<ModelType | 'all'>('all');

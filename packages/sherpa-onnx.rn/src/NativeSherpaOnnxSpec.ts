@@ -1,4 +1,4 @@
-import type { TurboModule } from 'react-native/Libraries/TurboModule/RCTExport';
+import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry, NativeModules, Platform } from 'react-native';
 import type { NativeSherpaOnnxInterface } from './types/interfaces';
 

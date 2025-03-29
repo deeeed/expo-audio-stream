@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AVAILABLE_MODELS, type ModelMetadata } from '@siteed/sherpa-onnx.rn/src/config/models';
 import * as FileSystem from 'expo-file-system';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { extractModelFromAssets, extractTarBz2 } from '../../utils/archiveUtils';
-import type { ModelManagementContextType, ModelManagementProviderProps, ModelState, ModelStatus } from './types';
+import { extractTarBz2 } from '../../utils/archiveUtils';
+import { AVAILABLE_MODELS } from '../../utils/models';
+import type { ModelManagementContextType, ModelManagementProviderProps, ModelMetadata, ModelState, ModelStatus } from './types';
 
 const ModelManagementContext = createContext<ModelManagementContextType | undefined>(undefined);
 
