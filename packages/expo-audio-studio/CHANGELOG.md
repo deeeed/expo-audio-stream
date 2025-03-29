@@ -6,17 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+- fix: always generate a new UUID unless filename is provided (#182) ([f98a9a5](https://github.com/deeeed/expo-audio-stream/commit/f98a9a52393829e6c4a79aee3575fbfcc9416c19))
+- refactor(audio-studio): introduce constants for silence threshold and WAV header size (#188) ([e8aa329](https://github.com/deeeed/expo-audio-stream/commit/e8aa3298bd6ba029d38898360b7df26b3fd5485f))
+- docs: enhance installation and API reference documentation for phone call handling (#187) ([fcaece1](https://github.com/deeeed/expo-audio-stream/commit/fcaece18cf046d970b9659f3f12a19deb096bceb))
 
 ## [2.2.0] - 2025-03-28
 ### Changed
 - refactor(audio-studio): implement platform-specific CRC32 handling ([b61a3d7](https://github.com/deeeed/expo-audio-stream/commit/b61a3d743914e66888ec6cc4cb8e010ff1992698))
 - chore: update Expo dependencies and remove invalid design-system version ([16e5007](https://github.com/deeeed/expo-audio-stream/commit/16e50077690b55977c22fbcb08be75834146ff47))
 - fix: linting issues ([741589d](https://github.com/deeeed/expo-audio-stream/commit/741589d60485a2d049e7adf529d3fd2b999fa098))
-- feat: Enhance Audio Processing and Transcription Capabilities in Playground App (#171) ([1ec6026](https://github.com/deeeed/expo-audio-stream/commit/1ec6026ff75fc3ff7122b5df72e8dcd15ce848bd))
-- feat: Enhance Essentia Integration with iOS and Android Build Improvements (#169) ([422fd50](https://github.com/deeeed/expo-audio-stream/commit/422fd501a5ec71f30df660d56559bc410084b797))
-- feat: Enhance Audio Analysis with Mel Spectrogram Comparison and Pipeline Support (#164) ([541e13c](https://github.com/deeeed/expo-audio-stream/commit/541e13c6e01b8ff9947bc69dc7c29ffed6d8ee07))
-- feat: Integrate Essentia Audio Analysis Library into React Native for Android (#163) ([4cac310](https://github.com/deeeed/expo-audio-stream/commit/4cac310e4af47ddda528dee0f2840e3a336c6823))
 - chore(expo-audio-studio): release @siteed/expo-audio-studio@2.1.1 ([1b17ac6](https://github.com/deeeed/expo-audio-stream/commit/1b17ac6e103f2ca50f29668b3ddaaf57a4b4b7d3))
 ## [2.1.1] - 2025-03-04
 ### Changed
