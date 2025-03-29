@@ -5,6 +5,9 @@ import Accelerate
 import AVFoundation
 import QuartzCore
 
+// Constants
+private let SILENCE_THRESHOLD_RMS: Float = 0.01
+
 public struct TrimResult {
     let uri: String
     let filename: String
@@ -416,7 +419,7 @@ public class AudioProcessor {
     ) -> DataPoint {
         let sumSquares: Float = segment.reduce(0) { $0 + $1 * $1 }
         let rms = sqrt(sumSquares / Float(segment.count))
-        let silent = rms < 0.01
+        let silent = rms < SILENCE_THRESHOLD_RMS
         let dB = Float(20 * log10(Double(rms)))
         
         let features = computeFeatures(
@@ -590,7 +593,7 @@ public class AudioProcessor {
                     amplitude: localMax,      // Always use peak amplitude
                     rms: rms,                // Use calculated RMS value
                     dB: Float(20 * log10(Double(rms))),  // Use RMS for dB calculation
-                    silent: rms < 0.01,      // Use RMS for silence detection
+                    silent: rms < SILENCE_THRESHOLD_RMS,      // Use RMS for silence detection
                     features: computeFeatures(
                         segmentData: Array(UnsafeBufferPointer(start: summedData, count: Int(framesToRead))),
                         sampleRate: sampleRate,
@@ -599,7 +602,7 @@ public class AudioProcessor {
                         segmentLength: Int(framesToRead),
                         featureOptions: featureOptions
                     ),
-                    speech: SpeechFeatures(isActive: rms >= 0.01),
+                    speech: SpeechFeatures(isActive: rms >= SILENCE_THRESHOLD_RMS),
                     startTime: startTime,
                     endTime: endTime,
                     startPosition: Int(currentFrame),
@@ -1229,7 +1232,7 @@ public class AudioProcessor {
                                             featureOptions: featureOptions)
                 
                 let rms = features.rms
-                let silent = rms < 0.01
+                let silent = rms < SILENCE_THRESHOLD_RMS
                 let dB = Float(20 * log10(Double(rms)))
                 
                 let dataPoint = DataPoint(
