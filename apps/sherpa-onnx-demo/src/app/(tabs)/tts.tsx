@@ -19,11 +19,9 @@ import { useModelManagement } from '../../contexts/ModelManagement';
 
 // Default sample text for TTS
 const DEFAULT_TEXT = "Hello, this is a test of the Sherpa Onnx TTS system. I hope you're having a great day!";
-
 // Extended TTS result with accessible path
-interface ExtendedTtsResult extends Omit<TtsGenerateResult, 'numSamples'> {
+interface ExtendedTtsResult extends TtsGenerateResult {
   accessiblePath?: string;
-  numSamples?: number;
 }
 
 // Helper function to verify file existence

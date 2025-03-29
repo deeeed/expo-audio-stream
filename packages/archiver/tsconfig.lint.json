@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": [
+    "node_modules",
+    "lib",
+    "build",
+    "prebuilt",
+    "third_party",
+    "**/__tests__",
+    "**/__fixtures__",
+    "**/__mocks__",
+    "**/.*",
+    "**/*.d.ts",
+    "js-untar.d.ts",
+    "**/*.ts.map",
+    "ios/build",
+    "android/build",
+    "src/web/WebArchiver.ts",
+    "example"
+  ]
+}

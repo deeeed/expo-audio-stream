@@ -1,0 +1,19 @@
+# Dependency directories
+node_modules/
+.yarn/
+
+# Build outputs
+lib/
+build/
+prebuilt/
+ios/build/
+android/build/
+
+# Third-party code
+third_party/
+**/third_party/
+**/vendor/
+
+# Generated files
+*.d.ts
+js-untar.d.ts
