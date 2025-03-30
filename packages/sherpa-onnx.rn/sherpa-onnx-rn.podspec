@@ -21,7 +21,8 @@ Pod::Spec.new do |s|
   base_source_files = [
     "ios/*.{h,m,mm,swift}", 
     "ios/bridge/*.{h,m,mm,swift}", 
-    "ios/native/*.{h,m,mm,swift}"
+    "ios/native/*.{h,m,mm,swift}",
+    "ios/utils/*.{h,m,mm,swift}"
   ]
 
   # New architecture specific source files
@@ -86,7 +87,7 @@ Pod::Spec.new do |s|
   # Base pod target xcconfig
   pod_target_xcconfig = {
     "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
-    "OTHER_LDFLAGS" => "-framework CoreML -framework Accelerate -framework CoreVideo",
+    "OTHER_LDFLAGS" => "-framework CoreML -framework Accelerate -framework CoreVideo -lbz2",
     "DEFINES_MODULE" => "YES",
     "SWIFT_OBJC_BRIDGING_HEADER" => "",
     "SWIFT_INSTALL_OBJC_HEADER" => "YES",

@@ -5,6 +5,9 @@
 // Include Swift interop header
 #import "sherpa-onnx-rn-Swift.h"
 
+// Import our archive extractor
+#import "SherpaOnnxArchiveExtractor.h"
+
 #ifdef RCT_NEW_ARCH_ENABLED
 // Import TurboModule headers
 #import <ReactCommon/TurboModule.h>
@@ -43,6 +46,29 @@ RCT_EXPORT_METHOD(testOnnxIntegration:(RCTPromiseResolveBlock)resolve
     SherpaOnnxTester *tester = [[SherpaOnnxTester alloc] init];
     [tester testIntegration:^(NSDictionary *result) {
         resolve(result);
+    }];
+}
+
+// MARK: - Archive Methods
+
+// Extract a tar.bz2 file to a target directory
+RCT_EXPORT_METHOD(extractTarBz2:(NSString *)sourcePath
+                  targetDir:(NSString *)targetDir
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+    
+    [SherpaOnnxArchiveExtractor extractTarBz2:sourcePath targetDir:targetDir completion:^(SherpaOnnxExtractionResult *result) {
+        if (result.success) {
+            // Create result dictionary for JS
+            NSDictionary *resultDict = @{
+                @"success": @(result.success),
+                @"message": result.message,
+                @"extractedFiles": result.extractedFiles
+            };
+            resolve(resultDict);
+        } else {
+            reject(@"extract_error", result.message, nil);
+        }
     }];
 }
 
