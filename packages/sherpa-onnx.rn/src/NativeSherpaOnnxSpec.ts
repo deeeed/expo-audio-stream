@@ -25,20 +25,6 @@ export interface Spec extends TurboModule {
     success: boolean;
   }>;
 
-  // Basic methods
-  createRecognizer(config: {
-    modelPath?: string;
-    sampleRate?: number;
-    numThreads?: number;
-    debug?: boolean;
-    featureDim?: number;
-    beamSize?: number;
-    beamThreshold?: number;
-    language?: string;
-    enableEndpoint?: boolean;
-    enableNonStreaming?: boolean;
-  }): Promise<{ success: boolean }>;
-
   // TTS methods
   initTts(config: {
     modelDir: string;

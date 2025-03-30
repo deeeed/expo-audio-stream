@@ -15,6 +15,17 @@ export type ModelType =
   | 'punctuation';
 
 export type AssetSourceType = Parameters<typeof Asset.fromModule>[0]
+
+// Define DependencyMetadata interface
+export interface DependencyMetadata {
+  id: string;
+  name: string;
+  type: string;
+  url: string;
+  size: number;
+  description: string;
+}
+
 export interface ModelMetadata {
   id: string;
   name: string;
@@ -24,14 +35,20 @@ export interface ModelMetadata {
   url: string;
   version: string;
   language: string;
-  dependencies?: Array<{
-    id: string;
-    name: string;
-    type: string;
-    url: string;
-    size: number;
-    description: string;
-  }>;
+  // Use the new DependencyMetadata interface
+  dependencies?: Array<DependencyMetadata>;
+  ttsParams?: TtsParams;
+}
+
+export interface TtsParams {
+  ttsModelType: 'vits' | 'kokoro' | 'matcha';
+  modelFile: string; // The primary ONNX model file name expected by the native side
+  tokensFile: string; // Usually tokens.txt
+  voicesFile?: string; // e.g., voices.bin for Kokoro, maps to vocoder for Matcha on Android
+  lexiconFile?: string; // e.g., lexicon.txt for VITS
+  dataDir?: string; // Relative path to espeak-ng-data if needed (will be joined with modelDir by native code)
+  vocoderFile?: string; // Specific vocoder file for Matcha
+  acousticModelFile?: string; // The actual acoustic model file name for Matcha (might differ from modelFile)
 }
 
 export const AVAILABLE_MODELS: ModelMetadata[] = [
@@ -45,7 +62,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     size: 103 * 1024 * 1024, // 103 MB
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile.tar.bz2',
     version: '2023-02-17',
-    language: 'en',
+    language: 'en'
   },
 
   {
@@ -119,6 +136,12 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-icefall-en_US-ljspeech-low.tar.bz2',
     version: 'low',
     language: 'en',
+    ttsParams: {
+      ttsModelType: 'vits',
+      modelFile: 'model.onnx', // Assuming model file name matches archive root
+      tokensFile: 'tokens.txt',
+      dataDir: 'espeak-ng-data', // Renamed field
+    },
   },
 
   {
@@ -131,6 +154,13 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-ljspeech-medium.tar.bz2',
     version: 'medium',
     language: 'en',
+    ttsParams: {
+      ttsModelType: 'vits',
+      modelFile: 'en_US-ljspeech-medium.onnx', // Assuming model file name matches archive root
+      tokensFile: 'tokens.txt',
+      lexiconFile: 'lexicon.txt',
+      dataDir: 'espeak-ng-data', // Renamed field
+    },
   },
 
   {
@@ -143,6 +173,13 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-libritts-high.tar.bz2',
     version: 'high',
     language: 'en',
+    ttsParams: {
+      ttsModelType: 'vits',
+      modelFile: 'en_US-libritts-high.onnx', // Assuming model file name matches archive root
+      tokensFile: 'tokens.txt',
+      lexiconFile: 'lexicon.txt',
+      dataDir: 'espeak-ng-data', // Renamed field
+    },
   },
 
   {
@@ -155,6 +192,13 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2',
     version: '0.19',
     language: 'en',
+    ttsParams: {
+      ttsModelType: 'kokoro',
+      modelFile: 'model.onnx', // Kokoro usually uses a generic model.onnx name
+      tokensFile: 'tokens.txt',
+      voicesFile: 'voices.bin',
+      dataDir: 'espeak-ng-data', // Renamed field
+    },
   },
 
   {
@@ -167,6 +211,16 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/matcha-icefall-en_US-ljspeech.tar.bz2',
     version: '1.0',
     language: 'en',
+    ttsParams: {
+      ttsModelType: 'matcha',
+      modelFile: 'model.onnx', // Expected by native module (Android fix might apply)
+      acousticModelFile: 'model-steps-3.onnx', // The actual acoustic model file
+      tokensFile: 'tokens.txt',
+      vocoderFile: 'vocos-22khz-univ.onnx', // Needs to be present (dependency)
+      dataDir: 'espeak-ng-data', // Renamed field
+      // Map vocoder to voicesFile for Android compatibility layer
+      voicesFile: 'vocos-22khz-univ.onnx',
+    },
     dependencies: [
       {
         id: 'vocos-vocoder',

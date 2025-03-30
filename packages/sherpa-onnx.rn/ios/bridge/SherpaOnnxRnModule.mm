@@ -150,13 +150,16 @@ RCT_EXPORT_METHOD(releaseAsr:(RCTPromiseResolveBlock)resolve
 
 // MARK: - TTS Methods
 
-// Initialize the TTS engine with a given configuration
+
 RCT_EXPORT_METHOD(initTts:(NSDictionary *)config
                  resolve:(RCTPromiseResolveBlock)resolve
                  reject:(RCTPromiseRejectBlock)reject)
 {
+    RCTLogInfo(@"[SherpaOnnxRnModule.mm] initTts entered.");
     @try {
-        NSDictionary *result = [self.ttsHandler initTts:config];
+        RCTLogInfo(@"[SherpaOnnxRnModule.mm] Calling Swift ttsHandler.initTts...");
+        NSDictionary *result = [self.ttsHandler initTts:config]; // Directly pass the dictionary
+        RCTLogInfo(@"[SherpaOnnxRnModule.mm] Swift ttsHandler.initTts returned: %@", result);
         if ([result[@"success"] boolValue]) {
             resolve(result);
         } else {
@@ -167,13 +170,12 @@ RCT_EXPORT_METHOD(initTts:(NSDictionary *)config
     }
 }
 
-// Generate speech from text
 RCT_EXPORT_METHOD(generateTts:(NSDictionary *)config
                    resolve:(RCTPromiseResolveBlock)resolve
                    reject:(RCTPromiseRejectBlock)reject)
 {
     @try {
-        NSDictionary *result = [self.ttsHandler generateTts:config];
+        NSDictionary *result = [self.ttsHandler generateTts:config]; // Directly pass dict
         if ([result[@"success"] boolValue]) {
             resolve(result);
         } else {
@@ -206,36 +208,6 @@ RCT_EXPORT_METHOD(releaseTts:(RCTPromiseResolveBlock)resolve
     } @catch (NSException *exception) {
         reject(@"ERR_TTS_RELEASE", exception.reason, nil);
     }
-}
-
-// MARK: - Compatibility Methods (Deprecated)
-
-// Backward compatibility with old recognizer API (deprecated)
-RCT_EXPORT_METHOD(createRecognizer:(NSDictionary *)config
-                  resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject)
-{
-    // Warning log that this method is deprecated
-    RCTLogWarn(@"createRecognizer is deprecated. Please use initAsr instead.");
-    
-    // Convert old config format to new format
-    NSMutableDictionary *newConfig = [NSMutableDictionary dictionaryWithDictionary:config];
-    newConfig[@"streaming"] = @YES; // Old API only supported streaming
-    
-    dispatch_async(dispatch_get_main_queue(), ^{
-#ifdef RCT_NEW_ARCH_ENABLED
-        NSDictionary *configDict = newConfig;
-#else
-        NSDictionary *configDict = newConfig;
-#endif
-        NSDictionary *result = [self.asrHandler initAsr:configDict];
-        if ([result[@"success"] boolValue]) {
-            // The old API just returned {success: true}
-            resolve(@{@"success": @YES});
-        } else {
-            reject(@"create_error", result[@"error"] ?: @"Failed to create recognizer", nil);
-        }
-    });
 }
 
 // In the new architecture, we need to implement these additional methods

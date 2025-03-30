@@ -13,9 +13,9 @@ import {
   View
 } from 'react-native';
 import { useModelManagement } from '../contexts/ModelManagement/ModelManagementContext';
-import { ModelMetadata, ModelState } from '../contexts/ModelManagement/types';
+import { ModelState } from '../contexts/ModelManagement/types';
 import { formatBytes } from '../utils/formatters';
-import { ModelType } from '../utils/models';
+import { ModelType, type ModelMetadata, type DependencyMetadata } from '../utils/models';
 
 interface ModelCardProps {
   model: ModelMetadata;
@@ -361,7 +361,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
       {isExpanded && hasDependencies && (
         <View style={cardStyles.dependenciesContainer}>
           <Text style={cardStyles.dependenciesTitle}>Dependencies:</Text>
-          {model.dependencies?.map((dependency) => (
+          {model.dependencies?.map((dependency: DependencyMetadata) => (
             <View key={dependency.id} style={cardStyles.dependencyItem}>
               <Text style={cardStyles.dependencyName}>{dependency.name}</Text>
               <Text style={cardStyles.dependencyDescription}>{dependency.description}</Text>
@@ -386,15 +386,16 @@ const ModelCard: React.FC<ModelCardProps> = ({
       <View style={cardStyles.cardActions}>
         {isDownloaded ? (
           <>
-            <TouchableOpacity
+            {/* Remove the Select button */}
+            {/* <TouchableOpacity
               style={[cardStyles.button, cardStyles.selectButton]}
               onPress={onSelect}
             >
               <Text style={cardStyles.buttonText}>
                 {isSelected ? 'Selected' : 'Select'}
               </Text>
-            </TouchableOpacity>
-            
+            </TouchableOpacity> */}
+
             <TouchableOpacity
               style={[cardStyles.button, cardStyles.infoButton]}
               onPress={toggleShowFiles}
@@ -444,7 +445,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
     deleteModel,
     isModelDownloaded,
     refreshModelStatus,
-    models: modelStates,
+    modelsState,
     cancelDownload
   } = useModelManagement();
 
@@ -454,7 +455,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
 
   // Get models once on mount
   const availableModels = useMemo(() => getAvailableModels(), []);
-  const downloadedModels = useMemo(() => getDownloadedModels(), [modelStates]);
+  const downloadedModels = useMemo(() => getDownloadedModels(), [modelsState]);
 
   // Filter models based on type
   const filteredAvailableModels = useMemo(() => 
@@ -468,7 +469,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
     filterType === 'all'
       ? downloadedModels
       : downloadedModels.filter((model: ModelState) => model.metadata.type === filterType),
-    [downloadedModels, filterType]
+    [modelsState, filterType]
   );
 
   // Memoize handlers
@@ -535,7 +536,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
             </View>
           ) : (
             filteredDownloadedModels.map((model: ModelState) => {
-              const currentState = modelStates[model.metadata.id];
+              const currentState = modelsState[model.metadata.id];
               return (
                 <ModelCard
                   key={model.metadata.id}
@@ -571,7 +572,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
             </View>
           ) : (
             filteredAvailableModels.map((model: ModelMetadata) => {
-              const currentState = modelStates[model.id];
+              const currentState = modelsState[model.id];
               return (
                 <ModelCard
                   key={model.id}

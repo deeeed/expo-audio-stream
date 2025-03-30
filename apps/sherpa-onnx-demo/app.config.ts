@@ -32,7 +32,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
-    newArchEnabled: true,
+    newArchEnabled: false,
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
@@ -77,7 +77,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             "extraProguardRules": "-keep class com.facebook.hermes.unicode.** { *; }",
             "extraMavenRepos": ["https://www.jitpack.io"],
             "gradleProperties": {
-              "org.gradle.jvmargs": "-Xmx2048m"
+              "org.gradle.jvmargs": "-Xmx2048m",
+              "reactNativeDevServerPort": process.env.DEV_SERVER_PORT || "7500"
             }
           }
         }

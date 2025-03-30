@@ -18,23 +18,13 @@ export default function ModelsScreen() {
   const [selectedModelPath, setSelectedModelPath] = useState<string | null>(null);
   
   const modelCounts = useModelCounts(selectedType);
-  const { refreshModelStatus, getAvailableModels } = useModelManagement();
+  const { getAvailableModels } = useModelManagement();
 
-  // Refresh all model statuses on mount
-  useEffect(() => {
-    const refreshAllModels = async () => {
-      try {
-        const models = getAvailableModels();
-        for (const model of models) {
-          await refreshModelStatus(model.id);
-        }
-      } catch (error) {
-        console.error('Error refreshing model statuses:', error);
-      }
-    };
-    
-    refreshAllModels();
-  }, []);
+  // --- Temporary Safeguard for modelCounts ---
+  const safeAvailableCount = modelCounts?.filtered?.available ?? 0;
+  const safeDownloadedCount = modelCounts?.filtered?.downloaded ?? 0;
+  const safeByTypeCounts = modelCounts?.byType ?? {};
+  // --- End Safeguard ---
 
   const handleModelBrowse = async (modelPath: string) => {
     try {
@@ -113,14 +103,14 @@ export default function ModelsScreen() {
       <ModelTypeSelector
         selectedType={selectedType}
         onSelectType={setSelectedType}
-        modelCounts={modelCounts.byType}
+        modelCounts={safeByTypeCounts}
       />
 
       <ViewModeSelector
         viewMode={viewMode}
         onSelectMode={setViewMode}
-        availableCount={modelCounts.filtered.available}
-        downloadedCount={modelCounts.filtered.downloaded}
+        availableCount={safeAvailableCount}
+        downloadedCount={safeDownloadedCount}
       />
 
       <View style={styles.modelManagerContainer}>

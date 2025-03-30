@@ -19,10 +19,6 @@ import { useModelManagement } from '../../contexts/ModelManagement';
 
 // Default sample text for TTS
 const DEFAULT_TEXT = "Hello, this is a test of the Sherpa Onnx TTS system. I hope you're having a great day!";
-// Extended TTS result with accessible path
-interface ExtendedTtsResult extends TtsGenerateResult {
-  accessiblePath?: string;
-}
 
 // Helper function to verify file existence
 const verifyFileExists = async (filePath: string): Promise<boolean> => {
@@ -140,11 +136,13 @@ export default function TtsScreen() {
   // TTS state variables
   const [ttsInitialized, setTtsInitialized] = useState(false);
   const [initResult, setInitResult] = useState<TtsInitResult | null>(null);
-  const [ttsResult, setTtsResult] = useState<ExtendedTtsResult | null>(null);
+  const [ttsResult, setTtsResult] = useState<TtsGenerateResult | null>(null);
   const [speakerId, setSpeakerId] = useState(0);
   const [speakingRate, setSpeakingRate] = useState(1.0);
   const [debugMode, setDebugMode] = useState(false);
   const [autoPlay, setAutoPlay] = useState(true);
+  // Add state for visualizing config
+  const [configToVisualize, setConfigToVisualize] = useState<TtsModelConfig | null>(null);
 
   const {
     getDownloadedModels,
@@ -193,427 +191,86 @@ export default function TtsScreen() {
 
     try {
       const modelState = getModelState(selectedModelId);
-      if (!modelState?.localPath) {
-        throw new Error('Model files not found locally');
+      const modelMetadata = availableModels.find(m => m.metadata.id === selectedModelId)?.metadata;
+
+      // --- Add detailed logging before the check ---
+      console.log('[DEBUG] Checking model validity:');
+      console.log(`  - modelState found: ${!!modelState}`);
+      console.log(`  - modelState.localPath: ${modelState?.localPath}`);
+      console.log(`  - modelMetadata found: ${!!modelMetadata}`);
+      console.log(`  - modelMetadata.type: ${modelMetadata?.type}`);
+      console.log(`  - modelMetadata has ttsParams: ${!!modelMetadata?.ttsParams}`);
+      console.log(`  - modelMetadata.ttsParams content:`, modelMetadata?.ttsParams); // Log the content too
+      // --- End detailed logging ---
+
+      if (!modelState?.localPath || !modelMetadata || modelMetadata.type !== 'tts' || !modelMetadata.ttsParams) {
+        throw new Error('Selected model is not a valid TTS model or files not found locally.');
       }
 
-      // Log the path for debugging
-      console.log(`Model path from state: ${modelState.localPath}`);
+      const ttsParams = modelMetadata.ttsParams;
+
+      // Use the cleaned path (without file://) for FileSystem operations and native module
+      const cleanLocalPath = modelState.localPath.replace('file://', '');
+      console.log(`Using model directory: ${cleanLocalPath}`);
+
+      // --- Start Simplified Configuration --- 
+
+      const modelConfig: TtsModelConfig = {
+        modelDir: cleanLocalPath,
+        numThreads: 2,
+        debug: debugMode,
+        modelType: ttsParams.ttsModelType, // Use pre-defined model type
+        modelFile: ttsParams.modelFile,   // Use pre-defined model file name
+        tokensFile: ttsParams.tokensFile, // Use pre-defined tokens file name
+        // Pass the dataDir (expected to be relative) from ttsParams
+        dataDir: ttsParams.dataDir, 
+      };
+
+      // Add optional VITS parameters if present in metadata
+      if (ttsParams.ttsModelType === 'vits') {
+        if (ttsParams.lexiconFile) {
+          modelConfig.lexicon = ttsParams.lexiconFile; // Pass relative name
+        }
+        // Set default VITS noise/length scales (can be overridden per-generation)
+        modelConfig.noiseScale = 0.667;
+        modelConfig.noiseScaleW = 0.8;
+        modelConfig.lengthScale = 1.0;
+      } 
       
-      // Ensure the path has the file:// prefix for Android
-      let localPath = modelState.localPath.startsWith('file://') 
-        ? modelState.localPath 
-        : `file://${modelState.localPath}`;
+      // Add optional Kokoro parameters
+      else if (ttsParams.ttsModelType === 'kokoro') {
+        if (ttsParams.voicesFile) {
+          modelConfig.voices = ttsParams.voicesFile; // Pass relative name
+        }
+      } 
       
-      const cleanPath = localPath.replace('file://', '');
-      console.log(`Using base local path: ${localPath}`);
-      
-      // Check if directory exists
-      const dirInfo = await FileSystem.getInfoAsync(localPath);
-      console.log(`Directory exists: ${dirInfo.exists}, isDirectory: ${dirInfo.isDirectory ?? false}`);
-      
-      if (!dirInfo.exists) {
-        throw new Error(`Model directory does not exist. Please download the model again.`);
+      // Add optional Matcha parameters
+      else if (ttsParams.ttsModelType === 'matcha') {
+        if (ttsParams.acousticModelFile) {
+          // Pass relative name
+          modelConfig.acousticModelName = ttsParams.acousticModelFile; 
+        }
+        if (ttsParams.vocoderFile) {
+          modelConfig.vocoder = ttsParams.vocoderFile; // Pass relative name
+          // Android maps 'voices' to 'vocoder' internally for Matcha
+          modelConfig.voices = ttsParams.vocoderFile; // Pass relative name
+        }
       }
       
-      try {
-        // Get the files in the base directory
-        let files: string[] = [];
-        try {
-          files = await FileSystem.readDirectoryAsync(localPath);
-          console.log(`Files in directory: ${files.join(', ')}`);
-        } catch (readError) {
-          console.error(`Error reading directory: ${localPath}`, readError);
-          files = [];
-        }
-        
-        // Additional directory structure check
-        if (files.length === 0) {
-          console.warn(`No files found in directory: ${localPath}. Checking parent directory...`);
-          
-          // Try going up one level (sometimes localPath already points to a subdirectory)
-          const parentPathComponents = localPath.split('/');
-          parentPathComponents.pop(); // Remove the last component
-          const parentPath = parentPathComponents.join('/');
-          
-          console.log(`Trying parent path: ${parentPath}`);
-          
-          try {
-            const parentFiles = await FileSystem.readDirectoryAsync(parentPath);
-            console.log(`Files in parent directory: ${parentFiles.join(', ')}`);
-            
-            // If parent directory has files, use that instead
-            if (parentFiles.length > 0) {
-              localPath = parentPath;
-              files = parentFiles;
-              console.log(`Using parent directory: ${localPath}`);
-            }
-          } catch (parentReadError) {
-            console.error(`Error reading parent directory: ${parentPath}`, parentReadError);
-          }
-        }
-        
-        // Get model metadata to determine model type and required files
-        const modelType = modelState.metadata?.type || 'unknown';
-        console.log(`Model type: ${modelType}`);
-        
-        // Get model ID to determine specific TTS model type
-        const modelId = modelState.metadata?.id || '';
-        console.log(`Model ID: ${modelId}`);
-        
-        // Infer TTS model subtype from the model ID
-        let ttsModelType = 'vits'; // Default to VITS
-        if (modelId.includes('kokoro')) {
-          ttsModelType = 'kokoro';
-        } else if (modelId.includes('matcha')) {
-          ttsModelType = 'matcha';
-        }
-        console.log(`Detected TTS model subtype: ${ttsModelType}`);
-        
-        // Define required files based on model type and subtype
-        let requiredFiles: string[] = [];
-        
-        // For TTS models, required files depend on the specific TTS model type
-        if (modelType === 'tts') {
-          if (ttsModelType === 'kokoro') {
-            requiredFiles = ['model.onnx', 'voices.bin', 'tokens.txt'];
-          } else if (ttsModelType === 'matcha') {
-            requiredFiles = ['acoustic_model.onnx', 'model-steps-3.onnx', 'tokens.txt'];
-          } else {
-            // VITS models
-            requiredFiles = ['model.onnx', 'tokens.txt'];
-          }
-        } 
-        // For ASR models, we look for encoder, decoder, joiner files and tokens.txt
-        else if (modelType === 'asr') {
-          requiredFiles = ['encoder', 'decoder', 'joiner', 'tokens.txt'];
-        }
-        // Default case - attempt to find any ONNX file
-        else {
-          // If model type isn't explicitly known, search for any .onnx files
-          const onnxFiles = files.filter(file => file.endsWith('.onnx'));
-          if (onnxFiles.length > 0) {
-            requiredFiles = [onnxFiles[0]]; // Use the first ONNX file found
-            console.log(`Found ONNX file: ${onnxFiles[0]}`);
-          } else {
-            // No ONNX files found
-            throw new Error('No ONNX model files found in the downloaded model directory');
-          }
-        }
-        
-        let finalPath = localPath;
-        let modelFilesFound = false;
-        let foundModelFiles: Record<string, string> = {};
-        
-        // Enhanced file search: Check in all subdirectories if needed
-        const searchModelFilesInAllDirs = async (startPath: string): Promise<boolean> => {
-          console.log(`Searching for model files in: ${startPath}`);
-          const searchQueue = [startPath];
-          const visited = new Set<string>();
-          
-          while (searchQueue.length > 0) {
-            const currentPath = searchQueue.shift()!;
-            
-            if (visited.has(currentPath)) {
-              continue;
-            }
-            visited.add(currentPath);
-            
-            try {
-              console.log(`Checking directory: ${currentPath}`);
-              const dirFiles = await FileSystem.readDirectoryAsync(currentPath);
-              console.log(`Files found: ${dirFiles.join(', ')}`);
-              
-              // Check if this directory has the required files
-              let matchesFound = 0;
-              
-              for (const req of requiredFiles) {
-                // Special handling for matcha model which can have either acoustic_model.onnx
-                // or model-steps-3.onnx
-                if (ttsModelType === 'matcha' && 
-                   (req === 'acoustic_model.onnx' || req === 'model-steps-3.onnx')) {
-                  // Check for either file
-                  const matchingFile = dirFiles.find(file => 
-                    file === 'acoustic_model.onnx' || 
-                    file === 'model-steps-3.onnx' || 
-                    file === 'model.onnx');
-                  
-                  if (matchingFile) {
-                    matchesFound++;
-                    foundModelFiles[req] = `${currentPath}/${matchingFile}`;
-                    console.log(`Found match for ${req}: ${matchingFile}`);
-                  }
-                } else {
-                  // Normal case - look for exact match or similar pattern
-                  const matchingFile = dirFiles.find(file => 
-                    file === req || file.includes(req));
-                    
-                  if (matchingFile) {
-                    matchesFound++;
-                    foundModelFiles[req] = `${currentPath}/${matchingFile}`;
-                    console.log(`Found match for ${req}: ${matchingFile}`);
-                  }
-                }
-              }
-              
-              // If we found all required files or a good portion in this directory, use it
-              if (matchesFound >= Math.max(1, Math.floor(requiredFiles.length * 0.7))) {
-                console.log(`Found most required files (${matchesFound}/${requiredFiles.length}) in: ${currentPath}`);
-                finalPath = currentPath;
-                modelFilesFound = true;
-                return true;
-              }
-              
-              // Add subdirectories to search queue
-              for (const file of dirFiles) {
-                const fullPath = `${currentPath}/${file}`;
-                const fileInfo = await FileSystem.getInfoAsync(fullPath);
-                if (fileInfo.exists && fileInfo.isDirectory) {
-                  searchQueue.push(fullPath);
-                }
-              }
-            } catch (error) {
-              console.error(`Error reading directory ${currentPath}:`, error);
-            }
-          }
-          
-          return false;
-        };
-        
-        // First check the current directory for required files
-        const searchResult = await searchModelFilesInAllDirs(localPath);
-        
-        if (!searchResult) {
-          // If files weren't found, do a full recursive search from the base path
-          console.log(`Doing a full recursive search for model files`);
-          await searchModelFilesInAllDirs(localPath);
-        }
-        
-        if (Object.keys(foundModelFiles).length === 0) {
-          throw new Error(`Could not find model files in any directory. Please check the model download.`);
-        }
-        
-        console.log(`Will use model files in: ${finalPath}`);
-        console.log(`Found model files:`, foundModelFiles);
-        
-        // Create model config with the final path and proper model type-specific fields
-        const modelConfig: TtsModelConfig = {
-          modelDir: finalPath.replace('file://', ''), // Remove file:// prefix for native module
-          numThreads: 2,
-          debug: debugMode,
-          modelType: ttsModelType // Add the model type to the config
-        };
-        
-        // Now, find espeak data before configuring the model
-        const espeakDataDir = await findEspeakData(finalPath);
-        if (espeakDataDir) {
-          modelConfig.dataDir = espeakDataDir;
-          console.log(`Using espeak-ng-data from: ${modelConfig.dataDir}`);
-        }
+      // Set the config for visualization BEFORE initializing
+      setConfigToVisualize(modelConfig);
+      
+      console.log('Initializing TTS with simplified config:', JSON.stringify(modelConfig, null, 2));
+      const result = await TTS.initialize(modelConfig);
+      setInitResult(result);
+      setTtsInitialized(result.success);
 
-        // Then continue with the model-specific configurations
-        if (ttsModelType === 'vits') {
-          // If we couldn't find the model file with the existing approach
-          if (!foundModelFiles['model.onnx']) {
-            console.log('Standard search failed to find model.onnx, trying recursive search');
-            const modelFileResult = await findModelFileRecursive(cleanPath);
-            
-            if (modelFileResult) {
-              console.log(`Found model file through recursive search:`, modelFileResult);
-              modelConfig.modelDir = modelFileResult.modelDir;
-              modelConfig.modelName = modelFileResult.modelName;
-            } else {
-              console.error('Could not find model file with any search method');
-              throw new Error('Could not find the ONNX model file. Please check the model download.');
-            }
-          } else {
-            // Use the model file found by the standard search
-            modelConfig.modelName = foundModelFiles['model.onnx'].split('/').pop() || 'model.onnx';
-          }
-          
-          // If we don't have espeak data (dataDir) already set, try to find a lexicon
-          if (!modelConfig.dataDir) {
-            // Check if there's a lexicon file we can use instead
-            const lexiconPath = `${finalPath}/lexicon.txt`;
-            const lexiconInfo = await FileSystem.getInfoAsync(lexiconPath);
-            
-            if (lexiconInfo.exists) {
-              modelConfig.lexicon = lexiconPath.replace('file://', '');
-              console.log(`Using lexicon file for VITS: ${modelConfig.lexicon}`);
-            } else {
-              // This is a critical warning - the model will likely crash without either dataDir or lexicon
-              console.warn(`WARNING: VITS model doesn't have espeak-ng-data directory or lexicon file. Initialization may fail.`);
-            }
-          }
-          
-          console.log(`Configuring VITS model: ${modelConfig.modelName}`);
-        } else if (ttsModelType === 'kokoro') {
-          // If we couldn't find the model file with the existing approach
-          if (!foundModelFiles['model.onnx']) {
-            console.log('Standard search failed to find model.onnx for Kokoro, trying recursive search');
-            const modelFileResult = await findModelFileRecursive(cleanPath);
-            
-            if (modelFileResult) {
-              console.log(`Found Kokoro model file through recursive search:`, modelFileResult);
-              modelConfig.modelDir = modelFileResult.modelDir;
-              modelConfig.modelName = modelFileResult.modelName;
-            } else {
-              console.error('Could not find Kokoro model file with any search method');
-              throw new Error('Could not find the ONNX model file. Please check the model download.');
-            }
-          } else {
-            // Use the model file found by the standard search
-            modelConfig.modelName = foundModelFiles['model.onnx'].split('/').pop() || 'model.onnx';
-          }
-          // Only for Kokoro models, set the voices property
-          modelConfig.voices = foundModelFiles['voices.bin'] ? 
-            foundModelFiles['voices.bin'].split('/').pop() : 'voices.bin';
-          
-          console.log(`Configuring Kokoro model`);
-        } else if (ttsModelType === 'matcha') {
-          // If we couldn't find the model file with the existing approach
-          if (!foundModelFiles['acoustic_model.onnx'] && !foundModelFiles['model-steps-3.onnx']) {
-            console.log('Standard search failed to find Matcha model files, trying recursive search');
-            const modelFileResult = await findModelFileRecursive(cleanPath);
-            
-            if (modelFileResult) {
-              console.log(`Found Matcha model file through recursive search:`, modelFileResult);
-              modelConfig.modelDir = modelFileResult.modelDir;
-              modelConfig.modelName = modelFileResult.modelName;
-            } else {
-              console.error('Could not find Matcha model file with any search method');
-              throw new Error('Could not find the ONNX model file. Please check the model download.');
-            }
-          } else {
-            // Use the existing Matcha configuration...
-          }
-          
-          // Matcha model configuration
-          console.log(`Configuring Matcha model`);
-          
-          // Set model type explicitly
-          modelConfig.modelType = 'matcha';
-          
-          // CRITICAL: Native module expects:
-          // - modelName for the acoustic model (will become acousticModel in native code)
-          // - voices for the vocoder (will become vocoder in native code)
-          modelConfig.modelName = 'model-steps-3.onnx';
-          modelConfig.voices = 'vocos-22khz-univ.onnx';
-          
-          console.log(`Using standard Matcha configuration with native module parameters:`);
-          console.log(` - modelDir: ${modelConfig.modelDir}`);
-          console.log(` - modelName (acoustic model): ${modelConfig.modelName}`);
-          console.log(` - voices (vocoder): ${modelConfig.voices}`);
-          if (modelConfig.dataDir) {
-            console.log(` - dataDir: ${modelConfig.dataDir}`);
-          }
-          
-          // Verify files exist in the model directory
-          try {
-            const modelFiles = await FileSystem.readDirectoryAsync(finalPath);
-            console.log(`Files in Matcha directory: ${modelFiles.join(', ')}`);
-            
-            // Check for acoustic model
-            if (!modelFiles.includes(modelConfig.modelName)) {
-              console.warn(`Warning: ${modelConfig.modelName} not found in model directory.`);
-              
-              // Look for alternative acoustic model files
-              const acousticModelAlternative = modelFiles.find(file => 
-                file === 'acoustic_model.onnx' || 
-                file.includes('model-') ||
-                file === 'model.onnx'
-              );
-              
-              if (acousticModelAlternative) {
-                console.log(`Found alternative acoustic model: ${acousticModelAlternative}`);
-                modelConfig.modelName = acousticModelAlternative;
-                console.log(`Updated modelName to: ${modelConfig.modelName}`);
-              }
-            } else {
-              console.log(`Found acoustic model: ${modelConfig.modelName}`);
-            }
-            
-            // Check for vocoder
-            if (!modelFiles.includes(modelConfig.voices)) {
-              console.warn(`Warning: ${modelConfig.voices} not found in model directory.`);
-              
-              // Look for alternative vocoder files
-              const vocoderAlternative = modelFiles.find(file => 
-                file.includes('vocos') || 
-                file.includes('hifigan') ||
-                file === 'vocoder.onnx'
-              );
-              
-              if (vocoderAlternative) {
-                console.log(`Found alternative vocoder: ${vocoderAlternative}`);
-                modelConfig.voices = vocoderAlternative;
-                console.log(`Updated voices to: ${modelConfig.voices}`);
-              } else {
-                // If not found in model directory, check parent directory
-                console.log(`Checking parent directory for vocoder...`);
-                const pathParts = finalPath.split('/');
-                pathParts.pop();
-                const parentDir = pathParts.join('/');
-                
-                try {
-                  const parentFiles = await FileSystem.readDirectoryAsync(parentDir);
-                  console.log(`Files in parent directory: ${parentFiles.join(', ')}`);
-                  
-                  const parentVocoder = parentFiles.find(file => 
-                    file.includes('vocos') || 
-                    file === modelConfig.voices ||
-                    file.includes('hifigan') ||
-                    file === 'vocoder.onnx'
-                  );
-                  
-                  if (parentVocoder) {
-                    console.log(`Found vocoder in parent directory: ${parentVocoder}`);
-                    
-                    // Try to copy the vocoder to the model directory for better compatibility
-                    try {
-                      const sourceVocoderPath = `${parentDir}/${parentVocoder}`;
-                      const destVocoderPath = `${finalPath}/${parentVocoder}`;
-                      
-                      await FileSystem.copyAsync({
-                        from: sourceVocoderPath,
-                        to: destVocoderPath
-                      });
-                      
-                      console.log(`Successfully copied vocoder to model directory`);
-                      modelConfig.voices = parentVocoder;
-                      console.log(`Updated voices to: ${modelConfig.voices}`);
-                    } catch (copyError) {
-                      console.error(`Failed to copy vocoder: ${copyError}`);
-                      // Keep standard name, the native module will handle the path construction
-                    }
-                  }
-                } catch (error) {
-                  console.error(`Error checking parent directory: ${error}`);
-                }
-              }
-            } else {
-              console.log(`Found vocoder: ${modelConfig.voices}`);
-            }
-          } catch (error) {
-            console.error(`Error checking Matcha model files: ${error}`);
-          }
-        }
-
-        console.log('Initializing TTS with config:', JSON.stringify(modelConfig));
-        console.log(`Model type: ${ttsModelType}`);
-        const result = await TTS.initialize(modelConfig);
-        setInitResult(result);
-        setTtsInitialized(result.success);
-
-        if (result.success) {
-          setStatusMessage(`TTS initialized successfully! Sample rate: ${result.sampleRate}Hz`);
-        } else {
-          setErrorMessage(`TTS initialization failed: ${result.error}`);
-        }
-      } catch (readError) {
-        console.error('Error reading directory:', readError);
-        setErrorMessage(`Failed to read model directory: ${(readError as Error).message}`);
+      if (result.success) {
+        setStatusMessage(`TTS initialized successfully! Sample rate: ${result.sampleRate}Hz, Speakers: ${result.numSpeakers}`);
+      } else {
+        setErrorMessage(`TTS initialization failed: ${result.error}`);
       }
+    
     } catch (error) {
       console.error('TTS init error:', error);
       setErrorMessage(`TTS init error: ${(error as Error).message}`);
@@ -650,20 +307,19 @@ export default function TtsScreen() {
         setStatusMessage('Speech generated successfully!');
         
         if (result.filePath) {
-          // Ensure the path has the file:// prefix for consistent usage
-          const accessiblePath = result.filePath.startsWith('file://') 
+          // Add file:// prefix if needed for Audio API
+          const formattedPath = result.filePath.startsWith('file://') 
             ? result.filePath 
             : `file://${result.filePath}`;
           
           // Verify the file exists
-          const fileExists = await verifyFileExists(accessiblePath);
+          const fileExists = await verifyFileExists(formattedPath);
           
           if (fileExists) {
-            console.log(`Generated audio file accessible at: ${accessiblePath}`);
-            setTtsResult({
-              ...result,
-              accessiblePath
-            });
+            console.log(`Generated audio file at: ${result.filePath}`);
+            
+            // Store the result
+            setTtsResult(result);
             
             // If not auto-playing but we want to play manually, create and play the sound
             if (!autoPlay) {
@@ -672,7 +328,8 @@ export default function TtsScreen() {
                 if (sound) {
                   await sound.unloadAsync();
                 }
-                const { sound: newSound } = await Audio.Sound.createAsync({ uri: accessiblePath });
+                // Use formattedPath for Audio API
+                const { sound: newSound } = await Audio.Sound.createAsync({ uri: formattedPath });
                 setSound(newSound);
                 
                 // Setup playback status listener
@@ -692,8 +349,12 @@ export default function TtsScreen() {
               }
             }
           } else {
-            console.error(`Generated audio file does not exist: ${result.filePath}`);
-            setTtsResult(result);
+            console.error(`Generated audio file does not exist: ${formattedPath}`);
+            // Create a basic error result with only valid fields
+            setTtsResult({
+              success: false,
+              filePath: result.filePath
+            });
             setErrorMessage('Generated audio file not found.');
           }
         } else if (autoPlay) {
@@ -740,7 +401,7 @@ export default function TtsScreen() {
   };
 
   const handlePlayAudio = async () => {
-    if (!ttsResult?.accessiblePath || !sound) {
+    if (!ttsResult?.filePath || !sound) {
       setErrorMessage('No audio available to play');
       return;
     }
@@ -897,7 +558,7 @@ export default function TtsScreen() {
             <Text style={styles.buttonText}>Generate Speech</Text>
           </TouchableOpacity>
           
-          {ttsResult?.accessiblePath && !autoPlay && (
+          {ttsResult?.filePath && !autoPlay && (
             <TouchableOpacity 
               style={[
                 styles.button, 
@@ -940,22 +601,12 @@ export default function TtsScreen() {
         )}
         
         {/* Generated Audio File Info */}
-        {ttsResult && ttsResult.accessiblePath && (
+        {ttsResult && ttsResult.filePath && (
           <View style={styles.statusSection}>
             <Text style={styles.sectionTitle}>Generated Audio</Text>
             <Text style={styles.statusDetail}>
-              File: {ttsResult.accessiblePath.split('/').pop()}
+              File: {ttsResult.filePath.split('/').pop()}
             </Text>
-            {ttsResult.sampleRate && (
-              <Text style={styles.statusDetail}>
-                Sample Rate: {ttsResult.sampleRate}Hz
-              </Text>
-            )}
-            {ttsResult.numSamples && (
-              <Text style={styles.statusDetail}>
-                Duration: ~{(ttsResult.numSamples / ttsResult.sampleRate).toFixed(2)}s
-              </Text>
-            )}
             {!autoPlay && (
               <TouchableOpacity 
                 style={[
@@ -971,6 +622,16 @@ export default function TtsScreen() {
               </TouchableOpacity>
             )}
           </View>
+        )}
+
+        {/* Display Config for Debugging */} 
+        {configToVisualize && ( 
+          <View style={styles.statusSection}> 
+            <Text style={styles.sectionTitle}>Config Sent to Native:</Text> 
+            <Text style={styles.codeText} selectable> 
+              {JSON.stringify(configToVisualize, null, 2)} 
+            </Text> 
+          </View> 
         )}
       </ScrollView>
     </SafeAreaView>
@@ -1163,5 +824,13 @@ const styles = StyleSheet.create({
   audioPlayButtonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  // Add style for code text
+  codeText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 12,
+    backgroundColor: '#eee',
+    padding: 10,
+    borderRadius: 4,
   },
 }); 

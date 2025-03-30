@@ -115,6 +115,7 @@ export class TtsService {
     }
 
     try {
+      // Call the native API with minimized expectation of return values
       const result = await this.api.generateTts({
         text,
         speakerId: options.speakerId ?? 0,
@@ -126,30 +127,14 @@ export class TtsService {
         noiseScaleW: options.noiseScaleW,
       });
 
-      // Always ensure both numSamples and samplesLength are set correctly
-      if (
-        result.numSamples !== undefined &&
-        result.samplesLength === undefined
-      ) {
-        result.samplesLength = result.numSamples;
-      } else if (
-        result.samplesLength !== undefined &&
-        result.numSamples === undefined
-      ) {
-        result.numSamples = result.samplesLength;
-      } else if (
-        result.samplesLength === undefined &&
-        result.numSamples === undefined
-      ) {
-        // If neither is defined (shouldn't happen, but just in case)
-        result.samplesLength = 0;
-        result.numSamples = 0;
-      }
-
+      // Return the basic result directly without normalization
+      // The native module should return just { success, filePath, error }
       return result;
     } catch (error) {
       console.error('Failed to generate speech:', error);
-      throw error;
+      return {
+        success: false,
+      };
     }
   }
 

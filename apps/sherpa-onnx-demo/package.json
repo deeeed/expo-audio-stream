@@ -15,7 +15,6 @@
     "@babel/plugin-proposal-decorators": "^7.25.9",
     "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
-    "@siteed/archiver": "workspace:^",
     "@siteed/sherpa-onnx.rn": "workspace:^",
     "babel-plugin-transform-import-meta": "^2.3.2",
     "expo": "^52.0.40",

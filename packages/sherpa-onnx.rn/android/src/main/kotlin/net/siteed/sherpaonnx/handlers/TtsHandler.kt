@@ -47,11 +47,11 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 val modelDir = AssetUtils.cleanFilePath(modelConfig.getString("modelDir").orEmpty())
                 val modelFileName = modelConfig.getString("modelFile") ?: "model.onnx"
                 val tokensFileName = modelConfig.getString("tokensFile") ?: "tokens.txt"
-                val voicesFile = modelConfig.getString("voicesFile")
-                val lexiconFile = modelConfig.getString("lexiconFile")
-                val dataDir = modelConfig.getString("dataDir") ?: modelDir
+                val voicesFile = modelConfig.getString("voices")
+                val lexiconFile = modelConfig.getString("lexicon")
+                val dataDirInput = modelConfig.getString("dataDir")
                 val modelType = modelConfig.getString("modelType") ?: "vits"
-                val sampleRate = if (modelConfig.hasKey("sampleRate")) modelConfig.getInt("sampleRate") else 16000
+                val sampleRate = if (modelConfig.hasKey("sampleRate")) modelConfig.getInt("sampleRate") else 22050
                 val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else 1
                 val debug = if (modelConfig.hasKey("debug")) modelConfig.getBoolean("debug") else false
                 
@@ -59,21 +59,63 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 Log.i(TAG, "Model dir: $modelDir")
                 Log.i(TAG, "Model file: $modelFileName")
                 Log.i(TAG, "Tokens file: $tokensFileName")
-                Log.i(TAG, "Voices file: $voicesFile")
+                Log.i(TAG, "Voices file (from 'voices' param): $voicesFile")
                 Log.i(TAG, "Lexicon file: $lexiconFile")
-                Log.i(TAG, "Data dir: $dataDir")
+                Log.i(TAG, "Data dir (input): $dataDirInput")
                 Log.i(TAG, "Model type: $modelType")
                 Log.i(TAG, "Sample rate: $sampleRate")
                 Log.i(TAG, "Num threads: $numThreads")
                 Log.i(TAG, "Debug: $debug")
                 
-                // Build file paths
-                val modelAbsPath = File(modelDir, modelFileName).absolutePath
-                val tokensAbsPath = File(modelDir, tokensFileName).absolutePath
-                val voicesAbsPath = voicesFile?.let { File(modelDir, it).absolutePath }
-                val lexiconAbsPath = lexiconFile?.let { File(modelDir, it).absolutePath }
+                // --- Path Adjustment Logic --- 
+                var assetBasePath = modelDir // Start assuming files are directly in modelDir
+                val initialModelCheckPath = File(assetBasePath, modelFileName).absolutePath
+                Log.i(TAG, "Initial check for model at: $initialModelCheckPath")
                 
-                // Check if files exist
+                if (!File(initialModelCheckPath).exists()) {
+                    Log.w(TAG, "Model not found directly in modelDir. Checking for single subdirectory...")
+                    try {
+                        val modelDirFile = File(modelDir)
+                        val contents = modelDirFile.listFiles()
+                        if (contents != null && contents.size == 1 && contents[0].isDirectory) {
+                            assetBasePath = contents[0].absolutePath // Update base path to the subdirectory
+                            Log.i(TAG, "Found single subdirectory, updated assetBasePath to: $assetBasePath")
+                        } else {
+                            Log.w(TAG, "Did not find a single subdirectory. Contents: ${contents?.map { it.name }?.joinToString()}")
+                            // Stick with the original modelDir, the error will be thrown later if files truly missing
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error checking subdirectory: ${e.message}")
+                        // Proceed with original modelDir, let the later checks fail if needed
+                    }
+                }
+                // --- End Path Adjustment Logic ---
+                
+                // Build file paths using the determined assetBasePath
+                val modelAbsPath = File(assetBasePath, modelFileName).absolutePath
+                val tokensAbsPath = File(assetBasePath, tokensFileName).absolutePath
+                val voicesAbsPath = voicesFile?.let { File(assetBasePath, it).absolutePath }
+                val lexiconAbsPath = lexiconFile?.let { File(assetBasePath, it).absolutePath }
+                // Determine absolute data dir path based on input, relative to the final assetBasePath
+                val dataDirAbsPath = if (dataDirInput?.startsWith("/") == true) {
+                    Log.i(TAG, "Treating dataDir as absolute.")
+                    dataDirInput // Use absolute path directly
+                } else if (!dataDirInput.isNullOrEmpty()) {
+                    Log.i(TAG, "Treating dataDir as relative, joining with assetBasePath.")
+                    File(assetBasePath, dataDirInput).absolutePath // Join relative path with assetBasePath
+                } else {
+                    Log.i(TAG, "No dataDir provided or empty.")
+                    "" // Default to empty if null or empty
+                }
+                
+                // Log final paths being used
+                Log.i(TAG, "Using Model path: $modelAbsPath")
+                Log.i(TAG, "Using Tokens path: $tokensAbsPath")
+                Log.i(TAG, "Using Voices path: $voicesAbsPath")
+                Log.i(TAG, "Using Lexicon path: $lexiconAbsPath")
+                Log.i(TAG, "Using Data path: $dataDirAbsPath")
+                
+                // Check if files exist (using the potentially adjusted paths)
                 val modelFileObj = File(modelAbsPath)
                 val tokensFileObj = File(tokensAbsPath)
                 
@@ -114,7 +156,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                         )
                         
                         // Set data directory and noise scale settings
-                        vitsConfig.dataDir = dataDir
+                        vitsConfig.dataDir = dataDirAbsPath
                         vitsConfig.noiseScale = 0.667f
                         vitsConfig.noiseScaleW = 0.8f
                         vitsConfig.lengthScale = 1.0f
@@ -132,7 +174,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                         )
                         
                         // Set data directory and other properties
-                        kokoroConfig.dataDir = dataDir
+                        kokoroConfig.dataDir = dataDirAbsPath
                         kokoroConfig.lengthScale = 1.0f
                         
                         // Set in the model config
@@ -152,8 +194,13 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                             matchaConfig.vocoder = voicesAbsPath
                         }
                         
+                        // Set lexicon if provided
+                        if (lexiconAbsPath != null) {
+                            matchaConfig.lexicon = lexiconAbsPath
+                        }
+                        
                         // Set data directory
-                        matchaConfig.dataDir = dataDir
+                        matchaConfig.dataDir = dataDirAbsPath
                         
                         // Set in the model config
                         ttsModelConfig.matcha = matchaConfig
@@ -265,26 +312,6 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 // Initialize audio track if needed and playAudio is true
                 if (playAudio) {
                     initAudioTrack(22050)  // Sherpa ONNX TTS uses 22050Hz
-                }
-
-                // Apply custom parameters to the TTS model if provided
-                lengthScale?.let { 
-                    when (ttsModelConfig?.vits) {
-                        null -> {}
-                        else -> ttsModelConfig?.vits?.lengthScale = it
-                    }
-                }
-                noiseScale?.let { 
-                    when (ttsModelConfig?.vits) {
-                        null -> {}
-                        else -> ttsModelConfig?.vits?.noiseScale = it
-                    }
-                }
-                noiseScaleW?.let { 
-                    when (ttsModelConfig?.vits) {
-                        null -> {}
-                        else -> ttsModelConfig?.vits?.noiseScaleW = it
-                    }
                 }
 
                 val startTime = System.currentTimeMillis()

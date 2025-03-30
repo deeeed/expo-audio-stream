@@ -89,22 +89,50 @@ export interface TtsModelConfig {
   modelType?: string;
 
   /**
-   * Model file name for VITS models
+   * Primary model file name (e.g., model.onnx, en_US-ljspeech-low.onnx).
+   * Used directly by native Android implementation.
+   */
+  modelFile?: string;
+
+  /**
+   * Tokens file name (e.g., tokens.txt).
+   * Used directly by native Android implementation.
+   */
+  tokensFile?: string;
+
+  /**
+   * Model file name
+   * - For VITS models: path to the model.onnx file
+   * - For Matcha models: should be "model.onnx"
    */
   modelName?: string;
 
   /**
    * Acoustic model file name for Matcha models
+   * Maps to "acoustic_model" in C API
+   *
+   * Note: For compatibility, we still need to use modelName="model.onnx"
+   * with Matcha models, but this parameter specifies the actual model file
+   * (typically "model-steps-3.onnx")
    */
   acousticModelName?: string;
 
   /**
    * Vocoder file name for Matcha models
+   * Maps to "vocoder" in C API
+   *
+   * For Matcha models, this should be "vocos-22khz-univ.onnx"
    */
   vocoder?: string;
 
   /**
-   * Voices file name for Kokoro models
+   * Voices file name
+   * - For Kokoro models: typically "voices.bin"
+   * - For Matcha models: DO NOT USE (use vocoder instead)
+   *
+   * Note: For Matcha models, in Android implementation this parameter
+   * gets mapped to vocoder internally. To avoid confusion, use vocoder
+   * parameter with Matcha models.
    */
   voices?: string;
 
@@ -115,11 +143,15 @@ export interface TtsModelConfig {
 
   /**
    * Data directory path
+   * Maps to "data_dir" in C API
+   *
+   * Usually points to espeak-ng-data directory
    */
   dataDir?: string;
 
   /**
    * Dictionary directory path
+   * Maps to "dict_dir" in C API
    */
   dictDir?: string;
 
@@ -162,6 +194,9 @@ export interface TtsModelConfig {
    * Default: 1.0
    */
   lengthScale?: number;
+
+  // Add optional dataDirRelativePath
+  dataDirRelativePath?: string;
 }
 
 /**
@@ -259,18 +294,10 @@ export interface TtsOptions {
  * Result of TTS generation
  */
 export interface TtsGenerateResult {
-  /** The path to the generated audio file */
-  filePath: string;
   /** Whether generation was successful */
   success: boolean;
-  /** Sample rate of generated audio */
-  sampleRate: number;
-  /** Number of samples in the generated audio */
-  samplesLength: number;
-  /** Number of samples in the generated audio (alias for samplesLength) */
-  numSamples: number;
-  /** Whether the audio was saved to a file successfully */
-  saved: boolean;
+  /** The path to the generated audio file */
+  filePath?: string;
 }
 
 /**
