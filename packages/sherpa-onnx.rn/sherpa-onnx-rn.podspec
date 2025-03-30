@@ -22,6 +22,7 @@ Pod::Spec.new do |s|
     "ios/*.{h,m,mm,swift}", 
     "ios/bridge/*.{h,m,mm,swift}", 
     "ios/native/*.{h,m,mm,swift}",
+    "ios/handlers/*.{h,m,mm,swift}",
     "ios/utils/*.{h,m,mm,swift}"
   ]
 
@@ -69,11 +70,12 @@ Pod::Spec.new do |s|
   s.vendored_libraries = sherpa_libraries.map { |lib| "prebuilt/ios/current/#{lib}" }
 
   s.frameworks = "Foundation", "CoreML", "Accelerate", "CoreVideo"
+  s.libraries = "c++", "bz2"
 
   # Base xcconfig for both architectures
   base_xcconfig = {
     "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\" \"$(PODS_ROOT)/Headers/Public/React-Core\"",
-    "LIBRARY_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/ios/current\"",
+    "LIBRARY_SEARCH_PATHS" => "$(PODS_TARGET_SRCROOT)/prebuilt/ios/current",
     "SWIFT_INCLUDE_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\""
   }
   
@@ -87,7 +89,7 @@ Pod::Spec.new do |s|
   # Base pod target xcconfig
   pod_target_xcconfig = {
     "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
-    "OTHER_LDFLAGS" => "-framework CoreML -framework Accelerate -framework CoreVideo -lbz2",
+    "OTHER_LDFLAGS" => "-framework CoreML -framework Accelerate -framework CoreVideo",
     "DEFINES_MODULE" => "YES",
     "SWIFT_OBJC_BRIDGING_HEADER" => "",
     "SWIFT_INSTALL_OBJC_HEADER" => "YES",

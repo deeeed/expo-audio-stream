@@ -25,6 +25,16 @@ RCT_EXPORT_MODULE(SherpaOnnx)
     return dispatch_get_main_queue();
 }
 
+// Initializer
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        self.asrHandler = [[SherpaOnnxASRHandler alloc] init];
+        self.ttsHandler = [[SherpaOnnxTtsHandler alloc] init];
+    }
+    return self;
+}
+
 // Supported events (for old architecture)
 - (NSArray<NSString *> *)supportedEvents {
     return @[@"sherpaOnnxRecognitionResult", @"sherpaOnnxTtsProgress"];
@@ -35,8 +45,8 @@ RCT_EXPORT_MODULE(SherpaOnnx)
 // These parameter names have to exactly match what's expected by React Native
 RCT_EXPORT_METHOD(validateLibraryLoaded:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
-    // Use the static method from SherpaOnlineRecognizer to check if library is loaded
-    NSDictionary *result = [SherpaOnlineRecognizer isLibraryLoaded];
+    // Use the static method from SherpaOnnxASRHandler to check if library is loaded
+    NSDictionary *result = [SherpaOnnxASRHandler isLibraryLoaded];
     resolve(result);
 }
 
@@ -72,25 +82,158 @@ RCT_EXPORT_METHOD(extractTarBz2:(NSString *)sourcePath
     }];
 }
 
-// MARK: - Core Functionality
+// MARK: - ASR Methods
 
-// Create a recognizer instance with the provided configuration
+// Initialize ASR with the provided configuration
+RCT_EXPORT_METHOD(initAsr:(NSDictionary *)config
+                 resolve:(RCTPromiseResolveBlock)resolve
+                 reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.asrHandler initAsr:config];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_ASR_INIT", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_ASR_INIT", exception.reason, nil);
+    }
+}
+
+// Recognize speech from audio samples
+RCT_EXPORT_METHOD(recognizeFromSamples:(double)sampleRate
+                               samples:(NSArray *)samples
+                          resolve:(RCTPromiseResolveBlock)resolve
+                          reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.asrHandler recognizeFromSamples:(int)sampleRate samples:samples];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_ASR_RECOGNIZE", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_ASR_RECOGNIZE", exception.reason, nil);
+    }
+}
+
+// Recognize speech from an audio file
+RCT_EXPORT_METHOD(recognizeFromFile:(NSString *)filePath
+                       resolve:(RCTPromiseResolveBlock)resolve
+                       reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.asrHandler recognizeFromFile:filePath];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_ASR_RECOGNIZE_FILE", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_ASR_RECOGNIZE_FILE", exception.reason, nil);
+    }
+}
+
+// Release ASR resources
+RCT_EXPORT_METHOD(releaseAsr:(RCTPromiseResolveBlock)resolve
+                reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.asrHandler releaseResources];
+        resolve(result);
+    } @catch (NSException *exception) {
+        reject(@"ERR_ASR_RELEASE", exception.reason, nil);
+    }
+}
+
+// MARK: - TTS Methods
+
+// Initialize the TTS engine with a given configuration
+RCT_EXPORT_METHOD(initTts:(NSDictionary *)config
+                 resolve:(RCTPromiseResolveBlock)resolve
+                 reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.ttsHandler initTts:config];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_TTS_INIT", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_TTS_INIT", exception.reason, nil);
+    }
+}
+
+// Generate speech from text
+RCT_EXPORT_METHOD(generateTts:(NSDictionary *)config
+                   resolve:(RCTPromiseResolveBlock)resolve
+                   reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.ttsHandler generateTts:config];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_TTS_GENERATE", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_TTS_GENERATE", exception.reason, nil);
+    }
+}
+
+// Stop TTS playback
+RCT_EXPORT_METHOD(stopTts:(RCTPromiseResolveBlock)resolve
+               reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.ttsHandler stopTts];
+        resolve(result);
+    } @catch (NSException *exception) {
+        reject(@"ERR_TTS_STOP", exception.reason, nil);
+    }
+}
+
+// Release TTS resources
+RCT_EXPORT_METHOD(releaseTts:(RCTPromiseResolveBlock)resolve
+                reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.ttsHandler releaseTts];
+        resolve(result);
+    } @catch (NSException *exception) {
+        reject(@"ERR_TTS_RELEASE", exception.reason, nil);
+    }
+}
+
+// MARK: - Compatibility Methods (Deprecated)
+
+// Backward compatibility with old recognizer API (deprecated)
 RCT_EXPORT_METHOD(createRecognizer:(NSDictionary *)config
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 {
+    // Warning log that this method is deprecated
+    RCTLogWarn(@"createRecognizer is deprecated. Please use initAsr instead.");
+    
+    // Convert old config format to new format
+    NSMutableDictionary *newConfig = [NSMutableDictionary dictionaryWithDictionary:config];
+    newConfig[@"streaming"] = @YES; // Old API only supported streaming
+    
     dispatch_async(dispatch_get_main_queue(), ^{
 #ifdef RCT_NEW_ARCH_ENABLED
-        // For new architecture, we need to extract the value from the codegen wrapper
-        NSDictionary *configDict = config;
+        NSDictionary *configDict = newConfig;
 #else
-        NSDictionary *configDict = config;
+        NSDictionary *configDict = newConfig;
 #endif
-        self.recognizer = [SherpaOnlineRecognizer createWithConfig:configDict];
-        if (self.recognizer) {
+        NSDictionary *result = [self.asrHandler initAsr:configDict];
+        if ([result[@"success"] boolValue]) {
+            // The old API just returned {success: true}
             resolve(@{@"success": @YES});
         } else {
-            reject(@"create_error", @"Failed to create recognizer", nil);
+            reject(@"create_error", result[@"error"] ?: @"Failed to create recognizer", nil);
         }
     });
 }
@@ -110,5 +253,125 @@ RCT_EXPORT_METHOD(createRecognizer:(NSDictionary *)config
   }
 }
 #endif
+
+// MARK: - Future Implementations
+
+// The following methods are placeholders for future implementation to match the Android version
+
+// Audio Tagging methods
+RCT_EXPORT_METHOD(initAudioTagging:(NSDictionary *)config
+               resolver:(RCTPromiseResolveBlock)resolver
+               rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Audio tagging is not yet implemented on iOS", nil);
+}
+
+RCT_EXPORT_METHOD(processAndComputeAudioTagging:(NSString *)filePath
+                            resolver:(RCTPromiseResolveBlock)resolver
+                            rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Audio tagging is not yet implemented on iOS", nil);
+}
+
+RCT_EXPORT_METHOD(processAndComputeAudioSamples:(nonnull NSNumber *)sampleRate
+                             samples:(nonnull NSArray<NSNumber *> *)samples
+                            resolver:(RCTPromiseResolveBlock)resolver
+                            rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Audio tagging is not yet implemented on iOS", nil);
+}
+
+RCT_EXPORT_METHOD(releaseAudioTagging:(RCTPromiseResolveBlock)resolver
+                  rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Audio tagging is not yet implemented on iOS", nil);
+}
+
+// Speaker ID methods
+RCT_EXPORT_METHOD(initSpeakerId:(NSDictionary *)config
+            resolver:(RCTPromiseResolveBlock)resolver
+            rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+}
+
+RCT_EXPORT_METHOD(processSpeakerIdSamples:(nonnull NSNumber *)sampleRate
+                       samples:(nonnull NSArray<NSNumber *> *)samples
+                      resolver:(RCTPromiseResolveBlock)resolver
+                      rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+}
+
+RCT_EXPORT_METHOD(computeSpeakerEmbedding:(RCTPromiseResolveBlock)resolver
+                      rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+}
+
+RCT_EXPORT_METHOD(registerSpeaker:(NSString *)name
+             embedding:(nonnull NSArray<NSNumber *> *)embedding
+              resolver:(RCTPromiseResolveBlock)resolver
+              rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+}
+
+RCT_EXPORT_METHOD(removeSpeaker:(NSString *)name
+            resolver:(RCTPromiseResolveBlock)resolver
+            rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+}
+
+RCT_EXPORT_METHOD(getSpeakers:(RCTPromiseResolveBlock)resolver
+          rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+}
+
+RCT_EXPORT_METHOD(identifySpeaker:(nonnull NSArray<NSNumber *> *)embedding
+              threshold:(nonnull NSNumber *)threshold
+               resolver:(RCTPromiseResolveBlock)resolver
+               rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+}
+
+RCT_EXPORT_METHOD(verifySpeaker:(NSString *)name
+           embedding:(nonnull NSArray<NSNumber *> *)embedding
+           threshold:(nonnull NSNumber *)threshold
+            resolver:(RCTPromiseResolveBlock)resolver
+            rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+}
+
+RCT_EXPORT_METHOD(processSpeakerIdFile:(NSString *)filePath
+                   resolver:(RCTPromiseResolveBlock)resolver
+                   rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+}
+
+RCT_EXPORT_METHOD(releaseSpeakerId:(RCTPromiseResolveBlock)resolver
+               rejecter:(RCTPromiseRejectBlock)rejecter)
+{
+    // Not yet implemented
+    rejecter(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+}
 
 @end

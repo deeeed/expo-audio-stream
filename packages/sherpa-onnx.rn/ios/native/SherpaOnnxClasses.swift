@@ -1,12 +1,17 @@
 // packages/sherpa-onnx.rn/ios/bridge/SherpaOnnxClasses.swift
 import Foundation
 import CSherpaOnnx
+import AVFoundation
 
 // These are declarations we need directly from the C API
 // Functions to create the config objects (minimal set needed for our implementation)
-func toCPointer(_ s: String) -> UnsafePointer<Int8>! {
-  let cs = (s as NSString).utf8String
-  return UnsafePointer<Int8>(cs)
+
+/**
+ * Converts a Swift String to a C-compatible UnsafePointer<Int8>
+ */
+fileprivate func toCPointer(_ s: String) -> UnsafePointer<Int8>! {
+    let cs = (s as NSString).utf8String
+    return UnsafePointer<Int8>(cs)
 }
 
 func sherpaOnnxOnlineTransducerModelConfig(
@@ -96,150 +101,6 @@ func sherpaOnnxOnlineRecognizerConfig(
     hotwords_buf: toCPointer(hotwordsBuf),
     hotwords_buf_size: Int32(hotwordsBufSize)
   )
-}
-
-// Our own version of the result wrapper
-@objc public class SherpaOnlineRecognitionResult: NSObject {
-  private let result: UnsafePointer<SherpaOnnxOnlineRecognizerResult>!
-
-  @objc public var text: String {
-    return String(cString: result.pointee.text)
-  }
-
-  @objc public var count: Int32 {
-    return result.pointee.count
-  }
-
-  init(result: UnsafePointer<SherpaOnnxOnlineRecognizerResult>!) {
-    self.result = result
-    super.init()
-  }
-
-  deinit {
-    if let result {
-      SherpaOnnxDestroyOnlineRecognizerResult(result)
-    }
-  }
-}
-
-/**
- * SherpaOnlineRecognizer - Speech recognition handler
- * 
- * IMPORTANT ARCHITECTURE NOTE: We use a factory method pattern instead of exposing
- * C structs directly in the initializer. This is because C structs from imported
- * modules cannot be directly exposed across the Objective-C bridge when used as
- * parameters in Swift methods tagged with @objc. This factory method approach allows
- * us to maintain compatibility with both old and new React Native architectures.
- */
-@objc public class SherpaOnlineRecognizer: NSObject {
-  private let recognizer: OpaquePointer!
-  private var stream: OpaquePointer!
-
-  // Class method to check if the library is properly loaded
-  @objc public static func isLibraryLoaded() -> [String: Any] {
-    // Try to use a simple API call to verify library is loaded and accessible
-    let tempDir = FileManager.default.temporaryDirectory.path
-    let result = SherpaOnnxFileExists(tempDir)
-    
-    var info: [String: Any] = [
-      "loaded": result >= 0,
-      "status": result >= 0 ? "Library is loaded and accessible" : "Library could not be accessed properly"
-    ]
-    
-    // Add some standard config values that might be useful
-    info["testConfig"] = [
-      "sampleRate": 16000,
-      "featureDim": 80
-    ]
-    
-    return info
-  }
-
-  // Factory method to create a recognizer from a dictionary configuration
-  // This avoids exposing C struct types to Objective-C runtime
-  @objc public static func createWithConfig(_ configDict: [String: Any]) -> SherpaOnlineRecognizer? {
-    // Create a feature config
-    let featConfig = sherpaOnnxFeatureConfig(
-      sampleRate: configDict["sampleRate"] as? Int ?? 16000, 
-      featureDim: configDict["featureDim"] as? Int ?? 80
-    )
-    
-    // Create a transducer model config (using empty strings as defaults)
-    let transducerConfig = sherpaOnnxOnlineTransducerModelConfig()
-    
-    // Create the model config
-    let modelConfig = sherpaOnnxOnlineModelConfig(
-      tokens: configDict["tokens"] as? String ?? "",
-      transducer: transducerConfig
-    )
-    
-    // Create the recognizer config
-    var recognizerConfig = sherpaOnnxOnlineRecognizerConfig(
-      featConfig: featConfig,
-      modelConfig: modelConfig,
-      enableEndpoint: configDict["enableEndpoint"] as? Bool ?? false
-    )
-    
-    // Create and return the recognizer through the private initializer
-    return SherpaOnlineRecognizer(unsafeConfig: &recognizerConfig)
-  }
-  
-  // Private initializer that uses the unsafe pointer directly
-  // This keeps the C struct handling internal to Swift
-  private init(unsafeConfig: UnsafePointer<SherpaOnnxOnlineRecognizerConfig>) {
-    recognizer = SherpaOnnxCreateOnlineRecognizer(unsafeConfig)
-    stream = SherpaOnnxCreateOnlineStream(recognizer)
-    super.init()
-  }
-
-  deinit {
-    if let stream {
-      SherpaOnnxDestroyOnlineStream(stream)
-    }
-    if let recognizer {
-      SherpaOnnxDestroyOnlineRecognizer(recognizer)
-    }
-  }
-
-  @objc public func acceptWaveform(_ samples: NSArray, sampleRate: Int = 16000) {
-    let floatSamples = samples.compactMap { ($0 as? NSNumber)?.floatValue }
-    SherpaOnnxOnlineStreamAcceptWaveform(stream, Int32(sampleRate), floatSamples, Int32(floatSamples.count))
-  }
-
-  @objc public func isReady() -> Bool {
-    return SherpaOnnxIsOnlineStreamReady(recognizer, stream) == 1
-  }
-
-  @objc public func decode() {
-    SherpaOnnxDecodeOnlineStream(recognizer, stream)
-  }
-
-  @objc public func getResult() -> SherpaOnlineRecognitionResult {
-    let result = SherpaOnnxGetOnlineStreamResult(recognizer, stream)
-    return SherpaOnlineRecognitionResult(result: result)
-  }
-
-  @objc public func reset(_ hotwords: String?) {
-    if let words = hotwords, !words.isEmpty {
-      words.withCString { cString in
-        let newStream = SherpaOnnxCreateOnlineStreamWithHotwords(recognizer, cString)
-        objc_sync_enter(self)
-        SherpaOnnxDestroyOnlineStream(stream)
-        stream = newStream
-        objc_sync_exit(self)
-      }
-    } else {
-      SherpaOnnxOnlineStreamReset(recognizer, stream)
-    }
-  }
-
-  @objc public func inputFinished() {
-    SherpaOnnxOnlineStreamInputFinished(stream)
-  }
-
-  @objc public func isEndpoint() -> Bool {
-    return SherpaOnnxOnlineStreamIsEndpoint(recognizer, stream) == 1
-  }
 }
 
 @objc public class SherpaOnnxTester: NSObject {
