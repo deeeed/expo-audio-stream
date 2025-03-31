@@ -1,33 +1,32 @@
 import type { ApiInterface } from './types/api';
 import type {
-  TtsModelConfig,
-  TtsInitResult,
-  TtsGenerateConfig,
-  TtsGenerateResult,
-  AsrModelConfig,
   AsrInitResult,
+  AsrModelConfig,
   AsrRecognizeResult,
-  AudioTaggingModelConfig,
   AudioTaggingInitResult,
+  AudioTaggingModelConfig,
   AudioTaggingResult,
-  SpeakerIdModelConfig,
-  SpeakerIdInitResult,
-  SpeakerIdProcessResult,
-  SpeakerEmbeddingResult,
-  RegisterSpeakerResult,
-  RemoveSpeakerResult,
   GetSpeakersResult,
   IdentifySpeakerResult,
-  VerifySpeakerResult,
+  RegisterSpeakerResult,
+  RemoveSpeakerResult,
+  SpeakerEmbeddingResult,
   SpeakerIdFileProcessResult,
-  ValidateResult,
+  SpeakerIdInitResult,
+  SpeakerIdModelConfig,
+  SpeakerIdProcessResult,
   TestOnnxIntegrationResult,
+  TtsGenerateConfig,
+  TtsGenerateResult,
+  TtsInitResult,
+  TtsModelConfig,
+  ValidateResult,
+  VerifySpeakerResult,
 } from './types/interfaces';
-import { cleanFilePath } from './utils/fileUtils';
 
 // Import the native module and potentially substitute with web implementation
-import NativeModuleImport from './NativeSherpaOnnxSpec';
 import { Platform } from 'react-native';
+import NativeModuleImport from './NativeSherpaOnnxSpec';
 
 // Create a web placeholder implementation for WASM support in the future
 const createWebPlaceholder = (): ApiInterface => {
@@ -69,7 +68,16 @@ const createWebPlaceholder = (): ApiInterface => {
 
 // Use the native module if available, otherwise use a placeholder for web
 // This ensures we never have a null module - we either have a real implementation or a placeholder
-const NativeSherpaOnnx: ApiInterface =
+const NativeSherpaOnnx: Omit<ApiInterface, 'extractTarBz2'> & {
+  extractTarBz2: (
+    sourcePath: string,
+    targetDir: string
+  ) => Promise<{
+    success: boolean;
+    message: string;
+    extractedFiles?: string[];
+  }>;
+} =
   NativeModuleImport ||
   (Platform.OS === 'web' ? createWebPlaceholder() : createWebPlaceholder());
 
@@ -98,73 +106,8 @@ export const SherpaOnnxAPI: ApiInterface = {
    * @param config Configuration for the TTS model
    * @returns Promise that resolves with initialization result
    */
-  async initTts(config: TtsModelConfig): Promise<TtsInitResult> {
-    try {
-      // Clean up file paths
-      const cleanedModelDir = cleanFilePath(config.modelDir);
-      const cleanedDataDir = config.dataDir
-        ? cleanFilePath(config.dataDir)
-        : cleanedModelDir;
-      const cleanedDictDir = config.dictDir
-        ? cleanFilePath(config.dictDir)
-        : undefined;
-
-      // Create base config with common properties
-      const nativeConfig: TtsModelConfig = {
-        modelDir: cleanedModelDir,
-        modelType: config.modelType,
-        numThreads: config.numThreads || 1,
-        debug: config.debug || false,
-        dataDir: cleanedDataDir,
-        dictDir: cleanedDictDir,
-      };
-
-      // Set model-specific properties based on model type
-      switch (config.modelType) {
-        case 'vits':
-          nativeConfig.modelName = config.modelName || 'model.onnx';
-          nativeConfig.lexicon = config.lexicon;
-          nativeConfig.noiseScale = config.noiseScale ?? 0.667;
-          nativeConfig.noiseScaleW = config.noiseScaleW ?? 0.8;
-          nativeConfig.lengthScale = config.lengthScale ?? 1.0;
-          break;
-
-        case 'matcha':
-          nativeConfig.acousticModelName = config.acousticModelName;
-          nativeConfig.vocoder = config.vocoder;
-          nativeConfig.lexicon = config.lexicon;
-          nativeConfig.noiseScale = config.noiseScale ?? 1.0;
-          nativeConfig.lengthScale = config.lengthScale ?? 1.0;
-          break;
-
-        case 'kokoro':
-          nativeConfig.modelName = config.modelName;
-          nativeConfig.voices = config.voices;
-          nativeConfig.lexicon = config.lexicon;
-          nativeConfig.lengthScale = config.lengthScale ?? 1.0;
-          break;
-
-        default:
-          throw new Error(`Unsupported model type: ${config.modelType}`);
-      }
-
-      // Set optional rule files if provided
-      if (config.ruleFsts) {
-        nativeConfig.ruleFsts = cleanFilePath(config.ruleFsts);
-      }
-      if (config.ruleFars) {
-        nativeConfig.ruleFars = cleanFilePath(config.ruleFars);
-      }
-
-      console.log(
-        'Initializing TTS with config:',
-        JSON.stringify(nativeConfig)
-      );
-      return await NativeSherpaOnnx.initTts(nativeConfig);
-    } catch (error) {
-      console.error('Failed to initialize TTS:', error);
-      throw error;
-    }
+  initTts(config: TtsModelConfig): Promise<TtsInitResult> {
+    return NativeSherpaOnnx.initTts(config);
   },
 
   generateTts(config: TtsGenerateConfig): Promise<TtsGenerateResult> {
@@ -284,6 +227,11 @@ export const SherpaOnnxAPI: ApiInterface = {
     message: string;
     extractedFiles: string[];
   }> {
-    return NativeSherpaOnnx.extractTarBz2(sourcePath, targetDir);
+    return NativeSherpaOnnx.extractTarBz2(sourcePath, targetDir).then(
+      (result) => ({
+        ...result,
+        extractedFiles: result.extractedFiles || [],
+      })
+    );
   },
 };

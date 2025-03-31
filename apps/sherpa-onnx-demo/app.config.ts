@@ -78,7 +78,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             "extraMavenRepos": ["https://www.jitpack.io"],
             "gradleProperties": {
               "org.gradle.jvmargs": "-Xmx2048m",
-              "reactNativeDevServerPort": process.env.DEV_SERVER_PORT || "7500"
+              "reactNativeDevServerPort": "7500"
             }
           }
         }

@@ -52,134 +52,155 @@ fileprivate func toCPointer(_ s: String) -> UnsafePointer<Int8>! {
         NSLog("Initializing TTS with config: %@", config)
 
         do {
-            // Extract configuration parameters from the dictionary, matching TtsModelConfig structure
+            // --- Extract configuration parameters --- 
             guard let modelDirRaw = config["modelDir"] as? String, !modelDirRaw.isEmpty else {
                 throw NSError(domain: "SherpaOnnx", code: 101, userInfo: [NSLocalizedDescriptionKey: "Missing or empty modelDir parameter"])
             }
-            let modelDir = modelDirRaw.replacingOccurrences(of: "file://", with: "")
+            let modelDir = modelDirRaw.replacingOccurrences(of: "file://", with: "") // Keep this cleaning
             
-            let modelType = config["modelType"] as? String ?? "vits"
-            let modelFile = config["modelFile"] as? String // Expect modelFile (relative)
-            NSLog("[Swift] Extracted modelFile raw value: \(modelFile ?? "nil")")
-            let tokensFile = config["tokensFile"] as? String ?? "tokens.txt" // Expect tokensFile (relative)
-            let voicesFile = config["voices"] as? String // Optional relative path for Kokoro/Matcha
-            let lexiconFile = config["lexicon"] as? String // Optional relative path for VITS/Matcha
-            let acousticModelFile = config["acousticModelName"] as? String // Optional relative path for Matcha
-            let vocoderFile = config["vocoder"] as? String // Optional relative path for Matcha
-            
-            // Extract dataDir (could be relative or absolute)
+            let modelType = config["ttsModelType"] as? String ?? "vits"
+            let modelFile = config["modelFile"] as? String // Read 'modelFile'
+            let tokensFile = config["tokensFile"] as? String ?? "tokens.txt" // Read 'tokensFile' or default
+            let voicesFile = config["voicesFile"] as? String
+            let lexiconFile = config["lexiconFile"] as? String
+            let vocoderFile = config["vocoderFile"] as? String
             let dataDirInput = config["dataDir"] as? String
-            
             let numThreads = config["numThreads"] as? Int ?? 1
             let debug = config["debug"] as? Bool ?? false
-            let provider = "cpu" // Typically CPU for mobile
-            
-            // VITS noise/length scales (use defaults from JS if not passed, but C struct has defaults too)
+            let provider = "cpu"
             let noiseScale = config["noiseScale"] as? Float ?? 0.667
             let noiseScaleW = config["noiseScaleW"] as? Float ?? 0.8
             let lengthScale = config["lengthScale"] as? Float ?? 1.0
-
-            // Log extracted configuration for debugging
+            
+            // --- Log Extracted Config --- 
             NSLog("TTS Init - Model dir (cleaned): \(modelDir)")
+            // Removed extractedFiles logging
             NSLog("TTS Init - Model type: \(modelType)")
-            NSLog("TTS Init - Model file (relative): \(modelFile ?? "nil")")
-            NSLog("TTS Init - Tokens file (relative): \(tokensFile)")
+            NSLog("TTS Init - Model file (relative, from JS): \(modelFile ?? "nil")")
+            NSLog("TTS Init - Tokens file (relative, from JS): \(tokensFile)")
             NSLog("TTS Init - Voices file (relative): \(voicesFile ?? "nil")")
             NSLog("TTS Init - Lexicon file (relative): \(lexiconFile ?? "nil")")
-            NSLog("TTS Init - Acoustic Model file (relative): \(acousticModelFile ?? "nil")")
             NSLog("TTS Init - Vocoder file (relative): \(vocoderFile ?? "nil")")
             // Log the input dataDir value
             NSLog("TTS Init - Data dir (input): \(dataDirInput ?? "nil")")
             NSLog("TTS Init - Num threads: \(numThreads)")
             NSLog("TTS Init - Debug: \(debug)")
 
-            // --- Path Adjustment Logic --- 
-            var assetBasePath = modelDir // Start assuming files are directly in modelDir
-            let initialModelCheckPath = "\(assetBasePath)/\(modelFile)"
+            // --- Determine Asset Base Path (Simplified -> Adjusted) ---
+            // Start assuming files are directly in modelDir
+            var assetBasePath = modelDir
+            NSLog("Initial Asset Base Path: \(assetBasePath)")
+
+            // --- Construct INITIAL Absolute Path for Model Check ---
+            guard let modelFileName = modelFile, !modelFileName.isEmpty else { // Use modelFileName to avoid conflict
+                throw NSError(domain: "SherpaOnnx", code: 102, userInfo: [NSLocalizedDescriptionKey: "Missing or empty model file name (checked after reading 'modelName')"])
+            }
+            let initialModelCheckPath = "\(assetBasePath)/\(modelFileName)"
             NSLog("Initial check for model at: \(initialModelCheckPath)")
-            
+
+            // --- Check if model exists directly, if not, look in subdirectory ---
             if !FileManager.default.fileExists(atPath: initialModelCheckPath) {
                 NSLog("Model not found directly in modelDir. Checking for single subdirectory...")
                 do {
-                    let contents = try FileManager.default.contentsOfDirectory(atPath: modelDir)
-                    if contents.count == 1 {
-                        let potentialSubdirPath = "\(modelDir)/\(contents[0])"
-                        var isDir : ObjCBool = false
-                        if FileManager.default.fileExists(atPath: potentialSubdirPath, isDirectory:&isDir) && isDir.boolValue {
-                            assetBasePath = potentialSubdirPath // Update base path to the subdirectory
-                            NSLog("Found single subdirectory, updated assetBasePath to: \(assetBasePath)")
-                        } else {
-                             NSLog("Single item found but it's not a directory: \(contents[0])")
-                        }
+                    // ---> Add explicit check for the base directory itself <---
+                    var isDir: ObjCBool = false
+                    if !FileManager.default.fileExists(atPath: assetBasePath, isDirectory: &isDir) {
+                        NSLog("Error: The base directory '\(assetBasePath)' itself does not exist before attempting to list contents.")
+                        throw NSError(domain: "SherpaOnnx", code: 105, userInfo: [NSLocalizedDescriptionKey: "Base model directory path does not exist: \(assetBasePath)"])
+                    }
+                    if !isDir.boolValue {
+                         NSLog("Error: The base path '\(assetBasePath)' exists but is not a directory.")
+                         throw NSError(domain: "SherpaOnnx", code: 106, userInfo: [NSLocalizedDescriptionKey: "Base model path is not a directory: \(assetBasePath)"])
+                    }
+                    // ---> End explicit check <---
+
+                    let contents = try FileManager.default.contentsOfDirectory(atPath: assetBasePath)
+                    let subdirectories = contents.filter { item -> Bool in
+                        var itemIsDir: ObjCBool = false // Use a different variable name
+                        let fullPath = "\(assetBasePath)/\(item)"
+                        // Check if it exists AND is a directory
+                        return FileManager.default.fileExists(atPath: fullPath, isDirectory: &itemIsDir) && itemIsDir.boolValue
+                    }
+
+                    if subdirectories.count == 1 {
+                        assetBasePath = "\(assetBasePath)/\(subdirectories[0])" // Update base path to the subdirectory
+                        NSLog("Found single subdirectory, updated Asset Base Path to: \(assetBasePath)")
                     } else {
-                         NSLog("Did not find a single subdirectory. Contents: \(contents.joined(separator: ", "))")
-                         // Stick with the original modelDir, the error will be thrown later if files truly missing
+                         NSLog("Did not find exactly one subdirectory (found \(subdirectories.count)). Contents: \(contents.joined(separator: ", "))")
+                        // Stick with the original assetBasePath, let the later file checks fail if necessary.
                     }
                 } catch {
-                     NSLog("Error checking subdirectory: \(error.localizedDescription)")
-                     // Proceed with original modelDir, let the later checks fail if needed
+                    NSLog("Error checking subdirectory contents: \(error.localizedDescription)")
+                    // Proceed with original assetBasePath, let the later checks fail if necessary.
+                    // Log the error but don't re-throw immediately if the goal is to let the later file check fail
                 }
+            } else {
+                 NSLog("Model found directly in initial path.")
             }
             // --- End Path Adjustment Logic ---
 
-            // Construct absolute paths needed for the C API by combining the final assetBasePath and relative filenames
-            guard let modelFile = modelFile, !modelFile.isEmpty else {
-                 throw NSError(domain: "SherpaOnnx", code: 102, userInfo: [NSLocalizedDescriptionKey: "Missing or empty modelFile parameter (checked after extraction)"])
-            }
-            let modelAbsPath = "\(assetBasePath)/\(modelFile)"
-            let tokensAbsPath = "\(assetBasePath)/\(tokensFile)"
+            // --- Construct FINAL Absolute Paths (using the potentially updated assetBasePath) ---
+            let modelAbsPath = "\(assetBasePath)/\(modelFileName)" // Join base path and relative model file path
+            let tokensAbsPath = "\(assetBasePath)/\(tokensFile)"     // Join base path and relative tokens file path
             let lexiconAbsPath = lexiconFile != nil ? "\(assetBasePath)/\(lexiconFile!)" : ""
-            let voicesAbsPath = voicesFile != nil ? "\(assetBasePath)/\(voicesFile!)" : "" // Used by Kokoro, also vocoder for Matcha
-            let acousticModelAbsPath = acousticModelFile != nil ? "\(assetBasePath)/\(acousticModelFile!)" : modelAbsPath // Fallback for Matcha if specific not given
-            let vocoderAbsPath = vocoderFile != nil ? "\(assetBasePath)/\(vocoderFile!)" : voicesAbsPath // Fallback for Matcha
-            // Determine absolute dataDir path based on input, relative to the final assetBasePath
+            let voicesAbsPath = voicesFile != nil ? "\(assetBasePath)/\(voicesFile!)" : ""
+            // Adjusted acousticModel/vocoder path logic for Matcha:
+            // - Use modelFile for acoustic model path
+            // - For vocoder, use vocoderFile if available
+            let acousticModelAbsPath = "\(assetBasePath)/\(modelFile)"
+            let vocoderAbsPath = vocoderFile != nil ? "\(assetBasePath)/\(vocoderFile!)" : voicesAbsPath
+
+            // --- Handle dataDir (joining with the final assetBasePath if relative) ---
             let dataDirAbsPath: String
             if let dataDir = dataDirInput, !dataDir.isEmpty {
                 if dataDir.hasPrefix("/") || dataDir.hasPrefix("file://") {
-                    // Input looks like an absolute path
                     dataDirAbsPath = dataDir.replacingOccurrences(of: "file://", with: "")
-                    NSLog("TTS Init - Treating dataDir as absolute.")
+                    NSLog("TTS Init - Treating dataDir as absolute: \(dataDirAbsPath)")
                 } else {
-                    // Input looks like a relative path, join with final assetBasePath
-                    dataDirAbsPath = "\(assetBasePath)/\(dataDir)"
-                    NSLog("TTS Init - Treating dataDir as relative, joining with assetBasePath.")
+                    dataDirAbsPath = "\(assetBasePath)/\(dataDir)" // Join relative path with final assetBasePath
+                    NSLog("TTS Init - Treating dataDir as relative, joined path: \(dataDirAbsPath)")
                 }
             } else {
-                // No dataDir provided or empty, default to empty string
                 dataDirAbsPath = ""
                 NSLog("TTS Init - No dataDir provided or empty.")
             }
-
-            // Log constructed paths using the potentially updated base path
+            
+            // --- Log Constructed Paths --- 
             NSLog("TTS Init - Using Model path: \(modelAbsPath)")
             NSLog("TTS Init - Using Tokens path: \(tokensAbsPath)")
             NSLog("TTS Init - Using Lexicon path: \(lexiconAbsPath)")
             NSLog("TTS Init - Using Voices path: \(voicesAbsPath)")
-            NSLog("TTS Init - Using Acoustic Model path: \(acousticModelAbsPath)")
             NSLog("TTS Init - Using Vocoder path: \(vocoderAbsPath)")
             NSLog("TTS Init - Using Data dir path: \(dataDirAbsPath)") 
-
-            // --- Perform final file existence checks here using adjusted paths ---
+            
+            // --- Perform File Existence Checks (using simplified paths) --- 
+            NSLog("Checking existence of Model file at: \(modelAbsPath)")
             if !FileManager.default.fileExists(atPath: modelAbsPath) {
-                 throw NSError(domain: "SherpaOnnx", code: 103, userInfo: [NSLocalizedDescriptionKey: "Model file not found at final path: \(modelAbsPath)"])
+                logDirectoryContents(path: assetBasePath) // Log parent dir if file not found
+                throw NSError(domain: "SherpaOnnx", code: 103, userInfo: [NSLocalizedDescriptionKey: "Model file ('\(modelFileName)') not found at final path: \(modelAbsPath)"])
             }
+            NSLog("Checking existence of Tokens file at: \(tokensAbsPath)")
             if !FileManager.default.fileExists(atPath: tokensAbsPath) {
-                 throw NSError(domain: "SherpaOnnx", code: 104, userInfo: [NSLocalizedDescriptionKey: "Tokens file not found at final path: \(tokensAbsPath)"])
+                logDirectoryContents(path: assetBasePath) // Log parent dir if file not found
+                throw NSError(domain: "SherpaOnnx", code: 104, userInfo: [NSLocalizedDescriptionKey: "Tokens file ('\(tokensFile)') not found at final path: \(tokensAbsPath)"])
             }
             // Optional file checks (log warning if missing)
             if !lexiconAbsPath.isEmpty && !FileManager.default.fileExists(atPath: lexiconAbsPath) {
                 NSLog("Warning: Optional lexicon file not found at: \(lexiconAbsPath)")
             }
-             if !voicesAbsPath.isEmpty && !FileManager.default.fileExists(atPath: voicesAbsPath) {
+            if !voicesAbsPath.isEmpty && !FileManager.default.fileExists(atPath: voicesAbsPath) {
                 NSLog("Warning: Optional voices/vocoder file not found at: \(voicesAbsPath)")
             }
-            if !dataDirAbsPath.isEmpty && !FileManager.default.fileExists(atPath: dataDirAbsPath) {
-                 NSLog("Warning: Optional data directory not found at: \(dataDirAbsPath)")
+            if !dataDirAbsPath.isEmpty {
+                NSLog("Checking existence of Data directory at: \(dataDirAbsPath)")
+                var isDir : ObjCBool = false
+                if !FileManager.default.fileExists(atPath: dataDirAbsPath, isDirectory: &isDir) || !isDir.boolValue {
+                    NSLog("Warning: Optional data directory not found or not a directory at: \(dataDirAbsPath)")
+                }
             }
-            // --- End Final File Checks ---
-
-            // Create model configuration based on type
-            var cModelConfig: SherpaOnnxOfflineTtsModelConfig // C struct
+            
+            // --- Create model configuration based on type (Pass simplified *AbsPath variables) --- 
+            var cModelConfig: SherpaOnnxOfflineTtsModelConfig
 
             if modelType == "vits" {
                 NSLog("Configuring VITS model")
@@ -383,12 +404,26 @@ fileprivate func toCPointer(_ s: String) -> UnsafePointer<Int8>! {
      * @return Dictionary with stop result
      */
     @objc public func stopTts() -> NSDictionary {
+        NSLog("SherpaOnnxTtsHandler: Stopping TTS generation - isGenerating was: \(isGenerating)")
+        
+        // Set flag to stop callback-based generation
         isGenerating = false
         
+        // Stop audio playback if playing
         if let player = audioPlayer, player.isPlaying {
+            NSLog("SherpaOnnxTtsHandler: Stopping audio playback")
             player.stop()
             audioPlayer = nil
         }
+        
+        // Additional check for TTS instance
+        if tts != nil {
+            NSLog("SherpaOnnxTtsHandler: TTS instance exists, marking as stopping")
+            // Note: The C library doesn't have a direct "stop" function for TTS,
+            // but the isGenerating flag should stop any callback-based generation
+        }
+        
+        NSLog("SherpaOnnxTtsHandler: TTS stop completed successfully")
         
         return [
             "stopped": true,
@@ -479,6 +514,16 @@ fileprivate func toCPointer(_ s: String) -> UnsafePointer<Int8>! {
         audioPlayer = try AVAudioPlayer(contentsOf: url)
         audioPlayer?.prepareToPlay()
         audioPlayer?.play()
+    }
+
+    // ---> Add Helper function INSIDE the class <--- 
+    private func logDirectoryContents(path: String) {
+        do {
+            let items = try FileManager.default.contentsOfDirectory(atPath: path)
+            NSLog("Contents of directory '\(path)': \(items.joined(separator: ", "))")
+        } catch {
+            NSLog("Failed to list contents of directory '\(path)': \(error.localizedDescription)")
+        }
     }
 }
 

@@ -14,11 +14,11 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
-  TouchableOpacity,
-  View,
   TextInput,
-  Switch
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelManagement } from '../../contexts/ModelManagement';
@@ -135,7 +135,7 @@ const findModelFileRecursive = async (basePath: string): Promise<{ modelDir: str
 // const audioTaggingService = new AudioTagging();
 
 function AudioTaggingScreen() {
-  const { models, getDownloadedModels, getModelState } = useModelManagement();
+  const { getDownloadedModels, getModelState } = useModelManagement();
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);

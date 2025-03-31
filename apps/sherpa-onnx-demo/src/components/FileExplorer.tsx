@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
+import * as Clipboard from 'expo-clipboard';
 import { formatBytes } from '../utils/formatters';
 import { useModelManagement } from '../contexts/ModelManagement/ModelManagementContext';
 import { ModelState } from '../contexts/ModelManagement/types';
@@ -27,6 +28,8 @@ interface FileItem {
   modelType?: string;
   error?: string;
   exists?: boolean;
+  modificationTime?: string;
+  state?: string;
 }
 
 interface FileExplorerProps {
@@ -57,6 +60,8 @@ export function FileExplorer({
   const [items, setItems] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [debugItems, setDebugItems] = useState<FileItem[]>([]);
 
   // Memoize normalized paths derived from props to stabilize dependencies
   const currentPath = useMemo(() => normalizePath(rawCurrentPath), [rawCurrentPath]);
@@ -252,9 +257,97 @@ export function FileExplorer({
     fetchItems();
   }, [fetchItems]); // Depend only on the memoized callback
 
-  const logDirectoryContents = () => {
-    fetchItems(true);
-  };
+  const logDirectoryContents = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Use a temporary array to hold debug items
+      const tempDebugItems: FileItem[] = [];
+      
+      // Determine path type
+      let pathType: 'virtual' | 'real' | 'invalid' = 'invalid';
+      
+      if (currentPath === '') {
+        pathType = 'virtual';
+      } else if (currentPath.startsWith(normalizedDocumentDirectory) || currentPath.startsWith('file://')) {
+        pathType = 'real';
+      }
+      
+      // Log path type info
+      console.log(`Debug Info: Path Type for "${currentPath}": ${pathType}`);
+      
+      if (pathType === 'real') {
+        // Check path exists
+        const pathInfo = await FileSystem.getInfoAsync(currentPath, { size: true });
+        if (!pathInfo.exists || !pathInfo.isDirectory) {
+          throw new Error(`Path ${currentPath} does not exist or is not a directory`);
+        }
+        
+        // Read directory
+        const fileList = await FileSystem.readDirectoryAsync(currentPath);
+        console.log(`Debug: Found ${fileList.length} items in ${currentPath}`);
+        
+        // Get info for each item
+        const itemsWithInfoPromises = fileList.map(async (name) => {
+          const itemPath = `${currentPath}/${name}`;
+          try {
+            const info = await FileSystem.getInfoAsync(itemPath, { size: true });
+            return {
+              name, 
+              path: itemPath, 
+              displayPath: itemPath.replace(/^file:\/\//, ''),
+              isDirectory: info.isDirectory ?? false,
+              size: info.exists && 'size' in info ? info.size : undefined,
+              uri: info.uri, 
+              exists: info.exists,
+              modificationTime: info.exists && 'modificationTime' in info ? info.modificationTime : undefined,
+            };
+          } catch (itemError) {
+            return { 
+              name, 
+              path: itemPath, 
+              displayPath: itemPath.replace(/^file:\/\//, ''), 
+              isDirectory: false, 
+              exists: false, 
+              error: `Error: ${String(itemError)}` 
+            };
+          }
+        });
+        
+        const detailedItems = await Promise.all(itemsWithInfoPromises);
+        tempDebugItems.push(...detailedItems as FileItem[]);
+      } else if (pathType === 'virtual') {
+        // For virtual path, show all models regardless of filter
+        const allModels = getDownloadedModels();
+        const modelItems = allModels
+          .filter(model => model.localPath)
+          .map(model => ({
+            name: model.metadata.name,
+            isDirectory: true,
+            path: normalizePath(model.localPath!),
+            displayPath: model.localPath!.replace(/^file:\/\//, ''),
+            modelId: model.metadata.id,
+            description: model.metadata.description,
+            modelType: model.metadata.type,
+            size: undefined,
+            exists: true,
+          }));
+        tempDebugItems.push(...modelItems);
+      }
+      
+      // Update debug state
+      setDebugItems(tempDebugItems);
+      setShowDebugInfo(true);
+      
+      // Still log to console as before
+      console.log("Debug items:", tempDebugItems);
+      
+    } catch (error) {
+      console.error("Debug info error:", error);
+      Alert.alert("Debug Error", String(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPath, getDownloadedModels]);
 
   const navigateUp = () => {
     // Determine path type using the same logic as fetchItems
@@ -307,8 +400,41 @@ export function FileExplorer({
       console.log(`Navigating to folder: ${item.path}`);
       onNavigate(item.path); // Navigate using the path from the item
     } else {
-      console.log('Selected file:', item.path);
-      Alert.alert("File Selected", `You tapped on the file: ${item.name}`);
+      // Log detailed file information to the console
+      console.log('File Details:', {
+        name: item.name,
+        path: item.path,
+        displayPath: item.displayPath,
+        size: item.size ? formatBytes(item.size) : 'Unknown',
+        uri: item.uri,
+        exists: item.exists,
+      });
+      
+      // Copy path to clipboard and show alert
+      try {
+        // Copy the path to clipboard
+        Clipboard.setStringAsync(item.path)
+          .then(() => {
+            // Show alert with path copied confirmation
+            Alert.alert(
+              "File Selected",
+              `Path copied to clipboard:\n${item.path}`,
+              [
+                { 
+                  text: "OK", 
+                  style: "default" 
+                }
+              ]
+            );
+          })
+          .catch(error => {
+            console.error('Failed to copy to clipboard:', error);
+            Alert.alert("File Selected", `Path: ${item.path}\n\nFailed to copy to clipboard.`);
+          });
+      } catch (error) {
+        console.error('Error accessing clipboard:', error);
+        Alert.alert("File Selected", `Path: ${item.path}`);
+      }
     }
   };
 
@@ -355,6 +481,11 @@ export function FileExplorer({
       </View>
     );
   }
+
+  // Add a function to close debug overlay
+  const closeDebugInfo = () => {
+    setShowDebugInfo(false);
+  };
 
   // Main component render
   return (
@@ -424,6 +555,42 @@ export function FileExplorer({
           ) : null
         }
       />
+      
+      {/* Debug Overlay */}
+      {showDebugInfo && (
+        <View style={styles.debugOverlay}>
+          <View style={styles.debugHeader}>
+            <Text style={styles.debugTitle}>Debug: Directory Contents</Text>
+            <TouchableOpacity onPress={closeDebugInfo} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          
+          <FlatList
+            data={debugItems}
+            keyExtractor={(item, index) => `${item.path}-${index}`}
+            renderItem={({ item }) => (
+              <View style={styles.debugItem}>
+                <Text style={styles.debugItemName}>{item.name}</Text>
+                <Text style={styles.debugItemPath}>{item.displayPath}</Text>
+                {item.isDirectory && <Text style={styles.debugItemType}>Type: Directory</Text>}
+                {!item.isDirectory && item.size !== undefined && (
+                  <Text style={styles.debugItemSize}>Size: {formatBytes(item.size)}</Text>
+                )}
+                {item.modelType && <Text style={styles.debugItemModelType}>Model Type: {item.modelType}</Text>}
+                {item.state && <Text style={styles.debugItemState}>State: {item.state}</Text>}
+                {item.error && <Text style={styles.debugItemError}>{item.error}</Text>}
+              </View>
+            )}
+            ItemSeparatorComponent={() => <View style={styles.debugSeparator} />}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No debug information available</Text>
+              </View>
+            }
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -455,4 +622,76 @@ const styles = StyleSheet.create({
   separator: { height: 1, backgroundColor: '#f0f0f0', marginLeft: 56 },
   emptyContainer: { padding: 24, alignItems: 'center' },
   emptyText: { color: '#999', fontSize: 16, textAlign: 'center' },
+  debugOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    zIndex: 1000,
+  },
+  debugHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#333',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#555',
+  },
+  debugTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  debugItem: {
+    padding: 12,
+    backgroundColor: '#222',
+  },
+  debugItemName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  debugItemPath: {
+    color: '#aaa',
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginBottom: 4,
+  },
+  debugItemType: {
+    color: '#4fc3f7',
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  debugItemSize: {
+    color: '#81c784',
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  debugItemModelType: {
+    color: '#ba68c8',
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  debugItemState: {
+    color: '#ffb74d',
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  debugItemError: {
+    color: '#ef5350',
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  debugSeparator: {
+    height: 1,
+    backgroundColor: '#444',
+  },
 }); 

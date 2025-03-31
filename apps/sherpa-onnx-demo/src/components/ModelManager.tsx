@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 
 import * as FileSystem from 'expo-file-system';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  FlatList,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -34,7 +35,7 @@ interface ModelManagerProps {
   onBackToDownloads: () => void;
 }
 
-const ModelCard: React.FC<ModelCardProps> = ({
+const ModelCard: React.FC<ModelCardProps> = React.memo(({
   model,
   state,
   onDownload,
@@ -57,11 +58,27 @@ const ModelCard: React.FC<ModelCardProps> = ({
   }>>([]);
   const [fileListError, setFileListError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  
   const isDownloaded = state?.status === 'downloaded';
   const isDownloading = state?.status === 'downloading';
   const isExtracting = state?.status === 'extracting';
   const hasError = state?.status === 'error';
   const hasDependencies = model.dependencies && model.dependencies.length > 0;
+
+  // Animate progress changes
+  useEffect(() => {
+    if (isDownloading && state?.progress !== undefined) {
+      Animated.timing(progressAnim, {
+        toValue: state.progress,
+        duration: 300,
+        useNativeDriver: false
+      }).start();
+    } else if (isExtracting) {
+      // Reset to 0 for indeterminate animation
+      progressAnim.setValue(0);
+    }
+  }, [state?.progress, isDownloading, isExtracting, progressAnim]);
 
   const handleDownload = async () => {
     try {
@@ -91,6 +108,40 @@ const ModelCard: React.FC<ModelCardProps> = ({
   const toggleShowFiles = async () => {
     // If we have the onBrowseFiles prop, use it to navigate to file explorer
     if (onBrowseFiles && state?.localPath) {
+      console.log(`Attempting to browse files at: ${state.localPath}`);
+      
+      // Check if the path exists before attempting to browse
+      const pathInfo = await FileSystem.getInfoAsync(state.localPath);
+      
+      if (!pathInfo.exists) {
+        console.warn(`Path does not exist: ${state.localPath}`);
+        
+        // For iOS, try to reconstruct the path
+        if (Platform.OS === 'ios') {
+          // Try to rebuild the path with current document directory
+          const documentsPath = FileSystem.documentDirectory || '';
+          const modelId = model.id;
+          const fallbackPath = `${documentsPath}models/${modelId}`;
+          
+          console.log(`Trying fallback path: ${fallbackPath}`);
+          
+          const fallbackPathInfo = await FileSystem.getInfoAsync(fallbackPath);
+          if (fallbackPathInfo.exists) {
+            console.log(`Fallback path exists, using it`);
+            onBrowseFiles(fallbackPath);
+            return;
+          }
+        }
+        
+        // If all attempts fail, show an error
+        Alert.alert(
+          'Path Not Found',
+          `The model files cannot be found at the saved location. This can happen after an app update or reinstall. Try downloading the model again.`
+        );
+        return;
+      }
+      
+      // Path exists, proceed with browsing
       onBrowseFiles(state.localPath);
       return;
     }
@@ -220,7 +271,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
         <Text style={cardStyles.detailText}>Language: {model.language}</Text>
       </View>
 
-      {/* Download Progress */}
+      {/* Download Progress - use animated version */}
       {state?.status === 'downloading' && (
         <View style={cardStyles.progressContainer}>
           <View style={cardStyles.progressRow}>
@@ -252,19 +303,20 @@ const ModelCard: React.FC<ModelCardProps> = ({
             )}
           </View>
           <View style={cardStyles.progressBarContainer}>
-            <View style={cardStyles.progressBarOuter}>
-              <View 
-                style={[
-                  cardStyles.progressBarInner, 
-                  { width: `${Math.round((state.progress || 0) * 100)}%` }
-                ]} 
-              />
-            </View>
+            <Animated.View 
+              style={[
+                cardStyles.progressBarInner, 
+                { width: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '100%'],
+                }) }
+              ]} 
+            />
           </View>
         </View>
       )}
 
-      {/* Extraction Progress */}
+      {/* Extraction Progress - also use animated version for indeterminate progress */}
       {state?.status === 'extracting' && (
         <View style={cardStyles.progressContainer}>
           <View style={cardStyles.progressRow}>
@@ -293,9 +345,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
             )}
           </View>
           <View style={cardStyles.progressBarContainer}>
-            <View style={cardStyles.progressBarOuter}>
-              <View style={[cardStyles.progressBarInner, cardStyles.progressBarIndeterminate]} />
-            </View>
+            <View style={[cardStyles.progressBarInner, cardStyles.progressBarIndeterminate]} />
           </View>
         </View>
       )}
@@ -434,74 +484,182 @@ const ModelCard: React.FC<ModelCardProps> = ({
       </View>
     </View>
   );
+});
+
+// Define types for the unified list data
+type SectionId = 'downloaded' | 'available';
+type HeaderItem = {
+  type: 'header';
+  id: SectionId;
+  title: string;
+  count: number;
+  isExpanded: boolean;
 };
+type ModelItem = {
+  type: 'model';
+  id: string; // Use model id directly for key
+  modelData: ModelMetadata | ModelState;
+};
+type EmptyItem = {
+  type: 'empty';
+  id: string; // e.g., 'empty-downloaded'
+  message: string;
+}
+type ListItem = HeaderItem | ModelItem | EmptyItem;
 
 export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: ModelManagerProps) {
   const {
     getAvailableModels,
     getDownloadedModels,
-    getModelState,
+    modelsState,
     downloadModel,
     deleteModel,
-    isModelDownloaded,
-    refreshModelStatus,
-    modelsState,
     cancelDownload
   } = useModelManagement();
 
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [expandedSection, setExpandedSection] = useState<'downloaded' | 'available' | null>(null);
+  const [expandedSection, setExpandedSection] = useState<SectionId | null>('downloaded'); // Start with downloaded expanded
 
-  // Get models once on mount
+  // Memoized model lists (as before)
   const availableModels = useMemo(() => getAvailableModels(), []);
   const downloadedModels = useMemo(() => getDownloadedModels(), [modelsState]);
 
-  // Filter models based on type
-  const filteredAvailableModels = useMemo(() => 
-    filterType === 'all' 
-      ? availableModels 
-      : availableModels.filter((model: ModelMetadata) => model.type === filterType),
+  const filteredAvailableModels = useMemo(() =>
+    filterType === 'all'
+      ? availableModels
+      : availableModels.filter((model) => model.type === filterType),
     [availableModels, filterType]
   );
 
-  const filteredDownloadedModels = useMemo(() => 
+  const filteredDownloadedModels = useMemo(() =>
     filterType === 'all'
       ? downloadedModels
-      : downloadedModels.filter((model: ModelState) => model.metadata.type === filterType),
-    [modelsState, filterType]
+      : downloadedModels.filter((modelState) => modelState.metadata.type === filterType),
+    [downloadedModels, filterType]
   );
 
-  // Memoize handlers
+  // Memoized handlers (as before)
   const handleDownload = useCallback(async (modelId: string) => {
-    try {
-      await downloadModel(modelId);
-    } catch (error) {
-      Alert.alert('Download Error', (error as Error).message);
-    }
+      try { await downloadModel(modelId); } catch (e) { Alert.alert('Download Error', (e as Error).message); }
   }, [downloadModel]);
-
   const handleCancelDownload = useCallback(async (modelId: string) => {
-    try {
-      await cancelDownload(modelId);
-    } catch (error) {
-      Alert.alert('Cancel Error', (error as Error).message);
-    }
+      try { await cancelDownload(modelId); } catch (e) { Alert.alert('Cancel Error', (e as Error).message); }
   }, [cancelDownload]);
-
   const handleDelete = useCallback(async (modelId: string) => {
-    try {
-      await deleteModel(modelId);
-    } catch (error) {
-      Alert.alert('Delete Error', (error as Error).message);
-    }
+      try { await deleteModel(modelId); } catch (e) { Alert.alert('Delete Error', (e as Error).message); }
   }, [deleteModel]);
-
   const handleSelect = useCallback((modelId: string) => {
     setSelectedModelId(modelId);
   }, []);
 
-  // Initial load
+  // Function to toggle section expansion
+  const toggleSection = (sectionId: SectionId) => {
+      setExpandedSection(prev => prev === sectionId ? null : sectionId);
+  };
+
+  // Create the unified list data based on expanded state
+  const listData = useMemo((): ListItem[] => {
+      const data: ListItem[] = [];
+
+      // Downloaded Section
+      const downloadedExpanded = expandedSection === 'downloaded';
+      data.push({
+          type: 'header',
+          id: 'downloaded',
+          title: 'Downloaded Models',
+          count: filteredDownloadedModels.length,
+          isExpanded: downloadedExpanded,
+      });
+      if (downloadedExpanded) {
+          if (filteredDownloadedModels.length === 0) {
+              data.push({ type: 'empty', id: 'empty-downloaded', message: 'No downloaded models' });
+          } else {
+              filteredDownloadedModels.forEach(modelState => {
+                  data.push({ type: 'model', id: modelState.metadata.id, modelData: modelState });
+              });
+          }
+      }
+
+      // Available Section
+      const availableExpanded = expandedSection === 'available';
+      data.push({
+          type: 'header',
+          id: 'available',
+          title: 'Available Models',
+          count: filteredAvailableModels.length,
+          isExpanded: availableExpanded,
+      });
+      if (availableExpanded) {
+          if (filteredAvailableModels.length === 0) {
+              data.push({ type: 'empty', id: 'empty-available', message: 'No models available for the selected type' });
+          } else {
+              filteredAvailableModels.forEach(model => {
+                  data.push({ type: 'model', id: model.id, modelData: model });
+              });
+          }
+      }
+
+      return data;
+  }, [expandedSection, filteredDownloadedModels, filteredAvailableModels]);
+
+  // Render function for FlatList items
+  const renderListItem = useCallback(({ item }: { item: ListItem }) => {
+      if (item.type === 'header') {
+          return (
+              <TouchableOpacity
+                  style={styles.sectionHeader}
+                  onPress={() => toggleSection(item.id)}
+              >
+                  <Text style={styles.sectionTitle}>{item.title}</Text>
+                  <Text style={styles.sectionCount}>({item.count})</Text>
+                  {/* Optional: Add expand/collapse icon based on item.isExpanded */}
+              </TouchableOpacity>
+          );
+      }
+
+      if (item.type === 'empty') {
+         return (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>{item.message}</Text>
+            </View>
+         );
+      }
+
+      if (item.type === 'model') {
+          // Use a type guard or assertion for clarity
+          const isStateItem = 'metadata' in item.modelData;
+          const modelMetadata: ModelMetadata = isStateItem 
+              ? (item.modelData as ModelState).metadata 
+              : item.modelData as ModelMetadata;
+              
+          // Ensure we get the LATEST state from the context map inside the render function
+          const modelState = modelsState[modelMetadata.id]; 
+
+          // console.log(`Rendering ModelCard for ${modelMetadata.id}, State:`, modelState?.status, modelState?.progress); // Optional: Log state passed to card
+
+          return (
+              <ModelCard
+                  // No key prop needed here
+                  model={modelMetadata}
+                  state={modelState} // Pass the potentially updated state from context
+                  onDownload={() => handleDownload(modelMetadata.id)}
+                  onDelete={() => handleDelete(modelMetadata.id)}
+                  onSelect={() => handleSelect(modelMetadata.id)}
+                  isSelected={selectedModelId === modelMetadata.id}
+                  onBrowseFiles={onModelSelect}
+                  onCancelDownload={handleCancelDownload}
+              />
+          );
+      }
+
+      return null; // Should not happen
+  }, [modelsState, selectedModelId, handleDownload, handleDelete, handleSelect, onModelSelect, handleCancelDownload, toggleSection]);
+
+  // Key extractor for FlatList
+  const keyExtractor = useCallback((item: ListItem) => item.id, []);
+
+  // Initial load effect
   useEffect(() => {
     setIsLoading(false);
   }, []);
@@ -514,92 +672,71 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
     );
   }
 
+  // Render the single FlatList
   return (
-    <ScrollView 
-      style={styles.container}
-      key={`model-manager-${filterType}`}
-    >
-      {/* Downloaded Models Section */}
-      <View style={styles.section}>
-        <TouchableOpacity 
-          style={styles.sectionHeader}
-          onPress={() => setExpandedSection(expandedSection === 'downloaded' ? null : 'downloaded')}
-        >
-          <Text style={styles.sectionTitle}>Downloaded Models</Text>
-          <Text style={styles.sectionCount}>({filteredDownloadedModels.length})</Text>
-        </TouchableOpacity>
-        
-        {expandedSection === 'downloaded' && (
-          filteredDownloadedModels.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No downloaded models</Text>
-            </View>
-          ) : (
-            filteredDownloadedModels.map((model: ModelState) => {
-              const currentState = modelsState[model.metadata.id];
-              return (
-                <ModelCard
-                  key={model.metadata.id}
-                  model={model.metadata}
-                  state={currentState || model}
-                  onDownload={() => handleDownload(model.metadata.id)}
-                  onDelete={() => handleDelete(model.metadata.id)}
-                  onSelect={() => handleSelect(model.metadata.id)}
-                  isSelected={selectedModelId === model.metadata.id}
-                  onBrowseFiles={onModelSelect}
-                  onCancelDownload={handleCancelDownload}
-                />
-              );
-            })
-          )
-        )}
-      </View>
-
-      {/* Available Models Section */}
-      <View style={styles.section}>
-        <TouchableOpacity 
-          style={styles.sectionHeader}
-          onPress={() => setExpandedSection(expandedSection === 'available' ? null : 'available')}
-        >
-          <Text style={styles.sectionTitle}>Available Models</Text>
-          <Text style={styles.sectionCount}>({filteredAvailableModels.length})</Text>
-        </TouchableOpacity>
-        
-        {expandedSection === 'available' && (
-          filteredAvailableModels.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No models available for the selected type</Text>
-            </View>
-          ) : (
-            filteredAvailableModels.map((model: ModelMetadata) => {
-              const currentState = modelsState[model.id];
-              return (
-                <ModelCard
-                  key={model.id}
-                  model={model}
-                  state={currentState}
-                  onDownload={() => handleDownload(model.id)}
-                  onDelete={() => handleDelete(model.id)}
-                  onSelect={() => handleSelect(model.id)}
-                  isSelected={selectedModelId === model.id}
-                  onBrowseFiles={onModelSelect}
-                  onCancelDownload={handleCancelDownload}
-                />
-              );
-            })
-          )
-        )}
-      </View>
-    </ScrollView>
+    <FlatList
+      style={styles.container} // Apply container style to FlatList
+      data={listData}
+      renderItem={renderListItem}
+      keyExtractor={keyExtractor}
+      // Correct extraData: include things renderListItem depends on that aren't in `item`
+      extraData={{ modelsState, selectedModelId }} // Pass modelsState here so FlatList knows items might need re-rendering when it changes
+      // Performance tuning props
+      windowSize={11} // Default is 21, adjust based on testing
+      maxToRenderPerBatch={10} // Default is 10
+      initialNumToRender={10} // Default is 10
+      removeClippedSubviews={Platform.OS === 'android'} // Can improve performance on Android
+    />
   );
 }
+
+// Styles for the main component
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff', // White background for headers
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0', // Separator line
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  sectionCount: {
+    fontSize: 14,
+    color: '#666',
+  },
+  emptyContainer: {
+    padding: 24,
+    alignItems: 'center',
+    backgroundColor: '#f9f9f9', // Slightly different background for empty message
+  },
+  emptyText: {
+    color: '#999',
+    fontSize: 16,
+  },
+});
 
 // Styles for the ModelCard component
 const cardStyles = StyleSheet.create({
   card: {
     backgroundColor: '#fff',
     borderRadius: 8,
-    margin: 8,
+    marginHorizontal: 16, // Add horizontal margin to cards
+    marginVertical: 8, // Add vertical margin to cards
     padding: 16,
     elevation: 2,
     shadowColor: '#000',
@@ -670,7 +807,7 @@ const cardStyles = StyleSheet.create({
   },
   progressBarOuter: {
     height: '100%',
-    backgroundColor: '#2196F3',
+    backgroundColor: '#f0f0f0',
     borderRadius: 6,
     overflow: 'hidden',
   },
@@ -842,50 +979,5 @@ const cardStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     marginLeft: 4,
-  },
-});
-
-// Styles for the main component
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  section: {
-    padding: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  sectionCount: {
-    fontSize: 14,
-    color: '#666',
-  },
-  emptyContainer: {
-    padding: 24,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  emptyText: {
-    color: '#999',
-    fontSize: 16,
   },
 }); 

@@ -29,7 +29,8 @@ export interface Spec extends TurboModule {
   initTts(config: {
     modelDir: string;
     modelType?: string;
-    modelName?: string;
+    modelFile?: string;
+    tokensFile?: string;
     acousticModelName?: string;
     vocoder?: string;
     voices?: string;

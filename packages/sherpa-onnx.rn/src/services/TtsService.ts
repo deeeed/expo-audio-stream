@@ -1,11 +1,12 @@
 import type { ApiInterface } from '../types/api';
 import type {
-  TtsModelConfig,
-  TtsInitResult,
-  TtsOptions,
   TtsGenerateResult,
+  TtsInitResult,
+  TtsModelConfig,
+  TtsOptions,
   ValidateResult,
 } from '../types/interfaces';
+import { cleanFilePath } from '../utils/fileUtils';
 
 /**
  * Service for Text-to-Speech functionality
@@ -14,18 +15,10 @@ export class TtsService {
   private initialized = false;
   private sampleRate = 0;
   private numSpeakers = 0;
-  private modelType?: string;
   private api: ApiInterface;
 
   constructor(api: ApiInterface) {
     this.api = api;
-  }
-
-  /**
-   * Get the model type
-   */
-  public getModelType(): string | undefined {
-    return this.modelType;
   }
 
   /**
@@ -54,27 +47,113 @@ export class TtsService {
         await this.release();
       }
 
-      // Set default values for model parameters if not specified
-      if (config.modelType === 'vits' && config.noiseScale === undefined) {
-        config.noiseScale = 0.667;
+      // Clean up file paths
+      const cleanedModelDir = cleanFilePath(config.modelDir);
+      const cleanedDataDir = config.dataDir
+        ? cleanFilePath(config.dataDir)
+        : undefined;
+      const cleanedDictDir = config.dictDir
+        ? cleanFilePath(config.dictDir)
+        : undefined;
+
+      // Create base config with common properties
+      const nativeConfig: TtsModelConfig = {
+        modelDir: cleanedModelDir,
+        modelFile: config.modelFile,
+        tokensFile: config.tokensFile,
+        ttsModelType: config.ttsModelType,
+        numThreads: config.numThreads || 1,
+        debug: config.debug || false,
+        provider: config.provider || 'cpu',
+      };
+
+      // Only add dataDir if it's defined
+      if (cleanedDataDir) {
+        nativeConfig.dataDir = cleanedDataDir;
       }
 
-      if (config.modelType === 'vits' && config.noiseScaleW === undefined) {
-        config.noiseScaleW = 0.8;
+      // Only add dictDir if it's defined
+      if (cleanedDictDir) {
+        nativeConfig.dictDir = cleanedDictDir;
       }
 
-      if (config.lengthScale === undefined) {
-        config.lengthScale = 1.0;
+      // Set model-specific properties based on model type
+      switch (config.ttsModelType) {
+        case 'vits':
+          if (config.lexiconFile) {
+            nativeConfig.lexiconFile = config.lexiconFile;
+          }
+          // Only add these if they're defined
+          if (config.noiseScale !== undefined) {
+            nativeConfig.noiseScale = config.noiseScale;
+          }
+          if (config.noiseScaleW !== undefined) {
+            nativeConfig.noiseScaleW = config.noiseScaleW;
+          }
+          if (config.lengthScale !== undefined) {
+            nativeConfig.lengthScale = config.lengthScale;
+          }
+          break;
+
+        case 'matcha':
+          if (config.vocoderFile) {
+            nativeConfig.vocoderFile = config.vocoderFile;
+          }
+          if (config.lexiconFile) {
+            nativeConfig.lexiconFile = config.lexiconFile;
+          }
+          if (config.noiseScale !== undefined) {
+            nativeConfig.noiseScale = config.noiseScale;
+          }
+          if (config.lengthScale !== undefined) {
+            nativeConfig.lengthScale = config.lengthScale;
+          }
+          break;
+
+        case 'kokoro':
+          if (config.voicesFile) {
+            nativeConfig.voicesFile = config.voicesFile;
+          }
+          if (config.lexiconFile) {
+            nativeConfig.lexiconFile = config.lexiconFile;
+          }
+          if (config.lengthScale !== undefined) {
+            nativeConfig.lengthScale = config.lengthScale;
+          }
+          break;
+
+        default:
+          throw new Error(`Unsupported model type: ${config.ttsModelType}`);
       }
 
-      const result = await this.api.initTts(config);
+      // Set optional rule files if provided
+      if (config.ruleFstsFile) {
+        nativeConfig.ruleFstsFile = cleanFilePath(config.ruleFstsFile);
+      }
+      if (config.ruleFarsFile) {
+        nativeConfig.ruleFarsFile = cleanFilePath(config.ruleFarsFile);
+      }
+
+      // Set optional TTS config settings
+      if (config.maxNumSentences !== undefined) {
+        nativeConfig.maxNumSentences = config.maxNumSentences;
+      }
+      if (config.silenceScale !== undefined) {
+        nativeConfig.silenceScale = config.silenceScale;
+      }
+
+      // Call the native API to initialize TTS
+      const result = await this.api.initTts(nativeConfig);
+
+      // Store initialization results
       this.initialized = result.success;
       this.sampleRate = result.sampleRate;
       this.numSpeakers = result.numSpeakers;
-      this.modelType = config.modelType;
+
       return result;
     } catch (error) {
       this.initialized = false;
+      console.error('Failed to initialize TTS:', error);
       throw error;
     }
   }
@@ -127,8 +206,6 @@ export class TtsService {
         noiseScaleW: options.noiseScaleW,
       });
 
-      // Return the basic result directly without normalization
-      // The native module should return just { success, filePath, error }
       return result;
     } catch (error) {
       console.error('Failed to generate speech:', error);
@@ -145,7 +222,27 @@ export class TtsService {
     stopped: boolean;
     message?: string;
   }> {
-    return this.api.stopTts();
+    try {
+      console.log('TtsService: Stopping speech generation...');
+      const result = await this.api.stopTts();
+      console.log('TtsService: Stop speech result:', result);
+
+      // Ensure the return value has the expected structure
+      const defaultMessage = result.stopped
+        ? 'Stopped successfully'
+        : 'Failed to stop speech generation';
+
+      return {
+        stopped: result.stopped === true,
+        message: result.message || defaultMessage,
+      };
+    } catch (error) {
+      console.error('TtsService: Error stopping speech:', error);
+      return {
+        stopped: false,
+        message: `Error stopping speech: ${(error as Error).message}`,
+      };
+    }
   }
 
   /**

@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FileExplorer } from '../../components/FileExplorer';
 import { ModelManager } from '../../components/ModelManager';
@@ -37,13 +37,14 @@ export default function ModelsScreen() {
       
       // Check if the path exists and what type it is
       const info = await FileSystem.getInfoAsync(modelPath);
-      console.log(`File info for ${modelPath}:`, info);
       
       if (!info.exists) {
-        // Try adding file:// prefix if not present
+        console.warn(`Path does not exist: ${modelPath}`);
+        
+        // Try adding file:// prefix if not present (for compatibility)
         if (!modelPath.startsWith('file://')) {
           const altPath = `file://${modelPath}`;
-          console.log(`Path doesn't exist, trying alternative: ${altPath}`);
+          console.log(`Trying alternative with file:// prefix: ${altPath}`);
           const altInfo = await FileSystem.getInfoAsync(altPath);
           
           if (altInfo.exists) {
@@ -62,14 +63,30 @@ export default function ModelsScreen() {
             // Now browse using the updated path and info
             browseWithValidPath(modelPath, updatedInfo);
             return;
-          } else {
-            Alert.alert('Error', `Path does not exist: ${modelPath}`);
+          }
+        }
+        
+        // If we're on iOS, try to find the model by its ID
+        if (Platform.OS === 'ios') {
+          // Extract model ID from the path
+          const pathParts = modelPath.split('/');
+          const modelId = pathParts[pathParts.length - 1]; // Last part should be model ID
+          
+          // Try to reconstruct the path using current document directory
+          const newPath = `${FileSystem.documentDirectory}models/${modelId}`;
+          console.log(`Trying reconstructed path: ${newPath}`);
+          
+          const newInfo = await FileSystem.getInfoAsync(newPath);
+          if (newInfo.exists) {
+            console.log(`Reconstructed path exists, using it`);
+            browseWithValidPath(newPath, newInfo);
             return;
           }
-        } else {
-          Alert.alert('Error', `Path does not exist: ${modelPath}`);
-          return;
         }
+        
+        // If all attempts fail, show an error
+        Alert.alert('Error', `Path does not exist: ${modelPath}`);
+        return;
       }
       
       // If we get here, the original path exists

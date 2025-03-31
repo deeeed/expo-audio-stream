@@ -1,4 +1,4 @@
-import type { TtsGenerateResult, TtsInitResult, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
+import type { TtsGenerateResult, TtsInitResult, TtsModelConfig, TtsModelType, ModelProvider } from '@siteed/sherpa-onnx.rn';
 import { TTS } from '@siteed/sherpa-onnx.rn';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
@@ -31,98 +31,6 @@ const verifyFileExists = async (filePath: string): Promise<boolean> => {
   }
 };
 
-// First check for espeak-ng-data directory regardless of model type
-// This should be done before the model-specific configurations
-const findEspeakData = async (basePath: string): Promise<string | null> => {
-  // Check directly in the model directory
-  const directEspeakPath = `${basePath}/espeak-ng-data`;
-  const directInfo = await FileSystem.getInfoAsync(directEspeakPath);
-  if (directInfo.exists && directInfo.isDirectory) {
-    console.log(`Found espeak-ng-data directly in model directory: ${directEspeakPath}`);
-    return directEspeakPath.replace('file://', '');
-  }
-
-  // If not found directly, try to find it in subdirectories
-  try {
-    const files = await FileSystem.readDirectoryAsync(basePath);
-    for (const file of files) {
-      const subDirPath = `${basePath}/${file}`;
-      const fileInfo = await FileSystem.getInfoAsync(subDirPath);
-      
-      if (fileInfo.exists && fileInfo.isDirectory) {
-        // Check if this subdirectory contains espeak-ng-data
-        const subDirEspeakPath = `${subDirPath}/espeak-ng-data`;
-        const subDirEspeakInfo = await FileSystem.getInfoAsync(subDirEspeakPath);
-        
-        if (subDirEspeakInfo.exists && subDirEspeakInfo.isDirectory) {
-          console.log(`Found espeak-ng-data in subdirectory: ${subDirEspeakPath}`);
-          return subDirEspeakPath.replace('file://', '');
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error searching for espeak-ng-data:', error);
-  }
-
-  console.log('No espeak-ng-data directory found');
-  return null;
-};
-
-/**
- * Recursively search for an ONNX model file in a directory and its subdirectories
- * @param basePath Base directory path to start searching
- * @returns Object with modelDir and modelName if found, null otherwise
- */
-const findModelFileRecursive = async (basePath: string): Promise<{ modelDir: string, modelName: string } | null> => {
-  console.log(`Recursively searching for model file in: ${basePath}`);
-  
-  const searchDirectory = async (dirPath: string, depth = 0): Promise<{ modelDir: string, modelName: string } | null> => {
-    if (depth > 5) {
-      // Limit recursion depth to prevent infinite loops
-      return null;
-    }
-    
-    try {
-      // Check files in this directory
-      const files = await FileSystem.readDirectoryAsync(`file://${dirPath}`);
-      console.log(`Files in ${dirPath}: ${files.join(', ')}`);
-      
-      // First look for model.onnx
-      if (files.includes('model.onnx')) {
-        return {
-          modelDir: dirPath,
-          modelName: 'model.onnx'
-        };
-      }
-      
-      // Then look for any .onnx file
-      const onnxFile = files.find(file => file.endsWith('.onnx'));
-      if (onnxFile) {
-        return {
-          modelDir: dirPath,
-          modelName: onnxFile
-        };
-      }
-      
-      // Recursively check subdirectories
-      for (const file of files) {
-        const subPath = `${dirPath}/${file}`;
-        const fileInfo = await FileSystem.getInfoAsync(`file://${subPath}`);
-        
-        if (fileInfo.exists && fileInfo.isDirectory) {
-          const result = await searchDirectory(subPath, depth + 1);
-          if (result) return result;
-        }
-      }
-    } catch (error) {
-      console.error(`Error searching directory ${dirPath}:`, error);
-    }
-    
-    return null;
-  };
-  
-  return await searchDirectory(basePath);
-};
 
 export default function TtsScreen() {
   const [text, setText] = useState(DEFAULT_TEXT);
@@ -139,7 +47,9 @@ export default function TtsScreen() {
   const [ttsResult, setTtsResult] = useState<TtsGenerateResult | null>(null);
   const [speakerId, setSpeakerId] = useState(0);
   const [speakingRate, setSpeakingRate] = useState(1.0);
+  const [numThreads, setNumThreads] = useState(2);
   const [debugMode, setDebugMode] = useState(false);
+  const [provider, setProvider] = useState<ModelProvider>('cpu');
   const [autoPlay, setAutoPlay] = useState(true);
   // Add state for visualizing config
   const [configToVisualize, setConfigToVisualize] = useState<TtsModelConfig | null>(null);
@@ -207,60 +117,59 @@ export default function TtsScreen() {
         throw new Error('Selected model is not a valid TTS model or files not found locally.');
       }
 
-      const ttsParams = modelMetadata.ttsParams;
-
       // Use the cleaned path (without file://) for FileSystem operations and native module
       const cleanLocalPath = modelState.localPath.replace('file://', '');
       console.log(`Using model directory: ${cleanLocalPath}`);
 
-      // --- Start Simplified Configuration --- 
+      // Get ttsParams from the metadata
+      const ttsParams = modelMetadata.ttsParams;
+      console.log(`ttsParams`, JSON.stringify(ttsParams, null, 2));
 
+      // Create configuration for TTS initialization based on model type
       const modelConfig: TtsModelConfig = {
         modelDir: cleanLocalPath,
-        numThreads: 2,
-        debug: debugMode,
-        modelType: ttsParams.ttsModelType, // Use pre-defined model type
-        modelFile: ttsParams.modelFile,   // Use pre-defined model file name
-        tokensFile: ttsParams.tokensFile, // Use pre-defined tokens file name
-        // Pass the dataDir (expected to be relative) from ttsParams
-        dataDir: ttsParams.dataDir, 
+        ttsModelType: ttsParams.ttsModelType as TtsModelType,
+        modelFile: ttsParams.modelFile as string,
+        tokensFile: ttsParams.tokensFile as string,
+        numThreads,  // Use value from UI
+        debug: debugMode,  // Use debug mode from UI
+        provider,  // Use provider from UI
       };
 
-      // Add optional VITS parameters if present in metadata
+      // Add data directory if available
+      if (ttsParams.dataDir) {
+        modelConfig.dataDir = ttsParams.dataDir;
+      }
+
+      // Add model-specific parameters
       if (ttsParams.ttsModelType === 'vits') {
+        // Add lexicon for VITS if available
         if (ttsParams.lexiconFile) {
-          modelConfig.lexicon = ttsParams.lexiconFile; // Pass relative name
-        }
-        // Set default VITS noise/length scales (can be overridden per-generation)
-        modelConfig.noiseScale = 0.667;
-        modelConfig.noiseScaleW = 0.8;
-        modelConfig.lengthScale = 1.0;
-      } 
-      
-      // Add optional Kokoro parameters
-      else if (ttsParams.ttsModelType === 'kokoro') {
-        if (ttsParams.voicesFile) {
-          modelConfig.voices = ttsParams.voicesFile; // Pass relative name
+          modelConfig.lexiconFile = ttsParams.lexiconFile;
         }
       } 
-      
-      // Add optional Matcha parameters
       else if (ttsParams.ttsModelType === 'matcha') {
-        if (ttsParams.acousticModelFile) {
-          // Pass relative name
-          modelConfig.acousticModelName = ttsParams.acousticModelFile; 
-        }
+        // For Matcha models, set vocoder
         if (ttsParams.vocoderFile) {
-          modelConfig.vocoder = ttsParams.vocoderFile; // Pass relative name
-          // Android maps 'voices' to 'vocoder' internally for Matcha
-          modelConfig.voices = ttsParams.vocoderFile; // Pass relative name
+          modelConfig.vocoderFile = ttsParams.vocoderFile;
+        }
+        // Add lexicon if available
+        if (ttsParams.lexiconFile) {
+          modelConfig.lexiconFile = ttsParams.lexiconFile;
+        }
+      }
+      else if (ttsParams.ttsModelType === 'kokoro') {
+        // For Kokoro models, set voices file
+        if (ttsParams.voicesFile) {
+          modelConfig.voicesFile = ttsParams.voicesFile;
         }
       }
       
-      // Set the config for visualization BEFORE initializing
+      console.log('FINAL TTS CONFIG:', JSON.stringify(modelConfig, null, 2));
+      
+      // Set the config for visualization
       setConfigToVisualize(modelConfig);
       
-      console.log('Initializing TTS with simplified config:', JSON.stringify(modelConfig, null, 2));
       const result = await TTS.initialize(modelConfig);
       setInitResult(result);
       setTtsInitialized(result.success);
@@ -373,14 +282,32 @@ export default function TtsScreen() {
 
   const handleStopTts = async () => {
     try {
+      console.log('Stopping TTS generation...');
+      setStatusMessage('Stopping TTS...');
+      
+      // Don't set isLoading to true here, since we're trying to stop the process
+      // This will keep the UI responsive
+      
+      // Call the stop API
       const result = await TTS.stopSpeech();
+      console.log('Stop TTS result:', result);
+      
       if (result.stopped) {
         setStatusMessage('TTS stopped successfully');
+        // Force loading state to false
+        setIsLoading(false);
       } else {
-        setErrorMessage(`Failed to stop TTS: ${result.message}`);
+        // If the backend reports failure, show error message
+        setErrorMessage(`Failed to stop TTS: ${result.message || 'Unknown error'}`);
+        console.error('Failed to stop TTS:', result.message);
       }
     } catch (error) {
-      setErrorMessage(`Stop TTS error: ${(error as Error).message}`);
+      const errorMsg = `Stop TTS error: ${(error as Error).message}`;
+      console.error(errorMsg, error);
+      setErrorMessage(errorMsg);
+    } finally {
+      // Always ensure loading state is reset
+      setIsLoading(false);
     }
   };
 
@@ -401,15 +328,65 @@ export default function TtsScreen() {
   };
 
   const handlePlayAudio = async () => {
-    if (!ttsResult?.filePath || !sound) {
-      setErrorMessage('No audio available to play');
+    if (!ttsResult?.filePath) {
+      setErrorMessage('No audio file available to play');
       return;
     }
     
     try {
-      await sound.playAsync();
+      console.log('Attempting to play audio file:', ttsResult.filePath);
+      
+      // Format the path properly with file:// prefix
+      const formattedPath = ttsResult.filePath.startsWith('file://') 
+        ? ttsResult.filePath 
+        : `file://${ttsResult.filePath}`;
+        
+      console.log('Formatted path for audio playback:', formattedPath);
+      
+      // Ensure audio mode is set up correctly
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false
+      });
+      
+      // Always create a new sound object to ensure fresh playback
+      if (sound) {
+        console.log('Unloading existing sound');
+        await sound.unloadAsync();
+      }
+      
+      console.log('Creating new sound object');
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: formattedPath },
+        { shouldPlay: true, volume: 1.0, progressUpdateIntervalMillis: 200 }
+      );
+      
+      newSound.setOnPlaybackStatusUpdate((status) => {
+        console.log('Playback status update:', status);
+        if (status.isLoaded) {
+          setIsPlaying(status.isPlaying);
+          if (status.didJustFinish) {
+            console.log('Audio playback finished');
+            setIsPlaying(false);
+          }
+        } else if (status.error) {
+          console.error(`Audio playback error: ${status.error}`);
+          setErrorMessage(`Audio playback error: ${status.error}`);
+        }
+      });
+      
+      setSound(newSound);
       setIsPlaying(true);
+      console.log('Audio playback started');
+      
+      // Play the sound explicitly (though it should auto-play from options)
+      await newSound.playAsync();
+      
     } catch (error) {
+      console.error('Error playing audio:', error);
       setErrorMessage(`Error playing audio: ${(error as Error).message}`);
     }
   };
@@ -417,10 +394,26 @@ export default function TtsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
+        {/* Loading overlay with embedded Stop button */}
         {isLoading && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#2196F3" />
-            <Text style={styles.loadingText}>Processing...</Text>
+            <View style={styles.loadingContent}>
+              <ActivityIndicator size="large" color="#2196F3" />
+              <Text style={styles.loadingText}>
+                {statusMessage || 'Processing...'}
+              </Text>
+              
+              <Text style={styles.loadingSubText}>
+                This may take a moment, especially for longer text.
+              </Text>
+              
+              <TouchableOpacity 
+                style={styles.overlayStopButton}
+                onPress={handleStopTts}
+              >
+                <Text style={styles.overlayStopButtonText}>Stop Processing</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       
@@ -467,6 +460,64 @@ export default function TtsScreen() {
           </View>
         </View>
 
+        {/* TTS Configuration (Moved BEFORE initialization) */}
+        <View style={styles.configSection}>
+          <Text style={styles.sectionTitle}>2. TTS Configuration</Text>
+          
+          <View style={styles.configRow}>
+            <Text style={styles.configLabel}>Number of Threads:</Text>
+            <TextInput
+              style={styles.configInput}
+              keyboardType="numeric"
+              value={numThreads.toString()}
+              onChangeText={(value) => {
+                const threadCount = parseInt(value);
+                if (!isNaN(threadCount) && threadCount > 0) {
+                  setNumThreads(threadCount);
+                }
+              }}
+            />
+          </View>
+
+          <View style={styles.configRow}>
+            <Text style={styles.configLabel}>Provider:</Text>
+            <View style={styles.providerContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.providerOption,
+                  provider === 'cpu' && styles.providerOptionSelected
+                ]}
+                onPress={() => setProvider('cpu')}
+              >
+                <Text style={[
+                  styles.providerOptionText,
+                  provider === 'cpu' && styles.providerOptionTextSelected
+                ]}>CPU</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.providerOption,
+                  provider === 'gpu' && styles.providerOptionSelected
+                ]}
+                onPress={() => setProvider('gpu')}
+              >
+                <Text style={[
+                  styles.providerOptionText,
+                  provider === 'gpu' && styles.providerOptionTextSelected
+                ]}>GPU</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          <View style={styles.configRow}>
+            <Text style={styles.configLabel}>Debug Mode:</Text>
+            <Switch
+              value={debugMode}
+              onValueChange={setDebugMode}
+            />
+          </View>
+        </View>
+
         {/* TTS Controls */}
         <View style={styles.buttonRow}>
           <TouchableOpacity 
@@ -494,98 +545,67 @@ export default function TtsScreen() {
           </TouchableOpacity>
         </View>
 
-        <TextInput
-          style={styles.textInput}
-          multiline
-          value={text}
-          onChangeText={setText}
-          placeholder="Enter text to speak"
-        />
-
-        {/* TTS Configuration */}
+        {/* Text input (only show if initialized) */}
         {ttsInitialized && (
-          <View style={styles.configSection}>
-            <Text style={styles.sectionTitle}>TTS Configuration</Text>
-            
-            <View style={styles.configRow}>
-              <Text style={styles.configLabel}>Speaker ID:</Text>
-              <TextInput
-                style={styles.configInput}
-                keyboardType="numeric"
-                value={speakerId.toString()}
-                onChangeText={(value) => setSpeakerId(parseInt(value) || 0)}
-              />
-            </View>
-            
-            <View style={styles.configRow}>
-              <Text style={styles.configLabel}>Speaking Rate:</Text>
-              <TextInput
-                style={styles.configInput}
-                keyboardType="numeric"
-                value={speakingRate.toString()}
-                onChangeText={(value) => setSpeakingRate(parseFloat(value) || 1.0)}
-              />
+          <>
+            <TextInput
+              style={styles.textInput}
+              multiline
+              value={text}
+              onChangeText={setText}
+              placeholder="Enter text to speak"
+            />
+
+            {/* TTS Generation Configuration */}
+            <View style={styles.configSection}>
+              <Text style={styles.sectionTitle}>Speech Generation</Text>
+              
+              <View style={styles.configRow}>
+                <Text style={styles.configLabel}>Speaker ID:</Text>
+                <TextInput
+                  style={styles.configInput}
+                  keyboardType="numeric"
+                  value={speakerId.toString()}
+                  onChangeText={(value) => setSpeakerId(parseInt(value) || 0)}
+                />
+              </View>
+              
+              <View style={styles.configRow}>
+                <Text style={styles.configLabel}>Speaking Rate:</Text>
+                <TextInput
+                  style={styles.configInput}
+                  keyboardType="numeric"
+                  value={speakingRate.toString()}
+                  onChangeText={(value) => setSpeakingRate(parseFloat(value) || 1.0)}
+                />
+              </View>
+              
+              <View style={styles.configRow}>
+                <Text style={styles.configLabel}>Auto-play Audio:</Text>
+                <Switch
+                  value={autoPlay}
+                  onValueChange={setAutoPlay}
+                />
+              </View>
             </View>
 
-            <View style={styles.configRow}>
-              <Text style={styles.configLabel}>Debug Mode:</Text>
-              <Switch
-                value={debugMode}
-                onValueChange={setDebugMode}
-              />
+            <View style={styles.buttonRow}>
+              <TouchableOpacity 
+                style={[
+                  styles.button, 
+                  styles.generateButton,
+                  isLoading && styles.buttonDisabled
+                ]} 
+                onPress={handleGenerateTts}
+                disabled={isLoading}
+              >
+                <Text style={styles.buttonText}>Generate Speech</Text>
+              </TouchableOpacity>
             </View>
-
-            <View style={styles.configRow}>
-              <Text style={styles.configLabel}>Auto-play Audio:</Text>
-              <Switch
-                value={autoPlay}
-                onValueChange={setAutoPlay}
-              />
-            </View>
-          </View>
+          </>
         )}
 
-        <View style={styles.buttonRow}>
-          <TouchableOpacity 
-            style={[
-              styles.button, 
-              styles.generateButton,
-              (!ttsInitialized || isLoading) && styles.buttonDisabled
-            ]} 
-            onPress={handleGenerateTts}
-            disabled={isLoading || !ttsInitialized}
-          >
-            <Text style={styles.buttonText}>Generate Speech</Text>
-          </TouchableOpacity>
-          
-          {ttsResult?.filePath && !autoPlay && (
-            <TouchableOpacity 
-              style={[
-                styles.button, 
-                styles.playButton,
-                (isPlaying || isLoading) && styles.buttonDisabled
-              ]} 
-              onPress={handlePlayAudio}
-              disabled={isPlaying || isLoading}
-            >
-              <Text style={styles.buttonText}>Play Audio</Text>
-            </TouchableOpacity>
-          )}
-          
-          <TouchableOpacity 
-            style={[
-              styles.button, 
-              styles.stopButton,
-              (!isLoading) && styles.buttonDisabled
-            ]} 
-            onPress={handleStopTts}
-            disabled={!isLoading}
-          >
-            <Text style={styles.buttonText}>Stop Speech</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* TTS Status */}
+        {/* TTS Status (only show if initialized) */}
         {initResult && (
           <View style={styles.statusSection}>
             <Text style={styles.sectionTitle}>TTS Status</Text>
@@ -597,6 +617,11 @@ export default function TtsScreen() {
                 Sample Rate: {initResult.sampleRate}Hz
               </Text>
             )}
+            {initResult.numSpeakers && initResult.numSpeakers > 1 && (
+              <Text style={styles.statusDetail}>
+                Available Speakers: {initResult.numSpeakers}
+              </Text>
+            )}
           </View>
         )}
         
@@ -604,23 +629,69 @@ export default function TtsScreen() {
         {ttsResult && ttsResult.filePath && (
           <View style={styles.statusSection}>
             <Text style={styles.sectionTitle}>Generated Audio</Text>
-            <Text style={styles.statusDetail}>
-              File: {ttsResult.filePath.split('/').pop()}
-            </Text>
-            {!autoPlay && (
-              <TouchableOpacity 
-                style={[
-                  styles.audioPlayButton,
-                  isPlaying && styles.audioPlayButtonDisabled
-                ]} 
-                onPress={handlePlayAudio}
-                disabled={isPlaying}
-              >
-                <Text style={styles.audioPlayButtonText}>
-                  {isPlaying ? 'Playing...' : 'Play Audio'}
-                </Text>
-              </TouchableOpacity>
-            )}
+            
+            {/* File info */}
+            <View style={styles.fileInfoContainer}>
+              <Text style={styles.statusDetail}>
+                <Text style={styles.statusDetailLabel}>File:</Text> {ttsResult.filePath.split('/').pop()}
+              </Text>
+              
+              <Text style={styles.statusDetail}>
+                <Text style={styles.statusDetailLabel}>Location:</Text> {ttsResult.filePath}
+              </Text>
+            </View>
+            
+            {/* Audio Player */}
+            <View style={styles.audioPlayerFullContainer}>
+              <Text style={styles.audioPlayerTitle}>
+                {isPlaying ? "Playing Audio..." : "Audio Ready To Play"}
+              </Text>
+              
+              <View style={styles.audioPlayerContainer}>
+                <TouchableOpacity 
+                  style={[
+                    styles.audioPlayButton,
+                    isPlaying && styles.audioPlayButtonDisabled
+                  ]} 
+                  onPress={handlePlayAudio}
+                  disabled={isPlaying}
+                >
+                  <Text style={styles.audioPlayButtonText}>
+                    {isPlaying ? 'Playing...' : 'Play Audio'}
+                  </Text>
+                </TouchableOpacity>
+                
+                {isPlaying ? (
+                  <TouchableOpacity
+                    style={styles.audioStopButton}
+                    onPress={async () => {
+                      if (sound) {
+                        await sound.stopAsync();
+                        setIsPlaying(false);
+                      }
+                    }}
+                  >
+                    <Text style={styles.audioStopButtonText}>
+                      Stop
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.audioResetButton}
+                    onPress={async () => {
+                      if (sound) {
+                        // Reset the sound to beginning
+                        await sound.setPositionAsync(0);
+                      }
+                    }}
+                  >
+                    <Text style={styles.audioResetButtonText}>
+                      Reset
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
           </View>
         )}
 
@@ -662,14 +733,54 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     zIndex: 1000,
+  },
+  loadingContent: {
+    backgroundColor: '#fff',
+    padding: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    minWidth: 250,
+    maxWidth: '80%',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
+    color: '#333',
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loadingSubText: {
+    marginBottom: 16,
+    color: '#666',
+    textAlign: 'center',
+    fontSize: 14,
+  },
+  overlayStopButton: {
+    backgroundColor: '#F44336',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 16,
+    width: '100%',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+  },
+  overlayStopButtonText: {
     color: 'white',
     fontWeight: 'bold',
+    fontSize: 16,
   },
   title: {
     fontSize: 24,
@@ -712,6 +823,29 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   modelOptionTextSelected: {
+    color: '#fff',
+  },
+  providerContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  providerOption: {
+    flex: 1,
+    padding: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 4,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  providerOptionSelected: {
+    backgroundColor: '#2196F3',
+  },
+  providerOptionText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  providerOptionTextSelected: {
     color: '#fff',
   },
   emptyText: {
@@ -811,17 +945,59 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 8,
   },
+  statusDetailLabel: {
+    fontWeight: 'bold',
+  },
+  fileInfoContainer: {
+    marginBottom: 16,
+  },
+  audioPlayerFullContainer: {
+    marginBottom: 16,
+  },
+  audioPlayerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  audioPlayerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
   audioPlayButton: {
     backgroundColor: '#9C27B0',
     padding: 10,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 8,
+    flex: 1,
   },
   audioPlayButtonDisabled: {
     opacity: 0.6,
   },
   audioPlayButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  audioStopButton: {
+    backgroundColor: '#F44336',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    minWidth: 60,
+  },
+  audioStopButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  audioResetButton: {
+    backgroundColor: '#9C27B0',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    minWidth: 60,
+  },
+  audioResetButtonText: {
     color: 'white',
     fontWeight: 'bold',
   },

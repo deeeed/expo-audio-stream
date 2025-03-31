@@ -1,6 +1,7 @@
+import type { TtsModelType } from '@siteed/sherpa-onnx.rn';
+import type { TtsModelConfig } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
 import type { ModelState as ContextModelState } from '../contexts/ModelManagement/types';
-
 /**
  * Type of model supported by Sherpa-onnx
  */
@@ -37,18 +38,17 @@ export interface ModelMetadata {
   language: string;
   // Use the new DependencyMetadata interface
   dependencies?: Array<DependencyMetadata>;
-  ttsParams?: TtsParams;
-}
-
-export interface TtsParams {
-  ttsModelType: 'vits' | 'kokoro' | 'matcha';
-  modelFile: string; // The primary ONNX model file name expected by the native side
-  tokensFile: string; // Usually tokens.txt
-  voicesFile?: string; // e.g., voices.bin for Kokoro, maps to vocoder for Matcha on Android
-  lexiconFile?: string; // e.g., lexicon.txt for VITS
-  dataDir?: string; // Relative path to espeak-ng-data if needed (will be joined with modelDir by native code)
-  vocoderFile?: string; // Specific vocoder file for Matcha
-  acousticModelFile?: string; // The actual acoustic model file name for Matcha (might differ from modelFile)
+  
+  /**
+   * TTS model parameters
+   * 
+   * This is a subset of TtsModelConfig from @siteed/sherpa-onnx.rn
+   * that contains the necessary parameters for initializing the TTS model.
+   * 
+   * By using Partial<TtsModelConfig>, we ensure that all properties 
+   * remain aligned with the main interface, making maintenance easier.
+   */
+  ttsParams?: Partial<TtsModelConfig>;
 }
 
 export const AVAILABLE_MODELS: ModelMetadata[] = [
@@ -175,10 +175,10 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     language: 'en',
     ttsParams: {
       ttsModelType: 'vits',
-      modelFile: 'en_US-libritts-high.onnx', // Assuming model file name matches archive root
+      modelFile: 'model.onnx',
       tokensFile: 'tokens.txt',
       lexiconFile: 'lexicon.txt',
-      dataDir: 'espeak-ng-data', // Renamed field
+      dataDir: 'espeak-ng-data',
     },
   },
 
@@ -194,10 +194,10 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     language: 'en',
     ttsParams: {
       ttsModelType: 'kokoro',
-      modelFile: 'model.onnx', // Kokoro usually uses a generic model.onnx name
+      modelFile: 'model.onnx',
       tokensFile: 'tokens.txt',
       voicesFile: 'voices.bin',
-      dataDir: 'espeak-ng-data', // Renamed field
+      dataDir: 'espeak-ng-data',
     },
   },
 
@@ -213,13 +213,12 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     language: 'en',
     ttsParams: {
       ttsModelType: 'matcha',
-      modelFile: 'model.onnx', // Expected by native module (Android fix might apply)
-      acousticModelFile: 'model-steps-3.onnx', // The actual acoustic model file
-      tokensFile: 'tokens.txt',
-      vocoderFile: 'vocos-22khz-univ.onnx', // Needs to be present (dependency)
-      dataDir: 'espeak-ng-data', // Renamed field
-      // Map vocoder to voicesFile for Android compatibility layer
-      voicesFile: 'vocos-22khz-univ.onnx',
+      modelFile: "matcha-icefall-en_US-ljspeech/model-steps-3.onnx",
+      tokensFile: "matcha-icefall-en_US-ljspeech/tokens.txt",
+      vocoderFile: "vocos-22khz-univ.onnx",
+      dataDir: "matcha-icefall-en_US-ljspeech/espeak-ng-data",
+      debug: true,
+      provider: 'cpu',
     },
     dependencies: [
       {
@@ -227,7 +226,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
         name: 'Vocos Vocoder (22kHz)',
         type: 'vocoder',
         url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/vocoder-models/vocos-22khz-univ.onnx',
-        size: 5.8 * 1024 * 1024, // Approximate size
+        size: 5.8 * 1024 * 1024,
         description:
           'Universal 22kHz vocoder for Matcha TTS models (required for speech generation)',
       },

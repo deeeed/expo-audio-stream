@@ -78,6 +78,9 @@ export async function extractTarBz2(
       console.log(`ArchiveUtils: Native extraction result:`, result);
       
       if (result.success) {
+        // Verify extraction by checking files
+        const extractedFiles = result.extractedFiles || [];
+        
         return {
           success: true,
           extractedFiles: result.extractedFiles,
