@@ -18,7 +18,7 @@ This creates integration challenges:
 ### 1.2 Specific Technical Challenges
 
 1. **WASM Module Distribution**
-   - Each capability (TTS, ASR, etc.) is currently built as a separate WASM module
+   - Each capability (TTS, ASR, etc.) is built as a separate WASM module
    - Separate `.js`, `.wasm`, and `.data` files must be managed for each module
    - The `.data` files contain preloaded assets (models) and can be large
 
