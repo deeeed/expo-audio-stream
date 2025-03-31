@@ -1,7 +1,6 @@
-import type { ModelType } from '@siteed/sherpa-onnx.rn';
 import * as FileSystem from 'expo-file-system';
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FileExplorer } from '../../components/FileExplorer';
 import { ModelManager } from '../../components/ModelManager';
@@ -10,6 +9,7 @@ import { ViewModeSelector } from '../../components/ViewModeSelector';
 import { useModelManagement } from '../../contexts/ModelManagement/ModelManagementContext';
 import { useModelCounts } from '../../hooks/useModelCounts';
 import type { ViewMode } from '../../types/models';
+import { ModelType } from '../../utils/models';
 
 export default function ModelsScreen() {
   const [selectedType, setSelectedType] = useState<ModelType | 'all'>('all');
@@ -18,23 +18,13 @@ export default function ModelsScreen() {
   const [selectedModelPath, setSelectedModelPath] = useState<string | null>(null);
   
   const modelCounts = useModelCounts(selectedType);
-  const { refreshModelStatus, getAvailableModels } = useModelManagement();
+  const { getAvailableModels } = useModelManagement();
 
-  // Refresh all model statuses on mount
-  useEffect(() => {
-    const refreshAllModels = async () => {
-      try {
-        const models = getAvailableModels();
-        for (const model of models) {
-          await refreshModelStatus(model.id);
-        }
-      } catch (error) {
-        console.error('Error refreshing model statuses:', error);
-      }
-    };
-    
-    refreshAllModels();
-  }, []);
+  // --- Temporary Safeguard for modelCounts ---
+  const safeAvailableCount = modelCounts?.filtered?.available ?? 0;
+  const safeDownloadedCount = modelCounts?.filtered?.downloaded ?? 0;
+  const safeByTypeCounts = modelCounts?.byType ?? {};
+  // --- End Safeguard ---
 
   const handleModelBrowse = async (modelPath: string) => {
     try {
@@ -47,13 +37,14 @@ export default function ModelsScreen() {
       
       // Check if the path exists and what type it is
       const info = await FileSystem.getInfoAsync(modelPath);
-      console.log(`File info for ${modelPath}:`, info);
       
       if (!info.exists) {
-        // Try adding file:// prefix if not present
+        console.warn(`Path does not exist: ${modelPath}`);
+        
+        // Try adding file:// prefix if not present (for compatibility)
         if (!modelPath.startsWith('file://')) {
           const altPath = `file://${modelPath}`;
-          console.log(`Path doesn't exist, trying alternative: ${altPath}`);
+          console.log(`Trying alternative with file:// prefix: ${altPath}`);
           const altInfo = await FileSystem.getInfoAsync(altPath);
           
           if (altInfo.exists) {
@@ -72,14 +63,30 @@ export default function ModelsScreen() {
             // Now browse using the updated path and info
             browseWithValidPath(modelPath, updatedInfo);
             return;
-          } else {
-            Alert.alert('Error', `Path does not exist: ${modelPath}`);
+          }
+        }
+        
+        // If we're on iOS, try to find the model by its ID
+        if (Platform.OS === 'ios') {
+          // Extract model ID from the path
+          const pathParts = modelPath.split('/');
+          const modelId = pathParts[pathParts.length - 1]; // Last part should be model ID
+          
+          // Try to reconstruct the path using current document directory
+          const newPath = `${FileSystem.documentDirectory}models/${modelId}`;
+          console.log(`Trying reconstructed path: ${newPath}`);
+          
+          const newInfo = await FileSystem.getInfoAsync(newPath);
+          if (newInfo.exists) {
+            console.log(`Reconstructed path exists, using it`);
+            browseWithValidPath(newPath, newInfo);
             return;
           }
-        } else {
-          Alert.alert('Error', `Path does not exist: ${modelPath}`);
-          return;
         }
+        
+        // If all attempts fail, show an error
+        Alert.alert('Error', `Path does not exist: ${modelPath}`);
+        return;
       }
       
       // If we get here, the original path exists
@@ -113,14 +120,14 @@ export default function ModelsScreen() {
       <ModelTypeSelector
         selectedType={selectedType}
         onSelectType={setSelectedType}
-        modelCounts={modelCounts.byType}
+        modelCounts={safeByTypeCounts}
       />
 
       <ViewModeSelector
         viewMode={viewMode}
         onSelectMode={setViewMode}
-        availableCount={modelCounts.filtered.available}
-        downloadedCount={modelCounts.filtered.downloaded}
+        availableCount={safeAvailableCount}
+        downloadedCount={safeDownloadedCount}
       />
 
       <View style={styles.modelManagerContainer}>

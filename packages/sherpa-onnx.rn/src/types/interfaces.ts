@@ -5,17 +5,10 @@ import { ArchiveService } from '../services/ArchiveService';
 import { SpeakerIdService } from '../services/SpeakerIdService';
 
 /**
- * Type of model supported by Sherpa-onnx
+ * Provider type for model inference
+ * Used by TTS, ASR and other models
  */
-export type ModelType =
-  | 'asr'
-  | 'tts'
-  | 'vad'
-  | 'kws'
-  | 'speaker-id'
-  | 'language-id'
-  | 'audio-tagging'
-  | 'punctuation';
+export type ModelProvider = 'cpu' | 'gpu';
 
 /**
  * Configuration options for Sherpa-onnx
@@ -65,6 +58,8 @@ export interface SherpaOnnxResult {
   }>;
 }
 
+export type TtsModelType = 'vits' | 'kokoro' | 'matcha';
+
 /**
  * Options for automatic speech recognition processing
  */
@@ -89,6 +84,7 @@ export interface AsrOptions {
 
 /**
  * Configuration for TTS model
+ * This interface aligns with the Kotlin OfflineTtsModelConfig and OfflineTtsConfig classes
  */
 export interface TtsModelConfig {
   /**
@@ -99,35 +95,41 @@ export interface TtsModelConfig {
   /**
    * Model type (vits, matcha, kokoro)
    */
-  modelType?: string;
+  ttsModelType: TtsModelType;
 
   /**
-   * Model file name for VITS models
+   * Primary model file name (e.g., model.onnx, en_US-ljspeech-low.onnx)
+   * This will be used differently based on model type:
+   * - For VITS: Used as 'model' parameter
+   * - For Kokoro: Used as 'model' parameter
+   * - For Matcha: Used as 'acousticModel' parameter
    */
-  modelName?: string;
+  modelFile: string;
 
   /**
-   * Acoustic model file name for Matcha models
+   * Tokens file name (e.g., tokens.txt)
+   * Required for all model types
    */
-  acousticModelName?: string;
+  tokensFile: string;
 
   /**
-   * Vocoder file name for Matcha models
+   * Voices file name for Kokoro models (e.g., voices.bin)
    */
-  vocoder?: string;
+  voicesFile?: string;
 
   /**
-   * Voices file name for Kokoro models
+   * Vocoder file name for Matcha models (e.g., vocos-22khz-univ.onnx)
    */
-  voices?: string;
+  vocoderFile?: string;
 
   /**
-   * Lexicon file name
+   * Lexicon file name (e.g., lexicon.txt)
+   * Used by VITS and Matcha models
    */
-  lexicon?: string;
+  lexiconFile?: string;
 
   /**
-   * Data directory path
+   * Data directory path (usually points to espeak-ng-data)
    */
   dataDir?: string;
 
@@ -139,15 +141,16 @@ export interface TtsModelConfig {
   /**
    * Rule FSTs file paths (comma-separated)
    */
-  ruleFsts?: string;
+  ruleFstsFile?: string;
 
   /**
    * Rule FARs file paths (comma-separated)
    */
-  ruleFars?: string;
+  ruleFarsFile?: string;
 
   /**
    * Number of threads to use for processing
+   * Default: 1
    */
   numThreads?: number;
 
@@ -156,6 +159,12 @@ export interface TtsModelConfig {
    * Default: false
    */
   debug?: boolean;
+
+  /**
+   * Provider for model inference (e.g., "cpu", "gpu")
+   * Default: "cpu"
+   */
+  provider?: ModelProvider;
 
   /**
    * Noise scale for controlling voice variation
@@ -175,6 +184,18 @@ export interface TtsModelConfig {
    * Default: 1.0
    */
   lengthScale?: number;
+
+  /**
+   * Maximum number of sentences to process at once
+   * Default: 1
+   */
+  maxNumSentences?: number;
+
+  /**
+   * Silence scale for controlling pause duration
+   * Default: 0.2
+   */
+  silenceScale?: number;
 }
 
 /**
@@ -272,18 +293,10 @@ export interface TtsOptions {
  * Result of TTS generation
  */
 export interface TtsGenerateResult {
-  /** The path to the generated audio file */
-  filePath: string;
   /** Whether generation was successful */
   success: boolean;
-  /** Sample rate of generated audio */
-  sampleRate: number;
-  /** Number of samples in the generated audio */
-  samplesLength: number;
-  /** Number of samples in the generated audio (alias for samplesLength) */
-  numSamples: number;
-  /** Whether the audio was saved to a file successfully */
-  saved: boolean;
+  /** The path to the generated audio file */
+  filePath?: string;
 }
 
 /**
@@ -367,6 +380,12 @@ export interface AudioTaggingModelConfig {
    * Default: false
    */
   debug?: boolean;
+
+  /**
+   * Provider for model inference (e.g., "cpu", "gpu")
+   * Default: "cpu"
+   */
+  provider?: ModelProvider;
 }
 
 /**
@@ -600,6 +619,12 @@ export interface AsrModelConfig {
    * Default: false
    */
   debug?: boolean;
+
+  /**
+   * Provider for model inference (e.g., "cpu", "gpu")
+   * Default: "cpu"
+   */
+  provider?: ModelProvider;
 }
 
 /**
@@ -718,7 +743,6 @@ export interface SherpaOnnxStatic {
   ): Promise<{
     success: boolean;
     message: string;
-    extractedFiles: string[];
   }>;
 
   // Service instances
@@ -760,7 +784,7 @@ export interface SpeakerIdModelConfig {
    * Provider for model inference (e.g., "cpu")
    * Default: "cpu"
    */
-  provider?: string;
+  provider?: ModelProvider;
 
   /**
    * Enable debug mode for more detailed logs
@@ -1070,7 +1094,6 @@ export interface NativeSherpaOnnxInterface {
   ): Promise<{
     success: boolean;
     message: string;
-    extractedFiles: string[];
   }>;
 }
 
@@ -1138,7 +1161,6 @@ export interface SherpaOnnxInterface {
   ): Promise<{
     success: boolean;
     message: string;
-    extractedFiles: string[];
   }>;
 
   // Service instances

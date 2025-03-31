@@ -12,7 +12,7 @@
       ],
       "@siteed/sherpa-onnx.rn/*": [
         "../../packages/sherpa-onnx.rn/src/*"
-      ]
+      ],
     }
   },
   "include": [

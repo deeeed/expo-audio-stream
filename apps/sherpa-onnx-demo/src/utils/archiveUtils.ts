@@ -14,8 +14,7 @@ interface ExtractionResult {
 
 /**
  * Extracts a tar.bz2 file using platform-specific methods
- * On Android, uses the native module
- * On iOS, returns error as extraction is not supported
+ * On Android and iOS, uses the native module
  * No mock files are created on extraction failure.
  * 
  * @param archivePath Path to the tar.bz2 file
@@ -50,73 +49,58 @@ export async function extractTarBz2(
       await FileSystem.makeDirectoryAsync(targetDir, { intermediates: true });
     }
     
-    // Use platform-specific extraction methods
-    if (Platform.OS === 'android') {
-      console.log(`ArchiveUtils: Using native module to extract tar.bz2 on Android`);
-      try {
-        // Check if NativeSherpaOnnx is properly initialized
-        if (!SherpaOnnx.Archive || typeof SherpaOnnx.Archive.extractTarBz2 !== 'function') {
-          console.error('ArchiveUtils: NativeSherpaOnnx.extractTarBz2 is not available');
-          return {
-            success: false,
-            message: 'Native module not available',
-            extractedFiles: []
-          };
-        }
+    // Check if NativeSherpaOnnx is properly initialized
+    if (!SherpaOnnx.Archive || typeof SherpaOnnx.Archive.extractTarBz2 !== 'function') {
+      console.error('ArchiveUtils: NativeSherpaOnnx.extractTarBz2 is not available');
+      return {
+        success: false,
+        message: 'Native module not available',
+        extractedFiles: []
+      };
+    }
+    
+    // First validate that the library is loaded
+    const validationResult = await SherpaOnnx.validateLibraryLoaded();
+    if (!validationResult.loaded) {
+      console.error(`ArchiveUtils: Native library not loaded: ${validationResult.status}`);
+      return {
+        success: false,
+        message: `Native library not loaded: ${validationResult.status}`,
+        extractedFiles: []
+      };
+    }
+    
+    console.log(`ArchiveUtils: Using native module to extract tar.bz2 on ${Platform.OS}`);
+    
+    try {
+      // Call the extractTarBz2 method directly from SherpaOnnx.Archive
+      const result = await SherpaOnnx.Archive.extractTarBz2(archivePath, targetDir);
+      console.log(`ArchiveUtils: Native extraction result:`, result);
+      
+      if (result.success) {
+        // Verify extraction by checking files
+        const extractedFiles = result.extractedFiles || [];
         
-        // First validate that the library is loaded
-        const validationResult = await SherpaOnnx.validateLibraryLoaded();
-        if (!validationResult.loaded) {
-          console.error(`ArchiveUtils: Native library not loaded: ${validationResult.status}`);
-          return {
-            success: false,
-            message: `Native library not loaded: ${validationResult.status}`,
-            extractedFiles: []
-          };
-        }
+        return {
+          success: true,
+          extractedFiles: result.extractedFiles,
+          message: "Extraction successful"
+        };
+      } else {
+        console.warn(`ArchiveUtils: Native extraction failed: ${result.message}`);
+        // Check if there are any files already extracted
+        const existingFiles = await FileSystem.readDirectoryAsync(targetDir);
         
-        // Call the extractTarBz2 method directly from NativeSherpaOnnx
-        const result = await SherpaOnnx.Archive.extractTarBz2(archivePath, targetDir);
-        console.log(`ArchiveUtils: Native extraction result:`, result);
-        
-        if (result.success) {
+        if (existingFiles.length > 0) {
+          console.log(`ArchiveUtils: Found ${existingFiles.length} existing files in target directory`);
           return {
             success: true,
-            extractedFiles: result.extractedFiles,
-            message: "Extraction successful"
-          };
-        } else {
-          console.warn(`ArchiveUtils: Native extraction failed: ${result.message}`);
-          // Check if there are any files already extracted
-          const existingFiles = await FileSystem.readDirectoryAsync(targetDir);
-          
-          if (existingFiles.length > 0) {
-            console.log(`ArchiveUtils: Found ${existingFiles.length} existing files in target directory`);
-            return {
-              success: true,
-              extractedFiles: existingFiles,
-              message: "Found existing files in target directory"
-            };
-          }
-          
-          // Clean up target directory on failure
-          try {
-            console.log(`ArchiveUtils: Cleaning up failed extraction directory: ${targetDir}`);
-            await FileSystem.deleteAsync(targetDir, { idempotent: true });
-          } catch (cleanupError) {
-            console.error(`ArchiveUtils: Error cleaning up directory:`, cleanupError);
-          }
-          
-          return {
-            success: false,
-            message: `Native extraction failed: ${result.message}`,
-            extractedFiles: []
+            extractedFiles: existingFiles,
+            message: "Found existing files in target directory"
           };
         }
-      } catch (nativeError) {
-        console.error(`ArchiveUtils: Error in native extraction:`, nativeError);
         
-        // Clean up target directory on error
+        // Clean up target directory on failure
         try {
           console.log(`ArchiveUtils: Cleaning up failed extraction directory: ${targetDir}`);
           await FileSystem.deleteAsync(targetDir, { idempotent: true });
@@ -126,28 +110,24 @@ export async function extractTarBz2(
         
         return {
           success: false,
-          message: `Error in native extraction: ${nativeError instanceof Error ? nativeError.message : String(nativeError)}`,
+          message: `Native extraction failed: ${result.message}`,
           extractedFiles: []
         };
       }
-    } else {
-      // On iOS or other platforms
-      console.log(`ArchiveUtils: Native extraction not implemented on ${Platform.OS}`);
-      // Just check if there are any files already in the directory
-      const existingFiles = await FileSystem.readDirectoryAsync(targetDir);
+    } catch (nativeError) {
+      console.error(`ArchiveUtils: Error in native extraction:`, nativeError);
       
-      if (existingFiles.length > 0) {
-        console.log(`ArchiveUtils: Found ${existingFiles.length} existing files in target directory`);
-        return {
-          success: true,
-          extractedFiles: existingFiles,
-          message: "Found existing files in target directory"
-        };
+      // Clean up target directory on error
+      try {
+        console.log(`ArchiveUtils: Cleaning up failed extraction directory: ${targetDir}`);
+        await FileSystem.deleteAsync(targetDir, { idempotent: true });
+      } catch (cleanupError) {
+        console.error(`ArchiveUtils: Error cleaning up directory:`, cleanupError);
       }
       
       return {
         success: false,
-        message: `Native extraction not implemented on ${Platform.OS}`,
+        message: `Error in native extraction: ${nativeError instanceof Error ? nativeError.message : String(nativeError)}`,
         extractedFiles: []
       };
     }

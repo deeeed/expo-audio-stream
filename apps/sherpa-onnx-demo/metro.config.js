@@ -28,6 +28,7 @@ config.resolver.assetExts = [
   'bin',
   'onnx',
   'txt',
+  'bz2',
   'fst',
   'far',
 ];
