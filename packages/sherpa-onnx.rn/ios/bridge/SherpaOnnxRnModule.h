@@ -10,12 +10,14 @@
 #endif
 
 // Forward declaration for Swift classes
-@class SherpaOnlineRecognizer;
+@class SherpaOnnxASRHandler;
+@class SherpaOnnxTtsHandler;
 
 @interface SherpaOnnxRnModule : RCTEventEmitter <RCTBridgeModule
 #ifdef RCT_NEW_ARCH_ENABLED
 , NativeSherpaOnnxSpecSpec
 #endif
 >
-@property (nonatomic, strong) SherpaOnlineRecognizer *recognizer;
+@property (nonatomic, strong) SherpaOnnxASRHandler *asrHandler;
+@property (nonatomic, strong) SherpaOnnxTtsHandler *ttsHandler;
 @end
