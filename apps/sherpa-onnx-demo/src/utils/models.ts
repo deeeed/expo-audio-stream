@@ -175,7 +175,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     language: 'en',
     ttsParams: {
       ttsModelType: 'vits',
-      modelFile: 'model.onnx',
+      modelFile: 'en_US-libritts-high.onnx',
       tokensFile: 'tokens.txt',
       lexiconFile: 'lexicon.txt',
       dataDir: 'espeak-ng-data',
