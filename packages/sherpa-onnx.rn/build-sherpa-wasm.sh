@@ -65,7 +65,6 @@ for arg in "$@"; do
       echo "  --kws                    Build only KWS module"
       echo "  --speaker-diarization    Build only Speaker Diarization module"
       echo "  --speech-enhancement     Build only Speech Enhancement module"
-      echo "  --nodejs                 Build only NodeJS module"
       echo "  --all                    Build all modules separately (default)"
       echo "  --help                   Show this help message"
       exit 0
@@ -186,7 +185,27 @@ build_module() {
     cp -r "${output_dir}/install/bin/wasm/${module_name}"/* "$SCRIPT_DIR/prebuilt/web/${module_name}/"
     
     # Store the build output path for later use in validation instructions
-    export ${module_name}_build_path="${PWD}/${output_dir}/install/bin/wasm/${module_name}"
+    build_output_path="${PWD}/${output_dir}/install/bin/wasm/${module_name}"
+    export ${module_name}_build_path="$build_output_path"
+    
+    # Copy files to the demo app if the directory exists and build was successful
+    if [ -d "$build_output_path" ] && [ "$(ls -A "$build_output_path" 2>/dev/null)" ]; then
+      # Use absolute path resolution that works in both bash and zsh
+      demo_app_path="$SCRIPT_DIR/../../apps/sherpa-onnx-demo"
+      demo_app_abs_path="$(cd "$demo_app_path" 2>/dev/null && pwd)"
+      
+      if [ -n "$demo_app_abs_path" ]; then
+        APP_TARGET_DIR="$demo_app_abs_path/public/wasm/${module_name}"
+        mkdir -p "$APP_TARGET_DIR"
+        echo -e "${BLUE}Copying ${module_name} to demo app directory...${NC}"
+        cp -r "$build_output_path"/* "$APP_TARGET_DIR/"
+        echo -e "${GREEN}Successfully copied to $APP_TARGET_DIR${NC}"
+      else
+        echo -e "${YELLOW}Warning: Could not find demo app directory, skipping copy${NC}"
+      fi
+    else
+      echo -e "${YELLOW}Warning: Build output invalid or empty, skipping copy to demo app${NC}"
+    fi
   else
     echo -e "${YELLOW}Warning: No build output found in ${output_dir}/install/bin/wasm/${module_name}${NC}"
     return 1
@@ -265,15 +284,6 @@ if [ "$BUILD_TYPE" = "all" ] || [ "$BUILD_TYPE" = "speech-enhancement" ]; then
   fi
 fi
 
-if [ "$BUILD_TYPE" = "all" ] || [ "$BUILD_TYPE" = "nodejs" ]; then
-  if build_module "nodejs"; then
-    SUCCESSFUL_MODULES+=("nodejs")
-  else
-    FAILED_MODULES+=("nodejs")
-    OVERALL_SUCCESS=false
-  fi
-fi
-
 # Display build results
 echo -e "\n${BLUE}=== Build Summary ===${NC}"
 
@@ -318,14 +328,32 @@ for module in "${SUCCESSFUL_MODULES[@]}"; do
   echo -e "${YELLOW}python -m http.server 8000${NC}"
   echo -e "${YELLOW}# Then open http://localhost:8000 in your browser${NC}"
   
+  # Integration instructions for all modules
+  echo -e "\n${BLUE}For integration in React Native Web:${NC}"
+  echo -e "${YELLOW}1. Copy files from $build_path to your public directory${NC}"
+  echo -e "${YELLOW}   mkdir -p $SCRIPT_DIR/../../apps/sherpa-onnx-demo/public/wasm/${module}"
+  echo -e "${YELLOW}   cp -r \"$build_path\"/* $SCRIPT_DIR/../../apps/sherpa-onnx-demo/public/wasm/${module}/"
+  echo -e "${YELLOW}2. Import the module in your code:${NC}"
+
+  # Module-specific import examples
   if [[ "$module" == "tts" ]]; then
-    echo -e "\n${BLUE}For integration in React Native Web:${NC}"
-    echo -e "${YELLOW}1. Copy files from $build_path to your public directory${NC}"
-    echo -e "${YELLOW}   mkdir -p $SCRIPT_DIR/../apps/sherpa-onnx-demo/public/wasm/${module}"
-    echo -e "${YELLOW}   cp -r \"$build_path\"/* $SCRIPT_DIR/../apps/sherpa-onnx-demo/public/wasm/${module}/"
-    echo -e "${YELLOW}2. Import the module in your code:${NC}"
     echo -e "${YELLOW}   const SherpaOnnxTts = await import('/wasm/tts/sherpa-onnx-tts.js');${NC}"
     echo -e "${YELLOW}3. Initialize with: const tts = await SherpaOnnxTts.default.create({});${NC}"
+  elif [[ "$module" == "asr" ]]; then
+    echo -e "${YELLOW}   const SherpaOnnxAsr = await import('/wasm/asr/sherpa-onnx-asr.js');${NC}"
+    echo -e "${YELLOW}3. Initialize with: const recognizer = await SherpaOnnxAsr.default.createRecognizer(config);${NC}"
+  elif [[ "$module" == "vad" ]]; then
+    echo -e "${YELLOW}   const SherpaOnnxVad = await import('/wasm/vad/sherpa-onnx-vad.js');${NC}"
+    echo -e "${YELLOW}3. Initialize with: const vad = await SherpaOnnxVad.default.createVad(config);${NC}"
+  elif [[ "$module" == "speaker-diarization" ]]; then
+    echo -e "${YELLOW}   const SherpaOnnxDiarization = await import('/wasm/speaker-diarization/sherpa-onnx-speaker-diarization.js');${NC}"
+    echo -e "${YELLOW}3. Initialize with: const diarizer = await SherpaOnnxDiarization.default.create(config);${NC}"
+  elif [[ "$module" == "speech-enhancement" ]]; then
+    echo -e "${YELLOW}   const SherpaOnnxEnhancement = await import('/wasm/speech-enhancement/sherpa-onnx-speech-enhancement.js');${NC}"
+    echo -e "${YELLOW}3. Initialize with: const enhancer = await SherpaOnnxEnhancement.default.create(config);${NC}"
+  else
+    echo -e "${YELLOW}   const SherpaOnnx${module^} = await import('/wasm/${module}/sherpa-onnx-${module}.js');${NC}"
+    echo -e "${YELLOW}3. Initialize with appropriate configuration for this module${NC}"
   fi
 done
 
