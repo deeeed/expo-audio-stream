@@ -1,11 +1,11 @@
-import type { ApiInterface } from './types/api';
-import type { SherpaOnnxInterface } from './types/interfaces';
 import { SherpaOnnxAPI } from './SherpaOnnxAPI';
-import { TtsService } from './services/TtsService';
+import { ArchiveService } from './services/ArchiveService';
 import { AsrService } from './services/AsrService';
 import { AudioTaggingService } from './services/AudioTaggingService';
 import { SpeakerIdService } from './services/SpeakerIdService';
-import { ArchiveService } from './services/ArchiveService';
+import { TtsService } from './services/TtsService';
+import type { ApiInterface } from './types/api';
+import type { SherpaOnnxInterface } from './types/interfaces';
 
 // Initialize services with API
 const api: ApiInterface = SherpaOnnxAPI;
@@ -33,8 +33,7 @@ export const TTS = ttsService;
 export const ASR = asrService;
 export const AudioTagging = audioTaggingService;
 export const SpeakerId = speakerIdService;
-export const Archive = archiveService;
 
 // Export types
-export * from './types/interfaces';
 export * from './types/api';
+export * from './types/interfaces';

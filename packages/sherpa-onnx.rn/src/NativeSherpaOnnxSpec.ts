@@ -1,4 +1,4 @@
-import type { TurboModule } from 'react-native/Libraries/TurboModule/RCTExport';
+import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry, NativeModules, Platform } from 'react-native';
 import type { NativeSherpaOnnxInterface } from './types/interfaces';
 
@@ -25,25 +25,12 @@ export interface Spec extends TurboModule {
     success: boolean;
   }>;
 
-  // Basic methods
-  createRecognizer(config: {
-    modelPath?: string;
-    sampleRate?: number;
-    numThreads?: number;
-    debug?: boolean;
-    featureDim?: number;
-    beamSize?: number;
-    beamThreshold?: number;
-    language?: string;
-    enableEndpoint?: boolean;
-    enableNonStreaming?: boolean;
-  }): Promise<{ success: boolean }>;
-
   // TTS methods
   initTts(config: {
     modelDir: string;
     modelType?: string;
-    modelName?: string;
+    modelFile?: string;
+    tokensFile?: string;
     acousticModelName?: string;
     vocoder?: string;
     voices?: string;
@@ -272,7 +259,7 @@ export interface Spec extends TurboModule {
 /**
  * Get the native module, with proper handling for different architectures and platforms
  */
-function getNativeModule(): NativeSherpaOnnxInterface | null {
+export function getNativeModule(): NativeSherpaOnnxInterface | null {
   // Web platform gets a null module (for now)
   if (Platform.OS === 'web') {
     return null;

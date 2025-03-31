@@ -36,18 +36,18 @@
  * TTS methods
  */
 - (void)initTts:(NSDictionary *)config
-       resolver:(RCTPromiseResolveBlock)resolve
-       rejecter:(RCTPromiseRejectBlock)reject;
+        resolve:(RCTPromiseResolveBlock)resolve
+         reject:(RCTPromiseRejectBlock)reject;
 
 - (void)generateTts:(NSDictionary *)config
-           resolver:(RCTPromiseResolveBlock)resolve
-           rejecter:(RCTPromiseRejectBlock)reject;
+            resolve:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject;
 
 - (void)stopTts:(RCTPromiseResolveBlock)resolve
-       rejecter:(RCTPromiseRejectBlock)reject;
+         reject:(RCTPromiseRejectBlock)reject;
 
 - (void)releaseTts:(RCTPromiseResolveBlock)resolve
-          rejecter:(RCTPromiseRejectBlock)reject;
+            reject:(RCTPromiseRejectBlock)reject;
 
 /**
  * ASR methods

@@ -199,13 +199,5 @@
     "type": "legacy-module",
     "languages": "cpp",
     "version": "0.48.3"
-  },
-  "codegenConfig": {
-    "name": "SherpaOnnxSpec",
-    "type": "modules",
-    "jsSrcsDir": "src",
-    "android": {
-      "javaPackageName": "net.siteed.sherpaonnx"
-    }
   }
 }

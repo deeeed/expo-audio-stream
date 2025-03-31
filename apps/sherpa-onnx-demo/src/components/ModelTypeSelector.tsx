@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback } from 'react';
 import {
   StyleSheet,
@@ -5,10 +6,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import type { ModelType } from '@siteed/sherpa-onnx.rn';
-import type { ModelTypeOption } from '../types/models';
 import { MODEL_TYPES } from '../types/models';
-import { Ionicons } from '@expo/vector-icons';
+import { ModelType } from '../utils/models';
 
 interface ModelTypeSelectorProps {
   selectedType: ModelType | 'all';

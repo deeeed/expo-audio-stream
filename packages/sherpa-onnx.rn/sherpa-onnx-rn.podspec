@@ -21,7 +21,9 @@ Pod::Spec.new do |s|
   base_source_files = [
     "ios/*.{h,m,mm,swift}", 
     "ios/bridge/*.{h,m,mm,swift}", 
-    "ios/native/*.{h,m,mm,swift}"
+    "ios/native/*.{h,m,mm,swift}",
+    "ios/handlers/*.{h,m,mm,swift}",
+    "ios/utils/*.{h,m,mm,swift}"
   ]
 
   # New architecture specific source files
@@ -68,11 +70,12 @@ Pod::Spec.new do |s|
   s.vendored_libraries = sherpa_libraries.map { |lib| "prebuilt/ios/current/#{lib}" }
 
   s.frameworks = "Foundation", "CoreML", "Accelerate", "CoreVideo"
+  s.libraries = "c++", "bz2"
 
   # Base xcconfig for both architectures
   base_xcconfig = {
     "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\" \"$(PODS_ROOT)/Headers/Public/React-Core\"",
-    "LIBRARY_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/ios/current\"",
+    "LIBRARY_SEARCH_PATHS" => "$(PODS_TARGET_SRCROOT)/prebuilt/ios/current",
     "SWIFT_INCLUDE_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\""
   }
   
