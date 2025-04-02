@@ -87,24 +87,24 @@ class SherpaOnnxImpl(reactContext: ReactApplicationContext) {
         audioTaggingHandler.init(config, promise)
     }
     
-    fun processAudioSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
-        audioTaggingHandler.processAudioSamples(sampleRate, audioBuffer, promise)
+    fun processAudioSamples(sampleRate: Int, audioBuffer: ReadableArray, topK: Int = -1, promise: Promise) {
+        audioTaggingHandler.processAudioSamples(sampleRate, audioBuffer, topK, promise)
     }
     
-    fun computeAudioTagging(promise: Promise) {
-        audioTaggingHandler.computeAudioTagging(promise)
+    fun computeAudioTagging(topK: Int = -1, promise: Promise) {
+        audioTaggingHandler.computeAudioTagging(topK, promise)
     }
     
     fun releaseAudioTagging(promise: Promise) {
         audioTaggingHandler.release(promise)
     }
     
-    fun processAndComputeAudioTagging(filePath: String, promise: Promise) {
-        audioTaggingHandler.processAndComputeAudioTagging(filePath, promise)
+    fun processAndComputeAudioTagging(filePath: String, topK: Int = -1, promise: Promise) {
+        audioTaggingHandler.processAndComputeAudioTagging(filePath, topK, promise)
     }
     
-    fun processAudioFile(filePath: String, promise: Promise) {
-        audioTaggingHandler.processAudioFile(filePath, promise)
+    fun processAudioFile(filePath: String, topK: Int = -1, promise: Promise) {
+        audioTaggingHandler.processAudioFile(filePath, topK, promise)
     }
 
     // Speaker ID Methods

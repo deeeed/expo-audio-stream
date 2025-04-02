@@ -139,10 +139,10 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
     /**
      * Process audio samples
      */
-    fun processAudioSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+    fun processAudioSamples(sampleRate: Int, audioBuffer: ReadableArray, topK: Int = -1, promise: Promise) {
         executor.execute {
             try {
-                Log.d(TAG, "Processing audio samples - sampleRate: $sampleRate, bufferSize: ${audioBuffer.size()}")
+                Log.d(TAG, "Processing audio samples - sampleRate: $sampleRate, bufferSize: ${audioBuffer.size()}, topK: $topK")
                 
                 if (audioTagging == null || stream == null) {
                     Log.e(TAG, "Audio tagging or stream not initialized")
@@ -184,10 +184,10 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
     /**
      * Compute audio tagging results
      */
-    fun computeAudioTagging(promise: Promise) {
+    fun computeAudioTagging(topK: Int = -1, promise: Promise) {
         executor.execute {
             try {
-                Log.d(TAG, "Computing audio tagging results")
+                Log.d(TAG, "Computing audio tagging results with topK: $topK")
                 
                 if (audioTagging == null || stream == null) {
                     Log.e(TAG, "Audio tagging or stream not initialized")
@@ -198,8 +198,8 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                 // Use explicit casting to avoid smart cast issue
                 val currentStream = stream
                 if (currentStream != null) {
-                    Log.d(TAG, "Computing audio events")
-                    val events = audioTagging?.compute(currentStream)
+                    Log.d(TAG, "Computing audio events with topK: $topK")
+                    val events = audioTagging?.compute(currentStream, topK)
                     
                     // Process events
                     val eventsArray = Arguments.createArray()
@@ -266,12 +266,20 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
     }
     
     /**
+     * Process and compute audio tagging
+     */
+    fun processAndComputeAudioTagging(filePath: String, topK: Int = -1, promise: Promise) {
+        Log.d(TAG, "Processing and computing audio tagging for file: $filePath with topK: $topK")
+        processAudioFile(filePath, topK, promise)
+    }
+    
+    /**
      * Process audio file
      */
-    fun processAudioFile(filePath: String, promise: Promise) {
+    fun processAudioFile(filePath: String, topK: Int = -1, promise: Promise) {
         executor.execute {
             try {
-                Log.d(TAG, "Processing audio file: $filePath")
+                Log.d(TAG, "Processing audio file: $filePath with topK: $topK")
                 
                 if (audioTagging == null) {
                     Log.e(TAG, "Audio tagging not initialized")
@@ -305,9 +313,9 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                     }
                 }
                 
-                // Compute audio tagging
-                Log.d(TAG, "Computing audio events")
-                val events = audioTagging?.compute(newStream)
+                // Compute audio tagging with topK parameter
+                Log.d(TAG, "Computing audio events with topK: $topK")
+                val events = audioTagging?.compute(newStream, topK)
                 
                 // Process events
                 val eventsArray = Arguments.createArray()
@@ -366,14 +374,6 @@ class AudioTaggingHandler(private val reactContext: ReactApplicationContext) {
                 }
             }
         }
-    }
-    
-    /**
-     * Process and compute audio tagging
-     */
-    fun processAndComputeAudioTagging(filePath: String, promise: Promise) {
-        Log.d(TAG, "Processing and computing audio tagging for file: $filePath")
-        processAudioFile(filePath, promise)
     }
     
     /**

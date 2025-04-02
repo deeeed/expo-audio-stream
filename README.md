@@ -1,8 +1,10 @@
 # Monorepo for @siteed/expo-audio
 
-This monorepo contains two packages:
-- `@siteed/expo-audio-stream`
+This monorepo contains the following packages:
+- `@siteed/expo-audio-studio` (formerly `@siteed/expo-audio-stream`)
 - `@siteed/expo-audio-ui`
+- `@siteed/react-native-essentia`
+- `@siteed/sherpa-onnx.rn` (in development)
 
 **Give it a GitHub star 🌟, if you found this repo useful.**
 [![GitHub stars](https://img.shields.io/github/stars/deeeed/expo-audio-stream.svg?style=social&label=Star&maxAge=2592000)](https://github.com/deeeed/expo-audio-stream)
@@ -12,17 +14,47 @@ This monorepo contains two packages:
   <p><a href="https://deeeed.github.io/expo-audio-stream">https://deeeed.github.io/expo-audio-stream</a></p>
 </div>
 
+## Example Applications
+
+The monorepo includes several example applications in the `/apps` directory that demonstrate different use cases and integration patterns:
+
+### Audio Playground
+
+A fully-featured showcase app that demonstrates the capabilities of all the libraries. The audio playground app is available on app stores and serves as a comprehensive showcase of audio processing features, UI components, and integrations.
+
+Key features:
+- Real-world implementation of all monorepo libraries
+- Audio recording, processing, and visualization
+- Speech recognition and audio analysis examples
+- Available on iOS and Android app stores
+
+Try the web version at [https://deeeed.github.io/expo-audio-stream/playground/](https://deeeed.github.io/expo-audio-stream/playground/)
+
+### Sherpa-ONNX Demo
+
+A focused demo showcasing the integration of the Sherpa-ONNX speech recognition and text-to-speech capabilities.
+
+Try it at [https://deeeed.github.io/expo-audio-stream/sherpa-onnx-demo/](https://deeeed.github.io/expo-audio-stream/sherpa-onnx-demo/)
+
+### Essentia Demo
+
+A specialized app demonstrating the advanced audio analysis features of the Essentia library integration.
+
+### Minimal Example
+
+A stripped-down implementation showing the bare minimum required to integrate the audio libraries, perfect for developers who want to understand the core concepts without additional complexity.
+
 ## Packages
 
-### 1. `@siteed/expo-audio-stream`
+### 1. `@siteed/expo-audio-studio`
 
-`@siteed/expo-audio-stream` is a comprehensive library designed to facilitate real-time audio processing and streaming across iOS, Android, and web platforms.
+`@siteed/expo-audio-studio` (formerly `@siteed/expo-audio-stream`) is a comprehensive library designed to facilitate real-time audio processing and streaming across iOS, Android, and web platforms.
 
-For more details, please refer to the [README](packages/expo-audio-stream/README.md) of the package.
+For more details, please refer to the [README](packages/expo-audio-studio/README.md) of the package.
 
 ### 2. `@siteed/expo-audio-ui`
 
-`@siteed/expo-audio-ui` provides UI components to visualize audio data processed by `@siteed/expo-audio-stream`.
+`@siteed/expo-audio-ui` provides UI components to visualize audio data processed by `@siteed/expo-audio-studio`.
 
 For more details, please refer to the [README](packages/expo-audio-ui/README.md) of the package.
 
@@ -37,6 +69,17 @@ Key features:
 
 For more details, please refer to the [README](packages/react-native-essentia/README.md) of the package.
 
+### 4. `@siteed/sherpa-onnx.rn`
+
+`@siteed/sherpa-onnx.rn` is a React Native wrapper for the [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) library, providing speech-to-text (STT) and text-to-speech (TTS) capabilities. This package is currently under development.
+
+Key features:
+- On-device speech recognition using ONNX models
+- Text-to-speech synthesis
+- Cross-platform support for iOS, Android, and Web
+- Optimized native implementation with web compatibility
+
+For more details, check out the [sherpa-onnx demo](https://deeeed.github.io/expo-audio-stream/sherpa-onnx-demo/) or refer to the package source.
 
 ## Roadmap
 

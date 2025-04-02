@@ -24,6 +24,8 @@ config.resolver.assetExts = [
   ...config.resolver.assetExts,
   'm4a',
   'wav',
+  'wasm',
+  'data',
   'mp3',
   'bin',
   'onnx',

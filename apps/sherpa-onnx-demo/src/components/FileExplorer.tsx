@@ -487,6 +487,34 @@ export function FileExplorer({
     setShowDebugInfo(false);
   };
 
+  // On web platform, show unsupported message and back button
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={onBackToDownloads}>
+            <Ionicons name="arrow-back" size={24} color="#2196F3" />
+            <Text style={styles.backButtonText}>Back</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.webUnsupportedContainer}>
+          <Text style={styles.webUnsupportedTitle}>File Explorer Unavailable</Text>
+          <Text style={styles.webUnsupportedText}>
+            The file explorer feature is not available on web platforms as it requires
+            native file system access.
+          </Text>
+          <TouchableOpacity 
+            style={styles.returnButton}
+            onPress={onBackToDownloads}
+          >
+            <Text style={styles.returnButtonText}>Return to Models</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   // Main component render
   return (
     <View style={styles.container}>
@@ -598,7 +626,15 @@ export function FileExplorer({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e0e0e0', backgroundColor: '#f8f8f8' },
-  backButton: { padding: 8, marginRight: 8 },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    marginLeft: 4,
+    color: '#2196F3',
+    fontSize: 16,
+  },
   currentPathText: { flex: 1, fontSize: 14, color: '#666', marginHorizontal: 8 },
   debugButton: { padding: 8, marginLeft: 8 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
@@ -693,5 +729,33 @@ const styles = StyleSheet.create({
   debugSeparator: {
     height: 1,
     backgroundColor: '#444',
+  },
+  webUnsupportedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  webUnsupportedTitle: {
+    color: '#d32f2f',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  webUnsupportedText: {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  returnButton: {
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 4,
+  },
+  returnButtonText: {
+    color: '#fff',
+    fontWeight: '500',
   },
 }); 
