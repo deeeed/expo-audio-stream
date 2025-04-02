@@ -8758,6 +8758,7 @@ __metadata:
     "@expo/vector-icons": "npm:^14.0.2"
     "@react-native-async-storage/async-storage": "npm:1.23.1"
     "@siteed/sherpa-onnx.rn": "workspace:^"
+    "@types/gh-pages": "npm:^6"
     "@types/react": "npm:~18.3.12"
     "@types/react-dom": "npm:^18"
     "@types/react-native-web": "npm:^0"
@@ -8775,6 +8776,7 @@ __metadata:
     expo-router: "npm:^4.0.19"
     expo-sharing: "npm:~13.0.1"
     expo-status-bar: "npm:~2.0.1"
+    gh-pages: "npm:^6.3.0"
     joi: "npm:^17.9.2"
     react: "npm:18.3.1"
     react-dom: "npm:18.3.1"
@@ -14613,6 +14615,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"commander@npm:^13.0.0":
+  version: 13.1.0
+  resolution: "commander@npm:13.1.0"
+  checksum: 10/d3b4b79e6be8471ddadacbb8cd441fe82154d7da7393b50e76165a9e29ccdb74fa911a186437b9a211d0fc071db6051915c94fb8ef16d77511d898e9dbabc6af
+  languageName: node
+  linkType: hard
+
 "commander@npm:^2.20.0":
   version: 2.20.3
   resolution: "commander@npm:2.20.3"
@@ -20431,6 +20440,24 @@ __metadata:
     gh-pages: bin/gh-pages.js
     gh-pages-clean: bin/gh-pages-clean.js
   checksum: 10/c86b99aa6f63de073c2ea0f8b8d0890dcb4e941fb57eade119386460fb870f23a0edfc26addd90cd5de92d04796c39d8c70c62fb3bdf2a191b739ea7cbdbdcae
+  languageName: node
+  linkType: hard
+
+"gh-pages@npm:^6.3.0":
+  version: 6.3.0
+  resolution: "gh-pages@npm:6.3.0"
+  dependencies:
+    async: "npm:^3.2.4"
+    commander: "npm:^13.0.0"
+    email-addresses: "npm:^5.0.0"
+    filenamify: "npm:^4.3.0"
+    find-cache-dir: "npm:^3.3.1"
+    fs-extra: "npm:^11.1.1"
+    globby: "npm:^11.1.0"
+  bin:
+    gh-pages: bin/gh-pages.js
+    gh-pages-clean: bin/gh-pages-clean.js
+  checksum: 10/43b0cb353306419e270a7a7e62fa39dc202b63bf01690fb722728e196d6ab73efbead9f639f14d893a6c9d32bc8c5ae806bf0a30c6731a4071f200732403ff08
   languageName: node
   linkType: hard
 

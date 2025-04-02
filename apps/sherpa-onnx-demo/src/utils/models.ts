@@ -1,5 +1,3 @@
-import type { TtsModelType } from '@siteed/sherpa-onnx.rn';
-import type { TtsModelConfig } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
 import type { ModelState as ContextModelState } from '../contexts/ModelManagement/types';
 /**
@@ -38,17 +36,6 @@ export interface ModelMetadata {
   language: string;
   // Use the new DependencyMetadata interface
   dependencies?: Array<DependencyMetadata>;
-  
-  /**
-   * TTS model parameters
-   * 
-   * This is a subset of TtsModelConfig from @siteed/sherpa-onnx.rn
-   * that contains the necessary parameters for initializing the TTS model.
-   * 
-   * By using Partial<TtsModelConfig>, we ensure that all properties 
-   * remain aligned with the main interface, making maintenance easier.
-   */
-  ttsParams?: Partial<TtsModelConfig>;
 }
 
 export const AVAILABLE_MODELS: ModelMetadata[] = [
@@ -76,12 +63,11 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     version: '2023-06-26',
     language: 'en',
   },
-
   {
-    id: 'streaming-zipformer-bilingual-zh-en',
-    name: 'Streaming Zipformer (Bilingual)',
+    id: 'streaming-zipformer-bilingual-zh-en-2023-02-20',
+    name: 'Bilingual Zipformer (Chinese + English)',
     description:
-      'Bilingual streaming model supporting Chinese and English transcription, larger size with enhanced cross-language capabilities.',
+      'Streaming bilingual model for real-time Chinese and English transcription from February 2023. Optimized with specific model architecture.',
     type: 'asr',
     size: 488 * 1024 * 1024, // 488 MB
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2',
@@ -136,12 +122,6 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-icefall-en_US-ljspeech-low.tar.bz2',
     version: 'low',
     language: 'en',
-    ttsParams: {
-      ttsModelType: 'vits',
-      modelFile: 'model.onnx', // Assuming model file name matches archive root
-      tokensFile: 'tokens.txt',
-      dataDir: 'espeak-ng-data', // Renamed field
-    },
   },
 
   {
@@ -154,13 +134,6 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-ljspeech-medium.tar.bz2',
     version: 'medium',
     language: 'en',
-    ttsParams: {
-      ttsModelType: 'vits',
-      modelFile: 'en_US-ljspeech-medium.onnx', // Assuming model file name matches archive root
-      tokensFile: 'tokens.txt',
-      lexiconFile: 'lexicon.txt',
-      dataDir: 'espeak-ng-data', // Renamed field
-    },
   },
 
   {
@@ -173,13 +146,6 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-libritts-high.tar.bz2',
     version: 'high',
     language: 'en',
-    ttsParams: {
-      ttsModelType: 'vits',
-      modelFile: 'en_US-libritts-high.onnx',
-      tokensFile: 'tokens.txt',
-      lexiconFile: 'lexicon.txt',
-      dataDir: 'espeak-ng-data',
-    },
   },
 
   {
@@ -192,13 +158,6 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2',
     version: '0.19',
     language: 'en',
-    ttsParams: {
-      ttsModelType: 'kokoro',
-      modelFile: 'model.onnx',
-      tokensFile: 'tokens.txt',
-      voicesFile: 'voices.bin',
-      dataDir: 'espeak-ng-data',
-    },
   },
 
   {
@@ -211,15 +170,6 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/matcha-icefall-en_US-ljspeech.tar.bz2',
     version: '1.0',
     language: 'en',
-    ttsParams: {
-      ttsModelType: 'matcha',
-      modelFile: "matcha-icefall-en_US-ljspeech/model-steps-3.onnx",
-      tokensFile: "matcha-icefall-en_US-ljspeech/tokens.txt",
-      vocoderFile: "vocos-22khz-univ.onnx",
-      dataDir: "matcha-icefall-en_US-ljspeech/espeak-ng-data",
-      debug: true,
-      provider: 'cpu',
-    },
     dependencies: [
       {
         id: 'vocos-vocoder',

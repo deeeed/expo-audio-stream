@@ -17,7 +17,7 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useModelManagement } from '../../contexts/ModelManagement/ModelManagementContext';
+import { useSpeakerIdModelWithConfig, useSpeakerIdModels } from '../../hooks/useModelWithConfig';
 
 // Define sample audio with only name and module
 const SAMPLE_AUDIO_FILES = [
@@ -33,161 +33,42 @@ const SAMPLE_AUDIO_FILES = [
   }
 ];
 
-// Helper function to verify file existence - requires Expo URI format with file:// prefix
-const verifyFileExists = async (expoUri: string): Promise<boolean> => {
-  try {
-    // Ensure the URI has the file:// prefix for Expo
-    const uri = expoUri.startsWith('file://') ? expoUri : `file://${expoUri}`;
-    console.log(`Checking file existence: ${uri}`);
-    const fileInfo = await FileSystem.getInfoAsync(uri);
-    return fileInfo.exists;
-  } catch (error) {
-    console.error(`Error checking file existence: ${expoUri}`, error);
-    return false;
-  }
-};
-
-// Helper function to properly join path segments
-const joinPaths = (...paths: string[]): string => {
-  return paths
-    .map(path => path.replace(/^\/+|\/+$/g, '')) // Remove leading/trailing slashes
-    .filter(Boolean) // Remove empty segments
-    .join('/');
-};
-
-interface ModelInfo {
-  modelDir: string;
-  modelType: string;
-}
-
-// Helper function to clean file paths to be compatible with both Expo and native code
-const cleanFilePath = (path: string): string => {
-  // Strip the file:// or file:/ prefix if present
-  if (path.startsWith('file://')) {
-    return path.substring(7);
-  } else if (path.startsWith('file:/')) {
-    return path.substring(6);
-  }
-  return path;
-};
-
-/**
- * Recursively search for a speaker identification model file in a directory and its subdirectories
- * @param basePath Base directory path to start searching
- * @returns Object with modelDir and modelName if found, null otherwise
- */
-const findModelFilesRecursive = async (basePath: string): Promise<ModelInfo | null> => {
-  console.log(`Searching for speaker ID models in: ${basePath}`);
-  
-  // Ensure base path has file:// prefix for Expo FileSystem
-  const expoBasePath = basePath.startsWith('file://') ? basePath : `file://${basePath}`;
-  
-  const searchDirectory = async (expoPath: string, depth = 0): Promise<ModelInfo | null> => {
-    if (depth > 3) return null; // Limit recursion depth
-    
-    try {
-      console.log(`Searching directory: ${expoPath} (depth: ${depth})`);
-      
-      const dirInfo = await FileSystem.getInfoAsync(expoPath);
-      
-      if (!dirInfo.exists || !dirInfo.isDirectory) {
-        console.log(`Path is not a valid directory: ${expoPath}`);
-        return null;
-      }
-      
-      // Get directory contents
-      const contents = await FileSystem.readDirectoryAsync(expoPath);
-      console.log(`Found ${contents.length} items in ${expoPath}`);
-      
-      // Look for the model file - typically a .onnx file with "speaker" in the name
-      const modelFile = contents.find(
-        file => file.endsWith('.onnx') && 
-        (file.toLowerCase().includes('speaker') || 
-         file.toLowerCase().includes('voice') || 
-         file.toLowerCase().includes('embedding'))
-      );
-      
-      if (modelFile) {
-        console.log(`Found speaker ID model file: ${modelFile} in ${expoPath}`);
-        return {
-          modelDir: expoPath,
-          modelType: 'speaker-embedding'
-        };
-      }
-      
-      // Recursively check subdirectories
-      for (const item of contents) {
-        const subDirPath = `${expoPath}/${item}`;
-        const subDirInfo = await FileSystem.getInfoAsync(subDirPath);
-        
-        if (subDirInfo.isDirectory) {
-          const result = await searchDirectory(subDirPath, depth + 1);
-          if (result) return result;
-        }
-      }
-      
-      return null;
-    } catch (err) {
-      console.error(`Error searching directory ${expoPath}:`, err);
-      return null;
-    }
-  };
-  
-  // Start the recursive search
-  return searchDirectory(expoBasePath);
-};
-
-interface ModelState {
+interface AudioFile {
   id: string;
   name: string;
-  type: string;
-  status: 'idle' | 'loading' | 'ready' | 'error';
-  error?: string;
+  module: number;
+  localUri: string;
 }
 
 export default function SpeakerIdScreen() {
-  const { getDownloadedModels, getModelState, refreshModelStatus } = useModelManagement();
+  // State for Speaker ID initialization and processing
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
-  const [modelFile, setModelFile] = useState<string | null>(null);
-  const [selectedAudio, setSelectedAudio] = useState<{
-    id: string;
-    name: string;
-    module: number;
-    localUri: string;
-  } | null>(null);
-  const [embeddingResult, setEmbeddingResult] = useState<SpeakerEmbeddingResult | null>(null);
-  const [identifyResult, setIdentifyResult] = useState<IdentifySpeakerResult | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>('');
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [registeredSpeakers, setRegisteredSpeakers] = useState<string[]>([]);
   const [speakerCount, setSpeakerCount] = useState(0);
   
-  // Add a ref to track already refreshed model IDs
-  const refreshedModels = React.useRef<Set<string>>(new Set());
-  // Track if component is mounted
-  const isMounted = React.useRef(true);
-  
-  // Get only downloaded speaker ID models
-  const availableModels = getDownloadedModels().filter(model => 
-    model.metadata?.type === 'speaker-id'
-  );
-  
-  // Add state for loaded audio assets
-  const [loadedAudioFiles, setLoadedAudioFiles] = useState<Array<{
-    id: string;
-    name: string;
-    module: number;
-    localUri: string;
-  }>>([]);
-  
-  // Add state for audio playback
+  // State for audio files and playback
+  const [loadedAudioFiles, setLoadedAudioFiles] = useState<AudioFile[]>([]);
+  const [selectedAudio, setSelectedAudio] = useState<AudioFile | null>(null);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
-  // Add new states for audio metadata
+  // State for embedding and identification results
+  const [embeddingResult, setEmbeddingResult] = useState<SpeakerEmbeddingResult | null>(null);
+  const [identifyResult, setIdentifyResult] = useState<IdentifySpeakerResult | null>(null);
+  
+  // State for configuration options
+  const [numThreads, setNumThreads] = useState<number>(2);
+  const [debugMode, setDebugMode] = useState<boolean>(false);
+  const [threshold, setThreshold] = useState<number>(0.5);
+  const [newSpeakerName, setNewSpeakerName] = useState<string>('');
+  const [provider, setProvider] = useState<'cpu' | 'gpu'>('cpu');
+  
+  // State for audio metadata
   const [audioMetadata, setAudioMetadata] = useState<{
     size?: number;
     duration?: number;
@@ -196,11 +77,12 @@ export default function SpeakerIdScreen() {
     isLoading: false
   });
   
-  // Add state for configuration options
-  const [numThreads, setNumThreads] = useState<number>(2);
-  const [debugMode, setDebugMode] = useState<boolean>(false);
-  const [threshold, setThreshold] = useState<number>(0.5);
-  const [newSpeakerName, setNewSpeakerName] = useState<string>('');
+  // Hooks for model data
+  const { downloadedModels } = useSpeakerIdModels();
+  const { speakerIdConfig, localPath, isDownloaded } = useSpeakerIdModelWithConfig({ modelId: selectedModelId });
+  
+  // Track if component is mounted
+  const isMounted = React.useRef(true);
   
   // Load audio assets when component mounts
   useEffect(() => {
@@ -230,6 +112,18 @@ export default function SpeakerIdScreen() {
     loadAudioAssets();
   }, []);
   
+  // Reset configuration when selected model changes
+  useEffect(() => {
+    if (speakerIdConfig) {
+      // Reset to values from the predefined config or use defaults
+      setNumThreads(speakerIdConfig.numThreads ?? 2);
+      setDebugMode(speakerIdConfig.debug ?? false);
+      setProvider(speakerIdConfig.provider ?? 'cpu');
+      
+      console.log('Reset configuration based on selected model:', selectedModelId);
+    }
+  }, [selectedModelId, speakerIdConfig]);
+  
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -247,190 +141,78 @@ export default function SpeakerIdScreen() {
         );
       }
     };
-  }, []);
+  }, [initialized, sound]);
   
-  // Fix the model refresh useEffect to prevent infinite loops
-  useEffect(() => {
-    async function refreshSelectedModel() {
-      if (!selectedModelId || !isMounted.current) return;
-      
-      // Skip if we've already refreshed this model - use a unique key
-      const modelRefreshKey = `refresh-${selectedModelId}`;
-      if (refreshedModels.current.has(modelRefreshKey)) {
-        console.log(`Skipping refresh for ${selectedModelId} - already refreshed`);
-        return;
-      }
-      
-      console.log(`Refreshing model status for ${selectedModelId} (once only)`);
-      try {
-        // Mark this model as refreshed to prevent future refreshes
-        refreshedModels.current.add(modelRefreshKey);
-        await refreshModelStatus(selectedModelId);
-      } catch (err) {
-        if (isMounted.current) {
-          console.error(`Error refreshing model status: ${err}`);
-        }
-      }
-    }
-    
-    refreshSelectedModel();
-    
-    // Add cleanup function
-    return () => {
-      // This will run before the next effect or on unmount
-    };
-  }, [selectedModelId]); // Remove refreshModelStatus from dependencies
-  
-  // Setup speaker ID with a specific model
-  async function setupSpeakerId(modelId: string) {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Only refresh the model status if we haven't already done so
-      const modelRefreshKey = `refresh-${modelId}`;
-      if (!refreshedModels.current.has(modelRefreshKey)) {
-        console.log(`Refreshing model status before setup for ${modelId}`);
-        refreshedModels.current.add(modelRefreshKey);
-        await refreshModelStatus(modelId);
-      } else {
-        console.log(`Using cached model status for ${modelId}`);
-      }
-      
-      // Log available models for debugging
-      const downloadedModels = getDownloadedModels();
-      console.log(`Available speaker ID models: ${downloadedModels.length}`);
-      
-      // Get model state
-      const modelState = getModelState(modelId);
-      console.log(`Model state for ${modelId}: ${JSON.stringify(modelState, null, 2)}`);
-      
-      if (!modelState) {
-        throw new Error(`Model state not found for ID: ${modelId}`);
-      }
-      
-      if (!modelState.localPath) {
-        throw new Error('Model files not found locally - no localPath in model state');
-      }
-      
-      console.log(`Using model path: ${modelState.localPath}`);
-      
-      // For speaker ID models, we need the .onnx file
-      let modelFile = '';
-      let modelDir = '';
-      
-      // Check if the localPath exists and what it is
-      const pathInfo = await FileSystem.getInfoAsync(modelState.localPath);
-      
-      if (!pathInfo.exists) {
-        throw new Error(`Path does not exist: ${modelState.localPath}`);
-      }
-      
-      // Different handling based on whether the path is a file or directory
-      if (!pathInfo.isDirectory) {
-        // The localPath is directly to the model file
-        console.log('Local path is a direct file path');
-        modelFile = modelState.localPath.split('/').pop() || '';
-        modelDir = modelState.localPath.substring(0, modelState.localPath.lastIndexOf('/'));
-        console.log(`Extracted model file: ${modelFile}`);
-        console.log(`Extracted model directory: ${modelDir}`);
-      } else {
-        // The localPath is a directory
-        console.log('Local path is a directory');
-        modelDir = modelState.localPath;
-        
-        // Try to find the model file
-        if (modelState.extractedFiles && modelState.extractedFiles.length > 0) {
-          // Use first extracted file if available
-          modelFile = modelState.extractedFiles[0];
-          console.log(`Using extracted model file: ${modelFile}`);
-        } else {
-          // Try to find .onnx file in the directory
-          const dirContents = await FileSystem.readDirectoryAsync(modelDir);
-          const onnxFile = dirContents.find(file => file.endsWith('.onnx'));
-          if (onnxFile) {
-            modelFile = onnxFile;
-            console.log(`Found ONNX file in directory: ${modelFile}`);
-          } else {
-            throw new Error('No ONNX model file found in the model directory');
+  // Handle model selection
+  const handleModelSelect = (modelId: string) => {
+    // If a model is already initialized, show confirmation before switching
+    if (initialized) {
+      Alert.alert(
+        "Switch Model?",
+        "Switching models will release the currently initialized model and clear any registered speakers.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel"
+          },
+          {
+            text: "Switch",
+            style: "destructive",
+            onPress: async () => {
+              // Release current model first
+              try {
+                await handleReleaseSpeakerId();
+                // After release, set the new model ID
+                setSelectedModelId(modelId);
+                setStatusMessage('Model switched to ' + modelId);
+              } catch (error) {
+                setError(`Error releasing speaker ID: ${(error as Error).message}`);
+              }
+            }
           }
-        }
-      }
-      
-      // Verify the model file exists
-      const fullModelPath = joinPaths(modelDir, modelFile);
-      console.log(`Checking if model file exists at: ${fullModelPath}`);
-      const fileExists = await verifyFileExists(fullModelPath);
-      
-      if (!fileExists) {
-        console.error(`File not found at path: ${fullModelPath}`);
-        throw new Error(`Model file not found at ${fullModelPath}`);
-      }
-      
-      console.log(`File exists, proceeding with initialization`);
-      
-      setModelInfo({
-        modelDir: modelDir,
-        modelType: 'speaker-embedding'
-      });
-      setModelFile(modelFile);
-      
-      // Initialize Speaker ID with the model file
-      await handleInitSpeakerId(modelDir, modelFile, modelId);
-      
-    } catch (err) {
-      console.error('Error setting up speaker ID:', err);
-      setError(`Error setting up speaker ID: ${err instanceof Error ? err.message : String(err)}`);
-      setLoading(false);
+        ]
+      );
+    } else {
+      // No model initialized, just switch directly
+      setSelectedModelId(modelId);
+      setStatusMessage('Selected model: ' + modelId);
     }
-  }
+  };
   
-  // Initialize the speaker ID engine
-  const handleInitSpeakerId = async (modelDir: string, modelFile: string, modelId?: string) => {
-    if (!modelDir || !modelFile) {
-      setError('Model information not available');
+  // Initialize speaker ID with selected model
+  const handleInitSpeakerId = async () => {
+    if (!selectedModelId) {
+      setError('Please select a model first');
       return;
     }
-    
+
+    if (!speakerIdConfig || !localPath || !isDownloaded) {
+      setError('Selected model is not valid or configuration not found.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
-    
+    setStatusMessage('Initializing Speaker ID...');
+
     try {
-      const cleanPath = cleanFilePath;
-      
-      console.log('Setting up speaker ID with model in:', modelDir);
-      console.log('Model file:', modelFile);
-      
-      // Determine if modelFile is already a full path or just a filename
-      const isFullPath = modelFile.includes('/');
-      
-      // Initialize Speaker ID
-      const config: SpeakerIdModelConfig = {
-        modelDir: cleanPath(modelDir),
-        // If modelFile is a full path, use just the filename
-        modelFile: isFullPath ? modelFile.split('/').pop() || modelFile : modelFile,
-        numThreads: numThreads,
-        debug: debugMode
+      // Use the cleaned path (without file://) for native module
+      const cleanLocalPath = localPath.replace(/^file:\/\//, '');
+      console.log(`Using model directory: ${cleanLocalPath}`);
+
+      // Create configuration for speaker ID initialization
+      const modelConfig: SpeakerIdModelConfig = {
+        modelDir: cleanLocalPath,
+        modelFile: speakerIdConfig.modelFile || 'model.onnx',
+        numThreads,
+        debug: debugMode,
+        provider,
       };
       
-      console.log('Initializing speaker ID with config:', JSON.stringify(config));
-      
-      // Log additional info for debugging
-      console.log(`Model directory: ${modelDir}`);
-      console.log(`Model filename: ${config.modelFile}`);
-      
-      // Check if the file exists in the directory
-      const fullModelPath = isFullPath ? modelFile : joinPaths(modelDir, config.modelFile || '');
-      const fileExists = await verifyFileExists(fullModelPath);
-      console.log(`Full model path: ${fullModelPath}`);
-      console.log(`Model file exists check: ${fileExists}`);
-      
-      if (!fileExists) {
-        throw new Error(`Model file not found at path: ${fullModelPath}`);
-      }
+      console.log('Initializing speaker ID with config:', JSON.stringify(modelConfig, null, 2));
       
       // Initialize the speaker ID engine
-      const result = await SpeakerId.init(config);
+      const result = await SpeakerId.init(modelConfig);
       
       if (!result.success) {
         throw new Error(result.error || 'Unknown error during speaker ID initialization');
@@ -442,9 +224,7 @@ export default function SpeakerIdScreen() {
       await refreshSpeakerList();
       
       setInitialized(true);
-      if (result.success && modelId) {
-        setSelectedModelId(modelId);
-      }
+      setStatusMessage(`Speaker ID initialized successfully! Embedding dimension: ${result.embeddingDim}`);
       setLoading(false);
     } catch (err) {
       console.error('Error initializing speaker ID:', err);
@@ -470,7 +250,7 @@ export default function SpeakerIdScreen() {
   };
   
   // Play audio
-  const handlePlayAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
+  const handlePlayAudio = async (audioItem: AudioFile) => {
     try {
       // Stop any existing playback
       if (sound) {
@@ -515,7 +295,7 @@ export default function SpeakerIdScreen() {
   };
   
   // Process audio to get embedding
-  const handleProcessAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
+  const handleProcessAudio = async (audioItem: AudioFile) => {
     if (!initialized) {
       setError('Speaker ID is not initialized');
       return;
@@ -525,6 +305,7 @@ export default function SpeakerIdScreen() {
     setEmbeddingResult(null);
     setIdentifyResult(null);
     setError(null);
+    setStatusMessage('Processing audio...');
     
     try {
       console.log('Processing audio file:', audioItem.localUri);
@@ -545,17 +326,26 @@ export default function SpeakerIdScreen() {
       });
       
       setEmbeddingResult(result);
+      setStatusMessage('Audio processed successfully!');
       
       // If we have registered speakers, try to identify
       if (speakerCount > 0) {
+        setStatusMessage('Identifying speaker...');
         const identifyResult = await SpeakerId.identifySpeaker(result.embedding, threshold);
         setIdentifyResult(identifyResult);
+        
+        if (identifyResult.identified) {
+          setStatusMessage(`Speaker identified: ${identifyResult.speakerName}`);
+        } else {
+          setStatusMessage('No matching speaker found');
+        }
       }
       
       setProcessing(false);
     } catch (err) {
       console.error('Error processing audio:', err);
       setError(`Error processing audio: ${err instanceof Error ? err.message : String(err)}`);
+      setStatusMessage('');
       setProcessing(false);
     }
   };
@@ -574,6 +364,7 @@ export default function SpeakerIdScreen() {
     
     setProcessing(true);
     setError(null);
+    setStatusMessage('Registering speaker...');
     
     try {
       // Register the speaker with the current embedding
@@ -585,6 +376,7 @@ export default function SpeakerIdScreen() {
       
       Alert.alert('Success', `Speaker "${newSpeakerName}" registered successfully`);
       setNewSpeakerName('');
+      setStatusMessage(`Speaker "${newSpeakerName}" registered successfully`);
       
       // Refresh the speaker list
       await refreshSpeakerList();
@@ -593,6 +385,7 @@ export default function SpeakerIdScreen() {
     } catch (err) {
       console.error('Error registering speaker:', err);
       setError(`Error registering speaker: ${err instanceof Error ? err.message : String(err)}`);
+      setStatusMessage('');
       setProcessing(false);
     }
   };
@@ -606,6 +399,7 @@ export default function SpeakerIdScreen() {
     
     setProcessing(true);
     setError(null);
+    setStatusMessage(`Removing speaker "${name}"...`);
     
     try {
       // Remove the speaker
@@ -616,6 +410,7 @@ export default function SpeakerIdScreen() {
       }
       
       Alert.alert('Success', `Speaker "${name}" removed successfully`);
+      setStatusMessage(`Speaker "${name}" removed successfully`);
       
       // Refresh the speaker list
       await refreshSpeakerList();
@@ -624,6 +419,7 @@ export default function SpeakerIdScreen() {
     } catch (err) {
       console.error('Error removing speaker:', err);
       setError(`Error removing speaker: ${err instanceof Error ? err.message : String(err)}`);
+      setStatusMessage('');
       setProcessing(false);
     }
   };
@@ -635,6 +431,7 @@ export default function SpeakerIdScreen() {
     }
     
     setLoading(true);
+    setStatusMessage('Releasing Speaker ID resources...');
     
     try {
       const result = await SpeakerId.release();
@@ -645,13 +442,38 @@ export default function SpeakerIdScreen() {
         setIdentifyResult(null);
         setRegisteredSpeakers([]);
         setSpeakerCount(0);
+        setStatusMessage('Speaker ID resources released successfully');
+      } else {
+        setError('Failed to release Speaker ID resources');
       }
       
       setLoading(false);
     } catch (err) {
       console.error('Error releasing speaker ID:', err);
       setError(`Error releasing speaker ID: ${err instanceof Error ? err.message : String(err)}`);
+      setStatusMessage('');
       setLoading(false);
+    }
+  };
+  
+  // Handle audio selection
+  const handleSelectAudio = async (audioItem: AudioFile) => {
+    setSelectedAudio(audioItem);
+    setEmbeddingResult(null);
+    setIdentifyResult(null);
+    
+    // Get metadata
+    setAudioMetadata({ isLoading: true });
+    try {
+      const metadata = await getAudioMetadata(audioItem.localUri);
+      setAudioMetadata({
+        size: metadata.size,
+        duration: metadata.duration,
+        isLoading: false
+      });
+    } catch (error) {
+      console.error('Error getting audio metadata:', error);
+      setAudioMetadata({ isLoading: false });
     }
   };
   
@@ -684,16 +506,6 @@ export default function SpeakerIdScreen() {
     }
   };
   
-  // Handle audio selection
-  const handleSelectAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
-    setSelectedAudio(audioItem);
-    setEmbeddingResult(null);
-    setIdentifyResult(null);
-    
-    // Get metadata
-    await getAudioMetadata(audioItem.localUri);
-  };
-  
   // Format file size for display
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -718,83 +530,142 @@ export default function SpeakerIdScreen() {
   
   return (
     <SafeAreaView style={styles.container}>
+      {/* Loading overlay */}
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingContent}>
+            <ActivityIndicator size="large" color="#2196F3" />
+            <Text style={styles.loadingText}>
+              {statusMessage || 'Processing...'}
+            </Text>
+          </View>
+        </View>
+      )}
+
       <FlatList
         data={[{ key: 'content' }]}
         renderItem={() => (
           <View style={styles.content}>
+            <Text style={styles.title}>Speaker Identification</Text>
+
+            {/* Error and status messages */}
+            {error ? (
+              <Text style={styles.errorText}>{error}</Text>
+            ) : null}
+            
+            {statusMessage && !error && !loading ? (
+              <Text style={styles.statusText}>{statusMessage}</Text>
+            ) : null}
+            
+            {/* Model Selection */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Speaker Identification</Text>
-              
-              {/* Model Selection */}
-              <View style={styles.modelSelection}>
-                <Text style={styles.label}>Select Model:</Text>
-                <View style={styles.modelList}>
-                  {availableModels.map((item) => (
+              <Text style={styles.sectionTitle}>1. Select Speaker ID Model</Text>
+              {initialized && (
+                <Text style={styles.warningText}>
+                  Switching models will release the currently initialized model
+                </Text>
+              )}
+              <View style={styles.pickerContainer}>
+                {downloadedModels.length === 0 ? (
+                  <Text style={styles.emptyText}>
+                    No speaker identification models available.
+                    Please visit the Models screen to download a model.
+                  </Text>
+                ) : (
+                  downloadedModels.map((model) => (
                     <TouchableOpacity
-                      key={item.metadata.id}
+                      key={model.metadata.id}
                       style={[
-                        styles.modelItem,
-                        selectedModelId === item.metadata.id && styles.selectedModelItem
+                        styles.modelOption,
+                        selectedModelId === model.metadata.id && styles.modelOptionSelected
                       ]}
-                      onPress={() => {
-                        console.log(`Selecting model with ID: ${item.metadata.id}`);
-                        setSelectedModelId(item.metadata.id);
-                      }}
+                      onPress={() => handleModelSelect(model.metadata.id)}
                     >
-                      <Text
+                      <Text 
                         style={[
-                          styles.modelItemText,
-                          selectedModelId === item.metadata.id && styles.selectedModelItemText
+                          styles.modelOptionText,
+                          selectedModelId === model.metadata.id && styles.modelOptionTextSelected
                         ]}
                       >
-                        {item.metadata.name}
+                        {model.metadata.name}
                       </Text>
                     </TouchableOpacity>
-                  ))}
-                </View>
-                {availableModels.length === 0 && (
-                  <View style={styles.emptyList}>
-                    <Text style={styles.emptyListText}>
-                      No speaker identification models available.
-                      Please download a model from the Models tab.
-                    </Text>
-                  </View>
+                  ))
                 )}
               </View>
-              
-              {/* Advanced Configuration */}
+            </View>
+            
+            {/* Show the predefined configuration after model selection */}
+            {selectedModelId && speakerIdConfig && (
               <View style={styles.configSection}>
-                <Text style={styles.label}>Advanced Configuration:</Text>
+                <Text style={styles.sectionTitle}>2. Speaker ID Configuration</Text>
                 
                 <View style={styles.configRow}>
-                  <Text>Threads:</Text>
+                  <Text style={styles.configLabel}>Number of Threads:</Text>
                   <TextInput
-                    style={styles.numberInput}
+                    style={styles.configInput}
+                    keyboardType="numeric"
                     value={numThreads.toString()}
-                    onChangeText={(text) => {
-                      const num = parseInt(text, 10);
-                      if (!isNaN(num) && num > 0) {
-                        setNumThreads(num);
+                    onChangeText={(value) => {
+                      const threadCount = parseInt(value);
+                      if (!isNaN(threadCount) && threadCount > 0) {
+                        setNumThreads(threadCount);
                       }
                     }}
-                    keyboardType="numeric"
                     editable={!initialized}
                   />
                 </View>
                 
                 <View style={styles.configRow}>
-                  <Text>Debug Mode:</Text>
+                  <Text style={styles.configLabel}>Provider:</Text>
+                  <View style={styles.providerContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.providerOption,
+                        provider === 'cpu' && styles.providerOptionSelected
+                      ]}
+                      onPress={() => !initialized && setProvider('cpu')}
+                      disabled={initialized}
+                    >
+                      <Text style={[
+                        styles.providerOptionText,
+                        provider === 'cpu' && styles.providerOptionTextSelected
+                      ]}>CPU</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.providerOption,
+                        provider === 'gpu' && styles.providerOptionSelected
+                      ]}
+                      onPress={() => !initialized && setProvider('gpu')}
+                      disabled={initialized}
+                    >
+                      <Text style={[
+                        styles.providerOptionText,
+                        provider === 'gpu' && styles.providerOptionTextSelected
+                      ]}>GPU</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                
+                <View style={styles.configRow}>
+                  <Text style={styles.configLabel}>Debug Mode:</Text>
                   <Switch
                     value={debugMode}
-                    onValueChange={(value) => setDebugMode(value)}
+                    onValueChange={(value) => {
+                      if (!initialized) {
+                        setDebugMode(value);
+                      }
+                    }}
                     disabled={initialized}
                   />
                 </View>
                 
                 <View style={styles.configRow}>
-                  <Text>Similarity Threshold:</Text>
+                  <Text style={styles.configLabel}>Similarity Threshold:</Text>
                   <TextInput
-                    style={styles.numberInput}
+                    style={styles.configInput}
+                    keyboardType="numeric"
                     value={threshold.toString()}
                     onChangeText={(text) => {
                       const value = parseFloat(text);
@@ -802,55 +673,41 @@ export default function SpeakerIdScreen() {
                         setThreshold(value);
                       }
                     }}
-                    keyboardType="numeric"
                   />
                 </View>
               </View>
+            )}
+            
+            {/* Control Buttons */}
+            <View style={styles.buttonRow}>
+              <TouchableOpacity 
+                style={[
+                  styles.button, 
+                  styles.initButton,
+                  (!selectedModelId || loading) && styles.buttonDisabled
+                ]} 
+                onPress={handleInitSpeakerId}
+                disabled={loading || !selectedModelId || initialized}
+              >
+                <Text style={styles.buttonText}>Initialize Speaker ID</Text>
+              </TouchableOpacity>
               
-              {/* Status */}
-              <View style={styles.statusSection}>
-                <Text style={styles.label}>Status:</Text>
-                <Text>
-                  {initialized 
-                    ? `Initialized with model: ${modelFile || 'Unknown'}`
-                    : 'Not initialized'}
-                </Text>
-                <Text>
-                  Registered Speakers: {speakerCount}
-                </Text>
-                {error && (
-                  <Text style={styles.errorText}>Error: {error}</Text>
-                )}
-              </View>
-              
-              {/* Control Buttons */}
-              <View style={styles.buttonContainer}>
-                <Button
-                  title={initialized ? "Release" : "Initialize"}
-                  onPress={initialized ? handleReleaseSpeakerId : () => {
-                    if (selectedModelId) {
-                      console.log(`Initializing model with ID: ${selectedModelId}`);
-                      // Get the latest model state from context
-                      const currentModelState = getModelState(selectedModelId);
-                      
-                      if (currentModelState && currentModelState.status === 'downloaded') {
-                        setupSpeakerId(selectedModelId);
-                      } else {
-                        setError(`Model not ready for initialization. Status: ${currentModelState?.status || 'unknown'}`);
-                        console.log(`Model state: ${JSON.stringify(currentModelState, null, 2)}`);
-                      }
-                    } else {
-                      setError('Please select a model first');
-                    }
-                  }}
-                  disabled={loading || (!initialized && !selectedModelId)}
-                />
-              </View>
+              <TouchableOpacity 
+                style={[
+                  styles.button, 
+                  styles.releaseButton,
+                  (!initialized || loading) && styles.buttonDisabled
+                ]} 
+                onPress={handleReleaseSpeakerId}
+                disabled={loading || !initialized}
+              >
+                <Text style={styles.buttonText}>Release Speaker ID</Text>
+              </TouchableOpacity>
             </View>
             
+            {/* Audio Selection (only show if initialized) */}
             {initialized && (
               <>
-                {/* Audio Selection */}
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Test Audio</Text>
                   
@@ -865,7 +722,12 @@ export default function SpeakerIdScreen() {
                         onPress={() => handleSelectAudio(item)}
                         disabled={processing}
                       >
-                        <Text style={styles.audioName}>{item.name}</Text>
+                        <Text style={[
+                          styles.audioName,
+                          selectedAudio?.id === item.id && styles.selectedAudioItemText
+                        ]}>
+                          {item.name}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -879,25 +741,45 @@ export default function SpeakerIdScreen() {
                       ) : (
                         <>
                           {audioMetadata.size !== undefined && (
-                            <Text>Size: {formatFileSize(audioMetadata.size)}</Text>
+                            <Text style={styles.audioMetadata}>Size: {formatFileSize(audioMetadata.size)}</Text>
                           )}
                           {audioMetadata.duration !== undefined && (
-                            <Text>Duration: {formatDuration(audioMetadata.duration)}</Text>
+                            <Text style={styles.audioMetadata}>Duration: {formatDuration(audioMetadata.duration)}</Text>
                           )}
                         </>
                       )}
                       
                       <View style={styles.audioControls}>
-                        <Button
-                          title={isPlaying ? "Stop" : "Play"}
-                          onPress={isPlaying ? handleStopAudio : () => handlePlayAudio(selectedAudio)}
-                          disabled={processing}
-                        />
-                        <Button
-                          title="Process"
-                          onPress={() => handleProcessAudio(selectedAudio)}
-                          disabled={processing || isPlaying}
-                        />
+                        <TouchableOpacity
+                          style={[
+                            styles.audioPlayButton,
+                            isPlaying && styles.audioPlayButtonDisabled
+                          ]}
+                          onPress={() => !isPlaying && handlePlayAudio(selectedAudio)}
+                          disabled={isPlaying || processing}
+                        >
+                          <Text style={styles.audioPlayButtonText}>
+                            {isPlaying ? 'Playing...' : 'Play Audio'}
+                          </Text>
+                        </TouchableOpacity>
+                        
+                        {isPlaying ? (
+                          <TouchableOpacity
+                            style={styles.audioStopButton}
+                            onPress={handleStopAudio}
+                            disabled={processing}
+                          >
+                            <Text style={styles.audioStopButtonText}>Stop</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.audioProcessButton}
+                            onPress={() => handleProcessAudio(selectedAudio)}
+                            disabled={processing}
+                          >
+                            <Text style={styles.audioProcessButtonText}>Process</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
                   )}
@@ -949,11 +831,18 @@ export default function SpeakerIdScreen() {
                             onChangeText={setNewSpeakerName}
                             placeholder="Enter speaker name"
                           />
-                          <Button
-                            title="Register Speaker"
+                          <TouchableOpacity
+                            style={[
+                              styles.registerButton,
+                              (!newSpeakerName.trim() || processing) && styles.buttonDisabled
+                            ]}
                             onPress={handleRegisterSpeaker}
                             disabled={!newSpeakerName.trim() || processing}
-                          />
+                          >
+                            <Text style={styles.buttonText}>
+                              Register Speaker
+                            </Text>
+                          </TouchableOpacity>
                         </View>
                       </View>
                     )}
@@ -1005,6 +894,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginVertical: 16,
+  },
   section: {
     backgroundColor: 'white',
     borderRadius: 8,
@@ -1025,65 +920,169 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
   },
-  modelSelection: {
+  pickerContainer: {
     marginBottom: 16,
   },
-  modelList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  modelOption: {
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
-  modelItem: {
-    padding: 8,
-    marginRight: 8,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
+  modelOptionSelected: {
+    backgroundColor: '#2196F3',
   },
-  selectedModelItem: {
-    backgroundColor: '#007AFF',
-  },
-  modelItemText: {
+  modelOptionText: {
+    fontSize: 16,
     color: '#333',
   },
-  selectedModelItemText: {
-    color: 'white',
+  modelOptionTextSelected: {
+    color: '#fff',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    zIndex: 1000,
+  },
+  loadingContent: {
+    backgroundColor: '#fff',
+    padding: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    minWidth: 250,
+    maxWidth: '80%',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#333',
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 14,
+    marginTop: 8,
+  },
+  errorText: {
+    color: '#f44336',
+    textAlign: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  statusText: {
+    color: '#2196F3',
+    textAlign: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  warningText: {
+    color: '#FF9800',
+    fontSize: 14,
+    marginBottom: 8,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   configSection: {
-    marginBottom: 16,
+    margin: 16,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
   },
   configRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  numberInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
+  configLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+  },
+  configInput: {
+    flex: 1,
     padding: 8,
-    width: 80,
-    textAlign: 'center',
-  },
-  textInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#ddd',
     borderRadius: 4,
-    padding: 8,
-    marginBottom: 8,
-    width: '100%',
+    fontSize: 16,
   },
-  statusSection: {
+  providerContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  providerOption: {
+    flex: 1,
+    padding: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 4,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  providerOptionSelected: {
+    backgroundColor: '#2196F3',
+  },
+  providerOptionText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  providerOptionTextSelected: {
+    color: '#fff',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
     marginBottom: 16,
   },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
+  button: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 8,
+    alignItems: 'center',
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 8,
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  initButton: {
+    backgroundColor: '#2196F3',
+  },
+  releaseButton: {
+    backgroundColor: '#757575',
+  },
+  audioList: {
+    gap: 8,
   },
   audioItem: {
     padding: 12,
@@ -1092,27 +1091,68 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   selectedAudioItem: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#2196F3',
+  },
+  selectedAudioItemText: {
+    color: '#fff',
   },
   audioName: {
     fontWeight: '500',
+  },
+  audioMetadata: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
   },
   selectedAudioInfo: {
     marginTop: 16,
   },
   audioControls: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     marginTop: 12,
+    gap: 8,
+  },
+  audioPlayButton: {
+    backgroundColor: '#9C27B0',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    flex: 1,
+  },
+  audioPlayButtonDisabled: {
+    opacity: 0.6,
+  },
+  audioPlayButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  audioStopButton: {
+    backgroundColor: '#F44336',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    minWidth: 60,
+  },
+  audioStopButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  audioProcessButton: {
+    backgroundColor: '#4CAF50',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    flex: 1,
+  },
+  audioProcessButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#666',
   },
   resultContainer: {
     padding: 8,
@@ -1121,6 +1161,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
+  },
+  resultText: {
+    marginBottom: 4,
+    color: '#333',
   },
   embeddingTitle: {
     fontSize: 14,
@@ -1150,13 +1194,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#ddd',
   },
-  emptyList: {
-    padding: 16,
-    alignItems: 'center',
+  textInput: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    marginBottom: 8,
   },
-  emptyListText: {
-    color: '#666',
-    textAlign: 'center',
+  registerButton: {
+    backgroundColor: '#4CAF50',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   speakerItem: {
     flexDirection: 'row',
@@ -1178,12 +1227,5 @@ const styles = StyleSheet.create({
   removeButtonText: {
     color: 'white',
     fontWeight: '500',
-  },
-  resultText: {
-    marginBottom: 4,
-    color: '#333',
-  },
-  audioList: {
-    gap: 8,
   },
 });

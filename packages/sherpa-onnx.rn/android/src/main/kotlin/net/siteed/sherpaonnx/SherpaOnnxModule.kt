@@ -70,23 +70,23 @@ class SherpaOnnxModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
-    fun processAudioSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
-        implementation.processAudioSamples(sampleRate, audioBuffer, promise)
+    fun processAudioSamples(sampleRate: Int, audioBuffer: ReadableArray, topK: Int = -1, promise: Promise) {
+        implementation.processAudioSamples(sampleRate, audioBuffer, topK, promise)
     }
 
     @ReactMethod
-    fun computeAudioTagging(promise: Promise) {
-        implementation.computeAudioTagging(promise)
+    fun computeAudioTagging(topK: Int = -1, promise: Promise) {
+        implementation.computeAudioTagging(topK, promise)
     }
 
     @ReactMethod
-    fun processAndComputeAudioTagging(filePath: String, promise: Promise) {
-        implementation.processAndComputeAudioTagging(filePath, promise)
+    fun processAndComputeAudioTagging(filePath: String, topK: Int = -1, promise: Promise) {
+        implementation.processAndComputeAudioTagging(filePath, topK, promise)
     }
 
     @ReactMethod
-    fun processAudioFile(filePath: String, promise: Promise) {
-        implementation.processAudioFile(filePath, promise)
+    fun processAudioFile(filePath: String, topK: Int = -1, promise: Promise) {
+        implementation.processAudioFile(filePath, topK, promise)
     }
 
     @ReactMethod

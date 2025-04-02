@@ -47,10 +47,14 @@ export interface ApiInterface {
   initAudioTagging(
     config: AudioTaggingModelConfig
   ): Promise<AudioTaggingInitResult>;
-  processAndComputeAudioTagging(filePath: string): Promise<AudioTaggingResult>;
+  processAndComputeAudioTagging(
+    filePath: string,
+    topK?: number
+  ): Promise<AudioTaggingResult>;
   processAndComputeAudioSamples(
     sampleRate: number,
-    samples: number[]
+    samples: number[],
+    topK?: number
   ): Promise<AudioTaggingResult>;
   releaseAudioTagging(): Promise<{ released: boolean }>;
 

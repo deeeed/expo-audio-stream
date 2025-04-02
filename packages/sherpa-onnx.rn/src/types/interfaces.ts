@@ -503,6 +503,13 @@ export interface AudioTaggingProcessOptions {
    * Sample rate of the audio (required when using samples)
    */
   sampleRate?: number;
+
+  /**
+   * Optional topK value to override the initialized value
+   * If not provided, the value set during initialization will be used
+   * Default: -1 (use the config value)
+   */
+  topK?: number;
 }
 
 /**
@@ -708,10 +715,14 @@ export interface SherpaOnnxStatic {
   initAudioTagging(
     config: AudioTaggingModelConfig
   ): Promise<AudioTaggingInitResult>;
-  processAndComputeAudioTagging(filePath: string): Promise<AudioTaggingResult>;
+  processAndComputeAudioTagging(
+    filePath: string,
+    topK?: number
+  ): Promise<AudioTaggingResult>;
   processAndComputeAudioSamples(
     sampleRate: number,
-    samples: number[]
+    samples: number[],
+    topK?: number
   ): Promise<AudioTaggingResult>;
   releaseAudioTagging(): Promise<{ released: boolean }>;
   initSpeakerId(config: SpeakerIdModelConfig): Promise<SpeakerIdInitResult>;
@@ -1055,10 +1066,14 @@ export interface NativeSherpaOnnxInterface {
   initAudioTagging(
     config: AudioTaggingModelConfig
   ): Promise<AudioTaggingInitResult>;
-  processAndComputeAudioTagging(filePath: string): Promise<AudioTaggingResult>;
+  processAndComputeAudioTagging(
+    filePath: string,
+    topK?: number
+  ): Promise<AudioTaggingResult>;
   processAndComputeAudioSamples(
     sampleRate: number,
-    samples: number[]
+    samples: number[],
+    topK?: number
   ): Promise<AudioTaggingResult>;
   releaseAudioTagging(): Promise<{ released: boolean }>;
 
@@ -1122,10 +1137,14 @@ export interface SherpaOnnxInterface {
   initAudioTagging(
     config: AudioTaggingModelConfig
   ): Promise<AudioTaggingInitResult>;
-  processAndComputeAudioTagging(filePath: string): Promise<AudioTaggingResult>;
+  processAndComputeAudioTagging(
+    filePath: string,
+    topK?: number
+  ): Promise<AudioTaggingResult>;
   processAndComputeAudioSamples(
     sampleRate: number,
-    samples: number[]
+    samples: number[],
+    topK?: number
   ): Promise<AudioTaggingResult>;
   releaseAudioTagging(): Promise<{ released: boolean }>;
 

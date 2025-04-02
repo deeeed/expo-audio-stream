@@ -1,21 +1,22 @@
-import type { TtsGenerateResult, TtsInitResult, TtsModelConfig, TtsModelType, ModelProvider } from '@siteed/sherpa-onnx.rn';
+import type { ModelProvider, TtsGenerateResult, TtsInitResult, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
 import { TTS } from '@siteed/sherpa-onnx.rn';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  Switch
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useModelManagement } from '../../contexts/ModelManagement';
+import { useTtsModels, useTtsModelWithConfig } from '../../hooks/useModelWithConfig';
 
 // Default sample text for TTS
 const DEFAULT_TEXT = "Hello, this is a test of the Sherpa Onnx TTS system. I hope you're having a great day!";
@@ -30,7 +31,6 @@ const verifyFileExists = async (filePath: string): Promise<boolean> => {
     return false;
   }
 };
-
 
 export default function TtsScreen() {
   const [text, setText] = useState(DEFAULT_TEXT);
@@ -51,16 +51,12 @@ export default function TtsScreen() {
   const [debugMode, setDebugMode] = useState(false);
   const [provider, setProvider] = useState<ModelProvider>('cpu');
   const [autoPlay, setAutoPlay] = useState(true);
-  // Add state for visualizing config
-  const [configToVisualize, setConfigToVisualize] = useState<TtsModelConfig | null>(null);
+  // State to track pending model selection (for confirmation flow)
+  const [pendingModelId, setPendingModelId] = useState<string | null>(null);
 
-  const {
-    getDownloadedModels,
-    getModelState
-  } = useModelManagement();
-
-  // Get only downloaded TTS models
-  const availableModels = getDownloadedModels().filter(model => model.metadata.type === 'tts');
+  // Use our new hooks
+  const { downloadedModels } = useTtsModels();
+  const { ttsConfig, localPath, isDownloaded } = useTtsModelWithConfig({ modelId: selectedModelId });
 
   // Initialize audio system on component mount
   useEffect(() => {
@@ -89,9 +85,77 @@ export default function TtsScreen() {
     };
   }, []);
 
+  // Reset configuration when selected model or ttsConfig changes
+  useEffect(() => {
+    if (ttsConfig) {
+      // Reset to values from the predefined config or use defaults
+      setNumThreads(ttsConfig.numThreads ?? 2);
+      setDebugMode(ttsConfig.debug ?? false);
+      setProvider(ttsConfig.provider ?? 'cpu');
+      
+      // Also reset generation-related settings
+      setSpeakerId(0);
+      setSpeakingRate(1.0);
+      
+      console.log('Reset configuration based on selected model:', selectedModelId);
+    }
+  }, [selectedModelId, ttsConfig]);
+
+  const handleModelSelect = (modelId: string) => {
+    // If a model is already initialized, show confirmation before switching
+    if (ttsInitialized) {
+      setPendingModelId(modelId);
+      Alert.alert(
+        "Switch Model?",
+        "Switching models will release the currently initialized model. Any generated speech will be lost.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => setPendingModelId(null)
+          },
+          {
+            text: "Switch",
+            style: "destructive",
+            onPress: async () => {
+              // Release current model first
+              try {
+                const result = await TTS.release();
+                if (result.released) {
+                  setTtsInitialized(false);
+                  setInitResult(null);
+                  setTtsResult(null);
+                  setStatusMessage('TTS resources released, switching model');
+                  
+                  // After release, set the new model ID
+                  setSelectedModelId(modelId);
+                  setPendingModelId(null);
+                } else {
+                  setErrorMessage('Failed to release TTS resources when switching models');
+                  setPendingModelId(null);
+                }
+              } catch (error) {
+                setErrorMessage(`Error releasing TTS: ${(error as Error).message}`);
+                setPendingModelId(null);
+              }
+            }
+          }
+        ]
+      );
+    } else {
+      // No model initialized, just switch directly
+      setSelectedModelId(modelId);
+    }
+  };
+
   const handleInitTts = async () => {
     if (!selectedModelId) {
       setErrorMessage('Please select a model first');
+      return;
+    }
+
+    if (!ttsConfig || !localPath || !isDownloaded) {
+      setErrorMessage('Selected model is not valid or configuration not found.');
       return;
     }
 
@@ -100,75 +164,23 @@ export default function TtsScreen() {
     setStatusMessage('Initializing TTS...');
 
     try {
-      const modelState = getModelState(selectedModelId);
-      const modelMetadata = availableModels.find(m => m.metadata.id === selectedModelId)?.metadata;
-
-      // --- Add detailed logging before the check ---
-      console.log('[DEBUG] Checking model validity:');
-      console.log(`  - modelState found: ${!!modelState}`);
-      console.log(`  - modelState.localPath: ${modelState?.localPath}`);
-      console.log(`  - modelMetadata found: ${!!modelMetadata}`);
-      console.log(`  - modelMetadata.type: ${modelMetadata?.type}`);
-      console.log(`  - modelMetadata has ttsParams: ${!!modelMetadata?.ttsParams}`);
-      console.log(`  - modelMetadata.ttsParams content:`, modelMetadata?.ttsParams); // Log the content too
-      // --- End detailed logging ---
-
-      if (!modelState?.localPath || !modelMetadata || modelMetadata.type !== 'tts' || !modelMetadata.ttsParams) {
-        throw new Error('Selected model is not a valid TTS model or files not found locally.');
-      }
-
       // Use the cleaned path (without file://) for FileSystem operations and native module
-      const cleanLocalPath = modelState.localPath.replace('file://', '');
+      const cleanLocalPath = localPath.replace('file://', '');
       console.log(`Using model directory: ${cleanLocalPath}`);
 
-      // Get ttsParams from the metadata
-      const ttsParams = modelMetadata.ttsParams;
-      console.log(`ttsParams`, JSON.stringify(ttsParams, null, 2));
-
-      // Create configuration for TTS initialization based on model type
+      // Create configuration for TTS initialization based on model type and predefined config
       const modelConfig: TtsModelConfig = {
         modelDir: cleanLocalPath,
-        ttsModelType: ttsParams.ttsModelType as TtsModelType,
-        modelFile: ttsParams.modelFile as string,
-        tokensFile: ttsParams.tokensFile as string,
-        numThreads,  // Use value from UI
-        debug: debugMode,  // Use debug mode from UI
-        provider,  // Use provider from UI
+        ttsModelType: ttsConfig.ttsModelType || 'vits',
+        modelFile: ttsConfig.modelFile || '',
+        tokensFile: ttsConfig.tokensFile || '',
+        ...ttsConfig,
+        numThreads,
+        debug: debugMode,
+        provider,
       };
-
-      // Add data directory if available
-      if (ttsParams.dataDir) {
-        modelConfig.dataDir = ttsParams.dataDir;
-      }
-
-      // Add model-specific parameters
-      if (ttsParams.ttsModelType === 'vits') {
-        // Add lexicon for VITS if available
-        if (ttsParams.lexiconFile) {
-          modelConfig.lexiconFile = ttsParams.lexiconFile;
-        }
-      } 
-      else if (ttsParams.ttsModelType === 'matcha') {
-        // For Matcha models, set vocoder
-        if (ttsParams.vocoderFile) {
-          modelConfig.vocoderFile = ttsParams.vocoderFile;
-        }
-        // Add lexicon if available
-        if (ttsParams.lexiconFile) {
-          modelConfig.lexiconFile = ttsParams.lexiconFile;
-        }
-      }
-      else if (ttsParams.ttsModelType === 'kokoro') {
-        // For Kokoro models, set voices file
-        if (ttsParams.voicesFile) {
-          modelConfig.voicesFile = ttsParams.voicesFile;
-        }
-      }
       
       console.log('FINAL TTS CONFIG:', JSON.stringify(modelConfig, null, 2));
-      
-      // Set the config for visualization
-      setConfigToVisualize(modelConfig);
       
       const result = await TTS.initialize(modelConfig);
       setInitResult(result);
@@ -285,9 +297,6 @@ export default function TtsScreen() {
       console.log('Stopping TTS generation...');
       setStatusMessage('Stopping TTS...');
       
-      // Don't set isLoading to true here, since we're trying to stop the process
-      // This will keep the UI responsive
-      
       // Call the stop API
       const result = await TTS.stopSpeech();
       console.log('Stop TTS result:', result);
@@ -365,7 +374,6 @@ export default function TtsScreen() {
       );
       
       newSound.setOnPlaybackStatusUpdate((status) => {
-        console.log('Playback status update:', status);
         if (status.isLoaded) {
           setIsPlaying(status.isPlaying);
           if (status.didJustFinish) {
@@ -382,41 +390,48 @@ export default function TtsScreen() {
       setIsPlaying(true);
       console.log('Audio playback started');
       
-      // Play the sound explicitly (though it should auto-play from options)
-      await newSound.playAsync();
-      
     } catch (error) {
       console.error('Error playing audio:', error);
       setErrorMessage(`Error playing audio: ${(error as Error).message}`);
     }
   };
 
+  // Generate a visualization of the model's predefined config
+  const predefinedConfigDisplay = selectedModelId && ttsConfig ? (
+    <View style={styles.statusSection}>
+      <Text style={styles.sectionTitle}>Predefined Model Configuration</Text>
+      <Text style={styles.codeText} selectable>
+        {JSON.stringify(ttsConfig, null, 2)}
+      </Text>
+    </View>
+  ) : null;
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView>
-        {/* Loading overlay with embedded Stop button */}
-        {isLoading && (
-          <View style={styles.loadingOverlay}>
-            <View style={styles.loadingContent}>
-              <ActivityIndicator size="large" color="#2196F3" />
-              <Text style={styles.loadingText}>
-                {statusMessage || 'Processing...'}
-              </Text>
-              
-              <Text style={styles.loadingSubText}>
-                This may take a moment, especially for longer text.
-              </Text>
-              
-              <TouchableOpacity 
-                style={styles.overlayStopButton}
-                onPress={handleStopTts}
-              >
-                <Text style={styles.overlayStopButtonText}>Stop Processing</Text>
-              </TouchableOpacity>
-            </View>
+      {/* Loading overlay - moved outside of ScrollView */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingContent}>
+            <ActivityIndicator size="large" color="#2196F3" />
+            <Text style={styles.loadingText}>
+              {statusMessage || 'Processing...'}
+            </Text>
+            
+            <Text style={styles.loadingSubText}>
+              This may take a moment, especially for longer text.
+            </Text>
+            
+            <TouchableOpacity 
+              style={styles.overlayStopButton}
+              onPress={handleStopTts}
+            >
+              <Text style={styles.overlayStopButtonText}>Stop Processing</Text>
+            </TouchableOpacity>
           </View>
-        )}
-      
+        </View>
+      )}
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Sherpa Onnx TTS</Text>
         
         {/* Error and status messages */}
@@ -431,20 +446,25 @@ export default function TtsScreen() {
         {/* Model Selection */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>1. Select TTS Model</Text>
+          {ttsInitialized && (
+            <Text style={styles.warningText}>
+              Switching models will release the currently initialized model
+            </Text>
+          )}
           <View style={styles.pickerContainer}>
-            {availableModels.length === 0 ? (
+            {downloadedModels.length === 0 ? (
               <Text style={styles.emptyText}>
                 No TTS models downloaded. Please visit the Models screen to download a model.
               </Text>
             ) : (
-              availableModels.map((model) => (
+              downloadedModels.map((model) => (
                 <TouchableOpacity
                   key={model.metadata.id}
                   style={[
                     styles.modelOption,
                     selectedModelId === model.metadata.id && styles.modelOptionSelected
                   ]}
-                  onPress={() => setSelectedModelId(model.metadata.id)}
+                  onPress={() => handleModelSelect(model.metadata.id)}
                 >
                   <Text 
                     style={[
@@ -460,7 +480,10 @@ export default function TtsScreen() {
           </View>
         </View>
 
-        {/* TTS Configuration (Moved BEFORE initialization) */}
+        {/* Show the predefined configuration after model selection */}
+        {predefinedConfigDisplay}
+
+        {/* TTS Configuration */}
         <View style={styles.configSection}>
           <Text style={styles.sectionTitle}>2. TTS Configuration</Text>
           
@@ -478,7 +501,7 @@ export default function TtsScreen() {
               }}
             />
           </View>
-
+          
           <View style={styles.configRow}>
             <Text style={styles.configLabel}>Provider:</Text>
             <View style={styles.providerContainer}>
@@ -642,12 +665,12 @@ export default function TtsScreen() {
             </View>
             
             {/* Audio Player */}
-            <View style={styles.audioPlayerFullContainer}>
+            <View style={styles.audioPlayerContainer}>
               <Text style={styles.audioPlayerTitle}>
                 {isPlaying ? "Playing Audio..." : "Audio Ready To Play"}
               </Text>
               
-              <View style={styles.audioPlayerContainer}>
+              <View style={styles.audioPlayerControls}>
                 <TouchableOpacity 
                   style={[
                     styles.audioPlayButton,
@@ -694,16 +717,6 @@ export default function TtsScreen() {
             </View>
           </View>
         )}
-
-        {/* Display Config for Debugging */} 
-        {configToVisualize && ( 
-          <View style={styles.statusSection}> 
-            <Text style={styles.sectionTitle}>Config Sent to Native:</Text> 
-            <Text style={styles.codeText} selectable> 
-              {JSON.stringify(configToVisualize, null, 2)} 
-            </Text> 
-          </View> 
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -713,6 +726,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  scrollContent: {
+    padding: 16,
   },
   section: {
     backgroundColor: 'white',
@@ -792,10 +808,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
-    paddingHorizontal: 16,
   },
   pickerContainer: {
-    paddingHorizontal: 16,
     marginBottom: 16,
   },
   modelOption: {
@@ -860,6 +874,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 16,
   },
+  warningText: {
+    color: '#FF9800',
+    fontSize: 14,
+    marginBottom: 8,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
   statusText: {
     color: '#2196F3',
     textAlign: 'center',
@@ -904,12 +925,6 @@ const styles = StyleSheet.create({
   generateButton: {
     backgroundColor: '#4CAF50',
   },
-  stopButton: {
-    backgroundColor: '#F44336',
-  },
-  playButton: {
-    backgroundColor: '#9C27B0',
-  },
   configSection: {
     margin: 16,
     padding: 16,
@@ -951,7 +966,7 @@ const styles = StyleSheet.create({
   fileInfoContainer: {
     marginBottom: 16,
   },
-  audioPlayerFullContainer: {
+  audioPlayerContainer: {
     marginBottom: 16,
   },
   audioPlayerTitle: {
@@ -959,7 +974,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
   },
-  audioPlayerContainer: {
+  audioPlayerControls: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
@@ -1001,12 +1016,11 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
-  // Add style for code text
   codeText: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 12,
     backgroundColor: '#eee',
     padding: 10,
     borderRadius: 4,
-  },
+  }
 }); 

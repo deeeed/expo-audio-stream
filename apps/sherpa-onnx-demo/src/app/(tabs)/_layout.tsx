@@ -1,7 +1,7 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, Platform } from 'react-native';
 
 
 function MaterialTabBarIcon(props: {
@@ -13,6 +13,7 @@ function MaterialTabBarIcon(props: {
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const isWeb = Platform.OS === 'web';
 
   return (
     <Tabs screenOptions={{ 
@@ -61,6 +62,16 @@ export default function TabLayout() {
           title: 'Speaker ID',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="person" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="web-test"
+        options={{
+          title: 'Web Tests',
+          href: isWeb ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="code" size={size} color={color} />
           ),
         }}
       />

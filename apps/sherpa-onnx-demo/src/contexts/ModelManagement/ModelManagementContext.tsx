@@ -4,8 +4,9 @@ import { Platform } from 'react-native';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { InteractionManager } from 'react-native';
 import { extractTarBz2 } from '../../utils/archiveUtils';
-import { AVAILABLE_MODELS, type ModelMetadata } from '../../utils/models';
+import { AVAILABLE_MODELS, ModelType, type ModelMetadata } from '../../utils/models';
 import type { ModelManagementContextType, ModelManagementProviderProps, ModelState, ModelStatus } from './types';
+import { AsrModelConfig, AudioTaggingModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn/src';
 
 const ModelManagementContext = createContext<ModelManagementContextType | undefined>(undefined);
 
@@ -36,6 +37,15 @@ const migrateModelPath = async (oldPath: string, modelId: string): Promise<strin
   return newPathInfo.exists ? newPath : oldPath;
 };
 
+export interface PredefinedModelConfig  {
+  id: string;
+  modelType: ModelType;
+  ttsConfig?: Partial<TtsModelConfig>;
+  asrConfig?: Partial<AsrModelConfig>;
+  audioTaggingConfig?: Partial<AudioTaggingModelConfig>;
+  speakerIdConfig?: Partial<SpeakerIdModelConfig>;
+}
+
 export function ModelManagementProvider({
   children,
   storageKey = '@model_states',
@@ -44,6 +54,7 @@ export function ModelManagementProvider({
   const [modelStates, setModelStates] = useState<Record<string, ModelState>>({});
   const [activeDownloads, setActiveDownloads] = useState<Record<string, FileSystem.DownloadResumable>>({});
 
+  const [ttsModels, setTtsModels] = useState<TtsModelConfig[]>();
   // Load saved model states on mount
   useEffect(() => {
     loadSavedModelStates();
@@ -55,7 +66,7 @@ export function ModelManagementProvider({
       console.log('Loading saved model states from key:', storageKey);
       const savedStatesJSON = await AsyncStorage.getItem(storageKey);
       if (savedStatesJSON) {
-        console.log('Found saved model states raw JSON:', savedStatesJSON);
+        // console.log('Found saved model states raw JSON:', savedStatesJSON);
         try {
           const parsedStates = JSON.parse(savedStatesJSON);
           console.log('Successfully parsed saved states:', parsedStates);
@@ -166,12 +177,110 @@ export function ModelManagementProvider({
     });
   };
 
+  // Add this function to check for web TTS models
+  const isTtsModelOnWeb = (modelId: string, metadata: ModelMetadata): boolean => {
+    return Platform.OS === 'web' && metadata.type === 'tts';
+  };
+
+  // Modify getModelState to handle web TTS models
+  const getModelState = (modelId: string): ModelState | undefined => {
+    const state = modelStates[modelId];
+    const metadata = state?.metadata || AVAILABLE_MODELS.find(m => m.id === modelId);
+    if (!metadata) return undefined;
+
+    // For web TTS models, simulate as if they're already downloaded
+    if (isTtsModelOnWeb(modelId, metadata)) {
+      console.log(`[getModelState] Using web-integrated TTS model for ${modelId}`);
+      
+      // Create virtual model state for web TTS
+      return {
+        metadata: {
+          ...metadata
+        },
+        status: 'downloaded',
+        progress: 1,
+        localPath: '/wasm/tts', // Path to the web WASM files
+        error: undefined,
+        files: [{ path: 'sherpa-onnx-tts.js', size: 1, lastModified: Date.now() }],
+        extractedFiles: ['sherpa-onnx-tts.js', 'sherpa-onnx-wasm-main-tts.js', 'sherpa-onnx-wasm-main-tts.wasm'],
+        lastDownloaded: Date.now()
+      };
+    }
+    if(Platform.OS==='web') {
+      // Web cannot configure model, we just return a default model with values that can be configured.
+    }
+
+    // Handle regular models without ttsParams
+    return state;
+  };
+
+  // Similarly modify isModelDownloaded
+  const isModelDownloaded = (modelId: string): boolean => {
+    const metadata = AVAILABLE_MODELS.find(m => m.id === modelId);
+    if (metadata && isTtsModelOnWeb(modelId, metadata)) {
+      return true; // Always true for TTS models on web
+    }
+    
+    const state = modelStates[modelId];
+    return !!state && state.status === 'downloaded' && !!state.localPath;
+  };
+
+  // Modify getDownloadedModels as well
+  const getDownloadedModels = useCallback((): ModelState[] => {
+    // Get models from state that are marked as downloaded
+    const downloadedFromState = Object.values(modelStates).filter(state =>
+      state.status === 'downloaded' && !!state.localPath && !!state.metadata
+    );
+    
+    // Get all TTS models from AVAILABLE_MODELS if we're on web
+    const webTtsModels = Platform.OS === 'web' 
+      ? AVAILABLE_MODELS.filter(m => m.type === 'tts')
+        .map(metadata => ({
+          metadata,
+          status: 'downloaded' as ModelStatus,
+          progress: 1,
+          localPath: '/wasm/tts',
+          files: [{ path: 'sherpa-onnx-tts.js', size: 1, lastModified: Date.now() }],
+          extractedFiles: ['sherpa-onnx-tts.js', 'sherpa-onnx-wasm-main-tts.js', 'sherpa-onnx-wasm-main-tts.wasm'],
+          lastDownloaded: Date.now()
+        }))
+      : [];
+    
+    // Combine both lists, prioritizing actual downloaded models
+    const allModels = [...downloadedFromState];
+    
+    // Add web TTS models that aren't already in the list
+    for (const webModel of webTtsModels) {
+      if (!allModels.some(m => m.metadata.id === webModel.metadata.id)) {
+        allModels.push(webModel);
+      }
+    }
+    
+    return allModels;
+  }, [modelStates]);
+
   // Original downloadModel
   const downloadModel = async (modelId: string) => {
     const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
     if (!model) {
       console.error(`Model ${modelId} not found`);
       updateModelState(modelId, { status: 'error', error: 'Model definition not found.' });
+      return;
+    }
+    
+    // For web TTS models, simulate immediate download completion
+    if (isTtsModelOnWeb(modelId, model)) {
+      console.log(`Web TTS model ${modelId} - simulating download`);
+      updateModelState(modelId, {
+        metadata: model,
+        status: 'downloaded',
+        progress: 1,
+        localPath: '/wasm/tts',
+        files: [{ path: 'sherpa-onnx-tts.js', size: 1, lastModified: Date.now() }],
+        extractedFiles: ['sherpa-onnx-tts.js', 'sherpa-onnx-wasm-main-tts.js', 'sherpa-onnx-wasm-main-tts.wasm'],
+        lastDownloaded: Date.now(),
+        error: undefined
+      });
       return;
     }
     
@@ -445,70 +554,6 @@ export function ModelManagementProvider({
     });
     // No separate status update needed, just remove from state.
   };
-
-  // Modified getModelState (with ttsParams merge)
-  const getModelState = (modelId: string): ModelState | undefined => {
-    const state = modelStates[modelId];
-    if (!state?.metadata) return undefined; // Return early if no state or metadata
-
-    // For TTS models, always use the latest ttsParams from AVAILABLE_MODELS if available
-    if (state.metadata.type === 'tts') {
-      const currentMeta = AVAILABLE_MODELS.find(m => m.id === modelId);
-      if (currentMeta?.ttsParams) {
-        console.log(`[getModelState] Using latest ttsParams for ${modelId}`);
-        // Create a new state object with updated metadata
-        return {
-          ...state,
-          metadata: {
-            ...state.metadata,
-            ttsParams: currentMeta.ttsParams // Always use current ttsParams
-          },
-        };
-      } else if (!state.metadata.ttsParams) {
-        console.warn(`[getModelState] TTS model ${modelId} lacks ttsParams in both state and AVAILABLE_MODELS.`);
-      }
-    }
-    // Return original state if no update is needed or possible
-    return state;
-  };
-
-  // Original isModelDownloaded
-  const isModelDownloaded = (modelId: string): boolean => {
-    const state = modelStates[modelId];
-    // Add check for localPath as well for robustness
-    return !!state && state.status === 'downloaded' && !!state.localPath;
-  };
-
-  // Modified getDownloadedModels (with ttsParams merge)
-  const getDownloadedModels = useCallback((): ModelState[] => {
-    // Filter first based on status, path, and metadata existence
-    const downloaded = Object.values(modelStates).filter(state =>
-        state.status === 'downloaded' && !!state.localPath && !!state.metadata
-    );
-
-    // Map over the filtered results and update ttsParams for TTS models
-    return downloaded.map(state => {
-      // For TTS models, always use the latest ttsParams from AVAILABLE_MODELS if available
-      if (state.metadata.type === 'tts') {
-         const currentMeta = AVAILABLE_MODELS.find(m => m.id === state.metadata.id);
-         if (currentMeta?.ttsParams) {
-            console.log(`[getDownloadedModels] Using latest ttsParams for ${state.metadata.id}`);
-            // Return a new state object with updated metadata
-            return {
-               ...state,
-               metadata: {
-                   ...state.metadata,
-                   ttsParams: currentMeta.ttsParams // Always use current ttsParams
-               },
-            };
-         } else if (!state.metadata.ttsParams) {
-            console.warn(`[getDownloadedModels] TTS model ${state.metadata.id} lacks ttsParams in both state and AVAILABLE_MODELS.`);
-         }
-      }
-      // Return original state if no update is needed or possible
-      return state;
-    });
-  }, [modelStates]);
 
   // Original getAvailableModels (returns ModelMetadata[])
   const getAvailableModels = useCallback((): ModelMetadata[] => {
