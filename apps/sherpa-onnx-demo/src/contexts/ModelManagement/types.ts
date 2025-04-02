@@ -1,36 +1,31 @@
-import type { ModelMetadata as UtilModelMetadata } from '../../utils/models';
+import type { ModelMetadata } from '../../utils/models';
 
 // Restore original ModelStatus options if they were different
 // Assuming these were the statuses before the recent changes
 export type ModelStatus =
-  | 'pending' // Or 'not_downloaded'
+  | 'pending'
   | 'downloading'
   | 'extracting' 
   | 'downloaded'
-  // | 'deleting' // Keep if it was part of the original
   | 'error';
 
 // Restore original ModelState structure (add back potentially removed fields)
 export interface ModelState {
-  metadata: UtilModelMetadata; // Metadata was stored
+  metadata: ModelMetadata; // Metadata was stored
   status: ModelStatus;
-  progress?: number; // Progress was likely stored
+  progress?: number;
   error?: string;
   localPath?: string;
-  // Add back other fields if they existed and were stored previously
   files?: { path: string; size: number; lastModified: number }[]; 
   extractedFiles?: string[]; 
   lastDownloaded?: number; 
-  // Remove fields added during the refactor if they weren't original
-  // isDownloading?: boolean; 
-  // downloadProgress?: number; // Use 'progress' if that was original
 }
 
 // Restore original Context Type
 export interface ModelManagementContextType {
   modelsState: Record<string, ModelState>; // Keep this name
   // isInitializing: boolean; // Remove if not original
-  getAvailableModels: () => UtilModelMetadata[]; // Original might have returned metadata directly
+  getAvailableModels: () => ModelMetadata[]; // Original might have returned metadata directly
   getDownloadedModels: () => ModelState[]; 
   getModelState: (modelId: string) => ModelState | undefined;
   updateModelState: (modelId: string, updates: Partial<ModelState>) => void; // Keep

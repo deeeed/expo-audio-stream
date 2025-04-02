@@ -8,14 +8,20 @@ import {
   Alert,
   Button,
   FlatList,
+  Image,
+  Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
-  View
+  View,
+  TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useModelManagement } from '../../contexts/ModelManagement';
+import { useAsrModels, useAsrModelWithConfig } from '../../hooks/useModelWithConfig';
+import { formatDuration, formatBytes } from '../../utils/formatters';
 
 // Define sample audio with only name and module
 const SAMPLE_AUDIO_FILES = [
@@ -31,426 +37,32 @@ const SAMPLE_AUDIO_FILES = [
   }
 ];
 
-// Helper function to verify file existence - requires Expo URI format with file:// prefix
-const verifyFileExists = async (expoUri: string): Promise<boolean> => {
-  try {
-    // Ensure the URI has the file:// prefix for Expo
-    const uri = expoUri.startsWith('file://') ? expoUri : `file://${expoUri}`;
-    console.log(`Checking file existence: ${uri}`);
-    const fileInfo = await FileSystem.getInfoAsync(uri);
-    return fileInfo.exists;
-  } catch (error) {
-    console.error(`Error checking file existence: ${expoUri}`, error);
-    return false;
-  }
-};
-
-interface ModelInfo {
-  modelDir: string;
-  modelType: 'transducer' | 'whisper' | 'paraformer' | 'nemo_transducer' | 'nemo_ctc' | 'tdnn' | 'zipformer2_ctc' | 'wenet_ctc' | 'telespeech_ctc' | 'fire_red_asr' | 'moonshine' | 'sense_voice' | 'zipformer' | 'lstm' | 'zipformer2';
-}
-
-// Extend the AsrModelConfig to include additional model types not yet in the library
-interface ExtendedAsrModelConfig extends Omit<AsrModelConfig, 'modelType'> {
-  modelType:
-    | 'transducer'
-    | 'nemo_transducer'
-    | 'paraformer'
-    | 'nemo_ctc'
-    | 'whisper'
-    | 'tdnn'
-    | 'zipformer2_ctc'
-    | 'wenet_ctc'
-    | 'telespeech_ctc'
-    | 'fire_red_asr'
-    | 'moonshine'
-    | 'sense_voice'
-    | 'zipformer'
-    | 'lstm'
-    | 'zipformer2';
-  streaming?: boolean;
-  featConfig?: {
-    sampleRate?: number;
-    featureDim?: number;
-  };
-}
-
-// Update the ASRConfig interface to include the new model types
-interface ASRConfig {
-  modelDir: string;
-  modelType: 'transducer' | 'whisper' | 'paraformer' | 'nemo_transducer' | 'nemo_ctc' | 'tdnn' | 'zipformer2_ctc' | 'wenet_ctc' | 'telespeech_ctc' | 'fire_red_asr' | 'moonshine' | 'sense_voice' | 'zipformer' | 'lstm' | 'zipformer2';
-  modelFiles: Record<string, string>;
-  numThreads: number;
-  decodingMethod: string;
-  maxActivePaths: number;
-  streaming: boolean;
-}
-
 /**
- * Recursively search for ASR model files in a directory and its subdirectories
- * @param basePath Base directory path to start searching
- * @returns Object with modelDir and detected modelType if found, null otherwise
+ * Automatic Speech Recognition Screen
+ * 
+ * This screen demonstrates how to use the Sherpa-ONNX ASR (Automatic Speech Recognition)
+ * functionality with React Native. The implementation follows a similar pattern to the TTS screen,
+ * using predefined configurations from useModelConfig.ts and providing a user interface
+ * for selecting models and adjusting configuration settings.
+ * 
+ * The ASR screen allows users to:
+ * 1. Select a downloaded ASR model
+ * 2. Configure ASR parameters (threads, decoding method, etc.)
+ * 3. Initialize the ASR engine
+ * 4. Select a sample audio file
+ * 5. Perform speech recognition
  */
-const findModelFilesRecursive = async (basePath: string): Promise<ModelInfo | null> => {
-  console.log(`Searching for ASR models in: ${basePath}`);
-  
-  // Ensure base path has file:// prefix for Expo FileSystem
-  const expoBasePath = basePath.startsWith('file://') ? basePath : `file://${basePath}`;
-  
-  const searchDirectory = async (expoPath: string, depth = 0): Promise<ModelInfo | null> => {
-    if (depth > 5) return null;
-    
-    try {
-      const dirInfo = await FileSystem.getInfoAsync(expoPath);
-      
-      if (!dirInfo.exists || !dirInfo.isDirectory) {
-        return null;
-      }
-      
-      const contents = await FileSystem.readDirectoryAsync(expoPath);
-      
-      // If we find a single directory that looks like a model directory, use that
-      if (depth === 0 && contents.length === 1 && contents[0].includes('sherpa-onnx')) {
-        const subDirPath = `${expoPath}/${contents[0]}`;
-        console.log(`Found potential model directory: ${subDirPath}`);
-        return searchDirectory(subDirPath, depth + 1);
-      }
-      
-      // Get directory contents
-      const dirContents = await FileSystem.readDirectoryAsync(expoPath);
-      console.log(`Found ${dirContents.length} items in ${expoPath}`);
-      
-      // Debug output the actual file list to help identify model files
-      console.log(`Files in directory: ${dirContents.join(', ')}`);
-      
-      // Look specifically for any .onnx files as potential model files
-      const onnxFiles = dirContents.filter(file => file.endsWith('.onnx'));
-      if (onnxFiles.length > 0) {
-        console.log(`Found ONNX files: ${onnxFiles.join(', ')}`);
-      }
-      
-      // Check for transducer model files (encoder, decoder, joiner)
-      const hasEncoder = dirContents.some(file => file.includes('encoder') && file.endsWith('.onnx'));
-      const hasDecoder = dirContents.some(file => file.includes('decoder') && file.endsWith('.onnx'));
-      const hasJoiner = dirContents.some(file => file.includes('joiner') && file.endsWith('.onnx'));
-      const hasTokens = dirContents.some(file => 
-        file === 'tokens.txt' || 
-        file.toLowerCase().includes('tokens') && file.toLowerCase().endsWith('.txt')
-      );
-      
-      // Check for whisper model files
-      const hasWhisperModel = dirContents.some(file => 
-        (file.includes('model') && file.endsWith('.onnx')) || 
-        (file.toLowerCase().includes('whisper') && file.endsWith('.onnx')) ||
-        (file.toLowerCase().includes('encoder') && file.toLowerCase().includes('.onnx'))
-      );
-      
-      // Check for paraformer model files
-      const hasParaformerEncoder = dirContents.some(file => file.includes('encoder') && file.endsWith('.onnx'));
-      const hasParaformerDecoder = dirContents.some(file => file.includes('decoder') && file.endsWith('.onnx'));
-      
-      // Check if this is likely a zipformer model from the directory name
-      let isLikelyZipformer = expoPath.toLowerCase().includes('zipformer');
-      if (isLikelyZipformer) {
-        // It's probably a zipformer model
-        // Depending on the directory structure, it might be 'zipformer' or 'zipformer2'
-        const isZipformer2 = expoPath.toLowerCase().includes('zipformer2');
-        return {
-          modelDir: expoPath,
-          modelType: isZipformer2 ? 'zipformer2' : 'zipformer'
-        };
-      }
-      
-      // Log what we found to help debug
-      console.log(`Directory check: hasWhisperModel=${hasWhisperModel}, hasTokens=${hasTokens}`);
-      
-      // Specific handling for this Whisper model structure
-      if (expoPath.toLowerCase().includes('whisper') && 
-          dirContents.some(file => file.toLowerCase().includes('encoder') && file.endsWith('.onnx')) &&
-          dirContents.some(file => file.toLowerCase().includes('tokens') && file.endsWith('.txt'))) {
-        
-        console.log("Detected special Whisper model structure with encoder/decoder format");
-        return { modelDir: expoPath, modelType: 'whisper' as const };
-      }
-      
-      // Determine model type based on file presence
-      if (hasWhisperModel && hasTokens) {
-        return { modelDir: expoPath, modelType: 'whisper' as const };
-      } else if (hasEncoder && hasDecoder && hasJoiner && hasTokens) {
-        // This is a transducer model (with joiner)
-        return { 
-          modelDir: expoPath, 
-          modelType: 'transducer' as const
-        };
-      } else if (hasParaformerEncoder && hasParaformerDecoder && hasTokens && !hasJoiner && !isLikelyZipformer) {
-        // Only categorize as paraformer if it doesn't have a joiner and doesn't look like a zipformer
-        return { modelDir: expoPath, modelType: 'paraformer' as const };
-      } else if (isLikelyZipformer && hasEncoder && hasDecoder && hasTokens) {
-        // If it's missing a joiner but has zipformer in the name, treat as transducer
-        // We'll add the joiner file later in handleInitAsr
-        return { 
-          modelDir: expoPath, 
-          modelType: 'transducer' as const
-        };
-      }
-      
-      // Recursively check subdirectories
-      for (const item of dirContents) {
-        const subDirPath = `${expoPath}/${item}`;
-        const subDirInfo = await FileSystem.getInfoAsync(subDirPath);
-        
-        if (subDirInfo.isDirectory) {
-          const result = await searchDirectory(subDirPath, depth + 1);
-          if (result) return result;
-        }
-      }
-      
-      return null;
-    } catch (err) {
-      console.error(`Error searching directory ${expoPath}:`, err);
-      return null;
-    }
-  };
-  
-  // Start the recursive search
-  return searchDirectory(expoBasePath);
-};
-
-// Create an instance of the ASR Service (renamed from STT)
-const asrService = ASR;
-
-// Add this debugging function
-const exploreDirectoryStructure = async (basePath: string, maxDepth = 3) => {
-  const explore = async (path: string, depth = 0): Promise<void> => {
-    if (depth > maxDepth) return;
-    
-    try {
-      const contents = await FileSystem.readDirectoryAsync(path);
-      console.log(`[EXPLORER] Level ${depth}: ${path} contains ${contents.length} items: ${contents.join(', ')}`);
-      
-      for (const item of contents) {
-        const itemPath = `${path}/${item}`;
-        const info = await FileSystem.getInfoAsync(itemPath);
-        if (info.isDirectory) {
-          await explore(itemPath, depth + 1);
-        } else if (item.endsWith('.onnx') || item === 'tokens.txt') {
-          console.log(`[EXPLORER] Found important file: ${itemPath}`);
-        }
-      }
-    } catch (err) {
-      console.error(`[EXPLORER] Error exploring ${path}:`, err);
-    }
-  };
-  
-  await explore(basePath);
-};
-
-// Define a component for advanced ASR settings
-interface AdvancedAsrSettingsProps {
-  config: Partial<ExtendedAsrModelConfig>;
-  onChange: (newConfig: Partial<ExtendedAsrModelConfig>) => void;
-  enabled: boolean;
-}
-
-const AdvancedAsrSettings: React.FC<AdvancedAsrSettingsProps> = ({
-  config,
-  onChange,
-  enabled
-}) => {
-  if (!enabled) return null;
-
-  const handleChange = (key: keyof ExtendedAsrModelConfig, value: any) => {
-    onChange({ ...config, [key]: value });
-  };
-  
-  const handleFeatureConfigChange = (key: string, value: any) => {
-    onChange({
-      ...config,
-      featConfig: {
-        ...config.featConfig,
-        [key]: value
-      }
-    });
-    
-    // Log feature configuration changes for debugging
-    console.log(`Updated feature config: ${key} = ${value}`);
-  };
-
-  return (
-    <View style={styles.advancedSettingsContainer}>
-      <Text style={styles.sectionTitle}>Advanced Settings</Text>
-      
-      {/* Decoding method */}
-      <View style={styles.settingRow}>
-        <Text style={styles.settingLabel}>Decoding Method:</Text>
-        <View style={styles.buttonGroup}>
-          <TouchableOpacity
-            style={[
-              styles.optionButton,
-              config.decodingMethod === 'greedy_search' && styles.optionButtonSelected
-            ]}
-            onPress={() => handleChange('decodingMethod', 'greedy_search')}
-          >
-            <Text style={[
-              styles.optionButtonText,
-              config.decodingMethod === 'greedy_search' && styles.optionButtonTextSelected
-            ]}>Greedy Search</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.optionButton,
-              config.decodingMethod === 'beam_search' && styles.optionButtonSelected
-            ]}
-            onPress={() => handleChange('decodingMethod', 'beam_search')}
-          >
-            <Text style={[
-              styles.optionButtonText,
-              config.decodingMethod === 'beam_search' && styles.optionButtonTextSelected
-            ]}>Beam Search</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      
-      {/* Number of threads */}
-      <View style={styles.settingRow}>
-        <Text style={styles.settingLabel}>Threads:</Text>
-        <View style={styles.buttonGroup}>
-          {[1, 2, 4, 8].map(numThreads => (
-            <TouchableOpacity
-              key={numThreads}
-              style={[
-                styles.optionButton,
-                config.numThreads === numThreads && styles.optionButtonSelected
-              ]}
-              onPress={() => handleChange('numThreads', numThreads)}
-            >
-              <Text style={[
-                styles.optionButtonText,
-                config.numThreads === numThreads && styles.optionButtonTextSelected
-              ]}>{numThreads}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-      
-      {/* Max active paths (for beam search) */}
-      <View style={styles.settingRow}>
-        <Text style={styles.settingLabel}>Max Active Paths:</Text>
-        <View style={styles.buttonGroup}>
-          {[4, 8, 16, 32].map(paths => (
-            <TouchableOpacity
-              key={paths}
-              style={[
-                styles.optionButton,
-                config.maxActivePaths === paths && styles.optionButtonSelected
-              ]}
-              onPress={() => handleChange('maxActivePaths', paths)}
-              disabled={config.decodingMethod !== 'beam_search'}
-            >
-              <Text style={[
-                styles.optionButtonText,
-                config.maxActivePaths === paths && styles.optionButtonTextSelected
-              ]}>{paths}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-      
-      {/* Feature extraction settings - new section */}
-      <View style={styles.settingSection}>
-        <Text style={styles.sectionSubTitle}>Feature Extraction</Text>
-        
-        {/* Sample Rate */}
-        <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>Sample Rate:</Text>
-          <View style={styles.buttonGroup}>
-            {[8000, 16000, 22050, 44100].map(rate => (
-              <TouchableOpacity
-                key={rate}
-                style={[
-                  styles.optionButton,
-                  (config.featConfig?.sampleRate === rate) && styles.optionButtonSelected
-                ]}
-                onPress={() => handleFeatureConfigChange('sampleRate', rate)}
-              >
-                <Text style={[
-                  styles.optionButtonText,
-                  (config.featConfig?.sampleRate === rate) && styles.optionButtonTextSelected
-                ]}>{rate}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
-      
-      {/* Streaming mode */}
-      <View style={styles.settingRow}>
-        <Text style={styles.settingLabel}>Streaming Mode:</Text>
-        <View style={styles.buttonGroup}>
-          <TouchableOpacity
-            style={[
-              styles.optionButton,
-              config.streaming === true && styles.optionButtonSelected
-            ]}
-            onPress={() => handleChange('streaming', true)}
-          >
-            <Text style={styles.optionButtonText}>On</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.optionButton,
-              config.streaming === false && styles.optionButtonSelected
-            ]}
-            onPress={() => handleChange('streaming', false)}
-          >
-            <Text style={styles.optionButtonText}>Off</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      
-      {/* Debug mode */}
-      <View style={styles.settingRow}>
-        <Text style={styles.settingLabel}>Debug Mode:</Text>
-        <View style={styles.buttonGroup}>
-          <TouchableOpacity
-            style={[
-              styles.optionButton,
-              config.debug === true && styles.optionButtonSelected
-            ]}
-            onPress={() => handleChange('debug', true)}
-          >
-            <Text style={styles.optionButtonText}>On</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.optionButton,
-              config.debug === false && styles.optionButtonSelected
-            ]}
-            onPress={() => handleChange('debug', false)}
-          >
-            <Text style={styles.optionButtonText}>Off</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-};
-
 export default function AsrScreen() {
-  const { getDownloadedModels, getModelState } = useModelManagement();
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
-  const [selectedAudio, setSelectedAudio] = useState<{
-    id: string;
-    name: string;
-    module: number;
-    localUri: string;
-  } | null>(null);
   const [recognitionResult, setRecognitionResult] = useState<string>('');
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  
+  // Use our hooks
+  const { downloadedModels } = useAsrModels();
+  const { asrConfig, localPath, isDownloaded } = useAsrModelWithConfig({ modelId: selectedModelId });
   
   // Add state for loaded audio assets
   const [loadedAudioFiles, setLoadedAudioFiles] = useState<Array<{
@@ -463,69 +75,52 @@ export default function AsrScreen() {
   // Add state for audio playback
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [selectedAudio, setSelectedAudio] = useState<typeof loadedAudioFiles[0] | null>(null);
   
   // Add new states for audio metadata
   const [audioMetadata, setAudioMetadata] = useState<{
     size?: number;
     duration?: number;
+    sampleRate?: number;
     isLoading: boolean;
   }>({
     isLoading: false
   });
   
-  // Add state for advanced settings
-  const [advancedSettingsVisible, setAdvancedSettingsVisible] = useState(false);
-  const [asrConfig, setAsrConfig] = useState<Partial<ExtendedAsrModelConfig>>({
-    numThreads: 2,
-    decodingMethod: 'greedy_search',
-    maxActivePaths: 4,
-    streaming: false,
-    debug: true,
-    featConfig: {
-      sampleRate: 16000
-    }
-  });
+  // Add state for ASR configuration options
+  const [numThreads, setNumThreads] = useState(2);
+  const [decodingMethod, setDecodingMethod] = useState<'greedy_search' | 'beam_search'>('greedy_search');
+  const [maxActivePaths, setMaxActivePaths] = useState(4);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
+  const [provider, setProvider] = useState<'cpu' | 'gpu'>('cpu');
+  const [configToVisualize, setConfigToVisualize] = useState<AsrModelConfig | null>(null);
   
-  // Get only relevant models for ASR
-  const availableModels = getDownloadedModels().filter(model => 
-    model.metadata.type === 'asr'
-  );
+  // Add new state for initialization status messages
+  const [statusMessage, setStatusMessage] = useState<string>('');
   
-  // Load audio assets when component mounts
+  // Reset configuration when selected model or asrConfig changes
   useEffect(() => {
-    async function loadAudioAssets() {
-      try {
-        const assets = SAMPLE_AUDIO_FILES.map(file => 
-          Asset.fromModule(file.module)
-        );
-        
-        // Download all assets to local filesystem
-        await Promise.all(assets.map(asset => asset.downloadAsync()));
-        
-        // Create new array with local URIs
-        const loaded = SAMPLE_AUDIO_FILES.map((file, index) => ({
-          ...file,
-          localUri: assets[index].localUri || '',
-        }));
-        
-        setLoadedAudioFiles(loaded);
-        console.log('Audio assets loaded successfully:', loaded);
-      } catch (err) {
-        console.error('Failed to load audio assets:', err);
-        setError(`Failed to load audio assets: ${err instanceof Error ? err.message : String(err)}`);
-      }
+    if (asrConfig) {
+      // Reset to values from the predefined config or use defaults
+      setNumThreads(asrConfig.numThreads ?? 2);
+      setDecodingMethod(asrConfig.decodingMethod as 'greedy_search' | 'beam_search' ?? 'greedy_search');
+      setMaxActivePaths(asrConfig.maxActivePaths ?? 4);
+      setIsStreaming(asrConfig.streaming ?? false);
+      setDebugMode(asrConfig.debug ?? false);
+      setProvider(asrConfig.provider as 'cpu' | 'gpu' ?? 'cpu');
+      
+      console.log('[ASR] Reset configuration based on selected model:', selectedModelId);
     }
-    
-    loadAudioAssets();
-  }, []);
+  }, [selectedModelId, asrConfig]);
   
   // ASR cleanup - only on unmount (empty dependency array)
   useEffect(() => {
     return () => {
       if (initialized) {
-        console.log('Cleaning up ASR resources');
-        asrService.release().catch((err: Error) => 
-          console.error('Error releasing ASR resources:', err)
+        console.log('[ASR] Cleaning up ASR resources');
+        ASR.release().catch((err: Error) => 
+          console.error('[ASR] Error releasing ASR resources:', err)
         );
       }
     };
@@ -536,150 +131,156 @@ export default function AsrScreen() {
     return () => {
       if (sound) {
         sound.unloadAsync().catch(err => 
-          console.error('Error unloading audio during cleanup:', err)
+          console.error('[ASR] Error unloading audio during cleanup:', err)
         );
       }
     };
   }, [sound]);
   
-  // Setup ASR with a selected model
-  async function setupAsr(modelId: string) {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const modelState = getModelState(modelId);
-      if (!modelState?.localPath) {
-        throw new Error('Model files not found locally');
-      }
-      
-      console.log(`Using model path: ${modelState.localPath}`);
-      
-      // Find ASR model files recursively
-      const modelFiles = await findModelFilesRecursive(modelState.localPath);
-      if (!modelFiles) {
-        setError('Could not find ASR model files in the model directory. Please check the logs for more details.');
-        setLoading(false);
-        return;
-      }
-      
-      setModelInfo(modelFiles);
-      setSelectedModelId(modelId);
-      
-      // Call this in your setupAsr function
-      exploreDirectoryStructure(modelState.localPath);
-      
-      // Success, everything is ready
-      setLoading(false);
-    } catch (err) {
-      console.error('Error setting up ASR:', err);
-      setError(`Error setting up ASR: ${err instanceof Error ? err.message : String(err)}`);
-      setLoading(false);
-    }
-  }
-  
   // Initialize ASR with the selected model
   const handleInitAsr = async () => {
-    if (!modelInfo) {
-      setError('Model information not available');
+    if (!selectedModelId) {
+      setError('Please select a model first');
       return;
     }
 
     setLoading(true);
     setError(null);
     setInitialized(false);
+    setStatusMessage('Starting initialization...');
+    
+    console.log(`[ASR] Initializing model: ${selectedModelId}`);
+    
+    // Check required properties
+    if (!asrConfig || !localPath || !isDownloaded) {
+      setLoading(false);
+      setError('Selected model has no predefined configuration or is not downloaded properly.');
+      console.error('[ASR] Missing required configuration/path!');
+      return;
+    }
     
     try {
       // Clean path for native module (remove file:// prefix)
-      const cleanPath = modelInfo.modelDir.replace(/^file:\/\//, '');
+      let cleanPath = localPath.replace(/^file:\/\//, '');
+      setStatusMessage(`Found model path: ${cleanPath}`);
       
-      // List directory contents to check what files actually exist
-      const dirContents = await FileSystem.readDirectoryAsync(modelInfo.modelDir);
-      console.log('Directory contents:', dirContents);
-      
-      // Check if this is a directory with a subdirectory containing the actual model files
-      if (dirContents.length >= 1) {
-        const possibleSubdir = dirContents.find(name => 
-          name.includes('sherpa-onnx') && !name.endsWith('.tar.bz2')
-        );
+      // List directory contents to check what files exist
+      let dirContents: string[] = [];
+      try {
+        setStatusMessage('Reading model directory contents...');
+        dirContents = await FileSystem.readDirectoryAsync(localPath);
+        console.log('[ASR] Directory contents:', dirContents);
         
-        if (possibleSubdir) {
+        // Check if there's a sherpa-onnx subdirectory
+        const sherpaDir = dirContents.find(item => item.includes('sherpa-onnx'));
+        if (sherpaDir) {
+          const subDirPath = `${localPath}/${sherpaDir}`;
           try {
-            // Check if it's a directory
-            const subdirPath = `${modelInfo.modelDir}/${possibleSubdir}`;
-            const subdirInfo = await FileSystem.getInfoAsync(subdirPath);
-            
-            if (subdirInfo.exists && subdirInfo.isDirectory) {
-              // Use this as the actual model directory
-              const newModelDir = `${cleanPath}/${possibleSubdir}`;
-              console.log(`Found model subdirectory, updating model path to: ${newModelDir}`);
+            const subDirInfo = await FileSystem.getInfoAsync(subDirPath);
+            if (subDirInfo.exists && subDirInfo.isDirectory) {
+              setStatusMessage(`Checking subdirectory ${sherpaDir}...`);
+              const subDirContents = await FileSystem.readDirectoryAsync(subDirPath);
+              console.log(`[ASR] Subdirectory ${sherpaDir} contents:`, subDirContents);
               
-              // Get contents of the subdirectory to look for model files
-              const subdirContents = await FileSystem.readDirectoryAsync(subdirPath);
-              console.log('Subdirectory contents:', subdirContents);
+              // Check if this directory contains model files
+              const hasModelFiles = subDirContents.some(file => 
+                file.endsWith('.onnx') || file === 'tokens.txt' || file.includes('tokens')
+              );
               
-              // Base configuration with updated model directory
-              const config: ExtendedAsrModelConfig = {
-                modelDir: newModelDir,
-                modelType: modelInfo.modelType,
-                numThreads: asrConfig.numThreads ?? 2,
-                decodingMethod: asrConfig.decodingMethod ?? 'greedy_search',
-                maxActivePaths: asrConfig.maxActivePaths ?? 4,
-                streaming: true, // Force streaming for this model
-                debug: asrConfig.debug ?? true,
-                featConfig: {
-                  sampleRate: asrConfig.featConfig?.sampleRate ?? 16000,
-                  featureDim: 39
-                },
-                modelFiles: {}
-              };
-              
-              // Find and set model files
-              const modelFiles = {
-                encoder: subdirContents.find(f => f.includes('encoder') && f.endsWith('.onnx')),
-                decoder: subdirContents.find(f => f.includes('decoder') && f.endsWith('.onnx')),
-                joiner: subdirContents.find(f => f.includes('joiner') && f.endsWith('.onnx')),
-                tokens: subdirContents.find(f => f === 'tokens.txt' || f.includes('tokens') && f.endsWith('.txt'))
-              };
-              
-              if (modelFiles.encoder && modelFiles.decoder && modelFiles.joiner && modelFiles.tokens) {
-                config.modelFiles = {
-                  encoder: modelFiles.encoder,
-                  decoder: modelFiles.decoder,
-                  joiner: modelFiles.joiner,
-                  tokens: modelFiles.tokens
-                };
-                
-                console.log('Found all required model files:', config.modelFiles);
-                
-                // Initialize ASR with the configuration
-                const result = await asrService.initialize(config);
-                
-                if (result.success) {
-                  setInitialized(true);
-                  console.log('ASR initialized successfully:', result);
-                } else {
-                  setError(`Failed to initialize ASR: ${result.error}`);
-                }
-              } else {
-                throw new Error('Missing required model files in the subdirectory');
+              if (hasModelFiles) {
+                const newCleanPath = cleanPath + '/' + sherpaDir;
+                console.log(`[ASR] Found model files in subdirectory. Updating path to: ${newCleanPath}`);
+                setStatusMessage(`Found model files in subdirectory ${sherpaDir}`);
+                // Use subdirectory path instead
+                cleanPath = newCleanPath;
+                // Update directory contents for file verification
+                dirContents = subDirContents;
               }
             }
-          } catch (e) {
-            console.error('Error checking subdirectory:', e);
-            throw e;
+          } catch (subDirErr) {
+            console.error(`[ASR] Error checking subdirectory ${sherpaDir}:`, subDirErr);
           }
-        } else {
-          throw new Error('Could not find valid model subdirectory');
         }
-      } else {
-        throw new Error('Empty model directory');
+      } catch (err) {
+        console.error('[ASR] Error reading directory:', err);
+        setStatusMessage(`Error reading directory: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      
+      // Check if expected model files exist
+      if (asrConfig.modelFiles) {
+        setStatusMessage('Verifying model files...');
+        console.log('[ASR] Verifying model files in directory:');
+        for (const [key, fileName] of Object.entries(asrConfig.modelFiles)) {
+          if (!fileName) continue;
+          
+          const fileExists = dirContents.some(file => file === fileName || file.includes(fileName));
+          console.log(`[ASR] - ${key}: ${fileName} => ${fileExists ? 'FOUND' : 'NOT FOUND'}`);
+          
+          if (!fileExists) {
+            console.warn(`[ASR] Warning: Expected model file "${fileName}" not found in directory`);
+            setStatusMessage(`Warning: Model file "${fileName}" not found`);
+          }
+        }
+      }
+      
+      // Create a complete configuration with all required fields (non-optional)
+      setStatusMessage('Preparing ASR configuration...');
+      const config: AsrModelConfig = {
+        modelDir: cleanPath,
+        modelType: asrConfig.modelType || 'transducer',
+        numThreads: numThreads,
+        decodingMethod: decodingMethod,
+        maxActivePaths: maxActivePaths,
+        streaming: asrConfig.streaming || false,
+        debug: debugMode,
+        provider: provider,
+        modelFiles: asrConfig.modelFiles || {
+          // Provide fallback default patterns if missing
+          encoder: '*encoder*.onnx',
+          decoder: '*decoder*.onnx',
+          joiner: asrConfig.modelType === 'transducer' || 
+                 asrConfig.modelType === 'zipformer' || 
+                 asrConfig.modelType === 'zipformer2' ? '*joiner*.onnx' : undefined,
+          tokens: '*tokens*.txt'
+        }
+      };
+      
+      console.log('[ASR] FINAL ASR CONFIG:', JSON.stringify(config, null, 2));
+      
+      // Sync UI state with actual configuration (ensure UI matches what's being sent)
+      setIsStreaming(!!config.streaming);
+      
+      // Set the config for visualization (useful for debugging)
+      setConfigToVisualize(config);
+      
+      try {
+        // Initialize ASR with the configuration
+        setStatusMessage('Calling ASR.initialize()...');
+        console.log('[ASR] Calling ASR.initialize() with complete configuration');
+        const result = await ASR.initialize(config);
+        console.log('[ASR] Initialization result:', result);
+        
+        if (result.success) {
+          setInitialized(true);
+          setStatusMessage('ASR initialized successfully');
+          console.log('[ASR] ASR initialized successfully:', result);
+        } else {
+          setError(`Failed to initialize ASR: ${result.error}`);
+          setStatusMessage(`Initialization failed: ${result.error}`);
+          console.error('[ASR] ASR initialization failed:', result.error);
+        }
+      } catch (initErr) {
+        console.error('[ASR] Exception during ASR.initialize():', initErr);
+        setStatusMessage(`Exception during ASR.initialize(): ${initErr instanceof Error ? initErr.message : String(initErr)}`);
+        setError(`Exception during initialization: ${initErr instanceof Error ? initErr.message : String(initErr)}`);
       }
     } catch (err) {
-      console.error('Error during initialization:', err);
-      setError(`Error during initialization: ${err instanceof Error ? err.message : String(err)}`);
+      console.error('[ASR] Error during initialization preparation:', err);
+      setStatusMessage(`Error during preparation: ${err instanceof Error ? err.message : String(err)}`);
+      setError(`Error during initialization preparation: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
+      setStatusMessage('');
     }
   };
   
@@ -692,7 +293,7 @@ export default function AsrScreen() {
         return;
       }
 
-      console.log(`Playing audio: ${audioItem.name} from ${audioItem.localUri}`);
+      console.log(`[ASR] Playing audio: ${audioItem.name} from ${audioItem.localUri}`);
       
       // Create a new sound object
       const { sound: newSound } = await Audio.Sound.createAsync(
@@ -714,7 +315,7 @@ export default function AsrScreen() {
         }
       });
     } catch (err) {
-      console.error('Error playing audio:', err);
+      console.error('[ASR] Error playing audio:', err);
       setError(`Failed to play audio: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
@@ -728,13 +329,13 @@ export default function AsrScreen() {
         setSound(null);
         setIsPlaying(false);
       } catch (err) {
-        console.error('Error stopping audio:', err);
+        console.error('[ASR] Error stopping audio:', err);
         setError(`Failed to stop audio: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   };
   
-  // Update the handleRecognizeFromFile function to reinitialize with correct feature dimension 
+  // Process audio file for recognition
   const handleRecognizeFromFile = async () => {
     if (!selectedAudio || !initialized) {
       setError('Please select an audio file and initialize ASR first');
@@ -751,24 +352,24 @@ export default function AsrScreen() {
     setError(null);
     
     try {
-      console.log(`Recognizing file with feature dim: ${asrConfig.featConfig?.featureDim}`);
-      console.log(`Processing audio file: ${selectedAudio.localUri}`);
+      // Always use 16000 Hz for ASR
+      console.log(`[ASR] Processing audio file: ${selectedAudio.localUri}`);
       
       // Ensure the URI has the correct format
       const normalizedUri = selectedAudio.localUri.startsWith('file://')
         ? selectedAudio.localUri
         : `file://${selectedAudio.localUri}`;
       
-      const result = await asrService.recognizeFromFile(normalizedUri);
+      const result = await ASR.recognizeFromFile(normalizedUri);
       
       if (result.success) {
         setRecognitionResult(result.text || '');
-        console.log('Recognition result:', result.text);
+        console.log('[ASR] Recognition result:', result.text);
       } else {
         throw new Error(result.error || 'Recognition failed');
       }
     } catch (err) {
-      console.error('Failed to recognize speech from file:', err);
+      console.error('[ASR] Failed to recognize speech from file:', err);
       setError(`Failed to recognize: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setProcessing(false);
@@ -776,43 +377,58 @@ export default function AsrScreen() {
   };
   
   // Get audio file metadata
-  const getAudioMetadata = async (uri: string): Promise<{ size: number; duration: number }> => {
+  const getAudioMetadata = async (uri: string): Promise<{ size: number; duration: number; sampleRate?: number }> => {
+    setAudioMetadata({ isLoading: true });
+    
     try {
-      setAudioMetadata({ ...audioMetadata, isLoading: true });
+      // Get file info
+      const info = await FileSystem.getInfoAsync(uri);
       
-      // Get file info from filesystem
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      
-      let duration = 0;
-      
-      if (fileInfo.exists) {
-        // Load the sound to get its duration
-        const { sound } = await Audio.Sound.createAsync({ uri });
-        const status = await sound.getStatusAsync();
-        
-        if (status.isLoaded) {
-          duration = status.durationMillis || 0;
-        }
-        
-        // Clean up
-        await sound.unloadAsync();
+      if (!info.exists) {
+        throw new Error(`File does not exist: ${uri}`);
       }
       
-      const result = {
-        size: (fileInfo as any).size || 0,
-        duration: duration,
+      // Always default to 16000 Hz for ASR
+      const sampleRate = 16000;
+      let duration = 0;
+      
+      // Try to get audio details by loading it temporarily
+      try {
+        const { sound: tempSound } = await Audio.Sound.createAsync({ uri });
+        const status = await tempSound.getStatusAsync();
+        
+        if (status.isLoaded) {
+          duration = status.durationMillis ? status.durationMillis / 1000 : 0;
+        }
+        
+        // Clean up temp sound
+        await tempSound.unloadAsync();
+      } catch (soundErr) {
+        console.error('[ASR] Error loading sound for metadata:', soundErr);
+      }
+      
+      const metadata = {
+        size: info.size || 0,
+        duration,
+        sampleRate,
+        isLoading: false
       };
       
-      setAudioMetadata({
-        ...result,
-        isLoading: false
-      });
+      setAudioMetadata(metadata);
       
-      return result;
-    } catch (err) {
-      console.error('Error getting audio metadata:', err);
-      setAudioMetadata({ isLoading: false });
-      return { size: 0, duration: 0 };
+      return { 
+        size: metadata.size, 
+        duration: metadata.duration,
+        sampleRate: metadata.sampleRate
+      };
+    } catch (error) {
+      console.error('[ASR] Error getting audio metadata:', error);
+      setAudioMetadata(prev => ({ ...prev, isLoading: false }));
+      return { 
+        size: 0, 
+        duration: 0,
+        sampleRate: 16000 // Default to 16000 Hz even on error
+      };
     }
   };
   
@@ -820,42 +436,37 @@ export default function AsrScreen() {
   const handleSelectAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
     setSelectedAudio(audioItem);
     
-    try {
-      // Fetch metadata when selecting an audio file
-      await getAudioMetadata(audioItem.localUri);
-    } catch (err) {
-      console.error('Error getting audio metadata:', err);
-    }
+    // Get audio metadata when selecting a file
+    setStatusMessage(`Getting metadata for ${audioItem.name}...`);
+    const metadata = await getAudioMetadata(audioItem.localUri);
+    setStatusMessage('');
+    
+    // Log audio metadata with fixed sample rate
+    console.log(`[ASR] Audio metadata:`, {...metadata, sampleRate: 16000});
   };
   
-  // Format file size to human-readable format
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
+  // Display audio information 
+  const renderAudioInfo = () => {
+    if (!selectedAudio) return null;
     
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    const { size, duration } = audioMetadata;
     
-    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+    return (
+      <View style={styles.audioInfoContainer}>
+        <Text style={styles.audioInfoTitle}>Audio Information:</Text>
+        {size !== undefined && <Text style={styles.audioInfoText}>Size: {formatBytes(size)}</Text>}
+        {duration !== undefined && <Text style={styles.audioInfoText}>Duration: {formatDuration(duration)}</Text>}
+        <Text style={styles.audioInfoText}>Sample Rate: 16000 Hz (optimized for ASR)</Text>
+      </View>
+    );
   };
   
-  // Format duration in milliseconds to human-readable format
-  const formatDuration = (milliseconds: number): string => {
-    if (!milliseconds) return '0:00';
-    
-    const seconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-  
-  // Fix the handleReleaseAsr function reference by adding a new function
+  // Release ASR resources
   const handleReleaseAsr = async () => {
     try {
-      const result = await asrService.release();
+      const result = await ASR.release();
       
       setInitialized(false);
-      setModelInfo(null);
       setRecognitionResult('');
       Alert.alert('Success', 'ASR resources released successfully');
     } catch (err) {
@@ -865,170 +476,380 @@ export default function AsrScreen() {
     }
   };
   
+  // Generate a visualization of the model's predefined config
+  const predefinedConfigDisplay = selectedModelId && asrConfig ? (
+    <View style={styles.statusSection}>
+      <Text style={styles.sectionTitle}>Predefined Model Configuration</Text>
+      <Text style={styles.codeText} selectable>
+        {JSON.stringify(asrConfig, null, 2)}
+      </Text>
+    </View>
+  ) : null;
+
+  // Effect to load audio assets when component mounts
+  useEffect(() => {
+    loadAudioAssets();
+  }, []);
+
+  // Load sample audio files
+  async function loadAudioAssets() {
+    try {
+      console.log('[ASR] Loading audio assets');
+      const audioFiles = [];
+      
+      for (const sampleAudio of SAMPLE_AUDIO_FILES) {
+        try {
+          // Load the asset
+          const asset = Asset.fromModule(sampleAudio.module);
+          await asset.downloadAsync();
+          
+          if (asset.localUri) {
+            audioFiles.push({
+              ...sampleAudio,
+              localUri: asset.localUri
+            });
+            console.log(`[ASR] Loaded audio asset: ${sampleAudio.name} at ${asset.localUri}`);
+          } else {
+            console.error(`[ASR] Failed to get localUri for audio: ${sampleAudio.name}`);
+          }
+        } catch (err) {
+          console.error(`[ASR] Error loading audio asset ${sampleAudio.name}:`, err);
+        }
+      }
+      
+      setLoadedAudioFiles(audioFiles);
+    } catch (err) {
+      console.error('[ASR] Error loading audio assets:', err);
+      setError(`Failed to load audio samples: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      {/* Loading overlay - moved outside of ScrollView */}
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingContent}>
+            <ActivityIndicator size="large" color="#2196F3" />
+            <Text style={styles.loadingText}>
+              {processing ? 'Processing audio...' : 'Initializing ASR...'}
+            </Text>
+            
+            <Text style={styles.loadingSubText}>
+              {statusMessage}
+            </Text>
+          </View>
+        </View>
+      )}
+      
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Automatic Speech Recognition</Text>
         
-        {/* Model selection section */}
+        {/* Error and status messages */}
+        {error ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : null}
+        
+        {/* Model Selection */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>1. Select ASR Model</Text>
-          {availableModels.length === 0 ? (
-            <Text style={styles.noModelsText}>
-              No ASR models available. Please download a model from the Models tab.
+          {initialized && (
+            <Text style={styles.warningText}>
+              Switching models will release the currently initialized model
             </Text>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {availableModels.map((model) => (
+          )}
+          <View style={styles.pickerContainer}>
+            {downloadedModels.length === 0 ? (
+              <Text style={styles.emptyText}>
+                No ASR models downloaded. Please visit the Models screen to download a model.
+              </Text>
+            ) : (
+              downloadedModels.map((model) => (
                 <TouchableOpacity
                   key={model.metadata.id}
                   style={[
-                    styles.modelItem,
-                    selectedModelId === model.metadata.id && styles.selectedModelItem
+                    styles.modelOption,
+                    selectedModelId === model.metadata.id && styles.modelOptionSelected
                   ]}
-                  onPress={() => setupAsr(model.metadata.id)}
+                  onPress={() => {
+                    if (initialized) {
+                      Alert.alert(
+                        "Switch Model?",
+                        "Switching models will release the currently initialized model. Any recognition progress will be lost.",
+                        [
+                          {
+                            text: "Cancel",
+                            style: "cancel"
+                          },
+                          {
+                            text: "Switch",
+                            style: "destructive",
+                            onPress: async () => {
+                              await handleReleaseAsr();
+                              setSelectedModelId(model.metadata.id);
+                            }
+                          }
+                        ]
+                      );
+                    } else {
+                      setSelectedModelId(model.metadata.id);
+                    }
+                  }}
                 >
                   <Text 
                     style={[
-                      styles.modelName,
-                      selectedModelId === model.metadata.id && styles.selectedModelName
+                      styles.modelOptionText,
+                      selectedModelId === model.metadata.id && styles.modelOptionTextSelected
                     ]}
                   >
                     {model.metadata.name}
                   </Text>
-                  <Text style={styles.modelInfo}>
-                    {model.metadata.language || 'Unknown Language'} • {formatFileSize(model.metadata.size || 0)}
-                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </View>
+
+        {/* Show the predefined configuration after model selection */}
+        {predefinedConfigDisplay}
+
+        {/* ASR Configuration */}
+        <View style={styles.configSection}>
+          <Text style={styles.sectionTitle}>2. ASR Configuration</Text>
+          
+          <View style={styles.configRow}>
+            <Text style={styles.configLabel}>Number of Threads:</Text>
+            <View style={styles.buttonGroup}>
+              {[1, 2, 4, 8].map(num => (
+                <TouchableOpacity
+                  key={num}
+                  style={[
+                    styles.optionButton,
+                    numThreads === num && styles.optionButtonSelected
+                  ]}
+                  onPress={() => setNumThreads(num)}
+                >
+                  <Text style={[
+                    styles.optionButtonText,
+                    numThreads === num && styles.optionButtonTextSelected
+                  ]}>{num}</Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
-          )}
-          
-          <View style={styles.buttonContainer}>
-            <Button
-              title={initialized ? "Initialized" : "Initialize ASR"}
-              onPress={handleInitAsr}
-              disabled={!modelInfo || initialized || loading}
-            />
-            {initialized && (
-              <Button
-                title="Release"
-                onPress={handleReleaseAsr}
-                color="#FF6B6B"
-              />
-            )}
+            </View>
           </View>
           
-          {loading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#0000ff" />
-              <Text style={styles.loadingText}>Initializing ASR engine...</Text>
-            </View>
-          )}
-          
-          {modelInfo && (
-            <View style={styles.modelInfoBox}>
-              <Text style={styles.modelInfoText}>Model directory: {modelInfo.modelDir}</Text>
-              <Text style={styles.modelInfoText}>Model type: {modelInfo.modelType}</Text>
-            </View>
-          )}
-        </View>
-        
-        {/* Toggle for advanced settings */}
-        <TouchableOpacity
-          style={styles.advancedSettingsToggle}
-          onPress={() => setAdvancedSettingsVisible(!advancedSettingsVisible)}
-        >
-          <Text style={styles.advancedSettingsToggleText}>
-            {advancedSettingsVisible ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
-          </Text>
-        </TouchableOpacity>
-        
-        {/* Advanced settings component */}
-        <AdvancedAsrSettings
-          config={asrConfig}
-          onChange={setAsrConfig}
-          enabled={advancedSettingsVisible}
-        />
-        
-        {/* Audio selection section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Select Audio Sample</Text>
-          <FlatList
-            data={loadedAudioFiles}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => (
+          <View style={styles.configRow}>
+            <Text style={styles.configLabel}>Decoding Method:</Text>
+            <View style={styles.buttonGroup}>
               <TouchableOpacity
                 style={[
-                  styles.audioItem,
-                  selectedAudio?.id === item.id && styles.selectedAudioItem
+                  styles.optionButton,
+                  decodingMethod === 'greedy_search' && styles.optionButtonSelected
                 ]}
-                onPress={() => handleSelectAudio(item)}
+                onPress={() => setDecodingMethod('greedy_search')}
               >
-                <Text 
-                  style={[
-                    styles.audioName,
-                    selectedAudio?.id === item.id && styles.selectedAudioName
-                  ]}
-                >
-                  {item.name}
-                </Text>
+                <Text style={[
+                  styles.optionButtonText,
+                  decodingMethod === 'greedy_search' && styles.optionButtonTextSelected
+                ]}>Greedy Search</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.optionButton,
+                  decodingMethod === 'beam_search' && styles.optionButtonSelected
+                ]}
+                onPress={() => setDecodingMethod('beam_search')}
+              >
+                <Text style={[
+                  styles.optionButtonText,
+                  decodingMethod === 'beam_search' && styles.optionButtonTextSelected
+                ]}>Beam Search</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          {decodingMethod === 'beam_search' && (
+            <View style={styles.configRow}>
+              <Text style={styles.configLabel}>Max Active Paths:</Text>
+              <View style={styles.buttonGroup}>
+                {[4, 8, 16, 32].map(paths => (
+                  <TouchableOpacity
+                    key={paths}
+                    style={[
+                      styles.optionButton,
+                      maxActivePaths === paths && styles.optionButtonSelected
+                    ]}
+                    onPress={() => setMaxActivePaths(paths)}
+                  >
+                    <Text style={[
+                      styles.optionButtonText,
+                      maxActivePaths === paths && styles.optionButtonTextSelected
+                    ]}>{paths}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+          
+          <View style={styles.configRow}>
+            <Text style={styles.configLabel}>Streaming Mode:</Text>
+            <Switch
+              value={isStreaming}
+              onValueChange={setIsStreaming}
+            />
+          </View>
+          
+          <View style={styles.configRow}>
+            <Text style={styles.configLabel}>Provider:</Text>
+            <View style={styles.providerContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.providerOption,
+                  provider === 'cpu' && styles.providerOptionSelected
+                ]}
+                onPress={() => setProvider('cpu')}
+              >
+                <Text style={[
+                  styles.providerOptionText,
+                  provider === 'cpu' && styles.providerOptionTextSelected
+                ]}>CPU</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.providerOption,
+                  provider === 'gpu' && styles.providerOptionSelected
+                ]}
+                onPress={() => setProvider('gpu')}
+              >
+                <Text style={[
+                  styles.providerOptionText,
+                  provider === 'gpu' && styles.providerOptionTextSelected
+                ]}>GPU</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          <View style={styles.configRow}>
+            <Text style={styles.configLabel}>Debug Mode:</Text>
+            <Switch
+              value={debugMode}
+              onValueChange={setDebugMode}
+            />
+          </View>
+        </View>
+
+        {/* ASR Controls */}
+        <View style={styles.buttonRow}>
+          <TouchableOpacity 
+            style={[
+              styles.button, 
+              styles.initButton,
+              (!selectedModelId || loading) && styles.buttonDisabled
+            ]} 
+            onPress={handleInitAsr}
+            disabled={loading || !selectedModelId}
+          >
+            <Text style={styles.buttonText}>Initialize ASR</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[
+              styles.button, 
+              styles.releaseButton,
+              (!initialized || loading) && styles.buttonDisabled
+            ]} 
+            onPress={handleReleaseAsr}
+            disabled={loading || !initialized}
+          >
+            <Text style={styles.buttonText}>Release ASR</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Audio selection section */}
+        {initialized && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>3. Select Audio Sample</Text>
+            <FlatList
+              data={loadedAudioFiles}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.audioItem,
+                    selectedAudio?.id === item.id && styles.selectedAudioItem
+                  ]}
+                  onPress={() => handleSelectAudio(item)}
+                >
+                  <Text 
+                    style={[
+                      styles.audioName,
+                      selectedAudio?.id === item.id && styles.selectedAudioName
+                    ]}
+                  >
+                    {item.name}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+            
+            {selectedAudio && (
+              <View style={styles.audioMetadata}>
+                <Text style={styles.metadataText}>
+                  Size: {formatBytes(audioMetadata.size || 0)}
+                </Text>
+                <Text style={styles.metadataText}>
+                  Duration: {formatDuration(audioMetadata.duration || 0)}
+                </Text>
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.audioPlayButton,
+                      isPlaying && styles.audioPlayButtonDisabled
+                    ]}
+                    onPress={() => handlePlayAudio(selectedAudio)}
+                    disabled={isPlaying}
+                  >
+                    <Text style={styles.audioPlayButtonText}>
+                      {isPlaying ? 'Playing...' : 'Play Audio'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             )}
-          />
-          
-          {selectedAudio && (
-            <View style={styles.audioMetadata}>
-              <Text style={styles.metadataText}>
-                Size: {formatFileSize(audioMetadata.size || 0)}
-              </Text>
-              <Text style={styles.metadataText}>
-                Duration: {formatDuration(audioMetadata.duration || 0)}
-              </Text>
-              <View style={styles.buttonContainer}>
-                <Button
-                  title={isPlaying ? "Stop" : "Play"}
-                  onPress={() => handlePlayAudio(selectedAudio)}
-                />
-              </View>
-            </View>
-          )}
-        </View>
-        
-        {/* Recognition section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>3. Recognize Speech</Text>
-          <Button
-            title="Recognize"
-            onPress={handleRecognizeFromFile}
-            disabled={!initialized || !selectedAudio || processing}
-          />
-          
-          {processing && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#0000ff" />
-              <Text style={styles.loadingText}>Processing audio...</Text>
-            </View>
-          )}
-          
-          {recognitionResult !== '' && (
-            <View style={styles.resultContainer}>
-              <Text style={styles.resultLabel}>Recognized Text:</Text>
-              <View style={styles.textContainer}>
-                <Text style={styles.recognizedText}>{recognitionResult}</Text>
-              </View>
-            </View>
-          )}
-        </View>
-        
-        {/* Error display */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
+        
+        {/* Recognition section */}
+        {initialized && selectedAudio && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>4. Recognize Speech</Text>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                styles.generateButton,
+                processing && styles.buttonDisabled
+              ]}
+              onPress={handleRecognizeFromFile}
+              disabled={processing}
+            >
+              <Text style={styles.buttonText}>Recognize Speech</Text>
+            </TouchableOpacity>
+            
+            {recognitionResult !== '' && (
+              <View style={styles.resultContainer}>
+                <Text style={styles.resultLabel}>Recognized Text:</Text>
+                <View style={styles.textContainer}>
+                  <Text style={styles.recognizedText}>{recognitionResult}</Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Audio Information Section */}
+        {selectedAudio && renderAudioInfo()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -1039,14 +860,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  scrollContainer: {
+  scrollContent: {
     padding: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#333',
   },
   section: {
     backgroundColor: 'white',
@@ -1054,61 +869,213 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 4,
     elevation: 2,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    zIndex: 1000,
+  },
+  loadingContent: {
+    backgroundColor: '#fff',
+    padding: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    minWidth: 250,
+    maxWidth: '80%',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#333',
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loadingSubText: {
+    marginBottom: 16,
+    color: '#666',
+    textAlign: 'center',
+    fontSize: 14,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginVertical: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
-    color: '#444',
   },
-  noModelsText: {
-    marginVertical: 10,
-    color: '#666',
-    fontStyle: 'italic',
+  pickerContainer: {
+    marginBottom: 16,
   },
-  modelItem: {
+  modelOption: {
     padding: 12,
-    marginRight: 12,
+    backgroundColor: '#fff',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    minWidth: 140,
+    marginBottom: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
-  selectedModelItem: {
-    borderColor: '#4caf50',
-    backgroundColor: '#f1f8e9',
+  modelOptionSelected: {
+    backgroundColor: '#2196F3',
   },
-  modelName: {
-    fontWeight: 'bold',
-    marginBottom: 4,
+  modelOptionText: {
+    fontSize: 16,
     color: '#333',
   },
-  selectedModelName: {
-    color: '#2e7d32',
+  modelOptionTextSelected: {
+    color: '#fff',
   },
-  modelInfo: {
-    fontSize: 12,
-    color: '#666',
+  providerContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  modelInfoBox: {
-    marginTop: 12,
+  providerOption: {
+    flex: 1,
     padding: 8,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f0f0f0',
     borderRadius: 4,
+    marginHorizontal: 4,
+    alignItems: 'center',
   },
-  modelInfoText: {
-    fontSize: 12,
+  providerOptionSelected: {
+    backgroundColor: '#2196F3',
+  },
+  providerOptionText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  providerOptionTextSelected: {
+    color: '#fff',
+  },
+  emptyText: {
+    textAlign: 'center',
     color: '#666',
-    marginBottom: 4,
+    fontSize: 14,
+    marginTop: 8,
   },
-  buttonContainer: {
-    marginTop: 12,
+  errorText: {
+    color: '#f44336',
+    textAlign: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  warningText: {
+    color: '#FF9800',
+    fontSize: 14,
+    marginBottom: 8,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  button: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 8,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  initButton: {
+    backgroundColor: '#2196F3',
+  },
+  releaseButton: {
+    backgroundColor: '#757575',
+  },
+  generateButton: {
+    backgroundColor: '#4CAF50',
+  },
+  configSection: {
+    margin: 16,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+  },
+  configRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  configLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+  },
+  buttonGroup: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  optionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 4,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  optionButtonSelected: {
+    backgroundColor: '#2196F3',
+  },
+  optionButtonText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  optionButtonTextSelected: {
+    color: 'white',
+  },
+  statusSection: {
+    margin: 16,
+    padding: 16,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 8,
+  },
+  codeText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 12,
+    backgroundColor: '#eee',
+    padding: 10,
+    borderRadius: 4,
   },
   audioItem: {
     padding: 12,
@@ -1118,10 +1085,10 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     minWidth: 120,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
   selectedAudioItem: {
-    borderColor: '#2196f3',
+    borderColor: '#2196F3',
     backgroundColor: '#e3f2fd',
   },
   audioName: {
@@ -1134,21 +1101,33 @@ const styles = StyleSheet.create({
   },
   audioMetadata: {
     marginTop: 12,
-    padding: 8,
+    padding: 12,
     backgroundColor: '#f9f9f9',
-    borderRadius: 4,
+    borderRadius: 8,
   },
   metadataText: {
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  loadingContainer: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  loadingText: {
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     marginTop: 8,
-    color: '#666',
+  },
+  audioPlayButton: {
+    backgroundColor: '#9C27B0',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    flex: 1,
+    maxWidth: 200,
+  },
+  audioPlayButtonDisabled: {
+    opacity: 0.6,
+  },
+  audioPlayButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
   resultContainer: {
     marginTop: 16,
@@ -1175,89 +1154,19 @@ const styles = StyleSheet.create({
     color: '#333',
     lineHeight: 24,
   },
-  errorContainer: {
+  audioInfoContainer: {
+    marginTop: 16,
     padding: 12,
-    backgroundColor: '#ffebee',
+    backgroundColor: '#f9f9f9',
     borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#f44336',
-    marginBottom: 16,
   },
-  errorText: {
-    color: '#c62828',
-  },
-  advancedSettingsToggle: {
-    padding: 12,
-    marginVertical: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  advancedSettingsToggleText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#007AFF',
-  },
-  advancedSettingsContainer: {
-    marginVertical: 8,
-    padding: 12,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  settingLabel: {
-    width: 120,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  optionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-    marginRight: 8,
+  audioInfoTitle: {
+    fontWeight: 'bold',
     marginBottom: 8,
-  },
-  optionButtonSelected: {
-    backgroundColor: '#007AFF',
-  },
-  optionButtonText: {
-    fontSize: 14,
     color: '#333',
   },
-  optionButtonTextSelected: {
-    color: 'white',
-  },
-  settingSection: {
-    marginTop: 10,
-    marginBottom: 5,
-  },
-  sectionSubTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 8,
-    color: '#555',
-  },
-  audioControls: {
-    marginTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playbackStatus: {
-    marginTop: 4,
-    fontSize: 12,
+  audioInfoText: {
     color: '#666',
-    textAlign: 'center',
+    marginBottom: 4,
   },
 }); 

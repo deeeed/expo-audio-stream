@@ -3,9 +3,7 @@
  */
 package net.siteed.sherpaonnx.handlers
 
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReadableArray
@@ -45,7 +43,6 @@ import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
  * 
  * Supports both offline and streaming (online) recognition.
  */
-@RequiresApi(Build.VERSION_CODES.CUPCAKE)
 class ASRHandler(private val reactContext: ReactApplicationContext) {
     
     private val executor = Executors.newSingleThreadExecutor()
@@ -73,7 +70,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
         private const val DEFAULT_NUM_THREADS = 2
         private const val DEFAULT_DECODING_METHOD = "greedy_search"
         private const val DEFAULT_MAX_ACTIVE_PATHS = 4
-        private const val DEFAULT_STREAMING = false
+        private const val DEFAULT_CHUNK_SIZE_MS = 50
     }
     
     /**
@@ -228,12 +225,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
             
             // Initialize the recognizer
             offlineRecognizer = OfflineRecognizer(null, config)
-            
-            // Check if initialization was successful
-            if (offlineRecognizer == null) {
-                throw Exception("Failed to initialize ASR engine")
-            }
-            
+
             // Get sample rate from feature config
             val actualSampleRate = featConfig.sampleRate
             
@@ -306,11 +298,6 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
             
             // Initialize the recognizer
             onlineRecognizer = OnlineRecognizer(null, config)
-            
-            // Check if initialization was successful
-            if (onlineRecognizer == null) {
-                throw Exception("Failed to initialize streaming ASR engine")
-            }
             
             // Set streaming flag
             isStreaming = true
@@ -595,7 +582,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 try {
                     // Try to get the class using reflection
                     val paraformerConfigClass = Class.forName("com.k2fsa.sherpa.onnx.OnlineParaformerModelConfig")
-                    val paraformerConfig = paraformerConfigClass.newInstance()
+                    val paraformerConfig = paraformerConfigClass.getDeclaredConstructor().newInstance()
                     
                     // Set encoder and decoder using reflection
                     val encoderSetter = paraformerConfigClass.getDeclaredMethod("setEncoder", String::class.java)
@@ -626,7 +613,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 try {
                     // Try to get the class using reflection
                     val zipformerCtcClass = Class.forName("com.k2fsa.sherpa.onnx.OnlineZipformer2CtcModelConfig")
-                    val zipformerCtcConfig = zipformerCtcClass.newInstance()
+                    val zipformerCtcConfig = zipformerCtcClass.getDeclaredConstructor().newInstance()
                     
                     // Set model using reflection
                     val modelSetter = zipformerCtcClass.getDeclaredMethod("setModel", String::class.java)
@@ -654,7 +641,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 try {
                     // Try to get the class using reflection
                     val nemoCtcClass = Class.forName("com.k2fsa.sherpa.onnx.OnlineNeMoCtcModelConfig")
-                    val nemoCtcConfig = nemoCtcClass.newInstance()
+                    val nemoCtcConfig = nemoCtcClass.getDeclaredConstructor().newInstance()
                     
                     // Set model using reflection
                     val modelSetter = nemoCtcClass.getDeclaredMethod("setModel", String::class.java)
@@ -759,11 +746,14 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
      * Recognize speech from audio samples
      */
     fun recognizeFromSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        Log.i(TAG, "Starting speech recognition with ${audioBuffer.size()} samples at $sampleRate Hz")
         executor.execute {
             try {
                 if (isStreaming) {
+                    Log.i(TAG, "Using streaming recognition mode")
                     recognizeFromSamplesStreaming(sampleRate, audioBuffer, promise)
                 } else {
+                    Log.i(TAG, "Using offline recognition mode")
                     recognizeFromSamplesOffline(sampleRate, audioBuffer, promise)
                 }
             } catch (e: Exception) {
@@ -783,30 +773,37 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
     private fun recognizeFromSamplesOffline(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
         try {
             if (offlineRecognizer == null) {
+                Log.e(TAG, "Offline ASR is not initialized")
                 throw Exception("Offline ASR is not initialized")
             }
             
+            Log.i(TAG, "Converting audio buffer to float array")
             // Convert ReadableArray to FloatArray
             val samples = FloatArray(audioBuffer.size())
             for (i in 0 until audioBuffer.size()) {
                 samples[i] = audioBuffer.getDouble(i).toFloat()
             }
             
+            Log.i(TAG, "Creating offline stream")
             // Create stream
             val stream = offlineRecognizer?.createStream()
             if (stream == null) {
+                Log.e(TAG, "Failed to create stream")
                 throw Exception("Failed to create stream")
             }
             
+            Log.i(TAG, "Accepting waveform with ${samples.size} samples")
             // Accept waveform
             stream.acceptWaveform(samples, sampleRate)
             
             // Start recognition
             isRecognizing = true
+            Log.i(TAG, "Starting offline decoding")
             
             // Decode
             offlineRecognizer?.decode(stream)
             
+            Log.i(TAG, "Getting recognition result")
             // Get result
             val result = offlineRecognizer?.getResult(stream)
             
@@ -815,6 +812,8 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
             
             // End recognition
             isRecognizing = false
+            
+            Log.i(TAG, "Recognition completed successfully: ${result?.text}")
             
             // Return results
             val resultMap = Arguments.createMap()
@@ -842,42 +841,102 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
     private fun recognizeFromSamplesStreaming(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
         try {
             if (onlineRecognizer == null) {
+                Log.e(TAG, "Streaming ASR is not initialized")
                 throw Exception("Streaming ASR is not initialized")
             }
             
             // Create stream if not exists
             if (onlineStream == null) {
+                Log.i(TAG, "Creating new online stream")
                 onlineStream = onlineRecognizer?.createStream()
                 if (onlineStream == null) {
+                    Log.e(TAG, "Failed to create stream")
                     throw Exception("Failed to create stream")
                 }
+            } else {
+                Log.i(TAG, "Using existing online stream")
             }
             
+            Log.i(TAG, "Converting audio buffer to float array")
             // Convert ReadableArray to FloatArray
             val samples = FloatArray(audioBuffer.size())
             for (i in 0 until audioBuffer.size()) {
                 samples[i] = audioBuffer.getDouble(i).toFloat()
             }
             
-            // Accept waveform
-            onlineStream?.acceptWaveform(samples, sampleRate)
+            // Calculate samples per chunk using the default chunk size
+            val samplesPerChunk = (sampleRate * DEFAULT_CHUNK_SIZE_MS / 1000).toInt()
+            Log.i(TAG, "Using chunk size of ${DEFAULT_CHUNK_SIZE_MS}ms (${samplesPerChunk} samples)")
+            
+            // Process samples in chunks
+            if (samples.size > samplesPerChunk) {
+                // Process in chunks
+                var offset = 0
+                while (offset < samples.size) {
+                    // Calculate current chunk size
+                    val currentChunkSize = samplesPerChunk.coerceAtMost(samples.size - offset)
+                    
+                    // Extract current chunk
+                    val chunk = FloatArray(currentChunkSize)
+                    System.arraycopy(samples, offset, chunk, 0, currentChunkSize)
+                    
+                    // Accept current chunk
+                    Log.i(TAG, "Processing chunk of $currentChunkSize samples at offset $offset")
+                    onlineStream?.acceptWaveform(chunk, sampleRate)
+                    
+                    // Decode if ready
+                    if (onlineRecognizer?.isReady(onlineStream!!) == true) {
+                        onlineRecognizer?.decode(onlineStream!!)
+                    }
+                    
+                    // Move to next chunk
+                    offset += currentChunkSize
+                }
+            } else {
+                // Process all at once for very short audio
+                Log.i(TAG, "Processing all ${samples.size} samples at once")
+                onlineStream?.acceptWaveform(samples, sampleRate)
+            }
+            
+            // Mark the end of input stream for file processing
+            Log.i(TAG, "Marking end of input with inputFinished()")
+            onlineStream?.inputFinished()
             
             // Start recognition
             isRecognizing = true
+            Log.i(TAG, "Starting final decoding")
             
-            // Decode
-            onlineRecognizer?.decode(onlineStream!!)
+            // Decode multiple times to process all audio
+            var hasMoreFrames = true
+            var iterationCount = 0
+            val maxIterations = 20 // Increased from 10 to handle longer files
+            
+            // Keep decoding until no more ready frames or we reach max iterations
+            while (hasMoreFrames && iterationCount < maxIterations) {
+                // Check if recognizer is ready (more frames to process)
+                val isReady = onlineRecognizer?.isReady(onlineStream!!) == true
+                
+                if (isReady) {
+                    // Decode next frame
+                    onlineRecognizer?.decode(onlineStream!!)
+                    iterationCount++
+                    Log.i(TAG, "Decoding iteration $iterationCount")
+                } else {
+                    hasMoreFrames = false
+                }
+            }
             
             // Check if endpoint is reached
-            val isEndpoint = onlineRecognizer?.isEndpoint(onlineStream!!) ?: false
+            val isEndpoint = onlineRecognizer?.isEndpoint(onlineStream!!) == true
+            Log.i(TAG, "Endpoint detected: $isEndpoint")
             
             // Get result
             val result = onlineRecognizer?.getResult(onlineStream!!)
+            Log.i(TAG, "Recognition result: ${result?.text}")
             
-            // Reset stream if endpoint is reached
-            if (isEndpoint) {
-                onlineRecognizer?.reset(onlineStream!!)
-            }
+            // Reset stream for next recognition
+            Log.i(TAG, "Resetting stream after recognition")
+            onlineRecognizer?.reset(onlineStream!!)
             
             // Return results
             val resultMap = Arguments.createMap()
@@ -904,22 +963,27 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
      * Recognize speech from an audio file
      */
     fun recognizeFromFile(filePath: String, promise: Promise) {
+        Log.i(TAG, "Starting recognition from file: $filePath")
         executor.execute {
             try {
                 // Create File object from path
                 val fileObj = File(AssetUtils.cleanFilePath(filePath))
+                Log.i(TAG, "Using file: ${fileObj.absolutePath}")
                 
                 // Extract audio from file
+                Log.i(TAG, "Extracting audio from file")
                 val audioData = AudioExtractor.extractAudioFromFile(fileObj)
                 
                 // Handle potential null audio data safely
                 if (audioData == null) {
+                    Log.e(TAG, "Failed to extract audio from file")
                     throw Exception("Failed to extract audio from file")
                 }
                 
                 // Use safe calls to get samples and sample rate
-                val samples = audioData.samples ?: FloatArray(0)
-                val sampleRate = audioData.sampleRate ?: DEFAULT_SAMPLE_RATE
+                val samples = audioData.samples
+                val sampleRate = audioData.sampleRate
+                Log.i(TAG, "Extracted ${samples.size} samples at $sampleRate Hz")
                 
                 // Create ReadableArray from samples for compatibility with recognizeFromSamples
                 val buffer = Arguments.createArray()
@@ -928,6 +992,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 }
                 
                 // Recognize using the existing method
+                Log.i(TAG, "Forwarding to recognizeFromSamples")
                 recognizeFromSamples(sampleRate, buffer, promise)
             } catch (e: Exception) {
                 Log.e(TAG, "Error recognizing from file: ${e.message}")
@@ -970,22 +1035,36 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
      */
     private fun releaseResources() {
         try {
-            offlineStream?.release()
-            offlineStream = null
+            Log.i(TAG, "Releasing ASR resources")
             
-            offlineRecognizer?.release()
-            offlineRecognizer = null
+            if (offlineStream != null) {
+                Log.i(TAG, "Releasing offline stream")
+                offlineStream?.release()
+                offlineStream = null
+            }
             
-            onlineStream?.release()
-            onlineStream = null
+            if (offlineRecognizer != null) {
+                Log.i(TAG, "Releasing offline recognizer")
+                offlineRecognizer?.release()
+                offlineRecognizer = null
+            }
             
-            onlineRecognizer?.release()
-            onlineRecognizer = null
+            if (onlineStream != null) {
+                Log.i(TAG, "Releasing online stream")
+                onlineStream?.release()
+                onlineStream = null
+            }
+            
+            if (onlineRecognizer != null) {
+                Log.i(TAG, "Releasing online recognizer")
+                onlineRecognizer?.release()
+                onlineRecognizer = null
+            }
             
             isRecognizing = false
             isStreaming = false
             
-            Log.i(TAG, "ASR resources released")
+            Log.i(TAG, "ASR resources released successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error in releaseResources: ${e.message}")
         }

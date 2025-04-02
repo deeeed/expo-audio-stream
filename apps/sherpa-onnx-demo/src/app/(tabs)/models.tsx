@@ -6,6 +6,7 @@ import { FileExplorer } from '../../components/FileExplorer';
 import { ModelManager } from '../../components/ModelManager';
 import { ModelTypeSelector } from '../../components/ModelTypeSelector';
 import { ViewModeSelector } from '../../components/ViewModeSelector';
+import WebInfoBanner from '../../components/WebInfoBanner';
 import { useModelManagement } from '../../contexts/ModelManagement/ModelManagementContext';
 import { useModelCounts } from '../../hooks/useModelCounts';
 import type { ViewMode } from '../../types/models';
@@ -117,6 +118,8 @@ export default function ModelsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {Platform.OS === 'web' && <WebInfoBanner />}
+      
       <ModelTypeSelector
         selectedType={selectedType}
         onSelectType={setSelectedType}

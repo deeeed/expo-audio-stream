@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelManagement } from '../../contexts/ModelManagement';
+import { useAudioTaggingModels, useAudioTaggingModelWithConfig } from '../../hooks/useModelWithConfig';
 
 // Define sample audio with only name and module
 const SAMPLE_AUDIO_FILES = [
@@ -42,20 +43,6 @@ const SAMPLE_AUDIO_FILES = [
   },
 ];
 
-// Helper function to verify file existence - requires Expo URI format with file:// prefix
-const verifyFileExists = async (expoUri: string): Promise<boolean> => {
-  try {
-    // Ensure the URI has the file:// prefix for Expo
-    const uri = expoUri.startsWith('file://') ? expoUri : `file://${expoUri}`;
-    console.log(`Checking file existence: ${uri}`);
-    const fileInfo = await FileSystem.getInfoAsync(uri);
-    return fileInfo.exists;
-  } catch (error) {
-    console.error(`Error checking file existence: ${expoUri}`, error);
-    return false;
-  }
-};
-
 // Helper function to clean file paths to be compatible with both Expo and native code
 const cleanFilePath = (path: string): string => {
   // Strip the file:// or file:/ prefix if present
@@ -67,89 +54,21 @@ const cleanFilePath = (path: string): string => {
   return path;
 };
 
-/**
- * Recursively search for an ONNX model file in a directory and its subdirectories
- * @param basePath Base directory path to start searching
- * @returns Object with modelDir and modelName if found, null otherwise
- */
-const findModelFileRecursive = async (basePath: string): Promise<{ modelDir: string, modelName: string } | null> => {
-  console.log(`Searching for models in: ${basePath}`);
-  
-  // Ensure base path has file:// prefix for Expo FileSystem
-  const expoBasePath = basePath.startsWith('file://') ? basePath : `file://${basePath}`;
-  
-  const searchDirectory = async (expoPath: string, depth = 0): Promise<{ modelDir: string, modelName: string } | null> => {
-    if (depth > 3) return null; // Limit recursion depth
-    
-    try {
-      console.log(`Searching directory: ${expoPath} (depth: ${depth})`);
-      
-      // Check if this directory contains a model file (CED or Zipformer)
-      const dirInfo = await FileSystem.getInfoAsync(expoPath);
-      
-      if (!dirInfo.exists || !dirInfo.isDirectory) {
-        console.log(`Path is not a valid directory: ${expoPath}`);
-        return null;
-      }
-      
-      // Get directory contents
-      const contents = await FileSystem.readDirectoryAsync(expoPath);
-      console.log(`Found ${contents.length} items in ${expoPath}`);
-      
-      // Check for model files
-      for (const item of contents) {
-        if (item.endsWith('.onnx')) {
-          console.log(`Found model file: ${item} in ${expoPath}`);
-          // Return the native-compatible path without file:// prefix for the native module
-          // but keep the expo path format for the UI
-          return {
-            modelDir: expoPath,
-            modelName: item
-          };
-        }
-      }
-      
-      // Recursively check subdirectories
-      for (const item of contents) {
-        const subDirPath = `${expoPath}/${item}`;
-        const subDirInfo = await FileSystem.getInfoAsync(subDirPath);
-        
-        if (subDirInfo.isDirectory) {
-          const result = await searchDirectory(subDirPath, depth + 1);
-          if (result) return result;
-        }
-      }
-      
-      return null;
-    } catch (err) {
-      console.error(`Error searching directory ${expoPath}:`, err);
-      return null;
-    }
-  };
-  
-  // Start the recursive search
-  return searchDirectory(expoBasePath);
-};
-
-// Create an instance of the AudioTaggingService
-// const audioTaggingService = new AudioTagging();
-
 function AudioTaggingScreen() {
-  const { getDownloadedModels, getModelState } = useModelManagement();
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [modelInfo, setModelInfo] = useState<{ modelDir: string, modelName: string } | null>(null);
-  const [labelFilePath, setLabelFilePath] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>('');
+  const [audioTaggingResults, setAudioTaggingResults] = useState<AudioTaggingResult | null>(null);
   const [selectedAudio, setSelectedAudio] = useState<{
     id: string;
     name: string;
     module: number;
     localUri: string;
   } | null>(null);
-  const [audioTaggingResults, setAudioTaggingResults] = useState<AudioTaggingResult | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [pendingModelId, setPendingModelId] = useState<string | null>(null);
   
   // Add state for loaded audio assets
   const [loadedAudioFiles, setLoadedAudioFiles] = useState<Array<{
@@ -175,12 +94,52 @@ function AudioTaggingScreen() {
   // Add state for configuration options
   const [topK, setTopK] = useState<number>(5);
   const [numThreads, setNumThreads] = useState<number>(2);
-  const [debugMode, setDebugMode] = useState<boolean>(false);
+  const [debugMode, setDebugMode] = useState<boolean>(true); // Default to true
+  const [provider, setProvider] = useState<'cpu' | 'gpu'>('cpu');
   
-  // Get only relevant models for audio tagging
-  const availableModels = getDownloadedModels().filter(model => 
-    model.metadata.type === 'audio-tagging'
-  );
+  // Use our new hooks
+  const { downloadedModels } = useAudioTaggingModels();
+  const { audioTaggingConfig, localPath, isDownloaded } = useAudioTaggingModelWithConfig({ modelId: selectedModelId });
+  
+  // Add a new effect to log selected model and config changes
+  useEffect(() => {
+    console.log('[DEBUG] Selected model ID changed to:', selectedModelId);
+    console.log('[DEBUG] Audio tagging config received:', JSON.stringify(audioTaggingConfig, null, 2));
+    console.log('[DEBUG] Local path:', localPath);
+    console.log('[DEBUG] Is downloaded:', isDownloaded);
+  }, [selectedModelId, audioTaggingConfig, localPath, isDownloaded]);
+  
+  // Reset configuration when selected model or audioTaggingConfig changes
+  useEffect(() => {
+    console.log('[DEBUG] Config reset effect triggered');
+    console.log('[DEBUG] Current config values:', { topK, numThreads, debugMode, provider });
+    
+    if (audioTaggingConfig) {
+      console.log('[DEBUG] Using audioTaggingConfig:', JSON.stringify(audioTaggingConfig, null, 2));
+      
+      // Reset to values from the predefined config or use defaults
+      const newTopK = audioTaggingConfig.topK ?? 5;
+      const newNumThreads = audioTaggingConfig.numThreads ?? 2;
+      const newDebugMode = audioTaggingConfig.debug ?? true; // Default to true if not specified
+      const newProvider = audioTaggingConfig.provider ?? 'cpu';
+      
+      console.log('[DEBUG] Setting new values:', {
+        topK: newTopK,
+        numThreads: newNumThreads,
+        debugMode: newDebugMode,
+        provider: newProvider
+      });
+      
+      setTopK(newTopK);
+      setNumThreads(newNumThreads);
+      setDebugMode(newDebugMode); // Use config value or default to true
+      setProvider(newProvider);
+      
+      console.log('Reset configuration based on selected model:', selectedModelId);
+    } else {
+      console.log('[DEBUG] No audioTaggingConfig available for model:', selectedModelId);
+    }
+  }, [selectedModelId, audioTaggingConfig]);
   
   // Load audio assets when component mounts
   useEffect(() => {
@@ -215,9 +174,9 @@ function AudioTaggingScreen() {
     return () => {
       if (initialized) {
         console.log('Cleaning up audio tagging resources');
-        // audioTaggingService.release().catch((err: Error) => 
-        //   console.error('Error releasing audio tagging resources:', err)
-        // );
+        AudioTagging.release().catch((err: Error) => 
+          console.error('Error releasing audio tagging resources:', err)
+        );
       }
       
       if (sound) {
@@ -226,132 +185,158 @@ function AudioTaggingScreen() {
         );
       }
     };
-  }, []);
+  }, [initialized]);
   
-  // Setup audio tagging with a specific model
-  async function setupAudioTagging(modelId: string) {
-    setLoading(true);
-    setError(null);
+  const handleModelSelect = (modelId: string) => {
+    console.log('[DEBUG] handleModelSelect called with modelId:', modelId);
     
-    try {
-      const modelState = getModelState(modelId);
-      if (!modelState?.localPath) {
-        throw new Error('Model files not found locally');
-      }
-      
-      console.log(`Using model path: ${modelState.localPath}`);
-      
-      // Find an audio tagging model file recursively
-      const modelFile = await findModelFileRecursive(modelState.localPath);
-      if (!modelFile) {
-        setError('Could not find audio tagging model in the model directory');
-        setLoading(false);
-        return;
-      }
-      
-      setModelInfo(modelFile);
-      
-      // Look for the labels file (using Expo path format)
-      const labelsPath = `${modelFile.modelDir}/class_labels_indices.csv`;
-      const labelsExists = await verifyFileExists(labelsPath);
-      
-      if (!labelsExists) {
-        // Try labels.txt as a fallback
-        const fallbackLabelsPath = `${modelFile.modelDir}/labels.txt`;
-        const fallbackLabelsExist = await verifyFileExists(fallbackLabelsPath);
-        
-        if (!fallbackLabelsExist) {
-          setError('Could not find labels file (tried class_labels_indices.csv and labels.txt)');
-          setLoading(false);
-          return;
-        }
-        
-        setLabelFilePath(fallbackLabelsPath);
-      } else {
-        setLabelFilePath(labelsPath);
-      }
-      
+    // If a model is already initialized, show confirmation before switching
+    if (initialized) {
+      console.log('[DEBUG] Model already initialized, showing confirmation dialog');
+      setPendingModelId(modelId);
+      Alert.alert(
+        "Switch Model?",
+        "Switching models will release the currently initialized model. Any analysis results will be lost.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => {
+              console.log('[DEBUG] User cancelled model switch');
+              setPendingModelId(null);
+            }
+          },
+          {
+            text: "Switch",
+            style: "destructive",
+            onPress: async () => {
+              // Release current model first
+              try {
+                console.log('[DEBUG] Releasing current model');
+                const result = await AudioTagging.release();
+                
+                // Log the full result to help debug
+                console.log('[DEBUG] Release result:', JSON.stringify(result));
+                
+                // Check if the result is truthy and has a released property, otherwise assume success
+                // This makes the code more resilient to API changes or response issues
+                const isReleased = result && (typeof result === 'object') && 
+                                  (result.released !== undefined ? result.released : true);
+                
+                if (isReleased) {
+                  console.log('[DEBUG] Successfully released model, switching to new model:', modelId);
+                } else {
+                  console.log('[DEBUG] Release may have failed, but proceeding with model switch anyway');
+                }
+                
+                // Regardless of the result, proceed with the switch
+                // We've seen in logs that resources are actually released successfully
+                setInitialized(false);
+                setAudioTaggingResults(null);
+                setStatusMessage('Audio tagging resources released, switching model');
+                
+                // After release, set the new model ID
+                setSelectedModelId(modelId);
+                setPendingModelId(null);
+              } catch (error) {
+                console.log('[DEBUG] Error releasing model:', error);
+                
+                // Despite the error, we'll still try to switch models
+                // This makes the UI more resilient to transient errors
+                console.log('[DEBUG] Proceeding with model switch despite error');
+                setInitialized(false);
+                setAudioTaggingResults(null);
+                setSelectedModelId(modelId);
+                setPendingModelId(null);
+                
+                // Show a warning but don't block the operation
+                setError(`Warning: Error during model release, but continuing with model switch: ${(error as Error).message}`);
+              }
+            }
+          }
+        ]
+      );
+    } else {
+      // No model initialized, just switch directly
+      console.log('[DEBUG] No model initialized, directly setting model ID:', modelId);
       setSelectedModelId(modelId);
-      
-      // Success, everything is ready
-      setLoading(false);
-    } catch (err) {
-      console.error('Error setting up audio tagging:', err);
-      setError(`Error setting up audio tagging: ${err instanceof Error ? err.message : String(err)}`);
-      setLoading(false);
     }
-  }
+  };
   
   // Initialize the audio tagging engine
   const handleInitAudioTagging = async () => {
-    if (!modelInfo || !labelFilePath) {
-      setError('Model information not available');
+    console.log('[DEBUG] handleInitAudioTagging called');
+    console.log('[DEBUG] Current state:', {
+      selectedModelId,
+      audioTaggingConfig: JSON.stringify(audioTaggingConfig, null, 2),
+      localPath,
+      isDownloaded,
+      topK,
+      numThreads,
+      debugMode,
+      provider
+    });
+    
+    if (!selectedModelId || !localPath || !isDownloaded) {
+      const missingItem = !selectedModelId ? 'selectedModelId' : 
+                          !localPath ? 'localPath' : 
+                          !isDownloaded ? 'isDownloaded' : '';
+      console.log(`[DEBUG] Cannot initialize, missing: ${missingItem}`);
+      setError(`Cannot initialize: ${missingItem} is missing.`);
       return;
     }
     
     setLoading(true);
     setError(null);
+    setStatusMessage('Initializing audio tagging...');
     
     try {
-      // Determine model type based on directory name and file name
-      const dirName = modelInfo.modelDir.toLowerCase();
-      const fileName = modelInfo.modelName.toLowerCase();
-      // Check if the model is a zipformer or ced model based on dir and file name
-      const isZipformer = dirName.includes('zipformer') || fileName.includes('zipformer');
-      const isCed = dirName.includes('ced') || fileName.includes('ced');
+      // Use the cleaned path (without file://) for native module
+      let cleanLocalPath = cleanFilePath(localPath);
       
-      // Default to zipformer if can't determine precisely
-      const modelType = isCed ? 'ced' : 'zipformer';
+      // Attempt to find subdirectory
+      try {
+        const expoPath = localPath.startsWith('file://') ? localPath : `file://${localPath}`;
+        const contents = await FileSystem.readDirectoryAsync(expoPath);
+        console.log(`Found ${contents.length} items in base directory:`, contents);
+        
+        // Look for a subdirectory matching the model type
+        const modelSubdir = contents.find(item => 
+          item.includes('sherpa-onnx') && 
+          (item.includes('audio-tagging') || item.includes(selectedModelId.replace('ced-', '')))
+        );
+        
+        if (modelSubdir) {
+          console.log(`Found model subdirectory: ${modelSubdir}`);
+          cleanLocalPath = `${cleanLocalPath}/${modelSubdir}`;
+        }
+      } catch (dirError) {
+        console.error('Error reading directory:', dirError);
+        // Fallback to standard path if directory read fails
+      }
       
-      // IMPORTANT PATH HANDLING:
-      // 1. Expo APIs (FileSystem, etc.) expect paths with 'file://' prefix
-      // 2. Native modules expect clean paths WITHOUT 'file://' prefix
-      // So we strip the prefix when sending paths to native modules
-      const cleanPath = cleanFilePath;
+      console.log(`Using model directory: ${cleanLocalPath}`);
       
-      console.log('Setting up audio tagging with model in:', modelInfo.modelDir);
-      console.log('Model name:', modelInfo.modelName);
-      console.log('Model type:', modelType);
-      console.log('Labels file:', labelFilePath);
-      
-      // Get the labels file basename (filename without path)
-      const labelsFileName = labelFilePath.split('/').pop() || 'labels.txt';
-      
+      // Create configuration for audio tagging initialization directly from predefined config
       const config: AudioTaggingModelConfig = {
-        modelDir: cleanPath(modelInfo.modelDir),
-        modelFile: modelInfo.modelName,
-        modelType: modelType as 'zipformer' | 'ced',
-        labelsFile: labelsFileName,
-        numThreads: numThreads,
-        topK: topK,
-        debug: debugMode
+        modelDir: cleanLocalPath,
+        modelType: audioTaggingConfig?.modelType || 'ced',
+        modelFile: audioTaggingConfig?.modelFile || 'model.int8.onnx',
+        labelsFile: audioTaggingConfig?.labelsFile || 'class_labels_indices.csv',
+        numThreads,
+        topK,
+        debug: debugMode,
+        provider
       };
       
-      console.log('Initializing audio tagging with config:', JSON.stringify(config));
-      
-      // Check all paths exist before proceeding
-      const modelPath = `${modelInfo.modelDir}/${modelInfo.modelName}`;
-      const modelExists = await verifyFileExists(modelPath);
-      if (!modelExists) {
-        throw new Error(`Model file not found: ${modelPath}`);
-      }
-      
-      const labelsExists = await verifyFileExists(labelFilePath);
-      if (!labelsExists) {
-        throw new Error(`Labels file not found: ${labelFilePath}`);
-      }
-      
-      console.log('Files verified, initializing audio tagging engine...');
-      
-      // Add a log before initializing audio tagging to debug the connection
-      console.log('Audio tagging initialization: About to call AudioTaggingService.initialize with config:', config);
+      console.log('Initializing audio tagging with config:', JSON.stringify(config, null, 2));
       
       try {
         const result = await AudioTagging.initialize(config);
         
         if (result.success) {
           setInitialized(true);
-          Alert.alert('Success', 'Audio tagging engine initialized successfully');
+          setStatusMessage('Audio tagging engine initialized successfully');
         } else {
           throw new Error(result.error || 'Unknown initialization error');
         }
@@ -448,15 +433,10 @@ function AudioTaggingScreen() {
         // Process the audio file and compute results in one call
         console.log('Processing and analyzing audio file...');
         
-        // The native module expects a clean path without file:/ prefix
-        // But we need to make sure the file actually exists first
-        const fileExists = await verifyFileExists(localFilePath);
-        if (!fileExists) {
-          throw new Error(`Audio file not found: ${localFilePath}`);
-        }
-        
+        // Process using the AudioTagging API
         const result = await AudioTagging.processAndCompute({
-          filePath: localFilePath // The SherpaOnnxAPI will clean this path
+          filePath: localFilePath, // The SherpaOnnxAPI will clean this path
+          topK: topK // Use the current UI topK value
         });
         
         if (!result.success) {
@@ -464,7 +444,7 @@ function AudioTaggingScreen() {
         }
         
         setAudioTaggingResults(result as unknown as AudioTaggingResult);
-        console.log(`Detected ${result.events?.length || 0} audio events in ${result.durationMs}ms`);
+        setStatusMessage(`Detected ${result.events?.length || 0} audio events in ${result.durationMs}ms`);
       } catch (processingError) {
         console.error('Error processing audio data:', processingError);
         setError(`Error processing audio data: ${processingError instanceof Error ? processingError.message : String(processingError)}`);
@@ -490,13 +470,34 @@ function AudioTaggingScreen() {
     setLoading(true);
     
     try {
+      console.log('[DEBUG] Releasing audio tagging resources manually');
       const result = await AudioTagging.release();
+      
+      // Log the full result to help debug
+      console.log('[DEBUG] Release result:', JSON.stringify(result));
+      
+      // Check if the result is truthy and has a released property, otherwise assume success
+      const isReleased = result && (typeof result === 'object') && 
+                        (result.released !== undefined ? result.released : true);
+      
+      // Regardless of the return value, reset UI state
+      // The logs indicate resources are actually being released
       setInitialized(false);
       setAudioTaggingResults(null);
-      Alert.alert('Success', 'Audio tagging resources released');
+      
+      if (isReleased) {
+        setStatusMessage('Audio tagging resources released successfully');
+      } else {
+        setStatusMessage('Audio tagging resources probably released (result uncertain)');
+        console.log('[DEBUG] Release may have failed based on return value, but proceeding anyway');
+      }
     } catch (err) {
       console.error('Error releasing audio tagging resources:', err);
       setError(`Error releasing audio tagging resources: ${err instanceof Error ? err.message : String(err)}`);
+      
+      // Despite the error, reset UI state to prevent it from being stuck
+      setInitialized(false);
+      setAudioTaggingResults(null);
     } finally {
       setLoading(false);
     }
@@ -591,48 +592,246 @@ function AudioTaggingScreen() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
   
-  // Render item for the results list
-  const renderItem = ({ item }: { item: AudioEvent }) => (
-    <View style={styles.resultItem}>
-      <Text style={styles.resultName}>{item.name}</Text>
-      <Text style={styles.resultProb}>{(item.prob * 100).toFixed(2)}%</Text>
+  // Generate a visualization of the model's predefined config
+  const predefinedConfigDisplay = selectedModelId && audioTaggingConfig ? (
+    <View style={styles.statusSection}>
+      <Text style={styles.sectionTitle}>Predefined Model Configuration</Text>
+      
+      {/* Display predefined values in a more readable format */}
+      <View style={styles.predefinedValuesContainer}>
+        {audioTaggingConfig.modelType && (
+          <View style={styles.predefinedValueRow}>
+            <Text style={styles.predefinedValueLabel}>Model Type:</Text>
+            <Text style={styles.predefinedValueText}>{audioTaggingConfig.modelType}</Text>
+          </View>
+        )}
+        
+        {audioTaggingConfig.topK !== undefined && (
+          <View style={styles.predefinedValueRow}>
+            <Text style={styles.predefinedValueLabel}>Top K Results:</Text>
+            <Text style={styles.predefinedValueText}>{audioTaggingConfig.topK}</Text>
+          </View>
+        )}
+        
+        {audioTaggingConfig.numThreads !== undefined && (
+          <View style={styles.predefinedValueRow}>
+            <Text style={styles.predefinedValueLabel}>Num Threads:</Text>
+            <Text style={styles.predefinedValueText}>{audioTaggingConfig.numThreads}</Text>
+          </View>
+        )}
+        
+        {audioTaggingConfig.provider !== undefined && (
+          <View style={styles.predefinedValueRow}>
+            <Text style={styles.predefinedValueLabel}>Provider:</Text>
+            <Text style={styles.predefinedValueText}>{audioTaggingConfig.provider.toUpperCase()}</Text>
+          </View>
+        )}
+        
+        {audioTaggingConfig.debug !== undefined && (
+          <View style={styles.predefinedValueRow}>
+            <Text style={styles.predefinedValueLabel}>Debug Mode:</Text>
+            <Text style={styles.predefinedValueText}>{audioTaggingConfig.debug ? 'Enabled' : 'Disabled'}</Text>
+          </View>
+        )}
+        
+        {audioTaggingConfig.modelFile !== undefined && (
+          <View style={styles.predefinedValueRow}>
+            <Text style={styles.predefinedValueLabel}>Model File:</Text>
+            <Text style={styles.predefinedValueText}>{audioTaggingConfig.modelFile}</Text>
+          </View>
+        )}
+        
+        {audioTaggingConfig.labelsFile !== undefined && (
+          <View style={styles.predefinedValueRow}>
+            <Text style={styles.predefinedValueLabel}>Labels File:</Text>
+            <Text style={styles.predefinedValueText}>{audioTaggingConfig.labelsFile}</Text>
+          </View>
+        )}
+      </View>
+      
+      <Text style={styles.sectionSubtitle}>Raw Configuration:</Text>
+      <Text style={styles.codeText} selectable>
+        {JSON.stringify(audioTaggingConfig, null, 2)}
+      </Text>
+    </View>
+  ) : null;
+  
+  const configSection = (
+    <View style={styles.configSection}>
+      <Text style={styles.sectionTitle}>2. Configuration</Text>
+      
+      {audioTaggingConfig && (
+        <View style={styles.configInfo}>
+          <View style={styles.configInfoRow}>
+            <Text style={styles.configInfoText}>
+              <Text style={styles.noteText}>Note: </Text>
+              Values from predefined configuration are shown in blue
+            </Text>
+            
+            {/* Add Reset button */}
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={() => {
+                if (audioTaggingConfig) {
+                  console.log('[DEBUG] Resetting configuration to predefined values');
+                  setTopK(audioTaggingConfig.topK ?? 5);
+                  setNumThreads(audioTaggingConfig.numThreads ?? 2);
+                  setDebugMode(audioTaggingConfig.debug ?? true);
+                  setProvider(audioTaggingConfig.provider ?? 'cpu');
+                }
+              }}
+            >
+              <Text style={styles.resetButtonText}>Reset to Defaults</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+      
+      <View style={styles.configRow}>
+        <Text style={styles.configLabel}>Top K Results:</Text>
+        <TextInput 
+          value={String(topK)}
+          onChangeText={(text) => setTopK(Number(text) || 5)}
+          keyboardType="numeric"
+          style={[
+            styles.configInput,
+            audioTaggingConfig?.topK === topK && styles.predefinedInput
+          ]}
+        />
+        {audioTaggingConfig?.topK !== undefined && audioTaggingConfig.topK !== topK && (
+          <Text style={styles.predefinedValueBadge}>
+            Default: {audioTaggingConfig.topK}
+          </Text>
+        )}
+      </View>
+      
+      <View style={styles.configRow}>
+        <Text style={styles.configLabel}>Num Threads:</Text>
+        <TextInput 
+          value={String(numThreads)}
+          onChangeText={(text) => setNumThreads(Number(text) || 2)}
+          keyboardType="numeric"
+          style={[
+            styles.configInput,
+            audioTaggingConfig?.numThreads === numThreads && styles.predefinedInput
+          ]}
+        />
+        {audioTaggingConfig?.numThreads !== undefined && audioTaggingConfig.numThreads !== numThreads && (
+          <Text style={styles.predefinedValueBadge}>
+            Default: {audioTaggingConfig.numThreads}
+          </Text>
+        )}
+      </View>
+      
+      <View style={styles.configRow}>
+        <Text style={styles.configLabel}>Provider:</Text>
+        <View style={styles.providerContainer}>
+          <TouchableOpacity
+            style={[
+              styles.providerOption,
+              provider === 'cpu' && styles.providerOptionSelected,
+              audioTaggingConfig?.provider === 'cpu' && provider === 'cpu' && styles.predefinedProviderSelected
+            ]}
+            onPress={() => setProvider('cpu')}
+          >
+            <Text style={[
+              styles.providerOptionText,
+              provider === 'cpu' && styles.providerOptionTextSelected
+            ]}>CPU</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.providerOption,
+              provider === 'gpu' && styles.providerOptionSelected,
+              audioTaggingConfig?.provider === 'gpu' && provider === 'gpu' && styles.predefinedProviderSelected
+            ]}
+            onPress={() => setProvider('gpu')}
+          >
+            <Text style={[
+              styles.providerOptionText,
+              provider === 'gpu' && styles.providerOptionTextSelected
+            ]}>GPU</Text>
+          </TouchableOpacity>
+        </View>
+        {audioTaggingConfig?.provider !== undefined && audioTaggingConfig.provider !== provider && (
+          <Text style={styles.predefinedValueBadge}>
+            Default: {audioTaggingConfig.provider.toUpperCase()}
+          </Text>
+        )}
+      </View>
+      
+      <View style={styles.configRow}>
+        <Text style={styles.configLabel}>Debug Mode:</Text>
+        <Switch 
+          value={debugMode}
+          onValueChange={setDebugMode}
+          trackColor={{ 
+            false: '#eee', 
+            true: audioTaggingConfig?.debug === debugMode ? '#2196F3' : '#81c784' 
+          }}
+        />
+        {audioTaggingConfig?.debug !== undefined && audioTaggingConfig.debug !== debugMode && (
+          <Text style={styles.predefinedValueBadge}>
+            Default: {audioTaggingConfig.debug ? 'On' : 'Off'}
+          </Text>
+        )}
+      </View>
     </View>
   );
   
-  // Initialize when screen comes into focus
-  useEffect(() => {
-    if (!initialized && modelInfo) {
-      handleInitAudioTagging();
-    }
-    
-    return () => {
-      handleReleaseAudioTagging();
-    };
-  }, [initialized, modelInfo]);
-  
   return (
     <SafeAreaView style={styles.container}>
+      {/* Loading overlay */}
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingContent}>
+            <ActivityIndicator size="large" color="#2196F3" />
+            <Text style={styles.loadingText}>
+              {statusMessage || 'Processing...'}
+            </Text>
+            
+            <Text style={styles.loadingSubText}>
+              This may take a moment, especially for longer audio files.
+            </Text>
+          </View>
+        </View>
+      )}
+      
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Audio Tagging Demo</Text>
+        
+        {/* Error and status messages */}
+        {error ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : null}
+        
+        {statusMessage ? (
+          <Text style={styles.statusText}>{statusMessage}</Text>
+        ) : null}
         
         {/* Model Selection */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>1. Select Model</Text>
+          {initialized && (
+            <Text style={styles.warningText}>
+              Switching models will release the currently initialized model
+            </Text>
+          )}
           <View style={styles.pickerContainer}>
-            {availableModels.length === 0 ? (
+            {downloadedModels.length === 0 ? (
               <Text style={styles.emptyText}>
                 No audio tagging models downloaded. Please visit the Models screen to download a model.
               </Text>
             ) : (
-              availableModels.map((model) => (
+              downloadedModels.map((model) => (
                 <TouchableOpacity
                   key={model.metadata.id}
                   style={[
                     styles.modelOption,
                     selectedModelId === model.metadata.id && styles.modelOptionSelected
                   ]}
-                  onPress={() => setupAudioTagging(model.metadata.id)}
-                  disabled={loading}
+                  onPress={() => handleModelSelect(model.metadata.id)}
+                  disabled={processing}
                 >
                   <Text 
                     style={[
@@ -648,96 +847,44 @@ function AudioTaggingScreen() {
           </View>
         </View>
         
-        {/* Model info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Model Information</Text>
-          {loading ? (
-            <ActivityIndicator size="large" color="#0000ff" />
-          ) : (
-            <>
-              {modelInfo ? (
-                <View>
-                  <Text>Model Directory: {modelInfo.modelDir}</Text>
-                  <Text>Model File: {modelInfo.modelName}</Text>
-                  {labelFilePath && <Text>Labels File: {labelFilePath}</Text>}
-                </View>
-              ) : (
-                <Text style={styles.infoText}>Please select a model first</Text>
-              )}
-            </>
-          )}
-        </View>
+        {/* Show the predefined configuration after model selection */}
+        {predefinedConfigDisplay}
         
-        {/* Model Configuration */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Model Configuration</Text>
-          {!loading && (
-            <View style={styles.configContainer}>
-              <View style={styles.configRow}>
-                <Text style={styles.configLabel}>Top K Results:</Text>
-                <TextInput 
-                  value={String(topK)}
-                  onChangeText={(text) => setTopK(Number(text) || 5)}
-                  keyboardType="numeric"
-                  style={styles.configInput}
-                />
-              </View>
-              
-              <View style={styles.configRow}>
-                <Text style={styles.configLabel}>Num Threads:</Text>
-                <TextInput 
-                  value={String(numThreads)}
-                  onChangeText={(text) => setNumThreads(Number(text) || 2)}
-                  keyboardType="numeric"
-                  style={styles.configInput}
-                />
-              </View>
-              
-              <View style={styles.configRow}>
-                <Text style={styles.configLabel}>Debug Mode:</Text>
-                <Switch 
-                  value={debugMode}
-                  onValueChange={setDebugMode}
-                />
-              </View>
-            </View>
-          )}
-        </View>
+        {/* Configuration - replace the existing View with the new configSection */}
+        {configSection}
         
         {/* Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>3. Actions</Text>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={[
+              styles.button, 
+              styles.initButton,
+              (initialized || !selectedModelId || loading || processing) && styles.buttonDisabled
+            ]}
+            onPress={handleInitAudioTagging}
+            disabled={loading || initialized || !selectedModelId || processing}
+          >
+            <Text style={styles.buttonText}>Initialize</Text>
+          </TouchableOpacity>
           
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[
-                styles.button, 
-                styles.initButton,
-                (initialized || !modelInfo || loading) && styles.buttonDisabled
-              ]}
-              onPress={handleInitAudioTagging}
-              disabled={loading || initialized || !modelInfo}
-            >
-              <Text style={styles.buttonText}>Initialize</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.button, 
-                styles.releaseButton,
-                (!initialized || loading) && styles.buttonDisabled
-              ]}
-              onPress={handleReleaseAudioTagging}
-              disabled={loading || !initialized}
-            >
-              <Text style={styles.buttonText}>Release</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[
+              styles.button, 
+              styles.releaseButton,
+              (!initialized || loading || processing) && styles.buttonDisabled
+            ]}
+            onPress={handleReleaseAudioTagging}
+            disabled={loading || !initialized || processing}
+          >
+            <Text style={styles.buttonText}>Release</Text>
+          </TouchableOpacity>
         </View>
         
         {/* Sample Audio Files */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>4. Sample Audio Files</Text>
+          <Text style={styles.sectionTitle}>
+            {initialized ? '3. Sample Audio Files' : '3. Sample Audio Files (Initialize model first)'}
+          </Text>
           
           {loadedAudioFiles.length === 0 ? (
             <ActivityIndicator size="small" color="#0000ff" />
@@ -761,7 +908,7 @@ function AudioTaggingScreen() {
         {/* Audio Actions */}
         {selectedAudio && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>5. Audio Actions</Text>
+            <Text style={styles.sectionTitle}>4. Audio Actions</Text>
             <View style={styles.audioMetadataContainer}>
               <Text style={styles.selectedAudioText}>
                 Selected: {selectedAudio.name}
@@ -823,41 +970,24 @@ function AudioTaggingScreen() {
         )}
         
         {/* Results */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {selectedAudio ? '6. Results' : '5. Results'}
-          </Text>
-          
-          {processing ? (
-            <ActivityIndicator size="large" color="#0000ff" />
-          ) : (
-            <>
-              {audioTaggingResults && audioTaggingResults.events && audioTaggingResults.events.length > 0 ? (
-                <View style={styles.resultsList}>
-                  {audioTaggingResults.events.map((item) => (
-                    <View key={`${item.index}-${item.name}`} style={styles.resultItem}>
-                      <Text style={styles.resultName}>{item.name}</Text>
-                      <Text style={styles.resultProb}>{(item.prob * 100).toFixed(2)}%</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <Text style={styles.infoText}>
-                  {initialized
-                    ? selectedAudio 
-                      ? 'Press "Classify" to analyze the selected audio'
-                      : 'Select an audio file first'
-                    : 'Initialize the audio tagging engine first'}
-                </Text>
-              )}
-            </>
-          )}
-        </View>
-        
-        {/* Error display */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+        {audioTaggingResults && audioTaggingResults.events && audioTaggingResults.events.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {selectedAudio ? '5. Results' : '4. Results'}
+            </Text>
+            
+            {processing ? (
+              <ActivityIndicator size="large" color="#0000ff" />
+            ) : (
+              <View style={styles.resultsList}>
+                {audioTaggingResults.events.map((item) => (
+                  <View key={`${item.index}-${item.name}`} style={styles.resultItem}>
+                    <Text style={styles.resultName}>{item.name}</Text>
+                    <Text style={styles.resultProb}>{(item.prob * 100).toFixed(2)}%</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -880,6 +1010,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 16,
     textAlign: 'center',
+    marginVertical: 16,
   },
   section: {
     backgroundColor: 'white',
@@ -901,12 +1032,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginVertical: 8,
+    paddingHorizontal: 16,
   },
   button: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 6,
-    minWidth: 120,
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 8,
     alignItems: 'center',
   },
   initButton: {
@@ -957,14 +1089,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#0288d1',
   },
-  errorContainer: {
-    backgroundColor: '#ffebee',
-    padding: 12,
-    borderRadius: 6,
-    marginBottom: 16,
-  },
   errorText: {
-    color: '#c62828',
+    color: '#f44336',
+    textAlign: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  statusText: {
+    color: '#2196F3',
+    textAlign: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  warningText: {
+    color: '#FF9800',
+    fontSize: 14,
+    marginBottom: 8,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   infoText: {
     textAlign: 'center',
@@ -1040,25 +1182,175 @@ const styles = StyleSheet.create({
   metadataLoader: {
     marginTop: 8,
   },
-  configContainer: {
-    marginVertical: 8,
+  configSection: {
+    margin: 16,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
   },
   configRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginVertical: 8,
+    marginBottom: 12,
   },
   configLabel: {
+    flex: 1,
     fontSize: 16,
-    fontWeight: '500',
+    color: '#333',
   },
   configInput: {
+    flex: 1,
+    padding: 8,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 4,
-    padding: 8,
-    minWidth: 80,
+    fontSize: 16,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    zIndex: 1000,
+  },
+  loadingContent: {
+    backgroundColor: '#fff',
+    padding: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    minWidth: 250,
+    maxWidth: '80%',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#333',
+    fontWeight: 'bold',
+    marginBottom: 8,
     textAlign: 'center',
+  },
+  loadingSubText: {
+    marginBottom: 16,
+    color: '#666',
+    textAlign: 'center',
+    fontSize: 14,
+  },
+  providerContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  providerOption: {
+    flex: 1,
+    padding: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 4,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  providerOptionSelected: {
+    backgroundColor: '#2196F3',
+  },
+  providerOptionText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  providerOptionTextSelected: {
+    color: '#fff',
+  },
+  statusSection: {
+    margin: 16,
+    padding: 16,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 8,
+  },
+  codeText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 12,
+    backgroundColor: '#eee',
+    padding: 10,
+    borderRadius: 4,
+  },
+  predefinedValuesContainer: {
+    marginBottom: 16,
+  },
+  predefinedValueRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  predefinedValueLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  predefinedValueText: {
+    fontSize: 14,
+  },
+  sectionSubtitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  configInfo: {
+    marginBottom: 16,
+  },
+  configInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  configInfoText: {
+    fontSize: 14,
+    color: '#757575',
+    fontStyle: 'italic',
+    flex: 1,
+    marginRight: 16,
+  },
+  noteText: {
+    fontWeight: 'bold',
+  },
+  predefinedInput: {
+    borderColor: '#2196F3',
+    borderWidth: 2,
+  },
+  predefinedValueBadge: {
+    backgroundColor: '#2196F3',
+    color: '#fff',
+    padding: 4,
+    borderRadius: 4,
+    marginLeft: 8,
+    fontSize: 12,
+  },
+  predefinedProviderSelected: {
+    backgroundColor: '#2196F3',
+    borderWidth: 2,
+    borderColor: '#0d47a1',
+  },
+  resetButton: {
+    backgroundColor: '#2196F3',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  resetButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 }); 

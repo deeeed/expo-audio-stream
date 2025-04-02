@@ -63,6 +63,11 @@ const SherpaOnnxDemo: React.FC = () => {
     }
   };
 
+  // Helper function to navigate to a tab
+  const navigateToTab = (tab: string) => {
+    router.push(`/${tab}`);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -99,7 +104,11 @@ const SherpaOnnxDemo: React.FC = () => {
         <View style={styles.featuresCard}>
           <Text style={styles.cardTitle}>Available Features</Text>
           
-          <View style={styles.featureItem}>
+          <TouchableOpacity 
+            style={styles.featureItem}
+            onPress={() => navigateToTab('tts')}
+            disabled={!isAvailable}
+          >
             <View style={styles.featureTextContainer}>
               <Text style={styles.featureName}>Text-to-Speech</Text>
               <Text style={styles.featureDesc}>
@@ -109,14 +118,18 @@ const SherpaOnnxDemo: React.FC = () => {
             
             <TouchableOpacity 
               style={[styles.featureButton, !isAvailable && styles.buttonDisabled]}
-              onPress={() => router.push('/tts')}
+              onPress={() => navigateToTab('tts')}
               disabled={!isAvailable}
             >
               <Text style={styles.featureButtonText}>Try TTS</Text>
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
           
-          <View style={[styles.featureItem]}>
+          <TouchableOpacity 
+            style={styles.featureItem}
+            onPress={() => navigateToTab('asr')}
+            disabled={!isAvailable}
+          >
             <View style={styles.featureTextContainer}>
               <Text style={styles.featureName}>Automatic Speech Recognition</Text>
               <Text style={styles.featureDesc}>
@@ -126,12 +139,94 @@ const SherpaOnnxDemo: React.FC = () => {
             
             <TouchableOpacity 
               style={[styles.featureButton, !isAvailable && styles.buttonDisabled]}
-              onPress={() => router.push('/asr')}
+              onPress={() => navigateToTab('asr')}
               disabled={!isAvailable}
             >
               <Text style={styles.featureButtonText}>Try ASR</Text>
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.featureItem}
+            onPress={() => navigateToTab('audio-tagging')}
+            disabled={!isAvailable}
+          >
+            <View style={styles.featureTextContainer}>
+              <Text style={styles.featureName}>Audio Tagging</Text>
+              <Text style={styles.featureDesc}>
+                Identify and classify sounds in audio recordings
+              </Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={[styles.featureButton, !isAvailable && styles.buttonDisabled]}
+              onPress={() => navigateToTab('audio-tagging')}
+              disabled={!isAvailable}
+            >
+              <Text style={styles.featureButtonText}>Try Audio Tagging</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.featureItem}
+            onPress={() => navigateToTab('speaker-id')}
+            disabled={!isAvailable}
+          >
+            <View style={styles.featureTextContainer}>
+              <Text style={styles.featureName}>Speaker Identification</Text>
+              <Text style={styles.featureDesc}>
+                Recognize and identify speakers from voice recordings
+              </Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={[styles.featureButton, !isAvailable && styles.buttonDisabled]}
+              onPress={() => navigateToTab('speaker-id')}
+              disabled={!isAvailable}
+            >
+              <Text style={styles.featureButtonText}>Try Speaker ID</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.featureItem}
+            onPress={() => navigateToTab('models')}
+          >
+            <View style={styles.featureTextContainer}>
+              <Text style={styles.featureName}>Model Management</Text>
+              <Text style={styles.featureDesc}>
+                Download, manage, and explore Sherpa-ONNX models
+              </Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.featureButton}
+              onPress={() => navigateToTab('models')}
+            >
+              <Text style={styles.featureButtonText}>Manage Models</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+          
+          {Platform.OS === 'web' && (
+            <TouchableOpacity 
+              style={styles.featureItem}
+              onPress={() => navigateToTab('web-test')}
+            >
+              <View style={styles.featureTextContainer}>
+                <Text style={styles.featureName}>Web-specific Tests</Text>
+                <Text style={styles.featureDesc}>
+                  Tests specific to the web platform using WebAssembly
+                </Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.featureButton}
+                onPress={() => navigateToTab('web-test')}
+              >
+                <Text style={styles.featureButtonText}>Try Web Tests</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          )}
         </View>
 
         <Text style={styles.footer}>

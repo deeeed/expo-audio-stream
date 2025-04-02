@@ -27,6 +27,7 @@ import type {
 // Import the native module and potentially substitute with web implementation
 import { Platform } from 'react-native';
 import NativeModuleImport from './NativeSherpaOnnxSpec';
+import { WebSherpaOnnxImpl } from './WebSherpaOnnxImpl';
 
 // Create a web placeholder implementation for WASM support in the future
 const createWebPlaceholder = (): ApiInterface => {
@@ -66,7 +67,7 @@ const createWebPlaceholder = (): ApiInterface => {
   };
 };
 
-// Use the native module if available, otherwise use a placeholder for web
+// Use the native module if available, otherwise use web implementation if on web, or a placeholder
 // This ensures we never have a null module - we either have a real implementation or a placeholder
 const NativeSherpaOnnx: Omit<ApiInterface, 'extractTarBz2'> & {
   extractTarBz2: (
@@ -77,11 +78,20 @@ const NativeSherpaOnnx: Omit<ApiInterface, 'extractTarBz2'> & {
     message: string;
     extractedFiles?: string[];
   }>;
+  processAndComputeAudioTagging: (
+    filePath: string,
+    topK?: number
+  ) => Promise<AudioTaggingResult>;
+  processAndComputeAudioSamples: (
+    sampleRate: number,
+    samples: number[],
+    topK?: number
+  ) => Promise<AudioTaggingResult>;
 } =
   NativeModuleImport ||
-  (Platform.OS === 'web' ? createWebPlaceholder() : createWebPlaceholder());
+  (Platform.OS === 'web' ? new WebSherpaOnnxImpl() : createWebPlaceholder());
 
-// Log a warning if we're using the web placeholder on a non-web platform
+// Log a warning if we're using the placeholder on a non-web platform
 if (!NativeModuleImport && Platform.OS !== 'web') {
   console.warn(
     'SherpaOnnx native module not available on this platform, using fallback implementation'
@@ -149,15 +159,23 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initAudioTagging(config as any);
   },
 
-  processAndComputeAudioTagging(filePath: string): Promise<AudioTaggingResult> {
-    return NativeSherpaOnnx.processAndComputeAudioTagging(filePath);
+  processAndComputeAudioTagging(
+    filePath: string,
+    topK?: number
+  ): Promise<AudioTaggingResult> {
+    return NativeSherpaOnnx.processAndComputeAudioTagging(filePath, topK);
   },
 
   processAndComputeAudioSamples(
     sampleRate: number,
-    samples: number[]
+    samples: number[],
+    topK?: number
   ): Promise<AudioTaggingResult> {
-    return NativeSherpaOnnx.processAndComputeAudioSamples(sampleRate, samples);
+    return NativeSherpaOnnx.processAndComputeAudioSamples(
+      sampleRate,
+      samples,
+      topK
+    );
   },
 
   releaseAudioTagging(): Promise<{ released: boolean }> {

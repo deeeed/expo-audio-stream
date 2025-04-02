@@ -81,6 +81,15 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(({
   }, [state?.progress, isDownloading, isExtracting, progressAnim]);
 
   const handleDownload = async () => {
+    // Disable downloads on web platform
+    if (Platform.OS === 'web') {
+      Alert.alert(
+        'Not Available on Web',
+        'Model downloads are not available on the web platform. Models are compiled into the web build.'
+      );
+      return;
+    }
+    
     try {
       setIsLoading(true);
       await onDownload();
@@ -106,6 +115,15 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(({
    * Toggle showing files for a model
    */
   const toggleShowFiles = async () => {
+    // Disable file browsing on web platform
+    if (Platform.OS === 'web') {
+      Alert.alert(
+        'Not Available on Web',
+        'File browsing is not available on the web platform. Model file access requires a native device.'
+      );
+      return;
+    }
+
     // If we have the onBrowseFiles prop, use it to navigate to file explorer
     if (onBrowseFiles && state?.localPath) {
       console.log(`Attempting to browse files at: ${state.localPath}`);
@@ -436,20 +454,15 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(({
       <View style={cardStyles.cardActions}>
         {isDownloaded ? (
           <>
-            {/* Remove the Select button */}
-            {/* <TouchableOpacity
-              style={[cardStyles.button, cardStyles.selectButton]}
-              onPress={onSelect}
-            >
-              <Text style={cardStyles.buttonText}>
-                {isSelected ? 'Selected' : 'Select'}
-              </Text>
-            </TouchableOpacity> */}
-
+            {/* Show Files button - disabled on web */}
             <TouchableOpacity
-              style={[cardStyles.button, cardStyles.infoButton]}
+              style={[
+                cardStyles.button, 
+                cardStyles.infoButton,
+                Platform.OS === 'web' && cardStyles.buttonDisabled
+              ]}
               onPress={toggleShowFiles}
-              disabled={isLoading}
+              disabled={isLoading || Platform.OS === 'web'}
             >
               <Text style={cardStyles.buttonText}>
                 {showFiles ? 'Hide Files' : 'Show Files'}
@@ -457,26 +470,38 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(({
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[cardStyles.button, cardStyles.deleteButton]}
+              style={[
+                cardStyles.button, 
+                cardStyles.deleteButton,
+                Platform.OS === 'web' && cardStyles.buttonDisabled
+              ]}
               onPress={handleDelete}
-              disabled={isLoading}
+              disabled={isLoading || Platform.OS === 'web'}
             >
               <Text style={cardStyles.buttonText}>Delete</Text>
             </TouchableOpacity>
           </>
         ) : isExtracting ? (
           <TouchableOpacity
-            style={[cardStyles.button, cardStyles.deleteButton]}
+            style={[
+              cardStyles.button, 
+              cardStyles.deleteButton,
+              Platform.OS === 'web' && cardStyles.buttonDisabled
+            ]}
             onPress={handleDelete}
-            disabled={isLoading}
+            disabled={isLoading || Platform.OS === 'web'}
           >
             <Text style={cardStyles.buttonText}>Abort & Delete</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[cardStyles.button, cardStyles.downloadButton]}
+            style={[
+              cardStyles.button, 
+              cardStyles.downloadButton,
+              Platform.OS === 'web' && cardStyles.buttonDisabled
+            ]}
             onPress={handleDownload}
-            disabled={isLoading || isDownloading || isExtracting}
+            disabled={isLoading || isDownloading || isExtracting || Platform.OS === 'web'}
           >
             <Text style={cardStyles.buttonText}>Download</Text>
           </TouchableOpacity>
@@ -979,5 +1004,9 @@ const cardStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     marginLeft: 4,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+    backgroundColor: '#cccccc',
   },
 }); 
