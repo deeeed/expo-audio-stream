@@ -69,7 +69,7 @@ export default function TabLayout() {
         name="web-test"
         options={{
           title: 'Web Tests',
-          href: isWeb ? undefined : null,
+          href: isWeb && __DEV__ ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="code" size={size} color={color} />
           ),

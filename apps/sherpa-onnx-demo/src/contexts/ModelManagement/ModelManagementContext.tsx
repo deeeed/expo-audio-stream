@@ -7,6 +7,7 @@ import { extractTarBz2 } from '../../utils/archiveUtils';
 import { AVAILABLE_MODELS, ModelType, type ModelMetadata } from '../../utils/models';
 import type { ModelManagementContextType, ModelManagementProviderProps, ModelState, ModelStatus } from './types';
 import { AsrModelConfig, AudioTaggingModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn/src';
+import { DEFAULT_WEB_TTS_MODEL_ID, createWebTtsModelState } from '../../utils/constants';
 
 const ModelManagementContext = createContext<ModelManagementContextType | undefined>(undefined);
 
@@ -183,36 +184,20 @@ export function ModelManagementProvider({
   };
 
   // Modify getModelState to handle web TTS models
-  const getModelState = (modelId: string): ModelState | undefined => {
-    const state = modelStates[modelId];
-    const metadata = state?.metadata || AVAILABLE_MODELS.find(m => m.id === modelId);
-    if (!metadata) return undefined;
-
-    // For web TTS models, simulate as if they're already downloaded
-    if (isTtsModelOnWeb(modelId, metadata)) {
+  const getModelState = useCallback((modelId: string): ModelState | undefined => {
+    // Special handling for web platform
+    if (Platform.OS === 'web' && modelId === DEFAULT_WEB_TTS_MODEL_ID) {
       console.log(`[getModelState] Using web-integrated TTS model for ${modelId}`);
-      
-      // Create virtual model state for web TTS
-      return {
-        metadata: {
-          ...metadata
-        },
-        status: 'downloaded',
-        progress: 1,
-        localPath: '/wasm/tts', // Path to the web WASM files
-        error: undefined,
-        files: [{ path: 'sherpa-onnx-tts.js', size: 1, lastModified: Date.now() }],
-        extractedFiles: ['sherpa-onnx-tts.js', 'sherpa-onnx-wasm-main-tts.js', 'sherpa-onnx-wasm-main-tts.wasm'],
-        lastDownloaded: Date.now()
-      };
+      const defaultTtsModel = AVAILABLE_MODELS.find(m => m.id === DEFAULT_WEB_TTS_MODEL_ID);
+      if (defaultTtsModel) {
+        return createWebTtsModelState(defaultTtsModel);
+      }
+      console.warn(`[getModelState] Default web TTS model ${DEFAULT_WEB_TTS_MODEL_ID} not found`);
+      return undefined;
     }
-    if(Platform.OS==='web') {
-      // Web cannot configure model, we just return a default model with values that can be configured.
-    }
-
-    // Handle regular models without ttsParams
-    return state;
-  };
+    
+    return modelStates[modelId];
+  }, [modelStates]);
 
   // Similarly modify isModelDownloaded
   const isModelDownloaded = (modelId: string): boolean => {
@@ -225,42 +210,33 @@ export function ModelManagementProvider({
     return !!state && state.status === 'downloaded' && !!state.localPath;
   };
 
-  // Modify getDownloadedModels as well
+  // Modify getDownloadedModels for web platform
   const getDownloadedModels = useCallback((): ModelState[] => {
-    // Get models from state that are marked as downloaded
-    const downloadedFromState = Object.values(modelStates).filter(state =>
-      state.status === 'downloaded' && !!state.localPath && !!state.metadata
-    );
-    
-    // Get all TTS models from AVAILABLE_MODELS if we're on web
-    const webTtsModels = Platform.OS === 'web' 
-      ? AVAILABLE_MODELS.filter(m => m.type === 'tts')
-        .map(metadata => ({
-          metadata,
-          status: 'downloaded' as ModelStatus,
-          progress: 1,
-          localPath: '/wasm/tts',
-          files: [{ path: 'sherpa-onnx-tts.js', size: 1, lastModified: Date.now() }],
-          extractedFiles: ['sherpa-onnx-tts.js', 'sherpa-onnx-wasm-main-tts.js', 'sherpa-onnx-wasm-main-tts.wasm'],
-          lastDownloaded: Date.now()
-        }))
-      : [];
-    
-    // Combine both lists, prioritizing actual downloaded models
-    const allModels = [...downloadedFromState];
-    
-    // Add web TTS models that aren't already in the list
-    for (const webModel of webTtsModels) {
-      if (!allModels.some(m => m.metadata.id === webModel.metadata.id)) {
-        allModels.push(webModel);
+    // On web platform, only provide the built-in TTS model
+    if (Platform.OS === 'web') {
+      console.log('[getDownloadedModels] Using web-integrated TTS model');
+      const defaultTtsModel = AVAILABLE_MODELS.find(m => m.id === DEFAULT_WEB_TTS_MODEL_ID);
+      if (defaultTtsModel) {
+        return [createWebTtsModelState(defaultTtsModel)];
       }
+      return [];
     }
     
-    return allModels;
+    // For non-web platforms, get models from state that are marked as downloaded
+    return Object.values(modelStates).filter(state =>
+      state.status === 'downloaded' && !!state.localPath && !!state.metadata
+    );
   }, [modelStates]);
 
   // Original downloadModel
-  const downloadModel = async (modelId: string) => {
+  const downloadModel = useCallback(async (modelId: string): Promise<void> => {
+    // Block downloads on web platform
+    if (Platform.OS === 'web') {
+      console.log('[downloadModel] Downloads not supported on web platform');
+      throw new Error('Model downloads are not available on the web platform');
+    }
+
+    console.log(`[downloadModel] Starting download for model: ${modelId}`);
     const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
     if (!model) {
       console.error(`Model ${modelId} not found`);
@@ -348,7 +324,7 @@ export function ModelManagementProvider({
         error: initError instanceof Error ? initError.message : 'Failed to start download',
       });
     }
-  };
+  }, []);
 
   // Helper function to start the download process separately
   const startDownloadProcess = (
@@ -521,8 +497,14 @@ export function ModelManagementProvider({
   };
 
   // Original deleteModel
-  const deleteModel = async (modelId: string) => {
-    console.log(`Attempting to delete model ${modelId}...`);
+  const deleteModel = useCallback(async (modelId: string): Promise<void> => {
+    // Block deletion on web platform
+    if (Platform.OS === 'web') {
+      console.log('[deleteModel] Model deletion not supported on web platform');
+      throw new Error('Model deletion is not available on the web platform');
+    }
+
+    console.log(`[deleteModel] Deleting model: ${modelId}`);
     const state = modelStates[modelId];
     await cancelDownload(modelId); // Ensure any active download is cancelled
 
@@ -553,7 +535,7 @@ export function ModelManagementProvider({
       return newStates;
     });
     // No separate status update needed, just remove from state.
-  };
+  }, []);
 
   // Original getAvailableModels (returns ModelMetadata[])
   const getAvailableModels = useCallback((): ModelMetadata[] => {

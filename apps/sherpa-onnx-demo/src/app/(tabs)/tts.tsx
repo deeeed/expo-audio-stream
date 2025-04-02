@@ -101,6 +101,13 @@ export default function TtsScreen() {
     }
   }, [selectedModelId, ttsConfig]);
 
+  // Auto-select the first model if none is selected
+  useEffect(() => {
+    if (downloadedModels.length > 0 && !selectedModelId) {
+      setSelectedModelId(downloadedModels[0].metadata.id);
+    }
+  }, [downloadedModels, selectedModelId]);
+
   const handleModelSelect = (modelId: string) => {
     // If a model is already initialized, show confirmation before switching
     if (ttsInitialized) {
