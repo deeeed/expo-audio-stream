@@ -25,13 +25,23 @@ const bytesToHex = (bytes: Uint8Array) => {
     )
 }
 
-const bytesToBase64 = (bytes: Uint8Array) => {
-    const binary = String.fromCharCode(...bytes)
-    return btoa(binary)
+const bytesToBase64 = (bytes: Uint8Array): string => {
+    let binary = '';
+    const chunkSize = 8192; // Process in chunks to avoid stack overflow
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        // Use subarray and apply to handle chunks efficiently
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+    }
+    return btoa(binary);
 }
 
-const bytesToString = (bytes: Uint8Array) => {
-    return String.fromCharCode(...bytes)
+const bytesToString = (bytes: Uint8Array): string => {
+    let result = '';
+    const chunkSize = 8192; // Process in chunks
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        result += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+    }
+    return result;
 }
 
 const computeChecksum = (bytes: Uint8Array): number => {

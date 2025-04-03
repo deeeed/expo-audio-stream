@@ -9,7 +9,7 @@ import { Audio, AVPlaybackStatus } from 'expo-av'
 import { useCallback, useEffect, useState } from 'react'
 
 import { SelectedAnalysisConfig } from '../component/AudioRecordingAnalysisConfig'
-import { baseLogger, config } from '../config'
+import { baseLogger } from '../config'
 import { fetchArrayBuffer, isWeb } from '../utils/utils'
 
 interface PlayOptions {
@@ -106,9 +106,11 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         }
 
         processAudioData().catch(logger.error)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         audioUri,
         // Memoize options to prevent infinite loops
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         JSON.stringify({
             loadArrayBuffer: options.loadArrayBuffer,
             extractAnalysis: options.extractAnalysis,
