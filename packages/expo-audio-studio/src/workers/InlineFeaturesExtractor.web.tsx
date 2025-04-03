@@ -1,4 +1,4 @@
-// packages/expo-audio-stream/src/workers/InlineFeaturesExtractor.web.tsx
+// packages/expo-audio-studio/src/workers/InlineFeaturesExtractor.web.tsx
 export const InlineFeaturesExtractor = `
 // Constants
 const N_FFT = 1024;  // Default FFT size
@@ -474,7 +474,10 @@ self.onmessage = function (event) {
         uniqueIdCounter = startCounterFrom || 0;
     }
 
-    const subChunkStartTime = fullAudioDurationMs / 1000
+    // Calculate subChunkStartTime safely, defaulting to 0 if fullAudioDurationMs is not a valid number
+    const subChunkStartTime = (typeof fullAudioDurationMs === 'number' && !isNaN(fullAudioDurationMs) && fullAudioDurationMs >= 0)
+                            ? fullAudioDurationMs / 1000
+                            : 0;
 
     
     // Create a simple logger that only logs when enabled
@@ -487,9 +490,10 @@ self.onmessage = function (event) {
         log: () => {},
         error: () => {}
     }
-    console.log('[Worker] START Feature Extractor - hasData: ' + (event.data ? true : false) + ', channelData: ' + (event.data.channelData ? event.data.channelData.length : 0) + ', fullAudioDurationMs: ' + (event.data.fullAudioDurationMs || 0) + ', sampleRate: ' + (event.data.sampleRate || 0) + ', segmentDurationMs: ' + (event.data.segmentDurationMs || 0) + ', algorithm: ' + (event.data.algorithm || 'none') + ', bitDepth: ' + (event.data.bitDepth || 0) + ', numberOfChannels: ' + (event.data.numberOfChannels || 0) + ', features: ' + (event.data.features ? Object.keys(event.data.features).length : 0) + ', intervalAnalysis: ' + (event.data.intervalAnalysis || 0) + ', dataKeys: ' + (event.data ? Object.keys(event.data).join(',') : ''));
+    logger.log('[Worker] START Feature Extractor - hasData: ' + (event.data ? true : false) + ', channelData: ' + (event.data.channelData ? event.data.channelData.length : 0) + ', fullAudioDurationMs: ' + (event.data.fullAudioDurationMs || 0) + ', sampleRate: ' + (event.data.sampleRate || 0) + ', segmentDurationMs: ' + (event.data.segmentDurationMs || 0) + ', algorithm: ' + (event.data.algorithm || 'none') + ', bitDepth: ' + (event.data.bitDepth || 0) + ', numberOfChannels: ' + (event.data.numberOfChannels || 0) + ', features: ' + (event.data.features ? Object.keys(event.data.features).length : 0) + ', intervalAnalysis: ' + (event.data.intervalAnalysis || 0) + ', dataKeys: ' + (event.data ? Object.keys(event.data).join(',') : ''));
     
     const features = _features || {}
+    const bytesPerSample = bitDepth / 8; // Calculate bytes per sample
 
     const SILENCE_THRESHOLD = 0.01
     const MIN_SILENCE_DURATION = 1.5 * sampleRate // 1.5 seconds of silence
@@ -576,7 +580,9 @@ self.onmessage = function (event) {
         channelData,
         startIdx,
         endIdx,
-        sampleRate
+        sampleRate,
+        numberOfChannels,
+        bytesPerSample
     ) {
         // If no features are requested, return undefined
         if (!Object.values(features).some(function(v) { return v; })) {
@@ -626,7 +632,9 @@ self.onmessage = function (event) {
     function extractWaveform(
         channelData,
         sampleRate,
-        segmentDurationMs
+        segmentDurationMs,
+        numberOfChannels,
+        bytesPerSample
     ) {
         const logger = enableLogging ? {
             debug: (...args) => console.debug('[Worker]', ...args),
@@ -678,6 +686,9 @@ self.onmessage = function (event) {
             const rms = Math.sqrt(sumSquares / samplesPerSegment)
             const startTime = subChunkStartTime + (startIdx / sampleRate)
             const endTime = subChunkStartTime + (endIdx / sampleRate)
+            // Calculate byte positions correctly based on numberOfChannels and bytesPerSample
+            const startPosition = startIdx * numberOfChannels * bytesPerSample
+            const endPosition = endIdx * numberOfChannels * bytesPerSample
 
             var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate, features);
 
@@ -689,8 +700,8 @@ self.onmessage = function (event) {
                 endTime,
                 dB: 20 * Math.log10(rms + 1e-6),
                 silent: rms < 0.01,
-                startPosition: startIdx * 2,
-                endPosition: endIdx * 2,
+                startPosition,
+                endPosition,
                 samples: samplesPerSegment,
             }
 
@@ -706,7 +717,9 @@ self.onmessage = function (event) {
                 channelData,
                 startIdx,
                 endIdx,
-                sampleRate
+                sampleRate,
+                numberOfChannels,
+                bytesPerSample
             );
             
             if (extractedFeatures) {
@@ -735,8 +748,11 @@ self.onmessage = function (event) {
             }
 
             const rms = Math.sqrt(sumSquares / remainingSamples)
-            const startTime = startIdx / sampleRate;
-            const endTime = endIdx / sampleRate;
+            const startTime = subChunkStartTime + (startIdx / sampleRate);
+            const endTime = subChunkStartTime + (endIdx / sampleRate);
+            // Calculate byte positions correctly based on numberOfChannels and bytesPerSample
+            const startPosition = startIdx * numberOfChannels * bytesPerSample
+            const endPosition = endIdx * numberOfChannels * bytesPerSample
 
             var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate, features);
 
@@ -748,11 +764,12 @@ self.onmessage = function (event) {
                 endTime,
                 dB: 20 * Math.log10(rms + 1e-6),
                 silent: rms < 0.01,
-                startPosition: startIdx * 2,
-                endPosition: endIdx * 2,
+                startPosition,
+                endPosition,
                 samples: remainingSamples,
             }
 
+            logger.log('[Worker] extractWaveform - dataPoint', dataPoint)
             // Extract features if any are requested
             const extractedFeatures = createFeaturesObject(
                 features,
@@ -765,7 +782,9 @@ self.onmessage = function (event) {
                 channelData,
                 startIdx,
                 endIdx,
-                sampleRate
+                sampleRate,
+                numberOfChannels,
+                bytesPerSample
             );
             
             if (extractedFeatures) {
@@ -791,7 +810,9 @@ self.onmessage = function (event) {
         const result = extractWaveform(
             channelData,
             sampleRate,
-            segmentDurationMs
+            segmentDurationMs,
+            numberOfChannels || 1, // Default to 1 channel if not provided
+            bytesPerSample
         )
 
         // Send complete result immediately
