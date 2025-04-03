@@ -4,10 +4,10 @@
     "main": "src/index",
     "scripts": {
         "eas-build-pre-install": "corepack enable && cd ../.. && yarn install && echo 'Building packages...' && cd packages/expo-audio-studio && yarn build && yarn build:plugin && echo 'Built expo-audio-studio' && cd ../playgroundapi && yarn build && echo 'Built playgroundapi' && cd ../react-native-essentia && yarn prepare || echo 'Warning: react-native-essentia build failed but continuing'",
-        "start": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --dev-client --port 7365",
-        "android": "RCT_METRO_PORT=7365 NODE_ENV=development expo run:android --port 7365",
-        "ios": "RCT_METRO_PORT=7365 NODE_ENV=development expo run:ios --device --port 7365",
-        "web": "NODE_ENV=development expo start --web --port 7365 --dev-client",
+        "start": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development npx expo start --dev-client --port 7365",
+        "android": "RCT_METRO_PORT=7365 NODE_ENV=development npx expo run:android --port 7365",
+        "ios": "RCT_METRO_PORT=7365 NODE_ENV=development npx expo run:ios --device --port 7365",
+        "web": "NODE_ENV=development npx expo start --web --port 7365 --dev-client",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "lint": "eslint src",
         "clean": "rimraf dist",
@@ -28,9 +28,9 @@
         "e2e:ios:record": "detox test -c ios.sim.debug -o e2e/record.test.ts",
         "e2e:ios:screenshots": "detox test -c ios.sim.debug -o e2e/screenshots.test.ts",
         "e2e:ios:import": "detox test -c ios.sim.debug -o e2e/import.test.ts",
-        "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && cp playstore_policy.html dist/ && gh-pages -t -d dist --dest playground",
-        "predeploy": "APP_VARIANT=production EXPO_WEB=true expo export -p web",
-        "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/"
+        "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true npx expo export -p web && cp playstore_policy.html dist/ && gh-pages -t -d dist --dest playground",
+        "predeploy": "APP_VARIANT=production EXPO_WEB=true npx expo export -p web",
+        "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true npx expo export -p web && yarn serve dist/"
     },
     "dependencies": {
         "@expo/cli": "^0.22.3",
