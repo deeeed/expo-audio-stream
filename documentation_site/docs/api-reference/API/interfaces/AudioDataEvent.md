@@ -24,7 +24,7 @@ Base64 (native) or Blob (web) encoded compressed data chunk
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:53](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L53)
+[src/ExpoAudioStream.types.ts:53](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L53)
 
 ***
 
@@ -36,7 +36,7 @@ Audio data as base64 string (native) or Float32Array (web)
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:43](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L43)
+[src/ExpoAudioStream.types.ts:43](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L43)
 
 ***
 
@@ -48,7 +48,7 @@ Size of the current data chunk in bytes
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:49](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L49)
+[src/ExpoAudioStream.types.ts:49](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L49)
 
 ***
 
@@ -60,7 +60,7 @@ URI to the file being recorded
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:47](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L47)
+[src/ExpoAudioStream.types.ts:47](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L47)
 
 ***
 
@@ -72,7 +72,7 @@ Current position in the audio stream in bytes
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:45](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L45)
+[src/ExpoAudioStream.types.ts:45](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L45)
 
 ***
 
@@ -84,4 +84,4 @@ Total size of the recording so far in bytes
 
 #### Defined in
 
-[src/ExpoAudioStream.types.ts:51](https://github.com/deeeed/expo-audio-stream/blob/e63960be99f20b4ceb77356f18afa41197a63203/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L51)
+[src/ExpoAudioStream.types.ts:51](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L51)
