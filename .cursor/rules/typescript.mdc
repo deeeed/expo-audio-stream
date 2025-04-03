@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- use interface over types when possible
+- Avoid enums, use const objects instead
+- Prefer object parameters to function.
+- Use strict type checking.
+- Never use any, prefer types object or use unknown 
