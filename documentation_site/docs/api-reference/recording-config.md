@@ -10,7 +10,13 @@ The recording configuration specifies the settings used for audio recording on d
 - On IOS: 48kHz sample rate, 16-bit depth, 1 channel.
 - On the web, default configuration is 44.1kHz sample rate, 32-bit depth, 1 channel.
 
-> **Important Note for iOS Simulator Users**: When working with the iOS simulator, be aware that it has limitations regarding supported recording frequencies. For example, while real iOS devices support various sample rates (16kHz, 44.1kHz, 48kHz), the simulator may only work properly with 44.1kHz. Using unsupported frequencies in the simulator may cause the app to crash. Always test audio recording functionality on real devices for accurate behavior and support of all sample rates.
+> **Note on iOS Recording**: The library now automatically detects and adapts to the hardware's actual sample rate on both iOS devices and simulators. This means you can specify any supported sample rate (e.g., 16kHz, 44.1kHz, 48kHz) in your configuration, and the library will:
+> 
+> 1. Capture audio at the hardware's native sample rate (typically 44.1kHz on simulators)
+> 2. Perform high-quality resampling to match your requested sample rate
+> 3. Deliver the final recording at your specified configuration
+> 
+> This automatic adaptation prevents crashes that previously occurred when the requested sample rate didn't match the hardware capabilities, especially in simulators.
 
 ```tsx
 export interface RecordingConfig {
@@ -68,9 +74,11 @@ On Android, the recording is managed using Android's native `AudioRecord` API al
 
 ### iOS
 
-On iOS, the recording is managed using `AVAudioEngine` and related classes from the `AVFoundation` framework. The implementation uses a sophisticated resampling approach that:
-- Captures audio at the hardware's native sample rate
+On iOS, the recording is managed using `AVAudioEngine` and related classes from the `AVFoundation` framework. The implementation uses a sophisticated audio handling approach that:
+- Automatically detects and adapts to the hardware's native sample rate
+- Handles sample rate mismatches between iOS audio session and actual hardware capabilities
 - Performs high-quality resampling to match the requested configuration
+- Works reliably on both physical devices and simulators regardless of the requested sample rate
 - Supports both 16-bit and 32-bit PCM formats
 - Maintains audio quality through intermediate Float32 format when necessary
 
