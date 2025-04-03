@@ -12,10 +12,13 @@
         // Redirect logic based on pathname
         let playgroundPath = '/expo-audio-stream/playground/';
         let docsPath = '/expo-audio-stream/docs/';
+        let sherpaOnnxDemoPath = '/sherpa-onnx-demo/';
         if (pathname.startsWith(playgroundPath)) {
             window.location.href = playgroundPath;
         } else if (pathname.startsWith(docsPath)) {
             window.location.href = docsPath;
+        } else if (pathname.startsWith(sherpaOnnxDemoPath)) {
+            window.location.href = sherpaOnnxDemoPath;
         } else {
             // Default redirect (e.g., to the home page)
             window.location.href = '/expo-audio-stream/';
