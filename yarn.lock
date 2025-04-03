@@ -8570,9 +8570,6 @@ __metadata:
     expo: "*"
     react: "*"
     react-native: "*"
-  peerDependenciesMeta:
-    crc-32:
-      optional: true
   languageName: unknown
   linkType: soft
 
@@ -8785,6 +8782,7 @@ __metadata:
     react-native-safe-area-context: "npm:4.12.0"
     react-native-screens: "npm:~4.4.0"
     react-native-web: "npm:~0.19.13"
+    rimraf: "npm:^6.0.1"
     ts-node: "npm:^10.9.1"
     typescript: "npm:^5.3.3"
   languageName: unknown
@@ -12397,7 +12395,6 @@ __metadata:
     babel-plugin-transform-import-meta: "npm:^2.2.1"
     buffer: "npm:^6.0.3"
     canvaskit-wasm: "npm:^0.39.1"
-    crc-32: "npm:^1.2.2"
     debug: "npm:^4.3.4"
     detox: "npm:^20.34.4"
     dotenv-flow: "npm:^4.1.0"
@@ -15278,15 +15275,6 @@ __metadata:
     typescript:
       optional: true
   checksum: 10/8bdf1dfbb6fdb3755195b6886dc0649a3c742ec75afa4cb8da7b070936aed22a4f4e5b7359faafe03180358f311dbc300d248fd6586c458203d376a40cc77826
-  languageName: node
-  linkType: hard
-
-"crc-32@npm:^1.2.2":
-  version: 1.2.2
-  resolution: "crc-32@npm:1.2.2"
-  bin:
-    crc32: bin/crc32.njs
-  checksum: 10/824f696a5baaf617809aa9cd033313c8f94f12d15ebffa69f10202480396be44aef9831d900ab291638a8022ed91c360696dd5b1ba691eb3f34e60be8835b7c3
   languageName: node
   linkType: hard
 

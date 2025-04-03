@@ -116,11 +116,6 @@
         "react": "*",
         "react-native": "*"
     },
-    "peerDependenciesMeta": {
-        "crc-32": {
-            "optional": true
-        }
-    },
     "publishConfig": {
         "access": "public",
         "registry": "https://registry.npmjs.org"
