@@ -5,6 +5,7 @@ import android.Manifest
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.content.pm.PackageManager
 import androidx.annotation.RequiresApi
 import androidx.core.os.bundleOf
 import expo.modules.kotlin.Promise
@@ -16,7 +17,8 @@ import java.util.zip.CRC32
 class ExpoAudioStreamModule : Module(), EventSender {
     private lateinit var audioRecorderManager: AudioRecorderManager
     private lateinit var audioProcessor: AudioProcessor
-    private var enablePhoneStateHandling: Boolean = true // Default to true for backward compatibility
+    private var enablePhoneStateHandling: Boolean = false // Default to false until we check manifest
+    private var enableNotificationHandling: Boolean = false // Default to false until we check manifest
 
     private val audioFileHandler by lazy { 
         AudioFileHandler(appContext.reactContext?.filesDir ?: throw IllegalStateException("React context not available")) 
@@ -34,6 +36,28 @@ class ExpoAudioStreamModule : Module(), EventSender {
         // The module will be accessible from `requireNativeModule('ExpoAudioStream')` in JavaScript.
         Name("ExpoAudioStream")
 
+        // Check permissions declared in the manifest
+        try {
+            val context = appContext.reactContext ?: throw IllegalStateException("React context not available")
+            val packageInfo = context.packageManager.getPackageInfo(
+                context.packageName,
+                PackageManager.GET_PERMISSIONS
+            )
+            
+            // Check if READ_PHONE_STATE is in the requested permissions
+            enablePhoneStateHandling = packageInfo.requestedPermissions?.contains(Manifest.permission.READ_PHONE_STATE) ?: false
+            
+            // Check if POST_NOTIFICATIONS is in the requested permissions
+            enableNotificationHandling = packageInfo.requestedPermissions?.contains(Manifest.permission.POST_NOTIFICATIONS) ?: false
+            
+            Log.d(Constants.TAG, "Phone state handling ${if (enablePhoneStateHandling) "enabled" else "disabled"} based on manifest permissions")
+            Log.d(Constants.TAG, "Notification handling ${if (enableNotificationHandling) "enabled" else "disabled"} based on manifest permissions")
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Failed to check manifest permissions: ${e.message}", e)
+            enablePhoneStateHandling = false
+            enableNotificationHandling = false
+        }
+
         Events(
             Constants.AUDIO_EVENT_NAME,
             Constants.AUDIO_ANALYSIS_EVENT_NAME,
@@ -45,7 +69,15 @@ class ExpoAudioStreamModule : Module(), EventSender {
         initializeManager()
 
         AsyncFunction("startRecording") { options: Map<String, Any?>, promise: Promise ->
-            audioRecorderManager.startRecording(options, promise)
+            // If notifications are requested but permission not in manifest, modify options
+            if (options["showNotification"] as? Boolean == true && !enableNotificationHandling) {
+                val modifiedOptions = options.toMutableMap()
+                modifiedOptions["showNotification"] = false
+                Log.d(Constants.TAG, "Notification permission not in manifest, disabling showNotification")
+                audioRecorderManager.startRecording(modifiedOptions, promise)
+            } else {
+                audioRecorderManager.startRecording(options, promise)
+            }
         }
 
         Function("clearAudioFiles") {
@@ -223,13 +255,15 @@ class ExpoAudioStreamModule : Module(), EventSender {
         }
 
         AsyncFunction("requestNotificationPermissionsAsync") { promise: Promise ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && enableNotificationHandling) {
+                // Only request notification permissions if enabled in manifest
                 Permissions.askForPermissionsWithPermissionsManager(
                     appContext.permissions,
                     promise,
                     Manifest.permission.POST_NOTIFICATIONS
                 )
             } else {
+                // Either notifications not required or running on Android < 13
                 promise.resolve(
                     bundleOf(
                         "status" to "granted",
@@ -241,13 +275,15 @@ class ExpoAudioStreamModule : Module(), EventSender {
         }
 
         AsyncFunction("getNotificationPermissionsAsync") { promise: Promise ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && enableNotificationHandling) {
+                // Only check notification permissions if enabled in manifest
                 Permissions.getPermissionsWithPermissionsManager(
                     appContext.permissions,
                     promise,
                     Manifest.permission.POST_NOTIFICATIONS
                 )
             } else {
+                // Either notifications not required or running on Android < 13
                 promise.resolve(
                     bundleOf(
                         "status" to "granted",
