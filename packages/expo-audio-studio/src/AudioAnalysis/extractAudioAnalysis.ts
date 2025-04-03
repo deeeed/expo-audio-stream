@@ -196,6 +196,7 @@ export async function extractAudioAnalysis(
                         segmentDurationMs,
                         bitDepth: decodingOptions?.targetBitDepth ?? 32,
                         numberOfChannels: processedBuffer.channels,
+                        fullAudioDurationMs: processedBuffer.durationMs,
                         // enableLogging: !!logger,
                         features,
                     })

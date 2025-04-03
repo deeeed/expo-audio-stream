@@ -33,7 +33,6 @@
         "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/"
     },
     "dependencies": {
-        "@expo/cli": "^0.22.3",
         "@expo/metro-runtime": "~4.0.1",
         "@expo/vector-icons": "^14.0.0",
         "@gorhom/bottom-sheet": "^5.0.5",
