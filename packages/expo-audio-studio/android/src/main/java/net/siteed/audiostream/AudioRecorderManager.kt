@@ -231,11 +231,13 @@ class AudioRecorderManager(
             filesDir: File,
             permissionUtils: PermissionUtils,
             audioDataEncoder: AudioDataEncoder,
-            eventSender: EventSender
+            eventSender: EventSender,
+            enablePhoneStateHandling: Boolean = true
         ): AudioRecorderManager {
             return instance ?: synchronized(this) {
                 instance ?: AudioRecorderManager(
-                    context, filesDir, permissionUtils, audioDataEncoder, eventSender
+                    context, filesDir, permissionUtils, audioDataEncoder, eventSender,
+                    enablePhoneStateHandling
                 ).also { instance = it }
             }
         }
@@ -383,7 +385,9 @@ class AudioRecorderManager(
             }
 
             val (tempRecordingConfig, audioFormatInfo) = configResult.getOrNull()!!
+            
             recordingConfig = tempRecordingConfig
+            
             audioFormat = audioFormatInfo.format
             mimeType = audioFormatInfo.mimeType
 
@@ -488,7 +492,9 @@ class AudioRecorderManager(
             // Don't reject here, just log warning as this is optional
         }
 
-        if (options["showNotification"] as? Boolean == true && !permissionUtils.checkNotificationPermission()) {
+        // Only check notification permission if enabled
+        if (options["showNotification"] as? Boolean == true && 
+            !permissionUtils.checkNotificationPermission()) {
             promise.reject(
                 "NOTIFICATION_PERMISSION_DENIED",
                 "Notification permission has not been granted",
