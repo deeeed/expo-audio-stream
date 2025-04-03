@@ -6,7 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+- fix(audio-stream): resolve iOS sample rate mismatch and enhance recording stability (#198) ([05bfc61](https://github.com/deeeed/expo-audio-stream/commit/05bfc6159e7f71fb1d70c3de24fa487cdfb73a62))
+- feat(audio-stream): enhance Android permission handling for phone state and notifications (#196) ([63a259d](https://github.com/deeeed/expo-audio-stream/commit/63a259da2b175a5865895306c204b84a242f1c97))
 
 ## [2.3.1] - 2025-04-03
 ### Changed
