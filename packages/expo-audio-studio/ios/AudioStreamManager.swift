@@ -708,23 +708,35 @@ class AudioStreamManager: NSObject {
                 - compression enabled: \(settings.enableCompressedOutput)
             """)
             
-            try session.setPreferredSampleRate(settings.sampleRate)
+            // Set preferred sample rate but don't rely on it being applied
+            try session.setPreferredSampleRate(Double(settings.sampleRate))
             try session.setPreferredIOBufferDuration(1024 / Double(settings.sampleRate))
             try session.setActive(true)
             Logger.debug("Audio session activated successfully.")
             
-            let actualSampleRate = session.sampleRate
-            if actualSampleRate != settings.sampleRate {
-                Logger.debug("Hardware using sample rate \(actualSampleRate)Hz, will resample to \(settings.sampleRate)Hz")
-            }
+            // CRITICAL FIX: In iOS, the hardware sometimes doesn't honor our preferred sample rate.
+            // Here we query the *actual* hardware input format to ensure we match exactly what the hardware gives us.
+            let reportedSessionRate = session.sampleRate
+            
+            // Get the format directly from the input node, which is the most reliable way to determine the hardware format
+            let inputNodeFormat = audioEngine.inputNode.outputFormat(forBus: 0)
+            let actualHardwareSampleRate = inputNodeFormat.sampleRate
+            
+            Logger.debug("""
+                Sample rate detection:
+                - Requested rate: \(settings.sampleRate)Hz
+                - iOS session reported rate: \(reportedSessionRate)Hz
+                - Input node actual rate: \(actualHardwareSampleRate)Hz
+                - Will use input node rate for tap and resample to requested rate
+                """)
             
             recordingSettings = newSettings  // Keep original settings with desired sample rate
             enableWakeLock()
             
-            // Create format matching hardware capabilities
+            // CRITICAL FIX: Create format matching ACTUAL hardware capabilities from the input node
             guard let hardwareFormat = AVAudioFormat(
                 commonFormat: .pcmFormatFloat32,
-                sampleRate: actualSampleRate,
+                sampleRate: actualHardwareSampleRate,
                 channels: AVAudioChannelCount(settings.numberOfChannels),
                 interleaved: true
             ) else {
@@ -734,12 +746,13 @@ class AudioStreamManager: NSObject {
             
             Logger.debug("""
                 Audio format configuration:
-                - Hardware format: \(describeAudioFormat(hardwareFormat))
-                - Target format: \(describeCommonFormat(hardwareFormat.commonFormat)) at \(actualSampleRate)Hz
-                - Bit depth: \(settings.bitDepth)-bit
+                - Hardware input format: \(describeAudioFormat(inputNodeFormat))
+                - Tap format: \(describeAudioFormat(hardwareFormat))
+                - Final output format: \(settings.bitDepth)-bit at \(settings.sampleRate)Hz
                 - Channels: \(settings.numberOfChannels)
                 """)
 
+            // CRITICAL FIX: Install tap with the ACTUAL hardware format from the input node
             audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: hardwareFormat) { [weak self] (buffer, time) in
                 guard let self = self,
                       let fileURL = self.recordingFileURL else {
@@ -1100,6 +1113,8 @@ class AudioStreamManager: NSObject {
                 - Duration: \(finalDuration) seconds
                 - Expected minimum size: \(WAV_HEADER_SIZE) bytes (WAV header)
                 """)
+            
+            
             
             // Return nil if the file is too small
             if wavFileSize <= WAV_HEADER_SIZE {
