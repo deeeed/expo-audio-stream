@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.3.1] - 2025-04-03
+### Changed
+- feat: no external crc32 libs (#195) ([394b3b3](https://github.com/deeeed/expo-audio-stream/commit/394b3b3bb04e3f969db2a502af85d69c0f955b97))
 ## [2.3.0] - 2025-03-29
 ### Changed
 - fix: always generate a new UUID unless filename is provided (#182) ([f98a9a5](https://github.com/deeeed/expo-audio-stream/commit/f98a9a52393829e6c4a79aee3575fbfcc9416c19))
@@ -182,7 +185,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.3.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.3.1...HEAD
+[2.3.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.3.0...@siteed/expo-audio-studio@2.3.1
 [2.3.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.2.0...@siteed/expo-audio-studio@2.3.0
 [2.2.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.1.1...@siteed/expo-audio-studio@2.2.0
 [2.1.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.1.0...@siteed/expo-audio-studio@2.1.1
