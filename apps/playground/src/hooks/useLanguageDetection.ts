@@ -89,7 +89,8 @@ export function useLanguageDetection({
     };
     
     loadReferenceEmbeddings();
-  }, [onError]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Function to run inference and get language embedding
   const getLanguageEmbedding = useCallback(async (melSpectrogram: MelSpectrogram): Promise<number[]> => {

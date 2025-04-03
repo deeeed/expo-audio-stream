@@ -126,16 +126,6 @@ export function SpeechAnalyzer({
             setVadResult(result)
         }
     }, [audioData, sampleRate, processAudioSegment])
-    
-    // If we're not getting durationMs directly, we can calculate it from PCM data
-    useEffect(() => {
-        if (!segmentDurationMs && audioData?.normalizedData && sampleRate) {
-            // PCM data is 16-bit (2 bytes per sample)
-            const numSamples = audioData.normalizedData.length / 2
-            const calculatedDurationMs = (numSamples / sampleRate) * 1000
-            console.log('Calculated duration:', calculatedDurationMs, 'ms')
-        }
-    }, [segmentDurationMs, audioData, sampleRate])
 
     useEffect(() => {
         if (!audioData?.normalizedData || !sampleRate || !isModelLoading) {
@@ -245,11 +235,22 @@ export function SpeechAnalyzer({
         setTranscriptionError(null);
         
         try {
+            const startTimeMs = (analysis.dataPoints[0]?.startTime ?? 0) * 1000
+            const endTimeMs = (analysis.dataPoints[analysis.dataPoints.length - 1]?.endTime ?? 0) * 1000
+            if (isNaN(startTimeMs) || isNaN(endTimeMs)) {
+                
+                logger.error('Invalid start or end time for language detection', {
+                    startTimeMs,
+                    endTimeMs
+                })
+                setTranscriptionError("Invalid start or end time for language detection");
+                return;
+            }
             const result = await detectLanguage({
                 fileUri,
                 sampleRate,
-                startTimeMs: (analysis.dataPoints[0]?.startTime ?? 0) * 1000,
-                endTimeMs: (analysis.dataPoints[analysis.dataPoints.length - 1]?.endTime ?? 0) * 1000
+                startTimeMs,
+                endTimeMs
             });
             
             if (result) {
@@ -274,7 +275,7 @@ export function SpeechAnalyzer({
             console.error('Language detection error:', error);
             setTranscriptionError(error instanceof Error ? error.message : 'Unknown error during language detection');
         }
-    }, [fileUri, sampleRate, analysis.dataPoints, detectLanguage]);
+    }, [fileUri, sampleRate, analysis.dataPoints, analysis.durationMs, detectLanguage]);
 
     return (
         <View style={styles.speechSection}>
@@ -518,7 +519,7 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
     },
     actionButton: {
         flexGrow: 1,
-        flexBasis: '45%',
+        flexBasis: isWeb ? 'auto' : '45%',
         height: 40,
         paddingHorizontal: theme.padding.s,
     },
@@ -616,7 +617,7 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
         padding: theme.padding.s,
         backgroundColor: theme.colors.surface,
         borderRadius: theme.roundness / 2,
-    },
+            },
     comparisonTitle: {
         fontWeight: 'bold',
         marginBottom: theme.margin.s,
