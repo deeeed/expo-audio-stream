@@ -16,6 +16,8 @@ function logConfig(config: Record<string, unknown>, prefix = '') {
   console.log('-----------------------------\n');
 }
 
+const IS_PRODUCTION = process.env.APP_VARIANT === 'production';
+
 export default ({ config }: ConfigContext): ExpoConfig => {
   // Log important configuration
   logConfig({
@@ -57,6 +59,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     web: {
       favicon: "./assets/favicon.png"
+    },
+    experiments: {
+        baseUrl:
+            IS_PRODUCTION
+                ? '/expo-audio-stream/sherpa-onnx-demo/'
+                : '',
     },
     plugins: [
       "expo-router",
