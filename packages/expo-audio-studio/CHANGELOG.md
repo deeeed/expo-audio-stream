@@ -6,9 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+
+## [2.4.0] - 2025-04-03
+### Changed
 - fix(audio-stream): resolve iOS sample rate mismatch and enhance recording stability (#198) ([05bfc61](https://github.com/deeeed/expo-audio-stream/commit/05bfc6159e7f71fb1d70c3de24fa487cdfb73a62))
 - feat(audio-stream): enhance Android permission handling for phone state and notifications (#196) ([63a259d](https://github.com/deeeed/expo-audio-stream/commit/63a259da2b175a5865895306c204b84a242f1c97))
-
 ## [2.3.1] - 2025-04-03
 ### Changed
 - feat: no external crc32 libs (#195) ([394b3b3](https://github.com/deeeed/expo-audio-stream/commit/394b3b3bb04e3f969db2a502af85d69c0f955b97))
@@ -186,7 +189,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.3.1...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.4.0...HEAD
+[2.4.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.3.1...@siteed/expo-audio-studio@2.4.0
 [2.3.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.3.0...@siteed/expo-audio-studio@2.3.1
 [2.3.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.2.0...@siteed/expo-audio-studio@2.3.0
 [2.2.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.1.1...@siteed/expo-audio-studio@2.2.0
