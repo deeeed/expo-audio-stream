@@ -32,6 +32,8 @@ yarn-error.*
 android/
 ios/
 
+public/wasm/
+
 # local env files
 .env*.local
 
