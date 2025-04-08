@@ -18,7 +18,7 @@ Whether to normalize audio levels (Android and Web)
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:16](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L16)
+[src/AudioAnalysis/AudioAnalysis.types.ts:16](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L16)
 
 ***
 
@@ -30,7 +30,7 @@ Target bit depth (Android and Web)
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:14](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L14)
+[src/AudioAnalysis/AudioAnalysis.types.ts:14](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L14)
 
 ***
 
@@ -42,7 +42,7 @@ Target number of channels (Android and Web)
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:12](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L12)
+[src/AudioAnalysis/AudioAnalysis.types.ts:12](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L12)
 
 ***
 
@@ -54,4 +54,4 @@ Target sample rate for decoded audio (Android and Web)
 
 #### Defined in
 
-[src/AudioAnalysis/AudioAnalysis.types.ts:10](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L10)
+[src/AudioAnalysis/AudioAnalysis.types.ts:10](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L10)
