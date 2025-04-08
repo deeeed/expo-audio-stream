@@ -6,22 +6,16 @@
 
 # Interface: AudioSessionConfig
 
-<<<<<<< HEAD
-Defined in: [src/ExpoAudioStream.types.ts:147](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L147)
+Defined in: [src/ExpoAudioStream.types.ts:147](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L147)
 
-=======
->>>>>>> origin/main
 ## Properties
 
 ### category?
 
 > `optional` **category**: `"Ambient"` \| `"SoloAmbient"` \| `"Playback"` \| `"Record"` \| `"PlayAndRecord"` \| `"MultiRoute"`
 
-<<<<<<< HEAD
-Defined in: [src/ExpoAudioStream.types.ts:157](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L157)
+Defined in: [src/ExpoAudioStream.types.ts:157](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L157)
 
-=======
->>>>>>> origin/main
 Audio session category that defines the audio behavior
 - 'Ambient': Audio continues with silent switch, mixes with other audio
 - 'SoloAmbient': Audio continues with silent switch, interrupts other audio
@@ -30,24 +24,14 @@ Audio session category that defines the audio behavior
 - 'PlayAndRecord': Allows simultaneous playback and recording
 - 'MultiRoute': Routes audio to multiple outputs simultaneously
 
-<<<<<<< HEAD
-=======
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:157](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L157)
-
->>>>>>> origin/main
 ***
 
 ### categoryOptions?
 
 > `optional` **categoryOptions**: (`"MixWithOthers"` \| `"DuckOthers"` \| `"InterruptSpokenAudioAndMixWithOthers"` \| `"AllowBluetooth"` \| `"AllowBluetoothA2DP"` \| `"AllowAirPlay"` \| `"DefaultToSpeaker"`)[]
 
-<<<<<<< HEAD
-Defined in: [src/ExpoAudioStream.types.ts:194](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L194)
+Defined in: [src/ExpoAudioStream.types.ts:194](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L194)
 
-=======
->>>>>>> origin/main
 Options that modify the behavior of the audio session category
 - 'MixWithOthers': Allows mixing with other active audio sessions
 - 'DuckOthers': Reduces the volume of other audio sessions
@@ -57,24 +41,14 @@ Options that modify the behavior of the audio session category
 - 'AllowAirPlay': Allows audio routing to AirPlay devices
 - 'DefaultToSpeaker': Routes audio to the speaker by default
 
-<<<<<<< HEAD
-=======
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:194](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L194)
-
->>>>>>> origin/main
 ***
 
 ### mode?
 
 > `optional` **mode**: `"Default"` \| `"VoiceChat"` \| `"VideoChat"` \| `"GameChat"` \| `"VideoRecording"` \| `"Measurement"` \| `"MoviePlayback"` \| `"SpokenAudio"`
 
-<<<<<<< HEAD
-Defined in: [src/ExpoAudioStream.types.ts:175](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L175)
+Defined in: [src/ExpoAudioStream.types.ts:175](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L175)
 
-=======
->>>>>>> origin/main
 Audio session mode that defines the behavior for specific use cases
 - 'Default': Standard audio behavior
 - 'VoiceChat': Optimized for voice chat applications
@@ -84,10 +58,3 @@ Audio session mode that defines the behavior for specific use cases
 - 'Measurement': Optimized for audio measurement
 - 'MoviePlayback': Optimized for movie playback
 - 'SpokenAudio': Optimized for spoken audio content
-<<<<<<< HEAD
-=======
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:175](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L175)
->>>>>>> origin/main
