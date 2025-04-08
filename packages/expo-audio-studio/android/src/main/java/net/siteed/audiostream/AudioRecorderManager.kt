@@ -38,7 +38,8 @@ class AudioRecorderManager(
     private val permissionUtils: PermissionUtils,
     private val audioDataEncoder: AudioDataEncoder,
     private val eventSender: EventSender,
-    private val enablePhoneStateHandling: Boolean = true
+    private val enablePhoneStateHandling: Boolean = true,
+    private val enableBackgroundAudio: Boolean = true
 ) {
     private var audioRecord: AudioRecord? = null
     private var bufferSizeInBytes = 0
@@ -232,12 +233,13 @@ class AudioRecorderManager(
             permissionUtils: PermissionUtils,
             audioDataEncoder: AudioDataEncoder,
             eventSender: EventSender,
-            enablePhoneStateHandling: Boolean = true
+            enablePhoneStateHandling: Boolean = true,
+            enableBackgroundAudio: Boolean = true
         ): AudioRecorderManager {
             return instance ?: synchronized(this) {
                 instance ?: AudioRecorderManager(
                     context, filesDir, permissionUtils, audioDataEncoder, eventSender,
-                    enablePhoneStateHandling
+                    enablePhoneStateHandling, enableBackgroundAudio
                 ).also { instance = it }
             }
         }
@@ -441,7 +443,7 @@ class AudioRecorderManager(
     }
 
     private fun isAudioFormatSupported(sampleRate: Int, channels: Int, format: Int): Boolean {
-        if (!permissionUtils.checkRecordingPermission()) {
+        if (!permissionUtils.checkRecordingPermission(enableBackgroundAudio)) {
             throw SecurityException("Recording permission has not been granted")
         }
 
@@ -477,7 +479,7 @@ class AudioRecorderManager(
     }
 
     private fun checkPermissions(options: Map<String, Any?>, promise: Promise): Boolean {
-        if (!permissionUtils.checkRecordingPermission()) {
+        if (!permissionUtils.checkRecordingPermission(enableBackgroundAudio)) {
             promise.reject(
                 "PERMISSION_DENIED",
                 "Recording permission has not been granted",
@@ -595,7 +597,7 @@ class AudioRecorderManager(
 
 
     private fun initializeAudioRecord(promise: Promise): Boolean {
-        if (!permissionUtils.checkRecordingPermission()) {
+        if (!permissionUtils.checkRecordingPermission(enableBackgroundAudio)) {
             promise.reject(
                 "PERMISSION_DENIED",
                 "Recording permission has not been granted",

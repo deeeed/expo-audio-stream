@@ -19,6 +19,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
     private lateinit var audioProcessor: AudioProcessor
     private var enablePhoneStateHandling: Boolean = false // Default to false until we check manifest
     private var enableNotificationHandling: Boolean = false // Default to false until we check manifest
+    private var enableBackgroundAudio: Boolean = false // Default to false until we check manifest
 
     private val audioFileHandler by lazy { 
         AudioFileHandler(appContext.reactContext?.filesDir ?: throw IllegalStateException("React context not available")) 
@@ -50,12 +51,17 @@ class ExpoAudioStreamModule : Module(), EventSender {
             // Check if POST_NOTIFICATIONS is in the requested permissions
             enableNotificationHandling = packageInfo.requestedPermissions?.contains(Manifest.permission.POST_NOTIFICATIONS) ?: false
             
+            // Check if background audio is enabled by looking for FOREGROUND_SERVICE permission
+            enableBackgroundAudio = packageInfo.requestedPermissions?.contains(Manifest.permission.FOREGROUND_SERVICE) ?: false
+            
             Log.d(Constants.TAG, "Phone state handling ${if (enablePhoneStateHandling) "enabled" else "disabled"} based on manifest permissions")
             Log.d(Constants.TAG, "Notification handling ${if (enableNotificationHandling) "enabled" else "disabled"} based on manifest permissions")
+            Log.d(Constants.TAG, "Background audio handling ${if (enableBackgroundAudio) "enabled" else "disabled"} based on manifest permissions")
         } catch (e: Exception) {
             Log.e(Constants.TAG, "Failed to check manifest permissions: ${e.message}", e)
             enablePhoneStateHandling = false
             enableNotificationHandling = false
+            enableBackgroundAudio = false
         }
 
         Events(
@@ -67,6 +73,11 @@ class ExpoAudioStreamModule : Module(), EventSender {
 
         // Initialize AudioRecorderManager
         initializeManager()
+
+        // Add a convenience function to check for foreground service permission separately
+        fun isForegroundServiceMicRequired(): Boolean {
+            return Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && enableBackgroundAudio
+        }
 
         AsyncFunction("startRecording") { options: Map<String, Any?>, promise: Promise ->
             // If notifications are requested but permission not in manifest, modify options
@@ -215,8 +226,8 @@ class ExpoAudioStreamModule : Module(), EventSender {
                     permissions.add(Manifest.permission.READ_PHONE_STATE)
                 }
 
-                // Add foreground service permission for Android 14+
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // Add foreground service permission for Android 14+ only if background audio is enabled
+                if (isForegroundServiceMicRequired()) {
                     Log.d(Constants.TAG, "Adding FOREGROUND_SERVICE_MICROPHONE permission request")
                     permissions.add(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
                 }
@@ -243,7 +254,8 @@ class ExpoAudioStreamModule : Module(), EventSender {
                 permissions.add(Manifest.permission.READ_PHONE_STATE)
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            // Only check foreground service permission when background audio is enabled
+            if (isForegroundServiceMicRequired()) {
                 permissions.add(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
             }
 
@@ -768,7 +780,8 @@ class ExpoAudioStreamModule : Module(), EventSender {
             permissionUtils,
             audioDataEncoder,
             this,
-            enablePhoneStateHandling
+            enablePhoneStateHandling,
+            enableBackgroundAudio
         )
         audioProcessor = AudioProcessor(filesDir)
     }

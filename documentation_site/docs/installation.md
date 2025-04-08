@@ -87,6 +87,10 @@ You can customize the plugin's behavior by providing options:
 - **enableBackgroundAudio** (default: `true`):
   - Enables background audio recording capabilities
   - Adds FOREGROUND_SERVICE and FOREGROUND_SERVICE_MICROPHONE permissions on Android
+  - When disabled, the app won't check for FOREGROUND_SERVICE_MICROPHONE permission at runtime,
+    allowing foreground-only recording on Android 14+ without requiring this permission
+  - Note: FOREGROUND_SERVICE_MICROPHONE permission is only required on Android 14 (API level 34) 
+    and higher when performing background recording
 
 #### iOS Background Modes
 - **iosBackgroundModes**:
