@@ -27,7 +27,6 @@ import type {
 // Import the native module and potentially substitute with web implementation
 import { Platform } from 'react-native';
 import NativeModuleImport from './NativeSherpaOnnxSpec';
-import { WebSherpaOnnxImpl } from './WebSherpaOnnxImpl';
 
 // Create a web placeholder implementation for WASM support in the future
 const createWebPlaceholder = (): ApiInterface => {
@@ -87,9 +86,7 @@ const NativeSherpaOnnx: Omit<ApiInterface, 'extractTarBz2'> & {
     samples: number[],
     topK?: number
   ) => Promise<AudioTaggingResult>;
-} =
-  NativeModuleImport ||
-  (Platform.OS === 'web' ? new WebSherpaOnnxImpl() : createWebPlaceholder());
+} = NativeModuleImport || createWebPlaceholder();
 
 // Log a warning if we're using the placeholder on a non-web platform
 if (!NativeModuleImport && Platform.OS !== 'web') {

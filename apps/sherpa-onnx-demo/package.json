@@ -1,7 +1,7 @@
 {
   "name": "@siteed/sherpa-onnx-demo",
   "version": "1.0.0",
-  "main": "expo-router/entry",
+  "main": "./src/main-sherpa-demo.ts",
   "scripts": {
     "start": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --dev-client --port 7500",
     "android": "expo run:android --port 7500",
