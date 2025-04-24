@@ -20,7 +20,7 @@
     "@react-native-async-storage/async-storage": "1.23.1",
     "@siteed/sherpa-onnx.rn": "workspace:^",
     "babel-plugin-transform-import-meta": "^2.3.2",
-    "expo": "^52.0.44",
+    "expo": "^52.0.46",
     "expo-asset": "~11.0.5",
     "expo-av": "~15.0.2",
     "expo-build-properties": "^0.13.2",
