@@ -5,7 +5,13 @@
     "paths": {
       "@/*": [
         "./*"
-      ]
+      ],
+      "@siteed/sherpa-onnx.rn": [
+        "../../packages/sherpa-onnx.rn/src/index"
+      ],
+      "@siteed/sherpa-onnx.rn/*": [
+        "../../packages/sherpa-onnx.rn/src/*"
+      ],
     }
   },
   "include": [
