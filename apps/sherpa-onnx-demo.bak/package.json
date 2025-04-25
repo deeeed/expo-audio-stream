@@ -15,11 +15,9 @@
     "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && gh-pages -t -d dist --dest sherpa-onnx-demo"
   },
   "dependencies": {
-    "@babel/plugin-proposal-decorators": "^7.25.9",
     "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@siteed/sherpa-onnx.rn": "workspace:^",
-    "babel-plugin-transform-import-meta": "^2.3.2",
     "expo": "^52.0.46",
     "expo-asset": "~11.0.5",
     "expo-av": "~15.0.2",
@@ -41,11 +39,13 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@babel/plugin-proposal-decorators": "^7.25.9",
     "@types/gh-pages": "^6",
     "@types/react": "~18.3.12",
     "@types/react-dom": "^18",
     "@types/react-native-web": "^0",
     "babel-plugin-module-resolver": "^5.0.2",
+    "babel-plugin-transform-import-meta": "^2.3.2",
     "dotenv-flow": "^3.2.0",
     "gh-pages": "^6.3.0",
     "joi": "^17.9.2",

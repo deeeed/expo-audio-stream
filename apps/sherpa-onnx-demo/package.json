@@ -1,5 +1,5 @@
 {
-  "name": "sherpa-onnx-demo",
+  "name": "@siteed/sherpa-onnx-demo",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
@@ -42,9 +42,12 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@babel/plugin-proposal-decorators": "^7.25.9",
     "@types/jest": "^29.5.12",
     "@types/react": "~18.3.12",
     "@types/react-test-renderer": "^18.3.0",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "babel-plugin-transform-import-meta": "^2.3.2",
     "jest": "^29.2.1",
     "jest-expo": "~52.0.6",
     "react-test-renderer": "18.3.1",
