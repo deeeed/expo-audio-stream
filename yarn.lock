@@ -7735,48 +7735,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@siteed/sherpa-onnx-demo.bak@workspace:apps/sherpa-onnx-demo.bak":
-  version: 0.0.0-use.local
-  resolution: "@siteed/sherpa-onnx-demo.bak@workspace:apps/sherpa-onnx-demo.bak"
-  dependencies:
-    "@babel/core": "npm:^7.25.2"
-    "@babel/plugin-proposal-decorators": "npm:^7.25.9"
-    "@expo/vector-icons": "npm:^14.0.2"
-    "@react-native-async-storage/async-storage": "npm:1.23.1"
-    "@siteed/sherpa-onnx.rn": "workspace:^"
-    "@types/gh-pages": "npm:^6"
-    "@types/react": "npm:~18.3.12"
-    "@types/react-dom": "npm:^18"
-    "@types/react-native-web": "npm:^0"
-    babel-plugin-module-resolver: "npm:^5.0.2"
-    babel-plugin-transform-import-meta: "npm:^2.3.2"
-    dotenv-flow: "npm:^3.2.0"
-    expo: "npm:^52.0.46"
-    expo-asset: "npm:~11.0.5"
-    expo-av: "npm:~15.0.2"
-    expo-build-properties: "npm:^0.13.2"
-    expo-clipboard: "npm:~7.0.1"
-    expo-constants: "npm:~17.0.8"
-    expo-file-system: "npm:~18.0.12"
-    expo-linking: "npm:~7.0.5"
-    expo-router: "npm:~4.0.20"
-    expo-sharing: "npm:~13.0.1"
-    expo-status-bar: "npm:~2.0.1"
-    gh-pages: "npm:^6.3.0"
-    joi: "npm:^17.9.2"
-    react: "npm:18.3.1"
-    react-dom: "npm:18.3.1"
-    react-native: "npm:0.76.9"
-    react-native-reanimated: "npm:~3.16.1"
-    react-native-safe-area-context: "npm:4.12.0"
-    react-native-screens: "npm:~4.4.0"
-    react-native-web: "npm:~0.19.13"
-    rimraf: "npm:^6.0.1"
-    ts-node: "npm:^10.9.1"
-    typescript: "npm:^5.3.3"
-  languageName: unknown
-  linkType: soft
-
 "@siteed/sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo":
   version: 0.0.0-use.local
   resolution: "@siteed/sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo"
@@ -7784,8 +7742,10 @@ __metadata:
     "@babel/core": "npm:^7.25.2"
     "@babel/plugin-proposal-decorators": "npm:^7.25.9"
     "@expo/vector-icons": "npm:^14.0.2"
+    "@react-native-async-storage/async-storage": "npm:1.23.1"
     "@react-navigation/bottom-tabs": "npm:^7.2.0"
     "@react-navigation/native": "npm:^7.0.14"
+    "@siteed/sherpa-onnx.rn": "workspace:^"
     "@types/jest": "npm:^29.5.12"
     "@types/react": "npm:~18.3.12"
     "@types/react-test-renderer": "npm:^18.3.0"
@@ -7796,18 +7756,22 @@ __metadata:
     expo-av: "npm:~15.0.2"
     expo-blur: "npm:~14.0.3"
     expo-build-properties: "npm:~0.13.2"
+    expo-clipboard: "npm:~7.0.1"
     expo-constants: "npm:~17.0.8"
     expo-font: "npm:~13.0.4"
     expo-haptics: "npm:~14.0.1"
     expo-linking: "npm:~7.0.5"
     expo-router: "npm:~4.0.20"
+    expo-sharing: "npm:~13.0.1"
     expo-splash-screen: "npm:~0.29.24"
     expo-status-bar: "npm:~2.0.1"
     expo-symbols: "npm:~0.2.2"
     expo-system-ui: "npm:~4.0.9"
     expo-web-browser: "npm:~14.0.2"
+    gh-pages: "npm:^6.3.0"
     jest: "npm:^29.2.1"
     jest-expo: "npm:~52.0.6"
+    joi: "npm:^17.13.3"
     react: "npm:18.3.1"
     react-dom: "npm:18.3.1"
     react-native: "npm:0.76.9"
@@ -15563,15 +15527,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dotenv-flow@npm:^3.2.0":
-  version: 3.3.0
-  resolution: "dotenv-flow@npm:3.3.0"
-  dependencies:
-    dotenv: "npm:^8.6.0"
-  checksum: 10/d7f63441d171493fc8b2e0fa5261b5dce75ac54df416c465fd132f349880f9e9f4450ce09c45689855cc4d817bdf6d0e0d0bbf1aa5dda73cc15855924a7d7270
-  languageName: node
-  linkType: hard
-
 "dotenv-flow@npm:^4.1.0":
   version: 4.1.0
   resolution: "dotenv-flow@npm:4.1.0"
@@ -15585,13 +15540,6 @@ __metadata:
   version: 16.5.0
   resolution: "dotenv@npm:16.5.0"
   checksum: 10/e68a16834f1a41cc2dfb01563bc150668ad675e6cd09191211467b5c0806b6ecd6ec438e021aa8e01cd0e72d2b70ef4302bec7cc0fe15b6955f85230b62dc8a9
-  languageName: node
-  linkType: hard
-
-"dotenv@npm:^8.6.0":
-  version: 8.6.0
-  resolution: "dotenv@npm:8.6.0"
-  checksum: 10/31d7b5c010cebb80046ba6853d703f9573369b00b15129536494f04b0af4ea0060ce8646e3af58b455af2f6f1237879dd261a5831656410ec92561ae1ea44508
   languageName: node
   linkType: hard
 
@@ -17303,7 +17251,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-build-properties@npm:^0.13.1, expo-build-properties@npm:^0.13.2, expo-build-properties@npm:~0.13.2":
+"expo-build-properties@npm:^0.13.1, expo-build-properties@npm:~0.13.2":
   version: 0.13.2
   resolution: "expo-build-properties@npm:0.13.2"
   dependencies:
@@ -33364,7 +33312,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-node@npm:^10.8.1, ts-node@npm:^10.9.1, ts-node@npm:^10.9.2":
+"ts-node@npm:^10.8.1, ts-node@npm:^10.9.2":
   version: 10.9.2
   resolution: "ts-node@npm:10.9.2"
   dependencies:
