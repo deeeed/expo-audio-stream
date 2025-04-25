@@ -7735,9 +7735,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@siteed/sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo":
+"@siteed/sherpa-onnx-demo.bak@workspace:apps/sherpa-onnx-demo.bak":
   version: 0.0.0-use.local
-  resolution: "@siteed/sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo"
+  resolution: "@siteed/sherpa-onnx-demo.bak@workspace:apps/sherpa-onnx-demo.bak"
   dependencies:
     "@babel/core": "npm:^7.25.2"
     "@babel/plugin-proposal-decorators": "npm:^7.25.9"
@@ -17613,7 +17613,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-splash-screen@npm:~0.29.22":
+"expo-splash-screen@npm:~0.29.22, expo-splash-screen@npm:~0.29.24":
   version: 0.29.24
   resolution: "expo-splash-screen@npm:0.29.24"
   dependencies:
@@ -17652,7 +17652,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-system-ui@npm:~4.0.8":
+"expo-system-ui@npm:~4.0.8, expo-system-ui@npm:~4.0.9":
   version: 4.0.9
   resolution: "expo-system-ui@npm:4.0.9"
   dependencies:
@@ -31510,6 +31510,45 @@ __metadata:
   checksum: 10/f2178274b97b44332bbe9ddb78161137054f55ecf701c7a99db9552cb5478fe279ad5f5131d8a7c2f0730e01ccf0c629d01094143f0541962ce1a3d0243d23f7
   languageName: node
   linkType: hard
+
+"sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo":
+  version: 0.0.0-use.local
+  resolution: "sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo"
+  dependencies:
+    "@babel/core": "npm:^7.25.2"
+    "@expo/vector-icons": "npm:^14.0.2"
+    "@react-navigation/bottom-tabs": "npm:^7.2.0"
+    "@react-navigation/native": "npm:^7.0.14"
+    "@types/jest": "npm:^29.5.12"
+    "@types/react": "npm:~18.3.12"
+    "@types/react-test-renderer": "npm:^18.3.0"
+    expo: "npm:^52.0.46"
+    expo-blur: "npm:~14.0.3"
+    expo-constants: "npm:~17.0.8"
+    expo-font: "npm:~13.0.4"
+    expo-haptics: "npm:~14.0.1"
+    expo-linking: "npm:~7.0.5"
+    expo-router: "npm:~4.0.20"
+    expo-splash-screen: "npm:~0.29.24"
+    expo-status-bar: "npm:~2.0.1"
+    expo-symbols: "npm:~0.2.2"
+    expo-system-ui: "npm:~4.0.9"
+    expo-web-browser: "npm:~14.0.2"
+    jest: "npm:^29.2.1"
+    jest-expo: "npm:~52.0.6"
+    react: "npm:18.3.1"
+    react-dom: "npm:18.3.1"
+    react-native: "npm:0.76.9"
+    react-native-gesture-handler: "npm:~2.20.2"
+    react-native-reanimated: "npm:~3.16.1"
+    react-native-safe-area-context: "npm:4.12.0"
+    react-native-screens: "npm:~4.4.0"
+    react-native-web: "npm:~0.19.13"
+    react-native-webview: "npm:13.12.5"
+    react-test-renderer: "npm:18.3.1"
+    typescript: "npm:^5.3.3"
+  languageName: unknown
+  linkType: soft
 
 "side-channel-list@npm:^1.0.0":
   version: 1.0.0

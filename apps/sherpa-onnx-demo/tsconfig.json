@@ -2,21 +2,16 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "jsx": "react-native",
     "paths": {
       "@/*": [
         "./*"
-      ],
-      "@siteed/sherpa-onnx.rn": [
-        "../../packages/sherpa-onnx.rn/src/index"
-      ],
-      "@siteed/sherpa-onnx.rn/*": [
-        "../../packages/sherpa-onnx.rn/src/*"
-      ],
+      ]
     }
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
   ]
 }
