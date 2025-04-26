@@ -29,7 +29,6 @@ mkdir -p prebuilt
 # Clone sherpa-onnx repository if not already present
 if [ ! -d "third_party/sherpa-onnx" ]; then
   echo -e "${BLUE}Cloning sherpa-onnx repository...${NC}"
-<<<<<<< HEAD
   git clone https://github.com/deeeed/sherpa-onnx third_party/sherpa-onnx
   cd third_party/sherpa-onnx
   git checkout webwasm
@@ -38,13 +37,7 @@ else
   echo -e "${BLUE}Updating sherpa-onnx repository...${NC}"
   cd third_party/sherpa-onnx
   git pull origin webwasm
-=======
-  git clone https://github.com/k2-fsa/sherpa-onnx.git third_party/sherpa-onnx
-else
-  echo -e "${BLUE}Updating sherpa-onnx repository...${NC}"
-  cd third_party/sherpa-onnx
-  git pull origin master
->>>>>>> origin/main
+
   cd "$SCRIPT_DIR"
 fi
 

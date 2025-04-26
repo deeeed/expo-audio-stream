@@ -22,69 +22,6 @@ export class TtsService {
   }
 
   /**
-<<<<<<< HEAD
-   * Helper function to wait for a specified time
-   * @param ms Milliseconds to wait
-   */
-  private async delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  /**
-   * Validates the library with multiple attempts
-   * @param maxAttempts Maximum number of attempts
-   * @param delayMs Delay between attempts (ms)
-   * @returns Promise that resolves with validation result
-   */
-  private async validateLibraryWithRetry(
-    maxAttempts = 10,
-    delayMs = 500
-  ): Promise<ValidateResult> {
-    let attempts = 0;
-    let lastError: Error | null = null;
-
-    console.log('Validating Sherpa-ONNX library with retry...');
-
-    while (attempts < maxAttempts) {
-      try {
-        attempts++;
-        const validation = await this.api.validateLibraryLoaded();
-
-        if (validation.loaded) {
-          console.log(
-            `Library validated successfully after ${attempts} attempt(s)`
-          );
-          return validation;
-        }
-
-        console.log(
-          `Validation attempt ${attempts}/${maxAttempts} - Status: ${validation.status}`
-        );
-
-        // Special case - if window.SherpaOnnx exists but isn't fully initialized
-        if (typeof window !== 'undefined' && (window as any).SherpaOnnx) {
-          console.log(
-            'SherpaOnnx object exists but may not be fully initialized yet'
-          );
-        }
-
-        // Wait before trying again
-        await this.delay(delayMs);
-      } catch (error) {
-        console.warn(`Validation attempt ${attempts} failed:`, error);
-        lastError = error as Error;
-        await this.delay(delayMs);
-      }
-    }
-
-    throw new Error(
-      `Failed to validate library after ${maxAttempts} attempts: ${lastError?.message || 'unknown error'}`
-    );
-  }
-
-  /**
-=======
->>>>>>> origin/main
    * Validate that the Sherpa-ONNX library is properly loaded
    * @returns Promise that resolves with validation result
    */
@@ -99,16 +36,11 @@ export class TtsService {
    */
   public async initialize(config: TtsModelConfig): Promise<TtsInitResult> {
     try {
-<<<<<<< HEAD
-      // First validate library with retry mechanism
-      await this.validateLibraryWithRetry();
-=======
       // First validate library
       const validation = await this.api.validateLibraryLoaded();
       if (!validation.loaded) {
         throw new Error(`Library validation failed: ${validation.status}`);
       }
->>>>>>> origin/main
 
       // If we're already initialized, release resources
       if (this.initialized) {
@@ -210,67 +142,6 @@ export class TtsService {
         nativeConfig.silenceScale = config.silenceScale;
       }
 
-<<<<<<< HEAD
-      console.log(
-        'Initializing TTS with config:',
-        JSON.stringify(nativeConfig)
-      );
-
-      // Attempt TTS initialization with retries
-      let initResult: TtsInitResult | null = null;
-      const maxInitAttempts = 3;
-
-      for (let attempt = 1; attempt <= maxInitAttempts; attempt++) {
-        try {
-          // Call the native API to initialize TTS
-          initResult = await this.api.initTts(nativeConfig);
-
-          if (initResult.success) {
-            console.log(`TTS initialized successfully on attempt ${attempt}`);
-            break;
-          } else {
-            console.warn(
-              `TTS initialization failed on attempt ${attempt}:`,
-              initResult.error
-            );
-
-            if (attempt < maxInitAttempts) {
-              console.log(
-                `Waiting before retry ${attempt + 1}/${maxInitAttempts}...`
-              );
-              await this.delay(1000); // Wait longer between init attempts
-            }
-          }
-        } catch (error) {
-          console.error(
-            `TTS initialization error on attempt ${attempt}:`,
-            error
-          );
-
-          if (attempt < maxInitAttempts) {
-            console.log(
-              `Waiting before retry ${attempt + 1}/${maxInitAttempts}...`
-            );
-            await this.delay(1000);
-          } else {
-            throw error; // Re-throw on final attempt
-          }
-        }
-      }
-
-      if (!initResult || !initResult.success) {
-        throw new Error(
-          `Failed to initialize TTS after ${maxInitAttempts} attempts`
-        );
-      }
-
-      // Store initialization results
-      this.initialized = initResult.success;
-      this.sampleRate = initResult.sampleRate;
-      this.numSpeakers = initResult.numSpeakers;
-
-      return initResult;
-=======
       // Call the native API to initialize TTS
       const result = await this.api.initTts(nativeConfig);
 
@@ -280,7 +151,6 @@ export class TtsService {
       this.numSpeakers = result.numSpeakers;
 
       return result;
->>>>>>> origin/main
     } catch (error) {
       this.initialized = false;
       console.error('Failed to initialize TTS:', error);
