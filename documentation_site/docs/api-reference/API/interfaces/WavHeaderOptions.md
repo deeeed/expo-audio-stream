@@ -6,6 +6,8 @@
 
 # Interface: WavHeaderOptions
 
+Defined in: [src/utils/writeWavHeader.ts:6](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L6)
+
 Options for creating a WAV header.
 
 ## Properties
@@ -14,11 +16,9 @@ Options for creating a WAV header.
 
 > **bitDepth**: `number`
 
+Defined in: [src/utils/writeWavHeader.ts:14](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L14)
+
 The bit depth of the audio (e.g., 16, 24, or 32).
-
-#### Defined in
-
-[src/utils/writeWavHeader.ts:14](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L14)
 
 ***
 
@@ -26,11 +26,9 @@ The bit depth of the audio (e.g., 16, 24, or 32).
 
 > `optional` **buffer**: `ArrayBuffer`
 
+Defined in: [src/utils/writeWavHeader.ts:8](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L8)
+
 Optional buffer containing audio data. If provided, it will be combined with the header.
-
-#### Defined in
-
-[src/utils/writeWavHeader.ts:8](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L8)
 
 ***
 
@@ -38,11 +36,9 @@ Optional buffer containing audio data. If provided, it will be combined with the
 
 > **numChannels**: `number`
 
+Defined in: [src/utils/writeWavHeader.ts:12](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L12)
+
 The number of audio channels (e.g., 1 for mono, 2 for stereo).
-
-#### Defined in
-
-[src/utils/writeWavHeader.ts:12](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L12)
 
 ***
 
@@ -50,8 +46,6 @@ The number of audio channels (e.g., 1 for mono, 2 for stereo).
 
 > **sampleRate**: `number`
 
+Defined in: [src/utils/writeWavHeader.ts:10](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L10)
+
 The sample rate of the audio in Hz (e.g., 44100).
-
-#### Defined in
-
-[src/utils/writeWavHeader.ts:10](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L10)

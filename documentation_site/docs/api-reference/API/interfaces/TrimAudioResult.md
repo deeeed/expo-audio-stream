@@ -6,6 +6,8 @@
 
 # Interface: TrimAudioResult
 
+Defined in: [src/ExpoAudioStream.types.ts:571](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L571)
+
 Result of the audio trimming operation.
 
 ## Properties
@@ -14,11 +16,9 @@ Result of the audio trimming operation.
 
 > **bitDepth**: `number`
 
+Defined in: [src/ExpoAudioStream.types.ts:605](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L605)
+
 The bit depth of the trimmed audio, applicable to PCM formats like `'wav'`.
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:605](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L605)
 
 ***
 
@@ -26,17 +26,17 @@ The bit depth of the trimmed audio, applicable to PCM formats like `'wav'`.
 
 > **channels**: `number`
 
+Defined in: [src/ExpoAudioStream.types.ts:600](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L600)
+
 The number of channels in the trimmed audio (e.g., 1 for mono, 2 for stereo).
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:600](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L600)
 
 ***
 
 ### compression?
 
 > `optional` **compression**: `object`
+
+Defined in: [src/ExpoAudioStream.types.ts:615](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L615)
 
 Information about compression if the output format is compressed.
 
@@ -58,21 +58,15 @@ The format of the compression (e.g., `'aac'`, `'mp3'`, `'opus'`).
 
 The size of the compressed audio file in bytes.
 
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:615](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L615)
-
 ***
 
 ### durationMs
 
 > **durationMs**: `number`
 
+Defined in: [src/ExpoAudioStream.types.ts:585](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L585)
+
 The duration of the trimmed audio in milliseconds.
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:585](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L585)
 
 ***
 
@@ -80,11 +74,9 @@ The duration of the trimmed audio in milliseconds.
 
 > **filename**: `string`
 
+Defined in: [src/ExpoAudioStream.types.ts:580](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L580)
+
 The filename of the trimmed audio file.
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:580](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L580)
 
 ***
 
@@ -92,17 +84,17 @@ The filename of the trimmed audio file.
 
 > **mimeType**: `string`
 
+Defined in: [src/ExpoAudioStream.types.ts:610](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L610)
+
 The MIME type of the trimmed audio file (e.g., `'audio/wav'`, `'audio/mpeg'`).
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:610](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L610)
 
 ***
 
 ### processingInfo?
 
 > `optional` **processingInfo**: `object`
+
+Defined in: [src/ExpoAudioStream.types.ts:635](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L635)
 
 Information about the processing time.
 
@@ -112,21 +104,15 @@ Information about the processing time.
 
 The time it took to process the audio in milliseconds.
 
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:635](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L635)
-
 ***
 
 ### sampleRate
 
 > **sampleRate**: `number`
 
+Defined in: [src/ExpoAudioStream.types.ts:595](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L595)
+
 The sample rate of the trimmed audio in Hertz (Hz).
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:595](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L595)
 
 ***
 
@@ -134,11 +120,9 @@ The sample rate of the trimmed audio in Hertz (Hz).
 
 > **size**: `number`
 
+Defined in: [src/ExpoAudioStream.types.ts:590](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L590)
+
 The size of the trimmed audio file in bytes.
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:590](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L590)
 
 ***
 
@@ -146,8 +130,6 @@ The size of the trimmed audio file in bytes.
 
 > **uri**: `string`
 
+Defined in: [src/ExpoAudioStream.types.ts:575](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L575)
+
 The URI of the trimmed audio file.
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:575](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L575)

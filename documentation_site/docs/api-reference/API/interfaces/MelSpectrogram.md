@@ -6,6 +6,8 @@
 
 # Interface: MelSpectrogram
 
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:196](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L196)
+
 **`Experimental`**
 
 Return type for mel spectrogram extraction
@@ -19,11 +21,9 @@ The API may change in future versions.
 
 > **durationMs**: `number`
 
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:201](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L201)
+
 **`Experimental`**
-
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:201](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L201)
 
 ***
 
@@ -31,11 +31,9 @@ The API may change in future versions.
 
 > **nMels**: `number`
 
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:199](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L199)
+
 **`Experimental`**
-
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:199](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L199)
 
 ***
 
@@ -43,11 +41,9 @@ The API may change in future versions.
 
 > **sampleRate**: `number`
 
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:198](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L198)
+
 **`Experimental`**
-
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:198](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L198)
 
 ***
 
@@ -55,11 +51,9 @@ The API may change in future versions.
 
 > **spectrogram**: `number`[][]
 
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:197](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L197)
+
 **`Experimental`**
-
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:197](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L197)
 
 ***
 
@@ -67,8 +61,6 @@ The API may change in future versions.
 
 > **timeSteps**: `number`
 
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:200](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L200)
+
 **`Experimental`**
-
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:200](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L200)

@@ -6,6 +6,8 @@
 
 # Interface: PreviewOptions
 
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:144](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L144)
+
 Options for generating a quick preview of audio waveform.
 This is optimized for UI rendering with a specified number of points.
 
@@ -19,6 +21,8 @@ This is optimized for UI rendering with a specified number of points.
 
 > `optional` **decodingOptions**: [`DecodingConfig`](DecodingConfig.md)
 
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:164](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L164)
+
 Optional configuration for decoding the audio file.
 Defaults to:
 - targetSampleRate: undefined (keep original)
@@ -26,15 +30,13 @@ Defaults to:
 - targetBitDepth: 16
 - normalizeAudio: false
 
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:164](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L164)
-
 ***
 
 ### endTimeMs?
 
 > `optional` **endTimeMs**: `number`
+
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:137](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L137)
 
 End time in milliseconds
 
@@ -42,21 +44,15 @@ End time in milliseconds
 
 [`AudioRangeOptions`](AudioRangeOptions.md).[`endTimeMs`](AudioRangeOptions.md#endtimems)
 
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:137](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L137)
-
 ***
 
 ### fileUri
 
 > **fileUri**: `string`
 
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:146](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L146)
+
 URI of the audio file to analyze
-
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:146](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L146)
 
 ***
 
@@ -64,17 +60,17 @@ URI of the audio file to analyze
 
 > `optional` **logger**: [`ConsoleLike`](../type-aliases/ConsoleLike.md)
 
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:155](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L155)
+
 Optional logger for debugging.
-
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:155](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L155)
 
 ***
 
 ### numberOfPoints?
 
 > `optional` **numberOfPoints**: `number`
+
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:151](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L151)
 
 Total number of points to generate for the preview.
 
@@ -84,22 +80,16 @@ Total number of points to generate for the preview.
 100
 ```
 
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:151](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L151)
-
 ***
 
 ### startTimeMs?
 
 > `optional` **startTimeMs**: `number`
 
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:135](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L135)
+
 Start time in milliseconds
 
 #### Inherited from
 
 [`AudioRangeOptions`](AudioRangeOptions.md).[`startTimeMs`](AudioRangeOptions.md#starttimems)
-
-#### Defined in
-
-[src/AudioAnalysis/AudioAnalysis.types.ts:135](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L135)

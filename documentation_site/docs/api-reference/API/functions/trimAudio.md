@@ -8,6 +8,8 @@
 
 > **trimAudio**(`options`, `progressCallback`?): `Promise`\<[`TrimAudioResult`](../interfaces/TrimAudioResult.md)\>
 
+Defined in: [src/trimAudio.ts:24](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/trimAudio.ts#L24)
+
 **`Experimental`**
 
 Trims an audio file based on the provided options.
@@ -35,7 +37,3 @@ Optional callback to receive progress updates
 `Promise`\<[`TrimAudioResult`](../interfaces/TrimAudioResult.md)\>
 
 Promise resolving to the trimmed audio file information, including processing time
-
-## Defined in
-
-[src/trimAudio.ts:24](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/trimAudio.ts#L24)

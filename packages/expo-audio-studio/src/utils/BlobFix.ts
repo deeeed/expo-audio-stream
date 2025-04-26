@@ -251,9 +251,11 @@ class WebmBase<T> {
     data?: T
 
     constructor(
-        private name = 'Unknown',
-        private type = 'Unknown'
-    ) {}
+        name = 'Unknown',
+        type = 'Unknown'
+    ) {
+        // Constructor body is empty, parameters are not assigned to instance properties
+    }
 
     updateBySource() {}
 

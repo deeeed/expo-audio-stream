@@ -6,17 +6,17 @@
 
 # Interface: AudioStreamStatus
 
+Defined in: [src/ExpoAudioStream.types.ts:22](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L22)
+
 ## Properties
 
 ### compression?
 
 > `optional` **compression**: [`CompressionInfo`](CompressionInfo.md)
 
+Defined in: [src/ExpoAudioStream.types.ts:38](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L38)
+
 Information about audio compression if enabled
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:38](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L38)
 
 ***
 
@@ -24,11 +24,9 @@ Information about audio compression if enabled
 
 > **durationMs**: `number`
 
+Defined in: [src/ExpoAudioStream.types.ts:28](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L28)
+
 Duration of the current recording in milliseconds
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:28](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L28)
 
 ***
 
@@ -36,11 +34,9 @@ Duration of the current recording in milliseconds
 
 > **interval**: `number`
 
+Defined in: [src/ExpoAudioStream.types.ts:32](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L32)
+
 Interval in milliseconds at which recording data is emitted
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:32](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L32)
 
 ***
 
@@ -48,11 +44,9 @@ Interval in milliseconds at which recording data is emitted
 
 > **intervalAnalysis**: `number`
 
+Defined in: [src/ExpoAudioStream.types.ts:34](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L34)
+
 Interval in milliseconds at which analysis data is emitted
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:34](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L34)
 
 ***
 
@@ -60,11 +54,9 @@ Interval in milliseconds at which analysis data is emitted
 
 > **isPaused**: `boolean`
 
+Defined in: [src/ExpoAudioStream.types.ts:26](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L26)
+
 Indicates whether recording is in a paused state
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:26](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L26)
 
 ***
 
@@ -72,11 +64,9 @@ Indicates whether recording is in a paused state
 
 > **isRecording**: `boolean`
 
+Defined in: [src/ExpoAudioStream.types.ts:24](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L24)
+
 Indicates whether audio recording is currently active
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:24](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L24)
 
 ***
 
@@ -84,11 +74,9 @@ Indicates whether audio recording is currently active
 
 > **mimeType**: `string`
 
+Defined in: [src/ExpoAudioStream.types.ts:36](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L36)
+
 MIME type of the recorded audio (e.g., 'audio/wav')
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:36](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L36)
 
 ***
 
@@ -96,8 +84,6 @@ MIME type of the recorded audio (e.g., 'audio/wav')
 
 > **size**: `number`
 
+Defined in: [src/ExpoAudioStream.types.ts:30](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L30)
+
 Size of the recorded audio data in bytes
-
-#### Defined in
-
-[src/ExpoAudioStream.types.ts:30](https://github.com/deeeed/expo-audio-stream/blob/c74460f5bb3fc818511d2b5ebc6a28b5aeb407fe/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L30)
