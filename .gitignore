@@ -81,7 +81,10 @@ packages/react-native-essentia/third_party/essentia_sim/
 packages/react-native-essentia/build_arm64_sim/
 packages/react-native-essentia/build_minimal/
 packages/react-native-essentia/third_party/essentia
-packages/sherpa-onnx.rn/third_party/sherpa-onnx
+
 packages/sherpa-onnx.rn/prebuilt/
 packages/sherpa-onnx.rn/lib/
 packages/sherpa-onnx.rn/android/src/main/jniLibs/**/*.so
+apps/sherpa-onnx-demo/public/sherpa-onnx-wasm-combined.js
+apps/sherpa-onnx-demo/public/sherpa-onnx-wasm-combined.wasm
+apps/sherpa-onnx-demo/public/wasm/

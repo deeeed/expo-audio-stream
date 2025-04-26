@@ -8,6 +8,11 @@
 
 > **writeWavHeader**(`options`): `ArrayBuffer`
 
+<<<<<<< HEAD
+Defined in: [src/utils/writeWavHeader.ts:51](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L51)
+
+=======
+>>>>>>> origin/main
 Writes or updates a WAV (RIFF) header based on the provided options.
 
 This function can be used in three ways:
@@ -57,7 +62,10 @@ const completeWav = writeWavHeader({
   bitDepth: 16
 });
 ```
+<<<<<<< HEAD
+=======
 
 ## Defined in
 
 [src/utils/writeWavHeader.ts:51](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L51)
+>>>>>>> origin/main
