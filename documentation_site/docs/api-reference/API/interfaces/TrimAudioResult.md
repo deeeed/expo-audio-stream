@@ -6,7 +6,7 @@
 
 # Interface: TrimAudioResult
 
-Defined in: [src/ExpoAudioStream.types.ts:571](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L571)
+Defined in: [src/ExpoAudioStream.types.ts:571](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L571)
 
 Result of the audio trimming operation.
 
@@ -16,7 +16,7 @@ Result of the audio trimming operation.
 
 > **bitDepth**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:605](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L605)
+Defined in: [src/ExpoAudioStream.types.ts:605](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L605)
 
 The bit depth of the trimmed audio, applicable to PCM formats like `'wav'`.
 
@@ -26,7 +26,7 @@ The bit depth of the trimmed audio, applicable to PCM formats like `'wav'`.
 
 > **channels**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:600](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L600)
+Defined in: [src/ExpoAudioStream.types.ts:600](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L600)
 
 The number of channels in the trimmed audio (e.g., 1 for mono, 2 for stereo).
 
@@ -36,7 +36,7 @@ The number of channels in the trimmed audio (e.g., 1 for mono, 2 for stereo).
 
 > `optional` **compression**: `object`
 
-Defined in: [src/ExpoAudioStream.types.ts:615](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L615)
+Defined in: [src/ExpoAudioStream.types.ts:615](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L615)
 
 Information about compression if the output format is compressed.
 
@@ -64,7 +64,7 @@ The size of the compressed audio file in bytes.
 
 > **durationMs**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:585](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L585)
+Defined in: [src/ExpoAudioStream.types.ts:585](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L585)
 
 The duration of the trimmed audio in milliseconds.
 
@@ -74,7 +74,7 @@ The duration of the trimmed audio in milliseconds.
 
 > **filename**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:580](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L580)
+Defined in: [src/ExpoAudioStream.types.ts:580](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L580)
 
 The filename of the trimmed audio file.
 
@@ -84,7 +84,7 @@ The filename of the trimmed audio file.
 
 > **mimeType**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:610](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L610)
+Defined in: [src/ExpoAudioStream.types.ts:610](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L610)
 
 The MIME type of the trimmed audio file (e.g., `'audio/wav'`, `'audio/mpeg'`).
 
@@ -94,7 +94,7 @@ The MIME type of the trimmed audio file (e.g., `'audio/wav'`, `'audio/mpeg'`).
 
 > `optional` **processingInfo**: `object`
 
-Defined in: [src/ExpoAudioStream.types.ts:635](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L635)
+Defined in: [src/ExpoAudioStream.types.ts:635](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L635)
 
 Information about the processing time.
 
@@ -110,7 +110,7 @@ The time it took to process the audio in milliseconds.
 
 > **sampleRate**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:595](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L595)
+Defined in: [src/ExpoAudioStream.types.ts:595](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L595)
 
 The sample rate of the trimmed audio in Hertz (Hz).
 
@@ -120,7 +120,7 @@ The sample rate of the trimmed audio in Hertz (Hz).
 
 > **size**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:590](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L590)
+Defined in: [src/ExpoAudioStream.types.ts:590](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L590)
 
 The size of the trimmed audio file in bytes.
 
@@ -130,6 +130,6 @@ The size of the trimmed audio file in bytes.
 
 > **uri**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:575](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L575)
+Defined in: [src/ExpoAudioStream.types.ts:575](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L575)
 
 The URI of the trimmed audio file.

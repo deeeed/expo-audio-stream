@@ -6,7 +6,7 @@
 
 # Interface: DataPoint
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:81](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L81)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:81](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L81)
 
 Represents a single data point in the audio analysis.
 
@@ -16,7 +16,7 @@ Represents a single data point in the audio analysis.
 
 > **amplitude**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:83](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L83)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:83](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L83)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:83](https://github.com/dee
 
 > **dB**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:85](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L85)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:85](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L85)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:85](https://github.com/dee
 
 > `optional` **endPosition**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:93](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L93)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:93](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L93)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:93](https://github.com/dee
 
 > `optional` **endTime**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:90](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L90)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:90](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L90)
 
 ***
 
@@ -48,7 +48,7 @@ Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:90](https://github.com/dee
 
 > `optional` **features**: [`AudioFeatures`](AudioFeatures.md)
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:87](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L87)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:87](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L87)
 
 ***
 
@@ -56,7 +56,7 @@ Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:87](https://github.com/dee
 
 > **id**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:82](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L82)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:82](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L82)
 
 ***
 
@@ -64,7 +64,7 @@ Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:82](https://github.com/dee
 
 > **rms**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:84](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L84)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:84](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L84)
 
 ***
 
@@ -72,7 +72,7 @@ Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:84](https://github.com/dee
 
 > `optional` **samples**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:95](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L95)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:95](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L95)
 
 ***
 
@@ -80,7 +80,7 @@ Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:95](https://github.com/dee
 
 > **silent**: `boolean`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:86](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L86)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:86](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L86)
 
 ***
 
@@ -88,7 +88,7 @@ Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:86](https://github.com/dee
 
 > `optional` **speech**: [`SpeechFeatures`](SpeechFeatures.md)
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:88](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L88)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:88](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L88)
 
 ***
 
@@ -96,7 +96,7 @@ Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:88](https://github.com/dee
 
 > `optional` **startPosition**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:92](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L92)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:92](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L92)
 
 ***
 
@@ -104,4 +104,4 @@ Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:92](https://github.com/dee
 
 > `optional` **startTime**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:89](https://github.com/deeeed/expo-audio-stream/blob/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L89)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:89](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L89)
