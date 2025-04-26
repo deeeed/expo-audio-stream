@@ -87,3 +87,4 @@ packages/sherpa-onnx.rn/lib/
 packages/sherpa-onnx.rn/android/src/main/jniLibs/**/*.so
 apps/sherpa-onnx-demo/public/sherpa-onnx-wasm-combined.js
 apps/sherpa-onnx-demo/public/sherpa-onnx-wasm-combined.wasm
+apps/sherpa-onnx-demo/public/wasm/
