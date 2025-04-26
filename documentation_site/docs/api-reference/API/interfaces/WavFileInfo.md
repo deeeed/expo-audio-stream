@@ -6,8 +6,11 @@
 
 # Interface: WavFileInfo
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:26](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L26)
 
+=======
+>>>>>>> origin/main
 Interface representing the metadata of a WAV file.
 
 ## Properties
@@ -16,7 +19,13 @@ Interface representing the metadata of a WAV file.
 
 > **audioFormatDescription**: `string`
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:32](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L32)
+=======
+#### Defined in
+
+[src/utils/getWavFileInfo.ts:32](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L32)
+>>>>>>> origin/main
 
 ***
 
@@ -24,7 +33,13 @@ Defined in: [src/utils/getWavFileInfo.ts:32](https://github.com/deeeed/expo-audi
 
 > **bitDepth**: [`BitDepth`](../type-aliases/BitDepth.md)
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:29](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L29)
+=======
+#### Defined in
+
+[src/utils/getWavFileInfo.ts:29](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L29)
+>>>>>>> origin/main
 
 ***
 
@@ -32,7 +47,13 @@ Defined in: [src/utils/getWavFileInfo.ts:29](https://github.com/deeeed/expo-audi
 
 > **blockAlign**: `number`
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:34](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L34)
+=======
+#### Defined in
+
+[src/utils/getWavFileInfo.ts:34](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L34)
+>>>>>>> origin/main
 
 ***
 
@@ -40,7 +61,13 @@ Defined in: [src/utils/getWavFileInfo.ts:34](https://github.com/deeeed/expo-audi
 
 > **byteRate**: `number`
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:33](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L33)
+=======
+#### Defined in
+
+[src/utils/getWavFileInfo.ts:33](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L33)
+>>>>>>> origin/main
 
 ***
 
@@ -48,7 +75,13 @@ Defined in: [src/utils/getWavFileInfo.ts:33](https://github.com/deeeed/expo-audi
 
 > `optional` **comments**: `string`
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:36](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L36)
+=======
+#### Defined in
+
+[src/utils/getWavFileInfo.ts:36](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L36)
+>>>>>>> origin/main
 
 ***
 
@@ -56,7 +89,13 @@ Defined in: [src/utils/getWavFileInfo.ts:36](https://github.com/deeeed/expo-audi
 
 > `optional` **compressionType**: `string`
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:37](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L37)
+=======
+#### Defined in
+
+[src/utils/getWavFileInfo.ts:37](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L37)
+>>>>>>> origin/main
 
 ***
 
@@ -64,7 +103,13 @@ Defined in: [src/utils/getWavFileInfo.ts:37](https://github.com/deeeed/expo-audi
 
 > `optional` **creationDateTime**: `string`
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:35](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L35)
+=======
+#### Defined in
+
+[src/utils/getWavFileInfo.ts:35](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L35)
+>>>>>>> origin/main
 
 ***
 
@@ -72,7 +117,13 @@ Defined in: [src/utils/getWavFileInfo.ts:35](https://github.com/deeeed/expo-audi
 
 > **dataChunkOffset**: `number`
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:38](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L38)
+=======
+#### Defined in
+
+[src/utils/getWavFileInfo.ts:38](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L38)
+>>>>>>> origin/main
 
 ***
 
@@ -80,7 +131,13 @@ Defined in: [src/utils/getWavFileInfo.ts:38](https://github.com/deeeed/expo-audi
 
 > **durationMs**: `number`
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:31](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L31)
+=======
+#### Defined in
+
+[src/utils/getWavFileInfo.ts:31](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L31)
+>>>>>>> origin/main
 
 ***
 
@@ -88,7 +145,13 @@ Defined in: [src/utils/getWavFileInfo.ts:31](https://github.com/deeeed/expo-audi
 
 > **numChannels**: `number`
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:28](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L28)
+=======
+#### Defined in
+
+[src/utils/getWavFileInfo.ts:28](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L28)
+>>>>>>> origin/main
 
 ***
 
@@ -96,7 +159,13 @@ Defined in: [src/utils/getWavFileInfo.ts:28](https://github.com/deeeed/expo-audi
 
 > **sampleRate**: [`SampleRate`](../type-aliases/SampleRate.md)
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:27](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L27)
+=======
+#### Defined in
+
+[src/utils/getWavFileInfo.ts:27](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L27)
+>>>>>>> origin/main
 
 ***
 
@@ -104,4 +173,10 @@ Defined in: [src/utils/getWavFileInfo.ts:27](https://github.com/deeeed/expo-audi
 
 > **size**: `number`
 
+<<<<<<< HEAD
 Defined in: [src/utils/getWavFileInfo.ts:30](https://github.com/deeeed/expo-audio-stream/blob/e90b868a404df260dd0a517e22d7898d08118617/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L30)
+=======
+#### Defined in
+
+[src/utils/getWavFileInfo.ts:30](https://github.com/deeeed/expo-audio-stream/blob/391ce6bcc63b985ab716f16d8cf5ddac64968b09/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L30)
+>>>>>>> origin/main

@@ -45,11 +45,19 @@ export class WebRecorder {
     private bitDepth: number // Bit depth of the audio
     private exportBitDepth: number // Bit depth of the audio
     private audioAnalysisData: AudioAnalysis // Keep updating the full audio analysis data with latest events
+<<<<<<< HEAD
+=======
+    private packetCount: number = 0
+>>>>>>> origin/main
     private logger?: ConsoleLike
     private compressedMediaRecorder: MediaRecorder | null = null
     private compressedChunks: Blob[] = []
     private compressedSize: number = 0
     private pendingCompressedChunk: Blob | null = null
+<<<<<<< HEAD
+=======
+    private readonly wavMimeType = 'audio/wav'
+>>>>>>> origin/main
     private dataPointIdCounter: number = 0 // Add this property to track the counter
 
     /**
@@ -397,6 +405,10 @@ export class WebRecorder {
     start() {
         this.source.connect(this.audioWorkletNode)
         this.audioWorkletNode.connect(this.audioContext.destination)
+<<<<<<< HEAD
+=======
+        this.packetCount = 0
+>>>>>>> origin/main
 
         // Reset the counter when starting a new recording
         this.resetDataPointCounter()

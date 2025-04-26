@@ -22,6 +22,7 @@ export class TtsService {
   }
 
   /**
+<<<<<<< HEAD
    * Helper function to wait for a specified time
    * @param ms Milliseconds to wait
    */
@@ -82,6 +83,8 @@ export class TtsService {
   }
 
   /**
+=======
+>>>>>>> origin/main
    * Validate that the Sherpa-ONNX library is properly loaded
    * @returns Promise that resolves with validation result
    */
@@ -96,8 +99,16 @@ export class TtsService {
    */
   public async initialize(config: TtsModelConfig): Promise<TtsInitResult> {
     try {
+<<<<<<< HEAD
       // First validate library with retry mechanism
       await this.validateLibraryWithRetry();
+=======
+      // First validate library
+      const validation = await this.api.validateLibraryLoaded();
+      if (!validation.loaded) {
+        throw new Error(`Library validation failed: ${validation.status}`);
+      }
+>>>>>>> origin/main
 
       // If we're already initialized, release resources
       if (this.initialized) {
@@ -199,6 +210,7 @@ export class TtsService {
         nativeConfig.silenceScale = config.silenceScale;
       }
 
+<<<<<<< HEAD
       console.log(
         'Initializing TTS with config:',
         JSON.stringify(nativeConfig)
@@ -258,6 +270,17 @@ export class TtsService {
       this.numSpeakers = initResult.numSpeakers;
 
       return initResult;
+=======
+      // Call the native API to initialize TTS
+      const result = await this.api.initTts(nativeConfig);
+
+      // Store initialization results
+      this.initialized = result.success;
+      this.sampleRate = result.sampleRate;
+      this.numSpeakers = result.numSpeakers;
+
+      return result;
+>>>>>>> origin/main
     } catch (error) {
       this.initialized = false;
       console.error('Failed to initialize TTS:', error);
