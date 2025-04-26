@@ -58,15 +58,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="person" color={color} />,
         }}
       />
-      {Platform.OS === 'web' && (
-        <Tabs.Screen
-          name="web-tts-test"
-          options={{
-            title: 'WASM TTS',
-            tabBarIcon: ({ color }) => <TabBarIcon name="globe" color={color} />,
-          }}
-        />
-      )}
       <Tabs.Screen
         name="models"
         options={{
