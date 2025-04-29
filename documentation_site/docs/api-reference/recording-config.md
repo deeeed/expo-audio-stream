@@ -113,6 +113,257 @@ export interface StartRecordingResult {
 }
 ```
 
+## Zero-Latency Recording
+
+The library provides a `prepareRecording` method that can significantly reduce the latency between a user action and the actual start of recording. This is particularly useful for time-sensitive applications where any delay in starting audio capture could be problematic.
+
+### How it Works
+
+When using the standard `startRecording` function, there's an inherent delay caused by several initialization steps:
+
+1. Requesting user permissions (if not already granted)
+2. Setting up audio sessions
+3. Allocating memory for audio buffers
+4. Initializing hardware resources
+5. Configuring encoders and audio processing pipelines
+
+The `prepareRecording` method decouples these initialization steps from the actual recording start, allowing your application to pre-initialize all necessary resources in advance.
+
+### Using prepareRecording
+
+```tsx
+import { useAudioRecorder, useSharedAudioRecorder } from '@siteed/expo-audio-studio';
+
+// With individual recorder hook
+const { 
+  prepareRecording, 
+  startRecording, 
+  stopRecording 
+} = useAudioRecorder();
+
+// Or with shared recorder context
+const { 
+  prepareRecording, 
+  startRecording, 
+  stopRecording 
+} = useSharedAudioRecorder();
+
+// Prepare recording during component mounting or any appropriate initialization phase
+useEffect(() => {
+  const prepare = async () => {
+    await prepareRecording({
+      sampleRate: 44100,
+      channels: 1,
+      encoding: 'pcm_16bit',
+      // Add any other recording configuration options
+    });
+    console.log('Recording resources prepared and ready');
+  };
+  
+  prepare();
+}, []);
+
+// Later, when the user triggers recording, it starts with minimal latency
+const handleRecordButton = async () => {
+  await startRecording({
+    // Use the same configuration as in prepareRecording
+    sampleRate: 44100,
+    channels: 1,
+    encoding: 'pcm_16bit',
+  });
+};
+```
+
+### Key Benefits
+
+- **Eliminates perceptible lag** between user action and recording start
+- **Improves user experience** for time-sensitive applications
+- **Consistent behavior** across all supported platforms
+- **Maintains audio quality** while reducing startup latency
+
+### Implementation Notes
+
+1. Call `prepareRecording` as early as possible, such as during screen loading
+2. Use identical configuration for both `prepareRecording` and `startRecording`
+3. The preparation state persists until recording starts or the app is terminated
+4. If `startRecording` is called without prior preparation, it performs normal initialization
+5. Resources are automatically released when recording starts or when the component is unmounted
+
+### Example: Capture Time-Critical Audio
+
+This example demonstrates how to implement a voice command system where capturing the beginning of speech is critical:
+
+```tsx
+function VoiceCommandScreen() {
+  const { 
+    prepareRecording, 
+    startRecording, 
+    stopRecording,
+    isRecording 
+  } = useSharedAudioRecorder();
+  
+  // Prepare audio resources when screen loads
+  useEffect(() => {
+    const prepareAudio = async () => {
+      await prepareRecording({
+        sampleRate: 16000, // Optimized for speech
+        channels: 1,
+        encoding: 'pcm_16bit',
+        enableProcessing: true,
+        features: {
+          energy: true,
+          rms: true,
+        }
+      });
+    };
+    
+    prepareAudio();
+    
+    return () => {
+      // Clean up if needed
+      if (isRecording) {
+        stopRecording();
+      }
+    };
+  }, []);
+  
+  return (
+    <View style={styles.container}>
+      <Text style={styles.instructions}>
+        Press and hold to capture voice command
+      </Text>
+      
+      <Pressable
+        onPressIn={() => startRecording({
+          sampleRate: 16000,
+          channels: 1,
+          encoding: 'pcm_16bit',
+          enableProcessing: true,
+          features: {
+            energy: true,
+            rms: true,
+          }
+        })}
+        onPressOut={stopRecording}
+        style={({ pressed }) => [
+          styles.recordButton,
+          { backgroundColor: pressed || isRecording ? 'red' : 'blue' }
+        ]}
+      >
+        <Text style={styles.buttonText}>
+          {isRecording ? 'Recording...' : 'Press to Record'}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+```
+
+## Compression Settings {#compression-settings}
+
+The library supports real-time audio compression alongside the raw PCM recording. This dual-stream approach allows you to capture both high-quality uncompressed audio and smaller compressed files simultaneously.
+
+### Configuration Options
+
+```tsx
+compression: {
+    enabled: boolean      // Whether to enable compression
+    format: 'aac' | 'opus' // Compression format to use
+    bitrate?: number      // Optional bitrate in bits per second
+}
+```
+
+### Supported Formats
+
+- **AAC (Advanced Audio Coding)**:
+  - High-quality lossy compression
+  - Excellent for voice and music
+  - Widely supported on all platforms
+  - Recommended bitrate: 64000-256000 bps
+
+- **Opus**:
+  - Modern, high-efficiency codec
+  - Superior quality at low bitrates
+  - Excellent for speech compression
+  - Recommended bitrate: 16000-96000 bps
+
+### Example: Enabling Compression
+
+```tsx
+const { startRecording } = useAudioRecorder();
+
+// Configure recording with compression
+await startRecording({
+  sampleRate: 44100,
+  channels: 1,
+  encoding: 'pcm_16bit',
+  // Compression settings
+  compression: {
+    enabled: true,
+    format: 'aac',
+    bitrate: 128000 // 128 kbps
+  }
+});
+```
+
+### Accessing Compressed Files
+
+When recording with compression enabled, both the raw PCM file and the compressed file are available in the recording result:
+
+```tsx
+const { stopRecording } = useAudioRecorder();
+
+const handleStopRecording = async () => {
+  const result = await stopRecording();
+  
+  // Access the uncompressed WAV file
+  console.log('Uncompressed file:', result.fileUri);
+  console.log('Uncompressed size:', result.size, 'bytes');
+  
+  // Access the compressed file
+  if (result.compression) {
+    console.log('Compressed file:', result.compression.compressedFileUri);
+    console.log('Compressed size:', result.compression.size, 'bytes');
+    console.log('Compression format:', result.compression.format);
+    console.log('Bitrate:', result.compression.bitrate, 'bps');
+  }
+};
+```
+
+### Platform Considerations
+
+- **iOS**: Both AAC and Opus are supported
+- **Android**: Both AAC and Opus are supported
+- **Web**: Opus is supported, AAC support depends on browser
+
+### Streaming Compressed Audio
+
+You can also access the compressed audio data in real-time during recording using the `onAudioStream` callback:
+
+```tsx
+await startRecording({
+  // ... other config options
+  compression: {
+    enabled: true,
+    format: 'opus',
+    bitrate: 64000
+  },
+  onAudioStream: async (event) => {
+    // Raw PCM audio data
+    console.log('Raw data size:', event.eventDataSize);
+    
+    // Compressed audio chunk (if compression is enabled)
+    if (event.compression?.data) {
+      console.log('Compressed chunk size:', 
+        typeof event.compression.data === 'string' 
+          ? event.compression.data.length 
+          : event.compression.data.size
+      );
+    }
+  }
+});
+```
+
 ## Example Usage
 
 ```tsx
