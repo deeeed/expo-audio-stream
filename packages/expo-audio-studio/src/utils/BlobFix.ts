@@ -249,11 +249,13 @@ const sections: Record<number, Section> = {
 class WebmBase<T> {
     source?: Uint8Array
     data?: T
+    name: string
+    type: string
 
-    constructor(
-        name = 'Unknown',
-        type = 'Unknown'
-    ) {}
+    constructor(name = 'Unknown', type = 'Unknown') {
+        this.name = name
+        this.type = type
+    }
 
     updateBySource() {}
 

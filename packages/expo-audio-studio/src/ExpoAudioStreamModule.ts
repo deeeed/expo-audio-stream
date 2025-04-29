@@ -800,6 +800,29 @@ if (Platform.OS === 'web') {
             delete ExpoAudioStreamModule.listeners[eventName]
         }
     }
+
+    ExpoAudioStreamModule.prepareRecording = async (options: any) => {
+        // For web platform, we'll implement a simplified version that just checks permissions
+        // and does minimal setup. The actual recording setup will still happen in startRecording.
+        try {
+            // Check for microphone permissions
+            const permissionsResult =
+                await ExpoAudioStreamModule.getPermissionsAsync()
+            if (!permissionsResult.granted) {
+                throw new Error('Microphone permission not granted')
+            }
+
+            // If using a web instance, call its prepareRecording method
+            if (instance) {
+                return await instance.prepareRecording(options)
+            }
+
+            return true
+        } catch (error) {
+            console.error('Error preparing recording:', error)
+            throw error
+        }
+    }
 }
 
 // Move the encodeCompressedAudio function outside the if block to fix the ESLint error

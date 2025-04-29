@@ -145,7 +145,7 @@ export interface StartRecordingResult {
 }
 
 export interface AudioSessionConfig {
-    /** 
+    /**
      * Audio session category that defines the audio behavior
      * - 'Ambient': Audio continues with silent switch, mixes with other audio
      * - 'SoloAmbient': Audio continues with silent switch, interrupts other audio
@@ -420,6 +420,31 @@ export interface ExtractedAudioData {
 }
 
 export interface UseAudioRecorderState {
+    /**
+     * Prepares recording with the specified configuration without starting it.
+     *
+     * This method significantly reduces the latency between calling startRecording and actual recording beginning.
+     * It initializes all audio resources, requests permissions, and sets up audio sessions in advance,
+     * allowing for near-instantaneous recording start when startRecording is called later.
+     *
+     * Use this method when:
+     * - You need to eliminate the delay/lag when starting recording
+     * - You're building time-sensitive applications where recording must start immediately
+     * - You want to prepare resources during app initialization or screen loading
+     *
+     * @param config - The recording configuration, identical to what you would pass to startRecording
+     * @returns A promise that resolves when preparation is complete
+     *
+     * @example
+     * // Prepare during component mounting
+     * useEffect(() => {
+     *   prepareRecording(recordingConfig);
+     * }, []);
+     *
+     * // Later when user taps record button, it starts instantly
+     * const handleRecordPress = () => startRecording(recordingConfig);
+     */
+    prepareRecording: (_: RecordingConfig) => Promise<void>
     /** Starts recording with the specified configuration */
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
     /** Stops the current recording and returns the recording data */

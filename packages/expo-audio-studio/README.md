@@ -51,6 +51,10 @@
 - Audio features extraction during recording.
 - Consistent WAV PCM recording format across all platforms.
 - Keep recording active while app is in background
+- Zero-latency recording with preparation API:
+  - Pre-initialize audio recording to eliminate startup delay
+  - Prepare permissions, audio buffers, and sessions in advance
+  - Start recording instantly when needed
 - Rich notification system for recording status:
   - Android: Live waveform visualization in notifications
   - Android: Fully customizable notification appearance and actions
@@ -126,6 +130,19 @@ const { startRecording, stopRecording, isRecording, recordingUri } = useAudioRec
   bitDepth: 16,
   outputFormat: 'wav',
 });
+
+// Use the prepare API for zero-latency recording
+const { prepareRecording, startRecording, stopRecording } = useSharedAudioRecorder();
+
+// First prepare the recording - this initializes all resources
+await prepareRecording({
+  sampleRate: 44100,
+  channels: 2,
+  encoding: 'pcm_16bit'
+});
+
+// Later when needed, start instantly with no delay
+await startRecording(/* same config as prepare */);
 
 // Share recording state across components
 const AudioApp = () => (
