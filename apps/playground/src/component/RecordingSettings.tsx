@@ -1,0 +1,317 @@
+import React, { useEffect, useState, useMemo } from 'react';
+import { StyleSheet, View, Platform } from 'react-native';
+import { Text, useTheme, LabelSwitch, EditableInfoCard, AppTheme } from '@siteed/design-system';
+import { 
+  RecordingConfig, 
+  SampleRate, 
+  AudioDevice,
+  NotificationConfig,
+  DeviceDisconnectionBehaviorType,
+} from '@siteed/expo-audio-studio';
+import { SegmentedButtons } from 'react-native-paper';
+
+import { AudioDeviceSelector } from './AudioDeviceSelector';
+import { SegmentDuration, SegmentDurationSelector } from './SegmentDurationSelector';
+import { NativeNotificationConfig } from './NativeNotificationConfig';
+import { IOSSettingsConfig } from './IOSSettingsConfig';
+import { DeviceValidationManager } from './DeviceValidationManager';
+import { isWeb } from '../utils/utils';
+
+// Import WhisperSampleRate from config
+import { WhisperSampleRate } from '../config';
+
+const DEFAULT_BITRATE = Platform.OS === 'ios' ? 32000 : 24000;
+
+const getStyles = (_theme: AppTheme) => StyleSheet.create({
+  container: {
+    gap: 16,
+  },
+});
+
+interface RecordingSettingsProps {
+  config: RecordingConfig;
+  onConfigChange: (config: RecordingConfig) => void;
+  customFileName: string;
+  onCustomFileNameChange: (name: string) => void;
+  isRecording: boolean;
+  isPaused: boolean;
+  isRecordingPrepared?: boolean; // Make optional
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  enableLiveTranscription: boolean;
+}
+
+export function RecordingSettings({
+  config,
+  onConfigChange,
+  customFileName,
+  onCustomFileNameChange,
+  isRecording,
+  isPaused,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  enableLiveTranscription
+}: RecordingSettingsProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
+  
+  const [notificationEnabled, setNotificationEnabled] = useState(
+    config.showNotification ?? true
+  );
+  const [notificationConfig, setNotificationConfig] = useState<NotificationConfig>(
+    config.notification || {
+      title: 'Recording in progress',
+      text: '',
+      android: {
+        notificationId: 1,
+        channelId: 'audio_recording_channel',
+        channelName: 'Audio Recording',
+        channelDescription: 'Shows audio recording status',
+      }
+    }
+  );
+  const [iosSettingsEnabled, setIOSSettingsEnabled] = useState(false);
+  const [iosSettings, setIOSSettings] = useState<RecordingConfig['ios']>(
+    config.ios
+  );
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [currentDevice, setCurrentDevice] = useState<AudioDevice | null>(null);
+
+  // Handle device selection
+  const handleDeviceSelected = (device: AudioDevice) => {
+    setCurrentDevice(device);
+    const updatedConfig = {
+      ...config,
+      deviceId: device.id,
+    };
+    onConfigChange(updatedConfig);
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleConfigUpdate = (updates: Partial<RecordingConfig>) => {
+    const updatedConfig = {
+      ...config,
+      ...updates,
+    };
+    onConfigChange(updatedConfig);
+  };
+
+  const isDisabled = isRecording || isPaused;
+
+  return (
+    <View style={styles.container}>
+      <EditableInfoCard
+        testID="filename-input"
+        label="File Name"
+        value={customFileName}
+        placeholder="pick a filename for your recording"
+        inlineEditable
+        editable={!isDisabled}
+        containerStyle={{
+          backgroundColor: theme.colors.secondaryContainer,
+        }}
+        onInlineEdit={(newFileName) => {
+          if (typeof newFileName === 'string') {
+            onCustomFileNameChange(newFileName);
+          }
+        }}
+      />
+
+      <AudioDeviceSelector
+        testID="audio-device-selector"
+        showCapabilities={true}
+        disabled={isDisabled}
+        onDeviceSelected={handleDeviceSelected}
+      />
+
+      {currentDevice && (
+        <DeviceValidationManager
+          device={currentDevice}
+          recordingConfig={config}
+          sampleRateForTranscription={WhisperSampleRate}
+          enableLiveTranscription={enableLiveTranscription}
+          onUpdateConfig={handleConfigUpdate}
+        />
+      )}
+
+      <View>
+        <Text variant="titleMedium" style={{ marginBottom: 8 }}>Sample Rate</Text>
+        <SegmentedButtons
+          value={String(config.sampleRate || WhisperSampleRate)}
+          onValueChange={(value) => {
+            const updatedConfig = {
+              ...config,
+              sampleRate: parseInt(value, 10) as SampleRate,
+            };
+            onConfigChange(updatedConfig);
+          }}
+          buttons={[
+            { value: '16000', label: '16 kHz' },
+            { value: '44100', label: '44.1 kHz' },
+            { value: '48000', label: '48 kHz' },
+          ]}
+        />
+      </View>
+      
+      <View>
+        <Text variant="titleMedium" style={{ marginBottom: 8 }}>Encoding</Text>
+        <SegmentedButtons
+          value={config.encoding || 'pcm_32bit'}
+          onValueChange={(value) => {
+            const updatedConfig = {
+              ...config,
+              encoding: value as RecordingConfig['encoding'],
+            };
+            onConfigChange(updatedConfig);
+          }}
+          buttons={[
+            { value: 'pcm_16bit', label: '16-bit' },
+            { value: 'pcm_32bit', label: '32-bit' },
+            { value: 'pcm_8bit', label: '8-bit' },
+          ]}
+        />
+      </View>
+      
+      <SegmentDurationSelector
+        testID="segment-duration-selector"
+        value={(config.segmentDurationMs ?? 100) as SegmentDuration}
+        onChange={(duration) => {
+          const updatedConfig = {
+            ...config,
+            segmentDurationMs: duration,
+          };
+          onConfigChange(updatedConfig);
+        }}
+        maxDurationMs={1000}
+        skipConfirmation
+      />
+      
+      <LabelSwitch
+        label="Enable Compression"
+        value={config.compression?.enabled ?? true}
+        onValueChange={(enabled) => {
+          const updatedConfig = {
+            ...config,
+            compression: {
+              ...(config.compression ?? { format: 'opus', bitrate: DEFAULT_BITRATE }),
+              enabled,
+            },
+          };
+          onConfigChange(updatedConfig);
+        }}
+        disabled={isDisabled}
+      />
+
+      {config.compression?.enabled && (
+        <>
+          <View>
+            <Text variant="titleMedium" style={{ marginBottom: 8 }}>Compression Format</Text>
+            <SegmentedButtons
+              value={config.compression?.format || 'opus'}
+              onValueChange={(value) => {
+                const updatedConfig = {
+                  ...config,
+                  compression: {
+                    ...(config.compression ?? { enabled: true, bitrate: DEFAULT_BITRATE }),
+                    format: value as 'aac' | 'opus',
+                  },
+                };
+                onConfigChange(updatedConfig);
+              }}
+              buttons={[
+                { value: 'opus', label: 'OPUS' },
+                // Only show AAC option for native platforms
+                ...(!isWeb ? [{ value: 'aac', label: 'AAC' }] : []),
+              ]}
+            />
+          </View>
+          
+          <View>
+            <Text variant="titleMedium" style={{ marginBottom: 8 }}>Bitrate</Text>
+            <SegmentedButtons
+              value={String(config.compression?.bitrate || DEFAULT_BITRATE)}
+              onValueChange={(value) => {
+                const updatedConfig = {
+                  ...config,
+                  compression: {
+                    ...(config.compression ?? { enabled: true, format: 'opus' }),
+                    bitrate: parseInt(value, 10),
+                  },
+                };
+                onConfigChange(updatedConfig);
+              }}
+              buttons={[
+                { value: '32000', label: '32 kbps (Voice)' },
+                { value: '64000', label: '64 kbps (Studio)' },
+              ]}
+            />
+          </View>
+        </>
+      )}
+      
+      <LabelSwitch
+        label="Keep Recording in Background"
+        value={config.keepAwake ?? true}
+        onValueChange={(enabled) => {
+          const updatedConfig = {
+            ...config,
+            keepAwake: enabled,
+          };
+          onConfigChange(updatedConfig);
+        }}
+        disabled={isDisabled}
+      />
+      
+      {Platform.OS !== 'web' && (
+        <NativeNotificationConfig
+          enabled={notificationEnabled}
+          onEnabledChange={(enabled) => {
+            setNotificationEnabled(enabled);
+            onConfigChange({ ...config, showNotification: enabled });
+          }}
+          config={notificationConfig}
+          onConfigChange={(newNotificationConfig) => {
+            setNotificationConfig(newNotificationConfig);
+            onConfigChange({ ...config, notification: newNotificationConfig });
+          }}
+        />
+      )}
+      
+      {Platform.OS === 'ios' && (
+        <>
+          <LabelSwitch
+            label="Custom iOS Audio Settings"
+            value={iosSettingsEnabled}
+            onValueChange={setIOSSettingsEnabled}
+            disabled={isDisabled}
+          />
+          {iosSettingsEnabled && (
+            <IOSSettingsConfig
+              config={iosSettings}
+              onConfigChange={(newConfig) => {
+                setIOSSettings(newConfig);
+                onConfigChange({ ...config, ios: newConfig });
+              }}
+            />
+          )}
+        </>
+      )}
+
+      <View>
+        <Text variant="titleMedium" style={{ marginBottom: 8 }}>Device Disconnection Behavior</Text>
+        <SegmentedButtons
+          value={config.deviceDisconnectionBehavior || 'fallback'}
+          onValueChange={(value) => {
+            const updatedConfig = {
+              ...config,
+              deviceDisconnectionBehavior: value as DeviceDisconnectionBehaviorType,
+            };
+            onConfigChange(updatedConfig);
+          }}
+          buttons={[
+            { value: 'fallback', label: 'Fallback to Default', disabled: isDisabled },
+            { value: 'pause', label: 'Pause Recording', disabled: isDisabled },
+          ]}
+        />
+      </View>
+    </View>
+  );
+} 

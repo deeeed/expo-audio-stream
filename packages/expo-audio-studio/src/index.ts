@@ -34,3 +34,9 @@ export {
 
 export type * from './AudioAnalysis/AudioAnalysis.types'
 export type * from './ExpoAudioStream.types'
+
+// Export AudioDeviceManager
+export { AudioDeviceManager, audioDeviceManager } from './AudioDeviceManager'
+
+// Export useAudioDevices hook
+export { useAudioDevices } from './hooks/useAudioDevices'

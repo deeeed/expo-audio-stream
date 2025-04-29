@@ -22,6 +22,9 @@ const initContext: UseAudioRecorderState = {
     resumeRecording: async () => {
         throw new Error('AudioRecorderProvider not found')
     },
+    prepareRecording: async () => {
+        throw new Error('AudioRecorderProvider not found')
+    },
 }
 
 const AudioRecorderContext = createContext<UseAudioRecorderState>(initContext)

@@ -440,16 +440,36 @@ function estimatePitch(segment, sampleRate) {
     }
 }
 
-// Unique ID counter
+// Unique ID counter - the only state we need to maintain
 let uniqueIdCounter = 0
-let accumulatedDataPoints = []
 let lastEmitTime = Date.now()
 
 self.onmessage = function (event) {
+    // Extract enableLogging early so we can use it consistently
+    const enableLogging = event.data.enableLogging || false;
+    
+    // Create consistent logger that only logs when enabled
+    const logger = enableLogging ? {
+        debug: (...args) => console.debug('[Worker]', ...args),
+        log: (...args) => console.log('[Worker]', ...args),
+        warn: (...args) => console.warn('[Worker]', ...args),
+        error: (...args) => console.error('[Worker]', ...args)
+    } : {
+        debug: () => {},
+        log: () => {},
+        warn: () => {},
+        error: () => {}
+    };
+    
     // Check if this is a reset command
     if (event.data.command === 'resetCounter') {
-        uniqueIdCounter = event.data.startCounterFrom || 0;
-        console.log('[Worker] Reset counter to', uniqueIdCounter);
+        const newValue = event.data.value;
+        logger.log('Reset counter request received with value:', newValue);
+        
+        // Always respect explicit resets through the resetCounter command
+        uniqueIdCounter = typeof newValue === 'number' ? newValue : 0;
+        logger.log('Counter explicitly set to:', uniqueIdCounter);
+        
         return; // Exit early, don't process audio
     }
 
@@ -464,34 +484,13 @@ self.onmessage = function (event) {
         numberOfChannels,
         features: _features,
         intervalAnalysis = 500,
-        enableLogging,
-        resetCounter,
-        startCounterFrom,
     } = event.data
-
-    // Also handle reset as part of regular message
-    if (resetCounter) {
-        uniqueIdCounter = startCounterFrom || 0;
-    }
 
     // Calculate subChunkStartTime safely, defaulting to 0 if fullAudioDurationMs is not a valid number
     const subChunkStartTime = (typeof fullAudioDurationMs === 'number' && !isNaN(fullAudioDurationMs) && fullAudioDurationMs >= 0)
                             ? fullAudioDurationMs / 1000
                             : 0;
 
-    
-    // Create a simple logger that only logs when enabled
-    const logger = enableLogging ? {
-        debug: (...args) => console.debug('[Worker]', ...args),
-        log: (...args) => console.log('[Worker]', ...args),
-        error: (...args) => console.error('[Worker]', ...args)
-    } : {
-        debug: () => {},
-        log: () => {},
-        error: () => {}
-    }
-    logger.log('[Worker] START Feature Extractor - hasData: ' + (event.data ? true : false) + ', channelData: ' + (event.data.channelData ? event.data.channelData.length : 0) + ', fullAudioDurationMs: ' + (event.data.fullAudioDurationMs || 0) + ', sampleRate: ' + (event.data.sampleRate || 0) + ', segmentDurationMs: ' + (event.data.segmentDurationMs || 0) + ', algorithm: ' + (event.data.algorithm || 'none') + ', bitDepth: ' + (event.data.bitDepth || 0) + ', numberOfChannels: ' + (event.data.numberOfChannels || 0) + ', features: ' + (event.data.features ? Object.keys(event.data.features).length : 0) + ', intervalAnalysis: ' + (event.data.intervalAnalysis || 0) + ', dataKeys: ' + (event.data ? Object.keys(event.data).join(',') : ''));
-    
     const features = _features || {}
     const bytesPerSample = bitDepth / 8; // Calculate bytes per sample
 
@@ -692,6 +691,7 @@ self.onmessage = function (event) {
 
             var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate, features);
 
+            // Simply use the counter, increment after assigning
             const dataPoint = {
                 id: uniqueIdCounter++,
                 amplitude: maxAmp,
@@ -756,6 +756,7 @@ self.onmessage = function (event) {
 
             var spectralFeatures = computeSpectralFeatures(channelData.slice(startIdx, endIdx), sampleRate, features);
 
+            // Simply use the counter, increment after assigning
             const dataPoint = {
                 id: uniqueIdCounter++,
                 amplitude: maxAmp,
@@ -769,7 +770,7 @@ self.onmessage = function (event) {
                 samples: remainingSamples,
             }
 
-            logger.log('[Worker] extractWaveform - dataPoint', dataPoint)
+            logger.debug('extractWaveform - dataPoint', dataPoint);
             // Extract features if any are requested
             const extractedFeatures = createFeaturesObject(
                 features,

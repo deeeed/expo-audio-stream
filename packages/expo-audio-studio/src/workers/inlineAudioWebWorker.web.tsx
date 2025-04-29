@@ -17,6 +17,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.port.onmessage = this.handleMessage.bind(this)
         this.enableLogging = false
         this.exportIntervalSamples = 0
+        this.currentPosition = 0 // Track current position in seconds
     }
 
     handleMessage(event) {
@@ -36,6 +37,14 @@ class RecorderProcessor extends AudioWorkletProcessor {
                 }
                 this.exportBitDepth =
                     event.data.exportBitDepth || this.recordBitDepth
+                
+                // Handle position parameter for device switching
+                if (typeof event.data.position === 'number' && event.data.position > 0) {
+                    this.currentPosition = event.data.position
+                    if (this.enableLogging) {
+                        console.log('AudioWorklet initialized with position:', this.currentPosition)
+                    }
+                }
                 break
 
             case 'stop':
@@ -43,6 +52,14 @@ class RecorderProcessor extends AudioWorkletProcessor {
                 if (this.currentChunk.length > 0) {
                     this.processChunk()
                 }
+                break
+                
+            case 'pause':
+                // Just a placeholder for pause handling
+                break
+                
+            case 'resume':
+                // Just a placeholder for resume handling
                 break
         }
     }
@@ -138,14 +155,21 @@ class RecorderProcessor extends AudioWorkletProcessor {
                 ? this.convertBitDepth(resampledChunk, this.exportBitDepth)
                 : resampledChunk
 
-        // Send processed chunk
+        // Calculate the duration in seconds
+        const chunkDuration = finalBuffer.length / this.exportSampleRate
+        
+        // Send processed chunk with the current position
         this.port.postMessage({
             command: 'newData',
             recordedData: finalBuffer,
             sampleRate: this.exportSampleRate,
             bitDepth: this.exportBitDepth,
             numberOfChannels: this.numberOfChannels,
+            position: this.currentPosition,
         })
+        
+        // Update the position
+        this.currentPosition += chunkDuration
 
         // Clear the current chunk
         this.currentChunk = []

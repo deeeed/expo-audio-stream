@@ -1,4 +1,5 @@
-import { useTheme } from "@siteed/design-system";
+import React, { useState, useMemo } from "react";
+import { useTheme, AppTheme } from "@siteed/design-system";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,8 +8,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated";
-import { useState } from "react";
-import { CompressionInfo } from "@siteed/expo-audio-studio/src";
+import { AudioDevice, CompressionInfo } from "@siteed/expo-audio-studio";
 
 interface RecordingStatsProps {
   readonly duration: number;
@@ -16,7 +16,8 @@ interface RecordingStatsProps {
   readonly sampleRate?: number;
   readonly bitDepth?: number;
   readonly channels?: number;
-  readonly compression?: CompressionInfo
+  readonly compression?: CompressionInfo;
+  readonly device?: AudioDevice | null;
 }
 
 function formatDuration(durationMs: number) {
@@ -33,161 +34,12 @@ function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-export function RecordingStats({ 
-  duration, 
-  size,
-  compression,
-  sampleRate,
-  bitDepth,
-  channels
-}: RecordingStatsProps) {
-  const { colors } = useTheme();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const animationHeight = useSharedValue(0);
-
-  const toggleExpanded = () => {
-    const newIsExpanded = !isExpanded;
-    setIsExpanded(newIsExpanded);
-    const expandedHeight = compression ? 230 : 100;
-    animationHeight.value = withTiming(newIsExpanded ? expandedHeight : 0, { duration: 300 });
-  };
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    height: animationHeight.value,
-    opacity: animationHeight.value === 0 ? 0 : 1,
-  }));
-
-  return (
-    <View style={[styles.wrapper, { backgroundColor: colors.surfaceVariant }]}>
-      <TouchableOpacity onPress={toggleExpanded}>
-        <View style={styles.container}>
-          <View style={styles.statItem}>
-            <Text
-              variant="labelLarge"
-              style={[styles.label, { color: colors.onSurfaceVariant }]}
-            >
-              Duration
-            </Text>
-            <Text
-              variant="headlineSmall"
-              style={[styles.value, { color: colors.primary }]}
-            >
-              {formatDuration(duration)}
-            </Text>
-          </View>
-          <View style={[styles.divider, { backgroundColor: colors.outline }]} />
-          <View style={styles.statItem}>
-            <Text
-              variant="labelLarge"
-              style={[styles.label, { color: colors.onSurfaceVariant }]}
-            >
-              Size
-            </Text>
-            <Text
-              variant="headlineSmall"
-              style={[styles.value, { color: colors.primary }]}
-            >
-              {compression ? formatBytes(compression.size) : formatBytes(size)}
-            </Text>
-          </View>
-          <Ionicons
-            name={isExpanded ? "chevron-up" : "chevron-down"}
-            size={24}
-            color={colors.primary}
-            style={styles.icon}
-          />
-        </View>
-      </TouchableOpacity>
-
-      <Animated.View style={[styles.expandedContent, animatedStyle]}>
-        <View 
-          style={styles.detailsGrid}
-        >
-          {/* Audio specs section */}
-          <View style={styles.audioSpecsRow}>
-            {(sampleRate) && (
-              <View style={styles.specItem}>
-                <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
-                  Sample Rate
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.primary }]}>
-                  {sampleRate} Hz
-                </Text>
-              </View>
-            )}
-            {(bitDepth) && (
-              <View style={styles.specItem}>
-                <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
-                  Bit Depth
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.primary }]}>
-                  {bitDepth} bit
-                </Text>
-              </View>
-            )}
-            {(channels) && (
-              <View style={styles.specItem}>
-                <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
-                  Channels
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.primary }]}>
-                  {channels}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Compression section */}
-          {(compression) && (
-            <>
-              <View style={styles.sectionDivider}>
-                <Text style={[styles.sectionTitle, { color: colors.onSurfaceVariant }]}>
-                  Storage Details
-                </Text>
-              </View>
-              
-              <View style={styles.audioSpecsRow}>
-                <View style={styles.specItem}>
-                  <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
-                    Format
-                  </Text>
-                  <Text style={[styles.detailValue, { color: colors.primary }]}>
-                    {compression.format.toUpperCase()}
-                    {(compression.bitrate) ? ` (${(compression.bitrate / 1000).toFixed(0)} kbps)` : ''}
-                  </Text>
-                </View>
-
-                <View style={styles.specItem}>
-                  <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
-                    Uncompressed Size
-                  </Text>
-                  <Text style={[styles.detailValue, { color: colors.primary }]}>
-                    {formatBytes(size)}
-                  </Text>
-                </View>
-
-                <View style={styles.specItem}>
-                  <Text style={[styles.detailLabel, { color: colors.onSurfaceVariant }]}>
-                    Size Reduction
-                  </Text>
-                  <Text style={[styles.detailValue, { color: colors.primary }]}>
-                    {((1 - compression.size / size) * 100).toFixed(0)}%
-                  </Text>
-                </View>
-              </View>
-            </>
-          )}
-        </View>
-      </Animated.View>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
+const getStyles = (theme: AppTheme) => StyleSheet.create({
   wrapper: {
     borderRadius: 12,
     marginVertical: 8,
     overflow: 'hidden',
+    backgroundColor: theme.colors.surfaceVariant,
   },
   container: {
     flexDirection: "row",
@@ -201,19 +53,23 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: 4,
+    color: theme.colors.onSurfaceVariant,
   },
   value: {
     fontWeight: "bold",
+    color: theme.colors.primary,
   },
   divider: {
     width: 1,
     height: 40,
     marginHorizontal: 16,
+    backgroundColor: theme.colors.outline,
   },
   icon: {
     position: 'absolute',
     right: 16,
     top: 10,
+    color: theme.colors.primary,
   },
   expandedContent: {
     overflow: 'hidden',
@@ -232,10 +88,12 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontSize: 12,
     marginBottom: 4,
+    color: theme.colors.onSurfaceVariant,
   },
   detailValue: {
     fontSize: 16,
     fontWeight: '600',
+    color: theme.colors.primary,
   },
   rawSizeLabel: {
     fontSize: 12,
@@ -257,6 +115,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
+    color: theme.colors.onSurfaceVariant,
   },
   audioSpecsRow: {
     flexDirection: 'row',
@@ -268,4 +127,200 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-}); 
+});
+
+export function RecordingStats({ 
+  duration, 
+  size,
+  compression,
+  sampleRate,
+  bitDepth,
+  channels,
+  device
+}: RecordingStatsProps) {
+  const theme = useTheme();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const animationHeight = useSharedValue(0);
+  const styles = useMemo(() => getStyles(theme), [theme]);
+
+  const toggleExpanded = () => {
+    const newIsExpanded = !isExpanded;
+    setIsExpanded(newIsExpanded);
+    // Calculate the expanded height based on what sections are shown
+    let expandedHeight = 100; // Base height for audio specs
+    if (compression) expandedHeight += 120; // Add height for compression section
+    if (device) expandedHeight += 100; // Add height for device section
+    animationHeight.value = withTiming(newIsExpanded ? expandedHeight : 0, { duration: 300 });
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    height: animationHeight.value,
+    opacity: animationHeight.value === 0 ? 0 : 1,
+  }));
+
+  return (
+    <View style={styles.wrapper}>
+      <TouchableOpacity onPress={toggleExpanded}>
+        <View style={styles.container}>
+          <View style={styles.statItem}>
+            <Text
+              variant="labelLarge"
+              style={styles.label}
+            >
+              Duration
+            </Text>
+            <Text
+              variant="headlineSmall"
+              style={styles.value}
+            >
+              {formatDuration(duration)}
+            </Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.statItem}>
+            <Text
+              variant="labelLarge"
+              style={styles.label}
+            >
+              Size
+            </Text>
+            <Text
+              variant="headlineSmall"
+              style={styles.value}
+            >
+              {compression ? formatBytes(compression.size) : formatBytes(size)}
+            </Text>
+          </View>
+          <Ionicons
+            name={isExpanded ? "chevron-up" : "chevron-down"}
+            size={24}
+            style={styles.icon}
+          />
+        </View>
+      </TouchableOpacity>
+
+      <Animated.View style={[styles.expandedContent, animatedStyle]}>
+        <View 
+          style={styles.detailsGrid}
+        >
+          {/* Audio specs section */}
+          <View style={styles.audioSpecsRow}>
+            {(sampleRate) && (
+              <View style={styles.specItem}>
+                <Text style={styles.detailLabel}>
+                  Sample Rate
+                </Text>
+                <Text style={styles.detailValue}>
+                  {sampleRate} Hz
+                </Text>
+              </View>
+            )}
+            {(bitDepth) && (
+              <View style={styles.specItem}>
+                <Text style={styles.detailLabel}>
+                  Bit Depth
+                </Text>
+                <Text style={styles.detailValue}>
+                  {bitDepth} bit
+                </Text>
+              </View>
+            )}
+            {(channels) && (
+              <View style={styles.specItem}>
+                <Text style={styles.detailLabel}>
+                  Channels
+                </Text>
+                <Text style={styles.detailValue}>
+                  {channels}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Device information section */}
+          {device && (
+            <>
+              <View style={styles.sectionDivider}>
+                <Text style={styles.sectionTitle}>
+                  Input Device
+                </Text>
+              </View>
+              
+              <View style={styles.audioSpecsRow}>
+                <View style={styles.specItem}>
+                  <Text style={styles.detailLabel}>
+                    Device
+                  </Text>
+                  <Text style={styles.detailValue}>
+                    {device.name}
+                  </Text>
+                </View>
+
+                <View style={styles.specItem}>
+                  <Text style={styles.detailLabel}>
+                    Type
+                  </Text>
+                  <Text style={styles.detailValue}>
+                    {device.type.replace('_', ' ')}
+                  </Text>
+                </View>
+
+                {device.isDefault && (
+                  <View style={styles.specItem}>
+                    <Text style={styles.detailLabel}>
+                      Default
+                    </Text>
+                    <Text style={styles.detailValue}>
+                      Yes
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </>
+          )}
+
+          {/* Compression section */}
+          {(compression) && (
+            <>
+              <View style={styles.sectionDivider}>
+                <Text style={styles.sectionTitle}>
+                  Storage Details
+                </Text>
+              </View>
+              
+              <View style={styles.audioSpecsRow}>
+                <View style={styles.specItem}>
+                  <Text style={styles.detailLabel}>
+                    Format
+                  </Text>
+                  <Text style={styles.detailValue}>
+                    {compression.format.toUpperCase()}
+                    {(compression.bitrate) ? ` (${(compression.bitrate / 1000).toFixed(0)} kbps)` : ''}
+                  </Text>
+                </View>
+
+                <View style={styles.specItem}>
+                  <Text style={styles.detailLabel}>
+                    Uncompressed Size
+                  </Text>
+                  <Text style={styles.detailValue}>
+                    {formatBytes(size)}
+                  </Text>
+                </View>
+
+                <View style={styles.specItem}>
+                  <Text style={styles.detailLabel}>
+                    Size Reduction
+                  </Text>
+                  <Text style={styles.detailValue}>
+                    {((1 - compression.size / size) * 100).toFixed(0)}%
+                  </Text>
+                </View>
+              </View>
+            </>
+          )}
+        </View>
+      </Animated.View>
+    </View>
+  );
+} 

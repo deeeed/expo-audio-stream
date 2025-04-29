@@ -13,9 +13,19 @@ sidebar_label: Features
 - **Real-time audio streaming** with configurable quality settings across all platforms
 - **Zero-latency recording** with [prepareRecording](api-reference/recording-config.md#zero-latency-recording) API to eliminate startup delay
 - **Dual-stream recording** with simultaneous raw PCM and [compressed formats](api-reference/recording-config.md#compression-settings) (OPUS/AAC)
+- **Audio device detection and selection** for choosing specific microphones or input sources
 - **Intelligent interruption handling** with automatic pause/resume during phone calls
 - **Background recording** support with keep-awake functionality
 - **Rich notification system** with live waveform visualization (Android) and media controls
+
+## Device Management
+
+- **Device enumeration** to list all available audio input devices
+- **Detailed device capabilities** showing supported sample rates, channels, and bit depths
+- **Device selection API** for choosing specific microphones or audio inputs
+- **Device type detection** to identify Bluetooth, USB, wired, and built-in microphones
+- **Automatic fallback behavior** when devices become unavailable
+- **Cross-platform compatibility** with consistent API across iOS, Android, and web
 
 ## Audio Processing
 
@@ -36,6 +46,7 @@ sidebar_label: Features
 ## User Interface
 
 - Ready-to-use UI components via [@siteed/expo-audio-ui](https://github.com/deeeed/expo-audio-stream/tree/main/packages/expo-audio-ui) package
+- Audio device selection components
 - Visualizations, waveforms, and interactive audio controls
 - Full-featured AudioPlayground application showcasing API usage
 
