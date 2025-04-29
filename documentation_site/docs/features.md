@@ -4,37 +4,39 @@ title: Features
 sidebar_label: Features
 ---
 
-## Features
+# Key Features
 
-- Real-time audio streaming across iOS, Android, and web.
-- Dual-stream recording capabilities:
-  - Simultaneous raw PCM and compressed audio recording
-  - Compression formats: OPUS or AAC
-  - Configurable bitrate for compressed audio
-  - Optimized storage for both high-quality and compressed formats
-- Intelligent interruption handling:
-  - Automatic pause/resume during phone calls
-  - Configurable automatic resumption
-  - Detailed interruption event callbacks
-- Configurable intervals for audio buffer receipt.
-- Automated microphone permissions setup in managed Expo projects.
-- Background audio recording on iOS.
-- Audio features extraction during recording.
-- Consistent WAV PCM recording format across all platforms.
-- Keep recording active while app is in background
-- Rich notification system for recording status:
-  - Android: Live waveform visualization in notifications
-  - Android: Fully customizable notification appearance and actions
-  - iOS: Media player integration
-- Advanced audio analysis capabilities:
-  - Mel spectrogram generation for machine learning and visualization
-  - Comprehensive audio feature extraction (MFCC, spectral features, etc.)
-  - Lightweight waveform preview generation
-- Precision audio manipulation:
-  - Advanced audio splitting and trimming API
-  - Support for trimming multiple segments in a single operation
-  - Ability to keep or remove specific time ranges
-- Complete ecosystem:
-  - Full-featured AudioPlayground application showcasing advanced API usage
-  - Ready-to-use UI components via [@siteed/expo-audio-ui](https://github.com/deeeed/expo-audio-stream/tree/main/packages/expo-audio-ui) package
-  - Visualizations, waveforms, and audio controls that can be directly incorporated into your app
+`@siteed/expo-audio-studio` provides a comprehensive set of audio recording, processing, and analysis features that work consistently across iOS, Android, and web platforms:
+
+## Recording Features
+
+- **Real-time audio streaming** with configurable quality settings across all platforms
+- **Zero-latency recording** with [prepareRecording](api-reference/recording-config.md#zero-latency-recording) API to eliminate startup delay
+- **Dual-stream recording** with simultaneous raw PCM and [compressed formats](api-reference/recording-config.md#compression-settings) (OPUS/AAC)
+- **Intelligent interruption handling** with automatic pause/resume during phone calls
+- **Background recording** support with keep-awake functionality
+- **Rich notification system** with live waveform visualization (Android) and media controls
+
+## Audio Processing
+
+- **Comprehensive [audio analysis](api-reference/audio-features/audio-analysis-overview.md)** with feature extraction (energy, RMS, MFCC, etc.)
+- **[Mel spectrogram generation](api-reference/audio-processing/extract-mel-spectrogram.md)** for machine learning and visualization
+- **Precision [audio trimming](api-reference/audio-processing/trim-audio.md)** with multi-segment support
+- **Format conversion** and normalization capabilities
+
+## Platform Integration
+
+- **Automated permissions** setup in managed Expo projects
+- **Consistent WAV PCM** format across platforms
+- **Native optimizations** for each platform's audio architecture:
+  - Web: AudioWorkletProcessor for real-time processing
+  - Android: Native AudioRecord API
+  - iOS: AVAudioEngine with automatic sample rate adaptation
+
+## User Interface
+
+- Ready-to-use UI components via [@siteed/expo-audio-ui](https://github.com/deeeed/expo-audio-stream/tree/main/packages/expo-audio-ui) package
+- Visualizations, waveforms, and interactive audio controls
+- Full-featured AudioPlayground application showcasing API usage
+
+For detailed API documentation and usage examples, explore the [API Reference](api-reference/api-intro.md) section.

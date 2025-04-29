@@ -190,6 +190,46 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             return self.streamManager.getStatus()
         }
         
+        /// Prepares audio recording with the specified settings without starting it.
+        ///
+        /// - Parameters:
+        ///   - options: The recording settings to use.
+        ///   - promise: A promise to resolve with true if preparation was successful.
+        /// - Returns: A promise that resolves with a boolean indicating success.
+        AsyncFunction("prepareRecording") { (options: [String: Any], promise: Promise) in
+            self.checkMicrophonePermission { granted in
+                guard granted else {
+                    promise.reject("PERMISSION_DENIED", "Recording permission has not been granted")
+                    return
+                }
+                
+                // Create settings with validation
+                let settingsResult = RecordingSettings.fromDictionary(options)
+                
+                switch settingsResult {
+                case .success(let settings):
+                    // Initialize notification if enabled
+                    if settings.showNotification {
+                        Task {
+                            let notificationGranted = await self.requestNotificationPermissions()
+                            if !notificationGranted {
+                                Logger.debug("Notification permissions not granted")
+                            }
+                        }
+                    }
+                    
+                    if self.streamManager.prepareRecording(settings: settings) {
+                        promise.resolve(true)
+                    } else {
+                        promise.reject("ERROR", "Failed to prepare recording.")
+                    }
+                    
+                case .failure(let error):
+                    promise.reject("INVALID_SETTINGS", error.localizedDescription)
+                }
+            }
+        }
+        
         /// Pauses audio recording.
         Function("pauseRecording") {
             self.streamManager.pauseRecording()
@@ -335,7 +375,8 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             let ranges = options["ranges"] as? [[String: Double]]
             let outputFileName = options["outputFileName"] as? String
             let outputFormat = options["outputFormat"] as? [String: Any]
-            let decodingOptions = options["decodingOptions"] as? [String: Any]
+            let decodingOptions = options["decodingOptions"] as? [String: Any] ?? [:]
+            let includeNormalizedData = options["includeNormalizedData"] as? Bool ?? false
 
             // Add detailed logging for filename and format options
             Logger.debug("Trim audio request:")
@@ -521,7 +562,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 let frameCount = AVAudioFrameCount(endFrame - startFrame)
                 
                 // Create decoding config that includes normalization preference
-                var decodingOptions = options["decodingOptions"] as? [String: Any] ?? [:]
+                let decodingOptions = options["decodingOptions"] as? [String: Any] ?? [:]
                 let includeNormalizedData = options["includeNormalizedData"] as? Bool ?? false
                 
                 // Pass both options separately - normalizeAudio from decodingOptions, and includeNormalizedData as is

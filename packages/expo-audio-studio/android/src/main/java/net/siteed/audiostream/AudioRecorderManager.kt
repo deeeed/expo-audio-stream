@@ -90,6 +90,8 @@ class AudioRecorderManager(
     private val analysisBuffer = ByteArrayOutputStream()
     private var isFirstAnalysis = true
 
+    private var isPrepared = false
+
     private fun initializePhoneStateListener() {
         try {
             Log.d(Constants.TAG, "Initializing phone state listener...")
@@ -353,58 +355,65 @@ class AudioRecorderManager(
     @RequiresApi(Build.VERSION_CODES.R)
     fun startRecording(options: Map<String, Any?>, promise: Promise) {
         try {
-            // Initialize phone state listener only if enabled
-            if (enablePhoneStateHandling) {
-                initializePhoneStateListener()
-            }
-
-            // Request audio focus
-            if (!requestAudioFocus()) {
-                promise.reject("AUDIO_FOCUS_ERROR", "Failed to obtain audio focus", null)
-                return
-            }
-
-            Log.d(Constants.TAG, "Starting recording with options: $options")
-
-            // Check permissions
-            if (!checkPermissions(options, promise)) return
-
             // Check if already recording
             if (isRecording.get() && !isPaused.get()) {
                 promise.reject("ALREADY_RECORDING", "Recording is already in progress", null)
                 return
             }
-
-            // Parse recording configuration
-            val configResult = RecordingConfig.fromMap(options)
-            if (configResult.isFailure) {
-                promise.reject(
-                    "INVALID_CONFIG",
-                    configResult.exceptionOrNull()?.message ?: "Invalid configuration",
-                    configResult.exceptionOrNull()
-                )
+            
+            // Request audio focus - always do this right before starting
+            if (!requestAudioFocus()) {
+                promise.reject("AUDIO_FOCUS_ERROR", "Failed to obtain audio focus", null)
                 return
             }
 
-            val (tempRecordingConfig, audioFormatInfo) = configResult.getOrNull()!!
-            
-            recordingConfig = tempRecordingConfig
-            
-            audioFormat = audioFormatInfo.format
-            mimeType = audioFormatInfo.mimeType
+            // If already prepared, we can skip initialization
+            if (!isPrepared) {
+                Log.d(Constants.TAG, "Not prepared, preparing recording first")
+                
+                // Initialize phone state listener only if enabled
+                if (enablePhoneStateHandling) {
+                    initializePhoneStateListener()
+                }
 
-            if (!initializeAudioFormat(promise)) return
+                Log.d(Constants.TAG, "Starting recording with options: $options")
 
-            if (!initializeBufferSize(promise)) return
+                // Check permissions
+                if (!checkPermissions(options, promise)) return
 
-            if (!initializeAudioRecord(promise)) return
+                // Parse recording configuration
+                val configResult = RecordingConfig.fromMap(options)
+                if (configResult.isFailure) {
+                    promise.reject(
+                        "INVALID_CONFIG",
+                        configResult.exceptionOrNull()?.message ?: "Invalid configuration",
+                        configResult.exceptionOrNull()
+                    )
+                    return
+                }
 
-            if (recordingConfig.enableCompressedOutput && !initializeCompressedRecorder(
-                if (recordingConfig.compressedFormat == "aac") "aac" else "opus",
-                promise
-            )) return
+                val (tempRecordingConfig, audioFormatInfo) = configResult.getOrNull()!!
+                
+                recordingConfig = tempRecordingConfig
+                
+                audioFormat = audioFormatInfo.format
+                mimeType = audioFormatInfo.mimeType
 
-            if (!initializeRecordingResources(audioFormatInfo.fileExtension, promise)) return
+                if (!initializeAudioFormat(promise)) return
+
+                if (!initializeBufferSize(promise)) return
+
+                if (!initializeAudioRecord(promise)) return
+
+                if (recordingConfig.enableCompressedOutput && !initializeCompressedRecorder(
+                    if (recordingConfig.compressedFormat == "aac") "aac" else "opus",
+                    promise
+                )) return
+
+                if (!initializeRecordingResources(audioFormatInfo.fileExtension, promise)) return
+            } else {
+                Log.d(Constants.TAG, "Using prepared recording state")
+            }
 
             if (!startRecordingProcess(promise)) return
 
@@ -759,6 +768,7 @@ class AudioRecorderManager(
                 }
 
                 isRecording.set(false)
+                isPrepared = false  // Reset preparation state
                 recordingThread?.join(1000)
 
                 val audioData = ByteArray(bufferSizeInBytes)
@@ -1276,6 +1286,7 @@ class AudioRecorderManager(
                 
                 isRecording.set(false)
                 isPaused.set(false)
+                isPrepared = false  // Reset prepared state
                 
                 if (recordingConfig.showNotification) {
                     notificationManager.stopUpdates()
@@ -1445,5 +1456,72 @@ class AudioRecorderManager(
 
     fun getKeepAwakeStatus(): Boolean {
         return recordingConfig?.keepAwake ?: true
+    }
+
+    /**
+     * Prepares audio recording with all initial setup but without starting.
+     * This reuses the existing validation and setup functions for compatibility.
+     */
+    fun prepareRecording(options: Map<String, Any?>): Boolean {
+        if (isRecording.get()) {
+            Log.d(Constants.TAG, "Cannot prepare recording - already recording")
+            return false
+        }
+        
+        if (isPrepared) {
+            Log.d(Constants.TAG, "Already prepared")
+            return true
+        }
+        
+        try {
+            // Initialize phone state listener only if enabled
+            if (enablePhoneStateHandling) {
+                initializePhoneStateListener()
+            }
+
+            // Check permissions - create a dummy promise to avoid rejections
+            val dummyPromise = object : Promise {
+                override fun resolve(value: Any?) {}
+                override fun reject(code: String, message: String?, cause: Throwable?) { 
+                    Log.e(Constants.TAG, "Preparation error: $code - $message", cause)
+                }
+            }
+            
+            if (!checkPermissions(options, dummyPromise)) return false
+
+            // Parse recording configuration - reuse existing code
+            val configResult = RecordingConfig.fromMap(options)
+            if (configResult.isFailure) {
+                Log.e(Constants.TAG, "Invalid configuration: ${configResult.exceptionOrNull()?.message}")
+                return false
+            }
+
+            val (tempRecordingConfig, audioFormatInfo) = configResult.getOrNull()!!
+            recordingConfig = tempRecordingConfig
+            audioFormat = audioFormatInfo.format
+            mimeType = audioFormatInfo.mimeType
+
+            // Use all the existing validation functions with our dummy promise
+            if (!initializeAudioFormat(dummyPromise)) return false
+            if (!initializeBufferSize(dummyPromise)) return false
+            if (!initializeAudioRecord(dummyPromise)) return false
+            
+            if (recordingConfig.enableCompressedOutput && !initializeCompressedRecorder(
+                if (recordingConfig.compressedFormat == "aac") "aac" else "opus",
+                dummyPromise
+            )) return false
+
+            if (!initializeRecordingResources(audioFormatInfo.fileExtension, dummyPromise)) return false
+            
+            // Everything is ready, mark as prepared
+            isPrepared = true
+            Log.d(Constants.TAG, "Recording prepared successfully")
+            return true
+        } catch (e: Exception) {
+            Log.e(Constants.TAG, "Error during preparation: ${e.message}", e)
+            cleanup()
+            isPrepared = false
+            return false
+        }
     }
 }

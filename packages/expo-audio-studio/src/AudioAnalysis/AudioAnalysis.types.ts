@@ -166,7 +166,7 @@ export interface PreviewOptions extends AudioRangeOptions {
 
 /**
  * Options for mel-spectrogram extraction
- * 
+ *
  * @experimental This feature is experimental and currently only available on Android.
  * The API may change in future versions.
  */
@@ -189,7 +189,7 @@ export interface ExtractMelSpectrogramOptions {
 
 /**
  * Return type for mel spectrogram extraction
- * 
+ *
  * @experimental This feature is experimental and currently only available on Android.
  * The API may change in future versions.
  */

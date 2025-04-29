@@ -6,6 +6,16 @@ sidebar_label: Installation
 
 # Installation
 
+> ## ⚠️ Important: Bare Workflow Required
+> 
+> **`@siteed/expo-audio-studio` requires using an ejected Expo project (bare workflow).** 
+> 
+> This library **will not work** in the managed Expo workflow. You must run `npx expo prebuild` 
+> to eject from the managed workflow before using this library.
+>
+> While the expo plugin configures permissions and native modules, the actual functionality
+> requires direct access to native code that is only available in the bare workflow.
+
 ## Installing the library
 
 To install `@siteed/expo-audio-studio`, add it to your project using npm or Yarn:

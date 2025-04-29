@@ -265,6 +265,7 @@ export default function RecordScreen() {
         stopRecording,
         pauseRecording,
         resumeRecording,
+        prepareRecording,
         isPaused,
         durationMs: duration,
         size,
@@ -436,7 +437,9 @@ export default function RecordScreen() {
         }
     });
 
-    const handleStart = useCallback(async () => {
+    const [isRecordingPrepared, setIsRecordingPrepared] = useState(false)
+
+    const handlePrepareRecording = useCallback(async () => {
         try {
             setProcessing(true)
             
@@ -445,9 +448,62 @@ export default function RecordScreen() {
                 throw new Error('Storage directory not initialized')
             }
 
-            // Request permissions and other checks...
+            // Request permissions early
             const permissionsGranted = await requestPermissions()
             if (!permissionsGranted) return
+
+            // Ensure filename has proper extension if provided
+            let finalFileName = customFileName
+            if (finalFileName && !finalFileName.endsWith('.wav')) {
+                finalFileName = `${finalFileName}.wav`
+            }
+
+            const finalConfig = {
+                ...startRecordingConfig,
+                filename: finalFileName || undefined,
+                outputDirectory: !isWeb ? defaultDirectory : undefined,
+            }
+
+            logger.debug(`Preparing recording with config:`, finalConfig)
+            await prepareRecording(finalConfig)
+            logger.debug(`Recording prepared successfully`)
+            setIsRecordingPrepared(true)
+            
+            show({
+                type: 'success',
+                message: 'Recording prepared and ready to start',
+                duration: 2000,
+            })
+        } catch (error) {
+            logger.error(`Error while preparing recording:`, error)
+            if (error instanceof Error) {
+                show({
+                    type: 'error',
+                    message: `Preparation failed: ${error.message}`,
+                    duration: 3000,
+                })
+            }
+            setIsRecordingPrepared(false)
+        } finally {
+            setProcessing(false)
+        }
+    }, [defaultDirectory, requestPermissions, customFileName, startRecordingConfig, prepareRecording, show])
+
+    const handleStart = useCallback(async () => {
+        try {
+            setProcessing(true)
+            
+            // If we haven't prepared yet, we need to check permissions
+            if (!isRecordingPrepared) {
+                // Only check directory on native platforms
+                if (!isWeb && !defaultDirectory) {
+                    throw new Error('Storage directory not initialized')
+                }
+
+                // Request permissions and other checks...
+                const permissionsGranted = await requestPermissions()
+                if (!permissionsGranted) return
+            }
 
             // Choose transcription strategy based on platform and device capability
             if (enableLiveTranscription && validSRTranscription) {
@@ -564,6 +620,7 @@ export default function RecordScreen() {
             const streamConfig: StartRecordingResult = await startRecording(finalConfig)
             logger.debug(`Recording started:`, streamConfig)
             setStreamConfig(streamConfig)
+            setIsRecordingPrepared(false) // Reset prepared state after starting
 
             // For narive platforms, start realtime transcription after recording begins
             if(!isWeb && enableLiveTranscription && validSRTranscription) {
@@ -639,12 +696,13 @@ export default function RecordScreen() {
         } finally {
             setProcessing(false)
         }
-    }, [defaultDirectory, requestPermissions, enableLiveTranscription, validSRTranscription, customFileName, startRecordingConfig, startRecording, initializeTranscription, stopProgressiveBatch, transcriptionContext.language, transcriptionContext.ready, startProgressiveBatch, isProgressiveBatchRunning, show, ready, transcriptionSettings.mode, transcriptionSettings.realtimeOptions, transcriptionSettings.batchOptions, startRealtimeTranscription])
+    }, [isRecordingPrepared, defaultDirectory, requestPermissions, enableLiveTranscription, validSRTranscription, customFileName, startRecordingConfig, startRecording, initializeTranscription, stopProgressiveBatch, transcriptionContext.language, transcriptionContext.ready, startProgressiveBatch, isProgressiveBatchRunning, show, ready, transcriptionSettings.mode, transcriptionSettings.realtimeOptions, transcriptionSettings.batchOptions, startRealtimeTranscription])
 
     const handleStopRecording = useCallback(async () => {
         try {
             setStopping(true)
             setProcessing(true)
+            setIsRecordingPrepared(false) // Reset prepared state when stopping
 
             // Stop active transcription
             if (isRealtimeTranscribing) {
@@ -1128,13 +1186,25 @@ export default function RecordScreen() {
                     )}
                 </>
             )}
-            <Button 
-                testID="start-recording-button"
-                mode="contained" 
-                onPress={() => handleStart()}
-            >
-                Start Recording
-            </Button>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
+                <Button 
+                    testID="prepare-recording-button"
+                    mode="outlined" 
+                    onPress={handlePrepareRecording}
+                    disabled={isRecordingPrepared}
+                    style={{ flex: 1 }}
+                >
+                    {isRecordingPrepared ? 'Prepared' : 'Prepare Recording'}
+                </Button>
+                <Button 
+                    testID="start-recording-button"
+                    mode="contained" 
+                    onPress={handleStart}
+                    style={{ flex: 1 }}
+                >
+                    {isRecordingPrepared ? 'Start' : 'Start Recording'}
+                </Button>
+            </View>
         </View>
     )
 

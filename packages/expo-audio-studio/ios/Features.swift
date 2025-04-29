@@ -70,7 +70,7 @@ public struct Features {
 
 extension Features {
     func toDictionary() -> [String: Any] {
-        var dict: [String: Any] = [
+        let dict: [String: Any] = [
             "energy": energy,
             "mfcc": mfcc,
             "rms": rms,

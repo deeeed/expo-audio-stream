@@ -6,6 +6,8 @@ sidebar_label: API Intro
 
 # API Introduction
 
+> **Note:** `@siteed/expo-audio-studio` requires using an ejected Expo project (bare workflow). See the [Installation](../installation.md) section for details.
+
 This section provides detailed information about the various types, interfaces, and functions provided by the `@siteed/expo-audio-studio` library.
 
 ## Overview
@@ -15,7 +17,12 @@ The API is divided into the following main categories:
 ### Recording and Playback
 
 - **[RecordingConfig](recording-config.md)**: Configuration options for recording audio.
-- **useAudioRecorder**: Hook for recording audio with configurable quality settings.
+- **useAudioRecorder**: Hook for recording audio with configurable quality settings, including:
+  - **startRecording**: Begins audio capture with the specified configuration.
+  - **stopRecording**: Ends the current recording and returns the result.
+  - **pauseRecording**: Temporarily stops audio capture without ending the recording.
+  - **resumeRecording**: Continues a paused recording.
+  - **prepareRecording**: Pre-initializes recording resources for zero-latency startup.
 - **AudioRecorderProvider**: Context provider for sharing recording state across components.
 - **useSharedAudioRecorder**: Hook to access shared recording state from any component.
 
@@ -38,8 +45,8 @@ The API is divided into the following main categories:
 
 ### Specialized Audio Processing
 
-- **extractMelSpectrogram**: Generate mel spectrogram for audio visualization or ML models.
-- **trimAudio**: Trim audio files with precision, supporting multiple segments and formats.
+- **[extractMelSpectrogram](audio-processing/extract-mel-spectrogram.md)**: Generate mel spectrogram for audio visualization or ML models.
+- **[trimAudio](audio-processing/trim-audio.md)**: Trim audio files with precision, supporting multiple segments and formats.
 
 ### Utility Functions
 
@@ -50,6 +57,12 @@ The API is divided into the following main categories:
 ---
 
 Click on the links above to navigate to detailed documentation for each component and type. For practical examples, see the [Audio Analysis Example](audio-features/audio-analysis-example.md).
+
+## Key Features
+
+- **Zero-latency recording** with `prepareRecording` for eliminating startup delay in time-critical applications
+- **Comprehensive audio analysis** with support for various audio features extraction
+- **Cross-platform support** with consistent API across iOS, Android, and web
 
 ## UI Components
 

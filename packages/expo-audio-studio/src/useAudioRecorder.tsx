@@ -27,6 +27,7 @@ export interface UseAudioRecorderProps {
 }
 
 export interface UseAudioRecorderState {
+    prepareRecording: (_: RecordingConfig) => Promise<void>
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
     stopRecording: () => Promise<AudioRecording>
     pauseRecording: () => Promise<void>
@@ -511,6 +512,30 @@ export function useAudioRecorder({
         [handleAudioAnalysis, dispatch]
     )
 
+    const prepareRecording = useCallback(
+        async (recordingOptions: RecordingConfig) => {
+            recordingConfigRef.current = recordingOptions
+            logger?.debug(`preparing recording`, recordingOptions)
+
+            analysisRef.current = { ...defaultAnalysis } // Reset analysis data
+            fullAnalysisRef.current = { ...defaultAnalysis }
+            const { onAudioStream, ...options } = recordingOptions
+
+            // Store onAudioStream for later use when recording starts
+            if (typeof onAudioStream === 'function') {
+                onAudioStreamRef.current = onAudioStream
+            } else {
+                logger?.warn(`onAudioStream is not a function`, onAudioStream)
+                onAudioStreamRef.current = null
+            }
+
+            // Call the native prepareRecording method
+            await ExpoAudioStream.prepareRecording(options)
+            logger?.debug(`recording prepared successfully`)
+        },
+        []
+    )
+
     const stopRecording = useCallback(async () => {
         logger?.debug(`stoping recording`)
 
@@ -606,6 +631,7 @@ export function useAudioRecorder({
     }, []) // Empty dependency array since we want this to run once
 
     return {
+        prepareRecording,
         startRecording,
         stopRecording,
         pauseRecording,

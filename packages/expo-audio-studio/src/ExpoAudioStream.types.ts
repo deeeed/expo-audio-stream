@@ -145,7 +145,7 @@ export interface StartRecordingResult {
 }
 
 export interface AudioSessionConfig {
-    /** 
+    /**
      * Audio session category that defines the audio behavior
      * - 'Ambient': Audio continues with silent switch, mixes with other audio
      * - 'SoloAmbient': Audio continues with silent switch, interrupts other audio
@@ -420,6 +420,46 @@ export interface ExtractedAudioData {
 }
 
 export interface UseAudioRecorderState {
+    /**
+     * Prepares recording with the specified configuration without starting it.
+     *
+     * This method eliminates the latency between calling startRecording and the actual recording beginning.
+     * It pre-initializes all audio resources, requests permissions, and sets up audio sessions in advance,
+     * allowing for true zero-latency recording start when startRecording is called later.
+     *
+     * Technical benefits:
+     * - Eliminates audio pipeline initialization delay (50-300ms depending on platform)
+     * - Pre-allocates audio buffers to avoid memory allocation during recording start
+     * - Initializes audio hardware in advance (particularly important on iOS)
+     * - Requests and verifies permissions before the critical recording moment
+     *
+     * Use this method when:
+     * - You need zero-latency recording start (e.g., voice commands, musical applications)
+     * - You're building time-sensitive applications where missing initial audio would be problematic
+     * - You want to prepare resources during app initialization, screen loading, or preceding user interaction
+     * - You need to ensure recording starts reliably and instantly on all platforms
+     *
+     * @param config - The recording configuration, identical to what you would pass to startRecording
+     * @returns A promise that resolves when preparation is complete
+     *
+     * @example
+     * // Prepare during component mounting
+     * useEffect(() => {
+     *   prepareRecording({
+     *     sampleRate: 44100,
+     *     channels: 1,
+     *     encoding: 'pcm_16bit',
+     *   });
+     * }, []);
+     *
+     * // Later when user taps record button, it starts with zero latency
+     * const handleRecordPress = () => startRecording({
+     *   sampleRate: 44100,
+     *   channels: 1,
+     *   encoding: 'pcm_16bit',
+     * });
+     */
+    prepareRecording: (_: RecordingConfig) => Promise<void>
     /** Starts recording with the specified configuration */
     startRecording: (_: RecordingConfig) => Promise<StartRecordingResult>
     /** Stops the current recording and returns the recording data */

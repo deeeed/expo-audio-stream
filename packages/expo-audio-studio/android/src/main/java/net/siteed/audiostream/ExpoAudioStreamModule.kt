@@ -79,6 +79,32 @@ class ExpoAudioStreamModule : Module(), EventSender {
             return Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && enableBackgroundAudio
         }
 
+        AsyncFunction("prepareRecording") { options: Map<String, Any?>, promise: Promise ->
+            try {
+                // If notifications are requested but permission not in manifest, modify options
+                if (options["showNotification"] as? Boolean == true && !enableNotificationHandling) {
+                    val modifiedOptions = options.toMutableMap()
+                    modifiedOptions["showNotification"] = false
+                    Log.d(Constants.TAG, "Notification permission not in manifest, disabling showNotification")
+                    
+                    if (audioRecorderManager.prepareRecording(modifiedOptions)) {
+                        promise.resolve(true)
+                    } else {
+                        promise.reject("PREPARE_ERROR", "Failed to prepare recording", null)
+                    }
+                } else {
+                    if (audioRecorderManager.prepareRecording(options)) {
+                        promise.resolve(true)
+                    } else {
+                        promise.reject("PREPARE_ERROR", "Failed to prepare recording", null)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(Constants.TAG, "Error preparing recording", e)
+                promise.reject("PREPARE_ERROR", "Failed to prepare recording: ${e.message}", e)
+            }
+        }
+
         AsyncFunction("startRecording") { options: Map<String, Any?>, promise: Promise ->
             // If notifications are requested but permission not in manifest, modify options
             if (options["showNotification"] as? Boolean == true && !enableNotificationHandling) {

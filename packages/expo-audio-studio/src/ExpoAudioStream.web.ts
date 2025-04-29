@@ -111,6 +111,50 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         }
     }
 
+    // Prepare recording with options
+    async prepareRecording(
+        recordingConfig: RecordingConfig = {}
+    ): Promise<boolean> {
+        if (this.isRecording) {
+            this.logger?.warn(
+                'Cannot prepare: Recording is already in progress'
+            )
+            return false
+        }
+
+        try {
+            // Check permissions and initialize basic settings
+            await this.getMediaStream().then((stream) => {
+                // Just verify we can access the microphone by getting a stream, then release it
+                stream.getTracks().forEach((track) => track.stop())
+            })
+
+            this.bitDepth = encodingToBitDepth({
+                encoding: recordingConfig.encoding ?? 'pcm_32bit',
+            })
+
+            // Store recording configuration for later use
+            this.recordingConfig = recordingConfig
+
+            // Use custom filename if provided, otherwise fallback to timestamp
+            if (recordingConfig.filename) {
+                // Remove any existing extension from the filename
+                this.streamUuid = recordingConfig.filename.replace(
+                    /\.[^/.]+$/,
+                    ''
+                )
+            } else {
+                this.streamUuid = Date.now().toString()
+            }
+
+            this.logger?.debug('Recording preparation completed successfully')
+            return true
+        } catch (error) {
+            this.logger?.error('Error preparing recording:', error)
+            return false
+        }
+    }
+
     // Start recording with options
     async startRecording(
         recordingConfig: RecordingConfig = {}
@@ -119,9 +163,19 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             throw new Error('Recording is already in progress')
         }
 
-        this.bitDepth = encodingToBitDepth({
-            encoding: recordingConfig.encoding ?? 'pcm_32bit',
-        })
+        // If we haven't prepared or have different settings, prepare now
+        if (
+            !this.recordingConfig ||
+            this.recordingConfig.sampleRate !== recordingConfig.sampleRate ||
+            this.recordingConfig.channels !== recordingConfig.channels ||
+            this.recordingConfig.encoding !== recordingConfig.encoding
+        ) {
+            await this.prepareRecording(recordingConfig)
+        } else {
+            this.logger?.debug(
+                'Using previously prepared recording configuration'
+            )
+        }
 
         const audioContext = new (window.AudioContext ||
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -168,7 +222,6 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         // }, 3000);
 
         this.isRecording = true
-        this.recordingConfig = recordingConfig
         this.recordingStartTime = Date.now()
         this.pausedTime = 0
         this.isPaused = false
