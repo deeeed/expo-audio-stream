@@ -42,6 +42,7 @@ class AudioStreamManager: NSObject {
     private var currentPauseStart: Date?              // Track current pause start
     private var isRecording = false
     private var isPaused = false
+    private var isPrepared = false  // Add this new state flag
     
     // Wake lock related properties
     private var wasIdleTimerDisabled: Bool = false  // Track previous idle timer state
@@ -304,8 +305,7 @@ class AudioStreamManager: NSObject {
             return lastDuration
         }
         
-        guard let settings = recordingSettings,
-              let startTime = self.startTime else { return 0 }
+        guard let startTime = self.startTime else { return 0 }
         
         let now = Date()
         var duration = now.timeIntervalSince(startTime)
@@ -554,10 +554,21 @@ class AudioStreamManager: NSObject {
             "isRecording": isRecording,
             "isPaused": isPaused,
             "mimeType": mimeType,
-            "size": totalDataSize,
-            "interval": settings.interval,
-            "intervalAnalysis": settings.intervalAnalysis
+            "size": totalDataSize
         ]
+        
+        // Safely handle optional interval values
+        if let interval = settings.interval {
+            status["interval"] = interval
+        } else {
+            status["interval"] = 1000 // Default value
+        }
+        
+        if let intervalAnalysis = settings.intervalAnalysis {
+            status["intervalAnalysis"] = intervalAnalysis
+        } else {
+            status["intervalAnalysis"] = 500 // Default value
+        }
         
         // Add compression info if enabled
         if settings.enableCompressedOutput,
@@ -594,22 +605,29 @@ class AudioStreamManager: NSObject {
                audioSession.currentRoute.outputs.contains { $0.portType == .builtInReceiver }
     }
 
-    /// Starts a new audio recording with the specified settings.
+    /// Prepares the audio recording with the specified settings without starting it.
+    /// This reduces latency when startRecording is called later.
     /// - Parameters:
     ///   - settings: The recording settings to use.
-    /// - Returns: A StartRecordingResult object if recording starts successfully, or nil otherwise.
-    func startRecording(settings: RecordingSettings) -> StartRecordingResult? {
-        // Check for active call using the new method
-        if isPhoneCallActive() {
-            Logger.debug("Cannot start recording during an active phone call")
-            delegate?.audioStreamManager(self, didFailWithError: "Cannot start recording during an active phone call")
-            return nil
-        }
-
+    /// - Returns: A boolean indicating if preparation was successful.
+    func prepareRecording(settings: RecordingSettings) -> Bool {
         // Store settings first before doing anything else
         recordingSettings = settings
         
-        // Reset audio session before starting new recording
+        // Skip if already prepared or recording
+        guard !isPrepared && !isRecording else {
+            Logger.debug("Already prepared or recording in progress.")
+            return isPrepared
+        }
+
+        // Check for active call using the new method
+        if isPhoneCallActive() {
+            Logger.debug("Cannot prepare recording during an active phone call")
+            delegate?.audioStreamManager(self, didFailWithError: "Cannot prepare recording during an active phone call")
+            return false
+        }
+
+        // Reset audio session before preparing new recording
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setActive(false, options: .notifyOthersOnDeactivation)
@@ -618,29 +636,16 @@ class AudioStreamManager: NSObject {
         } catch {
             Logger.debug("Failed to reset audio session: \(error)")
             delegate?.audioStreamManager(self, didFailWithError: "Failed to reset audio session: \(error.localizedDescription)")
-            return nil
+            return false
         }
 
         // Update auto-resume preference from settings
         autoResumeAfterInterruption = settings.autoResumeAfterInterruption
         
-        guard !isRecording else {
-            Logger.debug("Debug: Recording is already in progress.")
-            return nil
-        }
-        
-        guard !audioEngine.isRunning else {
-            Logger.debug("Debug: Audio engine already running.")
-            return nil
-        }
-        
-        let session = AVAudioSession.sharedInstance()
-        var newSettings = settings
-        
         emissionInterval = max(100.0, Double(settings.interval ?? 1000)) / 1000.0
         emissionIntervalAnalysis = max(100.0, Double(settings.intervalAnalysis ?? 500)) / 1000.0
-        lastEmissionTime = Date()
-        lastEmissionTimeAnalysis = Date()
+        lastEmissionTime = nil // Will be set when recording starts
+        lastEmissionTimeAnalysis = nil // Will be set when recording starts
         accumulatedData.removeAll()
         accumulatedAnalysisData.removeAll()
         totalDataSize = 0
@@ -650,18 +655,20 @@ class AudioStreamManager: NSObject {
         lastEmittedCompressedSizeAnalysis = 0
         isPaused = false
 
-        
         // Create recording file first
         recordingFileURL = createRecordingFile()
         if recordingFileURL == nil {
             Logger.debug("Error: Failed to create recording file.")
-            return nil
+            return false
         }
+        
+        var newSettings = settings
         
         // Then set up audio session and tap
         do {
             Logger.debug("Configuring audio session with sample rate: \(settings.sampleRate) Hz")
             
+            let session = AVAudioSession.sharedInstance()
             if let currentRoute = session.currentRoute.outputs.first {
                 Logger.debug("Current audio output: \(currentRoute.portType)")
                 newSettings.sampleRate = settings.sampleRate  // Keep original sample rate
@@ -731,7 +738,6 @@ class AudioStreamManager: NSObject {
                 """)
             
             recordingSettings = newSettings  // Keep original settings with desired sample rate
-            enableWakeLock()
             
             // CRITICAL FIX: Create format matching ACTUAL hardware capabilities from the input node
             guard let hardwareFormat = AVAudioFormat(
@@ -741,7 +747,7 @@ class AudioStreamManager: NSObject {
                 interleaved: true
             ) else {
                 Logger.debug("Failed to create hardware format")
-                return nil
+                return false
             }
             
             Logger.debug("""
@@ -755,98 +761,71 @@ class AudioStreamManager: NSObject {
             // CRITICAL FIX: Install tap with the ACTUAL hardware format from the input node
             audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: hardwareFormat) { [weak self] (buffer, time) in
                 guard let self = self,
-                      let fileURL = self.recordingFileURL else {
-                    Logger.debug("Error: File URL or self is nil during buffer processing.")
+                      let fileURL = self.recordingFileURL,
+                      self.isRecording else { // Only process buffer if actually recording
                     return
                 }
                 self.processAudioBuffer(buffer, fileURL: fileURL)
                 self.lastBufferTime = time
             }
             
+            audioEngine.prepare() // Prepare the engine without starting it
+            
             // Setup compressed recording if enabled
             if settings.enableCompressedOutput {
-                do {
-                    let compressedSettings: [String: Any] = [
-                        AVFormatIDKey: settings.compressedFormat == "aac" ? kAudioFormatMPEG4AAC : kAudioFormatOpus,
-                        AVSampleRateKey: Float64(settings.sampleRate),
-                        AVNumberOfChannelsKey: settings.numberOfChannels,
-                        AVEncoderBitRateKey: settings.compressedBitRate,
-                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
-                        AVEncoderBitDepthHintKey: settings.bitDepth
-                    ]
+                // Create compressed settings
+                let compressedSettings: [String: Any] = [
+                    AVFormatIDKey: settings.compressedFormat == "aac" ? kAudioFormatMPEG4AAC : kAudioFormatOpus,
+                    AVSampleRateKey: Float64(settings.sampleRate),
+                    AVNumberOfChannelsKey: settings.numberOfChannels,
+                    AVEncoderBitRateKey: settings.compressedBitRate,
+                    AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+                    AVEncoderBitDepthHintKey: settings.bitDepth
+                ]
+                
+                Logger.debug("Initializing compressed recording with settings: \(compressedSettings)")
+                
+                // Create file for compressed recording
+                compressedFileURL = createRecordingFile(isCompressed: true)
+                
+                if let url = compressedFileURL {
+                    Logger.debug("Using compressed file URL: \(url.path)")
                     
-                    Logger.debug("Initializing compressed recording with settings: \(compressedSettings)")
-                    
-                    compressedFileURL = createRecordingFile(isCompressed: true)
-                    
-                    if let url = compressedFileURL {
-                        Logger.debug("Using compressed file URL: \(url.path)")
-                        
-                        // Initialize recorder with proper error handling
-                        do {
-                            compressedRecorder = try AVAudioRecorder(url: url, settings: compressedSettings)
-                            if let recorder = compressedRecorder {
-                                recorder.delegate = self
-                                
-                                if !recorder.prepareToRecord() {
-                                    Logger.debug("Failed to prepare recorder")
-                                    throw NSError(domain: "AudioStreamManager", code: -1, 
-                                        userInfo: [NSLocalizedDescriptionKey: "Failed to prepare recorder"])
-                                }
-                                
-                                if !recorder.record() {
-                                    Logger.debug("Failed to start recorder")
-                                    throw NSError(domain: "AudioStreamManager", code: -2, 
-                                        userInfo: [NSLocalizedDescriptionKey: "Failed to start recorder"])
-                                }
-                                
-                                Logger.debug("Compressed recording started successfully")
+                    // Initialize recorder with proper error handling
+                    do {
+                        compressedRecorder = try AVAudioRecorder(url: url, settings: compressedSettings)
+                        if let recorder = compressedRecorder {
+                            recorder.delegate = self
+                            
+                            if !recorder.prepareToRecord() {
+                                Logger.debug("Failed to prepare recorder")
+                                compressedFileURL = nil
+                                compressedRecorder = nil
+                            } else {
+                                // Note: We don't start the recorder yet, just prepare it
+                                Logger.debug("Compressed recording prepared successfully")
                                 compressedFormat = settings.compressedFormat
                                 compressedBitRate = settings.compressedBitRate
                             }
-                        } catch {
-                            Logger.debug("Failed to initialize compressed recorder: \(error)")
-                            compressedFileURL = nil
-                            compressedRecorder = nil
                         }
+                    } catch {
+                        Logger.debug("Failed to initialize compressed recorder: \(error)")
+                        compressedFileURL = nil
+                        compressedRecorder = nil
                     }
-                } catch {
-                    Logger.debug("Failed to setup compressed recording: \(error)")
-                    compressedFileURL = nil
-                    compressedRecorder = nil
+                } else {
+                    Logger.debug("Failed to create compressed recording file")
                 }
             }
             
         } catch {
             Logger.debug("Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
-            return nil
+            return false
         }
         
         NotificationCenter.default.addObserver(self, selector: #selector(handleAudioSessionInterruption), name: AVAudioSession.interruptionNotification, object: nil)
         
-        // Create audio format based on recording settings
-        let commonFormat: AVAudioCommonFormat
-        switch newSettings.bitDepth {
-        case 16:
-            commonFormat = .pcmFormatInt16
-        case 32:
-            commonFormat = .pcmFormatFloat32
-        default:
-            Logger.debug("Unsupported bit depth: \(newSettings.bitDepth), falling back to 16-bit")
-            commonFormat = .pcmFormatInt16
-        }
-        
-        guard let audioFormat = AVAudioFormat(
-            commonFormat: commonFormat,
-            sampleRate: newSettings.sampleRate,
-            channels: UInt32(newSettings.numberOfChannels),
-            interleaved: true
-        ) else {
-            Logger.debug("Error: Failed to create audio format with bit depth: \(newSettings.bitDepth)")
-            return nil
-        }
-        
-        if newSettings.enableProcessing == true {
+        if settings.enableProcessing == true {
             // Initialize the AudioProcessor for buffer-based processing
             self.audioProcessor = AudioProcessor(resolve: { result in
                 // Handle the result here if needed
@@ -856,20 +835,79 @@ class AudioStreamManager: NSObject {
             Logger.debug("AudioProcessor activated successfully.")
         }
         
+        // Prepare notifications if enabled but don't show yet
         if settings.showNotification {
             initializeNotifications()
         }
         
+        // Mark preparation as complete
+        isPrepared = true
+        Logger.debug("Recording prepared successfully. Ready to start.")
+        
+        return true
+    }
+
+    /// Starts a new audio recording with the specified settings.
+    /// - Parameters:
+    ///   - settings: The recording settings to use.
+    /// - Returns: A StartRecordingResult object if recording starts successfully, or nil otherwise.
+    func startRecording(settings: RecordingSettings) -> StartRecordingResult? {
+        // If already prepared, use the prepared state
+        if isPrepared {
+            Logger.debug("Using prepared recording state")
+        } else {
+            // If not prepared, prepare now
+            Logger.debug("Not prepared, preparing recording first")
+            if !prepareRecording(settings: settings) {
+                Logger.debug("Failed to prepare recording")
+                return nil
+            }
+        }
+        
+        // Check for active phone call again, in case one started after preparation
+        if isPhoneCallActive() {
+            Logger.debug("Cannot start recording during an active phone call")
+            delegate?.audioStreamManager(self, didFailWithError: "Cannot start recording during an active phone call")
+            cleanupPreparation()
+            return nil
+        }
+        
+        guard !isRecording else {
+            Logger.debug("Recording already in progress")
+            return nil
+        }
+        
+        guard let settings = recordingSettings, 
+              let fileUri = recordingFileURL?.absoluteString else {
+            Logger.debug("Missing settings or file URI")
+            return nil
+        }
+        
         do {
-            startTime = Date()
-            totalPausedDuration = 0     // Reset pause tracking
-            currentPauseStart = nil
-            Logger.debug("Starting new recording - Reset pause tracking")
+            enableWakeLock()
             
+            // Start the audio engine
             try audioEngine.start()
+            
+            // Start the compressed recorder if prepared
+            compressedRecorder?.record()
+            
+            // Set recording state
+            startTime = Date()
+            totalPausedDuration = 0
+            currentPauseStart = nil
+            lastEmissionTime = Date()
+            lastEmissionTimeAnalysis = Date()
             isRecording = true
             isPaused = false
-            Logger.debug("Debug: Recording started successfully.")
+            
+            // Show notifications if enabled
+            if settings.showNotification {
+                notificationManager?.startUpdates(startTime: startTime ?? Date())
+                updateNowPlayingInfo(isPaused: false)
+            }
+            
+            Logger.debug("Recording started successfully")
             
             var compression = compressedRecorder != nil ? CompressedRecordingInfo(
                 compressedFileUri: compressedFileURL?.absoluteString ?? "",
@@ -886,7 +924,7 @@ class AudioStreamManager: NSObject {
             }
 
             return StartRecordingResult(
-                fileUri: recordingFileURL!.path,
+                fileUri: fileUri,
                 mimeType: mimeType,
                 channels: settings.numberOfChannels,
                 bitDepth: settings.bitDepth,
@@ -895,127 +933,223 @@ class AudioStreamManager: NSObject {
             )
             
         } catch {
-            Logger.debug("Error: Could not start the audio engine: \(error.localizedDescription)")
+            Logger.debug("Error starting audio engine: \(error.localizedDescription)")
             isRecording = false
+            cleanupPreparation()
             return nil
         }
     }
-    
+
+    /// Cleans up resources if preparation was done but recording didn't start.
+    private func cleanupPreparation() {
+        // Only run if prepared but not recording
+        guard isPrepared && !isRecording else { return }
+        
+        Logger.debug("Cleaning up prepared resources that weren't used")
+        
+        // Remove input tap
+        audioEngine.inputNode.removeTap(onBus: 0)
+        
+        // Stop compressed recorder if created but not started
+        compressedRecorder?.stop()
+        compressedRecorder = nil
+        
+        // Delete created files that weren't used
+        if let fileURL = recordingFileURL, FileManager.default.fileExists(atPath: fileURL.path) {
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+        
+        if let compressedURL = compressedFileURL, FileManager.default.fileExists(atPath: compressedURL.path) {
+            try? FileManager.default.removeItem(at: compressedURL)
+        }
+        
+        // Reset audio session
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            Logger.debug("Error deactivating audio session: \(error)")
+        }
+        
+        // Clear notification setup if it was initialized
+        notificationManager?.stopUpdates()
+        notificationManager = nil
+        
+        // Reset state variables
+        recordingFileURL = nil
+        compressedFileURL = nil
+        audioProcessor = nil
+        recordingSettings = nil
+        
+        // Reset prepared flag
+        isPrepared = false
+        
+        Logger.debug("Preparation cleanup completed")
+    }
+
     /// Pauses the current audio recording.
-    public func pauseRecording() {
-        guard isRecording && !isPaused else { return }
+    func pauseRecording() {
+        guard isRecording, !isPaused else { return }
         
-        // Store the current duration when pausing
-        lastValidDuration = currentRecordingDuration()
-        Logger.debug("Storing duration at pause: \(lastValidDuration ?? 0)")
+        Logger.debug("Pausing recording...")
         
-        disableWakeLock()
-        audioEngine.pause()
+        // Store when we paused
+        currentPauseStart = Date()
+        
+        // Update state
         isPaused = true
         
-        updateNowPlayingInfo(isPaused: true)
-        notificationManager?.updateState(isPaused: true)
-        delegate?.audioStreamManager(self, didPauseRecording: Date())
-        delegate?.audioStreamManager(self, didUpdateNotificationState: true)
+        // Stop the engine but don't remove the tap
+        audioEngine.pause()
         
-        // Pause compressed recording if active
+        // Pause the compressed recorder if active
         compressedRecorder?.pause()
+        
+        // Update notification state if enabled
+        if recordingSettings?.showNotification == true {
+            updateNotificationState(isPaused: true)
+        }
+        
+        // Store valid duration for notifications
+        lastValidDuration = currentRecordingDuration()
+        
+        // Notify delegate
+        delegate?.audioStreamManager(self, didPauseRecording: Date())
+        
+        Logger.debug("Recording paused")
     }
     
-    private func initializeNotifications() {
-        guard recordingSettings?.showNotification == true else { return }
+    /// Resumes a paused recording.
+    func resumeRecording() {
+        guard isRecording, isPaused else { return }
         
-        // Setup notification manager if not already initialized
-        if notificationManager == nil {
-            UNUserNotificationCenter.current().delegate = self
-            
-            notificationManager = AudioNotificationManager()
-            
-            // Request permissions first
-            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-                if granted {
-                    DispatchQueue.main.async {
-                        self.notificationManager?.initialize(with: self.recordingSettings?.notification)
-                        self.setupNowPlayingInfo()
-                        
-                        // Start media info update timer
-                        self.mediaInfoUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-                           self?.updateMediaInfo()
-                        }
-                        
-                        // Setup notification observers
-                        NotificationCenter.default.addObserver(
-                            self,
-                            selector: #selector(self.handlePauseNotification),
-                            name: .pauseRecording,
-                            object: nil
-                        )
-                        
-                        NotificationCenter.default.addObserver(
-                            self,
-                            selector: #selector(self.handleResumeNotification),
-                            name: .resumeRecording,
-                            object: nil
-                        )
-                        
-                        // Start updates if recording is already in progress
-                        if let startTime = self.startTime {
-                            self.notificationManager?.startUpdates(startTime: startTime)
-                        }
-                    }
-                } else if let error = error {
-                    Logger.debug("Failed to get notification permission: \(error.localizedDescription)")
-                }
-            }
+        Logger.debug("Resuming recording...")
+        
+        // Calculate and add the pause duration if we have a pause start time
+        if let pauseStart = currentPauseStart {
+            let pauseDuration = Date().timeIntervalSince(pauseStart)
+            totalPausedDuration += pauseDuration
+            currentPauseStart = nil // Reset pause start time
+            Logger.debug("Added pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
         }
-    }
-    
-    /// Resumes the current audio recording.
-    public func resumeRecording() {
-        // Check for active phone call
-        if isPhoneCallActive() {
-            Logger.debug("Cannot resume recording during an active phone call")
-            delegate?.audioStreamManager(self, didFailWithError: "Cannot resume recording during an active phone call")
-            return
-        }
-
-        guard isRecording && isPaused else { return }
         
-        lastValidDuration = nil  // Clear the stored duration when resuming
-        
-        enableWakeLock()
-        audioEngine.prepare()
         do {
+            // Try to restart the engine
             try audioEngine.start()
             
-            // Add the completed pause duration to total
-            if let pauseStart = currentPauseStart {
-                let currentPauseDuration = Date().timeIntervalSince(pauseStart)
-                totalPausedDuration += currentPauseDuration
-                currentPauseStart = nil
-                
-                Logger.debug("""
-                    Resume completed:
-                    - Added pause duration: \(currentPauseDuration)
-                    - New total pause duration: \(totalPausedDuration)
-                    """)
-            }
-            
-            isPaused = false
-            
-            updateNowPlayingInfo(isPaused: false)
-            notificationManager?.updateState(isPaused: false)
-            delegate?.audioStreamManager(self, didResumeRecording: Date())
-            delegate?.audioStreamManager(self, didUpdateNotificationState: false)
-            
-            // Resume compressed recording if active
+            // Resume the compressed recorder if active
             compressedRecorder?.record()
             
+            // Update state
+            isPaused = false
+            
+            // Update notification state if enabled
+            if recordingSettings?.showNotification == true {
+                updateNotificationState(isPaused: false)
+            }
+            
+            // Clear the stored valid duration
+            lastValidDuration = nil
+            
+            // Notify delegate
+            delegate?.audioStreamManager(self, didResumeRecording: Date())
+            
+            Logger.debug("Recording resumed")
+            
         } catch {
-            Logger.debug("Error: Failed to resume recording: \(error.localizedDescription)")
+            Logger.debug("Failed to resume recording: \(error.localizedDescription)")
+            delegate?.audioStreamManager(self, didFailWithError: "Failed to resume recording: \(error.localizedDescription)")
         }
     }
     
+    /// Initializes the notification manager to show recording notifications.
+    private func initializeNotifications() {
+        guard let settings = recordingSettings else { return }
+        
+        // Create notification manager
+        notificationManager = AudioNotificationManager()
+        notificationManager?.initialize(with: settings.notification)
+        
+        // Add pause/resume handlers via notification observers
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePauseNotification),
+            name: Notification.Name("PAUSE_RECORDING"),
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleResumeNotification),
+            name: Notification.Name("RESUME_RECORDING"),
+            object: nil
+        )
+        
+        // Setup media controls (iOS control center) if enabled
+        setupNowPlayingInfo()
+        
+        // Set up timer to update media info
+        mediaInfoUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.updateMediaInfo()
+        }
+    }
+    
+    /// Resample an audio buffer to a different sample rate.
+    /// - Parameters:
+    ///   - buffer: The source audio buffer.
+    ///   - sourceRate: The source sample rate.
+    ///   - targetRate: The target sample rate.
+    /// - Returns: The resampled audio buffer or nil if resampling failed.
+    private func resampleAudioBuffer(_ buffer: AVAudioPCMBuffer, from sourceRate: Double, to targetRate: Double) -> AVAudioPCMBuffer? {
+        // If the rates are the same, no need to resample
+        if sourceRate == targetRate {
+            return buffer
+        }
+        
+        // Create source and target formats
+        guard let outputFormat = AVAudioFormat(
+            commonFormat: buffer.format.commonFormat,
+            sampleRate: targetRate,
+            channels: buffer.format.channelCount,
+            interleaved: buffer.format.isInterleaved
+        ) else {
+            Logger.debug("Failed to create output format for resampling")
+            return nil
+        }
+        
+        // Create a converter
+        guard let converter = AVAudioConverter(from: buffer.format, to: outputFormat) else {
+            Logger.debug("Failed to create audio converter")
+            return nil
+        }
+        
+        // Calculate new buffer size
+        let ratio = targetRate / sourceRate
+        let estimatedFrames = AVAudioFrameCount(Double(buffer.frameLength) * ratio)
+        
+        // Create output buffer
+        guard let outputBuffer = AVAudioPCMBuffer(
+            pcmFormat: outputFormat,
+            frameCapacity: estimatedFrames
+        ) else {
+            Logger.debug("Failed to create output buffer")
+            return nil
+        }
+        
+        // Perform conversion
+        var error: NSError?
+        converter.convert(to: outputBuffer, error: &error) { inNumPackets, outStatus in
+            outStatus.pointee = .haveData
+            return buffer
+        }
+        
+        if let error = error {
+            Logger.debug("Error resampling audio: \(error.localizedDescription)")
+            return nil
+        }
+        
+        return outputBuffer
+    }
+
     /// Describes the format of the given audio format.
     /// - Parameter format: The AVAudioFormat object to describe.
     /// - Returns: A string description of the audio format.
@@ -1043,346 +1177,6 @@ class AudioStreamManager: NSObject {
             return "Unknown format"
         }
     }
-    
-    /// Stops the current audio recording.
-    /// - Returns: A RecordingResult object if the recording stopped successfully, or nil otherwise.
-    func stopRecording() -> RecordingResult? {
-        guard isRecording else { return nil }
-        
-        Logger.debug("Stopping recording...")
-        
-        disableWakeLock()
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
-        
-        // Stop compressed recording if active
-        compressedRecorder?.stop()
-        
-        // Get the final duration before changing state
-        let finalDuration = currentRecordingDuration()
-        
-        isRecording = false
-        isPaused = false
-        
-        if recordingSettings?.showNotification == true {
-            // Stop and clean up timer
-            mediaInfoUpdateTimer?.invalidate()
-            mediaInfoUpdateTimer = nil
-            
-            // Clean up notification manager
-            notificationManager?.stopUpdates()
-            notificationManager = nil
-            
-            // Clean up media controls
-            DispatchQueue.main.async {
-                UIApplication.shared.endReceivingRemoteControlEvents()
-                self.remoteCommandCenter?.pauseCommand.isEnabled = false
-                self.remoteCommandCenter?.playCommand.isEnabled = false
-                self.notificationView?.nowPlayingInfo = nil
-            }
-        }
-        
-        // Reset audio session
-        do {
-            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        } catch {
-            Logger.debug("Error deactivating audio session: \(error)")
-        }
-        
-        // Reset audio engine
-        audioEngine.reset()
-        
-        guard let fileURL = recordingFileURL,
-              let settings = recordingSettings else {
-            Logger.debug("Recording or file URL is nil.")
-            return nil
-        }
-        
-        // Validate WAV file
-        let wavPath = fileURL.path
-        do {
-            // Check if WAV file exists
-            let wavFileAttributes = try FileManager.default.attributesOfItem(atPath: wavPath)
-            let wavFileSize = wavFileAttributes[FileAttributeKey.size] as? Int64 ?? 0
-            
-            Logger.debug("""
-                WAV File validation:
-                - Path: \(wavPath)
-                - Exists: true
-                - Size: \(wavFileSize) bytes
-                - Duration: \(finalDuration) seconds
-                - Expected minimum size: \(WAV_HEADER_SIZE) bytes (WAV header)
-                """)
-            
-            
-            
-            // Return nil if the file is too small
-            if wavFileSize <= WAV_HEADER_SIZE {
-                Logger.debug("Recording file is too small (≤ \(WAV_HEADER_SIZE) bytes), likely no audio data was recorded")
-                return nil
-            }
-            
-            // Update the WAV header with the correct file size
-            updateWavHeader(fileURL: fileURL, totalDataSize: wavFileSize - WAV_HEADER_SIZE)
-            
-            // Validate compressed file if enabled
-            var compression: CompressedRecordingInfo?
-            if let compressedURL = compressedFileURL {
-                let compressedPath = compressedURL.path
-                if FileManager.default.fileExists(atPath: compressedPath) {
-                    let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedPath)
-                    let compressedSize = compressedAttributes[FileAttributeKey.size] as? Int64 ?? 0
-                    
-                    Logger.debug("""
-                        Compressed File validation:
-                        - Path: \(compressedPath)
-                        - Format: \(compressedFormat ?? "unknown")
-                        - Size: \(compressedSize) bytes
-                        - Bitrate: \(compressedBitRate ?? 0) bps
-                        """)
-                    
-                    if compressedSize > 0 {
-                        compression = CompressedRecordingInfo(
-                            compressedFileUri: compressedURL.absoluteString,
-                            mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
-                            bitrate: compressedBitRate,
-                            format: compressedFormat,
-                            size: compressedSize
-                        )
-                    } else {
-                        Logger.debug("Warning: Compressed file exists but is empty")
-                    }
-                } else {
-                    Logger.debug("Warning: Compressed file not found at path: \(compressedPath)")
-                }
-            }
-            
-            let durationMs = Int64(finalDuration * 1000)
-            
-            let result = RecordingResult(
-                fileUri: fileURL.absoluteString,
-                filename: fileURL.lastPathComponent,
-                mimeType: mimeType,
-                duration: durationMs,
-                size: wavFileSize,
-                channels: settings.numberOfChannels,
-                bitDepth: settings.bitDepth,
-                sampleRate: settings.sampleRate,
-                compression: compression
-            )
-            
-            Logger.debug("""
-                Recording completed successfully:
-                - WAV file: \(fileURL.lastPathComponent)
-                - Size: \(wavFileSize) bytes
-                - Duration: \(durationMs)ms
-                - Sample rate: \(settings.sampleRate)Hz
-                - Bit depth: \(settings.bitDepth)-bit
-                - Channels: \(settings.numberOfChannels)
-                - Compressed: \(compression != nil ? "yes" : "no")
-                """)
-            
-            // Additional cleanup
-            recordingFileURL = nil
-            lastBufferTime = nil
-            lastValidDuration = nil
-            compressedRecorder = nil
-            compressedFileURL = nil
-            recordingSettings = nil
-            startTime = nil
-            totalPausedDuration = 0
-            currentPauseStart = nil
-            lastEmissionTime = nil
-            lastEmissionTimeAnalysis = nil
-            lastEmittedSize = 0
-            lastEmittedSizeAnalysis = 0
-            lastEmittedCompressedSize = 0
-            accumulatedData.removeAll()
-            accumulatedAnalysisData.removeAll()
-            recordingUUID = nil
-            
-            return result
-            
-        } catch {
-            Logger.debug("Failed to validate recording files: \(error)")
-            return nil
-        }
-    }
-    
-    /// Resamples the audio buffer using vDSP. If it fails, falls back to manual resampling.
-    /// - Parameters:
-    ///   - buffer: The original audio buffer to be resampled.
-    ///   - originalSampleRate: The sample rate of the original audio buffer.
-    ///   - targetSampleRate: The desired sample rate to resample to.
-    /// - Returns: A new audio buffer resampled to the target sample rate, or nil if resampling fails.
-    private func resampleAudioBuffer(_ buffer: AVAudioPCMBuffer, from originalSampleRate: Double, to targetSampleRate: Double) -> AVAudioPCMBuffer? {
-        guard let settings = recordingSettings else {
-            Logger.debug("Recording settings not available")
-            return nil
-        }
-        
-        Logger.debug("""
-            Starting resampling:
-            - Original format: \(describeAudioFormat(buffer.format))
-            - Original frames: \(buffer.frameLength)
-            - Target settings:
-              • Sample rate: \(targetSampleRate)Hz
-              • Bit depth: \(settings.bitDepth)
-              • Channels: \(settings.numberOfChannels)
-            """)
-        
-        // Use settings bit depth for output format
-        let targetFormat: AVAudioCommonFormat = settings.bitDepth == 32 ? .pcmFormatFloat32 : .pcmFormatInt16
-        
-        // Create output format matching recording settings exactly
-        guard let outputFormat = AVAudioFormat(
-            commonFormat: targetFormat,
-            sampleRate: targetSampleRate,
-            channels: AVAudioChannelCount(settings.numberOfChannels),
-            interleaved: true
-        ) else {
-            Logger.debug("Failed to create output format")
-            return nil
-        }
-        
-        // Calculate new buffer size
-        let ratio = targetSampleRate / originalSampleRate
-        let newFrameCount = AVAudioFrameCount(Double(buffer.frameLength) * ratio)
-        
-        // Create output buffer
-        guard let outputBuffer = AVAudioPCMBuffer(
-            pcmFormat: outputFormat,
-            frameCapacity: newFrameCount
-        ) else {
-            Logger.debug("Failed to create output buffer")
-            return nil
-        }
-        outputBuffer.frameLength = newFrameCount
-        
-        // Create intermediate format for high-quality conversion if needed
-        let needsIntermediate = buffer.format.commonFormat != outputFormat.commonFormat
-        if needsIntermediate {
-            Logger.debug("Using intermediate Float32 format for high-quality conversion")
-            guard let intermediateFormat = AVAudioFormat(
-                commonFormat: .pcmFormatFloat32,
-                sampleRate: targetSampleRate,
-                channels: AVAudioChannelCount(settings.numberOfChannels),
-                interleaved: true
-            ) else {
-                Logger.debug("Failed to create intermediate format")
-                return nil
-            }
-            
-            // First convert to intermediate float format
-            guard let converter = AVAudioConverter(from: buffer.format, to: intermediateFormat),
-                  let intermediateBuffer = AVAudioPCMBuffer(
-                    pcmFormat: intermediateFormat,
-                    frameCapacity: newFrameCount
-                  ) else {
-                Logger.debug("Failed to create converter or intermediate buffer")
-                return nil
-            }
-            intermediateBuffer.frameLength = newFrameCount
-            
-            var error: NSError?
-            let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
-                outStatus.pointee = AVAudioConverterInputStatus.haveData
-                return buffer
-            }
-            
-            converter.convert(to: intermediateBuffer, error: &error, withInputFrom: inputBlock)
-            
-            if let error = error {
-                Logger.debug("Intermediate conversion failed: \(error.localizedDescription)")
-                return nil
-            }
-            
-            // Then convert to final format
-            guard let finalConverter = AVAudioConverter(from: intermediateFormat, to: outputFormat) else {
-                Logger.debug("Failed to create final converter")
-                return nil
-            }
-            
-            finalConverter.convert(to: outputBuffer, error: &error) { inNumPackets, outStatus in
-                outStatus.pointee = AVAudioConverterInputStatus.haveData
-                return intermediateBuffer
-            }
-            
-            if let error = error {
-                Logger.debug("Final conversion failed: \(error.localizedDescription)")
-                return nil
-            }
-        } else {
-            // Direct conversion if formats are compatible
-            guard let converter = AVAudioConverter(from: buffer.format, to: outputFormat) else {
-                Logger.debug("Failed to create converter")
-                return nil
-            }
-            
-            var error: NSError?
-            let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
-                outStatus.pointee = AVAudioConverterInputStatus.haveData
-                return buffer
-            }
-            
-            converter.convert(to: outputBuffer, error: &error, withInputFrom: inputBlock)
-            
-            if let error = error {
-                Logger.debug("Conversion failed: \(error.localizedDescription)")
-                return nil
-            }
-        }
-        
-        Logger.debug("""
-            Resampling completed:
-            - Final format: \(describeAudioFormat(outputBuffer.format))
-            - Final frames: \(outputBuffer.frameLength)
-            - Conversion path: \(needsIntermediate ? "With intermediate Float32" : "Direct")
-            """)
-        
-        return outputBuffer
-    }
-    
-    /// Manually resamples the audio buffer using linear interpolation.
-    /// - Parameters:
-    ///   - buffer: The original audio buffer to be resampled.
-    ///   - originalSampleRate: The sample rate of the original audio buffer.
-    ///   - targetSampleRate: The desired sample rate to resample to.
-    /// - Returns: A new audio buffer resampled to the target sample rate, or nil if resampling fails.
-    private func manualResampleAudioBuffer(_ buffer: AVAudioPCMBuffer, from originalSampleRate: Double, to targetSampleRate: Double) -> AVAudioPCMBuffer? {
-        guard let channelData = buffer.floatChannelData else { return nil }
-        
-        let sourceFrameCount = Int(buffer.frameLength)
-        let sourceChannels = Int(buffer.format.channelCount)
-        let targetFrameCount = Int(Double(sourceFrameCount) * targetSampleRate / originalSampleRate)
-        
-        guard let targetBuffer = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: AVAudioFrameCount(targetFrameCount)) else { return nil }
-        targetBuffer.frameLength = AVAudioFrameCount(targetFrameCount)
-        
-        let resamplingFactor = Float(targetSampleRate / originalSampleRate)
-        
-        for channel in 0..<sourceChannels {
-            let input = UnsafeBufferPointer(start: channelData[channel], count: sourceFrameCount)
-            let output = UnsafeMutableBufferPointer(start: targetBuffer.floatChannelData![channel], count: targetFrameCount)
-            
-            var y = Array(repeating: Float(0), count: targetFrameCount)
-            for i in 0..<targetFrameCount {
-                let index = Float(i) / resamplingFactor
-                let low = Int(floor(index))
-                let high = min(low + 1, sourceFrameCount - 1)
-                let weight = index - Float(low)
-                y[i] = (1 - weight) * input[low] + weight * input[high]
-            }
-            
-            for i in 0..<targetFrameCount {
-                output[i] = y[i]
-            }
-        }
-        
-        return targetBuffer
-    }
-    
-    
     
     /// Updates the WAV header with the correct file size.
     /// - Parameters:
@@ -1593,10 +1387,9 @@ class AudioStreamManager: NSObject {
            let startTime = startTime,
            currentTime.timeIntervalSince(lastEmissionTimeAnalysis) >= emissionIntervalAnalysis {
             
-            let recordingTime = currentTime.timeIntervalSince(startTime)
             let dataToProcess = accumulatedAnalysisData
 
-                       // Process audio if enabled
+            // Process audio if enabled
             if settings.enableProcessing {
                 DispatchQueue.global().async { [weak self] in
                     guard let self = self else { return }
@@ -1684,6 +1477,177 @@ class AudioStreamManager: NSObject {
         }
         
         return outputBuffer
+    }
+
+    /// Stops the current audio recording.
+    /// - Returns: A RecordingResult object if the recording stopped successfully, or nil otherwise.
+    func stopRecording() -> RecordingResult? {
+        guard isRecording || isPrepared else { return nil }
+        
+        Logger.debug("Stopping recording...")
+        
+        disableWakeLock()
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        
+        // Stop compressed recording if active
+        compressedRecorder?.stop()
+        
+        // Get the final duration before changing state
+        let finalDuration = currentRecordingDuration()
+        
+        let wasRecording = isRecording
+        isRecording = false
+        isPaused = false
+        isPrepared = false // Reset preparation state
+        
+        // If we were only prepared but never started recording, clean up and return nil
+        if !wasRecording {
+            cleanupPreparation()
+            return nil
+        }
+        
+        if recordingSettings?.showNotification == true {
+            // Stop and clean up timer
+            mediaInfoUpdateTimer?.invalidate()
+            mediaInfoUpdateTimer = nil
+            
+            // Clean up notification manager
+            notificationManager?.stopUpdates()
+            notificationManager = nil
+            
+            // Clean up media controls
+            DispatchQueue.main.async {
+                UIApplication.shared.endReceivingRemoteControlEvents()
+                self.remoteCommandCenter?.pauseCommand.isEnabled = false
+                self.remoteCommandCenter?.playCommand.isEnabled = false
+                self.notificationView?.nowPlayingInfo = nil
+            }
+        }
+        
+        // Reset audio session
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            Logger.debug("Error deactivating audio session: \(error)")
+        }
+        
+        // Reset audio engine
+        audioEngine.reset()
+        
+        guard let fileURL = recordingFileURL,
+              let settings = recordingSettings else {
+            Logger.debug("Recording or file URL is nil.")
+            return nil
+        }
+        
+        // Validate WAV file
+        let wavPath = fileURL.path
+        do {
+            // Check if WAV file exists
+            let wavFileAttributes = try FileManager.default.attributesOfItem(atPath: wavPath)
+            let wavFileSize = wavFileAttributes[FileAttributeKey.size] as? Int64 ?? 0
+            
+            Logger.debug("""
+                WAV File validation:
+                - Path: \(wavPath)
+                - Exists: true
+                - Size: \(wavFileSize) bytes
+                - Duration: \(finalDuration) seconds
+                - Expected minimum size: \(WAV_HEADER_SIZE) bytes (WAV header)
+                """)
+            
+            // Return nil if the file is too small
+            if wavFileSize <= WAV_HEADER_SIZE {
+                Logger.debug("Recording file is too small (≤ \(WAV_HEADER_SIZE) bytes), likely no audio data was recorded")
+                return nil
+            }
+            
+            // Update the WAV header with the correct file size
+            updateWavHeader(fileURL: fileURL, totalDataSize: wavFileSize - WAV_HEADER_SIZE)
+            
+            // Validate compressed file if enabled
+            var compression: CompressedRecordingInfo?
+            if let compressedURL = compressedFileURL {
+                let compressedPath = compressedURL.path
+                if FileManager.default.fileExists(atPath: compressedPath) {
+                    let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedPath)
+                    let compressedSize = compressedAttributes[FileAttributeKey.size] as? Int64 ?? 0
+                    
+                    Logger.debug("""
+                        Compressed File validation:
+                        - Path: \(compressedPath)
+                        - Format: \(compressedFormat)
+                        - Size: \(compressedSize) bytes
+                        - Bitrate: \(compressedBitRate) bps
+                        """)
+                    
+                    if compressedSize > 0 {
+                        compression = CompressedRecordingInfo(
+                            compressedFileUri: compressedURL.absoluteString,
+                            mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
+                            bitrate: compressedBitRate,
+                            format: compressedFormat,
+                            size: compressedSize
+                        )
+                    } else {
+                        Logger.debug("Warning: Compressed file exists but is empty")
+                    }
+                } else {
+                    Logger.debug("Warning: Compressed file not found at path: \(compressedPath)")
+                }
+            }
+            
+            let durationMs = Int64(finalDuration * 1000)
+            
+            let result = RecordingResult(
+                fileUri: fileURL.absoluteString,
+                filename: fileURL.lastPathComponent,
+                mimeType: mimeType,
+                duration: durationMs,
+                size: wavFileSize,
+                channels: settings.numberOfChannels,
+                bitDepth: settings.bitDepth,
+                sampleRate: settings.sampleRate,
+                compression: compression
+            )
+            
+            Logger.debug("""
+                Recording completed successfully:
+                - WAV file: \(fileURL.lastPathComponent)
+                - Size: \(wavFileSize) bytes
+                - Duration: \(durationMs)ms
+                - Sample rate: \(settings.sampleRate)Hz
+                - Bit depth: \(settings.bitDepth)-bit
+                - Channels: \(settings.numberOfChannels)
+                - Compressed: \(compression != nil ? "yes" : "no")
+                """)
+            
+            // Additional cleanup
+            recordingFileURL = nil
+            lastBufferTime = nil
+            lastValidDuration = nil
+            compressedRecorder = nil
+            compressedFileURL = nil
+            recordingSettings = nil
+            startTime = nil
+            totalPausedDuration = 0
+            currentPauseStart = nil
+            lastEmissionTime = nil
+            lastEmissionTimeAnalysis = nil
+            lastEmittedSize = 0
+            lastEmittedSizeAnalysis = 0
+            lastEmittedCompressedSize = 0
+            accumulatedData.removeAll()
+            accumulatedAnalysisData.removeAll()
+            recordingUUID = nil
+            
+            return result
+            
+        } catch {
+            Logger.debug("Failed to validate recording files: \(error)")
+            return nil
+        }
     }
 }
 
