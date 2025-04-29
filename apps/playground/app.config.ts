@@ -15,7 +15,6 @@ dotenvConfig({
 // Define a schema for the environment variables
 const envSchema = Joi.object({
     EAS_PROJECT_ID: Joi.string().required(),
-    NPM_AUTH_TOKEN: Joi.string().optional(),
     APPLE_TEAM_ID: Joi.string().optional(),
     APP_VARIANT: Joi.string()
         .valid('development', 'staging', 'production')
