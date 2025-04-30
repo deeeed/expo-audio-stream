@@ -7,6 +7,8 @@ import {
     Text,
     useTheme,
     useToast,
+    EditableInfoCard,
+    LabelSwitch,
 } from '@siteed/design-system'
 import {
     AudioDataEvent,
@@ -41,6 +43,7 @@ import { useTranscription } from '../../context/TranscriptionProvider'
 import { useUnifiedTranscription } from '../../hooks/useUnifiedTranscription'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
+import { AudioDeviceSelector } from '../../component/AudioDeviceSelector'
 
 const CHUNK_DURATION_MS = 500 // 500 ms chunks
 const MAX_AUDIO_BUFFER_LENGTH = 48000 * 5; // 5 seconds of audio at 48kHz
@@ -154,6 +157,9 @@ export default function RecordScreen() {
     
     // Add state for visualization display
     const [showVisualization, setShowVisualization] = useState(true);
+    
+    // Add state for advanced mode
+    const [advancedMode, setAdvancedMode] = useState(false);
     
     const audioChunks = useRef<string[]>([])
     const webAudioChunks = useRef<Float32Array>(new Float32Array(0))
@@ -1005,42 +1011,127 @@ export default function RecordScreen() {
 
     const renderStopped = () => (
         <View style={{ gap: 10 }} testID="stopped-recording-view">
-            {/* Use RecordingSettings Component */}
-            <RecordingSettings
-                config={startRecordingConfig}
-                onConfigChange={setStartRecordingConfig}
-                customFileName={customFileName}
-                onCustomFileNameChange={setCustomFileName}
-                isRecording={isRecording}
-                isPaused={isPaused}
-                isRecordingPrepared={isRecordingPrepared}
-                enableLiveTranscription={enableLiveTranscription}
-                showVisualization={showVisualization}
-                onShowVisualizationChange={setShowVisualization}
-            />
+            {/* Essential settings: filename and device selection */}
+            <View style={{ 
+                backgroundColor: colors.surface, 
+                borderRadius: 12, 
+                padding: 16, 
+                marginBottom: 8 
+            }}>
+                {/* Basic Mode Settings */}
+                {!advancedMode && (
+                    <EditableInfoCard
+                        testID="filename-input"
+                        label="File Name"
+                        value={customFileName}
+                        placeholder="Name your recording"
+                        inlineEditable
+                        editable={!isRecording && !isPaused}
+                        containerStyle={{
+                            backgroundColor: colors.secondaryContainer,
+                            marginBottom: 16
+                        }}
+                        onInlineEdit={(newFileName?: unknown) => {
+                            if (typeof newFileName === 'string') {
+                                setCustomFileName(newFileName);
+                            }
+                        }}
+                    />
+                )}
 
-            <TranscriptionModeConfig
-                enabled={enableLiveTranscription}
-                onEnabledChange={(enabled) => {
-                    setEnableLiveTranscription(enabled);
-                    
-                    // Preload the model if enabled
-                    if (enabled && !ready && !unifiedIsModelLoading && validSRTranscription) {
-                        show({
-                            type: 'info',
-                            message: 'Preparing speech recognition model...',
-                            duration: 2000,
-                        });
-                        initializeTranscription().catch(error => {
-                            logger.error('Failed to initialize transcription:', error);
-                        });
-                    }
-                }}
-                settings={transcriptionSettings}
-                onSettingsChange={setTranscriptionSettings}
-                validSampleRate={validSRTranscription}
-                isWeb={isWeb}
-            />
+                <AudioDeviceSelector
+                    testID="audio-device-selector"
+                    showCapabilities={true}
+                    disabled={isRecording || isPaused}
+                    onDeviceSelected={(device) => {
+                        setStartRecordingConfig(prev => ({
+                            ...prev,
+                            deviceId: device.id
+                        }))
+                    }}
+                />
+                
+                {/* Advanced Mode Toggle */}
+                <View style={{ marginTop: 16 }}>
+                    <LabelSwitch 
+                        label="Advanced settings"
+                        value={advancedMode} 
+                        onValueChange={setAdvancedMode}
+                    />
+                </View>
+            </View>
+
+            {/* Advanced settings */}
+            {advancedMode && (
+                <>
+                    {/* Use RecordingSettings Component */}
+                    <RecordingSettings
+                        config={startRecordingConfig}
+                        onConfigChange={setStartRecordingConfig}
+                        customFileName={customFileName}
+                        onCustomFileNameChange={setCustomFileName}
+                        isRecording={isRecording}
+                        isPaused={isPaused}
+                        isRecordingPrepared={isRecordingPrepared}
+                        enableLiveTranscription={enableLiveTranscription}
+                        showVisualization={showVisualization}
+                        onShowVisualizationChange={setShowVisualization}
+                    />
+
+                    <TranscriptionModeConfig
+                        enabled={enableLiveTranscription}
+                        onEnabledChange={(enabled) => {
+                            setEnableLiveTranscription(enabled);
+                            
+                            // Preload the model if enabled
+                            if (enabled && !ready && !unifiedIsModelLoading && validSRTranscription) {
+                                show({
+                                    type: 'info',
+                                    message: 'Preparing speech recognition model...',
+                                    duration: 2000,
+                                });
+                                initializeTranscription().catch(error => {
+                                    logger.error('Failed to initialize transcription:', error);
+                                });
+                            }
+                        }}
+                        settings={transcriptionSettings}
+                        onSettingsChange={setTranscriptionSettings}
+                        validSampleRate={validSRTranscription}
+                        isWeb={isWeb}
+                    />
+                </>
+            )}
+            
+            {/* Simple mode transcription toggle */}
+            {!advancedMode && (
+                <View style={{ 
+                    backgroundColor: colors.surface, 
+                    borderRadius: 12, 
+                    padding: 16, 
+                    marginBottom: 8 
+                }}>
+                    <LabelSwitch
+                        label="Enable Live Transcription"
+                        value={enableLiveTranscription}
+                        onValueChange={(enabled: boolean) => {
+                            setEnableLiveTranscription(enabled);
+                            
+                            // Preload the model if enabled
+                            if (enabled && !ready && !unifiedIsModelLoading && validSRTranscription) {
+                                show({
+                                    type: 'info',
+                                    message: 'Preparing speech recognition model...',
+                                    duration: 2000,
+                                });
+                                initializeTranscription().catch(error => {
+                                    logger.error('Failed to initialize transcription:', error);
+                                });
+                            }
+                        }}
+                    />
+                </View>
+            )}
             
             {/* Show loading indicator when model is loading */}
             {enableLiveTranscription && unifiedIsModelLoading && (
