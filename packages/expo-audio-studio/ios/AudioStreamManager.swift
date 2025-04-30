@@ -733,52 +733,67 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             // NOTE: We intentionally DO NOT call session.setPreferredSampleRate().
             // Trying to force a sample rate different from the hardware's actual rate
             // often prevents the input node's tap from receiving any buffers.
-            // Instead, we let the session negotiate the rate and install the tap
-            // using the format reported by the input node just before installation.
+            // Instead, we let the session negotiate the rate.
             // Resampling to the desired settings.sampleRate happens later in processAudioBuffer.
-            try session.setPreferredIOBufferDuration(1024 / Double(settings.sampleRate))
+            try session.setPreferredIOBufferDuration(1024 / Double(settings.sampleRate)) // Use desired rate for buffer duration hint
             try session.setActive(true, options: .notifyOthersOnDeactivation)
-            
-            Logger.debug("""
-                Audio session configured:
-                - category: \(category)
-                - mode: \(mode)
-                - options: \(options)
-                - keepAwake: \(settings.keepAwake)
-                - emission interval: \(emissionInterval * 1000)ms
-                - analysis interval: \(emissionIntervalAnalysis * 1000)ms
-                - sample rate: \(settings.sampleRate)Hz
-                - channels: \(settings.numberOfChannels)
-                - bit depth: \(settings.bitDepth)-bit
-                - compression enabled: \(settings.enableCompressedOutput)
-            """)
-            
-            // Get the final tap format *directly* from the input node *just before* installing.
-            // This seems more reliable than using session.sampleRate across device changes.
-            // Relying on session.sampleRate or inputNode.outputFormat earlier led to crashes
-            // or the tap not receiving buffers, especially when switching devices (e.g., Bluetooth)
-            // or using sample rates different from the hardware's native rate.
-            let tapFormat = audioEngine.inputNode.outputFormat(forBus: 0)
 
-            Logger.debug("""
-                Final Tap Configuration:
-                - Tap Format: \(describeAudioFormat(tapFormat))
-                - Requested Output Format: \(settings.bitDepth)-bit at \(settings.sampleRate)Hz
-                """)
+            // Log session config details as single lines for clarity
+            Logger.debug("Audio session configured:")
+            Logger.debug("  - category: \(category)")
+            Logger.debug("  - mode: \(mode)")
+            Logger.debug("  - options: \(options)")
+            Logger.debug("  - keepAwake: \(settings.keepAwake)")
+            Logger.debug("  - emission interval: \(emissionInterval * 1000)ms")
+            Logger.debug("  - analysis interval: \(emissionIntervalAnalysis * 1000)ms")
+            Logger.debug("  - requested sample rate: \(settings.sampleRate)Hz")
+            Logger.debug("  - actual session sample rate: \(session.sampleRate)Hz") // Log actual rate
+            Logger.debug("  - channels: \(settings.numberOfChannels)")
+            Logger.debug("  - bit depth: \(settings.bitDepth)-bit")
+            Logger.debug("  - compression enabled: \(settings.enableCompressedOutput)")
+
+            // --- Revised Tap Format Logic ---
+            // Get the input node's format primarily for channel count and data type.
+            let nodeFormat = audioEngine.inputNode.outputFormat(forBus: 0)
+            let actualSessionRate = session.sampleRate // Use the session's negotiated rate.
+
+            Logger.debug("Node format suggests: \(describeAudioFormat(nodeFormat))")
+            Logger.debug("Session reports actual rate: \(actualSessionRate) Hz")
+
+            // Create the tap format using the ACTUAL session sample rate, but node's channel count/type.
+            // This aims to match the hardware stream (like 16kHz HFP) more reliably.
+            guard let tapFormat = AVAudioFormat(
+                commonFormat: nodeFormat.commonFormat, // Keep node's format (e.g., Float32)
+                sampleRate: actualSessionRate,         // Use ACTUAL session rate
+                channels: nodeFormat.channelCount,     // Use node's channel count
+                interleaved: nodeFormat.isInterleaved  // Use node's interleaving
+            ) else {
+                Logger.debug("Failed to create tap format with session rate \(actualSessionRate) and node details.")
+                // Throw an error to prevent proceeding with invalid setup
+                throw NSError(domain: "AudioStreamManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create tap format for installation."])
+            }
+
+            // Log tap config details as single lines
+            Logger.debug("Final Tap Configuration (Using Session Rate):")
+            Logger.debug("  - Tap Format: \(describeAudioFormat(tapFormat))")
+            Logger.debug("  - Node Format Was: \(describeAudioFormat(nodeFormat))")
+            Logger.debug("  - Requested Output Format: \(settings.bitDepth)-bit at \(settings.sampleRate)Hz")
 
             recordingSettings = newSettings  // Keep original settings with desired sample rate
-            
-            // CRITICAL FIX: Install tap with the format reported by the input node itself.
-            audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: tapFormat) { [weak self] (buffer, time) in // Use tapFormat here
+
+            // Install tap with the format derived from session sample rate
+            audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: tapFormat) { [weak self] (buffer, time) in // Use newly constructed tapFormat
                 guard let self = self,
                       let fileURL = self.recordingFileURL,
                       self.isRecording else { // Only process buffer if actually recording
+                    // Logger.debug("Tap received buffer but self, fileURL, or isRecording is invalid. Ignoring.")
                     return
                 }
+                // processAudioBuffer will handle resampling if tapFormat.sampleRate != settings.sampleRate
                 self.processAudioBuffer(buffer, fileURL: fileURL)
                 self.lastBufferTime = time
             }
-            
+
             audioEngine.prepare() // Prepare the engine without starting it
             
             // Setup compressed recording if enabled
@@ -984,14 +999,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         notificationManager?.stopUpdates()
         notificationManager = nil
         
-        // Reset state variables
-        recordingFileURL = nil
-        compressedFileURL = nil
-        audioProcessor = nil
+        // --- Restore missing cleanup lines and remove log ---
+        // Logger.debug("cleanupPreparation: Clearing recordingSettings. Current deviceId: \(recordingSettings?.deviceId ?? \"nil\")")
+        recordingFileURL = nil // Restore
+        compressedFileURL = nil // Restore
+        audioProcessor = nil // Restore
         recordingSettings = nil
-        
-        // Reset prepared flag
-        isPrepared = false
+        isPrepared = false // Restore
+        // --- End restored lines and removed log ---
         
         Logger.debug("Preparation cleanup completed")
     }
@@ -1671,25 +1686,33 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     }
 
     private func handleDeviceDisconnection(disconnectedDeviceId: String) {
-        guard isRecording else {
-            Logger.debug("Device disconnected (\(disconnectedDeviceId)), but not recording. Ignoring.")
-            return
-        }
+        Logger.debug("handleDeviceDisconnection entered. isRecording: \(isRecording), settingsExist: \(recordingSettings != nil), deviceIdExists: \(recordingSettings?.deviceId != nil), currentDeviceId: \(recordingSettings?.deviceId ?? "nil")")
 
-        guard let settings = recordingSettings,
-              let currentRecordingDeviceId = settings.deviceId else {
-             Logger.debug("Device disconnected (\(disconnectedDeviceId)), but current settings or deviceId are missing. Pausing.")
+        // --- Modify Guard: Only require settings object, handle nil deviceId later ---
+        guard let settings = recordingSettings else {
+             // If settings are nil, we truly can't determine behavior, so pause.
+             Logger.debug("Device disconnected (\(disconnectedDeviceId)), but recordingSettings object is missing. Pausing.")
              performPauseAction(reason: .deviceDisconnected)
-            return
+             return
         }
+        // We now have settings, proceed even if deviceId might be nil inside it.
+        let currentRecordingDeviceId = settings.deviceId // This might be nil, handle below
+        // --- End Modify Guard ---
 
         // Normalize BOTH IDs for reliable comparison
-        let normalizedCurrentId = deviceManager.normalizeBluetoothDeviceId(currentRecordingDeviceId)
+        // Use "nil" if currentRecordingDeviceId is actually nil
+        let normalizedCurrentId = deviceManager.normalizeBluetoothDeviceId(currentRecordingDeviceId ?? "nil") 
         let normalizedDisconnectedId = deviceManager.normalizeBluetoothDeviceId(disconnectedDeviceId)
 
         Logger.debug("Handling disconnection. Current device: \(normalizedCurrentId), Disconnected device: \(normalizedDisconnectedId)")
 
-        if normalizedCurrentId == normalizedDisconnectedId {
+        // Check if the disconnected device is the one we *thought* we were recording from
+        if normalizedCurrentId == normalizedDisconnectedId || currentRecordingDeviceId == nil {
+            // If the IDs match OR if the stored deviceId was nil (meaning we lost track),
+            // assume this disconnection applies to our current recording session.
+            
+            Logger.debug("Disconnection event matches current recording session (or session deviceId was lost). Applying behavior...")
+
             // Get the string value from settings using the correct property name
             // The property in RecordingSettings likely matches the TS interface: deviceDisconnectionBehavior
             let behaviorString = settings.deviceDisconnectionBehavior ?? "pause" // Use the correct property name
@@ -1744,45 +1767,64 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }
             Logger.debug("Found default device for fallback: \(defaultDevice.name) (ID: \(defaultDevice.id))")
 
-            // 2. Stop engine temporarily (might cause a small gap)
-            // Store current pause state to restore it later if needed
+            // 2. Stop engine temporarily & Remove existing tap
             let wasManuallyPaused = isPaused
-            if !wasManuallyPaused && audioEngine.isRunning {
-                 audioEngine.pause()
+            if audioEngine.isRunning {
+                audioEngine.pause()
             }
+            audioEngine.inputNode.removeTap(onBus: 0)
+            Logger.debug("Fallback: Paused engine and removed existing tap.")
 
             // 3. Update settings and select the new device in the session
             recordingSettings?.deviceId = defaultDevice.id // Update setting
             let selectionSuccess = await deviceManager.selectDevice(defaultDevice.id)
-             if !selectionSuccess {
-                 Logger.debug("Fallback failed: Could not select default device in session. Pausing.")
-                 // Ensure engine remains paused if we paused it earlier
-                 if !wasManuallyPaused && !audioEngine.isRunning {
-                     // No need to attempt restart if selection failed
-                 } else if wasManuallyPaused {
-                     // If it was already paused, keep it paused
-                 }
-                 performPauseAction(reason: .deviceSwitchFailed)
-                 return
-             }
+            if !selectionSuccess {
+                Logger.debug("Fallback failed: Could not select default device in session. Pausing.")
+                performPauseAction(reason: .deviceSwitchFailed)
+                return
+            }
+            Logger.debug("Successfully selected default device \(defaultDevice.id) in session.")
 
-             Logger.debug("Successfully selected default device \(defaultDevice.id) in session.")
+            // --- Reinstall Tap --- 
+            // 4. Get the tap format for the *new* device
+            let session = AVAudioSession.sharedInstance()
+            let nodeFormat = audioEngine.inputNode.outputFormat(forBus: 0)
+            let actualSessionRate = session.sampleRate
+            Logger.debug("Fallback: New device node format: \(describeAudioFormat(nodeFormat))")
+            Logger.debug("Fallback: New device session rate: \(actualSessionRate) Hz")
+            
+            guard let newTapFormat = AVAudioFormat(
+                commonFormat: nodeFormat.commonFormat,
+                sampleRate: actualSessionRate,
+                channels: nodeFormat.channelCount,
+                interleaved: nodeFormat.isInterleaved
+            ) else {
+                Logger.debug("Fallback failed: Could not create tap format for new device.")
+                performPauseAction(reason: .deviceSwitchFailed)
+                return
+            }
+            Logger.debug("Fallback: Determined new tap format: \(describeAudioFormat(newTapFormat))")
 
-            // 4. ***Crucial/Complex Part: Handle Audio Tap***
-            //    Option A (Simpler, current): Assume the tap continues if format is compatible.
-            //    Option B (More Robust): Re-install the tap.
-             Logger.debug("Attempting fallback without reinstalling audio tap. (Verify if audio continues)")
+            // 5. Install the new tap
+            audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: newTapFormat) { [weak self] (buffer, time) in
+                guard let self = self, self.isRecording else { return }
+                self.processAudioBuffer(buffer, fileURL: self.recordingFileURL!)
+                self.lastBufferTime = time
+            }
+            Logger.debug("Fallback: Re-installed tap with new format.")
+            
+            // 6. Prepare and Restart engine if it wasn't manually paused before
+            audioEngine.prepare()
+            Logger.debug("Fallback: Prepared audio engine.")
 
-
-            // 5. Restart engine if it wasn't manually paused before
-             if !wasManuallyPaused {
+            if !wasManuallyPaused {
                  // Only start if it's not running (it should have been paused earlier)
                  if !audioEngine.isRunning {
                      do {
                          try audioEngine.start()
                          Logger.debug("Audio engine restarted for fallback.")
                      } catch {
-                         Logger.debug("Fallback failed: Could not restart audio engine. Pausing. Error: \(error)")
+                         Logger.debug("Fallback failed: Could not restart audio engine after tap reinstall. Pausing. Error: \(error)")
                          performPauseAction(reason: .deviceSwitchFailed)
                          return
                      }
@@ -1793,7 +1835,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                  Logger.debug("Recording was manually paused, leaving engine paused after fallback.")
              }
 
-            // 6. Notify JS about successful fallback
+            // 7. Notify JS about successful fallback
             delegate?.audioStreamManager(self, didReceiveInterruption: [
                 "reason": RecordingInterruptionReason.deviceFallback.rawValue,
                 "newDeviceId": defaultDevice.id, // Include new device ID

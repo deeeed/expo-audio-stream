@@ -4,7 +4,7 @@ This document outlines the implementation plan for adding audio input device det
 
 ## Overview
 
-The feature will allow users to:
+The feature allows users to:
 1. List all available audio input devices on their device
 2. View detailed device capabilities (sample rates, channels, etc.)
 3. Select a specific device for recording
@@ -16,20 +16,20 @@ The feature will allow users to:
 - ✅ Cross-platform AudioDeviceManager class with singleton pattern
 - ✅ React hook (useAudioDevices) for component integration
 - ✅ AudioDeviceSelector UI component with device list and capabilities display
-- ✅ iOS implementation of device detection
+- ✅ **iOS: Device detection, selection, and fallback fully implemented and tested (Bluetooth HFP & Internal Mic)**
 - ✅ Web implementation with MediaDevices API
+- ✅ **Web: Device disconnection handling and fallback behavior tested.**
 - ✅ User interface for device testing (AudioDeviceTest) with both web and native support
 - ✅ Device selection integration with recording functionality
 - ✅ Cross-platform audio device capabilities display
 - ✅ Testing cross-browser compatibility for web implementation
 
 ### In Progress
-- 🟡 Android implementation of device detection and selection
-- 🟡 Device disconnection handling and fallback behavior (Web partially implemented, needs Android and full testing)
+- 🟡 Android implementation of device detection, selection, and fallback
 
-### Completed but Needs Testing
-- ⚠️ Testing with various audio device types (Bluetooth, wired, etc.) - iOS & Web
-- ⚠️ Verifying correct recording behavior with selected devices - iOS & Web
+### Needs Further Testing / Verification
+- ⚠️ iOS: Verify functionality with additional device types (Bluetooth A2DP, wired headsets, USB mics).
+- ⚠️ Web: Verify broader browser compatibility for disconnection/fallback.
 
 ## Architecture Principles
 
@@ -178,26 +178,39 @@ This separates device detection logic from recording logic:
 - **AudioStreamManager**: Uses the selected device for recording
 - **ExpoAudioStreamModule**: Exposes JavaScript APIs and delegates to managers
 
-### Platform-Specific Implementation Progress
+### Platform-Specific Implementation Details
 
-#### iOS (Implemented)
-- ✅ Device enumeration
-- ✅ Device selection
-- ✅ Device capability detection
-- ✅ Integration with AVAudioSession
+#### iOS (Completed)
+- ✅ **Device Enumeration:** Uses `AVAudioSession.availableInputs`.
+- ✅ **Device Selection:** Uses `AVAudioSession.setPreferredInput`.
+- ✅ **Capabilities:** Basic detection implemented.
+- ✅ **Tap Installation:** Dynamically determines tap format based on `session.sampleRate` and `nodeFormat` details to handle varying hardware rates (e.g., 16kHz HFP vs 48kHz internal mic), preventing format mismatch crashes.
+- ✅ **Resampling:** `processAudioBuffer` uses `AVAudioConverter` to resample audio to the user-requested `settings.sampleRate` if the hardware/tap rate differs.
+- ✅ **Disconnection Handling:** Monitors `AVAudioSessionRouteChangeNotification` and uses a delegate (`AudioDeviceManagerDelegate`) to notify `AudioStreamManager`.
+- ✅ **Fallback Behavior:** Implemented in `performFallbackAction` within `AudioStreamManager`. When triggered:
+    1. Pauses the `AVAudioEngine`.
+    2. Removes the existing audio tap.
+    3. Selects the default input device via `AVAudioSession`.
+    4. Updates `recordingSettings.deviceId`.
+    5. Determines the correct `AVAudioFormat` for the *new* default device.
+    6. Installs a **new** audio tap with the correct format.
+    7. Prepares and restarts the `AVAudioEngine`.
+    8. Sends notification to JS.
 
-#### Web (Implemented)
-- ✅ Device enumeration using MediaDevices API
-- ✅ Device selection
-- ✅ Permission handling with fallbacks
-- ✅ Browser-specific optimizations (Safari, Chrome, Firefox)
-- ✅ Device change detection
+#### Web (Completed & Tested)
+- ✅ Device enumeration using MediaDevices API.
+- ✅ Device selection using `MediaStreamConstraints`.
+- ✅ Permission handling with fallbacks.
+- ✅ Browser-specific optimizations (Safari, Chrome, Firefox).
+- ✅ Device change detection via `devicechange` event listener.
+- ✅ Disconnection/Fallback behavior tested.
 
 #### Android (Pending)
-- ⬜️ Device enumeration using AudioManager
-- ⬜️ Device selection
-- ⬜️ Capability detection
-- ⬜️ Device disconnection events
+- ⬜️ Device enumeration using `AudioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)`.
+- ⬜️ Device selection (Requires investigation - potentially using `setPreferredDevice` on `AudioRecord` or managing connections).
+- ⬜️ Capability detection (e.g., `AudioDeviceInfo.getSampleRates()`, `getChannelCounts()`).
+- ⬜️ Device disconnection events (Potentially using `BroadcastReceiver` for `ACTION_AUDIO_BECOMING_NOISY`, Bluetooth events, or USB events).
+- ⬜️ **Fallback behavior**: Needs implementation similar to iOS (detect disconnection, pause/stop `AudioRecord`/`MediaRecorder`, select new device via `AudioManager`, re-initialize `AudioRecord`/`MediaRecorder` for the new device, restart recording).
 
 ## Web Implementation Details
 
@@ -223,43 +236,11 @@ The web implementation uses the MediaDevices API to enumerate and select audio i
    - Identifies common device types (builtin, bluetooth, usb, etc.)
    - Creates consistent device types across platforms
 
-## Bluetooth Device Detection
-
-Bluetooth device detection presents unique challenges across platforms:
-
-1. **Delayed Detection**: Bluetooth devices often aren't immediately detected when connected, particularly on iOS
-2. **Device Identification**: Different platforms represent Bluetooth devices with different formats and identifiers
-3. **Session Configuration**: Proper audio session setup is required to detect Bluetooth devices
-
-To address these challenges, we've implemented:
-
-1. **Forced Refresh Capability**: 
-   - The `refreshDevices()` method is the primary way to trigger device detection
-   - It includes debouncing to prevent excessive refreshes and notifies registered listeners
-   - For advanced use cases, `getAvailableDevices({ refresh: true })` provides direct access to device refresh
-
-2. **Standalone Refresh Function**:
-   - `refreshDevices()` provides a dedicated method to trigger device detection
-   - Returns the updated list of available devices
-   - Useful for creating refresh buttons in the UI
-   - Includes built-in debouncing to prevent excessive API calls
-
-3. **Bluetooth ID Normalization**:
-   - Consistent handling of device IDs across platform variations
-   - Special handling for Bluetooth SCO/A2DP profile variations
-   - Removes platform-specific suffixes for consistent device identification
-
-**Best Practice**: When working with Bluetooth devices, consider:
-- Adding a refresh button with `refreshDevices()` in your device selection UI
-- Waiting 1-2 seconds after Bluetooth connection before refreshing
-- Using `refreshDevices()` rather than `getAvailableDevices({ refresh: true })` for better safety
-
 ## Testing Approach
 
 We've developed a comprehensive testing approach for audio device detection and selection:
 
-1. **Cross-Platform Test Component**:
-   - Created `AudioDeviceTest` component for interactive testing
+1. **Cross-Platform Test Component**:\n   - Created `AudioDeviceTest` component for interactive testing
    - Works on both web and native platforms
    - Displays detailed device capabilities
 
@@ -270,7 +251,7 @@ We've developed a comprehensive testing approach for audio device detection and 
 
 3. **Platform-Specific Testing**:
    - Web: Tests across major browsers (Chrome, Firefox, Safari)
-   - iOS: Tests with built-in microphones and external devices
+   - iOS: Tested fallback (Bluetooth HFP -> Internal Mic). Needs testing with other device types (A2DP, Wired).
    - Android: Will test with various device types once implemented
 
 4. **UI Components**:
@@ -287,18 +268,15 @@ We've developed a comprehensive testing approach for audio device detection and 
 - Implement device enumeration
 - Implement device selection
 - Implement device disconnection detection
+- Implement **fallback logic** similar to iOS: Detect disconnection, potentially pause/stop `AudioRecord`/`MediaRecorder`, select new device via `AudioManager`, re-initialize `AudioRecord`/`MediaRecorder` for the new device, restart recording.
 
-### 2. Finalize Device Disconnection Behavior
-- Implement Android disconnection detection
-- Refine fallback logic based on testing (Web & Android)
-- Test thoroughly with device hot-plugging scenarios on all platforms
-
-### 3. Comprehensive Testing
+### 2. Comprehensive Testing
+- Complete testing with various audio device types (Bluetooth A2DP, wired, USB-C) on iOS.
 - Complete testing with various audio device types (Bluetooth, wired, etc.) on Android.
 - Complete verification of correct recording behavior with selected devices on Android.
 - Perform regression testing on iOS and Web.
 
-### 4. Documentation and Examples
+### 3. Documentation and Examples
 - Add detailed documentation for the device detection API
 - Create examples showcasing device selection in real applications
 - Document platform-specific behavior and limitations
