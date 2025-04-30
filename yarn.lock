@@ -11410,7 +11410,7 @@ __metadata:
     react-native: "npm:0.76.9"
     react-native-gesture-handler: "npm:~2.20.2"
     react-native-localize: "npm:^3.2.1"
-    react-native-paper: "npm:^5.13.1"
+    react-native-paper: "npm:^5.14.0"
     react-native-paper-dates: "npm:^0.22.26"
     react-native-quick-base64: "npm:^2.1.2"
     react-native-reanimated: "npm:~3.16.2"
@@ -29193,9 +29193,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-paper@npm:^5.13.1":
-  version: 5.13.5
-  resolution: "react-native-paper@npm:5.13.5"
+"react-native-paper@npm:^5.14.0":
+  version: 5.14.0
+  resolution: "react-native-paper@npm:5.14.0"
   dependencies:
     "@callstack/react-theme-provider": "npm:^3.0.9"
     color: "npm:^3.1.2"
@@ -29204,8 +29204,7 @@ __metadata:
     react: "*"
     react-native: "*"
     react-native-safe-area-context: "*"
-    react-native-vector-icons: "*"
-  checksum: 10/a4e7a051d1ec9ccaa49249d439f650f137aba8f909dd2d0cf2f7526857b37069bab8eeab70d7f1f86b9f724c41fa38948d2f408d9c0d88c91fe5abf51c289b1e
+  checksum: 10/e7f68a2090e21ea4594a354bace884d5d9ee19652dfe1121887c9fd609a7ab63c080d4d6782047f10541d17827dca061dd4aa941d4911b91e9772e4324c4f7cd
   languageName: node
   linkType: hard
 
@@ -33667,11 +33666,11 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A^4.6.4 || ^5.2.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.2.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.3.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.4.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.8.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.8.3#optional!builtin<compat/typescript>":
   version: 5.8.3
-  resolution: "typescript@patch:typescript@npm%3A5.8.3#optional!builtin<compat/typescript>::version=5.8.3&hash=5786d5"
+  resolution: "typescript@patch:typescript@npm%3A5.8.3#optional!builtin<compat/typescript>::version=5.8.3&hash=b45daf"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10/b9b1e73dabac5dc730c041325dbd9c99467c1b0d239f1b74ec3b90d831384af3e2ba973946232df670519147eb51a2c20f6f96163cea2b359f03de1e2091cc4f
+  checksum: 10/98470634034ec37fd9ea61cc82dcf9a27950d0117a4646146b767d085a2ec14b137aae9642a83d1c62732d7fdcdac19bb6288b0bb468a72f7a06ae4e1d2c72c9
   languageName: node
   linkType: hard
 
