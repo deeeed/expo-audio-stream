@@ -223,108 +223,23 @@ class ExpoAudioStreamModule : Module(), EventSender {
             audioRecorderManager.pauseRecording(promise)
         }
 
-        AsyncFunction("extractAudioAnalysis") { options: Map<String, Any>, promise: Promise ->
-            try {
-                val fileUri = requireNotNull(options["fileUri"] as? String) { "fileUri is required" }
-                
-                // Get time or byte range options
-                val startTimeMs = options["startTimeMs"] as? Number
-                val endTimeMs = options["endTimeMs"] as? Number
-                val position = options["position"] as? Number
-                val length = options["length"] as? Number
-                val segmentDurationMs = (options["segmentDurationMs"] as? Number)?.toInt() ?: 100
-                
-                // Validate ranges - can have time range OR byte range OR no range
-                val hasTimeRange = startTimeMs != null && endTimeMs != null
-                val hasByteRange = position != null && length != null
-                
-                // Only throw if both ranges are provided
-                if (hasTimeRange && hasByteRange) {
-                    throw IllegalArgumentException("Cannot specify both time range and byte range")
-                }
-
-                // Get decoding options with default configuration
-                val defaultConfig = DecodingConfig(
-                    targetSampleRate = null,
-                    targetChannels = 1, // Default to mono
-                    targetBitDepth = 16,
-                    normalizeAudio = false
-                )
-                
-                val config = (options["decodingOptions"] as? Map<String, Any>)?.let { decodingOptionsMap ->
-                    DecodingConfig(
-                        targetSampleRate = decodingOptionsMap["targetSampleRate"] as? Int,
-                        targetChannels = decodingOptionsMap["targetChannels"] as? Int,
-                        targetBitDepth = (decodingOptionsMap["targetBitDepth"] as? Int) ?: 16,
-                        normalizeAudio = (decodingOptionsMap["normalizeAudio"] as? Boolean) ?: false
-                    )
-                } ?: defaultConfig
-
-                // Load audio data based on range type (or full file if no range specified)
-                val audioData = when {
-                    hasByteRange -> {
-                        val format = audioProcessor.getAudioFormat(fileUri) 
-                            ?: throw IllegalArgumentException("Could not determine audio format")
-                        
-                        // Calculate time range from byte position
-                        val bytesPerSecond = format.sampleRate * format.channels * (format.bitDepth / 8)
-                        val effectiveStartTimeMs = (position!!.toLong() * 1000) / bytesPerSecond
-                        val effectiveEndTimeMs = effectiveStartTimeMs + (length!!.toLong() * 1000) / bytesPerSecond
-                        
-                        LogUtils.d(CLASS_NAME, "Loading audio with byte range: position=$position, length=$length")
-                        
-                        audioProcessor.loadAudioRange(
-                            fileUri = fileUri,
-                            startTimeMs = effectiveStartTimeMs,
-                            endTimeMs = effectiveEndTimeMs,
-                            config = config
-                        )
-                    }
-                    hasTimeRange -> {
-                        LogUtils.d(CLASS_NAME, "Loading audio with time range: startTimeMs=$startTimeMs, endTimeMs=$endTimeMs")
-                        
-                        audioProcessor.loadAudioRange(
-                            fileUri = fileUri,
-                            startTimeMs = startTimeMs!!.toLong(),
-                            endTimeMs = endTimeMs!!.toLong(),
-                            config = config
-                        )
-                    }
-                    else -> {
-                        LogUtils.d(CLASS_NAME, "Loading entire audio file")
-                        audioProcessor.loadAudioFromAnyFormat(fileUri, config)
-                    }
-                } ?: throw IllegalStateException("Failed to load audio data")
-
-                val featuresMap = options["features"] as? Map<*, *>
-                val features = Features.parseFeatureOptions(featuresMap)
-
-                val recordingConfig = RecordingConfig(
-                    sampleRate = audioData.sampleRate,
-                    channels = audioData.channels,
-                    encoding = when (audioData.bitDepth) {
-                        8 -> "pcm_8bit"
-                        16 -> "pcm_16bit"
-                        32 -> "pcm_32bit"
-                        else -> throw IllegalArgumentException("Unsupported bit depth: ${audioData.bitDepth}")
-                    },
-                    segmentDurationMs = segmentDurationMs,
-                    features = features
-                )
-
-                LogUtils.d(CLASS_NAME, "extractAudioAnalysis: $recordingConfig")
-                audioProcessor.resetCumulativeAmplitudeRange()
-
-                val analysisData = audioProcessor.processAudioData(audioData.data, recordingConfig)
-                promise.resolve(analysisData.toDictionary())
-            } catch (e: Exception) {
-                LogUtils.e(CLASS_NAME, "Failed to extract audio analysis: ${e.message}", e)
-                promise.reject("PROCESSING_ERROR", e.message ?: "Unknown error", e)
-            }
-        }
-
         AsyncFunction("resumeRecording") { promise: Promise ->
-            audioRecorderManager.resumeRecording(promise)
+            LogUtils.d(CLASS_NAME, "⏺️ resumeRecording() called from JS layer")
+            try {
+                audioRecorderManager.resumeRecording(object : Promise {
+                    override fun resolve(value: Any?) {
+                        LogUtils.d(CLASS_NAME, "⏺️ resumeRecording completed successfully")
+                        promise.resolve(value)
+                    }
+                    override fun reject(code: String, message: String?, cause: Throwable?) {
+                        LogUtils.e(CLASS_NAME, "⏺️ resumeRecording failed: $code - $message", cause)
+                        promise.reject(code, message, cause)
+                    }
+                })
+            } catch (e: Exception) {
+                LogUtils.e(CLASS_NAME, "⏺️ Exception when calling resumeRecording: ${e.message}", e)
+                promise.reject("RESUME_ERROR", "Failed to resume recording: ${e.message}", e)
+            }
         }
 
         AsyncFunction("stopRecording") { promise: Promise ->
@@ -716,6 +631,107 @@ class ExpoAudioStreamModule : Module(), EventSender {
             promise.resolve(status)
         }
 
+
+        AsyncFunction("extractAudioAnalysis") { options: Map<String, Any>, promise: Promise ->
+            try {
+                val fileUri = requireNotNull(options["fileUri"] as? String) { "fileUri is required" }
+                
+                // Get time or byte range options
+                val startTimeMs = options["startTimeMs"] as? Number
+                val endTimeMs = options["endTimeMs"] as? Number
+                val position = options["position"] as? Number
+                val length = options["length"] as? Number
+                val segmentDurationMs = (options["segmentDurationMs"] as? Number)?.toInt() ?: 100
+                
+                // Validate ranges - can have time range OR byte range OR no range
+                val hasTimeRange = startTimeMs != null && endTimeMs != null
+                val hasByteRange = position != null && length != null
+                
+                // Only throw if both ranges are provided
+                if (hasTimeRange && hasByteRange) {
+                    throw IllegalArgumentException("Cannot specify both time range and byte range")
+                }
+
+                // Get decoding options with default configuration
+                val defaultConfig = DecodingConfig(
+                    targetSampleRate = null,
+                    targetChannels = 1, // Default to mono
+                    targetBitDepth = 16,
+                    normalizeAudio = false
+                )
+                
+                val config = (options["decodingOptions"] as? Map<String, Any>)?.let { decodingOptionsMap ->
+                    DecodingConfig(
+                        targetSampleRate = decodingOptionsMap["targetSampleRate"] as? Int,
+                        targetChannels = decodingOptionsMap["targetChannels"] as? Int,
+                        targetBitDepth = (decodingOptionsMap["targetBitDepth"] as? Int) ?: 16,
+                        normalizeAudio = (decodingOptionsMap["normalizeAudio"] as? Boolean) ?: false
+                    )
+                } ?: defaultConfig
+
+                // Load audio data based on range type (or full file if no range specified)
+                val audioData = when {
+                    hasByteRange -> {
+                        val format = audioProcessor.getAudioFormat(fileUri) 
+                            ?: throw IllegalArgumentException("Could not determine audio format")
+                        
+                        // Calculate time range from byte position
+                        val bytesPerSecond = format.sampleRate * format.channels * (format.bitDepth / 8)
+                        val effectiveStartTimeMs = (position!!.toLong() * 1000) / bytesPerSecond
+                        val effectiveEndTimeMs = effectiveStartTimeMs + (length!!.toLong() * 1000) / bytesPerSecond
+                        
+                        LogUtils.d(CLASS_NAME, "Loading audio with byte range: position=$position, length=$length")
+                        
+                        audioProcessor.loadAudioRange(
+                            fileUri = fileUri,
+                            startTimeMs = effectiveStartTimeMs,
+                            endTimeMs = effectiveEndTimeMs,
+                            config = config
+                        )
+                    }
+                    hasTimeRange -> {
+                        LogUtils.d(CLASS_NAME, "Loading audio with time range: startTimeMs=$startTimeMs, endTimeMs=$endTimeMs")
+                        
+                        audioProcessor.loadAudioRange(
+                            fileUri = fileUri,
+                            startTimeMs = startTimeMs!!.toLong(),
+                            endTimeMs = endTimeMs!!.toLong(),
+                            config = config
+                        )
+                    }
+                    else -> {
+                        LogUtils.d(CLASS_NAME, "Loading entire audio file")
+                        audioProcessor.loadAudioFromAnyFormat(fileUri, config)
+                    }
+                } ?: throw IllegalStateException("Failed to load audio data")
+
+                val featuresMap = options["features"] as? Map<*, *>
+                val features = Features.parseFeatureOptions(featuresMap)
+
+                val recordingConfig = RecordingConfig(
+                    sampleRate = audioData.sampleRate,
+                    channels = audioData.channels,
+                    encoding = when (audioData.bitDepth) {
+                        8 -> "pcm_8bit"
+                        16 -> "pcm_16bit"
+                        32 -> "pcm_32bit"
+                        else -> throw IllegalArgumentException("Unsupported bit depth: ${audioData.bitDepth}")
+                    },
+                    segmentDurationMs = segmentDurationMs,
+                    features = features
+                )
+
+                LogUtils.d(CLASS_NAME, "extractAudioAnalysis: $recordingConfig")
+                audioProcessor.resetCumulativeAmplitudeRange()
+
+                val analysisData = audioProcessor.processAudioData(audioData.data, recordingConfig)
+                promise.resolve(analysisData.toDictionary())
+            } catch (e: Exception) {
+                LogUtils.e(CLASS_NAME, "Failed to extract audio analysis: ${e.message}", e)
+                promise.reject("PROCESSING_ERROR", e.message ?: "Unknown error", e)
+            }
+        }
+
         AsyncFunction("extractAudioData") { options: Map<String, Any>, promise: Promise ->
             try {
                 val fileUri = requireNotNull(options["fileUri"] as? String) { "fileUri is required" }
@@ -909,7 +925,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
         // Set up the delegate for the AudioDeviceManager
         audioDeviceManager.delegate = object : AudioDeviceManagerDelegate {
             override fun onDeviceDisconnected(deviceId: String) {
-                LogUtils.d(CLASS_NAME, "Device disconnected: $deviceId")
+                LogUtils.d(CLASS_NAME, "📱 Device disconnected: $deviceId")
                 // Handle device disconnection
                 coroutineScope.launch {
                     try {
@@ -924,7 +940,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
                             "deviceId" to deviceId
                         ))
                     } catch (e: Exception) {
-                        LogUtils.e(CLASS_NAME, "Error handling device disconnection: ${e.message}", e)
+                        LogUtils.e(CLASS_NAME, "📱 Error handling device disconnection: ${e.message}", e)
                     }
                 }
             }
@@ -937,84 +953,103 @@ class ExpoAudioStreamModule : Module(), EventSender {
      * Handles audio device disconnection based on the recording configuration
      */
     private suspend fun handleDeviceDisconnection(deviceId: String) {
+        LogUtils.d(CLASS_NAME, "📱 handleDeviceDisconnection called for device: $deviceId")
         // Get disconnection behavior from recorder config
         val behavior = audioRecorderManager.getDeviceDisconnectionBehavior()
+        LogUtils.d(CLASS_NAME, "📱 Device disconnection behavior configured as: $behavior")
         
         when (behavior) {
             "fallback" -> {
+                LogUtils.d(CLASS_NAME, "📱 Using fallback behavior, getting default device")
                 // Get default device
                 val defaultDevice = withContext(Dispatchers.IO) {
                     audioDeviceManager.getDefaultInputDevice()
                 }
                 
                 if (defaultDevice != null) {
-                    LogUtils.d(CLASS_NAME, "Falling back to default device: ${defaultDevice["name"]}")
+                    LogUtils.d(CLASS_NAME, "📱 Falling back to default device: ${defaultDevice["name"]}")
                     
                     // Select default device
                     val deviceId = defaultDevice["id"] as String
+                    LogUtils.d(CLASS_NAME, "📱 Attempting to select default device: $deviceId")
                     val success = audioDeviceManager.selectDevice(deviceId)
                     
                     if (success) {
+                        LogUtils.d(CLASS_NAME, "📱 Successfully selected default device, notifying AudioRecorderManager")
                         // Notify AudioRecorderManager to update its recording source
                         audioRecorderManager.handleDeviceChange()
                         
                         // Notify JS about fallback
+                        LogUtils.d(CLASS_NAME, "📱 Sending deviceFallback event to JS")
                         sendEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
                             "reason" to "deviceFallback",
                             "isPaused" to false,
                             "deviceId" to deviceId
                         ))
                     } else {
-                        LogUtils.e(CLASS_NAME, "Failed to select default device, pausing recording")
+                        LogUtils.e(CLASS_NAME, "📱 Failed to select default device, pausing recording")
                         
                         // Fall back to pause if we can't select the default device
                         audioRecorderManager.pauseRecording(object : Promise {
                             override fun resolve(value: Any?) {
+                                LogUtils.d(CLASS_NAME, "📱 Recording successfully paused, notifying AudioRecorderManager")
+                                // Notify AudioRecorderManager to handle device change while paused
+                                audioRecorderManager.handleDeviceChange()
+                                
                                 sendEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
                                     "reason" to "deviceSwitchFailed",
                                     "isPaused" to true
                                 ))
                             }
                             override fun reject(code: String, message: String?, cause: Throwable?) {
-                                LogUtils.e(CLASS_NAME, "Failed to pause recording after device disconnection: $message")
+                                LogUtils.e(CLASS_NAME, "📱 Failed to pause recording after device disconnection: $message")
                             }
                         })
                     }
                 } else {
-                    LogUtils.e(CLASS_NAME, "No default device found, pausing recording")
+                    LogUtils.e(CLASS_NAME, "📱 No default device found, pausing recording")
                     
                     // Fall back to pause if we can't find a default device
                     audioRecorderManager.pauseRecording(object : Promise {
                         override fun resolve(value: Any?) {
+                            LogUtils.d(CLASS_NAME, "📱 Recording successfully paused when no default device found")
+                            // Notify AudioRecorderManager to handle device change while paused
+                            audioRecorderManager.handleDeviceChange()
+                            
                             sendEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
                                 "reason" to "deviceDisconnected",
                                 "isPaused" to true
                             ))
                         }
                         override fun reject(code: String, message: String?, cause: Throwable?) {
-                            LogUtils.e(CLASS_NAME, "Failed to pause recording after device disconnection: $message")
+                            LogUtils.e(CLASS_NAME, "📱 Failed to pause recording after device disconnection: $message")
                         }
                     })
                 }
             }
             
             else -> { // Default to pause behavior
-                LogUtils.d(CLASS_NAME, "Pausing recording due to device disconnection")
+                LogUtils.d(CLASS_NAME, "📱 Using pause behavior for device disconnection")
                 
                 // Pause recording
                 audioRecorderManager.pauseRecording(object : Promise {
                     override fun resolve(value: Any?) {
+                        LogUtils.d(CLASS_NAME, "📱 Recording successfully paused after device disconnection")
+                        // Notify AudioRecorderManager to handle device change while paused
+                        audioRecorderManager.handleDeviceChange()
+                        
                         sendEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
                             "reason" to "deviceDisconnected",
                             "isPaused" to true
                         ))
                     }
                     override fun reject(code: String, message: String?, cause: Throwable?) {
-                        LogUtils.e(CLASS_NAME, "Failed to pause recording after device disconnection: $message")
+                        LogUtils.e(CLASS_NAME, "📱 Failed to pause recording after device disconnection: $message")
                     }
                 })
             }
         }
+        LogUtils.d(CLASS_NAME, "📱 handleDeviceDisconnection completed")
     }
 
     override fun sendExpoEvent(eventName: String, params: Bundle) {

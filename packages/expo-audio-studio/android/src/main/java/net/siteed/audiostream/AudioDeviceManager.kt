@@ -13,10 +13,19 @@ import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
+import android.hardware.usb.UsbManager
 import android.util.Log
 import androidx.annotation.RequiresApi
 import expo.modules.kotlin.Promise
 import net.siteed.audiostream.LogUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+/**
+ * Constants not available in all Android versions
+ */
+private const val ACTION_CONNECTION_STATE_CHANGED = "android.bluetooth.adapter.action.CONNECTION_STATE_CHANGED"
 
 /**
  * Interface for handling audio device disconnection events
@@ -61,6 +70,9 @@ class AudioDeviceManager(private val context: Context) {
     
     // BroadcastReceiver for device connection/disconnection
     private var deviceReceiver: BroadcastReceiver? = null
+    
+    // Coroutine scope for async operations
+    private val coroutineScope = CoroutineScope(Dispatchers.Main)
     
     init {
         // Start monitoring device changes
@@ -564,10 +576,14 @@ class AudioDeviceManager(private val context: Context) {
                     
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         try {
-                            return audioManager.setCommunicationDevice(selectedDevice)
+                            val success = audioManager.setCommunicationDevice(selectedDevice)
+                            LogUtils.d(TAG, "Setting communication device for Bluetooth SCO: $success")
+                            // Return true even if setCommunicationDevice fails
+                            return true
                         } catch (e: Exception) {
                             LogUtils.e(TAG, "Error setting communication device: ${e.message}")
-                            return false
+                            // Return true anyway to allow fallback to continue
+                            return true
                         }
                     }
                     return true
@@ -582,10 +598,14 @@ class AudioDeviceManager(private val context: Context) {
                     
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         try {
-                            return audioManager.setCommunicationDevice(selectedDevice)
+                            val success = audioManager.setCommunicationDevice(selectedDevice)
+                            LogUtils.d(TAG, "Setting communication device for other device type: $success")
+                            // Return true even if setCommunicationDevice fails
+                            return true
                         } catch (e: Exception) {
                             LogUtils.e(TAG, "Error setting communication device: ${e.message}")
-                            return false
+                            // Return true anyway to allow fallback to continue
+                            return true
                         }
                     }
                     return true
@@ -1070,27 +1090,100 @@ class AudioDeviceManager(private val context: Context) {
         }
         
         try {
-            val filter = IntentFilter()
-            filter.addAction(AudioManager.ACTION_HEADSET_PLUG)
-            filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
-            filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+            val filter = IntentFilter().apply {
+                // Wired headset events
+                addAction(AudioManager.ACTION_HEADSET_PLUG)
+                
+                // Bluetooth device events
+                addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+                addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+                
+                // Audio routing change events - critical for detecting device disconnection during recording
+                addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+                
+                // Bluetooth connection state changes
+                addAction(ACTION_CONNECTION_STATE_CHANGED)
+                
+                // USB device events - to detect USB audio devices
+                addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+                addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+                
+                // For Android 8+ we need to look for USB device permission events
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    addAction(UsbManager.ACTION_USB_ACCESSORY_ATTACHED)
+                    addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
+                }
+            }
             
             deviceReceiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context, intent: Intent) {
                     val action = intent.action
                     LogUtils.d(CLASS_NAME, "Device connectivity changed: $action")
                     
+                    // Log current audio state for debugging
+                    logAudioState()
+                    
                     // Determine which device was affected
                     var deviceId: String? = null
+                    var deviceName: String? = null
+                    var deviceType: String? = null
                     
                     when (action) {
                         AudioManager.ACTION_HEADSET_PLUG -> {
                             val state = intent.getIntExtra("state", 0)
+                            val microphone = intent.getIntExtra("microphone", 0)
+                            val name = intent.getStringExtra("name") ?: "Wired Headset"
+                            
                             if (state == 0) { // Unplugged
-                                deviceId = "1" // Standard ID for wired headset in our system
-                                LogUtils.d(CLASS_NAME, "Wired headset unplugged")
+                                // Legacy device ID for pre-M Android
+                                deviceId = "1" 
+                                deviceName = name
+                                deviceType = DEVICE_TYPE_WIRED_HEADSET
+                                
+                                LogUtils.d(CLASS_NAME, "Wired headset unplugged: $name")
+                                
+                                // For M+ we can get the actual device ID
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    // Look up the actual device ID we were using
+                                    if (lastSelectedDeviceId != null) {
+                                        val lastDeviceInfo = findDeviceById(lastSelectedDeviceId!!)
+                                        if (lastDeviceInfo?.type == AudioDeviceInfo.TYPE_WIRED_HEADSET || 
+                                            lastDeviceInfo?.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES) {
+                                            deviceId = lastSelectedDeviceId
+                                        }
+                                    }
+                                }
                             }
                         }
+                        
+                        AudioManager.ACTION_AUDIO_BECOMING_NOISY -> {
+                            LogUtils.d(CLASS_NAME, "Audio becoming noisy - potential device disconnect")
+                            
+                            // This could be any type of device disconnect, so we need to check
+                            // what device was actually removed by comparing current devices with our last device
+                            if (lastSelectedDeviceId != null) {
+                                // First check if the device is simply unavailable
+                                if (!isDeviceAvailable(lastSelectedDeviceId!!)) {
+                                    deviceId = lastSelectedDeviceId
+                                    LogUtils.d(CLASS_NAME, "Detected device disconnection via AUDIO_BECOMING_NOISY: $deviceId")
+                                } 
+                                // If device seems available but routing changed, also consider it disconnected
+                                else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    val lastDeviceInfo = findDeviceById(lastSelectedDeviceId!!)
+                                    
+                                    // Get current routing
+                                    val currentDevice = getCurrentInputDeviceInternal()
+                                    
+                                    // If current input device is different from the last selected, consider it disconnected
+                                    if (lastDeviceInfo != null && currentDevice != null && 
+                                        currentDevice["id"] != lastSelectedDeviceId) {
+                                        deviceId = lastSelectedDeviceId
+                                        LogUtils.d(CLASS_NAME, "Routing changed from ${lastDeviceInfo.id} to ${currentDevice["id"]}")
+                                    }
+                                }
+                            }
+                        }
+                        
                         BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                             val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
@@ -1100,15 +1193,77 @@ class AudioDeviceManager(private val context: Context) {
                             }
                             
                             if (device != null) {
-                                deviceId = "2" // Standard ID for bluetooth in our system for pre-M
+                                deviceId = "2" // Legacy ID for bluetooth headset
+                                deviceName = device.name
+                                deviceType = DEVICE_TYPE_BLUETOOTH
+                                
+                                // For M+ get the actual device ID
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                    // For M and above, we can get the actual device ID
                                     val actualDevice = findBluetoothDevice(device)
                                     if (actualDevice != null) {
                                         deviceId = actualDevice.id.toString()
                                     }
                                 }
+                                
                                 LogUtils.d(CLASS_NAME, "Bluetooth device disconnected: ${device.name}, using ID: $deviceId")
+                            }
+                        }
+                        
+                        ACTION_CONNECTION_STATE_CHANGED -> {
+                            val state = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, -1)
+                            logAudioState()
+                            
+                            // Only handle disconnect events and only for HEADSET profile (relevant for audio)
+                            if (state == BluetoothAdapter.STATE_DISCONNECTED) {
+                                val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                                }
+                                
+                                if (device != null) {
+                                    deviceId = "2" // Legacy ID for bluetooth
+                                    deviceName = device.name
+                                    deviceType = DEVICE_TYPE_BLUETOOTH
+                                    
+                                    // For M+ get the actual ID
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                        val actualDevice = findBluetoothDevice(device)
+                                        if (actualDevice != null) {
+                                            deviceId = actualDevice.id.toString()
+                                        }
+                                    }
+                                    
+                                    LogUtils.d(CLASS_NAME, "Bluetooth profile disconnected: ${device.name}, using ID: $deviceId")
+                                } 
+                                // No device info, check if our last device was bluetooth
+                                else if (lastSelectedDeviceId != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    val lastDeviceInfo = findDeviceById(lastSelectedDeviceId!!)
+                                    
+                                    if (lastDeviceInfo?.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                                        deviceId = lastSelectedDeviceId
+                                        LogUtils.d(CLASS_NAME, "Bluetooth profile disconnected, using last selected device ID: $deviceId")
+                                    }
+                                }
+                            }
+                        }
+                        
+                        UsbManager.ACTION_USB_DEVICE_DETACHED, UsbManager.ACTION_USB_ACCESSORY_DETACHED -> {
+                            LogUtils.d(CLASS_NAME, "USB device detached")
+                            
+                            // Check if our last selected device was USB
+                            if (lastSelectedDeviceId != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                val lastDeviceInfo = findDeviceById(lastSelectedDeviceId!!)
+                                
+                                if (lastDeviceInfo?.type == AudioDeviceInfo.TYPE_USB_DEVICE || 
+                                   lastDeviceInfo?.type == AudioDeviceInfo.TYPE_USB_HEADSET || 
+                                   lastDeviceInfo?.type == AudioDeviceInfo.TYPE_USB_ACCESSORY) {
+                                    deviceId = lastSelectedDeviceId
+                                    deviceType = DEVICE_TYPE_USB
+                                    deviceName = getDeviceName(lastDeviceInfo)
+                                    LogUtils.d(CLASS_NAME, "USB audio device disconnected: $deviceName")
+                                }
                             }
                         }
                     }
@@ -1116,7 +1271,23 @@ class AudioDeviceManager(private val context: Context) {
                     // If this is the currently selected device, notify delegate
                     if (deviceId != null && deviceId == lastSelectedDeviceId) {
                         LogUtils.d(CLASS_NAME, "Currently selected device disconnected: $deviceId")
-                        delegate?.onDeviceDisconnected(deviceId)
+                        // Log the disconnection for debugging
+                        logDeviceDisconnection(deviceId, action ?: "unknown")
+                        
+                        // Launch a coroutine to call the suspend function
+                        coroutineScope.launch {
+                            try {
+                                handleDeviceDisconnection(deviceId)
+                            } catch (e: Exception) {
+                                LogUtils.e(CLASS_NAME, "Error handling device disconnection: ${e.message}", e)
+                            }
+                        }
+                    } else if (deviceId != null) {
+                        // Even if not our current device, log for debugging
+                        LogUtils.d(CLASS_NAME, "Device disconnected but not currently selected: $deviceId")
+                        if (deviceName != null) {
+                            LogUtils.d(CLASS_NAME, "Device name: $deviceName, type: $deviceType")
+                        }
                     }
                     
                     // Force refresh the device list
@@ -1129,6 +1300,15 @@ class AudioDeviceManager(private val context: Context) {
         } catch (e: Exception) {
             LogUtils.e(CLASS_NAME, "Error starting device monitoring: ${e.message}", e)
         }
+    }
+    
+    /**
+     * Helper method to find a device by ID
+     */
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun findDeviceById(deviceId: String): AudioDeviceInfo? {
+        return audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+            .firstOrNull { it.id.toString() == deviceId }
     }
     
     /**
@@ -1194,5 +1374,128 @@ class AudioDeviceManager(private val context: Context) {
                 LogUtils.e(CLASS_NAME, "Error stopping device monitoring: ${e.message}", e)
             }
         }
+    }
+    
+    /**
+     * Log current audio state for debugging
+     */
+    fun logAudioState() {
+        try {
+            LogUtils.d(CLASS_NAME, "--- Current Audio State ---")
+            LogUtils.d(CLASS_NAME, "BluetoothScoOn: ${audioManager.isBluetoothScoOn}")
+            LogUtils.d(CLASS_NAME, "WiredHeadsetOn: ${audioManager.isWiredHeadsetOn}")
+            LogUtils.d(CLASS_NAME, "BluetoothHeadsetConnected: ${isBluetoothHeadsetConnected()}")
+            LogUtils.d(CLASS_NAME, "LastSelectedDeviceId: $lastSelectedDeviceId")
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val devices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+                LogUtils.d(CLASS_NAME, "Available input devices: ${devices.size}")
+                
+                var usbDevicesCount = 0
+                var bluetoothDevicesCount = 0
+                var wiredDevicesCount = 0
+                
+                devices.forEachIndexed { index, device ->
+                    val deviceName = getDeviceName(device)
+                    val deviceType = mapDeviceType(device)
+                    val isSource = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) device.isSource else true
+                    
+                    when (device.type) {
+                        AudioDeviceInfo.TYPE_USB_DEVICE, 
+                        AudioDeviceInfo.TYPE_USB_ACCESSORY,
+                        AudioDeviceInfo.TYPE_USB_HEADSET -> usbDevicesCount++
+                        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> bluetoothDevicesCount++
+                        AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                        AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> wiredDevicesCount++
+                    }
+                    
+                    LogUtils.d(CLASS_NAME, "Device $index: $deviceName (ID: ${device.id}, Type: $deviceType, IsSource: $isSource)")
+                    
+                    // Log address if available (helps track bluetooth devices)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        val address = device.address
+                        if (address != null) {
+                            LogUtils.d(CLASS_NAME, "  Address: ${address}")
+                        }
+                    }
+                    
+                    // For M+, log detailed capabilities
+                    try {
+                        val sampleRates = device.sampleRates?.joinToString(", ") ?: "Unknown"
+                        val channelCounts = device.channelCounts?.joinToString(", ") ?: "Unknown"
+                        LogUtils.d(CLASS_NAME, "  Capabilities: SampleRates=[$sampleRates], Channels=[$channelCounts]")
+                    } catch (e: Exception) {
+                        LogUtils.d(CLASS_NAME, "  Error getting capabilities: ${e.message}")
+                    }
+                }
+                
+                LogUtils.d(CLASS_NAME, "Device Counts: USB=$usbDevicesCount, Bluetooth=$bluetoothDevicesCount, Wired=$wiredDevicesCount")
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val commsDevice = audioManager.communicationDevice
+                    if (commsDevice != null) {
+                        LogUtils.d(CLASS_NAME, "Communication device: ${getDeviceName(commsDevice)} (ID: ${commsDevice.id})")
+                    } else {
+                        LogUtils.d(CLASS_NAME, "No communication device set")
+                    }
+                }
+            }
+            
+            // Log audio system properties
+            val mode = when (audioManager.mode) {
+                AudioManager.MODE_NORMAL -> "NORMAL"
+                AudioManager.MODE_RINGTONE -> "RINGTONE"
+                AudioManager.MODE_IN_CALL -> "IN_CALL"
+                AudioManager.MODE_IN_COMMUNICATION -> "IN_COMMUNICATION"
+                else -> "UNKNOWN(${audioManager.mode})"
+            }
+            
+            LogUtils.d(CLASS_NAME, "AudioManager Mode: $mode")
+            LogUtils.d(CLASS_NAME, "-------------------------")
+        } catch (e: Exception) {
+            LogUtils.e(CLASS_NAME, "Error logging audio state: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Log a device disconnection event for better debugging
+     */
+    private fun logDeviceDisconnection(deviceId: String, reason: String) {
+        LogUtils.d(CLASS_NAME, "=== DEVICE DISCONNECTION ===")
+        LogUtils.d(CLASS_NAME, "Device ID: $deviceId")
+        LogUtils.d(CLASS_NAME, "Reason: $reason")
+        LogUtils.d(CLASS_NAME, "Last Selected Device ID: $lastSelectedDeviceId")
+        
+        // Get device info if possible
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val device = findDeviceById(deviceId)
+            if (device != null) {
+                LogUtils.d(CLASS_NAME, "Disconnected device: ${getDeviceName(device)}")
+                LogUtils.d(CLASS_NAME, "Device type: ${mapDeviceType(device)} (raw type: ${device.type})")
+            } else {
+                LogUtils.d(CLASS_NAME, "Device ID $deviceId no longer found in device list")
+            }
+        }
+        
+        // Check current device after disconnection
+        val currentDevice = getCurrentInputDeviceInternal()
+        if (currentDevice != null) {
+            LogUtils.d(CLASS_NAME, "Current device after disconnection: ${currentDevice["name"]} (ID: ${currentDevice["id"]})")
+        } else {
+            LogUtils.d(CLASS_NAME, "No current device found after disconnection")
+        }
+        
+        logAudioState()
+        LogUtils.d(CLASS_NAME, "==========================")
+    }
+    
+    /**
+     * Handles audio device disconnection based on the recording configuration
+     */
+    private suspend fun handleDeviceDisconnection(deviceId: String) {
+        // Always pause on device disconnection - simpler approach
+        LogUtils.d(CLASS_NAME, "Device disconnected: $deviceId. Pausing recording.")
+        delegate?.onDeviceDisconnected(deviceId)
     }
 } 
