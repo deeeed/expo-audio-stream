@@ -1,10 +1,18 @@
 package net.siteed.audiostream
 
+/**
+ * Constants used throughout the ExpoAudioStream module
+ */
 object Constants {
+    // Event names
+    const val TAG = "ExpoAudioStream"
     const val AUDIO_EVENT_NAME = "AudioData"
     const val AUDIO_ANALYSIS_EVENT_NAME = "AudioAnalysis"
     const val RECORDING_INTERRUPTED_EVENT_NAME = "onRecordingInterrupted"
     const val TRIM_PROGRESS_EVENT = "TrimProgress"
+    const val DEVICE_CHANGED_EVENT = "deviceChangedEvent"
+    
+    // Audio constants
     const val DEFAULT_SAMPLE_RATE = 16000 // Default sample rate for audio recording
     const val DEFAULT_CHANNEL_CONFIG = 1 // Mono
     const val DEFAULT_AUDIO_FORMAT = 16 // 16-bit PCM
@@ -17,5 +25,13 @@ object Constants {
     const val FMT_CHUNK_ID = 0x666d7420 // "fmt "
     const val DATA_CHUNK_ID = 0x64617461 // "data"
     const val INFO_CHUNK_ID = 0x494E464F // "info"
-    const val TAG = "AudioRecorderModule"
+    
+    // Device constants
+    const val DEVICE_TYPE_BUILTIN_MIC = "builtin_mic"
+    const val DEVICE_TYPE_BLUETOOTH = "bluetooth"
+    const val DEVICE_TYPE_USB = "usb"
+    const val DEVICE_TYPE_WIRED_HEADSET = "wired_headset"
+    const val DEVICE_TYPE_WIRED_HEADPHONES = "wired_headphones"
+    const val DEVICE_TYPE_SPEAKER = "speaker"
+    const val DEVICE_TYPE_UNKNOWN = "unknown"
 }

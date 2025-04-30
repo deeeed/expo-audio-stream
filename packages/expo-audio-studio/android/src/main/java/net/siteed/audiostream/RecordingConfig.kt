@@ -23,6 +23,8 @@ data class RecordingConfig(
     val autoResumeAfterInterruption: Boolean = false,
     val outputDirectory: String? = null,
     val filename: String? = null,
+    val deviceId: String? = null,
+    val deviceDisconnectionBehavior: String? = null,
 ) {
     companion object {
         fun fromMap(options: Map<String, Any?>?): Result<Pair<RecordingConfig, AudioFormatInfo>> {
@@ -82,6 +84,10 @@ data class RecordingConfig(
                 }
             }
 
+            // Get device-related settings
+            val deviceId = options["deviceId"] as? String
+            val deviceDisconnectionBehavior = options["deviceDisconnectionBehavior"] as? String
+
             // Initialize the recording configuration with cleaned directory path
             val tempRecordingConfig = RecordingConfig(
                 sampleRate = options.getNumberOrDefault("sampleRate", Constants.DEFAULT_SAMPLE_RATE),
@@ -105,7 +111,9 @@ data class RecordingConfig(
                         .trim('/')
                         .replace("//", "/")
                 },
-                filename = options["filename"] as? String
+                filename = options["filename"] as? String,
+                deviceId = deviceId,
+                deviceDisconnectionBehavior = deviceDisconnectionBehavior
             )
 
             // Validate sample rate and channels

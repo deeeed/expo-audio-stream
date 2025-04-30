@@ -6,8 +6,13 @@ import java.io.IOException
 import java.io.OutputStream
 import java.io.RandomAccessFile
 import java.util.UUID
+import net.siteed.audiostream.LogUtils
 
 class AudioFileHandler(private val filesDir: File) {
+    companion object {
+        private const val CLASS_NAME = "AudioFileHandler"
+    }
+    
     // Method to write WAV file header
     fun writeWavHeader(out: OutputStream, sampleRateInHz: Int, channels: Int, bitDepth: Int) {
         val header = ByteArray(44)
@@ -103,7 +108,7 @@ class AudioFileHandler(private val filesDir: File) {
                 createNewFile()      // Create the file
             }
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to create audio file", e)
+            LogUtils.e(CLASS_NAME, "Failed to create audio file", e)
             throw e
         }
     }
@@ -111,20 +116,20 @@ class AudioFileHandler(private val filesDir: File) {
     fun deleteFile(file: File?): Boolean {
         return try {
             if (file == null) {
-                Log.w(Constants.TAG, "Attempted to delete null file")
+                LogUtils.w(CLASS_NAME, "Attempted to delete null file")
                 false
             } else if (!file.exists()) {
-                Log.w(Constants.TAG, "File does not exist: ${file.absolutePath}")
+                LogUtils.w(CLASS_NAME, "File does not exist: ${file.absolutePath}")
                 false
             } else {
                 val wasDeleted = file.delete()
                 if (!wasDeleted) {
-                    Log.w(Constants.TAG, "Failed to delete file: ${file.absolutePath}")
+                    LogUtils.w(CLASS_NAME, "Failed to delete file: ${file.absolutePath}")
                 }
                 wasDeleted
             }
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Error deleting file: ${file?.absolutePath}", e)
+            LogUtils.e(CLASS_NAME, "Error deleting file: ${file?.absolutePath}", e)
             false
         }
     }

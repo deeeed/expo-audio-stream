@@ -19,8 +19,24 @@ import java.lang.ref.WeakReference
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.Objects
+import net.siteed.audiostream.LogUtils
 
 class AudioNotificationManager private constructor(context: Context) {
+    companion object {
+        private const val CLASS_NAME = "AudioNotificationManager"
+        private const val WAVEFORM_UPDATE_INTERVAL = 100L
+        private const val UPDATE_INTERVAL = 1000L
+
+        @Volatile
+        private var instance: AudioNotificationManager? = null
+
+        fun getInstance(context: Context): AudioNotificationManager {
+            return instance ?: synchronized(this) {
+                instance ?: AudioNotificationManager(context).also { instance = it }
+            }
+        }
+    }
+    
     private val contextRef = WeakReference(context.applicationContext)
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -42,20 +58,6 @@ class AudioNotificationManager private constructor(context: Context) {
     private var lastWaveformUpdate: Long = 0
     private val waveformRenderer = WaveformRenderer()
     private var lastNotificationHash: Int? = null
-
-    companion object {
-        private const val WAVEFORM_UPDATE_INTERVAL = 100L
-        private const val UPDATE_INTERVAL = 1000L
-
-        @Volatile
-        private var instance: AudioNotificationManager? = null
-
-        fun getInstance(context: Context): AudioNotificationManager {
-            return instance ?: synchronized(this) {
-                instance ?: AudioNotificationManager(context).also { instance = it }
-            }
-        }
-    }
 
     fun initialize(config: RecordingConfig) {
         recordingConfig = config
@@ -87,24 +89,24 @@ class AudioNotificationManager private constructor(context: Context) {
         try {
             remoteViews = RemoteViews(context.packageName, R.layout.notification_recording)
             remoteViews.apply {
-                setTextViewText(R.id.notification_title, recordingConfig.notification.title)
-                setTextViewText(R.id.notification_text, recordingConfig.notification.text)
+                setTextViewText(R.id.notification_title, recordingConfig.notification?.title)
+                setTextViewText(R.id.notification_text, recordingConfig.notification?.text)
                 setTextViewText(R.id.notification_duration, formatDuration(0))
                 setViewVisibility(
                     R.id.notification_waveform,
                     if (recordingConfig.showWaveformInNotification &&
-                        recordingConfig.notification.waveform != null) View.VISIBLE else View.GONE
+                        recordingConfig.notification?.waveform != null) View.VISIBLE else View.GONE
                 )
             }
 
             buildNotification(context)
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to initialize notification", e)
+            LogUtils.e(CLASS_NAME, "Failed to initialize notification", e)
         }
     }
 
     private fun buildNotification(context: Context) {
-        val iconResId = recordingConfig.notification.icon?.let {
+        val iconResId = recordingConfig.notification?.icon?.let {
             getResourceIdByName(it)
         } ?: R.drawable.ic_microphone
 
@@ -214,7 +216,7 @@ class AudioNotificationManager private constructor(context: Context) {
 
             notificationManager.notify(recordingConfig.notification.notificationId, updatedNotification)
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to update notification actions", e)
+            LogUtils.e(CLASS_NAME, "Failed to update notification actions", e)
         }
     }
 
@@ -296,7 +298,7 @@ class AudioNotificationManager private constructor(context: Context) {
                         setImageViewBitmap(R.id.notification_waveform, waveformBitmap)
                         lastWaveformUpdate = currentTime
                     } catch (e: Exception) {
-                        Log.e(Constants.TAG, "Error generating waveform", e)
+                        LogUtils.e(CLASS_NAME, "Error generating waveform", e)
                     }
                 }
             }
@@ -325,7 +327,7 @@ class AudioNotificationManager private constructor(context: Context) {
             consecutiveUpdateFailures = 0
 
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Error updating notification", e)
+            LogUtils.e(CLASS_NAME, "Error updating notification", e)
             consecutiveUpdateFailures++
 
             if (consecutiveUpdateFailures >= maxUpdateFailures) {
@@ -360,7 +362,7 @@ class AudioNotificationManager private constructor(context: Context) {
                     .build()
             )
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Error updating waveform", e)
+            LogUtils.e(CLASS_NAME, "Error updating waveform", e)
         }
     }
 
@@ -380,9 +382,9 @@ class AudioNotificationManager private constructor(context: Context) {
             )
 
             consecutiveUpdateFailures = 0
-            Log.d(Constants.TAG, "Successfully reinitialized notification")
+            LogUtils.d(CLASS_NAME, "Successfully reinitialized notification")
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to reinitialize notification", e)
+            LogUtils.e(CLASS_NAME, "Failed to reinitialize notification", e)
         }
     }
 

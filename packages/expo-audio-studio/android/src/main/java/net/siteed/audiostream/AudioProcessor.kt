@@ -15,6 +15,7 @@ import android.media.MediaCodec
 import java.io.FileInputStream
 import java.io.RandomAccessFile
 import java.util.zip.CRC32
+import net.siteed.audiostream.LogUtils
 
 data class DecodingConfig(
     val targetSampleRate: Int? = null,     // Optional target sample rate
@@ -34,6 +35,7 @@ class AudioProcessor(private val filesDir: File) {
         const val DCT_SQRT_DIVISOR = 2.0
         private const val N_FFT = 1024
         private const val N_CHROMA = 12
+        private const val CLASS_NAME = "AudioProcessor" // Add class name constant for logging
 
         private val uniqueIdCounter = AtomicLong(0L) // Keep as companion object property to maintain during pause/resume cycles
 
@@ -50,11 +52,11 @@ class AudioProcessor(private val filesDir: File) {
     private fun loadAudioFile(filePath: String): AudioData? {
         try {
             val fileUri = filePath.removePrefix("file://")
-            Log.d("AudioProcessor", "Processing WAV file: $fileUri")
+            LogUtils.d(CLASS_NAME, "Processing WAV file: $fileUri")
 
             val file = File(fileUri).takeIf { it.exists() } ?: File(filesDir, File(fileUri).name).takeIf { it.exists() }
                 ?: run {
-                    Log.e("AudioProcessor", "File not found: $fileUri")
+                    LogUtils.e(CLASS_NAME, "File not found: $fileUri")
                     return null
                 }
 
@@ -64,14 +66,14 @@ class AudioProcessor(private val filesDir: File) {
             // Read RIFF header
             val riffHeader = ByteArray(4).apply { raf.readFully(this) }
             if (String(riffHeader) != "RIFF") {
-                Log.e("AudioProcessor", "Invalid RIFF header")
+                LogUtils.e(CLASS_NAME, "Invalid RIFF header")
                 return null
             }
 
             // Read WAVE header
             val waveHeader = ByteArray(4).apply { raf.readFully(this) }
             if (String(waveHeader) != "WAVE") {
-                Log.e("AudioProcessor", "Invalid WAVE header")
+                LogUtils.e(CLASS_NAME, "Invalid WAVE header")
                 return null
             }
 
@@ -89,12 +91,12 @@ class AudioProcessor(private val filesDir: File) {
                 val chunkSizeBytes = ByteArray(4).apply { raf.readFully(this) }
                 val chunkSize = ByteBuffer.wrap(chunkSizeBytes).order(ByteOrder.LITTLE_ENDIAN).int.toLong() and 0xFFFFFFFFL
 
-                Log.d("AudioProcessor", "Found chunk: $chunkId ($chunkSize bytes)")
+                LogUtils.d(CLASS_NAME, "Found chunk: $chunkId ($chunkSize bytes)")
 
                 when (chunkId) {
                     "fmt " -> {
                         if (chunkSize < 16) {
-                            Log.e("AudioProcessor", "Invalid fmt chunk size")
+                            LogUtils.e(CLASS_NAME, "Invalid fmt chunk size")
                             return null
                         }
                         
@@ -109,11 +111,11 @@ class AudioProcessor(private val filesDir: File) {
                         val blockAlign = formatBuffer.short
                         bitDepth = formatBuffer.short.toInt() and 0xFFFF
                         
-                        Log.d("AudioProcessor", "Raw format data: ${formatData.joinToString(", ")}")
-                        Log.d("AudioProcessor", "Format chunk: audioFormat=$audioFormat, channels=$channels, sampleRate=$sampleRate, bitDepth=$bitDepth, byteRate=$byteRate, blockAlign=$blockAlign")
+                        LogUtils.d(CLASS_NAME, "Raw format data: ${formatData.joinToString(", ")}")
+                        LogUtils.d(CLASS_NAME, "Format chunk: audioFormat=$audioFormat, channels=$channels, sampleRate=$sampleRate, bitDepth=$bitDepth, byteRate=$byteRate, blockAlign=$blockAlign")
                         
                         if (bitDepth !in listOf(8, 16, 32)) {
-                            Log.e("AudioProcessor", "Invalid bit depth: $bitDepth")
+                            LogUtils.e(CLASS_NAME, "Invalid bit depth: $bitDepth")
                             return null
                         }
                         
@@ -141,17 +143,17 @@ class AudioProcessor(private val filesDir: File) {
             }
 
             if (!fmtChunkFound || !dataChunkFound) {
-                Log.e("AudioProcessor", "Missing essential chunks (fmt=$fmtChunkFound, data=$dataChunkFound)")
+                LogUtils.e(CLASS_NAME, "Missing essential chunks (fmt=$fmtChunkFound, data=$dataChunkFound)")
                 return null
             }
 
             // Calculate actual data size if it seems wrong
             if (dataSize <= 0 || dataSize > fileSize - dataOffset) {
                 dataSize = fileSize - dataOffset
-                Log.d("AudioProcessor", "Adjusted data size to: $dataSize")
+                LogUtils.d(CLASS_NAME, "Adjusted data size to: $dataSize")
             }
 
-            Log.d("AudioProcessor", "Reading PCM data: offset=$dataOffset, size=$dataSize")
+            LogUtils.d(CLASS_NAME, "Reading PCM data: offset=$dataOffset, size=$dataSize")
             
             val wavData = ByteArray(dataSize.toInt())
             raf.seek(dataOffset)
@@ -163,7 +165,7 @@ class AudioProcessor(private val filesDir: File) {
             val numFrames = wavData.size / bytesPerFrame
             val durationMs = (numFrames * 1000L) / sampleRate
 
-            Log.d(Constants.TAG, "WAV duration calculation: size=${wavData.size}, bytesPerFrame=$bytesPerFrame, numFrames=$numFrames, sampleRate=$sampleRate, duration=${durationMs}ms")
+            LogUtils.d(CLASS_NAME, "WAV duration calculation: size=${wavData.size}, bytesPerFrame=$bytesPerFrame, numFrames=$numFrames, sampleRate=$sampleRate, duration=${durationMs}ms")
 
             return AudioData(
                 data = wavData,
@@ -173,7 +175,7 @@ class AudioProcessor(private val filesDir: File) {
                 durationMs = durationMs
             )
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to load WAV file: ${e.message}")
+            LogUtils.e(CLASS_NAME, "Failed to load WAV file: ${e.message}", e)
             return null
         }
     }
@@ -186,7 +188,7 @@ class AudioProcessor(private val filesDir: File) {
      */
     fun processAudioData(data: ByteArray, config: RecordingConfig): AudioAnalysisData {
         if (data.isEmpty()) {
-            Log.e("AudioProcessor", "Received empty audio data")
+            LogUtils.e(CLASS_NAME, "Received empty audio data")
             return AudioAnalysisData(
                 segmentDurationMs = config.segmentDurationMs,
                 durationMs = 0,
@@ -216,12 +218,12 @@ class AudioProcessor(private val filesDir: File) {
         val samplesPerSegment = ((config.segmentDurationMs / 1000.0) * sampleRate).toInt()
         val totalPoints = ceil(totalSamples.toDouble() / samplesPerSegment).toInt()
         
-        Log.d("AudioProcessor", "Extracting waveform totalSize=${data.size} with $totalSamples samples --> $totalPoints points")
-        Log.d("AudioProcessor", "segmentDuration: ${config.segmentDurationMs}ms, samplesPerSegment: $samplesPerSegment")
+        LogUtils.d(CLASS_NAME, "Extracting waveform totalSize=${data.size} with $totalSamples samples --> $totalPoints points")
+        LogUtils.d(CLASS_NAME, "segmentDuration: ${config.segmentDurationMs}ms, samplesPerSegment: $samplesPerSegment")
 
         // Remove expectedPoints calculation since it used pointsPerSecond
         val samplesPerPoint = ceil(channelData.size / totalPoints.toDouble()).toInt()
-        Log.d("AudioProcessor", "Extracting waveform with samplesPerPoints=$samplesPerPoint")
+        LogUtils.d(CLASS_NAME, "Extracting waveform with samplesPerPoints=$samplesPerPoint")
 
         val dataPoints = mutableListOf<DataPoint>()
         var minAmplitude = Float.MAX_VALUE
@@ -372,21 +374,21 @@ class AudioProcessor(private val filesDir: File) {
         val mfcc = try {
             if (featureOptions["mfcc"] == true) computeMFCC(segmentData, sampleRate) else emptyList()
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to extract MFCC: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Failed to extract MFCC: ${e.message}", e)
             emptyList()
         }
 
         val melSpectrogram = try {
             if (featureOptions["melSpectrogram"] == true) computeMelSpectrogram(segmentData, sampleRate) else emptyList()
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to compute mel spectrogram: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Failed to compute mel spectrogram: ${e.message}", e)
             emptyList()
         }
 
         val chroma = try {
             if (featureOptions["chromagram"] == true) computeChroma(segmentData, sampleRate) else emptyList()
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to compute chroma: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Failed to compute chroma: ${e.message}", e)
             emptyList()
         }
 
@@ -402,28 +404,28 @@ class AudioProcessor(private val filesDir: File) {
         val tempo = try {
             if (featureOptions["tempo"] == true) extractTempo(segmentData, sampleRate) else 0f
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to extract tempo: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Failed to extract tempo: ${e.message}", e)
             0f
         }
 
         val hnr = try {
             if (featureOptions["hnr"] == true) extractHNR(segmentData) else 0f
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to extract HNR: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Failed to extract HNR: ${e.message}", e)
             0f
         }
 
         val spectralContrast = try {
             if (featureOptions["spectralContrast"] == true) computeSpectralContrast(segmentData, sampleRate) else emptyList()
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to compute spectral contrast: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Failed to compute spectral contrast: ${e.message}", e)
             emptyList()
         }
 
         val tonnetz = try {
             if (featureOptions["tonnetz"] == true) computeTonnetz(segmentData, sampleRate) else emptyList()
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to compute tonnetz: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Failed to compute tonnetz: ${e.message}", e)
             emptyList()
         }
 
@@ -661,7 +663,7 @@ class AudioProcessor(private val filesDir: File) {
         )
 
         if (melFilters.any { it.size != powerSpectrum.size }) {
-            Log.e("AudioProcessor", "Mel filter size (${melFilters[0].size}) does not match power spectrum size (${powerSpectrum.size})")
+            LogUtils.e(CLASS_NAME, "Mel filter size (${melFilters[0].size}) does not match power spectrum size (${powerSpectrum.size})")
             return emptyList()
         }
 
@@ -812,14 +814,14 @@ class AudioProcessor(private val filesDir: File) {
         val cleanUri = fileUri.removePrefix("file://")
         val file = File(cleanUri).takeIf { it.exists() } ?: File(filesDir, File(cleanUri).name).takeIf { it.exists() }
             ?: run {
-                Log.e("AudioProcessor", "File not found in any location: $cleanUri")
+                LogUtils.e(CLASS_NAME, "File not found in any location: $cleanUri")
                 return null
             }
 
         // First try MediaExtractor
         val extractor = MediaExtractor()
         try {
-            Log.d("AudioProcessor", "Attempting MediaExtractor with path: ${file.absolutePath}")
+            LogUtils.d(CLASS_NAME, "Attempting MediaExtractor with path: ${file.absolutePath}")
             extractor.setDataSource(file.absolutePath)
             
             // Find the first audio track
@@ -838,10 +840,10 @@ class AudioProcessor(private val filesDir: File) {
                 } catch (e: Exception) {
                     (format.getString(MediaFormat.KEY_DURATION) ?: "-1").toLong()
                 }
-                Log.d("AudioProcessor", "Raw duration from format: ${totalDurationUs}us")
+                LogUtils.d(CLASS_NAME, "Raw duration from format: ${totalDurationUs}us")
                 
                 val totalDurationMs = totalDurationUs / 1000
-                Log.d("AudioProcessor", "Final duration: ${totalDurationMs}ms")
+                LogUtils.d(CLASS_NAME, "Final duration: ${totalDurationMs}ms")
 
                 // Process using MediaExtractor
                 val pcmData = decodeAudioToPCM(extractor, format)
@@ -867,14 +869,14 @@ class AudioProcessor(private val filesDir: File) {
                 )
             }
         } catch (e: Exception) {
-            Log.d("AudioProcessor", "MediaExtractor failed, attempting WAV parser: ${e.message}")
+            LogUtils.d(CLASS_NAME, "MediaExtractor failed, attempting WAV parser: ${e.message}")
         } finally {
             extractor.release()
         }
 
         // If MediaExtractor failed and file is WAV, try WAV parser
         if (file.name.lowercase().endsWith(".wav")) {
-            Log.d("AudioProcessor", "Falling back to WAV parser")
+            LogUtils.d(CLASS_NAME, "Falling back to WAV parser")
             return loadAudioFile(file.absolutePath)?.let { wavData ->
                 if (decodingConfig != null) {
                     val processedData = processAudio(
@@ -898,7 +900,7 @@ class AudioProcessor(private val filesDir: File) {
             }
         }
 
-        Log.e("AudioProcessor", "Failed to process audio file with both MediaExtractor and WAV parser")
+        LogUtils.e(CLASS_NAME, "Failed to process audio file with both MediaExtractor and WAV parser")
         return null
     }
 
@@ -1081,11 +1083,11 @@ class AudioProcessor(private val filesDir: File) {
                 raf.readFully(bytes)
             }
             
-            Log.d("AudioProcessor", "WAV Header Bytes: ${bytes.joinToString(", ") { String.format("%02X", it) }}")
-            Log.d("AudioProcessor", "ASCII: ${bytes.map { it.toInt().toChar() }.joinToString("")}")
+            LogUtils.d(CLASS_NAME, "WAV Header Bytes: ${bytes.joinToString(", ") { String.format("%02X", it) }}")
+            LogUtils.d(CLASS_NAME, "ASCII: ${bytes.map { it.toInt().toChar() }.joinToString("")}")
             
             val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
-            Log.d("AudioProcessor", """
+            LogUtils.d(CLASS_NAME, """
                 RIFF header: ${String(bytes, 0, 4)}
                 File size: ${buffer.getInt(4)}
                 WAVE header: ${String(bytes, 8, 4)}
@@ -1099,7 +1101,7 @@ class AudioProcessor(private val filesDir: File) {
                 Bits per sample: ${buffer.getShort(34)}
             """.trimIndent())
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "Failed to debug WAV header: ${e.message}")
+            LogUtils.e(CLASS_NAME, "Failed to debug WAV header: ${e.message}", e)
         }
     }
 
@@ -1112,7 +1114,7 @@ class AudioProcessor(private val filesDir: File) {
     ): AudioAnalysisData {
         val totalDurationMs = audioData.durationMs
         
-        Log.d(Constants.TAG, "Total audio duration: ${totalDurationMs}ms")
+        LogUtils.d(CLASS_NAME, "Total audio duration: ${totalDurationMs}ms")
         
         // Validate time range
         if (startTimeMs != null) {
@@ -1123,7 +1125,7 @@ class AudioProcessor(private val filesDir: File) {
         if (endTimeMs != null) {
             require(endTimeMs >= 0) { "endTime must be non-negative, got: $endTimeMs" }
             if (endTimeMs > totalDurationMs) {
-                Log.w(Constants.TAG, "endTime ($endTimeMs) is beyond audio duration ($totalDurationMs), clamping to duration")
+                LogUtils.w(CLASS_NAME, "endTime ($endTimeMs) is beyond audio duration ($totalDurationMs), clamping to duration")
             }
             if (startTimeMs != null) {
                 require(startTimeMs < endTimeMs) { "startTime ($startTimeMs) must be less than endTime ($endTimeMs)" }
@@ -1135,7 +1137,7 @@ class AudioProcessor(private val filesDir: File) {
         val effectiveEndMs = (endTimeMs ?: totalDurationMs).coerceAtMost(totalDurationMs)
         val durationMs = effectiveEndMs - effectiveStartMs
         
-        Log.d(Constants.TAG, "Preview range: ${effectiveStartMs}ms to ${effectiveEndMs}ms (${durationMs}ms)")
+        LogUtils.d(CLASS_NAME, "Preview range: ${effectiveStartMs}ms to ${effectiveEndMs}ms (${durationMs}ms)")
         
         // Calculate sample range
         val startSampleIndex = ((effectiveStartMs * audioData.sampleRate) / 1000).toInt()
@@ -1199,7 +1201,7 @@ class AudioProcessor(private val filesDir: File) {
                         samples = segmentData.size
                     ))
                 } catch (e: Exception) {
-                    Log.e(Constants.TAG, "Error processing segment $i: ${e.message}")
+                    LogUtils.e(CLASS_NAME, "Error processing segment $i: ${e.message}")
                     throw IllegalStateException("Failed to process audio segment: ${e.message}", e)
                 }
             }
@@ -1260,17 +1262,17 @@ class AudioProcessor(private val filesDir: File) {
             
             // If it's a WAV file (by extension and header verification)
             return if (isWavByExtension && headerSize != null) {
-                Log.d(Constants.TAG, "Loading WAV range with header size: $headerSize bytes")
+                LogUtils.d(CLASS_NAME, "Loading WAV range with header size: $headerSize bytes")
                 loadWavRange(fileUri, startTimeMs, endTimeMs, effectiveConfig, headerSize)
             } else {
                 if (isWavByExtension) {
-                    Log.w(Constants.TAG, "File has .wav extension but invalid header, falling back to compressed loader")
+                    LogUtils.w(CLASS_NAME, "File has .wav extension but invalid header, falling back to compressed loader")
                 }
-                Log.d(Constants.TAG, "Loading compressed audio range")
+                LogUtils.d(CLASS_NAME, "Loading compressed audio range")
                 loadCompressedAudioRange(fileUri, startTimeMs, endTimeMs, effectiveConfig)
             }
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to load audio range: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Failed to load audio range: ${e.message}", e)
             return null
         }
     }
@@ -1297,7 +1299,7 @@ class AudioProcessor(private val filesDir: File) {
             val startByte = headerSize + startByteOffset
             val endByte = headerSize + endByteOffset
 
-            Log.d(Constants.TAG, """
+            LogUtils.d(CLASS_NAME, """
                 Loading WAV range:
                 - headerSize: $headerSize
                 - startByte: $startByte
@@ -1320,7 +1322,7 @@ class AudioProcessor(private val filesDir: File) {
                     config.targetBitDepth
                 )
                 effectiveBitDepth = config.targetBitDepth
-                Log.d(Constants.TAG, "Converted bit depth from ${format.bitDepth} to ${config.targetBitDepth}")
+                LogUtils.d(CLASS_NAME, "Converted bit depth from ${format.bitDepth} to ${config.targetBitDepth}")
             }
 
             return AudioData(
@@ -1331,7 +1333,7 @@ class AudioProcessor(private val filesDir: File) {
                 durationMs = endTimeMs - startTimeMs
             )
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to load WAV range: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Failed to load WAV range: ${e.message}", e)
             return null
         }
     }
@@ -1357,10 +1359,10 @@ class AudioProcessor(private val filesDir: File) {
             } catch (e: Exception) {
                 (format.getString(MediaFormat.KEY_DURATION) ?: "-1").toLong()
             }
-            Log.d("AudioProcessor", "Raw duration from format: ${totalDurationUs}us")
+            LogUtils.d(CLASS_NAME, "Raw duration from format: ${totalDurationUs}us")
             
             val totalDurationMs = totalDurationUs / 1000
-            Log.d("AudioProcessor", "Final duration: ${totalDurationMs}ms")
+            LogUtils.d(CLASS_NAME, "Final duration: ${totalDurationMs}ms")
 
             // Calculate valid time range
             val validStartMs = startTimeMs.coerceIn(0, totalDurationMs) ?: 0
@@ -1385,7 +1387,7 @@ class AudioProcessor(private val filesDir: File) {
             val samplesPerSecond = targetSampleRate * targetChannels
             val totalBytes = (effectiveDurationMs * samplesPerSecond * bytesPerSample) / 1000
 
-            Log.d(Constants.TAG, """
+            LogUtils.d(CLASS_NAME, """
                 Loading audio range:
                 - start: ${validStartMs}ms
                 - end: ${validEndMs}ms
@@ -1454,10 +1456,10 @@ class AudioProcessor(private val filesDir: File) {
                 bitDepth = targetBitDepth,
                 durationMs = endTimeMs - startTimeMs  // Use the actual time range
             ).also {
-                Log.d(Constants.TAG, "Loaded compressed audio with duration: ${effectiveDurationMs}ms")
+                LogUtils.d(CLASS_NAME, "Loaded compressed audio with duration: ${effectiveDurationMs}ms")
             }
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to load compressed audio range: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Failed to load compressed audio range: ${e.message}", e)
             return null
         } finally {
             decoder?.stop()
@@ -1489,7 +1491,7 @@ class AudioProcessor(private val filesDir: File) {
             
             val durationMs = (endTimeMs - startTimeMs).toInt()
             
-            Log.d(Constants.TAG, """
+            LogUtils.d(CLASS_NAME, """
                 Trimming audio:
                 - start: ${startTimeMs}ms
                 - end: ${endTimeMs}ms
@@ -1546,7 +1548,7 @@ class AudioProcessor(private val filesDir: File) {
                 bitDepth = audioData.bitDepth
             )
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to trim audio: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Failed to trim audio: ${e.message}", e)
             return null
         }
     }
@@ -1910,7 +1912,7 @@ class AudioProcessor(private val filesDir: File) {
         try {
             fft.realForward(padded)
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "FFT forward transform failed: ${e.message}")
+            LogUtils.e(CLASS_NAME, "FFT forward transform failed: ${e.message}")
             return 0.0f
         }
 
@@ -1929,7 +1931,7 @@ class AudioProcessor(private val filesDir: File) {
                 powerSpectrum[fftLength - i] = powerSpectrum[i] // Mirror for inverse FFT
             }
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "Power spectrum computation failed: ${e.message}")
+            LogUtils.e(CLASS_NAME, "Power spectrum computation failed: ${e.message}")
             return 0.0f
         }
 
@@ -1938,7 +1940,7 @@ class AudioProcessor(private val filesDir: File) {
         try {
             fft.realInverse(powerSpectrum, autocorrelation)
         } catch (e: Exception) {
-            Log.e("AudioProcessor", "FFT inverse transform failed: ${e.message}")
+            LogUtils.e(CLASS_NAME, "FFT inverse transform failed: ${e.message}")
             return 0.0f
         }
 
@@ -2011,7 +2013,7 @@ class AudioProcessor(private val filesDir: File) {
         val cleanUri = fileUri.removePrefix("file://")
         val file = File(cleanUri).takeIf { it.exists() } ?: File(filesDir, File(cleanUri).name).takeIf { it.exists() }
             ?: run {
-                Log.e(Constants.TAG, "File not found: $cleanUri")
+                LogUtils.e(CLASS_NAME, "File not found: $cleanUri")
                 return null
             }
 
@@ -2025,7 +2027,7 @@ class AudioProcessor(private val filesDir: File) {
                 bitDepth = 16  // Most compressed formats decode to 16-bit PCM
             )
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to get audio format: ${e.message}")
+            LogUtils.e(CLASS_NAME, "Failed to get audio format: ${e.message}", e)
             return null
         } finally {
             extractor.release()
@@ -2064,7 +2066,7 @@ class AudioProcessor(private val filesDir: File) {
         val cleanUri = fileUri.removePrefix("file://")
         val file = File(cleanUri).takeIf { it.exists() } ?: File(filesDir, File(cleanUri).name).takeIf { it.exists() }
             ?: run {
-                Log.e(Constants.TAG, "File not found: $cleanUri")
+                LogUtils.e(CLASS_NAME, "File not found: $cleanUri")
                 return null
             }
 
@@ -2074,13 +2076,13 @@ class AudioProcessor(private val filesDir: File) {
             
             // Read RIFF header
             if (inputStream.read(buffer) != 12) {
-                Log.e(Constants.TAG, "Failed to read RIFF header")
+                LogUtils.e(CLASS_NAME, "Failed to read RIFF header")
                 return null
             }
             
             // Verify RIFF header
             if (String(buffer, 0, 4) != "RIFF" || String(buffer, 8, 4) != "WAVE") {
-                Log.e(Constants.TAG, "Invalid WAV file format")
+                LogUtils.e(CLASS_NAME, "Invalid WAV file format")
                 return null
             }
             
@@ -2090,7 +2092,7 @@ class AudioProcessor(private val filesDir: File) {
             // Read chunks until we find the data chunk
             while (true) {
                 if (inputStream.read(buffer, 0, 8) != 8) {
-                    Log.e(Constants.TAG, "Unexpected end of file while reading chunks")
+                    LogUtils.e(CLASS_NAME, "Unexpected end of file while reading chunks")
                     break
                 }
                 
@@ -2100,11 +2102,11 @@ class AudioProcessor(private val filesDir: File) {
                            (buffer[4].toInt() and 0xFF)
                 
                 val chunkId = String(buffer, 0, 4)
-                Log.d(Constants.TAG, "Found chunk: $chunkId, size: $chunkSize")
+                LogUtils.d(CLASS_NAME, "Found chunk: $chunkId, size: $chunkSize")
                 
                 if (chunkId == "data") {
                     headerSize += 8  // Add chunk header size
-                    Log.d(Constants.TAG, "Found data chunk at offset: $headerSize")
+                    LogUtils.d(CLASS_NAME, "Found data chunk at offset: $headerSize")
                     break
                 }
                 
@@ -2113,11 +2115,11 @@ class AudioProcessor(private val filesDir: File) {
             }
             
             inputStream.close()
-            Log.d(Constants.TAG, "Total WAV header size: $headerSize bytes")
+            LogUtils.d(CLASS_NAME, "Total WAV header size: $headerSize bytes")
             return headerSize
             
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Error calculating WAV header size: ${e.message}")
+            LogUtils.e(CLASS_NAME, "Error calculating WAV header size: ${e.message}", e)
             return null
         }
     }
@@ -2215,20 +2217,20 @@ class AudioProcessor(private val filesDir: File) {
                 durationMs = endTimeMs - startTimeMs
             )
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to decode audio range: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Failed to decode audio range: ${e.message}", e)
             return null
         } finally {
             try {
                 decoder?.stop()
                 decoder?.release()
             } catch (e: Exception) {
-                Log.w(Constants.TAG, "Error releasing decoder: ${e.message}")
+                LogUtils.w(CLASS_NAME, "Error releasing decoder: ${e.message}")
             }
             
             try {
                 extractor.release()
             } catch (e: Exception) {
-                Log.w(Constants.TAG, "Error releasing extractor: ${e.message}")
+                LogUtils.w(CLASS_NAME, "Error releasing extractor: ${e.message}")
             }
         }
     }

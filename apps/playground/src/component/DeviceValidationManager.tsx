@@ -43,6 +43,12 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
   }
 });
 
+// Common sample rates that work on most devices
+const COMMON_SAMPLE_RATES = [16000, 44100, 48000];
+
+// Common channel configurations that work on most devices
+const COMMON_CHANNEL_COUNTS = [1, 2];
+
 interface DeviceValidationManagerProps {
   device: AudioDevice | null;
   recordingConfig: RecordingConfig;
@@ -63,21 +69,48 @@ export function DeviceValidationManager({
   
   // Check if device supports the current sample rate
   const sampleRateSupported = useMemo(() => {
-    if (!device || !device.capabilities.sampleRates) return true;
-    return device.capabilities.sampleRates.includes(recordingConfig.sampleRate || 44100);
+    // If no device is selected or no capabilities reported, assume it's supported
+    if (!device || !device.capabilities || !device.capabilities.sampleRates) return true;
+    
+    // Check if the current sample rate is in device capabilities
+    const deviceSupported = device.capabilities.sampleRates.includes(recordingConfig.sampleRate || 44100);
+    
+    // Even if not explicitly reported, common sample rates usually work
+    const isCommonRate = COMMON_SAMPLE_RATES.includes(recordingConfig.sampleRate || 44100);
+    
+    return deviceSupported || isCommonRate;
   }, [device, recordingConfig.sampleRate]);
   
   // Check if device supports the current channel count
   const channelCountSupported = useMemo(() => {
-    if (!device || !device.capabilities.channelCounts) return true;
-    return device.capabilities.channelCounts.includes(recordingConfig.channels || 1);
+    // If no device is selected or no capabilities reported, assume it's supported
+    if (!device || !device.capabilities || !device.capabilities.channelCounts) return true;
+    
+    // Check if the current channel count is in device capabilities
+    const deviceSupported = device.capabilities.channelCounts.includes(recordingConfig.channels || 1);
+    
+    // Even if not explicitly reported, common channel counts usually work
+    const isCommonChannel = COMMON_CHANNEL_COUNTS.includes(recordingConfig.channels || 1);
+    
+    return deviceSupported || isCommonChannel;
   }, [device, recordingConfig.channels]);
   
   // Check if sample rate is optimal for transcription
   const isOptimalForTranscription = useMemo(() => {
     if (!enableLiveTranscription || !sampleRateForTranscription) return true;
-    return recordingConfig.sampleRate === sampleRateForTranscription;
-  }, [enableLiveTranscription, recordingConfig.sampleRate, sampleRateForTranscription]);
+    
+    // If the current sample rate matches the transcription rate, it's optimal
+    if (recordingConfig.sampleRate === sampleRateForTranscription) return true;
+    
+    // If transcription is enabled but we're not using the optimal rate,
+    // still consider it OK if the device doesn't support the optimal rate
+    if (device?.capabilities?.sampleRates && 
+        !device.capabilities.sampleRates.includes(sampleRateForTranscription)) {
+      return true;
+    }
+    
+    return false;
+  }, [enableLiveTranscription, recordingConfig.sampleRate, sampleRateForTranscription, device]);
   
   // Fix configuration automatically
   const fixConfiguration = useCallback(() => {
@@ -130,17 +163,7 @@ export function DeviceValidationManager({
     }
     
     onUpdateConfig(updates);
-  }, [
-    device, 
-    onUpdateConfig, 
-    sampleRateSupported, 
-    channelCountSupported, 
-    isOptimalForTranscription,
-    recordingConfig.sampleRate,
-    recordingConfig.channels,
-    recordingConfig.deviceDisconnectionBehavior,
-    sampleRateForTranscription
-  ]);
+  }, [device, onUpdateConfig, sampleRateSupported, channelCountSupported, isOptimalForTranscription, recordingConfig.sampleRate, recordingConfig.deviceDisconnectionBehavior, sampleRateForTranscription]);
   
   // If everything is fine, return null
   if (sampleRateSupported && channelCountSupported && isOptimalForTranscription) {
