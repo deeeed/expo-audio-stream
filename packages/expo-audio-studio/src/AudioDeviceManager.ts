@@ -130,7 +130,7 @@ export class AudioDeviceManager {
 
     /**
      * Get all available audio input devices
-     * @param options Optional settings { refresh: boolean } to force refresh the device list
+     * @param options Optional settings to force refresh the device list. Can include a refresh flag.
      * @returns Promise resolving to an array of audio devices conforming to AudioDevice interface
      */
     async getAvailableDevices(options?: {

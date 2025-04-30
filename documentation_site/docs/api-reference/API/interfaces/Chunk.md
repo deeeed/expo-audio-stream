@@ -6,7 +6,7 @@
 
 # Interface: Chunk
 
-Defined in: [src/ExpoAudioStream.types.ts:77](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L77)
+Defined in: [src/ExpoAudioStream.types.ts:77](https://github.com/deeeed/expo-audio-stream/blob/bb59302490ef4669af79e1b7d51bc0dcaf10e087/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L77)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:77](https://github.com/deeeed/expo-aud
 
 > **text**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:79](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L79)
+Defined in: [src/ExpoAudioStream.types.ts:79](https://github.com/deeeed/expo-audio-stream/blob/bb59302490ef4669af79e1b7d51bc0dcaf10e087/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L79)
 
 Transcribed text content
 
@@ -24,6 +24,6 @@ Transcribed text content
 
 > **timestamp**: \[`number`, `null` \| `number`\]
 
-Defined in: [src/ExpoAudioStream.types.ts:81](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L81)
+Defined in: [src/ExpoAudioStream.types.ts:81](https://github.com/deeeed/expo-audio-stream/blob/bb59302490ef4669af79e1b7d51bc0dcaf10e087/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L81)
 
 Start and end timestamp in seconds [start, end] where end can be null if ongoing

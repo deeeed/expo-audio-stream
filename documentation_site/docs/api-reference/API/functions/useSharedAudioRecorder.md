@@ -8,7 +8,7 @@
 
 > **useSharedAudioRecorder**(): [`UseAudioRecorderState`](../interfaces/UseAudioRecorderState.md)
 
-Defined in: [src/AudioRecorder.provider.tsx:46](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/AudioRecorder.provider.tsx#L46)
+Defined in: [src/AudioRecorder.provider.tsx:49](https://github.com/deeeed/expo-audio-stream/blob/bb59302490ef4669af79e1b7d51bc0dcaf10e087/packages/expo-audio-studio/src/AudioRecorder.provider.tsx#L49)
 
 ## Returns
 

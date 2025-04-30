@@ -8,7 +8,7 @@
 
 > **trimAudio**(`options`, `progressCallback`?): `Promise`\<[`TrimAudioResult`](../interfaces/TrimAudioResult.md)\>
 
-Defined in: [src/trimAudio.ts:24](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/trimAudio.ts#L24)
+Defined in: [src/trimAudio.ts:24](https://github.com/deeeed/expo-audio-stream/blob/bb59302490ef4669af79e1b7d51bc0dcaf10e087/packages/expo-audio-studio/src/trimAudio.ts#L24)
 
 **`Experimental`**
 

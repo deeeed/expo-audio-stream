@@ -6,7 +6,7 @@
 
 # Interface: IOSConfig
 
-Defined in: [src/ExpoAudioStream.types.ts:205](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L205)
+Defined in: [src/ExpoAudioStream.types.ts:205](https://github.com/deeeed/expo-audio-stream/blob/bb59302490ef4669af79e1b7d51bc0dcaf10e087/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L205)
 
 ## Properties
 
@@ -14,6 +14,6 @@ Defined in: [src/ExpoAudioStream.types.ts:205](https://github.com/deeeed/expo-au
 
 > `optional` **audioSession**: [`AudioSessionConfig`](AudioSessionConfig.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:207](https://github.com/deeeed/expo-audio-stream/blob/b15daef29a631eb696d5a28422f9cf32b080027e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L207)
+Defined in: [src/ExpoAudioStream.types.ts:207](https://github.com/deeeed/expo-audio-stream/blob/bb59302490ef4669af79e1b7d51bc0dcaf10e087/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L207)
 
 Configuration for the iOS audio session

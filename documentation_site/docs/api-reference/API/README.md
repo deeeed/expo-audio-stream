@@ -4,10 +4,16 @@
 
 # @siteed/expo-audio-studio
 
+## Classes
+
+- [AudioDeviceManager](classes/AudioDeviceManager.md)
+
 ## Interfaces
 
 - [AudioAnalysis](interfaces/AudioAnalysis.md)
 - [AudioDataEvent](interfaces/AudioDataEvent.md)
+- [AudioDevice](interfaces/AudioDevice.md)
+- [AudioDeviceCapabilities](interfaces/AudioDeviceCapabilities.md)
 - [AudioFeatures](interfaces/AudioFeatures.md)
 - [AudioFeaturesOptions](interfaces/AudioFeaturesOptions.md)
 - [AudioRangeOptions](interfaces/AudioRangeOptions.md)
@@ -44,6 +50,7 @@
 
 - [BitDepth](type-aliases/BitDepth.md)
 - [ConsoleLike](type-aliases/ConsoleLike.md)
+- [DeviceDisconnectionBehaviorType](type-aliases/DeviceDisconnectionBehaviorType.md)
 - [EncodingType](type-aliases/EncodingType.md)
 - [PCMFormat](type-aliases/PCMFormat.md)
 - [RecordingInterruptionReason](type-aliases/RecordingInterruptionReason.md)
@@ -51,6 +58,8 @@
 
 ## Variables
 
+- [audioDeviceManager](variables/audioDeviceManager.md)
+- [DeviceDisconnectionBehavior](variables/DeviceDisconnectionBehavior.md)
 - [ExpoAudioStreamModule](variables/ExpoAudioStreamModule.md)
 - [WAV\_HEADER\_SIZE](variables/WAV_HEADER_SIZE.md)
 
@@ -65,6 +74,7 @@
 - [extractRawWavAnalysis](functions/extractRawWavAnalysis.md)
 - [getWavFileInfo](functions/getWavFileInfo.md)
 - [trimAudio](functions/trimAudio.md)
+- [useAudioDevices](functions/useAudioDevices.md)
 - [useAudioRecorder](functions/useAudioRecorder.md)
 - [useSharedAudioRecorder](functions/useSharedAudioRecorder.md)
 - [writeWavHeader](functions/writeWavHeader.md)
