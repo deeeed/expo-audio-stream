@@ -109,6 +109,10 @@ struct RecordingSettings {
     // Update default to 100ms
     var segmentDurationMs: Int = 100  // Default 100ms segments
     
+    // Add these new properties
+    var deviceId: String?
+    var deviceDisconnectionBehavior: String?
+    
     static func fromDictionary(_ dict: [String: Any]) -> Result<RecordingSettings, Error> {
         // Extract compression settings
         let compression = dict["compression"] as? [String: Any]
@@ -126,6 +130,10 @@ struct RecordingSettings {
                 return .failure(error)
             }
         }
+        
+        // Add extraction of new properties
+        let deviceId = dict["deviceId"] as? String
+        let deviceDisconnectionBehavior = dict["deviceDisconnectionBehavior"] as? String
         
         // Create settings
         var settings = RecordingSettings(
@@ -259,6 +267,10 @@ struct RecordingSettings {
         }
         
         settings.filename = dict["filename"] as? String
+        
+        // Set new properties
+        settings.deviceId = deviceId
+        settings.deviceDisconnectionBehavior = deviceDisconnectionBehavior
         
         return .success(settings)
     }

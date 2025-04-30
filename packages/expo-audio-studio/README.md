@@ -36,6 +36,12 @@
 ## Features
 
 - Real-time audio streaming across iOS, Android, and web.
+- Audio input device detection and selection:
+  - List and select from available audio input devices
+  - View detailed device capabilities (sample rates, channels, bit depths)
+  - Support for Bluetooth, USB, and wired devices
+  - Automatic device management with fallback options
+  - Intelligent detection refresh for Bluetooth devices
 - Dual-stream recording capabilities:
   - Simultaneous raw PCM and compressed audio recording
   - Compression formats: OPUS or AAC

@@ -8,11 +8,23 @@ import {
     BitDepth,
     ConsoleLike,
     RecordingConfig,
+    RecordingInterruptionReason,
     StartRecordingResult,
 } from './ExpoAudioStream.types'
 import { WebRecorder } from './WebRecorder.web'
 import { AudioEventPayload } from './events'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
+
+export interface AudioStreamEvent {
+    type: string
+    device?: string
+    timestamp: Date
+}
+
+export interface ExpoAudioStreamOptions {
+    logger?: ConsoleLike
+    eventCallback?: (event: AudioStreamEvent) => void
+}
 
 export interface EmitAudioEventProps {
     data: Float32Array
@@ -61,6 +73,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
     latestPosition: number = 0
     totalCompressedSize: number = 0
     private readonly maxBufferSize: number
+    private eventCallback?: (event: AudioStreamEvent) => void
 
     constructor({
         audioWorkletUrl,
@@ -69,12 +82,8 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         maxBufferSize = 100, // Default to storing last 100 chunks (1 chunk = 0.5 seconds)
     }: ExpoAudioStreamWebProps) {
         const mockNativeModule = {
-            addListener: () => {
-                // Not used on web
-            },
-            removeListeners: () => {
-                // Not used on web
-            },
+            addListener: () => {},
+            removeListeners: () => {},
         }
         super(mockNativeModule) // Pass the mock native module to the parent class
 
@@ -177,6 +186,9 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             )
         }
 
+        // Save recording config for reference
+        this.recordingConfig = recordingConfig
+
         const audioContext = new (window.AudioContext ||
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore - Allow webkitAudioContext for Safari
@@ -190,36 +202,13 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             audioContext,
             source,
             recordingConfig,
-            emitAudioEventCallback: ({
-                data,
-                position,
-                compression,
-            }: EmitAudioEventProps) => {
-                // Keep only the latest chunks based on maxBufferSize
-                this.audioChunks.push(new Float32Array(data))
-                if (this.audioChunks.length > this.maxBufferSize) {
-                    this.audioChunks.shift() // Remove oldest chunk
-                }
-                this.currentSize += data.byteLength
-                this.emitAudioEvent({ data, position, compression })
-                this.lastEmittedTime = Date.now()
-                this.lastEmittedSize = this.currentSize
-                this.lastEmittedCompressionSize = compression?.size ?? 0
-            },
-            emitAudioAnalysisCallback: (audioAnalysisData: AudioAnalysis) => {
-                this.logger?.log(`Emitted AudioAnalysis:`, audioAnalysisData)
-                this.emit('AudioAnalysis', audioAnalysisData)
-            },
+            emitAudioEventCallback: this.customRecorderEventCallback.bind(this),
+            emitAudioAnalysisCallback:
+                this.customRecorderAnalysisCallback.bind(this),
+            onInterruption: this.handleRecordingInterruption.bind(this),
         })
         await this.customRecorder.init()
         this.customRecorder.start()
-
-        // // Set a timer to stop recording after 5 seconds
-        // setTimeout(() => {
-        //   logger.log("AUTO Stopping recording");
-        //   this.customRecorder?.stopAndPlay();
-        //   this.isRecording = false;
-        // }, 3000);
 
         this.isRecording = true
         this.recordingStartTime = Date.now()
@@ -261,14 +250,124 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         return streamConfig
     }
 
+    /**
+     * Centralized handler for recording interruptions
+     */
+    private handleRecordingInterruption(event: {
+        reason: RecordingInterruptionReason | string
+        isPaused: boolean
+        timestamp: number
+        message?: string
+    }): void {
+        this.logger?.debug(`Received recording interruption: ${event.reason}`)
+
+        // Update local state if the interruption should pause recording
+        if (event.isPaused) {
+            this.isPaused = true
+
+            // If this is a device disconnection, handle according to behavior setting
+            if (event.reason === 'deviceDisconnected') {
+                this.pausedTime = Date.now()
+
+                // Check if we should try fallback to another device
+                if (
+                    this.recordingConfig?.deviceDisconnectionBehavior ===
+                    'fallback'
+                ) {
+                    this.logger?.debug(
+                        'Device disconnected with fallback behavior - attempting to switch to default device'
+                    )
+
+                    // Try to restart with default device
+                    this.handleDeviceFallback().catch((error) => {
+                        // If fallback fails, emit warning
+                        this.logger?.error('Device fallback failed:', error)
+                        this.emit('onRecordingInterrupted', {
+                            reason: 'deviceSwitchFailed',
+                            isPaused: true,
+                            timestamp: Date.now(),
+                            message:
+                                'Failed to switch to fallback device. Recording paused.',
+                        })
+                    })
+                } else {
+                    // Just warn about disconnection if fallback not enabled
+                    this.logger?.warn(
+                        'Device disconnected - recording paused automatically'
+                    )
+                    this.emit('onRecordingInterrupted', event)
+                }
+            } else {
+                // For other interruption types, just emit the event
+                this.emit('onRecordingInterrupted', event)
+            }
+        } else {
+            // If not causing a pause, just forward the event
+            this.emit('onRecordingInterrupted', event)
+        }
+    }
+
+    /**
+     * Handler for audio events from the WebRecorder
+     */
+    private customRecorderEventCallback({
+        data,
+        position,
+        compression,
+    }: EmitAudioEventProps): void {
+        // Keep only the latest chunks based on maxBufferSize
+        this.audioChunks.push(new Float32Array(data))
+        if (this.audioChunks.length > this.maxBufferSize) {
+            this.audioChunks.shift() // Remove oldest chunk
+        }
+        this.currentSize += data.byteLength
+        this.emitAudioEvent({ data, position, compression })
+        this.lastEmittedTime = Date.now()
+        this.lastEmittedSize = this.currentSize
+        this.lastEmittedCompressionSize = compression?.size ?? 0
+    }
+
+    /**
+     * Handler for audio analysis events from the WebRecorder
+     */
+    private customRecorderAnalysisCallback(
+        audioAnalysisData: AudioAnalysis
+    ): void {
+        this.emit('AudioAnalysis', audioAnalysisData)
+    }
+
+    // Get recording duration
+    private getRecordingDuration(): number {
+        if (!this.isRecording) {
+            return 0
+        }
+
+        return this.currentDurationMs
+    }
+
     emitAudioEvent({ data, position, compression }: EmitAudioEventProps) {
         const fileUri = `${this.streamUuid}.${this.extension}`
         if (compression?.size) {
             this.lastEmittedCompressionSize = compression.size
             this.totalCompressedSize = compression.totalSize
         }
+
+        // Update latest position for tracking
         this.latestPosition = position
-        this.currentDurationMs = position * 1000 // Convert position (in seconds) to ms
+
+        // Calculate duration of this chunk in ms
+        const sampleRate = this.recordingConfig?.sampleRate || 44100
+        const chunkDurationMs = (data.length / sampleRate) * 1000
+
+        // Handle duration calculation
+        if (this.customRecorder?.isFirstChunkAfterSwitch) {
+            this.logger?.debug(
+                `Processing first chunk after device switch, duration preserved at ${this.currentDurationMs}ms`
+            )
+            this.customRecorder.isFirstChunkAfterSwitch = false
+        } else {
+            this.currentDurationMs += chunkDurationMs
+        }
 
         const audioEventPayload: AudioEventPayload = {
             fileUri,
@@ -298,21 +397,19 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             throw new Error('Recorder is not initialized')
         }
 
-        this.logger?.debug('[Stop] Starting stop process')
-        const startTime = performance.now()
+        this.logger?.debug('Starting stop process')
 
         try {
-            this.logger?.debug('[Stop] Stopping recorder')
             const { compressedBlob } = await this.customRecorder.stop()
 
             this.isRecording = false
             this.isPaused = false
-            this.currentDurationMs = Date.now() - this.recordingStartTime
 
             let compression: AudioRecording['compression']
             let fileUri = `${this.streamUuid}.${this.extension}`
             let mimeType = `audio/${this.extension}`
 
+            // Process compressed audio if available
             if (compressedBlob && this.recordingConfig?.compression?.enabled) {
                 const compressedUri = URL.createObjectURL(compressedBlob)
                 compression = {
@@ -322,24 +419,17 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                     format: 'opus',
                     bitrate: this.recordingConfig.compression.bitrate ?? 128000,
                 }
+
                 // Use compressed values when compression is enabled
                 fileUri = compressedUri
                 mimeType = 'audio/webm'
             }
 
-            this.logger?.debug(
-                `[Stop] Completed stop process in ${performance.now() - startTime}ms`,
-                {
-                    durationMs: this.currentDurationMs,
-                    compressedSize: compression?.size,
-                }
-            )
-
-            // Use the stored streamUuid (which contains our custom filename) for the final filename
+            // Use the stored streamUuid for the final filename
             const filename = `${this.streamUuid}.${this.extension}`
             const result: AudioRecording = {
                 fileUri,
-                filename, // This will now use our custom filename
+                filename,
                 bitDepth: this.bitDepth,
                 createdAt: this.recordingStartTime,
                 channels: this.recordingConfig?.channels ?? 1,
@@ -355,22 +445,34 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
 
             return result
         } catch (error) {
-            this.logger?.error('[Stop] Error stopping recording:', error)
+            this.logger?.error('Error stopping recording:', error)
             throw error
         }
     }
 
     // Pause recording
     async pauseRecording() {
-        if (!this.isRecording || this.isPaused) {
-            throw new Error('Recording is not active or already paused')
+        if (!this.isRecording) {
+            throw new Error('Recording is not active')
         }
 
-        if (this.customRecorder) {
-            this.customRecorder.pause()
+        if (this.isPaused) {
+            this.logger?.debug('Recording already paused, skipping')
+            return
         }
-        this.isPaused = true
-        this.pausedTime = Date.now()
+
+        try {
+            if (this.customRecorder) {
+                this.customRecorder.pause()
+            }
+            this.isPaused = true
+            this.pausedTime = Date.now()
+        } catch (error) {
+            this.logger?.error('Error in pauseRecording', error)
+            // Even if the pause operation failed, make sure our state is consistent
+            this.isPaused = true
+            this.pausedTime = Date.now()
+        }
     }
 
     // Resume recording
@@ -379,19 +481,61 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             throw new Error('Recording is not paused')
         }
 
-        if (this.customRecorder) {
+        this.logger?.debug('Resuming recording', {
+            deviceDisconnectionBehavior:
+                this.recordingConfig?.deviceDisconnectionBehavior,
+            isDeviceDisconnected: this.customRecorder?.isDeviceDisconnected,
+        })
+
+        try {
+            // If we have no recorder, or if the device is disconnected, always attempt fallback
+            if (
+                !this.customRecorder ||
+                this.customRecorder.isDeviceDisconnected
+            ) {
+                this.logger?.debug(
+                    'No recorder exists or device disconnected - attempting fallback on resume'
+                )
+                await this.handleDeviceFallback()
+                // handleDeviceFallback will manage resuming if successful, or emit error if failed.
+                return
+            }
+
+            // Normal resume path - device is still connected
             this.customRecorder.resume()
+            this.isPaused = false
+
+            // Adjust the recording start time to account for the pause duration
+            const pauseDuration = Date.now() - this.pausedTime
+            this.recordingStartTime += pauseDuration
+            this.pausedTime = 0
+
+            this.emit('onRecordingInterrupted', {
+                reason: 'userResumed',
+                isPaused: false,
+                timestamp: Date.now(),
+            })
+        } catch (error) {
+            this.logger?.error('Resume failed:', error)
+            // Fallback to emitting a general failure if resume fails unexpectedly
+            this.emit('onRecordingInterrupted', {
+                reason: 'resumeFailed', // Use a more specific reason
+                isPaused: true, // Remain paused if resume fails
+                timestamp: Date.now(),
+                message:
+                    'Failed to resume recording. Please stop and start again.',
+            })
         }
-        this.isPaused = false
-        this.recordingStartTime += Date.now() - this.pausedTime
     }
 
     // Get current status
     status() {
+        const durationMs = this.getRecordingDuration()
+
         const status: AudioStreamStatus = {
             isRecording: this.isRecording,
             isPaused: this.isPaused,
-            durationMs: this.currentDurationMs,
+            durationMs,
             size: this.currentSize,
             interval: this.currentInterval,
             intervalAnalysis: this.currentIntervalAnalysis,
@@ -408,5 +552,258 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                 : undefined,
         }
         return status
+    }
+
+    /**
+     * Handles device fallback when the current device is disconnected
+     */
+    private async handleDeviceFallback(): Promise<boolean> {
+        this.logger?.debug('Starting device fallback procedure')
+
+        if (!this.isRecording) {
+            return false
+        }
+
+        try {
+            // Save important state before switching
+            const currentPosition = this.latestPosition
+            const existingAudioChunks = [...this.audioChunks]
+
+            // Save compressed chunks if available
+            let compressedChunks: Blob[] = []
+            if (this.customRecorder) {
+                try {
+                    compressedChunks = this.customRecorder.getCompressedChunks()
+                } catch (err) {
+                    this.logger?.warn('Failed to get compressed chunks:', err)
+                }
+            }
+
+            // Save the current counter value for continuity
+            let currentDataPointCounter = 0
+            if (this.customRecorder) {
+                currentDataPointCounter =
+                    this.customRecorder.getDataPointCounter()
+            }
+
+            // Clean up existing recorder
+            if (this.customRecorder) {
+                try {
+                    this.customRecorder.cleanup()
+                } catch (cleanupError) {
+                    this.logger?.warn('Error during cleanup:', cleanupError)
+                }
+            }
+
+            // Keep recording state true but mark as paused
+            this.isPaused = true
+            this.pausedTime = Date.now()
+
+            // Store current size and other stats
+            const previousTotalSize = this.currentSize
+            const previousLastEmittedSize = this.lastEmittedSize
+            const previousCompressedSize = this.totalCompressedSize
+
+            // Try to get a fallback device
+            const fallbackDeviceInfo = await this.getFallbackDevice()
+            if (!fallbackDeviceInfo) {
+                this.emit('onRecordingInterrupted', {
+                    reason: 'deviceSwitchFailed',
+                    isPaused: true,
+                    timestamp: Date.now(),
+                    message:
+                        'Failed to switch to fallback device. Recording paused.',
+                })
+                return false
+            }
+
+            // Start recording with the new device
+            try {
+                const stream = await this.requestPermissionsAndGetUserMedia(
+                    fallbackDeviceInfo.deviceId
+                )
+                const audioContext = new (window.AudioContext ||
+                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                    // @ts-ignore - Allow webkitAudioContext for Safari
+                    window.webkitAudioContext)()
+
+                const source = audioContext.createMediaStreamSource(stream)
+
+                // Create a new recorder with the fallback device
+                this.customRecorder = new WebRecorder({
+                    logger: this.logger,
+                    audioContext,
+                    source,
+                    recordingConfig: this.recordingConfig || {},
+                    emitAudioEventCallback:
+                        this.customRecorderEventCallback.bind(this),
+                    emitAudioAnalysisCallback:
+                        this.customRecorderAnalysisCallback.bind(this),
+                    onInterruption: this.handleRecordingInterruption.bind(this),
+                })
+
+                await this.customRecorder.init()
+
+                // Set the initial position to continue from the previous device
+                this.customRecorder.setPosition(currentPosition)
+
+                // Reset the data point counter to continue from where the previous device left off
+                if (currentDataPointCounter > 0) {
+                    this.customRecorder.resetDataPointCounter(
+                        currentDataPointCounter
+                    )
+                }
+
+                // Prepare the recorder to handle the device switch properly
+                this.customRecorder.prepareForDeviceSwitch()
+
+                // Restore the existing audio chunks
+                if (existingAudioChunks.length > 0) {
+                    this.audioChunks = existingAudioChunks
+                }
+
+                // Restore compressed chunks if available
+                if (compressedChunks.length > 0) {
+                    this.customRecorder.setCompressedChunks(compressedChunks)
+                }
+
+                // Start the new recorder while preserving counters
+                this.customRecorder.start(true)
+
+                // Update recording state
+                this.isPaused = false
+                this.recordingStartTime = Date.now()
+
+                // Restore size counters to maintain continuity
+                this.currentSize = previousTotalSize
+                this.lastEmittedSize = previousLastEmittedSize
+                this.totalCompressedSize = previousCompressedSize
+
+                // Notify that we switched to a fallback device
+                if (this.eventCallback) {
+                    this.eventCallback({
+                        type: 'deviceFallback',
+                        device: fallbackDeviceInfo.deviceId,
+                        timestamp: new Date(),
+                    })
+                }
+                return true
+            } catch (error) {
+                this.logger?.error(
+                    'Failed to start recording with fallback device',
+                    error
+                )
+                this.isPaused = true
+                this.emit('onRecordingInterrupted', {
+                    reason: 'deviceSwitchFailed',
+                    isPaused: true,
+                    timestamp: Date.now(),
+                    message:
+                        'Failed to switch to fallback device. Recording paused.',
+                })
+                return false
+            }
+        } catch (error) {
+            this.logger?.error('Failed to use fallback device', error)
+            this.isPaused = true
+            this.emit('onRecordingInterrupted', {
+                reason: 'deviceSwitchFailed',
+                isPaused: true,
+                timestamp: Date.now(),
+                message:
+                    'Failed to switch to fallback device. Recording paused.',
+            })
+            return false
+        }
+    }
+
+    /**
+     * Attempts to get a fallback audio device
+     */
+    private async getFallbackDevice(): Promise<MediaDeviceInfo | null> {
+        try {
+            // Get list of available audio input devices
+            const devices = await navigator.mediaDevices.enumerateDevices()
+            const audioInputDevices = devices.filter(
+                (device) => device.kind === 'audioinput'
+            )
+
+            if (audioInputDevices.length === 0) {
+                return null
+            }
+
+            // Try to find a device that's not the current one
+            if (this.customRecorder) {
+                try {
+                    // Use mediaDevices.enumerateDevices to find the current active device
+                    const tracks = navigator.mediaDevices
+                        .getUserMedia({ audio: true })
+                        .then((stream) => {
+                            const track = stream.getAudioTracks()[0]
+                            return track ? track.label : ''
+                        })
+                        .catch(() => '')
+
+                    const currentTrackLabel = await tracks
+
+                    if (currentTrackLabel) {
+                        // Find a device with a different label
+                        const differentDevice = audioInputDevices.find(
+                            (device) =>
+                                device.label &&
+                                device.label !== currentTrackLabel
+                        )
+
+                        if (differentDevice) {
+                            return differentDevice
+                        }
+                    }
+                } catch (err) {
+                    this.logger?.warn(
+                        'Error determining current device, using default'
+                    )
+                }
+            }
+
+            // Return the first available device (default device)
+            return audioInputDevices[0]
+        } catch (error) {
+            this.logger?.error('Error finding fallback device:', error)
+            return null
+        }
+    }
+
+    /**
+     * Gets user media with specific device ID
+     */
+    private async requestPermissionsAndGetUserMedia(
+        deviceId: string
+    ): Promise<MediaStream> {
+        try {
+            // Request the specific device
+            return await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    deviceId: { exact: deviceId },
+                },
+            })
+        } catch (error) {
+            this.logger?.error(
+                `Failed to get media for device ${deviceId}`,
+                error
+            )
+            // Try with default constraints as fallback
+            return await navigator.mediaDevices.getUserMedia({ audio: true })
+        }
+    }
+
+    init(options?: ExpoAudioStreamOptions): Promise<void> {
+        try {
+            this.logger = options?.logger
+            this.eventCallback = options?.eventCallback
+            return Promise.resolve()
+        } catch (error) {
+            this.logger?.error('Error initializing ExpoAudioStream', error)
+            return Promise.reject(error)
+        }
     }
 }

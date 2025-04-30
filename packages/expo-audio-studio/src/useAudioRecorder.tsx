@@ -281,7 +281,7 @@ export function useAudioRecorder({
 
             logger?.debug(
                 `[handleAudioAnalysis] Updated analysis data: durationMs=${savedAnalysisData.durationMs}`,
-                savedAnalysisData
+                { dataPoints: savedAnalysisData.dataPoints.length }
             )
 
             // Call the onAudioAnalysis callback if it exists in the recording config

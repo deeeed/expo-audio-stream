@@ -125,10 +125,10 @@ const AppInfoBanner = memo(function AppInfoBanner({
                             color: theme.colors.onTertiaryContainer,
                         }}
                     >
-                        Audio Playground is a professional audio recording application featuring advanced 
-                        real-time waveform visualization. It demonstrates high-quality audio processing 
-                        capabilities including live recording, playback, and visual representation of 
-                        audio signals. Perfect for developers and audio enthusiasts looking to understand 
+                        Audio Playground is a professional audio recording application featuring advanced
+                        real-time waveform visualization. It demonstrates high-quality audio processing
+                        capabilities including live recording, playback, and visual representation of
+                        audio signals. Perfect for developers and audio enthusiasts looking to understand
                         audio processing in mobile applications.
                     </Text>
                 )}
@@ -150,12 +150,12 @@ export const MoreScreen = () => {
         isUpdateAvailable,
         checkUpdates,
         canUpdate,
-      } = useAppUpdates();
+    } = useAppUpdates();
 
     return (
-        <ScreenWrapper 
-            withScrollView 
-            useInsets={false} 
+        <ScreenWrapper
+            withScrollView
+            useInsets={false}
             contentContainerStyle={styles.container}
         >
             <View style={styles.iconContainer}>
@@ -166,9 +166,9 @@ export const MoreScreen = () => {
                 <Text>Audio PlayGround</Text>
                 <Text style={styles.version}>v{appVersion}</Text>
             </View>
-            
+
             <AppInfoBanner theme={theme} />
-            
+
             <LabelSwitch
                 label="Dark Mode"
                 containerStyle={{
@@ -177,21 +177,21 @@ export const MoreScreen = () => {
                 onValueChange={toggleDarkMode}
                 value={darkMode}
             />
-            
+
             {!isWeb && (
-                    <Updater
-                        isUpdateAvailable={isUpdateAvailable}
-                        checking={checking}
-                        downloading={downloading}
-                        onUpdate={doUpdate}
-                onCheck={() => checkUpdates(false)}
-                canUpdate={canUpdate}
+                <Updater
+                    isUpdateAvailable={isUpdateAvailable}
+                    checking={checking}
+                    downloading={downloading}
+                    onUpdate={doUpdate}
+                    onCheck={() => checkUpdates(false)}
+                    canUpdate={canUpdate}
                 />
             )}
 
             <View style={styles.configSection}>
                 <Text style={styles.sectionTitle}>Transcription Model</Text>
-                <TranscriberConfig 
+                <TranscriberConfig
                     compact={true}
                     onConfigChange={() => {
                         // Optional callback when config changes
@@ -215,20 +215,33 @@ export const MoreScreen = () => {
                     router.navigate('/permissions')
                 }}
             />
+            <ListItem
+                                contentContainerStyle={{
+                                    ...styles.listItemContainer,
+                                    backgroundColor: theme.colors.primaryContainer,
+                                }}
+                                label="Audio Device Test"
+                                subLabel="Test web audio device detection and selection"
+                                onPress={() => {
+                                    router.navigate('/audio-device-test')
+                                }}
+                            />
             {__DEV__ && (
                 <>
                     {isWeb && (
-                        <ListItem
-                            contentContainerStyle={{
-                                ...styles.listItemContainer,
-                                backgroundColor: theme.colors.errorContainer,
-                            }}
-                            label="Whisper Debug"
-                            subLabel="Whisper Debug (Dev Only)"
-                            onPress={() => {
-                                router.navigate('/web-whisper-debug')
-                            }}
-                        />
+                        <>
+                            <ListItem
+                                contentContainerStyle={{
+                                    ...styles.listItemContainer,
+                                    backgroundColor: theme.colors.errorContainer,
+                                }}
+                                label="Whisper Debug"
+                                subLabel="Whisper Debug (Dev Only)"
+                                onPress={() => {
+                                    router.navigate('/web-whisper-debug')
+                                }}
+                            />
+                        </>
                     )}
                     {!isWeb && (
                         <>
@@ -237,7 +250,7 @@ export const MoreScreen = () => {
                                     ...styles.listItemContainer,
                                     backgroundColor: theme.colors.errorContainer,
                                 }}
-                                label="Baby Cry"    
+                                label="Baby Cry"
                                 subLabel="Baby Cry"
                                 onPress={() => {
                                     router.navigate('/baby-cry')

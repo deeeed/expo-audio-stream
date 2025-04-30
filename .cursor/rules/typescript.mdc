@@ -3,9 +3,36 @@ description:
 globs: 
 alwaysApply: true
 ---
-- use interface over types when possible
-- Avoid enums, use const objects instead
-- Prefer object parameters to function.
-- Use strict type checking.
-- Never use any, prefer types object or use unknown 
-- Do not create useless index.ts files that are only there to re-export interface, you must directly import the target interface where it needs to be used.
+# TypeScript Best Practices
+
+## Type System
+
+- Use `interface` over `types` when possible for better extensibility
+- **Never use enums** - always use const objects instead:
+
+  ```typescript
+  // ❌ Avoid enums
+  enum DeviceType {
+    BUILTIN = 'builtin_mic',
+    BLUETOOTH = 'bluetooth'
+  }
+  
+  // ✅ Use const objects 
+  const DeviceType = {
+    BUILTIN: 'builtin_mic',
+    BLUETOOTH: 'bluetooth'
+  } as const;
+  
+  type DeviceTypeValue = typeof DeviceType[keyof typeof DeviceType];
+  ```
+
+- Prefer object parameters for functions with multiple parameters
+- Use strict type checking
+- Never use `any`, prefer types `object` or use `unknown`
+- Do not create useless index.ts files that only re-export interfaces; import directly from source
+
+## Architecture Patterns
+
+- Apply platform abstraction for cross-platform code
+- Create consistent APIs across different implementations
+- Use clear error typing for better error handling

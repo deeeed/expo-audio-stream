@@ -15,6 +15,7 @@ interface AudioWorkletEvent {
         command: string
         recordedData?: Float32Array
         sampleRate?: number
+        position?: number
     }
 }
 
@@ -33,7 +34,7 @@ const DEFAULT_WEB_NUMBER_OF_CHANNELS = 1
 const TAG = 'WebRecorder'
 
 export class WebRecorder {
-    private audioContext: AudioContext
+    public audioContext: AudioContext
     private audioWorkletNode!: AudioWorkletNode
     private featureExtractorWorker?: Worker
     private source: MediaStreamAudioSourceNode
@@ -51,6 +52,27 @@ export class WebRecorder {
     private compressedSize: number = 0
     private pendingCompressedChunk: Blob | null = null
     private dataPointIdCounter: number = 0 // Add this property to track the counter
+    private deviceDisconnectionHandler: (() => void) | null = null
+    private mediaStream: MediaStream | null = null
+    private onInterruptionCallback?: (event: {
+        reason: string
+        isPaused: boolean
+        timestamp: number
+    }) => void
+    private _isDeviceDisconnected: boolean = false
+
+    /**
+     * Flag to indicate whether this is the first audio chunk after a device switch
+     * Used to maintain proper duration counting
+     */
+    public isFirstChunkAfterSwitch: boolean = false
+
+    /**
+     * Gets whether the recording device has been disconnected
+     */
+    get isDeviceDisconnected(): boolean {
+        return this._isDeviceDisconnected
+    }
 
     /**
      * Initializes a new WebRecorder instance for audio recording and processing
@@ -59,6 +81,7 @@ export class WebRecorder {
      * @param recordingConfig - Configuration options for the recording
      * @param emitAudioEventCallback - Callback function for audio data events
      * @param emitAudioAnalysisCallback - Callback function for audio analysis events
+     * @param onInterruption - Callback for recording interruptions
      * @param logger - Optional logger for debugging information
      */
     constructor({
@@ -67,6 +90,7 @@ export class WebRecorder {
         recordingConfig,
         emitAudioEventCallback,
         emitAudioAnalysisCallback,
+        onInterruption,
         logger,
     }: {
         audioContext: AudioContext
@@ -74,6 +98,11 @@ export class WebRecorder {
         recordingConfig: RecordingConfig
         emitAudioEventCallback: EmitAudioEventFunction
         emitAudioAnalysisCallback: EmitAudioAnalysisFunction
+        onInterruption?: (event: {
+            reason: string
+            isPaused: boolean
+            timestamp: number
+        }) => void
         logger?: ConsoleLike
     }) {
         this.audioContext = audioContext
@@ -124,6 +153,12 @@ export class WebRecorder {
         if (recordingConfig.compression?.enabled) {
             this.initializeCompressedRecorder()
         }
+
+        this.mediaStream = source.mediaStream
+        this.onInterruptionCallback = onInterruption
+
+        // Setup device disconnection detection
+        this.setupDeviceDisconnectionDetection()
     }
 
     /**
@@ -162,13 +197,19 @@ export class WebRecorder {
                     event.data.sampleRate ?? this.audioContext.sampleRate
                 const duration = pcmBufferFloat.length / sampleRate
 
+                // Use incoming position if provided by worklet, otherwise use our tracked position
+                const incomingPosition =
+                    typeof event.data.position === 'number'
+                        ? event.data.position
+                        : this.position
+
                 // Calculate bytes per sample based on bit depth
                 const bytesPerSample = this.bitDepth / 8
 
                 // Emit chunks without storing them
                 for (let i = 0; i < pcmBufferFloat.length; i += chunkSize) {
                     const chunk = pcmBufferFloat.slice(i, i + chunkSize)
-                    const chunkPosition = this.position + i / sampleRate
+                    const chunkPosition = incomingPosition + i / sampleRate
 
                     // Calculate byte positions and samples
                     const startPosition = Math.floor(i * bytesPerSample)
@@ -219,12 +260,13 @@ export class WebRecorder {
                     })
                 }
 
-                this.position += duration
+                // Update our position based on the worklet's position if provided
+                this.position = incomingPosition + duration
                 this.pendingCompressedChunk = null
             }
 
             this.logger?.debug(
-                `WebRecorder initialized -- recordSampleRate=${this.audioContext.sampleRate}`,
+                `WebRecorder initialized -- recordSampleRate=${this.audioContext.sampleRate}, startPosition=${this.position}`,
                 this.config
             )
             this.audioWorkletNode.port.postMessage({
@@ -236,6 +278,7 @@ export class WebRecorder {
                 exportBitDepth: this.exportBitDepth,
                 channels: this.numberOfChannels,
                 interval: this.config.interval ?? DEFAULT_WEB_INTERVAL,
+                position: this.position, // Pass the current position to the processor
                 // enableLogging: !!this.logger,
             })
 
@@ -263,6 +306,18 @@ export class WebRecorder {
             this.featureExtractorWorker.onerror = (error) => {
                 console.error(`[${TAG}] Feature extractor worker error:`, error)
             }
+
+            // Initialize worker with counter if needed
+            if (this.dataPointIdCounter > 0) {
+                this.featureExtractorWorker.postMessage({
+                    command: 'resetCounter',
+                    value: this.dataPointIdCounter,
+                })
+                this.logger?.debug(
+                    `Initialized worker with counter value ${this.dataPointIdCounter}`
+                )
+            }
+
             this.logger?.log(
                 'Feature extractor worker initialized successfully'
             )
@@ -283,42 +338,51 @@ export class WebRecorder {
         if (event.data.command === 'features') {
             const segmentResult = event.data.result
 
-            // Update the dataPointIdCounter based on the last ID received
+            // Track existing IDs to prevent duplicates
+            const existingIds = new Set(
+                this.audioAnalysisData.dataPoints.map((dp) => dp.id)
+            )
+
+            // Filter out datapoints with duplicate IDs
+            const uniqueNewDataPoints = segmentResult.dataPoints.filter(
+                (dp) => {
+                    return !existingIds.has(dp.id)
+                }
+            )
+
+            // Log filtered duplicates if any
             if (
-                segmentResult.dataPoints &&
-                segmentResult.dataPoints.length > 0
+                uniqueNewDataPoints.length < segmentResult.dataPoints.length &&
+                this.logger?.warn
             ) {
+                this.logger.warn(
+                    `Filtered ${segmentResult.dataPoints.length - uniqueNewDataPoints.length} duplicate datapoints`
+                )
+            }
+
+            // Update counter based on the highest ID seen
+            if (uniqueNewDataPoints.length > 0) {
                 const lastDataPoint =
-                    segmentResult.dataPoints[
-                        segmentResult.dataPoints.length - 1
-                    ]
+                    uniqueNewDataPoints[uniqueNewDataPoints.length - 1]
+
                 if (lastDataPoint && typeof lastDataPoint.id === 'number') {
-                    this.dataPointIdCounter = Math.max(
-                        this.dataPointIdCounter,
-                        lastDataPoint.id + 1
-                    )
+                    const nextIdValue = lastDataPoint.id + 1
+
+                    if (nextIdValue > this.dataPointIdCounter) {
+                        this.dataPointIdCounter = nextIdValue
+                        this.logger?.debug(
+                            `Counter updated to ${this.dataPointIdCounter}`
+                        )
+                    }
                 }
             }
 
-            this.logger?.debug('[WebRecorder] Raw segment result:', {
-                dataPointsLength: segmentResult.dataPoints.length,
-                durationMs: segmentResult.durationMs,
-                sampleRate: segmentResult.sampleRate,
-                amplitudeRange: segmentResult.amplitudeRange,
-            })
-
-            // Ensure consistent sample rate in the result
-            segmentResult.sampleRate =
-                this.config.sampleRate || this.audioContext.sampleRate
-
-            // Update the full audio analysis data with proper range merging
-            this.audioAnalysisData.dataPoints.push(...segmentResult.dataPoints)
+            // Add unique data points to our analysis data
+            this.audioAnalysisData.dataPoints.push(...uniqueNewDataPoints)
             this.audioAnalysisData.durationMs += segmentResult.durationMs
-
-            // Make sure the sample rate is consistent
             this.audioAnalysisData.sampleRate = segmentResult.sampleRate
 
-            // Properly merge amplitude ranges
+            // Merge amplitude ranges
             if (segmentResult.amplitudeRange) {
                 if (!this.audioAnalysisData.amplitudeRange) {
                     this.audioAnalysisData.amplitudeRange = {
@@ -338,7 +402,7 @@ export class WebRecorder {
                 }
             }
 
-            // Properly merge RMS ranges
+            // Merge RMS ranges
             if (segmentResult.rmsRange) {
                 if (!this.audioAnalysisData.rmsRange) {
                     this.audioAnalysisData.rmsRange = {
@@ -358,48 +422,81 @@ export class WebRecorder {
                 }
             }
 
-            this.logger?.debug('features event segmentResult', segmentResult)
-            this.logger?.debug(
-                `features event audioAnalysisData duration=${this.audioAnalysisData.durationMs}`,
-                this.audioAnalysisData
-            )
-            this.emitAudioAnalysisCallback(segmentResult)
+            // Send filtered result to avoid duplicate IDs
+            const filteredSegmentResult = {
+                ...segmentResult,
+                dataPoints: uniqueNewDataPoints,
+            }
 
-            this.logger?.debug('[WebRecorder] Updated audioAnalysisData:', {
-                dataPointsLength: this.audioAnalysisData.dataPoints.length,
-                durationMs: this.audioAnalysisData.durationMs,
-                sampleRate: this.audioAnalysisData.sampleRate,
-                amplitudeRange: this.audioAnalysisData.amplitudeRange,
-            })
+            this.emitAudioAnalysisCallback(filteredSegmentResult)
         }
     }
 
     /**
-     * Resets the data point ID counter
-     * Used when starting a new recording
+     * Reset the data point counter to a specific value or zero
+     * @param startCounterFrom Optional value to start the counter from (for continuing from previous recordings)
      */
-    resetDataPointCounter() {
-        this.dataPointIdCounter = 0
+    resetDataPointCounter(startCounterFrom?: number): void {
+        // Set the counter with the passed value or 0
+        this.dataPointIdCounter =
+            startCounterFrom !== undefined ? startCounterFrom : 0
+        this.logger?.debug(
+            `Reset data point counter to ${this.dataPointIdCounter}`
+        )
 
-        // Reset the counter in the worker
+        // Update worker counter if available
         if (this.featureExtractorWorker) {
             this.featureExtractorWorker.postMessage({
                 command: 'resetCounter',
-                startCounterFrom: 0,
+                value: this.dataPointIdCounter,
             })
+        } else {
+            this.logger?.warn(
+                'No feature extractor worker available to update counter'
+            )
         }
+    }
+
+    /**
+     * Get the current data point counter value
+     * @returns The current value of the data point counter
+     */
+    getDataPointCounter(): number {
+        return this.dataPointIdCounter
+    }
+
+    /**
+     * Prepares the recorder for continuity after device switch
+     * Sets up all necessary state to maintain proper recording continuity
+     */
+    prepareForDeviceSwitch(): void {
+        this.isFirstChunkAfterSwitch = true
+        this.logger?.debug(
+            `Prepared for device switch at position ${this.position}s`
+        )
     }
 
     /**
      * Starts the audio recording process
      * Connects the audio nodes and begins capturing audio data
+     * @param preserveCounters If true, do not reset the counter (used for device switching)
      */
-    start() {
+    start(preserveCounters = false) {
         this.source.connect(this.audioWorkletNode)
         this.audioWorkletNode.connect(this.audioContext.destination)
 
-        // Reset the counter when starting a new recording
-        this.resetDataPointCounter()
+        // Only reset the counter when not preserving state (e.g., for a fresh recording)
+        if (!preserveCounters) {
+            this.logger?.debug(
+                'Starting fresh recording, resetting counter to 0'
+            )
+            this.resetDataPointCounter(0) // Explicitly reset to 0 for new recordings
+            this.isFirstChunkAfterSwitch = false
+        } else {
+            this.logger?.debug(
+                `Preserving counter at ${this.dataPointIdCounter} during device switch`
+            )
+        }
 
         if (this.compressedMediaRecorder) {
             this.compressedMediaRecorder.start(this.config.interval ?? 1000)
@@ -408,20 +505,40 @@ export class WebRecorder {
 
     /**
      * Stops the audio recording process and returns the recorded data
+     * @param externalAudioChunks Optional array of Float32Array chunks from previous devices
      * @returns Promise resolving to an object containing PCM data and optional compressed blob
      */
-    async stop(): Promise<{ pcmData: Float32Array; compressedBlob?: Blob }> {
+    async stop(
+        externalAudioChunks?: Float32Array[]
+    ): Promise<{ pcmData: Float32Array; compressedBlob?: Blob }> {
         try {
-            if (this.compressedMediaRecorder) {
+            // Log what's happening for debugging
+            this.logger?.debug('Stopping recording and collecting final data')
+
+            // Stop any compressed recording first
+            if (
+                this.compressedMediaRecorder &&
+                this.compressedMediaRecorder.state !== 'inactive'
+            ) {
                 this.compressedMediaRecorder.stop()
-                return {
-                    pcmData: new Float32Array(), // Return empty array since we're streaming
-                    compressedBlob: new Blob(this.compressedChunks, {
-                        type: 'audio/webm;codecs=opus',
-                    }),
-                }
             }
-            return { pcmData: new Float32Array() }
+
+            // Wait for any pending compressed chunks to be processed
+            if (this.compressedMediaRecorder) {
+                // Small delay to ensure all data is processed
+                await new Promise((resolve) => setTimeout(resolve, 100))
+            }
+
+            // Return the compressed blob if available
+            return {
+                pcmData: new Float32Array(), // Return empty array since we're streaming
+                compressedBlob:
+                    this.compressedChunks.length > 0
+                        ? new Blob(this.compressedChunks, {
+                              type: 'audio/webm;codecs=opus',
+                          })
+                        : undefined,
+            }
         } finally {
             this.cleanup()
             // Reset the chunks array
@@ -435,17 +552,45 @@ export class WebRecorder {
      * Cleans up resources when recording is stopped
      * Closes audio context and disconnects nodes
      */
-    private cleanup() {
-        if (this.audioContext) {
-            this.audioContext.close()
+    public cleanup() {
+        // Remove device disconnection handler
+        if (this.deviceDisconnectionHandler) {
+            this.deviceDisconnectionHandler()
+            this.deviceDisconnectionHandler = null
         }
+
+        // Check if AudioContext is already closed before attempting to close it
+        if (this.audioContext && this.audioContext.state !== 'closed') {
+            try {
+                this.audioContext.close()
+            } catch (e) {
+                // Ignore closure errors - this happens if already closed
+            }
+        }
+
+        // Safely disconnect audioWorkletNode if it exists
         if (this.audioWorkletNode) {
-            this.audioWorkletNode.disconnect()
+            try {
+                this.audioWorkletNode.disconnect()
+            } catch (e) {
+                // Ignore disconnection errors - node might be already disconnected
+            }
         }
+
+        // Safely disconnect source if it exists
         if (this.source) {
-            this.source.disconnect()
+            try {
+                this.source.disconnect()
+            } catch (e) {
+                // Ignore disconnection errors - source might be already disconnected
+            }
         }
+
+        // Always stop media stream tracks to release hardware resources
         this.stopMediaStreamTracks()
+
+        // Mark as disconnected to prevent future errors
+        this._isDeviceDisconnected = true
     }
 
     /**
@@ -453,20 +598,37 @@ export class WebRecorder {
      * Disconnects audio nodes and pauses the media recorder
      */
     pause() {
-        this.source.disconnect(this.audioWorkletNode) // Disconnect the source from the AudioWorkletNode
-        this.audioWorkletNode.disconnect(this.audioContext.destination) // Disconnect the AudioWorkletNode from the destination
-        this.audioWorkletNode.port.postMessage({ command: 'pause' })
-        this.compressedMediaRecorder?.pause()
+        try {
+            // Note: We're just pausing, not disconnecting the device
+            // Simply disconnect nodes temporarily without marking device as disconnected
+            this.source.disconnect(this.audioWorkletNode)
+            this.audioWorkletNode.disconnect(this.audioContext.destination)
+            this.audioWorkletNode.port.postMessage({ command: 'pause' })
+
+            if (this.compressedMediaRecorder?.state === 'recording') {
+                this.compressedMediaRecorder.pause()
+            }
+
+            this.logger?.debug('Recording paused successfully')
+        } catch (error) {
+            this.logger?.error('Error in pause(): ', error)
+            // Already disconnected, just ignore and continue
+        }
     }
 
     /**
      * Stops all media stream tracks to release hardware resources
      * Ensures recording indicators (like microphone icon) are turned off
      */
-    stopMediaStreamTracks() {
+    public stopMediaStreamTracks() {
         // Stop all audio tracks to stop the recording icon
-        const tracks = this.source.mediaStream.getTracks()
-        tracks.forEach((track) => track.stop())
+        if (this.mediaStream) {
+            const tracks = this.mediaStream.getTracks()
+            tracks.forEach((track) => track.stop())
+        } else if (this.source?.mediaStream) {
+            const tracks = this.source.mediaStream.getTracks()
+            tracks.forEach((track) => track.stop())
+        }
     }
 
     /**
@@ -499,10 +661,20 @@ export class WebRecorder {
      * Reconnects audio nodes and resumes the media recorder
      */
     resume() {
-        this.source.connect(this.audioWorkletNode)
-        this.audioWorkletNode.connect(this.audioContext.destination)
-        this.audioWorkletNode.port.postMessage({ command: 'resume' })
-        this.compressedMediaRecorder?.resume()
+        // If device was disconnected, we can't resume
+        if (this._isDeviceDisconnected) {
+            this.logger?.warn('Cannot resume recording: device disconnected')
+            return
+        }
+
+        try {
+            this.source.connect(this.audioWorkletNode)
+            this.audioWorkletNode.connect(this.audioContext.destination)
+            this.audioWorkletNode.port.postMessage({ command: 'resume' })
+            this.compressedMediaRecorder?.resume()
+        } catch (error) {
+            this.logger?.error('Error in resume(): ', error)
+        }
     }
 
     /**
@@ -570,8 +742,104 @@ export class WebRecorder {
                 startPosition,
                 endPosition,
                 samples,
-                startCounterFrom: this.dataPointIdCounter, // Pass the current counter value
             })
+        }
+    }
+
+    /**
+     * Sets up detection for device disconnection events
+     */
+    private setupDeviceDisconnectionDetection() {
+        if (!this.mediaStream) return
+
+        // Function to handle track ending (which happens on device disconnection)
+        const handleTrackEnded = () => {
+            this.logger?.warn('Audio track ended - device disconnected')
+            this._isDeviceDisconnected = true
+
+            // Use the callback to notify parent component about device disconnection
+            if (this.onInterruptionCallback) {
+                this.onInterruptionCallback({
+                    reason: 'deviceDisconnected',
+                    isPaused: true,
+                    timestamp: Date.now(),
+                })
+                this.logger?.debug('Notified about device disconnection')
+            }
+
+            // Ensure we disconnect nodes to prevent zombie recordings
+            if (this.audioWorkletNode) {
+                this.audioWorkletNode.port.postMessage({
+                    command: 'deviceDisconnected',
+                })
+
+                try {
+                    this.source.disconnect(this.audioWorkletNode)
+                    this.audioWorkletNode.disconnect()
+                } catch (e) {
+                    // Ignore disconnection errors as the track might already be gone
+                }
+            }
+        }
+
+        // Add listeners to all audio tracks
+        const tracks = this.mediaStream.getAudioTracks()
+        tracks.forEach((track) => {
+            track.addEventListener('ended', handleTrackEnded)
+        })
+
+        // Store the handler for cleanup
+        this.deviceDisconnectionHandler = () => {
+            tracks.forEach((track) => {
+                track.removeEventListener('ended', handleTrackEnded)
+            })
+        }
+    }
+
+    /**
+     * Explicitly set the position for continuous recording across device switches
+     * @param position The position in seconds to continue from
+     */
+    setPosition(position: number): void {
+        if (position >= 0) {
+            this.position = position
+            this.logger?.debug(`Position explicitly set to ${position} seconds`)
+        } else {
+            this.logger?.warn(`Invalid position value: ${position}, ignoring`)
+        }
+    }
+
+    /**
+     * Get the current position in seconds
+     * @returns The current position
+     */
+    getPosition(): number {
+        return this.position
+    }
+
+    /**
+     * Gets the current compressed chunks
+     * @returns Array of current compressed audio chunks
+     */
+    getCompressedChunks(): Blob[] {
+        return [...this.compressedChunks]
+    }
+
+    /**
+     * Sets the compressed chunks from a previous recorder
+     * @param chunks Array of compressed chunks from a previous recorder
+     */
+    setCompressedChunks(chunks: Blob[]): void {
+        if (chunks && chunks.length > 0) {
+            this.logger?.debug(
+                `Adding ${chunks.length} compressed chunks from previous device`
+            )
+            this.compressedChunks = [...chunks, ...this.compressedChunks]
+            // Update size
+            this.compressedSize = this.compressedChunks.reduce(
+                (size, chunk) => size + chunk.size,
+                0
+            )
         }
     }
 }

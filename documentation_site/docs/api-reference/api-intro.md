@@ -26,6 +26,13 @@ The API is divided into the following main categories:
 - **AudioRecorderProvider**: Context provider for sharing recording state across components.
 - **useSharedAudioRecorder**: Hook to access shared recording state from any component.
 
+### Audio Device Management
+
+- **[Audio Devices](audio-devices.md)**: API for audio device detection and selection.
+- **useAudioDevices**: Hook for accessing and managing audio input devices.
+- **AudioDeviceSelector**: Component for selecting audio input devices.
+- **audioDeviceManager**: Singleton for direct device management.
+
 ### Events
 
 - **[AudioDataEvent](audio-data-event.md)**: Event data for audio streams.

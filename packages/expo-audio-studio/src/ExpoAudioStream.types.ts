@@ -219,6 +219,14 @@ export type RecordingInterruptionReason =
     | 'phoneCallEnded'
     /** Recording was stopped by the system or another app */
     | 'recordingStopped'
+    /** Recording device was disconnected */
+    | 'deviceDisconnected'
+    /** Recording switched to default device after disconnection */
+    | 'deviceFallback'
+    /** A new audio device was connected */
+    | 'deviceConnected'
+    /** Device switching failed */
+    | 'deviceSwitchFailed'
 
 // Add new interface for interruption events
 export interface RecordingInterruptionEvent {
@@ -227,6 +235,48 @@ export interface RecordingInterruptionEvent {
     /** Indicates whether the recording is paused due to the interruption */
     isPaused: boolean
 }
+
+export interface AudioDeviceCapabilities {
+    /** Supported sample rates for the device */
+    sampleRates: number[]
+    /** Supported channel counts for the device */
+    channelCounts: number[]
+    /** Supported bit depths for the device */
+    bitDepths: number[]
+    /** Whether the device supports echo cancellation */
+    hasEchoCancellation?: boolean
+    /** Whether the device supports noise suppression */
+    hasNoiseSuppression?: boolean
+    /** Whether the device supports automatic gain control */
+    hasAutomaticGainControl?: boolean
+}
+
+export interface AudioDevice {
+    /** Unique identifier for the device */
+    id: string
+    /** Human-readable name of the device */
+    name: string
+    /** Device type (builtin_mic, bluetooth, etc.) */
+    type: string
+    /** Whether this is the system default device */
+    isDefault: boolean
+    /** Audio capabilities for the device */
+    capabilities: AudioDeviceCapabilities
+    /** Whether the device is currently available */
+    isAvailable: boolean
+}
+
+/** Defines how recording should behave when a device becomes unavailable */
+export const DeviceDisconnectionBehavior = {
+    /** Pause recording when device disconnects */
+    PAUSE: 'pause',
+    /** Switch to default device and continue recording */
+    FALLBACK: 'fallback',
+} as const
+
+/** Type for DeviceDisconnectionBehavior values */
+export type DeviceDisconnectionBehaviorType =
+    (typeof DeviceDisconnectionBehavior)[keyof typeof DeviceDisconnectionBehavior]
 
 export interface RecordingConfig {
     /** Sample rate for recording in Hz (16000, 44100, or 48000) */
@@ -294,6 +344,12 @@ export interface RecordingConfig {
     outputDirectory?: string // If not provided, uses default app directory
     /** Optional filename for the recording (uses UUID if not provided) */
     filename?: string // If not provided, uses UUID
+
+    /** ID of the device to use for recording (if not specified, uses default) */
+    deviceId?: string
+
+    /** How to handle device disconnection during recording */
+    deviceDisconnectionBehavior?: DeviceDisconnectionBehaviorType
 }
 
 export interface NotificationConfig {
