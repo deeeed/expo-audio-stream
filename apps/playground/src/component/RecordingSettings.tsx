@@ -38,6 +38,9 @@ interface RecordingSettingsProps {
   isRecordingPrepared?: boolean; // Make optional
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   enableLiveTranscription: boolean;
+  // Add state for visualization display
+  showVisualization: boolean;
+  onShowVisualizationChange: (show: boolean) => void;
 }
 
 export function RecordingSettings({
@@ -48,7 +51,10 @@ export function RecordingSettings({
   isRecording,
   isPaused,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  enableLiveTranscription
+  enableLiveTranscription,
+  // Add props for visualization display
+  showVisualization,
+  onShowVisualizationChange,
 }: RecordingSettingsProps) {
   const theme = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
@@ -312,6 +318,28 @@ export function RecordingSettings({
           ]}
         />
       </View>
+
+      {/* Switch for enabling/disabling audio processing (data generation) */}
+      <LabelSwitch
+        label="Enable Audio Processing"
+        value={config.enableProcessing ?? false} // Default to false if undefined
+        onValueChange={(enabled) => {
+          const updatedConfig = {
+            ...config,
+            enableProcessing: enabled,
+          };
+          onConfigChange(updatedConfig);
+        }}
+        disabled={isDisabled}
+      />
+
+      {/* Switch for showing/hiding the visualization UI */}
+      <LabelSwitch
+        label="Show Visualization"
+        value={showVisualization}
+        onValueChange={onShowVisualizationChange}
+        disabled={isDisabled || !(config.enableProcessing ?? false)} // Disable if recording/paused, or if processing is off
+      />
     </View>
   );
 } 

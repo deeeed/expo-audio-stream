@@ -152,6 +152,9 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
 export default function RecordScreen() {
     const [error, setError] = useState<string | null>(null)
     
+    // Add state for visualization display
+    const [showVisualization, setShowVisualization] = useState(true);
+    
     const audioChunks = useRef<string[]>([])
     const webAudioChunks = useRef<Float32Array>(new Float32Array(0))
     const [streamConfig, setStreamConfig] =
@@ -792,7 +795,8 @@ export default function RecordScreen() {
 
     const renderRecording = () => (
         <View style={{ gap: 10, display: 'flex' }}>
-            {analysisData && (
+            {/* Conditionally render visualizer based on showVisualization state */}
+            {analysisData && showVisualization && startRecordingConfig.enableProcessing && (
                 <AudioVisualizer
                     candleSpace={2}
                     candleWidth={5}
@@ -901,7 +905,8 @@ export default function RecordScreen() {
 
     const renderPaused = () => (
         <View style={{ gap: 10, display: 'flex' }}>
-            {analysisData && (
+            {/* Conditionally render visualizer based on showVisualization state */}
+            {analysisData && showVisualization && startRecordingConfig.enableProcessing && (
                 <AudioVisualizer
                     candleSpace={2}
                     candleWidth={5}
@@ -1010,6 +1015,8 @@ export default function RecordScreen() {
                 isPaused={isPaused}
                 isRecordingPrepared={isRecordingPrepared}
                 enableLiveTranscription={enableLiveTranscription}
+                showVisualization={showVisualization}
+                onShowVisualizationChange={setShowVisualization}
             />
 
             <TranscriptionModeConfig

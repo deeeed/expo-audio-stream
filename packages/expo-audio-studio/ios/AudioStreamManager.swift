@@ -30,19 +30,26 @@ extension UInt16 {
     }
 }
 
-class AudioStreamManager: NSObject {
+// Define DeviceDisconnectionBehavior enum mirroring ExpoAudioStream.types.ts
+enum DeviceDisconnectionBehavior: String {
+    case PAUSE = "pause"
+    case FALLBACK = "fallback"
+}
+
+class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     private let audioEngine = AVAudioEngine()
     private var inputNode: AVAudioInputNode {
         return audioEngine.inputNode
     }
     internal var recordingFileURL: URL?
     private var audioProcessor: AudioProcessor?
+    private var fileHandle: FileHandle?
     private var startTime: Date?
     private var totalPausedDuration: TimeInterval = 0  // Track total paused time
     private var currentPauseStart: Date?              // Track current pause start
-    private var isRecording = false
-    private var isPaused = false
-    private var isPrepared = false  // Add this new state flag
+    var isRecording = false
+    var isPaused = false
+    var isPrepared = false  // Add this new state flag
     
     // Wake lock related properties
     private var wasIdleTimerDisabled: Bool = false  // Track previous idle timer state
@@ -97,9 +104,13 @@ class AudioStreamManager: NSObject {
     private var emissionInterval: TimeInterval = 1.0  // Default 1 second
     private var emissionIntervalAnalysis: TimeInterval = 0.5  // Default 0.5 seconds
 
+    // ---> ADD BACK deviceManager PROPERTY <--- 
+    private let deviceManager = AudioDeviceManager()
+
     /// Initializes the AudioStreamManager
     override init() {
         super.init()
+        deviceManager.delegate = self // Set the delegate
         // Only keep audio session interruption observer here
         NotificationCenter.default.addObserver(
             self,
@@ -657,8 +668,28 @@ class AudioStreamManager: NSObject {
 
         // Create recording file first
         recordingFileURL = createRecordingFile()
-        if recordingFileURL == nil {
-            Logger.debug("Error: Failed to create recording file.")
+        if let url = recordingFileURL {
+            do {
+                // Ensure directory exists if needed (createRecordingFile should handle this, but belt-and-suspenders)
+                try fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
+                // Create the file if it doesn't exist (createRecordingFile should also handle this)
+                if !fileManager.fileExists(atPath: url.path) {
+                    fileManager.createFile(atPath: url.path, contents: nil, attributes: nil)
+                }
+                // Open the handle for writing
+                self.fileHandle = try FileHandle(forWritingTo: url)
+                // Write initial dummy header immediately
+                let header = createWavHeader(dataSize: 0)
+                self.fileHandle?.write(header)
+                self.totalDataSize = Int64(WAV_HEADER_SIZE) // Initialize size with header size
+                Logger.debug("File handle opened and initial header written for \(url.path). Initial size: \(self.totalDataSize)")
+            } catch {
+                Logger.debug("Error creating/opening file handle: \(error.localizedDescription)")
+                // No need to call cleanupPreparation here, return false will handle it
+                return false
+            }
+        } else {
+            Logger.debug("Error: Failed to create recording file URL.")
             return false
         }
         
@@ -699,6 +730,13 @@ class AudioStreamManager: NSObject {
             
             // Apply the final configuration
             try session.setCategory(category, mode: mode, options: options)
+            // NOTE: We intentionally DO NOT call session.setPreferredSampleRate().
+            // Trying to force a sample rate different from the hardware's actual rate
+            // often prevents the input node's tap from receiving any buffers.
+            // Instead, we let the session negotiate the rate and install the tap
+            // using the format reported by the input node just before installation.
+            // Resampling to the desired settings.sampleRate happens later in processAudioBuffer.
+            try session.setPreferredIOBufferDuration(1024 / Double(settings.sampleRate))
             try session.setActive(true, options: .notifyOthersOnDeactivation)
             
             Logger.debug("""
@@ -715,51 +753,23 @@ class AudioStreamManager: NSObject {
                 - compression enabled: \(settings.enableCompressedOutput)
             """)
             
-            // Set preferred sample rate but don't rely on it being applied
-            try session.setPreferredSampleRate(Double(settings.sampleRate))
-            try session.setPreferredIOBufferDuration(1024 / Double(settings.sampleRate))
-            try session.setActive(true)
-            Logger.debug("Audio session activated successfully.")
-            
-            // CRITICAL FIX: In iOS, the hardware sometimes doesn't honor our preferred sample rate.
-            // Here we query the *actual* hardware input format to ensure we match exactly what the hardware gives us.
-            let reportedSessionRate = session.sampleRate
-            
-            // Get the format directly from the input node, which is the most reliable way to determine the hardware format
-            let inputNodeFormat = audioEngine.inputNode.outputFormat(forBus: 0)
-            let actualHardwareSampleRate = inputNodeFormat.sampleRate
-            
+            // Get the final tap format *directly* from the input node *just before* installing.
+            // This seems more reliable than using session.sampleRate across device changes.
+            // Relying on session.sampleRate or inputNode.outputFormat earlier led to crashes
+            // or the tap not receiving buffers, especially when switching devices (e.g., Bluetooth)
+            // or using sample rates different from the hardware's native rate.
+            let tapFormat = audioEngine.inputNode.outputFormat(forBus: 0)
+
             Logger.debug("""
-                Sample rate detection:
-                - Requested rate: \(settings.sampleRate)Hz
-                - iOS session reported rate: \(reportedSessionRate)Hz
-                - Input node actual rate: \(actualHardwareSampleRate)Hz
-                - Will use input node rate for tap and resample to requested rate
-                """)
-            
-            recordingSettings = newSettings  // Keep original settings with desired sample rate
-            
-            // CRITICAL FIX: Create format matching ACTUAL hardware capabilities from the input node
-            guard let hardwareFormat = AVAudioFormat(
-                commonFormat: .pcmFormatFloat32,
-                sampleRate: actualHardwareSampleRate,
-                channels: AVAudioChannelCount(settings.numberOfChannels),
-                interleaved: true
-            ) else {
-                Logger.debug("Failed to create hardware format")
-                return false
-            }
-            
-            Logger.debug("""
-                Audio format configuration:
-                - Hardware input format: \(describeAudioFormat(inputNodeFormat))
-                - Tap format: \(describeAudioFormat(hardwareFormat))
-                - Final output format: \(settings.bitDepth)-bit at \(settings.sampleRate)Hz
-                - Channels: \(settings.numberOfChannels)
+                Final Tap Configuration:
+                - Tap Format: \(describeAudioFormat(tapFormat))
+                - Requested Output Format: \(settings.bitDepth)-bit at \(settings.sampleRate)Hz
                 """)
 
-            // CRITICAL FIX: Install tap with the ACTUAL hardware format from the input node
-            audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: hardwareFormat) { [weak self] (buffer, time) in
+            recordingSettings = newSettings  // Keep original settings with desired sample rate
+            
+            // CRITICAL FIX: Install tap with the format reported by the input node itself.
+            audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: tapFormat) { [weak self] (buffer, time) in // Use tapFormat here
                 guard let self = self,
                       let fileURL = self.recordingFileURL,
                       self.isRecording else { // Only process buffer if actually recording
@@ -886,13 +896,7 @@ class AudioStreamManager: NSObject {
         do {
             enableWakeLock()
             
-            // Start the audio engine
-            try audioEngine.start()
-            
-            // Start the compressed recorder if prepared
-            compressedRecorder?.record()
-            
-            // Set recording state
+            // Set recording state *before* starting engine to avoid race condition
             startTime = Date()
             totalPausedDuration = 0
             currentPauseStart = nil
@@ -900,6 +904,12 @@ class AudioStreamManager: NSObject {
             lastEmissionTimeAnalysis = Date()
             isRecording = true
             isPaused = false
+            
+            // Start the audio engine
+            try audioEngine.start()
+            
+            // Start the compressed recorder if prepared
+            compressedRecorder?.record()
             
             // Show notifications if enabled
             if settings.showNotification {
@@ -1228,207 +1238,154 @@ class AudioStreamManager: NSObject {
         }
     }
     
-    /// Processes the audio buffer and writes data to the file. Also handles audio processing if enabled.
+    /// Processes the audio buffer: handles resampling/format conversion if necessary,
+    /// writes the result to the WAV file on a background thread, and triggers
+    /// analysis processing and event emission based on intervals.
     /// - Parameters:
-    ///   - buffer: The audio buffer to process.
-    ///   - fileURL: The URL of the file to write the data to.
+    ///   - buffer: The audio buffer received from the input node tap.
+    ///   - fileURL: The URL of the file to write the data to (ignored, uses self.fileHandle).
     private func processAudioBuffer(_ buffer: AVAudioPCMBuffer, fileURL: URL) {
         guard let settings = recordingSettings else {
-            Logger.debug("Recording settings not available")
+            Logger.debug("processAudioBuffer: Recording settings not available")
             return
         }
-        
-        guard let fileHandle = try? FileHandle(forWritingTo: fileURL) else {
-            Logger.debug("Failed to open file handle for URL: \(fileURL)")
-            return
-        }
-        defer {
-            fileHandle.closeFile()  // Ensure file is always closed
-        }
-        
+
+        // targetSampleRate and targetFormat remain the user's requested final format
         let targetSampleRate = Double(settings.sampleRate)
         let targetFormat: AVAudioCommonFormat = settings.bitDepth == 32 ? .pcmFormatFloat32 : .pcmFormatInt16
-        
-        // First handle resampling if needed
-        let resampledBuffer: AVAudioPCMBuffer
+
+        // Buffer to be processed - initially the input buffer
+        var bufferToProcess: AVAudioPCMBuffer = buffer
+
+        // 1. Resample if the buffer's sample rate doesn't match the target
         if buffer.format.sampleRate != targetSampleRate {
             if let resampled = resampleAudioBuffer(buffer, from: buffer.format.sampleRate, to: targetSampleRate) {
-                resampledBuffer = resampled
+                bufferToProcess = resampled
             } else {
-                Logger.debug("Resampling failed")
+                Logger.debug("processAudioBuffer: Resampling FAILED")
                 return
             }
-        } else {
-            resampledBuffer = buffer
         }
-        
-        // Then ensure format matches user settings
-        let finalBuffer: AVAudioPCMBuffer
-        if resampledBuffer.format.commonFormat != targetFormat {
-            guard let converted = convertBufferFormat(resampledBuffer, to: AVAudioFormat(
+
+        // 2. Convert format if the (potentially resampled) buffer's format doesn't match the target
+        if bufferToProcess.format.commonFormat != targetFormat {
+            guard let targetAVFormat = AVAudioFormat(
                 commonFormat: targetFormat,
-                sampleRate: targetSampleRate,
+                sampleRate: targetSampleRate, // Use target rate for final format
                 channels: AVAudioChannelCount(settings.numberOfChannels),
-                interleaved: true
-            )!) else {
-                Logger.debug("Format conversion failed")
+                interleaved: bufferToProcess.format.isInterleaved // Match interleaving of current buffer
+            ) else {
+                Logger.debug("processAudioBuffer: Failed to create target AVAudioFormat for conversion.")
                 return
             }
-            finalBuffer = converted
-        } else {
-            finalBuffer = resampledBuffer
+            if let converted = convertBufferFormat(bufferToProcess, to: targetAVFormat) {
+                bufferToProcess = converted
+            } else {
+                Logger.debug("processAudioBuffer: Format conversion FAILED")
+                return
+            }
         }
-        
-        let audioData = finalBuffer.audioBufferList.pointee.mBuffers
+
+        // Now bufferToProcess contains the audio data in the desired sample rate and format
+        let audioData = bufferToProcess.audioBufferList.pointee.mBuffers
         guard let bufferData = audioData.mData else {
-            Logger.debug("Buffer data is nil.")
+            Logger.debug("Buffer data is nil after processing.")
             return
         }
-        
-        var data = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
-        
-        // Check if this is the first buffer to process
-        if totalDataSize == 0 {
-            let header = createWavHeader(dataSize: 0)
-            data.insert(contentsOf: header, at: 0)
+
+        // Create an immutable copy for background/event emission
+        let dataToWrite = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
+
+        // --- Background File Writing ---
+        // Use the persistent fileHandle opened during preparation.
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self, let handle = self.fileHandle else {
+                Logger.debug("BG Write Error: File handle is nil.")
+                return
+            }
+            do {
+                try handle.seekToEnd()
+                try handle.write(contentsOf: dataToWrite)
+                // Update total size state
+                self.totalDataSize += Int64(dataToWrite.count)
+            } catch {
+                 Logger.debug("BG Write Error: Failed to seek/write: \(error.localizedDescription)")
+            }
         }
-        
-        // Write to file
-        fileHandle.seekToEndOfFile()
-        fileHandle.write(data)
-        
-        // Update total size and accumulated data
-        totalDataSize += Int64(data.count)
-        accumulatedData.append(data)
-        accumulatedAnalysisData.append(data)
-        
-        // Handle notifications if enabled
+
+        // --- Event Emission & Analysis ---
+        accumulatedData.append(dataToWrite)
+        accumulatedAnalysisData.append(dataToWrite)
+
         if recordingSettings?.showNotification == true {
             updateNotificationDuration()
         }
-        
-        // Emit data based on interval
+
         let currentTime = Date()
-        if let lastEmissionTime = lastEmissionTime,
-           let startTime = startTime,
-           currentTime.timeIntervalSince(lastEmissionTime) >= emissionInterval {
-            
-            let recordingTime = currentTime.timeIntervalSince(startTime)
-            let dataToProcess = accumulatedData
-            
-            // Prepare compression info if enabled
+        let currentTotalSize = self.totalDataSize // Use the most up-to-date size for events
+
+        // Emit AudioData event
+        if let lastEmission = self.lastEmissionTime,
+           currentTime.timeIntervalSince(lastEmission) >= emissionInterval,
+           !accumulatedData.isEmpty {
+            let dataToEmit = accumulatedData
+            let recordingTime = currentRecordingDuration()
+            self.lastEmissionTime = currentTime
+            self.lastEmittedSize = currentTotalSize
+            accumulatedData.removeAll()
             var compressionInfo: [String: Any]? = nil
-            if settings.enableCompressedOutput, let compressedURL = compressedFileURL {
-                do {
-                    // Ensure file exists and has data
-                    if FileManager.default.fileExists(atPath: compressedURL.path) {
-                        let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedURL.path)
-                        if let compressedSize = compressedAttributes[.size] as? Int64 {
-                            let eventDataSize = compressedSize - lastEmittedCompressedSize
-                            
-                            Logger.debug("Compressed file status - Total size: \(compressedSize), New data size: \(eventDataSize)")
-                            
-                            // Read the new compressed data if there's new data
-                            var compressedData: String? = nil
-                            if eventDataSize > 0 {
-                                do {
-                                    let fileHandle = try FileHandle(forReadingFrom: compressedURL)
-                                    defer { fileHandle.closeFile() }
-                                    
-                                    fileHandle.seek(toFileOffset: UInt64(lastEmittedCompressedSize))
-                                    let data = fileHandle.readData(ofLength: Int(eventDataSize))
-                                    compressedData = data.base64EncodedString()
-                                    
-                                    Logger.debug("Read compressed data of size: \(data.count)")
-                                } catch {
-                                    Logger.debug("Error reading compressed data: \(error)")
-                                }
-                            }
-                            
-                            lastEmittedCompressedSize = compressedSize
-                            
-                            compressionInfo = [
-                                "position": recordingTime * 1000, // Convert to milliseconds
-                                "fileUri": compressedURL.absoluteString,
-                                "eventDataSize": eventDataSize,
-                                "totalSize": compressedSize,
-                                "data": compressedData ?? ""
-                            ]
-                            
-                            Logger.debug("Compression info prepared: \(String(describing: compressionInfo))")
-                        } else {
-                            Logger.debug("Could not get compressed file size")
-                        }
-                    } else {
-                        Logger.debug("Compressed file does not exist at path: \(compressedURL.path)")
-                    }
-                } catch {
-                    Logger.debug("Error preparing compression info: \(error)")
-                }
-            }
-            
-            // Emit the audio data with compression info
+            // TODO: Get actual compressed file size if needed for this event
             delegate?.audioStreamManager(
                 self,
-                didReceiveAudioData: dataToProcess,
+                didReceiveAudioData: dataToEmit,
                 recordingTime: recordingTime,
-                totalDataSize: totalDataSize,
+                totalDataSize: currentTotalSize,
                 compressionInfo: compressionInfo
             )
-            
-            // Update state after emission
-            self.lastEmissionTime = currentTime
-            self.lastEmittedSize = totalDataSize
-            accumulatedData.removeAll()
+            // Logger.debug("Emitted didReceiveAudioData event.") // Optional: Re-enable if needed
         }
 
+        // Dispatch analysis task
+        if let lastEmissionAnalysis = self.lastEmissionTimeAnalysis,
+           currentTime.timeIntervalSince(lastEmissionAnalysis) >= emissionIntervalAnalysis,
+           settings.enableProcessing,
+           let processor = self.audioProcessor,
+           !accumulatedAnalysisData.isEmpty {
+            let dataToAnalyze = accumulatedAnalysisData
+            self.lastEmissionTimeAnalysis = currentTime
+            accumulatedAnalysisData.removeAll()
 
-        if let lastEmissionTimeAnalysis = lastEmissionTimeAnalysis,
-           let startTime = startTime,
-           currentTime.timeIntervalSince(lastEmissionTimeAnalysis) >= emissionIntervalAnalysis {
-            
-            let dataToProcess = accumulatedAnalysisData
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let self = self, let processor = self.audioProcessor, let settings = self.recordingSettings else {
+                    // Logger.debug("Analysis Dispatch SKIP: self, processor, or settings nil")
+                    return
+                }
+                guard !dataToAnalyze.isEmpty else {
+                    // Logger.debug("Analysis Dispatch SKIP: dataToAnalyze is empty")
+                    return
+                }
 
-            // Process audio if enabled
-            if settings.enableProcessing {
-                DispatchQueue.global().async { [weak self] in
-                    guard let self = self else { return }
-                    if let processor = self.audioProcessor {
-                        Logger.debug("Processing audio buffer of size: \(dataToProcess.count)")
-                        
-                        // Strip WAV header from the first buffer to avoid false amplitude detection
-                        let dataToAnalyze: Data
-                        if self.totalDataSizeAnalysis == 0 && dataToProcess.count > Int(WAV_HEADER_SIZE) {
-                            // This is the first buffer and may contain the WAV header
-                            dataToAnalyze = dataToProcess.subdata(in: Int(WAV_HEADER_SIZE)..<dataToProcess.count)
-                            Logger.debug("Removed WAV header (\(WAV_HEADER_SIZE) bytes) from first buffer for analysis")
-                        } else {
-                            dataToAnalyze = dataToProcess
-                        }
-                        
-                        let processingResult = processor.processAudioBuffer(
-                            data: dataToAnalyze,
-                            sampleRate: Float(settings.sampleRate),
-                            segmentDurationMs: settings.segmentDurationMs,
-                            featureOptions: settings.featureOptions ?? [:],
-                            bitDepth: settings.bitDepth,
-                            numberOfChannels: settings.numberOfChannels
-                        )
-                        
-                        DispatchQueue.main.async {
-                            if let result = processingResult {
-                                self.delegate?.audioStreamManager(self, didReceiveProcessingResult: result)
-                            }
-                        }
+                // Logger.debug("Analysis Dispatch: Processing \(dataToAnalyze.count) bytes...")
+                let processingResult = processor.processAudioBuffer(
+                    data: dataToAnalyze,
+                    sampleRate: Float(settings.sampleRate),
+                    segmentDurationMs: settings.segmentDurationMs,
+                    featureOptions: settings.featureOptions ?? [:],
+                    bitDepth: settings.bitDepth,
+                    numberOfChannels: settings.numberOfChannels
+                )
 
-                        // Update state after emission
-                        self.lastEmissionTimeAnalysis = currentTime
-                        // Update the total analysis data size to mark that we've processed data
-                        self.totalDataSizeAnalysis = self.totalDataSize
-                        accumulatedAnalysisData.removeAll()
+                // Dispatch result back to main thread
+                DispatchQueue.main.async {
+                    if let result = processingResult {
+                         // Logger.debug("Analysis Dispatch: Success, calling delegate.")
+                        self.delegate?.audioStreamManager(self, didReceiveProcessingResult: result)
+                    } else {
+                         Logger.debug("Analysis Dispatch FAIL: processor.processAudioBuffer returned nil")
                     }
                 }
             }
+            // Logger.debug("Dispatched analysis task.") // Optional: Re-enable if needed
         }
     }
 
@@ -1459,7 +1416,7 @@ class AudioStreamManager: NSObject {
               let outputBuffer = AVAudioPCMBuffer(
                 pcmFormat: targetFormat,
                 frameCapacity: buffer.frameLength
-              ) else {
+        ) else {
             return nil
         }
         
@@ -1477,6 +1434,39 @@ class AudioStreamManager: NSObject {
         }
         
         return outputBuffer
+    }
+
+    /// Attempts to update the audio session with the preferred input device from current settings.
+    /// Called externally when the device selection changes.
+    /// Note: Avoids changing sample rate or buffer duration while engine might be running.
+    public func updateAudioSessionWithCurrentSettings() {
+        guard let settings = self.recordingSettings, let deviceId = settings.deviceId else {
+            Logger.debug("Cannot update audio session preference, settings or deviceId missing")
+            return
+        }
+        
+        let session = AVAudioSession.sharedInstance()
+        
+        // Find the requested device port
+        let selectedPort = session.availableInputs?.first { port in
+            // Normalize IDs for comparison, especially for Bluetooth
+            let portNormalizedId = deviceManager.normalizeBluetoothDeviceId(port.uid)
+            let requestedNormalizedId = deviceManager.normalizeBluetoothDeviceId(deviceId)
+            return portNormalizedId == requestedNormalizedId
+        }
+        
+        if let portToSet = selectedPort {
+            do {
+                try session.setPreferredInput(portToSet)
+                Logger.debug("Attempted to set preferred input to: \(portToSet.portName) (ID: \(portToSet.uid))")
+                 // We add a small delay hoping the system applies the change before potential next operations
+                Thread.sleep(forTimeInterval: 0.1)
+            } catch {
+                Logger.debug("Failed to set preferred input device \(portToSet.portName): \(error.localizedDescription)")
+            }
+        } else {
+            Logger.debug("Could not find device with ID \(deviceId) to set as preferred input.")
+        }
     }
 
     /// Stops the current audio recording.
@@ -1531,7 +1521,7 @@ class AudioStreamManager: NSObject {
         } catch {
             Logger.debug("Error deactivating audio session: \(error)")
         }
-        
+
         // Reset audio engine
         audioEngine.reset()
         
@@ -1557,14 +1547,18 @@ class AudioStreamManager: NSObject {
                 - Expected minimum size: \(WAV_HEADER_SIZE) bytes (WAV header)
                 """)
             
-            // Return nil if the file is too small
-            if wavFileSize <= WAV_HEADER_SIZE {
-                Logger.debug("Recording file is too small (≤ \(WAV_HEADER_SIZE) bytes), likely no audio data was recorded")
+            // Use the final totalDataSize tracked by the background queue
+            let finalDataChunkSize = self.totalDataSize - Int64(WAV_HEADER_SIZE)
+            if finalDataChunkSize <= 0 {
+                Logger.debug("Recording file data chunk size is zero or negative (\(finalDataChunkSize) bytes), likely no audio data was recorded successfully after header")
+                // Optionally delete the empty file?
+                // try? FileManager.default.removeItem(at: fileURL)
                 return nil
             }
-            
-            // Update the WAV header with the correct file size
-            updateWavHeader(fileURL: fileURL, totalDataSize: wavFileSize - WAV_HEADER_SIZE)
+
+            // Update the WAV header with the correct final file size
+            updateWavHeader(fileURL: fileURL, totalDataSize: finalDataChunkSize)
+            Logger.debug("Final WAV header updated. Data chunk size: \(finalDataChunkSize)")
             
             // Validate compressed file if enabled
             var compression: CompressedRecordingInfo?
@@ -1649,6 +1643,170 @@ class AudioStreamManager: NSObject {
             return nil
         }
     }
+
+    // MARK: - AudioDeviceManagerDelegate Implementation
+
+    func audioDeviceManager(_ manager: AudioDeviceManager, didDetectDisconnectionOfDevice disconnectedDeviceId: String) {
+        // This method will be called by AudioDeviceManager when a disconnection occurs
+        // Run on main thread to safely interact with AVAudioEngine and state
+        DispatchQueue.main.async {
+            self.handleDeviceDisconnection(disconnectedDeviceId: disconnectedDeviceId)
+        }
+    }
+
+    // MARK: - Device Disconnection Handling
+
+    // Define interruption reasons matching ExpoAudioStream.types.ts
+    enum RecordingInterruptionReason: String {
+        case deviceDisconnected = "deviceDisconnected"
+        case deviceFallback = "deviceFallback"
+        case deviceSwitchFailed = "deviceSwitchFailed"
+        // Add other reasons if needed (e.g., from handleAudioSessionInterruption)
+        case audioFocusLoss = "audioFocusLoss"
+        case audioFocusGain = "audioFocusGain"
+        case phoneCall = "phoneCall"
+        case phoneCallEnded = "phoneCallEnded"
+        case recordingStopped = "recordingStopped"
+        case deviceConnected = "deviceConnected"
+    }
+
+    private func handleDeviceDisconnection(disconnectedDeviceId: String) {
+        guard isRecording else {
+            Logger.debug("Device disconnected (\(disconnectedDeviceId)), but not recording. Ignoring.")
+            return
+        }
+
+        guard let settings = recordingSettings,
+              let currentRecordingDeviceId = settings.deviceId else {
+             Logger.debug("Device disconnected (\(disconnectedDeviceId)), but current settings or deviceId are missing. Pausing.")
+             performPauseAction(reason: .deviceDisconnected)
+            return
+        }
+
+        // Normalize BOTH IDs for reliable comparison
+        let normalizedCurrentId = deviceManager.normalizeBluetoothDeviceId(currentRecordingDeviceId)
+        let normalizedDisconnectedId = deviceManager.normalizeBluetoothDeviceId(disconnectedDeviceId)
+
+        Logger.debug("Handling disconnection. Current device: \(normalizedCurrentId), Disconnected device: \(normalizedDisconnectedId)")
+
+        if normalizedCurrentId == normalizedDisconnectedId {
+            // Get the string value from settings using the correct property name
+            // The property in RecordingSettings likely matches the TS interface: deviceDisconnectionBehavior
+            let behaviorString = settings.deviceDisconnectionBehavior ?? "pause" // Use the correct property name
+            let behavior = DeviceDisconnectionBehavior(rawValue: behaviorString) ?? .PAUSE // Convert to enum, default to .PAUSE
+
+            Logger.debug("Recording device disconnected! Applying behavior: \(behavior.rawValue)")
+
+            delegate?.audioStreamManager(self, didReceiveInterruption: [
+                "reason": RecordingInterruptionReason.deviceDisconnected.rawValue,
+                "isPaused": isPaused
+            ])
+
+            // Switch on the *enum* value
+            switch behavior {
+            case .PAUSE:
+                performPauseAction(reason: .deviceDisconnected)
+
+            case .FALLBACK:
+                 Task { 
+                    await performFallbackAction()
+                 }
+            }
+        } else {
+             Logger.debug("A different device disconnected (\(normalizedDisconnectedId)). Current recording device (\(normalizedCurrentId)) is still active. Ignoring.")
+        }
+    }
+
+    private func performPauseAction(reason: RecordingInterruptionReason) {
+        if !isPaused { // Only pause if not already paused
+            Logger.debug("Pausing recording due to \(reason.rawValue)")
+            pauseRecording() // Use existing pause function
+        } else {
+            Logger.debug("Recording was already paused when \(reason.rawValue) occurred.")
+        }
+        // Note: pauseRecording already notifies the delegate about the pause state change.
+        // Send an additional interruption notification specifically for the reason
+         delegate?.audioStreamManager(self, didReceiveInterruption: [
+             "reason": reason.rawValue,
+             "isPaused": true // Since we are pausing or were already paused
+         ])
+    }
+
+    private func performFallbackAction() async {
+        Logger.debug("Attempting to fallback to default device...")
+
+        do {
+            // 1. Get the new default device (using the async version)
+            guard let defaultDevice = await deviceManager.getDefaultInputDevice() else {
+                 Logger.debug("Fallback failed: Could not get default input device. Pausing.")
+                 performPauseAction(reason: .deviceSwitchFailed) // Fallback to pause if no default
+                 return
+            }
+            Logger.debug("Found default device for fallback: \(defaultDevice.name) (ID: \(defaultDevice.id))")
+
+            // 2. Stop engine temporarily (might cause a small gap)
+            // Store current pause state to restore it later if needed
+            let wasManuallyPaused = isPaused
+            if !wasManuallyPaused && audioEngine.isRunning {
+                 audioEngine.pause()
+            }
+
+            // 3. Update settings and select the new device in the session
+            recordingSettings?.deviceId = defaultDevice.id // Update setting
+            let selectionSuccess = await deviceManager.selectDevice(defaultDevice.id)
+             if !selectionSuccess {
+                 Logger.debug("Fallback failed: Could not select default device in session. Pausing.")
+                 // Ensure engine remains paused if we paused it earlier
+                 if !wasManuallyPaused && !audioEngine.isRunning {
+                     // No need to attempt restart if selection failed
+                 } else if wasManuallyPaused {
+                     // If it was already paused, keep it paused
+                 }
+                 performPauseAction(reason: .deviceSwitchFailed)
+                 return
+             }
+
+             Logger.debug("Successfully selected default device \(defaultDevice.id) in session.")
+
+            // 4. ***Crucial/Complex Part: Handle Audio Tap***
+            //    Option A (Simpler, current): Assume the tap continues if format is compatible.
+            //    Option B (More Robust): Re-install the tap.
+             Logger.debug("Attempting fallback without reinstalling audio tap. (Verify if audio continues)")
+
+
+            // 5. Restart engine if it wasn't manually paused before
+             if !wasManuallyPaused {
+                 // Only start if it's not running (it should have been paused earlier)
+                 if !audioEngine.isRunning {
+                     do {
+                         try audioEngine.start()
+                         Logger.debug("Audio engine restarted for fallback.")
+                     } catch {
+                         Logger.debug("Fallback failed: Could not restart audio engine. Pausing. Error: \(error)")
+                         performPauseAction(reason: .deviceSwitchFailed)
+                         return
+                     }
+                 } else {
+                    Logger.debug("Audio engine was already running during fallback attempt? Unexpected state.")
+                 }
+             } else {
+                 Logger.debug("Recording was manually paused, leaving engine paused after fallback.")
+             }
+
+            // 6. Notify JS about successful fallback
+            delegate?.audioStreamManager(self, didReceiveInterruption: [
+                "reason": RecordingInterruptionReason.deviceFallback.rawValue,
+                "newDeviceId": defaultDevice.id, // Include new device ID
+                "isPaused": isPaused // Report current state
+            ])
+            Logger.debug("Fallback to device \(defaultDevice.id) successful.")
+
+        } catch {
+             Logger.debug("Fallback failed with error: \(error). Pausing.")
+             performPauseAction(reason: .deviceSwitchFailed)
+        }
+    }
+
 }
 
 extension AudioStreamManager: UNUserNotificationCenterDelegate {
