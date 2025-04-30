@@ -88,6 +88,9 @@ For more details, check out the [sherpa-onnx demo](https://deeeed.github.io/expo
 - [x] Intelligent call interruption handling
 - [x] Integrate with react-native-whisper for real-time on device transcriptions. (demo in playground)
 - [x] Migrate audio analysis to c++ native library (implemented in @siteed/react-native-essentia)
+- [x] Cross-platform audio device detection, selection, and fallback handling
+- [x] Add Zero-Latency Audio Recording with `prepareRecording` API 
+- [ ] Integrate sherpa onnx models into expo-audio-studio and playground
 - [ ] Implement example app for custom VAD.
 - [ ] Audio preview waveform component from 'uri'. ( similar to https://github.com/SimformSolutionsPvtLtd/react-native-audio-waveform  )
 - [ ] e2e validation for cross platform features extraction (make sure we get exact same values on all platforms).
