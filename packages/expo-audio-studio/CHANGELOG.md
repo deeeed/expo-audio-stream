@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- fix(ios): ensure complete audio data emission on recording stop/pause (#215) ([236e7aa](https://github.com/deeeed/expo-audio-stream/commit/236e7aa040d11626f06da9bbf5746cdcb6f2b457))
+- feat(audio-device): Complete Android implementation for audio device API (#214) ([cedc8d2](https://github.com/deeeed/expo-audio-stream/commit/cedc8d2fbdd5317652ee31c70ee596ec946cf22e))
+- feat(audio-device): Implement cross-platform audio device detection, selection, and fallback handling (#213) ([023b8a1](https://github.com/deeeed/expo-audio-stream/commit/023b8a1d9844bff9f57781860e38a53eb4684fda))
+- feat: Add Zero-Latency Audio Recording with `prepareRecording` API (#211) ([30cb56c](https://github.com/deeeed/expo-audio-stream/commit/30cb56c07d14e7012bff9a4c4d458d5a49cf494e))
+- docs: update api references for v2.4.1 ([b15daef](https://github.com/deeeed/expo-audio-stream/commit/b15daef29a631eb696d5a28422f9cf32b080027e))
+- chore(sherpa-onnx-demo): Restructure WebAssembly Setup and Clean Up Assets (#208) ([7c2adff](https://github.com/deeeed/expo-audio-stream/commit/7c2adffc5ff59391315cb8edaeaae2ab676dd2ba))
 
 
 ## [2.4.1] - 2025-04-08
