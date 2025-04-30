@@ -1,7 +1,10 @@
 // net/siteed/audiostream/AudioRecorderManager.kt
 package net.siteed.audiostream
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -9,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -19,8 +23,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
-import android.os.PowerManager
-import android.content.Context
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import android.media.AudioManager
@@ -30,7 +32,7 @@ import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 import android.app.ActivityManager
 import java.util.UUID
-import android.media.AudioDeviceInfo
+import net.siteed.audiostream.LogUtils
 
 class AudioRecorderManager(
     private val context: Context,
@@ -41,9 +43,41 @@ class AudioRecorderManager(
     private val enablePhoneStateHandling: Boolean = true,
     private val enableBackgroundAudio: Boolean = true
 ) {
+    companion object {
+        private const val CLASS_NAME = "AudioRecorderManager"
+        
+        @SuppressLint("StaticFieldLeak")
+        @Volatile
+        private var instance: AudioRecorderManager? = null
+
+        fun getInstance(): AudioRecorderManager? = instance
+
+        fun initialize(
+            context: Context,
+            filesDir: File,
+            permissionUtils: PermissionUtils,
+            audioDataEncoder: AudioDataEncoder,
+            eventSender: EventSender,
+            enablePhoneStateHandling: Boolean = true,
+            enableBackgroundAudio: Boolean = true
+        ): AudioRecorderManager {
+            return instance ?: synchronized(this) {
+                instance ?: AudioRecorderManager(
+                    context, filesDir, permissionUtils, audioDataEncoder, eventSender,
+                    enablePhoneStateHandling, enableBackgroundAudio
+                ).also { instance = it }
+            }
+        }
+
+        fun destroy() {
+            instance?.cleanup()
+            instance = null
+        }
+    }
+    
     private var audioRecord: AudioRecord? = null
     private var bufferSizeInBytes = 0
-    private var isRecording = AtomicBoolean(false)
+    private var _isRecording = AtomicBoolean(false)
     private val isPaused = AtomicBoolean(false)
     private var streamUuid: String? = null
     private var audioFile: File? = null
@@ -81,7 +115,7 @@ class AudioRecorderManager(
         get() {
             if (field == null) {
                 field = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
-                Log.d(Constants.TAG, "TelephonyManager initialization: ${if (field != null) "successful" else "failed"}")
+                LogUtils.d(CLASS_NAME, "TelephonyManager initialization: ${if (field != null) "successful" else "failed"}")
             }
             return field
         }
@@ -90,14 +124,253 @@ class AudioRecorderManager(
     private val analysisBuffer = ByteArrayOutputStream()
     private var isFirstAnalysis = true
 
-    private var isPrepared = false
+    // Properties for device disconnection handling
+    var isPrepared = false
+    private var selectedDeviceId: String? = null
+    private var deviceDisconnectionBehavior: String? = null
+
+    // Add a method to handle device changes
+    fun handleDeviceChange() {
+        LogUtils.d(CLASS_NAME, "🔄 handleDeviceChange called - isRecording=${_isRecording.get()}, isPaused=${isPaused.get()}")
+        if (!_isRecording.get()) {
+            LogUtils.d(CLASS_NAME, "🔄 handleDeviceChange: Not recording, no action needed")
+            return
+        }
+
+        if (isPaused.get()) {
+            LogUtils.d(CLASS_NAME, "🔄 handleDeviceChange: Recording is paused, marking for restart with new device when resumed")
+            
+            // When paused after device disconnection, we need to release the existing AudioRecord
+            // so that it can be properly reinitialized when resumed
+            synchronized(audioRecordLock) {
+                if (audioRecord != null) {
+                    LogUtils.d(CLASS_NAME, "🔄 Releasing current AudioRecord while paused to allow proper reinitialization")
+                    audioRecord?.release()
+                    audioRecord = null
+                    LogUtils.d(CLASS_NAME, "🔄 AudioRecord released successfully")
+                }
+            }
+            
+            return
+        }
+
+        LogUtils.d(CLASS_NAME, "🔄 handleDeviceChange: Restarting recording with new device")
+        
+        try {
+            // Log current device configuration for debugging
+            val deviceInfo = getAudioDeviceInfo()
+            LogUtils.d(CLASS_NAME, "🔄 Current device info: ${deviceInfo["id"] ?: "unknown"} (${deviceInfo["type"] ?: "unknown"})")
+            
+            // Make a copy of current recording settings
+            val currentSettings = recordingConfig
+            
+            // Pause the current recording
+            synchronized(audioRecordLock) {
+                if (audioRecord != null && audioRecord!!.state == AudioRecord.STATE_INITIALIZED) {
+                    LogUtils.d(CLASS_NAME, "🔄 Stopping current AudioRecord")
+                    audioRecord!!.stop()
+                    LogUtils.d(CLASS_NAME, "🔄 AudioRecord stopped")
+                }
+                
+                if (compressedRecorder != null) {
+                    LogUtils.d(CLASS_NAME, "🔄 Pausing compressed recorder")
+                    compressedRecorder!!.pause()
+                    LogUtils.d(CLASS_NAME, "🔄 Compressed recorder paused")
+                }
+            }
+            
+            // Release the current audio record resources
+            synchronized(audioRecordLock) {
+                LogUtils.d(CLASS_NAME, "🔄 Releasing current AudioRecord")
+                audioRecord?.release()
+                audioRecord = null
+                LogUtils.d(CLASS_NAME, "🔄 AudioRecord resources released")
+            }
+            
+            // Log available devices
+            logAvailableDevices()
+            
+            // Give a small delay for the system to fully complete device transition
+            LogUtils.d(CLASS_NAME, "🔄 Waiting for device transition to complete")
+            Thread.sleep(200)
+            
+            // Initialize a new audio record with the same settings
+            LogUtils.d(CLASS_NAME, "🔄 Reinitializing AudioRecord with new device")
+            if (!initializeAudioRecord(object : Promise {
+                override fun resolve(value: Any?) {
+                    LogUtils.d(CLASS_NAME, "🔄 Successfully reinitialized AudioRecord with new device")
+                }
+                override fun reject(code: String, message: String?, cause: Throwable?) {
+                    LogUtils.e(CLASS_NAME, "🔄 Failed to reinitialize AudioRecord: $message")
+                }
+            })) {
+                LogUtils.e(CLASS_NAME, "🔄 Failed to reinitialize audio record, stopping recording")
+                stopRecording(object : Promise {
+                    override fun resolve(value: Any?) {
+                        eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                            "reason" to "deviceSwitchFailed",
+                            "isPaused" to true
+                        ))
+                    }
+                    override fun reject(code: String, message: String?, cause: Throwable?) {}
+                })
+                return
+            }
+            
+            // Re-verify recording state
+            synchronized(audioRecordLock) {
+                if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+                    LogUtils.e(CLASS_NAME, "🔄 AudioRecord not properly initialized after device change")
+                    stopRecording(object : Promise {
+                        override fun resolve(value: Any?) {
+                            eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                "reason" to "deviceSwitchFailed",
+                                "isPaused" to true
+                            ))
+                        }
+                        override fun reject(code: String, message: String?, cause: Throwable?) {}
+                    })
+                    return
+                }
+            }
+            
+            // Restart the audio record
+            synchronized(audioRecordLock) {
+                LogUtils.d(CLASS_NAME, "🔄 Starting recording with new device")
+                audioRecord?.startRecording()
+                LogUtils.d(CLASS_NAME, "🔄 AudioRecord started recording")
+                
+                // Resume compressed recorder if it was active
+                if (compressedRecorder != null) {
+                    LogUtils.d(CLASS_NAME, "🔄 Resuming compressed recorder")
+                    compressedRecorder!!.resume()
+                    LogUtils.d(CLASS_NAME, "🔄 Compressed recorder resumed")
+                }
+            }
+            
+            // Get new device info
+            val newDeviceInfo = getAudioDeviceInfo()
+            LogUtils.d(CLASS_NAME, "🔄 New device info: ${newDeviceInfo["id"] ?: "unknown"} (${newDeviceInfo["type"] ?: "unknown"})")
+            
+            // Notify JavaScript
+            LogUtils.d(CLASS_NAME, "🔄 Sending device changed event to JavaScript")
+            eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                "reason" to "deviceChanged",
+                "isPaused" to false,
+                "deviceInfo" to newDeviceInfo
+            ))
+            LogUtils.d(CLASS_NAME, "🔄 Device change handling completed successfully")
+            
+        } catch (e: Exception) {
+            LogUtils.e(CLASS_NAME, "🔄 Error handling device change: ${e.message}", e)
+            // If something went wrong, try to pause recording
+            pauseRecording(object : Promise {
+                override fun resolve(value: Any?) {
+                    eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                        "reason" to "deviceSwitchFailed", 
+                        "isPaused" to true,
+                        "error" to e.message
+                    ))
+                }
+                override fun reject(code: String, message: String?, cause: Throwable?) {}
+            })
+        }
+    }
+    
+    // Helper to get info about current audio device
+    private fun getAudioDeviceInfo(): Map<String, Any> {
+        return try {
+            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            
+            // Check if using Bluetooth SCO
+            if (audioManager.isBluetoothScoOn) {
+                mapOf(
+                    "id" to (selectedDeviceId ?: "unknown"),
+                    "type" to "bluetooth",
+                    "name" to "Bluetooth Headset",
+                    "isDefault" to false
+                )
+            } 
+            // Check if using wired headset
+            else if (audioManager.isWiredHeadsetOn) {
+                mapOf(
+                    "id" to (selectedDeviceId ?: "unknown"),
+                    "type" to "wired",
+                    "name" to "Wired Headset",
+                    "isDefault" to false
+                )
+            } 
+            // Default to built-in mic
+            else {
+                mapOf(
+                    "id" to (selectedDeviceId ?: "unknown"),
+                    "type" to "builtin_mic",
+                    "name" to "Built-in Microphone",
+                    "isDefault" to true
+                )
+            }
+        } catch (e: Exception) {
+            LogUtils.e(CLASS_NAME, "Error getting audio device info: ${e.message}", e)
+            mapOf(
+                "id" to "unknown",
+                "type" to "unknown",
+                "name" to "Unknown Device",
+                "isDefault" to false
+            )
+        }
+    }
+    
+    // Log available audio devices for debugging
+    private fun logAvailableDevices() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                val devices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+                
+                LogUtils.d(CLASS_NAME, "Available audio devices (${devices.size}):")
+                devices.forEachIndexed { index, device ->
+                    val name = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        device.productName?.toString() ?: "Unknown"
+                    } else {
+                        when (device.type) {
+                            AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Built-in Microphone"
+                            AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth Headset"
+                            AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Wired Headset"
+                            AudioDeviceInfo.TYPE_USB_DEVICE -> "USB Audio Device"
+                            AudioDeviceInfo.TYPE_USB_HEADSET -> "USB Headset"
+                            else -> "Unknown Device Type (${device.type})"
+                        }
+                    }
+                    
+                    LogUtils.d(CLASS_NAME, "Device $index: $name (ID: ${device.id})")
+                }
+            } else {
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                LogUtils.d(CLASS_NAME, "Device info on pre-M Android:")
+                LogUtils.d(CLASS_NAME, "- Bluetooth SCO: ${audioManager.isBluetoothScoOn}")
+                LogUtils.d(CLASS_NAME, "- Wired Headset: ${audioManager.isWiredHeadsetOn}")
+                LogUtils.d(CLASS_NAME, "- Selected Device ID: $selectedDeviceId")
+            }
+        } catch (e: Exception) {
+            LogUtils.e(CLASS_NAME, "Error logging available devices: ${e.message}", e)
+        }
+    }
+
+    // Get the device disconnection behavior
+    fun getDeviceDisconnectionBehavior(): String {
+        return deviceDisconnectionBehavior ?: "pause" // Default to pause if not specified
+    }
+
+    // Add isRecording property accessor
+    val isRecording: Boolean
+        get() = _isRecording.get()
 
     private fun initializePhoneStateListener() {
         try {
-            Log.d(Constants.TAG, "Initializing phone state listener...")
+            LogUtils.d(CLASS_NAME, "Initializing phone state listener...")
             
             if (permissionUtils.checkPhoneStatePermission()) {
-                Log.d(Constants.TAG, "Phone state permission granted")
+                LogUtils.d(CLASS_NAME, "Phone state permission granted")
                 
                 phoneStateListener = object : PhoneStateListener() {
                     override fun onCallStateChanged(state: Int, phoneNumber: String?) {
@@ -107,49 +380,49 @@ class AudioRecorderManager(
                             TelephonyManager.CALL_STATE_IDLE -> "IDLE"
                             else -> "UNKNOWN"
                         }
-                        Log.d(Constants.TAG, "Phone state changed to: $stateStr")
+                        LogUtils.d(CLASS_NAME, "Phone state changed to: $stateStr")
 
                         when (state) {
                             TelephonyManager.CALL_STATE_RINGING,
                             TelephonyManager.CALL_STATE_OFFHOOK -> {
-                                if (isRecording.get() && !isPaused.get()) {
-                                    Log.d(Constants.TAG, "Pausing recording due to incoming/ongoing call")
+                                if (_isRecording.get() && !isPaused.get()) {
+                                    LogUtils.d(CLASS_NAME, "Pausing recording due to incoming/ongoing call")
                                     mainHandler.post {
                                         pauseRecording(object : Promise {
                                             override fun resolve(value: Any?) {
-                                                Log.d(Constants.TAG, "Successfully paused recording due to call")
+                                                LogUtils.d(CLASS_NAME, "Successfully paused recording due to call")
                                                 eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
                                                     "reason" to "phoneCall",
                                                     "isPaused" to true
                                                 ))
                                             }
                                             override fun reject(code: String, message: String?, cause: Throwable?) {
-                                                Log.e(Constants.TAG, "Failed to pause recording on phone call", cause)
+                                                LogUtils.e(CLASS_NAME, "Failed to pause recording on phone call", cause)
                                             }
                                         })
                                     }
                                 }
                             }
                             TelephonyManager.CALL_STATE_IDLE -> {
-                                if (isRecording.get() && isPaused.get()) {
-                                    Log.d(Constants.TAG, "Call ended, handling auto-resume (enabled: ${recordingConfig.autoResumeAfterInterruption})")
+                                if (_isRecording.get() && isPaused.get()) {
+                                    LogUtils.d(CLASS_NAME, "Call ended, handling auto-resume (enabled: ${recordingConfig.autoResumeAfterInterruption})")
                                     if (recordingConfig.autoResumeAfterInterruption) {
                                         mainHandler.post {
                                             resumeRecording(object : Promise {
                                                 override fun resolve(value: Any?) {
-                                                    Log.d(Constants.TAG, "Successfully resumed recording after call")
+                                                    LogUtils.d(CLASS_NAME, "Successfully resumed recording after call")
                                                     eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
                                                         "reason" to "phoneCallEnded",
                                                         "isPaused" to false
                                                     ))
                                                 }
                                                 override fun reject(code: String, message: String?, cause: Throwable?) {
-                                                    Log.e(Constants.TAG, "Failed to resume recording after phone call", cause)
+                                                    LogUtils.e(CLASS_NAME, "Failed to resume recording after phone call", cause)
                                                 }
                                             })
                                         }
                                     } else {
-                                        Log.d(Constants.TAG, "Auto-resume disabled, staying paused")
+                                        LogUtils.d(CLASS_NAME, "Auto-resume disabled, staying paused")
                                         eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
                                             "reason" to "phoneCallEnded",
                                             "isPaused" to true
@@ -164,18 +437,18 @@ class AudioRecorderManager(
                 if (telephonyManager != null) {
                     try {
                         telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
-                        Log.d(Constants.TAG, "Successfully registered phone state listener")
+                        LogUtils.d(CLASS_NAME, "Successfully registered phone state listener")
                     } catch (e: Exception) {
-                        Log.e(Constants.TAG, "Failed to register phone state listener", e)
+                        LogUtils.e(CLASS_NAME, "Failed to register phone state listener", e)
                     }
                 } else {
-                    Log.e(Constants.TAG, "TelephonyManager is null, cannot register phone state listener")
+                    LogUtils.e(CLASS_NAME, "TelephonyManager is null, cannot register phone state listener")
                 }
             } else {
-                Log.w(Constants.TAG, "READ_PHONE_STATE permission not granted, phone call interruption handling disabled")
+                LogUtils.w(CLASS_NAME, "READ_PHONE_STATE permission not granted, phone call interruption handling disabled")
             }
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to initialize phone state listener", e)
+            LogUtils.e(CLASS_NAME, "Failed to initialize phone state listener", e)
         }
     }
 
@@ -185,7 +458,7 @@ class AudioRecorderManager(
             when (focusChange) {
                 AudioManager.AUDIOFOCUS_LOSS,
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                    if (isRecording.get() && !isPaused.get()) {
+                    if (_isRecording.get() && !isPaused.get()) {
                         mainHandler.post {
                             pauseRecording(object : Promise {
                                 override fun resolve(value: Any?) {
@@ -195,14 +468,14 @@ class AudioRecorderManager(
                                     ))
                                 }
                                 override fun reject(code: String, message: String?, cause: Throwable?) {
-                                    Log.e(Constants.TAG, "Failed to pause recording on audio focus loss")
+                                    LogUtils.e(CLASS_NAME, "Failed to pause recording on audio focus loss")
                                 }
                             })
                         }
                     }
                 }
                 AudioManager.AUDIOFOCUS_GAIN -> {
-                    if (isRecording.get() && isPaused.get() && recordingConfig.autoResumeAfterInterruption) {
+                    if (_isRecording.get() && isPaused.get() && recordingConfig.autoResumeAfterInterruption) {
                         mainHandler.post {
                             resumeRecording(object : Promise {
                                 override fun resolve(value: Any?) {
@@ -212,7 +485,7 @@ class AudioRecorderManager(
                                     ))
                                 }
                                 override fun reject(code: String, message: String?, cause: Throwable?) {
-                                    Log.e(Constants.TAG, "Failed to resume recording on audio focus gain")
+                                    LogUtils.e(CLASS_NAME, "Failed to resume recording on audio focus gain")
                                 }
                             })
                         }
@@ -222,141 +495,11 @@ class AudioRecorderManager(
         }
     }
 
-    companion object {
-        @SuppressLint("StaticFieldLeak")
-        @Volatile
-        private var instance: AudioRecorderManager? = null
-
-        fun getInstance(): AudioRecorderManager? = instance
-
-        fun initialize(
-            context: Context,
-            filesDir: File,
-            permissionUtils: PermissionUtils,
-            audioDataEncoder: AudioDataEncoder,
-            eventSender: EventSender,
-            enablePhoneStateHandling: Boolean = true,
-            enableBackgroundAudio: Boolean = true
-        ): AudioRecorderManager {
-            return instance ?: synchronized(this) {
-                instance ?: AudioRecorderManager(
-                    context, filesDir, permissionUtils, audioDataEncoder, eventSender,
-                    enablePhoneStateHandling, enableBackgroundAudio
-                ).also { instance = it }
-            }
-        }
-
-        fun destroy() {
-            instance?.cleanup()
-            instance = null
-        }
-    }
-
-    private fun isOngoingCall(): Boolean {
-        try {
-            if (!permissionUtils.checkPhoneStatePermission()) {
-                Log.w(Constants.TAG, "READ_PHONE_STATE permission not granted, cannot check call state")
-                return false
-            }
-
-            val tm = telephonyManager
-            if (tm == null) {
-                Log.e(Constants.TAG, "TelephonyManager is null")
-                return false
-            }
-
-            // Get audio manager state
-            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            val audioMode = audioManager.mode
-            val isMusicActive = audioManager.isMusicActive
-            
-            // Get current audio device info
-            val currentRoute =
-                audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).firstOrNull()?.type?.let { type ->
-                    when (type) {
-                        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "SPEAKER"
-                        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "EARPIECE"
-                        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "BLUETOOTH_SCO"
-                        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "BLUETOOTH_A2DP"
-                        AudioDeviceInfo.TYPE_WIRED_HEADSET -> "WIRED_HEADSET"
-                        AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "WIRED_HEADPHONES"
-                        else -> "OTHER($type)"
-                    }
-                } ?: "UNKNOWN"
-
-            // Get communication device info
-            val communicationDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                audioManager.communicationDevice?.type?.let { type ->
-                    when (type) {
-                        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "BLUETOOTH_SCO"
-                        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "SPEAKER"
-                        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "EARPIECE"
-                        else -> "OTHER($type)"
-                    }
-                } ?: "NONE"
-            } else {
-                @Suppress("DEPRECATION")
-                if (audioManager.isBluetoothScoOn) "BLUETOOTH_SCO" else "NONE"
-            }
-            
-            Log.d(Constants.TAG, """
-                Audio State Check:
-                - Audio Mode: ${getAudioModeString(audioMode)}
-                - Music Active: $isMusicActive
-                - Current Audio Route: $currentRoute
-                - Communication Device: $communicationDevice
-            """.trimIndent())
-
-            // Check telephony state
-            val callState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                tm.callStateForSubscription
-            } else {
-                @Suppress("DEPRECATION")
-                tm.callState
-            }
-
-            val isVoipCall = audioMode == AudioManager.MODE_IN_COMMUNICATION
-            val isRegularCall = callState == TelephonyManager.CALL_STATE_OFFHOOK || 
-                              callState == TelephonyManager.CALL_STATE_RINGING
-
-            Log.d(Constants.TAG, """
-                Call State Check:
-                - Telephony Call State: ${getCallStateString(callState)}
-                - VoIP Call Detected: $isVoipCall
-                - Regular Call Detected: $isRegularCall
-            """.trimIndent())
-
-            return isVoipCall || isRegularCall
-
-        } catch (e: SecurityException) {
-            Log.e(Constants.TAG, "SecurityException when checking call state", e)
-            return false
-        } catch (e: Exception) {
-            Log.e(Constants.TAG, "Error checking call state", e)
-            return false
-        }
-    }
-
-    private fun getAudioModeString(mode: Int): String = when (mode) {
-        AudioManager.MODE_NORMAL -> "MODE_NORMAL"
-        AudioManager.MODE_RINGTONE -> "MODE_RINGTONE"
-        AudioManager.MODE_IN_CALL -> "MODE_IN_CALL"
-        AudioManager.MODE_IN_COMMUNICATION -> "MODE_IN_COMMUNICATION"
-        else -> "MODE_UNKNOWN($mode)"
-    }
-
-    private fun getCallStateString(state: Int): String = when (state) {
-        TelephonyManager.CALL_STATE_IDLE -> "CALL_STATE_IDLE"
-        TelephonyManager.CALL_STATE_RINGING -> "CALL_STATE_RINGING"
-        TelephonyManager.CALL_STATE_OFFHOOK -> "CALL_STATE_OFFHOOK"
-        else -> "CALL_STATE_UNKNOWN($state)"
-    }
-
     @RequiresApi(Build.VERSION_CODES.R)
     fun startRecording(options: Map<String, Any?>, promise: Promise) {
         try {
             // Check if already recording
-            if (isRecording.get() && !isPaused.get()) {
+            if (_isRecording.get() && !isPaused.get()) {
                 promise.reject("ALREADY_RECORDING", "Recording is already in progress", null)
                 return
             }
@@ -369,14 +512,14 @@ class AudioRecorderManager(
 
             // If already prepared, we can skip initialization
             if (!isPrepared) {
-                Log.d(Constants.TAG, "Not prepared, preparing recording first")
+                LogUtils.d(CLASS_NAME, "Not prepared, preparing recording first")
                 
                 // Initialize phone state listener only if enabled
                 if (enablePhoneStateHandling) {
                     initializePhoneStateListener()
                 }
 
-                Log.d(Constants.TAG, "Starting recording with options: $options")
+                LogUtils.d(CLASS_NAME, "Starting recording with options: $options")
 
                 // Check permissions
                 if (!checkPermissions(options, promise)) return
@@ -396,6 +539,10 @@ class AudioRecorderManager(
                 
                 recordingConfig = tempRecordingConfig
                 
+                // Store device-related settings
+                selectedDeviceId = recordingConfig.deviceId
+                deviceDisconnectionBehavior = recordingConfig.deviceDisconnectionBehavior ?: "pause"
+                
                 audioFormat = audioFormatInfo.format
                 mimeType = audioFormatInfo.mimeType
 
@@ -412,7 +559,18 @@ class AudioRecorderManager(
 
                 if (!initializeRecordingResources(audioFormatInfo.fileExtension, promise)) return
             } else {
-                Log.d(Constants.TAG, "Using prepared recording state")
+                LogUtils.d(CLASS_NAME, "Using prepared recording state")
+                
+                // Even when prepared, update device settings from the new options
+                val configResult = RecordingConfig.fromMap(options)
+                if (configResult.isSuccess) {
+                    val (tempRecordingConfig, _) = configResult.getOrNull()!!
+                    // Update device-related settings
+                    selectedDeviceId = tempRecordingConfig.deviceId ?: selectedDeviceId
+                    deviceDisconnectionBehavior = tempRecordingConfig.deviceDisconnectionBehavior 
+                        ?: deviceDisconnectionBehavior
+                        ?: "pause"
+                }
             }
 
             if (!startRecordingProcess(promise)) return
@@ -421,7 +579,7 @@ class AudioRecorderManager(
             try {
                 compressedRecorder?.start()
             } catch (e: Exception) {
-                Log.e(Constants.TAG, "Failed to start compressed recording", e)
+                LogUtils.e(CLASS_NAME, "Failed to start compressed recording", e)
                 cleanup()
                 promise.reject("COMPRESSED_START_FAILED", "Failed to start compressed recording", e)
                 return
@@ -499,7 +657,7 @@ class AudioRecorderManager(
 
         // Only check phone state permission if enabled
         if (enablePhoneStateHandling && !permissionUtils.checkPhoneStatePermission()) {
-            Log.w(Constants.TAG, "READ_PHONE_STATE permission not granted, phone call interruption handling will be disabled")
+            LogUtils.w(CLASS_NAME, "READ_PHONE_STATE permission not granted, phone call interruption handling will be disabled")
             // Don't reject here, just log warning as this is optional
         }
 
@@ -524,7 +682,7 @@ class AudioRecorderManager(
                 audioFormat
             )
         ) {
-            Log.e(Constants.TAG, "Selected audio format not supported, falling back to 16-bit PCM")
+            LogUtils.e(CLASS_NAME, "Selected audio format not supported, falling back to 16-bit PCM")
             audioFormat = AudioFormat.ENCODING_PCM_16BIT
 
             if (!isAudioFormatSupported(
@@ -562,7 +720,7 @@ class AudioRecorderManager(
 
             when {
                 bufferSizeInBytes == AudioRecord.ERROR -> {
-                    Log.e(Constants.TAG, "Error getting minimum buffer size: ERROR")
+                    LogUtils.e(CLASS_NAME, "Error getting minimum buffer size: ERROR")
                     promise.reject(
                         "BUFFER_SIZE_ERROR",
                         "Failed to get minimum buffer size: generic error",
@@ -571,7 +729,7 @@ class AudioRecorderManager(
                     return false
                 }
                 bufferSizeInBytes == AudioRecord.ERROR_BAD_VALUE -> {
-                    Log.e(Constants.TAG, "Error getting minimum buffer size: BAD_VALUE")
+                    LogUtils.e(CLASS_NAME, "Error getting minimum buffer size: BAD_VALUE")
                     promise.reject(
                         "BUFFER_SIZE_ERROR",
                         "Failed to get minimum buffer size: invalid parameters",
@@ -580,7 +738,7 @@ class AudioRecorderManager(
                     return false
                 }
                 bufferSizeInBytes <= 0 -> {
-                    Log.e(Constants.TAG, "Invalid buffer size: $bufferSizeInBytes")
+                    LogUtils.e(CLASS_NAME, "Invalid buffer size: $bufferSizeInBytes")
                     promise.reject(
                         "BUFFER_SIZE_ERROR",
                         "Failed to get valid buffer size",
@@ -589,12 +747,12 @@ class AudioRecorderManager(
                     return false
                 }
                 else -> {
-                    Log.d(Constants.TAG, "AudioFormat: $audioFormat, BufferSize: $bufferSizeInBytes")
+                    LogUtils.d(CLASS_NAME, "AudioFormat: $audioFormat, BufferSize: $bufferSizeInBytes")
                     return true
                 }
             }
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to initialize buffer size", e)
+            LogUtils.e(CLASS_NAME, "Failed to initialize buffer size", e)
             promise.reject(
                 "BUFFER_SIZE_ERROR",
                 "Failed to initialize buffer size: ${e.message}",
@@ -617,7 +775,7 @@ class AudioRecorderManager(
 
         try {
             if (audioRecord == null || !isPaused.get()) {
-                Log.d(Constants.TAG, "Initializing AudioRecord with format: $audioFormat, BufferSize: $bufferSizeInBytes")
+                LogUtils.d(CLASS_NAME, "Initializing AudioRecord with format: $audioFormat, BufferSize: $bufferSizeInBytes")
 
                 audioRecord = AudioRecord(
                     MediaRecorder.AudioSource.MIC,
@@ -639,7 +797,7 @@ class AudioRecorderManager(
             return true
 
         } catch (e: SecurityException) {
-            Log.e(Constants.TAG, "Security exception while initializing AudioRecord", e)
+            LogUtils.e(CLASS_NAME, "Security exception while initializing AudioRecord", e)
             promise.reject(
                 "PERMISSION_DENIED",
                 "Recording permission denied: ${e.message}",
@@ -647,7 +805,7 @@ class AudioRecorderManager(
             )
             return false
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to initialize AudioRecord", e)
+            LogUtils.e(CLASS_NAME, "Failed to initialize AudioRecord", e)
             promise.reject(
                 "INITIALIZATION_FAILED",
                 "Failed to initialize the audio recorder: ${e.message}",
@@ -688,7 +846,7 @@ class AudioRecorderManager(
             return false
         } catch (e: Exception) {
             releaseWakeLock()
-            Log.e(Constants.TAG, "Unexpected error in startRecording", e)
+            LogUtils.e(CLASS_NAME, "Unexpected error in startRecording", e)
             promise.reject("UNEXPECTED_ERROR", "Unexpected error: ${e.message}", e)
             return false
         }
@@ -697,7 +855,7 @@ class AudioRecorderManager(
     private fun startRecordingProcess(promise: Promise): Boolean {
         try {
             // Add detailed logging of recording configuration
-            Log.d(Constants.TAG, """
+            LogUtils.d(CLASS_NAME, """
                 Starting audio recording with configuration:
                 - Sample Rate: ${recordingConfig.sampleRate} Hz
                 - Channels: ${recordingConfig.channels}
@@ -721,7 +879,7 @@ class AudioRecorderManager(
 
             audioRecord?.startRecording()
             isPaused.set(false)
-            isRecording.set(true)
+            _isRecording.set(true)
             isFirstChunk = true
 
             if (!isPaused.get()) {
@@ -738,7 +896,7 @@ class AudioRecorderManager(
             return true
 
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to start recording", e)
+            LogUtils.e(CLASS_NAME, "Failed to start recording", e)
             cleanup()
             promise.reject("START_FAILED", "Failed to start recording: ${e.message}", e)
             return false
@@ -747,8 +905,8 @@ class AudioRecorderManager(
 
     fun stopRecording(promise: Promise) {
         synchronized(audioRecordLock) {
-            if (!isRecording.get()) {
-                Log.e(Constants.TAG, "Recording is not active")
+            if (!_isRecording.get()) {
+                LogUtils.e(CLASS_NAME, "Recording is not active")
                 promise.reject("NOT_RECORDING", "Recording is not active", null)
                 return
             }
@@ -767,26 +925,26 @@ class AudioRecorderManager(
                     AudioRecordingService.stopService(context)
                 }
 
-                isRecording.set(false)
+                _isRecording.set(false)
                 isPrepared = false  // Reset preparation state
                 recordingThread?.join(1000)
 
                 val audioData = ByteArray(bufferSizeInBytes)
                 val bytesRead = audioRecord?.read(audioData, 0, bufferSizeInBytes) ?: -1
-                Log.d(Constants.TAG, "Last Read $bytesRead bytes")
+                LogUtils.d(CLASS_NAME, "Last Read $bytesRead bytes")
                 if (bytesRead > 0) {
                     emitAudioData(audioData.copyOfRange(0, bytesRead), bytesRead)
                 }
 
-                Log.d(Constants.TAG, "Stopping recording state = ${audioRecord?.state}")
+                LogUtils.d(CLASS_NAME, "Stopping recording state = ${audioRecord?.state}")
                 if (audioRecord != null && audioRecord!!.state == AudioRecord.STATE_INITIALIZED) {
-                    Log.d(Constants.TAG, "Stopping AudioRecord")
+                    LogUtils.d(CLASS_NAME, "Stopping AudioRecord")
                     audioRecord!!.stop()
                 }
 
                 cleanup()
             } catch (e: IllegalStateException) {
-                Log.e(Constants.TAG, "Error reading from AudioRecord", e)
+                LogUtils.e(CLASS_NAME, "Error reading from AudioRecord", e)
             } finally {
                 releaseWakeLock()
                 audioRecord?.release()
@@ -797,7 +955,7 @@ class AudioRecorderManager(
                 audioProcessor.resetCumulativeAmplitudeRange()
 
                 val fileSize = audioFile?.length() ?: 0
-                Log.d(Constants.TAG, "WAV File validation - Size: $fileSize bytes, Path: ${audioFile?.absolutePath}")
+                LogUtils.d(CLASS_NAME, "WAV File validation - Size: $fileSize bytes, Path: ${audioFile?.absolutePath}")
                 
                 val dataFileSize = fileSize - 44  // Subtract header size
                 val byteRate =
@@ -818,7 +976,7 @@ class AudioRecorderManager(
                 // Log compressed file status if enabled
                 if (recordingConfig.enableCompressedOutput) {
                     val compressedSize = compressedFile?.length() ?: 0
-                    Log.d(Constants.TAG, "Compressed File validation - Size: $compressedSize bytes, Path: ${compressedFile?.absolutePath}")
+                    LogUtils.d(CLASS_NAME, "Compressed File validation - Size: $compressedSize bytes, Path: ${compressedFile?.absolutePath}")
                 }
 
                 val result = bundleOf(
@@ -842,12 +1000,12 @@ class AudioRecorderManager(
                 promise.resolve(result)
 
                 // Reset the timing variables
-                isRecording.set(false)
+                _isRecording.set(false)
                 isPaused.set(false)
                 totalRecordedTime = 0
                 pausedDuration = 0
             } catch (e: Exception) {
-                Log.d(Constants.TAG, "Failed to stop recording", e)
+                LogUtils.e(CLASS_NAME, "Failed to stop recording: ${e.message}")
                 promise.reject("STOP_FAILED", "Failed to stop recording", e)
             } finally {
                 audioRecord = null
@@ -856,18 +1014,51 @@ class AudioRecorderManager(
     }
 
     fun resumeRecording(promise: Promise) {
+        LogUtils.d(CLASS_NAME, "⏺️ resumeRecording method entered - isPaused=${isPaused.get()}, isRecording=${_isRecording.get()}")
         if (!isPaused.get()) {
+            LogUtils.e(CLASS_NAME, "⏺️ Cannot resume recording: not paused")
             promise.reject("NOT_PAUSED", "Recording is not paused", null)
             return
         }
 
         if (isOngoingCall()) {
+            LogUtils.e(CLASS_NAME, "⏺️ Cannot resume recording: ongoing call detected")
             promise.reject("ONGOING_CALL", "Cannot resume recording during an ongoing call", null)
             return
         }
 
         try {
+            // Check if audioRecord needs reinitializing
+            var needsReinitialize = false
+            synchronized(audioRecordLock) {
+                LogUtils.d(CLASS_NAME, "⏺️ Checking audioRecord state: ${audioRecord?.state ?: "null"}")
+                if (audioRecord == null || audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+                    LogUtils.d(CLASS_NAME, "⏺️ AudioRecord is null or not properly initialized, will reinitialize")
+                    needsReinitialize = true
+                }
+            }
+
+            // Reinitialize audioRecord if needed (like after device disconnection)
+            if (needsReinitialize) {
+                LogUtils.d(CLASS_NAME, "⏺️ Starting reinitialization of AudioRecord for resumption after disconnection")
+                if (!initializeAudioRecord(object : Promise {
+                    override fun resolve(value: Any?) {
+                        LogUtils.d(CLASS_NAME, "⏺️ Successfully reinitialized AudioRecord for resumption")
+                    }
+                    override fun reject(code: String, message: String?, cause: Throwable?) {
+                        LogUtils.e(CLASS_NAME, "⏺️ Failed to reinitialize AudioRecord: $message")
+                        // We'll let the main try-catch handle this error
+                        throw IllegalStateException("Failed to reinitialize AudioRecord: $message")
+                    }
+                })) {
+                    LogUtils.e(CLASS_NAME, "⏺️ Failed to reinitialize AudioRecord")
+                    throw IllegalStateException("Failed to reinitialize AudioRecord for resumption")
+                }
+                LogUtils.d(CLASS_NAME, "⏺️ Reinitialization completed successfully")
+            }
+
             if (recordingConfig.showNotification) {
+                LogUtils.d(CLASS_NAME, "⏺️ Resuming notification updates")
                 notificationManager.resumeUpdates()
             }
 
@@ -875,18 +1066,36 @@ class AudioRecorderManager(
             pausedDuration += System.currentTimeMillis() - lastPauseTime
             isPaused.set(false)
             
-            audioRecord?.startRecording()
-            compressedRecorder?.resume()
+            synchronized(audioRecordLock) {
+                // Double-check audioRecord is valid after potential reinitialization
+                LogUtils.d(CLASS_NAME, "⏺️ Final check of audioRecord state: ${audioRecord?.state ?: "null"}")
+                if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+                    LogUtils.e(CLASS_NAME, "⏺️ AudioRecord is not properly initialized")
+                    throw IllegalStateException("AudioRecord is not properly initialized")
+                }
+                
+                LogUtils.d(CLASS_NAME, "⏺️ Starting AudioRecord recording")
+                audioRecord?.startRecording()
+                LogUtils.d(CLASS_NAME, "⏺️ AudioRecord.startRecording called")
+                
+                if (compressedRecorder != null) {
+                    LogUtils.d(CLASS_NAME, "⏺️ Resuming compressed recorder")
+                    compressedRecorder?.resume()
+                    LogUtils.d(CLASS_NAME, "⏺️ Compressed recorder resumed")
+                }
+            }
             
+            LogUtils.d(CLASS_NAME, "⏺️ Recording resumed successfully")
             promise.resolve("Recording resumed")
         } catch (e: Exception) {
+            LogUtils.e(CLASS_NAME, "⏺️ Failed to resume recording: ${e.message}", e)
             releaseWakeLock()
-            promise.reject("RESUME_FAILED", "Failed to resume recording", e)
+            promise.reject("RESUME_FAILED", "Failed to resume recording: ${e.message}", e)
         }
     }
 
     fun pauseRecording(promise: Promise) {
-        if (isRecording.get() && !isPaused.get()) {
+        if (_isRecording.get() && !isPaused.get()) {
             audioRecord?.stop()
             compressedRecorder?.pause()
             
@@ -918,14 +1127,14 @@ class AudioRecorderManager(
             } ?: false
 
             // If service is running but we think we're not recording, clean up
-            if (isServiceRunning && !isRecording.get()) {
-                Log.d(Constants.TAG, "Detected orphaned recording service, cleaning up...")
+            if (isServiceRunning && !_isRecording.get()) {
+                LogUtils.d(CLASS_NAME, "Detected orphaned recording service, cleaning up...")
                 cleanup()
                 AudioRecordingService.stopService(context)
             }
 
-            if (!isRecording.get()) {
-                Log.d(Constants.TAG, "Not recording --- skip status with default values")
+            if (!_isRecording.get()) {
+                LogUtils.d(CLASS_NAME, "Not recording --- skip status with default values")
                 return bundleOf(
                     "isRecording" to false,
                     "isPaused" to false,
@@ -957,7 +1166,7 @@ class AudioRecorderManager(
 
             return bundleOf(
                 "durationMs" to duration,
-                "isRecording" to isRecording.get(),
+                "isRecording" to _isRecording.get(),
                 "isPaused" to isPaused.get(),
                 "mimeType" to mimeType,
                 "size" to totalDataSize,
@@ -979,9 +1188,9 @@ class AudioRecorderManager(
                     acquire()
                 }
                 wasWakeLockEnabled = true
-                Log.d(Constants.TAG, "Wake lock acquired")
+                LogUtils.d(CLASS_NAME, "Wake lock acquired")
             } catch (e: Exception) {
-                Log.e(Constants.TAG, "Failed to acquire wake lock", e)
+                LogUtils.e(CLASS_NAME, "Failed to acquire wake lock", e)
             }
         }
     }
@@ -992,13 +1201,45 @@ class AudioRecorderManager(
             wakeLock?.let {
                 if (it.isHeld) {
                     it.release()
-                    Log.d(Constants.TAG, "Wake lock released")
+                    LogUtils.d(CLASS_NAME, "Wake lock released")
                 }
                 wakeLock = null
                 wasWakeLockEnabled = false
             }
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to release wake lock", e)
+            LogUtils.e(CLASS_NAME, "Failed to release wake lock", e)
+        }
+    }
+
+    /**
+     * Checks if there is an ongoing call that would interfere with recording
+     */
+    private fun isOngoingCall(): Boolean {
+        try {
+            if (telephonyManager == null) return false
+            
+            // Get phone call state directly from telephonyManager instead of 
+            // relying on audio manager state which could be misleading after device disconnection
+            val callState = telephonyManager?.callState
+            
+            LogUtils.d(CLASS_NAME, "Call state check: callState=${callState}, " +
+                       "audioManager.mode=${audioManager.mode}, " +
+                       "audioManager.isBluetoothScoOn=${audioManager.isBluetoothScoOn}")
+            
+            // Trust phone state more than audio manager state
+            if (callState == TelephonyManager.CALL_STATE_RINGING || 
+                callState == TelephonyManager.CALL_STATE_OFFHOOK) {
+                return true
+            }
+            
+            // Only check audio manager mode as secondary indicator
+            return audioManager.mode == AudioManager.MODE_IN_CALL || 
+                   audioManager.mode == AudioManager.MODE_IN_COMMUNICATION
+            
+            // Remove audioManager.isBluetoothScoOn check as it can be erroneously true after disconnection
+        } catch (e: Exception) {
+            LogUtils.e(CLASS_NAME, "Error checking call state: ${e.message}")
+            return false
         }
     }
 
@@ -1015,11 +1256,11 @@ class AudioRecorderManager(
 
     private fun recordingProcess() {
         try {
-            Log.i(Constants.TAG, "Starting recording process...")
+            LogUtils.i(CLASS_NAME, "Starting recording process...")
             FileOutputStream(audioFile, true).use { fos ->
                 // Write audio data directly to the file
                 val audioData = ByteArray(bufferSizeInBytes)
-                Log.d(Constants.TAG, "Entering recording loop")
+                LogUtils.d(CLASS_NAME, "Entering recording loop")
                 
                 // Buffer to accumulate data
                 val accumulatedAudioData = ByteArrayOutputStream()
@@ -1043,7 +1284,7 @@ class AudioRecorderManager(
                 var shouldProcessAnalysis = false
                 
                 // Debug log for intervals
-                Log.d(Constants.TAG, """
+                LogUtils.d(CLASS_NAME, """
                     Recording process started with intervals:
                     - Data emission interval: ${recordingConfig.interval}ms
                     - Analysis interval: ${recordingConfig.intervalAnalysis}ms
@@ -1051,7 +1292,7 @@ class AudioRecorderManager(
                 """.trimIndent())
 
                 // Recording loop
-                while (isRecording.get() && !Thread.currentThread().isInterrupted) {
+                while (_isRecording.get() && !Thread.currentThread().isInterrupted) {
                     if (isPaused.get()) {
                         Thread.sleep(100) // Add small delay when paused
                         continue
@@ -1065,12 +1306,12 @@ class AudioRecorderManager(
                     val bytesRead = synchronized(audioRecordLock) {
                         audioRecord?.let {
                             if (it.state != AudioRecord.STATE_INITIALIZED) {
-                                Log.e(Constants.TAG, "AudioRecord not initialized")
+                                LogUtils.e(CLASS_NAME, "AudioRecord not initialized")
                                 return@let -1
                             }
                             it.read(audioData, 0, bufferSizeInBytes).also { bytes ->
                                 if (bytes < 0) {
-                                    Log.e(Constants.TAG, "AudioRecord read error: $bytes")
+                                    LogUtils.e(CLASS_NAME, "AudioRecord read error: $bytes")
                                 }
                             }
                         } ?: -1 // Handle null case
@@ -1095,7 +1336,7 @@ class AudioRecorderManager(
                         // Handle analysis emission separately
                         if (shouldProcessAnalysis) {
                             val analysisDataSize = accumulatedAnalysisData.size()
-                            Log.d(Constants.TAG, """
+                            LogUtils.d(CLASS_NAME, """
                                 Processing analysis data:
                                 - Time since last: ${currentTime - lastEmissionTimeAnalysis}ms
                                 - Configured interval: ${recordingConfig.intervalAnalysis}ms
@@ -1112,7 +1353,7 @@ class AudioRecorderManager(
                                         recordingConfig
                                     )
                                     
-                                    Log.d(Constants.TAG, """
+                                    LogUtils.d(CLASS_NAME, """
                                         Analysis data details:
                                         - Raw data size: ${accumulatedAnalysisData.size()} bytes
                                     """.trimIndent())
@@ -1124,7 +1365,7 @@ class AudioRecorderManager(
                                                 analysisData.toBundle()
                                             )
                                         } catch (e: Exception) {
-                                            Log.e(Constants.TAG, "Failed to send audio analysis event", e)
+                                            LogUtils.e(CLASS_NAME, "Failed to send audio analysis event", e)
                                         }
                                     }
                                     
@@ -1147,7 +1388,7 @@ class AudioRecorderManager(
             if (!isPaused.get()) {
                 releaseWakeLock()
             }
-            Log.e(Constants.TAG, "Error in recording process", e)
+            LogUtils.e(CLASS_NAME, "Error in recording process", e)
         }
     }
 
@@ -1176,7 +1417,7 @@ class AudioRecorderManager(
                         audioDataEncoder.encodeToBase64(buffer)
                     }
                 } catch (e: Exception) {
-                    Log.e(Constants.TAG, "Failed to read compressed data", e)
+                    LogUtils.e(CLASS_NAME, "Failed to read compressed data", e)
                     null
                 }
             } else null
@@ -1208,7 +1449,7 @@ class AudioRecorderManager(
                     )
                 )
             } catch (e: Exception) {
-                Log.e(Constants.TAG, "Failed to send event", e)
+                LogUtils.e(CLASS_NAME, "Failed to send event", e)
             }
         }
 
@@ -1278,13 +1519,13 @@ class AudioRecorderManager(
     fun cleanup() {
         synchronized(audioRecordLock) {
             try {
-                if (isRecording.get()) {
+                if (_isRecording.get()) {
                     audioRecord?.stop()
                     compressedRecorder?.stop()
                     compressedRecorder?.release()
                 }
                 
-                isRecording.set(false)
+                _isRecording.set(false)
                 isPaused.set(false)
                 isPrepared = false  // Reset prepared state
                 
@@ -1315,7 +1556,7 @@ class AudioRecorderManager(
                     "isPaused" to false
                 ))
             } catch (e: Exception) {
-                Log.e(Constants.TAG, "Error during cleanup", e)
+                LogUtils.e(CLASS_NAME, "Error during cleanup", e)
             }
         }
     }
@@ -1349,7 +1590,7 @@ class AudioRecorderManager(
             }
             return true
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Failed to initialize compressed recorder", e)
+            LogUtils.e(CLASS_NAME, "Failed to initialize compressed recorder", e)
             promise.reject("COMPRESSED_INIT_FAILED", "Failed to initialize compressed recorder", e)
             return false
         }
@@ -1361,7 +1602,7 @@ class AudioRecorderManager(
             when (focusChange) {
                 AudioManager.AUDIOFOCUS_LOSS,
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                    if (isRecording.get() && !isPaused.get()) {
+                    if (_isRecording.get() && !isPaused.get()) {
                         mainHandler.post {
                             pauseRecording(object : Promise {
                                 override fun resolve(value: Any?) {
@@ -1372,14 +1613,14 @@ class AudioRecorderManager(
                                     ))
                                 }
                                 override fun reject(code: String, message: String?, cause: Throwable?) {
-                                    Log.e(Constants.TAG, "Failed to pause recording on audio focus loss")
+                                    LogUtils.e(CLASS_NAME, "Failed to pause recording on audio focus loss")
                                 }
                             })
                         }
                     }
                 }
                 AudioManager.AUDIOFOCUS_GAIN -> {
-                    if (isRecording.get() && isPaused.get() && recordingConfig.autoResumeAfterInterruption) {
+                    if (_isRecording.get() && isPaused.get() && recordingConfig.autoResumeAfterInterruption) {
                         mainHandler.post {
                             resumeRecording(object : Promise {
                                 override fun resolve(value: Any?) {
@@ -1389,7 +1630,7 @@ class AudioRecorderManager(
                                     ))
                                 }
                                 override fun reject(code: String, message: String?, cause: Throwable?) {
-                                    Log.e(Constants.TAG, "Failed to resume recording on audio focus gain")
+                                    LogUtils.e(CLASS_NAME, "Failed to resume recording on audio focus gain")
                                 }
                             })
                         }
@@ -1463,13 +1704,13 @@ class AudioRecorderManager(
      * This reuses the existing validation and setup functions for compatibility.
      */
     fun prepareRecording(options: Map<String, Any?>): Boolean {
-        if (isRecording.get()) {
-            Log.d(Constants.TAG, "Cannot prepare recording - already recording")
+        if (_isRecording.get()) {
+            LogUtils.d(CLASS_NAME, "Cannot prepare recording - already recording")
             return false
         }
         
         if (isPrepared) {
-            Log.d(Constants.TAG, "Already prepared")
+            LogUtils.d(CLASS_NAME, "Already prepared")
             return true
         }
         
@@ -1483,7 +1724,7 @@ class AudioRecorderManager(
             val dummyPromise = object : Promise {
                 override fun resolve(value: Any?) {}
                 override fun reject(code: String, message: String?, cause: Throwable?) { 
-                    Log.e(Constants.TAG, "Preparation error: $code - $message", cause)
+                    LogUtils.e(CLASS_NAME, "Preparation error: $code - $message", cause)
                 }
             }
             
@@ -1492,12 +1733,17 @@ class AudioRecorderManager(
             // Parse recording configuration - reuse existing code
             val configResult = RecordingConfig.fromMap(options)
             if (configResult.isFailure) {
-                Log.e(Constants.TAG, "Invalid configuration: ${configResult.exceptionOrNull()?.message}")
+                LogUtils.e(CLASS_NAME, "Invalid configuration: ${configResult.exceptionOrNull()?.message}")
                 return false
             }
 
             val (tempRecordingConfig, audioFormatInfo) = configResult.getOrNull()!!
             recordingConfig = tempRecordingConfig
+            
+            // Store device-related settings
+            selectedDeviceId = recordingConfig.deviceId
+            deviceDisconnectionBehavior = recordingConfig.deviceDisconnectionBehavior ?: "pause"
+            
             audioFormat = audioFormatInfo.format
             mimeType = audioFormatInfo.mimeType
 
@@ -1515,10 +1761,10 @@ class AudioRecorderManager(
             
             // Everything is ready, mark as prepared
             isPrepared = true
-            Log.d(Constants.TAG, "Recording prepared successfully")
+            LogUtils.d(CLASS_NAME, "Recording prepared successfully")
             return true
         } catch (e: Exception) {
-            Log.e(Constants.TAG, "Error during preparation: ${e.message}", e)
+            LogUtils.e(CLASS_NAME, "Error during preparation: ${e.message}", e)
             cleanup()
             isPrepared = false
             return false

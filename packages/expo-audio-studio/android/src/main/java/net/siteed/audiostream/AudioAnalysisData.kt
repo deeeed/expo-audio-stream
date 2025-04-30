@@ -3,11 +3,19 @@ package net.siteed.audiostream
 
 import android.os.Bundle
 import androidx.core.os.bundleOf
+import net.siteed.audiostream.LogUtils
 
+/**
+ * Represents speech-related features of an audio segment
+ */
 data class SpeechFeatures(
     val isActive: Boolean,
     val speakerId: Int? = null
 ) {
+    companion object {
+        private const val CLASS_NAME = "SpeechFeatures"
+    }
+    
     fun toDictionary(): Map<String, Any?> {
         return mapOf(
             "isActive" to isActive,
@@ -23,6 +31,9 @@ data class SpeechFeatures(
     }
 }
 
+/**
+ * A single data point in the audio analysis result
+ */
 data class DataPoint(
     val id: Long,
     val amplitude: Float,
@@ -37,6 +48,10 @@ data class DataPoint(
     val endPosition: Int? = null,
     val samples: Int = 0
 ) {
+    companion object {
+        private const val CLASS_NAME = "DataPoint"
+    }
+    
     fun toDictionary(): Map<String, Any?> {
         return mapOf(
             "id" to id,
@@ -72,6 +87,9 @@ data class DataPoint(
     }
 }
 
+/**
+ * Primary class to hold audio analysis results
+ */
 data class AudioAnalysisData(
     val segmentDurationMs: Int,
     val durationMs: Int,
@@ -85,6 +103,10 @@ data class AudioAnalysisData(
     val speechAnalysis: SpeechAnalysis? = null,
     val extractionTimeMs: Float
 ) {
+    companion object {
+        private const val CLASS_NAME = "AudioAnalysisData"
+    }
+
     data class AmplitudeRange(val min: Float, val max: Float) {
         fun toDictionary(): Map<String, Float> {
             return mapOf("min" to min, "max" to max)

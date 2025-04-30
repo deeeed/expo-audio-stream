@@ -19,6 +19,12 @@ export * from './utils/convertPCMToFloat32'
 export * from './utils/getWavFileInfo'
 export * from './utils/writeWavHeader'
 
+// Export AudioDeviceManager
+export { AudioDeviceManager, audioDeviceManager } from './AudioDeviceManager'
+
+// Export useAudioDevices hook
+export { useAudioDevices } from './hooks/useAudioDevices'
+
 export {
     AudioRecorderProvider,
     ExpoAudioStreamModule,
@@ -34,9 +40,3 @@ export {
 
 export type * from './AudioAnalysis/AudioAnalysis.types'
 export type * from './ExpoAudioStream.types'
-
-// Export AudioDeviceManager
-export { AudioDeviceManager, audioDeviceManager } from './AudioDeviceManager'
-
-// Export useAudioDevices hook
-export { useAudioDevices } from './hooks/useAudioDevices'
