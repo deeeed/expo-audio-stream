@@ -1017,6 +1017,26 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         Logger.debug("Pausing recording...")
         
+        // Emit any remaining audio data before pausing
+        if !accumulatedData.isEmpty {
+            Logger.debug("Emitting final audio chunk of \(accumulatedData.count) bytes before pausing")
+            let recordingTime = currentRecordingDuration()
+            let finalTotalSize = self.totalDataSize
+            
+            // Create a copy of accumulated data to avoid race conditions
+            let finalData = accumulatedData
+            accumulatedData.removeAll()
+            
+            // Notify delegate with final audio data
+            delegate?.audioStreamManager(
+                self,
+                didReceiveAudioData: finalData,
+                recordingTime: recordingTime,
+                totalDataSize: finalTotalSize,
+                compressionInfo: nil
+            )
+        }
+        
         // Store when we paused
         currentPauseStart = Date()
         
@@ -1490,6 +1510,26 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         guard isRecording || isPrepared else { return nil }
         
         Logger.debug("Stopping recording...")
+        
+        // IMPORTANT: Emit any remaining audio data before stopping the engine
+        if isRecording && !accumulatedData.isEmpty {
+            Logger.debug("Emitting final audio chunk of \(accumulatedData.count) bytes before stopping")
+            let recordingTime = currentRecordingDuration()
+            let finalTotalSize = self.totalDataSize // Use current total size
+            
+            // Create a copy of accumulated data to avoid race conditions
+            let finalData = accumulatedData
+            accumulatedData.removeAll()
+            
+            // Notify delegate with final audio data
+            delegate?.audioStreamManager(
+                self,
+                didReceiveAudioData: finalData,
+                recordingTime: recordingTime,
+                totalDataSize: finalTotalSize,
+                compressionInfo: nil
+            )
+        }
         
         disableWakeLock()
         audioEngine.stop()
