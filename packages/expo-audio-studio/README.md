@@ -251,6 +251,8 @@ const permissions = await ExpoAudioStreamModule.getPermissionsAsync();
 
 For detailed documentation, please refer to the [Getting Started Guide](https://deeeed.github.io/expo-audio-stream/docs/).
 
+For developers interested in contributing or debugging the library, please see the [Contribution Guide](./CONTRIBUTE.md).
+
 ## Companion Resources
 
 ### AudioPlayground Application
