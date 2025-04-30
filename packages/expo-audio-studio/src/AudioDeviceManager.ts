@@ -4,6 +4,7 @@ import { Platform } from 'react-native'
 import {
     AudioDevice,
     DeviceDisconnectionBehavior,
+    ConsoleLike,
 } from './ExpoAudioStream.types'
 import ExpoAudioStreamModule from './ExpoAudioStreamModule'
 
@@ -24,7 +25,7 @@ const DEFAULT_DEVICE: AudioDevice = {
 }
 
 /**
- * AudioDeviceManager provides a cross-platform API for managing audio input devices
+ * Class that provides a cross-platform API for managing audio input devices
  */
 export class AudioDeviceManager {
     private eventEmitter: InstanceType<typeof EventEmitter>
@@ -33,34 +34,93 @@ export class AudioDeviceManager {
     private deviceChangeListeners: Set<(devices: AudioDevice[]) => void> =
         new Set()
     private deviceListeners: Set<() => void> = new Set()
+    private lastRefreshTime: number = 0
+    private refreshInProgress: boolean = false
+    private refreshDebounceMs: number = 500 // Minimum 500ms between refreshes
+    private logger?: ConsoleLike
 
-    constructor() {
+    constructor(options?: { logger?: ConsoleLike }) {
         this.eventEmitter = new EventEmitter(ExpoAudioStreamModule)
+        this.logger = options?.logger
 
         // Listen for device change events from native modules if not on web
         if (Platform.OS !== 'web') {
+            // Store the last event type to avoid duplicates
+            let lastEventType: string | null = null
+            let lastEventTime = 0
+
             this.eventEmitter.addListener(
                 'deviceChangedEvent',
                 (event: any) => {
-                    this.refreshDevices().then(() => {
-                        this.notifyListeners()
-                    })
+                    // Skip processing duplicate events that occur too close together
+                    const now = Date.now()
+                    const isSimilarEvent =
+                        lastEventType === event.type &&
+                        now - lastEventTime < this.refreshDebounceMs
+
+                    if (isSimilarEvent) {
+                        this.logger?.debug(
+                            `Skipping similar device event (${event.type}) received too soon`
+                        )
+                        return
+                    }
+
+                    // Update the last event tracking
+                    lastEventType = event.type
+                    lastEventTime = now
+
+                    // Only refresh on meaningful events
+                    if (
+                        event.type === 'deviceConnected' ||
+                        event.type === 'deviceDisconnected' ||
+                        event.type === 'routeChanged'
+                    ) {
+                        this.logger?.debug(
+                            `Processing device event: ${event.type}`
+                        )
+                        this.refreshDevices().then(() => {
+                            this.notifyListeners()
+                        })
+                    }
                 }
             )
         }
     }
 
     /**
+     * Initialize the device manager with a logger
+     * @param logger A logger instance that implements the ConsoleLike interface
+     * @returns The manager instance for chaining
+     */
+    initWithLogger(logger: ConsoleLike): AudioDeviceManager {
+        this.setLogger(logger)
+        return this
+    }
+
+    /**
+     * Set the logger instance
+     * @param logger A logger instance that implements the ConsoleLike interface
+     */
+    setLogger(logger: ConsoleLike) {
+        this.logger = logger
+    }
+
+    /**
      * Get all available audio input devices
+     * @param options Optional settings { refresh: boolean } to force refresh the device list
      * @returns Promise resolving to an array of audio devices
      */
-    async getAvailableDevices(): Promise<AudioDevice[]> {
+    async getAvailableDevices(options?: {
+        refresh?: boolean
+    }): Promise<AudioDevice[]> {
         try {
             if (Platform.OS === 'web') {
                 return await this.getWebAudioDevices()
             } else if (ExpoAudioStreamModule.getAvailableInputDevices) {
                 const devices =
-                    await ExpoAudioStreamModule.getAvailableInputDevices()
+                    await ExpoAudioStreamModule.getAvailableInputDevices(
+                        options
+                    )
                 this.availableDevices = devices
                 return devices
             }
@@ -68,7 +128,7 @@ export class AudioDeviceManager {
             // Fallback for unsupported platforms
             return [DEFAULT_DEVICE]
         } catch (error) {
-            console.error('Failed to get available devices:', error)
+            this.logger?.error('Failed to get available devices:', error)
             return [DEFAULT_DEVICE]
         }
     }
@@ -96,7 +156,7 @@ export class AudioDeviceManager {
 
             return DEFAULT_DEVICE
         } catch (error) {
-            console.error('Failed to get current device:', error)
+            this.logger?.error('Failed to get current device:', error)
             return DEFAULT_DEVICE
         }
     }
@@ -122,7 +182,7 @@ export class AudioDeviceManager {
 
             return false
         } catch (error) {
-            console.error('Failed to select device:', error)
+            this.logger?.error('Failed to select device:', error)
             return false
         }
     }
@@ -147,7 +207,7 @@ export class AudioDeviceManager {
 
             return false
         } catch (error) {
-            console.error('Failed to reset to default device:', error)
+            this.logger?.error('Failed to reset to default device:', error)
             return false
         }
     }
@@ -169,13 +229,41 @@ export class AudioDeviceManager {
     }
 
     /**
-     * Refresh the list of available devices
+     * Refresh the list of available devices with debouncing to prevent too frequent calls
      * @returns Promise resolving to the updated device list
      */
     async refreshDevices(): Promise<AudioDevice[]> {
-        const devices = await this.getAvailableDevices()
-        this.notifyListeners()
-        return devices
+        const now = Date.now()
+
+        // Skip if a refresh is already in progress
+        if (this.refreshInProgress) {
+            this.logger?.debug('Refresh already in progress, skipping')
+            return this.availableDevices
+        }
+
+        // Skip if we refreshed too recently, unless it's been more than 2 seconds
+        // since the last successful refresh
+        if (
+            now - this.lastRefreshTime < this.refreshDebounceMs &&
+            now - this.lastRefreshTime < 2000
+        ) {
+            this.logger?.debug(
+                'Refresh debounced, skipping (last refresh was',
+                now - this.lastRefreshTime,
+                'ms ago)'
+            )
+            return this.availableDevices
+        }
+
+        try {
+            this.refreshInProgress = true
+            const devices = await this.getAvailableDevices({ refresh: true })
+            this.notifyListeners()
+            this.lastRefreshTime = Date.now()
+            return devices
+        } finally {
+            this.refreshInProgress = false
+        }
     }
 
     /**
@@ -211,7 +299,10 @@ export class AudioDeviceManager {
                 try {
                     await navigator.mediaDevices.getUserMedia({ audio: true })
                 } catch (error) {
-                    console.warn('Microphone permission request failed:', error)
+                    this.logger?.warn(
+                        'Microphone permission request failed:',
+                        error
+                    )
                     return [
                         {
                             ...DEFAULT_DEVICE,
@@ -254,7 +345,7 @@ export class AudioDeviceManager {
             this.availableDevices = audioInputDevices
             return audioInputDevices
         } catch (error) {
-            console.error('Failed to enumerate web audio devices:', error)
+            this.logger?.error('Failed to enumerate web audio devices:', error)
             return [DEFAULT_DEVICE]
         }
     }
@@ -281,7 +372,7 @@ export class AudioDeviceManager {
 
             return permissionStatus.state
         } catch (error) {
-            console.warn('Permission query not supported:', error)
+            this.logger?.warn('Permission query not supported:', error)
             return 'prompt'
         }
     }
@@ -431,7 +522,7 @@ export class AudioDeviceManager {
     }
 }
 
-// Create a singleton instance for convenience
+// Create and export the singleton instance
 export const audioDeviceManager = new AudioDeviceManager()
 
 export { DeviceDisconnectionBehavior }

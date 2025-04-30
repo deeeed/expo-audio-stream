@@ -21,15 +21,15 @@ The feature will allow users to:
 - ✅ User interface for device testing (AudioDeviceTest) with both web and native support
 - ✅ Device selection integration with recording functionality
 - ✅ Cross-platform audio device capabilities display
+- ✅ Testing cross-browser compatibility for web implementation
 
 ### In Progress
 - 🟡 Android implementation of device detection and selection
-- 🟡 Device disconnection handling and fallback behavior
+- 🟡 Device disconnection handling and fallback behavior (Web partially implemented, needs Android and full testing)
 
 ### Completed but Needs Testing
-- ⚠️ Testing cross-browser compatibility for web implementation
-- ⚠️ Testing with various audio device types (Bluetooth, wired, etc.)
-- ⚠️ Verifying correct recording behavior with selected devices
+- ⚠️ Testing with various audio device types (Bluetooth, wired, etc.) - iOS & Web
+- ⚠️ Verifying correct recording behavior with selected devices - iOS & Web
 
 ## Architecture Principles
 
@@ -75,8 +75,12 @@ const DeviceDisconnectionBehavior = {
 type DeviceDisconnectionBehaviorType = typeof DeviceDisconnectionBehavior[keyof typeof DeviceDisconnectionBehavior];
 
 // Module functions
-function getAvailableInputDevices(): Promise<AudioDevice[]>;
+function getAvailableInputDevices(options?: { refresh?: boolean }): Promise<AudioDevice[]>;
 function getCurrentInputDevice(): Promise<AudioDevice | null>;
+function selectInputDevice(deviceId: string): Promise<boolean>;
+function resetToDefaultDevice(): Promise<boolean>;
+// Primary method for refreshing device detection - includes debouncing and listener notifications
+function refreshDevices(): Promise<AudioDevice[]>;
 
 // Extended RecordingConfig
 interface RecordingConfig {
@@ -84,6 +88,15 @@ interface RecordingConfig {
   deviceId?: string;              // ID of selected device (default if not specified)
   deviceDisconnectionBehavior?: DeviceDisconnectionBehaviorType; // How to handle device disconnection (default: PAUSE)
 }
+
+// Web-specific methods
+private async getWebAudioDevices(): Promise<AudioDevice[]>;
+private async checkMicrophonePermission(): Promise<PermissionState>;
+private setupWebDeviceChangeListener(): void;
+private isSafariOrIOS(): boolean;
+private enhanceDevicesForSafari(devices: AudioDevice[]): AudioDevice[];
+private mapWebDeviceToAudioDevice(device: MediaDeviceInfo): AudioDevice;
+private inferDeviceType(deviceName: string): string;
 ```
 
 ### React Hook API (Implemented)
@@ -137,12 +150,13 @@ class AudioDeviceManager {
   private permissionState: PermissionState; // Added for web
 
   // Methods
-  async getAvailableDevices(): Promise<AudioDevice[]>;
+  async getAvailableDevices(options?: { refresh?: boolean }): Promise<AudioDevice[]>;
   async getCurrentDevice(): Promise<AudioDevice | null>;
   async selectDevice(deviceId: string): Promise<boolean>;
   async resetToDefaultDevice(): Promise<boolean>;
-  addDeviceChangeListener(listener: (devices: AudioDevice[]) => void): () => void;
+  // Primary method for refreshing - includes debouncing and listener notifications
   async refreshDevices(): Promise<AudioDevice[]>;
+  addDeviceChangeListener(listener: (devices: AudioDevice[]) => void): () => void;
   
   // Web-specific methods
   private async getWebAudioDevices(): Promise<AudioDevice[]>;
@@ -209,6 +223,37 @@ The web implementation uses the MediaDevices API to enumerate and select audio i
    - Identifies common device types (builtin, bluetooth, usb, etc.)
    - Creates consistent device types across platforms
 
+## Bluetooth Device Detection
+
+Bluetooth device detection presents unique challenges across platforms:
+
+1. **Delayed Detection**: Bluetooth devices often aren't immediately detected when connected, particularly on iOS
+2. **Device Identification**: Different platforms represent Bluetooth devices with different formats and identifiers
+3. **Session Configuration**: Proper audio session setup is required to detect Bluetooth devices
+
+To address these challenges, we've implemented:
+
+1. **Forced Refresh Capability**: 
+   - The `refreshDevices()` method is the primary way to trigger device detection
+   - It includes debouncing to prevent excessive refreshes and notifies registered listeners
+   - For advanced use cases, `getAvailableDevices({ refresh: true })` provides direct access to device refresh
+
+2. **Standalone Refresh Function**:
+   - `refreshDevices()` provides a dedicated method to trigger device detection
+   - Returns the updated list of available devices
+   - Useful for creating refresh buttons in the UI
+   - Includes built-in debouncing to prevent excessive API calls
+
+3. **Bluetooth ID Normalization**:
+   - Consistent handling of device IDs across platform variations
+   - Special handling for Bluetooth SCO/A2DP profile variations
+   - Removes platform-specific suffixes for consistent device identification
+
+**Best Practice**: When working with Bluetooth devices, consider:
+- Adding a refresh button with `refreshDevices()` in your device selection UI
+- Waiting 1-2 seconds after Bluetooth connection before refreshing
+- Using `refreshDevices()` rather than `getAvailableDevices({ refresh: true })` for better safety
+
 ## Testing Approach
 
 We've developed a comprehensive testing approach for audio device detection and selection:
@@ -235,7 +280,7 @@ We've developed a comprehensive testing approach for audio device detection and 
 
 ## Remaining Work
 
-### Complete Android Implementation
+### 1. Complete Android Implementation
 - Create `AudioDeviceManager.kt` class
 - Implement device type mapping
 - Implement device capabilities detection
@@ -243,12 +288,17 @@ We've developed a comprehensive testing approach for audio device detection and 
 - Implement device selection
 - Implement device disconnection detection
 
-### Device Disconnection Behavior
-- Complete implementation of disconnection detection for all platforms
-- Add fallback logic for disconnection events
-- Test with device hot-plugging scenarios
+### 2. Finalize Device Disconnection Behavior
+- Implement Android disconnection detection
+- Refine fallback logic based on testing (Web & Android)
+- Test thoroughly with device hot-plugging scenarios on all platforms
 
-### Documentation and Examples
+### 3. Comprehensive Testing
+- Complete testing with various audio device types (Bluetooth, wired, etc.) on Android.
+- Complete verification of correct recording behavior with selected devices on Android.
+- Perform regression testing on iOS and Web.
+
+### 4. Documentation and Examples
 - Add detailed documentation for the device detection API
 - Create examples showcasing device selection in real applications
 - Document platform-specific behavior and limitations

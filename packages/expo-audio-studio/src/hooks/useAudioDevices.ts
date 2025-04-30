@@ -46,18 +46,20 @@ export function useAudioDevices() {
 
         // Set up device change listener
         const removeListener = audioDeviceManager.addDeviceChangeListener(
-            (updatedDevices) => {
+            (updatedDevices: AudioDevice[]) => {
                 if (isMounted) {
                     setDevices(updatedDevices)
 
                     // If our current device is no longer available, update it
                     if (
                         currentDevice &&
-                        !updatedDevices.some((d) => d.id === currentDevice.id)
+                        !updatedDevices.some(
+                            (d: AudioDevice) => d.id === currentDevice.id
+                        )
                     ) {
                         audioDeviceManager
                             .getCurrentDevice()
-                            .then((newDevice) => {
+                            .then((newDevice: AudioDevice | null) => {
                                 if (isMounted) setCurrentDevice(newDevice)
                             })
                     }

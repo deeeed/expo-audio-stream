@@ -190,6 +190,10 @@ import { audioDeviceManager } from '@siteed/expo-audio-studio';
 // Get all available devices
 const devices = await audioDeviceManager.getAvailableDevices();
 
+// Get all available devices with forced refresh (useful when Bluetooth devices aren't showing up)
+// NOTE: For most cases, use refreshDevices() instead as it includes debouncing and listener notifications
+const refreshedDevices = await audioDeviceManager.getAvailableDevices({ refresh: true });
+
 // Get the current device
 const currentDevice = await audioDeviceManager.getCurrentDevice();
 
@@ -199,12 +203,15 @@ const success = await audioDeviceManager.selectDevice('device-id-here');
 // Reset to the default device
 await audioDeviceManager.resetToDefaultDevice();
 
+// PREFERRED METHOD: Force refresh of device detection with debouncing and listener notifications
+const updatedDevices = await audioDeviceManager.refreshDevices();
+
 // Listen for device changes
 const removeListener = audioDeviceManager.addDeviceChangeListener((devices) => {
   console.log('Devices changed:', devices);
 });
 
-// Later, remove the listener
+// Remove the listener when done
 removeListener();
 ```
 
@@ -215,6 +222,7 @@ removeListener();
 - Full support for device enumeration and selection
 - Detailed device capabilities
 - Automatic handling of device disconnection
+- Special handling for Bluetooth devices may require using the `refresh` option when devices aren't showing up
 
 ### Android
 
@@ -258,15 +266,21 @@ removeListener();
    });
    ```
 
-4. **Refresh devices periodically**
+4. **Force refresh if Bluetooth devices aren't detected**
    ```typescript
-   useEffect(() => {
-     // Refresh devices when component mounts
-     refreshDevices();
-     
-     // Set up interval to refresh periodically
-     const interval = setInterval(refreshDevices, 30000); // Every 30 seconds
-     
-     return () => clearInterval(interval);
-   }, [refreshDevices]);
-   ``` 
+   // If Bluetooth device isn't showing up, use the preferred refreshDevices method
+   const refreshDevices = async () => {
+     // This method includes debouncing and notifies all listeners
+     const devices = await audioDeviceManager.refreshDevices();
+     setDevices(devices);
+   };
+   
+   // Add a refresh button in your UI
+   <Button title="Refresh Devices" onPress={refreshDevices} />
+
+   // Only use the direct approach if you need more control:
+   // const devices = await audioDeviceManager.getAvailableDevices({ refresh: true });
+   ```
+
+5. **Refresh devices periodically**
+   ```
