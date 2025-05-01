@@ -101,6 +101,10 @@ You can customize the plugin's behavior by providing options:
     allowing foreground-only recording on Android 14+ without requiring this permission
   - Note: FOREGROUND_SERVICE_MICROPHONE permission is only required on Android 14 (API level 34) 
     and higher when performing background recording
+  - Important: If your app uses FOREGROUND_SERVICE for other purposes (GPS tracking, uploads, etc.),
+    but you want foreground-only recording, you should still set enableBackgroundAudio to false.
+    The module determines whether background audio is enabled based on the presence of
+    FOREGROUND_SERVICE_MICROPHONE permission, not FOREGROUND_SERVICE permission.
 
 #### iOS Background Modes
 - **iosBackgroundModes**:

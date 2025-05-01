@@ -62,8 +62,8 @@ class ExpoAudioStreamModule : Module(), EventSender {
             // Check if POST_NOTIFICATIONS is in the requested permissions
             enableNotificationHandling = packageInfo.requestedPermissions?.contains(Manifest.permission.POST_NOTIFICATIONS) ?: false
             
-            // Check if background audio is enabled by looking for FOREGROUND_SERVICE permission
-            enableBackgroundAudio = packageInfo.requestedPermissions?.contains(Manifest.permission.FOREGROUND_SERVICE) ?: false
+            // Check if background audio is enabled by looking for FOREGROUND_SERVICE_MICROPHONE permission
+            enableBackgroundAudio = packageInfo.requestedPermissions?.contains(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE) ?: false
             
             LogUtils.d(CLASS_NAME, "Phone state handling ${if (enablePhoneStateHandling) "enabled" else "disabled"} based on manifest permissions")
             LogUtils.d(CLASS_NAME, "Notification handling ${if (enableNotificationHandling) "enabled" else "disabled"} based on manifest permissions")
