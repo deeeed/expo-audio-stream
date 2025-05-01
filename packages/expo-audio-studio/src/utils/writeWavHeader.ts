@@ -12,6 +12,8 @@ export interface WavHeaderOptions {
     numChannels: number
     /** The bit depth of the audio (e.g., 16, 24, or 32). */
     bitDepth: number
+    /** Whether the audio data is in float format (only applies to 32-bit) */
+    isFloat?: boolean
 }
 
 /**
@@ -30,30 +32,17 @@ export interface WavHeaderOptions {
  * @returns An ArrayBuffer containing the WAV header, or the header combined with the provided audio data.
  *
  * @throws {Error} Throws an error if the provided options are invalid or if the buffer is too small.
- *
- * @example
- * // Create a standalone WAV header
- * const header = writeWavHeader({
- *   sampleRate: 44100,
- *   numChannels: 2,
- *   bitDepth: 16
- * });
- *
- * @example
- * // Create a WAV header and combine it with audio data
- * const completeWav = writeWavHeader({
- *   buffer: audioData,
- *   sampleRate: 44100,
- *   numChannels: 2,
- *   bitDepth: 16
- * });
  */
 export const writeWavHeader = ({
     buffer,
     sampleRate,
     numChannels,
     bitDepth,
+    isFloat = bitDepth === 32, // Default to float for 32-bit
 }: WavHeaderOptions): ArrayBuffer => {
+    // For 32-bit float, we use format 3, otherwise format 1 for PCM
+    const audioFormat = isFloat ? 3 : 1 // 3 = IEEE float, 1 = PCM
+    
     const bytesPerSample = bitDepth / 8
     const blockAlign = numChannels * bytesPerSample
     const byteRate = sampleRate * blockAlign
@@ -67,22 +56,30 @@ export const writeWavHeader = ({
 
     // Function to write or update the header
     const writeHeader = (view: DataView, dataSize: number = 0xffffffff) => {
+        // RIFF chunk descriptor
         writeString(view, 0, 'RIFF') // ChunkID
-        view.setUint32(4, 36 + dataSize, true) // ChunkSize
+        view.setUint32(4, 36 + dataSize, true) // ChunkSize: 4 + (8 + 16) + (8 + dataSize)
         writeString(view, 8, 'WAVE') // Format
+        
+        // "fmt " sub-chunk
         writeString(view, 12, 'fmt ') // Subchunk1ID
-        view.setUint32(16, 16, true) // Subchunk1Size (16 for PCM)
-        view.setUint16(20, bitDepth === 32 ? 3 : 1, true) // AudioFormat (3 for float, 1 for PCM)
+        view.setUint32(16, 16, true) // Subchunk1Size (16 for PCM/Float)
+        view.setUint16(20, audioFormat, true) // AudioFormat (3 for float, 1 for PCM)
         view.setUint16(22, numChannels, true) // NumChannels
         view.setUint32(24, sampleRate, true) // SampleRate
-        view.setUint32(28, byteRate, true) // ByteRate
-        view.setUint16(32, blockAlign, true) // BlockAlign
+        view.setUint32(28, byteRate, true) // ByteRate = SampleRate * NumChannels * BitsPerSample/8
+        view.setUint16(32, blockAlign, true) // BlockAlign = NumChannels * BitsPerSample/8
         view.setUint16(34, bitDepth, true) // BitsPerSample
+        
+        // "data" sub-chunk
         writeString(view, 36, 'data') // Subchunk2ID
-        view.setUint32(40, dataSize, true) // Subchunk2Size
+        view.setUint32(40, dataSize, true) // Subchunk2Size = NumSamples * NumChannels * BitsPerSample/8
     }
 
     if (buffer) {
+        // Handle existing buffer
+        
+        // Check for minimum size
         if (buffer.byteLength < 44) {
             throw new Error('Buffer is too small to contain a valid WAV header')
         }
@@ -97,15 +94,19 @@ export const writeWavHeader = ({
             writeHeader(view, buffer.byteLength - 44)
             return buffer
         } else {
-            // Combine the new header with the existing buffer
+            // Create a new buffer with header + data
             const newBuffer = new ArrayBuffer(44 + buffer.byteLength)
             const newView = new DataView(newBuffer)
+            
+            // Write header to new buffer
             writeHeader(newView, buffer.byteLength)
+            
+            // Copy audio data after header
             new Uint8Array(newBuffer).set(new Uint8Array(buffer), 44)
             return newBuffer
         }
     } else {
-        // Create a standalone header
+        // Create standalone header
         const headerBuffer = new ArrayBuffer(44)
         const view = new DataView(headerBuffer)
         writeHeader(view)

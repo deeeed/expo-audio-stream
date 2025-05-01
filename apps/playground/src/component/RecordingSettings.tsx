@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 import { Text, useTheme, LabelSwitch, EditableInfoCard, AppTheme } from '@siteed/design-system';
 import { 
@@ -265,6 +265,35 @@ export function RecordingSettings({
         }}
         disabled={isDisabled}
       />
+      
+      {/* Web-specific option to control uncompressed audio storage */}
+      {isWeb && (
+        <View>
+          <LabelSwitch
+            label="Store Uncompressed Audio (Web only)"
+            value={config.web?.storeUncompressedAudio !== false} // Default to true unless explicitly false
+            onValueChange={(enabled) => {
+              const updatedConfig = {
+                ...config,
+                web: {
+                  ...(config.web || {}),
+                  storeUncompressedAudio: enabled,
+                },
+              };
+              onConfigChange(updatedConfig);
+            }}
+            disabled={isDisabled}
+          />
+          <Text variant="bodySmall" style={{ marginTop: 4, color: theme.colors.outline }}>
+            {config.web?.storeUncompressedAudio !== false
+              ? "Stores uncompressed audio data in memory for direct access. Turn off for long recordings to save memory."
+              : "Memory-efficient mode. Only compressed audio will be accessible when recording stops."}
+          </Text>
+          <Text variant="bodySmall" style={{ marginTop: 2, color: theme.colors.primary }}>
+            Note: Native platforms (iOS/Android) always store to files, not memory.
+          </Text>
+        </View>
+      )}
       
       {Platform.OS !== 'web' && (
         <NativeNotificationConfig
