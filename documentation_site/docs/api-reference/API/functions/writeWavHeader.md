@@ -8,7 +8,7 @@
 
 > **writeWavHeader**(`options`): `ArrayBuffer`
 
-Defined in: [src/utils/writeWavHeader.ts:51](https://github.com/deeeed/expo-audio-stream/blob/bb59302490ef4669af79e1b7d51bc0dcaf10e087/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L51)
+Defined in: [src/utils/writeWavHeader.ts:36](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L36)
 
 Writes or updates a WAV (RIFF) header based on the provided options.
 
@@ -38,24 +38,3 @@ An ArrayBuffer containing the WAV header, or the header combined with the provid
 ## Throws
 
 Throws an error if the provided options are invalid or if the buffer is too small.
-
-## Examples
-
-```ts
-// Create a standalone WAV header
-const header = writeWavHeader({
-  sampleRate: 44100,
-  numChannels: 2,
-  bitDepth: 16
-});
-```
-
-```ts
-// Create a WAV header and combine it with audio data
-const completeWav = writeWavHeader({
-  buffer: audioData,
-  sampleRate: 44100,
-  numChannels: 2,
-  bitDepth: 16
-});
-```

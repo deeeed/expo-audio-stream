@@ -6,7 +6,7 @@
 
 # Interface: SpeechFeatures
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:22](https://github.com/deeeed/expo-audio-stream/blob/bb59302490ef4669af79e1b7d51bc0dcaf10e087/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L22)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:22](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L22)
 
 Represents speech-related features extracted from audio.
 
@@ -16,7 +16,7 @@ Represents speech-related features extracted from audio.
 
 > **isActive**: `boolean`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:23](https://github.com/deeeed/expo-audio-stream/blob/bb59302490ef4669af79e1b7d51bc0dcaf10e087/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L23)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:23](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L23)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:23](https://github.com/dee
 
 > `optional` **speakerId**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:24](https://github.com/deeeed/expo-audio-stream/blob/bb59302490ef4669af79e1b7d51bc0dcaf10e087/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L24)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:24](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L24)
