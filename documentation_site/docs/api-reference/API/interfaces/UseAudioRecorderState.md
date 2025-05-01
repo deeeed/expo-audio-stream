@@ -6,7 +6,7 @@
 
 # Interface: UseAudioRecorderState
 
-Defined in: [src/ExpoAudioStream.types.ts:498](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L498)
+Defined in: [src/ExpoAudioStream.types.ts:498](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L498)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:498](https://github.com/deeeed/expo-au
 
 > `optional` **analysisData**: [`AudioAnalysis`](AudioAnalysis.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:558](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L558)
+Defined in: [src/ExpoAudioStream.types.ts:558](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L558)
 
 Analysis data for the recording if processing was enabled
 
@@ -24,7 +24,7 @@ Analysis data for the recording if processing was enabled
 
 > `optional` **compression**: [`CompressionInfo`](CompressionInfo.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:556](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L556)
+Defined in: [src/ExpoAudioStream.types.ts:556](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L556)
 
 Information about compression if enabled
 
@@ -34,7 +34,7 @@ Information about compression if enabled
 
 > **durationMs**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:552](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L552)
+Defined in: [src/ExpoAudioStream.types.ts:552](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L552)
 
 Duration of the current recording in milliseconds
 
@@ -44,7 +44,7 @@ Duration of the current recording in milliseconds
 
 > **isPaused**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:550](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L550)
+Defined in: [src/ExpoAudioStream.types.ts:550](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L550)
 
 Indicates whether recording is in a paused state
 
@@ -54,7 +54,7 @@ Indicates whether recording is in a paused state
 
 > **isRecording**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:548](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L548)
+Defined in: [src/ExpoAudioStream.types.ts:548](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L548)
 
 Indicates whether recording is currently active
 
@@ -64,7 +64,7 @@ Indicates whether recording is currently active
 
 > `optional` **onRecordingInterrupted**: (`_`) => `void`
 
-Defined in: [src/ExpoAudioStream.types.ts:560](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L560)
+Defined in: [src/ExpoAudioStream.types.ts:560](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L560)
 
 Optional callback to handle recording interruptions
 
@@ -84,7 +84,7 @@ Optional callback to handle recording interruptions
 
 > **pauseRecording**: () => `Promise`\<`void`\>
 
-Defined in: [src/ExpoAudioStream.types.ts:544](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L544)
+Defined in: [src/ExpoAudioStream.types.ts:544](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L544)
 
 Pauses the current recording
 
@@ -98,7 +98,7 @@ Pauses the current recording
 
 > **prepareRecording**: (`_`) => `Promise`\<`void`\>
 
-Defined in: [src/ExpoAudioStream.types.ts:538](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L538)
+Defined in: [src/ExpoAudioStream.types.ts:538](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L538)
 
 Prepares recording with the specified configuration without starting it.
 
@@ -156,7 +156,7 @@ const handleRecordPress = () => startRecording({
 
 > **resumeRecording**: () => `Promise`\<`void`\>
 
-Defined in: [src/ExpoAudioStream.types.ts:546](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L546)
+Defined in: [src/ExpoAudioStream.types.ts:546](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L546)
 
 Resumes a paused recording
 
@@ -170,7 +170,7 @@ Resumes a paused recording
 
 > **size**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:554](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L554)
+Defined in: [src/ExpoAudioStream.types.ts:554](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L554)
 
 Size of the recorded audio in bytes
 
@@ -180,7 +180,7 @@ Size of the recorded audio in bytes
 
 > **startRecording**: (`_`) => `Promise`\<[`StartRecordingResult`](StartRecordingResult.md)\>
 
-Defined in: [src/ExpoAudioStream.types.ts:540](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L540)
+Defined in: [src/ExpoAudioStream.types.ts:540](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L540)
 
 Starts recording with the specified configuration
 
@@ -200,7 +200,7 @@ Starts recording with the specified configuration
 
 > **stopRecording**: () => `Promise`\<`null` \| [`AudioRecording`](AudioRecording.md)\>
 
-Defined in: [src/ExpoAudioStream.types.ts:542](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L542)
+Defined in: [src/ExpoAudioStream.types.ts:542](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L542)
 
 Stops the current recording and returns the recording data
 

@@ -8,7 +8,7 @@
 
 > **extractMelSpectrogram**(`options`): `Promise`\<[`MelSpectrogram`](../interfaces/MelSpectrogram.md)\>
 
-Defined in: [src/AudioAnalysis/extractMelSpectrogram.ts:24](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/AudioAnalysis/extractMelSpectrogram.ts#L24)
+Defined in: [src/AudioAnalysis/extractMelSpectrogram.ts:24](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/AudioAnalysis/extractMelSpectrogram.ts#L24)
 
 **`Experimental`**
 
