@@ -344,7 +344,7 @@ export interface RecordingConfig {
     compression?: {
         /** Enable audio compression */
         enabled: boolean
-        /** 
+        /**
          * Format for compression
          * - 'aac': Advanced Audio Coding - supported on all platforms
          * - 'opus': Opus encoding - supported on Android and Web; on iOS will automatically fall back to AAC

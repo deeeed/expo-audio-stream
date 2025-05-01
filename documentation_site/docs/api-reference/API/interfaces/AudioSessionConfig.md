@@ -6,7 +6,7 @@
 
 # Interface: AudioSessionConfig
 
-Defined in: [src/ExpoAudioStream.types.ts:147](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L147)
+Defined in: [src/ExpoAudioStream.types.ts:147](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L147)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:147](https://github.com/deeeed/expo-au
 
 > `optional` **category**: `"Ambient"` \| `"SoloAmbient"` \| `"Playback"` \| `"Record"` \| `"PlayAndRecord"` \| `"MultiRoute"`
 
-Defined in: [src/ExpoAudioStream.types.ts:157](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L157)
+Defined in: [src/ExpoAudioStream.types.ts:157](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L157)
 
 Audio session category that defines the audio behavior
 - 'Ambient': Audio continues with silent switch, mixes with other audio
@@ -30,7 +30,7 @@ Audio session category that defines the audio behavior
 
 > `optional` **categoryOptions**: (`"MixWithOthers"` \| `"DuckOthers"` \| `"InterruptSpokenAudioAndMixWithOthers"` \| `"AllowBluetooth"` \| `"AllowBluetoothA2DP"` \| `"AllowAirPlay"` \| `"DefaultToSpeaker"`)[]
 
-Defined in: [src/ExpoAudioStream.types.ts:194](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L194)
+Defined in: [src/ExpoAudioStream.types.ts:194](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L194)
 
 Options that modify the behavior of the audio session category
 - 'MixWithOthers': Allows mixing with other active audio sessions
@@ -47,7 +47,7 @@ Options that modify the behavior of the audio session category
 
 > `optional` **mode**: `"Default"` \| `"VoiceChat"` \| `"VideoChat"` \| `"GameChat"` \| `"VideoRecording"` \| `"Measurement"` \| `"MoviePlayback"` \| `"SpokenAudio"`
 
-Defined in: [src/ExpoAudioStream.types.ts:175](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L175)
+Defined in: [src/ExpoAudioStream.types.ts:175](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L175)
 
 Audio session mode that defines the behavior for specific use cases
 - 'Default': Standard audio behavior
