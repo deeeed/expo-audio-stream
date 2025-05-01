@@ -39,12 +39,12 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ])
         
         OnCreate {
-            Logger.debug("[ExpoAudioStreamModule] Module created, setting delegate and starting device monitoring.")
+            Logger.debug("ExpoAudioStreamModule", "Module created, setting delegate and starting device monitoring.")
             streamManager.delegate = self
         }
         
         OnDestroy {
-            Logger.debug("[ExpoAudioStreamModule] Module destroyed, stopping device monitoring.")
+            Logger.debug("ExpoAudioStreamModule", "Module destroyed, stopping device monitoring.")
             _ = streamManager.stopRecording()
         }
         
@@ -58,10 +58,10 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///   - promise: A promise to resolve with the extracted audio analysis data or reject with an error.
         /// - Returns: Promise to be resolved with audio analysis data.
         AsyncFunction("extractAudioAnalysis") { (options: [String: Any], promise: Promise) in
-            Logger.debug("[ExpoAudioStreamModule] extractAudioAnalysis called with options: \(options)")
+            Logger.debug("ExpoAudioStreamModule", "extractAudioAnalysis called with options: \(options)")
             guard let fileUri = options["fileUri"] as? String,
                   let url = URL(string: fileUri) else {
-                Logger.error("[ExpoAudioStreamModule] extractAudioAnalysis: Invalid file URI.")
+                Logger.error("ExpoAudioStreamModule", "extractAudioAnalysis: Invalid file URI.")
                 promise.reject("INVALID_ARGUMENTS", "Invalid file URI provided")
                 return
             }
@@ -106,11 +106,11 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                         effectiveLength = byteLength
                     }
                     
-                    Logger.debug("[ExpoAudioStreamModule] extractAudioAnalysis: Processing started for \(fileUri)")
+                    Logger.debug("ExpoAudioStreamModule", "extractAudioAnalysis: Processing started for \(fileUri)")
                     let audioProcessor = try AudioProcessor(url: url, resolve: { result in
-                        Logger.warn("[ExpoAudioStreamModule] extractAudioAnalysis: AudioProcessor resolve called unexpectedly.")
+                        Logger.warn("ExpoAudioStreamModule", "extractAudioAnalysis: AudioProcessor resolve called unexpectedly.")
                     }, reject: { code, message in
-                        Logger.warn("[ExpoAudioStreamModule] extractAudioAnalysis: AudioProcessor reject called unexpectedly: \(code) - \(message)")
+                        Logger.warn("ExpoAudioStreamModule", "extractAudioAnalysis: AudioProcessor reject called unexpectedly: \(code) - \(message)")
                     })
                     
                     if let result = audioProcessor.processAudioData(
@@ -124,14 +124,14 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                         position: effectivePosition,
                         byteLength: effectiveLength
                     ) {
-                        Logger.debug("[ExpoAudioStreamModule] extractAudioAnalysis: Processing successful for \(fileUri)")
+                        Logger.debug("ExpoAudioStreamModule", "extractAudioAnalysis: Processing successful for \(fileUri)")
                         promise.resolve(result.toDictionary())
                     } else {
-                        Logger.error("[ExpoAudioStreamModule] extractAudioAnalysis: audioProcessor.processAudioData returned nil for \(fileUri)")
+                        Logger.error("ExpoAudioStreamModule", "extractAudioAnalysis: audioProcessor.processAudioData returned nil for \(fileUri)")
                         promise.reject("PROCESSING_ERROR", "Failed to process audio data")
                     }
                 } catch {
-                    Logger.error("[ExpoAudioStreamModule] extractAudioAnalysis: Error initializing AudioProcessor for \(fileUri): \(error.localizedDescription)")
+                    Logger.error("ExpoAudioStreamModule", "extractAudioAnalysis: Error initializing AudioProcessor for \(fileUri): \(error.localizedDescription)")
                     promise.reject("PROCESSING_ERROR", "Failed to initialize audio processor: \(error.localizedDescription)")
                 }
             })
@@ -158,10 +158,10 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///       - `bitrate`: The compression bitrate in bps (default is 128000).
         ///   - promise: A promise to resolve with the recording settings or reject with an error.
         AsyncFunction("startRecording") { (options: [String: Any], promise: Promise) in
-            Logger.debug("[ExpoAudioStreamModule] startRecording called with options: \(options)")
+            Logger.debug("ExpoAudioStreamModule", "startRecording called with options: \(options)")
             self.checkMicrophonePermission { granted in
                 guard granted else {
-                    Logger.warn("[ExpoAudioStreamModule] startRecording: Permission denied.")
+                    Logger.warn("ExpoAudioStreamModule", "startRecording: Permission denied.")
                     promise.reject("PERMISSION_DENIED", "Recording permission has not been granted")
                     return
                 }
@@ -180,7 +180,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     modifiedCompression["format"] = "aac"
                     modifiedOptions["compression"] = modifiedCompression
                     
-                    Logger.warn("[ExpoAudioStreamModule] startRecording: Opus format is not supported on iOS. Falling back to AAC format.")
+                    Logger.warn("ExpoAudioStreamModule", "startRecording: Opus format is not supported on iOS. Falling back to AAC format.")
                 }
                 
                 // Create settings with validation using the potentially modified options
@@ -188,18 +188,18 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 
                 switch settingsResult {
                 case .success(let settings):
-                    Logger.debug("[ExpoAudioStreamModule] startRecording: Settings parsed successfully. ShowNotification=\(settings.showNotification)")
+                    Logger.debug("ExpoAudioStreamModule", "startRecording: Settings parsed successfully. ShowNotification=\(settings.showNotification)")
                     // Initialize notification if enabled
                     if settings.showNotification {
                         Task {
                             let notificationGranted = await self.requestNotificationPermissions()
                             if !notificationGranted {
-                                Logger.debug("Notification permissions not granted")
+                                Logger.debug("ExpoAudioStreamModule", "Notification permissions not granted")
                             }
                         }
                     }
                     
-                    Logger.debug("[ExpoAudioStreamModule] startRecording: Calling streamManager.startRecording")
+                    Logger.debug("ExpoAudioStreamModule", "startRecording: Calling streamManager.startRecording")
                     if let result = self.streamManager.startRecording(settings: settings) {
                         var resultDict: [String: Any] = [
                             "fileUri": result.fileUri,
@@ -219,15 +219,15 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                             ]
                         }
                         
-                        Logger.info("[ExpoAudioStreamModule] startRecording: Recording started successfully. fileUri: \(result.fileUri)")
+                        Logger.info("ExpoAudioStreamModule", "startRecording: Recording started successfully. fileUri: \(result.fileUri)")
                         promise.resolve(resultDict)
                     } else {
-                        Logger.error("[ExpoAudioStreamModule] startRecording: streamManager.startRecording returned nil.")
+                        Logger.error("ExpoAudioStreamModule", "startRecording: streamManager.startRecording returned nil.")
                         promise.reject("ERROR", "Failed to start recording.")
                     }
                     
                 case .failure(let error):
-                    Logger.error("[ExpoAudioStreamModule] startRecording: Invalid settings - \(error.localizedDescription)")
+                    Logger.error("ExpoAudioStreamModule", "startRecording: Invalid settings - \(error.localizedDescription)")
                     promise.reject("INVALID_SETTINGS", error.localizedDescription)
                 }
             }
@@ -238,7 +238,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         /// - Returns: The current status of the audio stream.Ï
         Function("status") {
             let currentStatus = self.streamManager.getStatus()
-            Logger.debug("[ExpoAudioStreamModule] status requested: isRecording=\(currentStatus["isRecording"] ?? false), isPaused=\(currentStatus["isPaused"] ?? false)")
+            Logger.debug("ExpoAudioStreamModule", "status requested: isRecording=\(currentStatus["isRecording"] ?? false), isPaused=\(currentStatus["isPaused"] ?? false)")
             return currentStatus
         }
         
@@ -249,7 +249,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///   - promise: A promise to resolve with true if preparation was successful.
         /// - Returns: A promise that resolves with a boolean indicating success.
         AsyncFunction("prepareRecording") { (options: [String: Any], promise: Promise) in
-            Logger.debug("[ExpoAudioStreamModule] prepareRecording called with options: \(options)")
+            Logger.debug("ExpoAudioStreamModule", "prepareRecording called with options: \(options)")
             self.checkMicrophonePermission { granted in
                 guard granted else {
                     promise.reject("PERMISSION_DENIED", "Recording permission has not been granted")
@@ -261,12 +261,12 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                 
                 switch settingsResult {
                 case .success(let settings):
-                    Logger.debug("[ExpoAudioStreamModule] prepareRecording: Settings parsed successfully. Calling streamManager.prepareRecording")
+                    Logger.debug("ExpoAudioStreamModule", "prepareRecording: Settings parsed successfully. Calling streamManager.prepareRecording")
                     if self.streamManager.prepareRecording(settings: settings) {
-                        Logger.info("[ExpoAudioStreamModule] prepareRecording: Preparation successful.")
+                        Logger.info("ExpoAudioStreamModule", "prepareRecording: Preparation successful.")
                         promise.resolve(true)
                     } else {
-                        Logger.error("[ExpoAudioStreamModule] prepareRecording: streamManager.prepareRecording returned false.")
+                        Logger.error("ExpoAudioStreamModule", "prepareRecording: streamManager.prepareRecording returned false.")
                         promise.reject("ERROR", "Failed to prepare recording.")
                     }
                     
@@ -278,13 +278,13 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         
         /// Pauses audio recording.
         Function("pauseRecording") {
-            Logger.debug("[ExpoAudioStreamModule] pauseRecording called.")
+            Logger.debug("ExpoAudioStreamModule", "pauseRecording called.")
             self.streamManager.pauseRecording()
         }
         
         /// Resumes audio recording.
         Function("resumeRecording") {
-            Logger.debug("[ExpoAudioStreamModule] resumeRecording called.")
+            Logger.debug("ExpoAudioStreamModule", "resumeRecording called.")
             self.streamManager.resumeRecording()
         }
         
@@ -293,7 +293,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         /// - Parameters:
         ///   - promise: A promise to resolve with the recording result or reject with an error.
         AsyncFunction("stopRecording") { (promise: Promise) in
-            Logger.debug("[ExpoAudioStreamModule] stopRecording called.")
+            Logger.debug("ExpoAudioStreamModule", "stopRecording called.")
             if let recordingResult = self.streamManager.stopRecording() {
                 var resultDict: [String: Any] = [
                     "fileUri": recordingResult.fileUri,
@@ -318,10 +318,10 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     ]
                 }
                 
-                Logger.info("[ExpoAudioStreamModule] stopRecording: Recording stopped successfully. fileUri: \(recordingResult.fileUri), size: \(recordingResult.size)")
+                Logger.info("ExpoAudioStreamModule", "stopRecording: Recording stopped successfully. fileUri: \(recordingResult.fileUri), size: \(recordingResult.size)")
                 promise.resolve(resultDict)
             } else {
-                Logger.error("[ExpoAudioStreamModule] stopRecording: streamManager.stopRecording returned nil.")
+                Logger.error("ExpoAudioStreamModule", "stopRecording: streamManager.stopRecording returned nil.")
                 promise.reject("ERROR", "Failed to stop recording or no recording in progress.")
             }
         }
@@ -332,15 +332,15 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///   - promise: A promise to resolve with the list of audio file URIs or reject with an error.
         /// - Returns: A promise that resolves with the list of audio file URIs or rejects with an error.
         AsyncFunction("listAudioFiles") { (promise: Promise) in
-            Logger.debug("[ExpoAudioStreamModule] listAudioFiles called.")
+            Logger.debug("ExpoAudioStreamModule", "listAudioFiles called.")
             let files = listAudioFiles()
-            Logger.debug("[ExpoAudioStreamModule] listAudioFiles returning \(files.count) files.")
+            Logger.debug("ExpoAudioStreamModule", "listAudioFiles returning \(files.count) files.")
             promise.resolve(files)
         }
         
         /// Clears all audio files stored in the document directory.
         Function("clearAudioFiles") {
-            Logger.debug("[ExpoAudioStreamModule] clearAudioFiles called.")
+            Logger.debug("ExpoAudioStreamModule", "clearAudioFiles called.")
             clearAudioFiles()
         }
         
@@ -432,14 +432,14 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             let decodingOptions = options["decodingOptions"] as? [String: Any] ?? [:]
 
             // Add detailed logging for filename and format options
-            Logger.debug("Trim audio request:")
-            Logger.debug("- Input file: \(fileUri)")
-            Logger.debug("- Mode: \(mode)")
-            Logger.debug("- Output filename: \(outputFileName ?? "not specified (will generate UUID)")")
+            Logger.debug("ExpoAudioStreamModule", "Trim audio request:")
+            Logger.debug("ExpoAudioStreamModule", "- Input file: \(fileUri)")
+            Logger.debug("ExpoAudioStreamModule", "- Mode: \(mode)")
+            Logger.debug("ExpoAudioStreamModule", "- Output filename: \(outputFileName ?? "not specified (will generate UUID)")")
             if let format = outputFormat?["format"] as? String {
-                Logger.debug("- Output format: \(format)")
+                Logger.debug("ExpoAudioStreamModule", "- Output format: \(format)")
             } else {
-                Logger.debug("- Output format: not specified (will use default)")
+                Logger.debug("ExpoAudioStreamModule", "- Output format: not specified (will use default)")
             }
 
             // Input validation based on mode
@@ -495,28 +495,28 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                         resultDict["processingInfo"] = ["durationMs": processingTimeMs]
                         
                         let uri = result.uri
-                        Logger.debug("Trim completed successfully in \(processingTimeMs)ms")
-                        Logger.debug("Output file URI: \(uri)")
+                        Logger.debug("ExpoAudioStreamModule", "Trim completed successfully in \(processingTimeMs)ms")
+                        Logger.debug("ExpoAudioStreamModule", "Output file URI: \(uri)")
                         
                         // Verify file exists
                         let fileManager = FileManager.default
                         if let url = URL(string: uri) {
                             let exists = fileManager.fileExists(atPath: url.path)
-                            Logger.debug("File exists at path \(url.path): \(exists)")
+                            Logger.debug("ExpoAudioStreamModule", "File exists at path \(url.path): \(exists)")
                             
                             // Log filename details
-                            Logger.debug("Filename: \(url.lastPathComponent)")
-                            Logger.debug("File extension: \(url.pathExtension.lowercased())")
+                            Logger.debug("ExpoAudioStreamModule", "Filename: \(url.lastPathComponent)")
+                            Logger.debug("ExpoAudioStreamModule", "File extension: \(url.pathExtension.lowercased())")
                             
                             // If format is AAC, ensure we're using the correct extension and MIME type
                             if let format = outputFormat?["format"] as? String, 
                                format.lowercased() == "aac" {
                                 
-                                Logger.debug("AAC format detected - ensuring correct metadata")
+                                Logger.debug("ExpoAudioStreamModule", "AAC format detected - ensuring correct metadata")
                                 
                                 // For AAC format, ensure we're using the correct extension and MIME type
                                 if url.pathExtension.lowercased() == "m4a" {
-                                    Logger.debug("File has correct m4a extension for AAC audio")
+                                    Logger.debug("ExpoAudioStreamModule", "File has correct m4a extension for AAC audio")
                                     
                                     // Just update the MIME type in the result to ensure correct playback
                                     if var compression = resultDict["compression"] as? [String: Any] {
@@ -527,18 +527,18 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                                     resultDict["mimeType"] = "audio/mp4"
                                     resultDict["actualFormat"] = "m4a"
                                 } else {
-                                    Logger.debug("Warning: AAC format should use .m4a extension, but found .\(url.pathExtension.lowercased())")
+                                    Logger.debug("ExpoAudioStreamModule", "Warning: AAC format should use .m4a extension, but found .\(url.pathExtension.lowercased())")
                                 }
                             }
                         }
                         
                         promise.resolve(resultDict)
                     } else {
-                        Logger.debug("Failed to trim audio")
+                        Logger.debug("ExpoAudioStreamModule", "Failed to trim audio")
                         promise.reject("TRIM_ERROR", "Failed to trim audio")
                     }
                 } catch {
-                    Logger.debug("Failed to initialize audio processor: \(error.localizedDescription)")
+                    Logger.debug("ExpoAudioStreamModule", "Failed to initialize audio processor: \(error.localizedDescription)")
                     promise.reject("PROCESSING_ERROR", "Failed to initialize audio processor: \(error.localizedDescription)")
                 }
             }
@@ -666,7 +666,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     let checksum = calculateCRC32(data: pcmData)
                     resultDict["checksum"] = Int(checksum)
                     
-                    Logger.debug("Computed CRC32 checksum: \(checksum)")
+                    Logger.debug("ExpoAudioStreamModule", "Computed CRC32 checksum: \(checksum)")
                 }
                 
                 if let includeBase64Data = options["includeBase64Data"] as? Bool, includeBase64Data {
@@ -702,9 +702,9 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///   - options: Optional dictionary containing a refresh parameter
         ///   - promise: A promise to resolve with a list of available audio input devices
         AsyncFunction("getAvailableInputDevices") { (options: [String: Any]?, promise: Promise) in
-            Logger.debug("[ExpoAudioStreamModule] getAvailableInputDevices called. Refresh: \(options?["refresh"] ?? false)")
+            Logger.debug("ExpoAudioStreamModule", "getAvailableInputDevices called. Refresh: \(options?["refresh"] ?? false)")
             if let options = options, let refresh = options["refresh"] as? Bool, refresh {
-                Logger.debug("Forcing refresh of audio devices")
+                Logger.debug("ExpoAudioStreamModule", "Forcing refresh of audio devices")
                 self.deviceManager.forceRefreshAudioSession()
             }
             
@@ -715,9 +715,9 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         /// Refreshes the audio session to detect newly connected devices
         /// - Returns: Boolean indicating success
         Function("refreshAudioDevices") {
-            Logger.debug("[ExpoAudioStreamModule] refreshAudioDevices called.")
+            Logger.debug("ExpoAudioStreamModule", "refreshAudioDevices called.")
             let success = self.deviceManager.forceRefreshAudioSession()
-            Logger.debug("[ExpoAudioStreamModule] refreshAudioDevices result: \(success)")
+            Logger.debug("ExpoAudioStreamModule", "refreshAudioDevices result: \(success)")
             return ["success": success]
         }
         
@@ -726,7 +726,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         /// - Parameters:
         ///   - promise: A promise to resolve with the currently selected audio input device
         AsyncFunction("getCurrentInputDevice") { (promise: Promise) in
-            Logger.debug("[ExpoAudioStreamModule] getCurrentInputDevice called.")
+            Logger.debug("ExpoAudioStreamModule", "getCurrentInputDevice called.")
             self.deviceManager.getCurrentInputDevice(promise: promise)
         }
         
@@ -736,14 +736,14 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///   - deviceId: The ID of the device to select
         ///   - promise: A promise to resolve with boolean indicating success
         AsyncFunction("selectInputDevice") { (deviceId: String, promise: Promise) in
-            Logger.debug("[ExpoAudioStreamModule] selectInputDevice called with ID: \(deviceId)")
+            Logger.debug("ExpoAudioStreamModule", "selectInputDevice called with ID: \(deviceId)")
             self.deviceManager.selectInputDevice(deviceId, promise: promise)
             // Update the audio recorder if recording is in progress or prepared
             if self.streamManager.isRecording || self.streamManager.isPrepared {
-                Logger.debug("[ExpoAudioStreamModule] selectInputDevice: Calling updateAudioSessionWithCurrentSettings because recording/prepared.")
+                Logger.debug("ExpoAudioStreamModule", "selectInputDevice: Calling updateAudioSessionWithCurrentSettings because recording/prepared.")
                 self.streamManager.updateAudioSessionWithCurrentSettings()
             } else {
-                Logger.debug("[ExpoAudioStreamModule] selectInputDevice: Not calling updateAudioSessionWithCurrentSettings because not recording/prepared.")
+                Logger.debug("ExpoAudioStreamModule", "selectInputDevice: Not calling updateAudioSessionWithCurrentSettings because not recording/prepared.")
             }
         }
         
@@ -752,18 +752,18 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         /// - Parameters:
         ///   - promise: A promise to resolve with boolean indicating success
         AsyncFunction("resetToDefaultDevice") { (promise: Promise) in
-            Logger.debug("[ExpoAudioStreamModule] resetToDefaultDevice called.")
+            Logger.debug("ExpoAudioStreamModule", "resetToDefaultDevice called.")
             self.deviceManager.resetToDefaultDevice { success, error in
                 if success {
                     if self.streamManager.isRecording || self.streamManager.isPrepared {
-                        Logger.debug("[ExpoAudioStreamModule] resetToDefaultDevice: Calling updateAudioSessionWithCurrentSettings because recording/prepared.")
+                        Logger.debug("ExpoAudioStreamModule", "resetToDefaultDevice: Calling updateAudioSessionWithCurrentSettings because recording/prepared.")
                         self.streamManager.updateAudioSessionWithCurrentSettings()
                     } else {
-                        Logger.debug("[ExpoAudioStreamModule] resetToDefaultDevice: Not calling updateAudioSessionWithCurrentSettings because not recording/prepared.")
+                        Logger.debug("ExpoAudioStreamModule", "resetToDefaultDevice: Not calling updateAudioSessionWithCurrentSettings because not recording/prepared.")
                     }
                     promise.resolve(true)
                 } else {
-                    Logger.error("[ExpoAudioStreamModule] resetToDefaultDevice failed: \(error?.localizedDescription ?? "Unknown error")")
+                    Logger.error("ExpoAudioStreamModule", "resetToDefaultDevice failed: \(error?.localizedDescription ?? "Unknown error")")
                     promise.reject("DEVICE_ERROR", "Failed to reset to default device: \(error?.localizedDescription ?? "Unknown error")")
                 }
             }
@@ -771,7 +771,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveInterruption info: [String: Any]) {
-        Logger.debug("[ExpoAudioStreamModule] Delegate: didReceiveInterruption: \(info)")
+        Logger.debug("ExpoAudioStreamModule", "Delegate: didReceiveInterruption: \(info)")
         // Convert iOS interruption events to match the TypeScript types
         var reason: String
         var isPaused: Bool = true
@@ -808,7 +808,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didPauseRecording pauseTime: Date) {
-        Logger.debug("[ExpoAudioStreamModule] Delegate: didPauseRecording")
+        Logger.debug("ExpoAudioStreamModule", "Delegate: didPauseRecording")
         sendEvent(recordingInterruptedEvent, [
             "reason": "userPaused",
             "isPaused": true,
@@ -817,7 +817,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didResumeRecording resumeTime: Date) {
-        Logger.debug("[ExpoAudioStreamModule] Delegate: didResumeRecording")
+        Logger.debug("ExpoAudioStreamModule", "Delegate: didResumeRecording")
         sendEvent(recordingInterruptedEvent, [
             "reason": "userResumed",
             "isPaused": false,
@@ -826,7 +826,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didUpdateNotificationState isPaused: Bool) {
-        Logger.debug("[ExpoAudioStreamModule] Delegate: didUpdateNotificationState: isPaused=\(isPaused)")
+        Logger.debug("ExpoAudioStreamModule", "Delegate: didUpdateNotificationState: isPaused=\(isPaused)")
         sendEvent(recordingInterruptedEvent, [
             "reason": "notification",
             "isPaused": isPaused,
@@ -873,16 +873,16 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             let options: UNAuthorizationOptions = [.alert, .sound]
             return try await notificationCenter.requestAuthorization(options: options)
         } catch {
-            Logger.debug("Failed to request notification permissions: \(error)")
+            Logger.debug("ExpoAudioStreamModule", "Failed to request notification permissions: \(error)")
             return false
         }
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveProcessingResult result: AudioAnalysisData?) {
         if let data = result {
-            Logger.debug("[ExpoAudioStreamModule] Delegate: didReceiveProcessingResult: Received \(data.dataPoints.count) data points.")
+            Logger.debug("ExpoAudioStreamModule", "Delegate: didReceiveProcessingResult: Received \(data.dataPoints.count) data points.")
         } else {
-            Logger.debug("[ExpoAudioStreamModule] Delegate: didReceiveProcessingResult: Received nil result.")
+            Logger.debug("ExpoAudioStreamModule", "Delegate: didReceiveProcessingResult: Received nil result.")
         }
         let resultDict = result?.toDictionary() ?? [:] 
         sendEvent(audioAnalysisEvent, resultDict)
@@ -916,12 +916,12 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             if let fileURL = URL(string: fileURLString) {
                 do {
                     try FileManager.default.removeItem(at: fileURL)
-                    print("Removed file at:", fileURL.path)
+                    print("ExpoAudioStreamModule", "Removed file at:", fileURL.path)
                 } catch {
-                    print("Error removing file at \(fileURL.path):", error.localizedDescription)
+                    print("ExpoAudioStreamModule", "Error removing file at \(fileURL.path):", error.localizedDescription)
                 }
             } else {
-                print("Invalid URL string: \(fileURLString)")
+                print("ExpoAudioStreamModule", "Invalid URL string: \(fileURLString)")
             }
         }
     }
@@ -958,7 +958,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     /// - Returns: An array of file URIs as strings.
     func listAudioFiles() -> [String] {
         guard let documentDirectory = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) else {
-            print("Failed to access document directory.")
+            print("ExpoAudioStreamModule", "Failed to access document directory.")
             return []
         }
         
@@ -967,13 +967,13 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             let audioFiles = files.filter { $0.pathExtension == "wav" }.map { $0.absoluteString }
             return audioFiles
         } catch {
-            print("Error listing audio files:", error.localizedDescription)
+            print("ExpoAudioStreamModule", "Error listing audio files:", error.localizedDescription)
             return []
         }
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didFailWithError error: String) {
-        Logger.error("[ExpoAudioStreamModule] Delegate: didFailWithError: \(error)")
+        Logger.error("ExpoAudioStreamModule", "Delegate: didFailWithError: \(error)")
         sendEvent(errorEvent, [ "message": error ])
     }
 }

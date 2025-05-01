@@ -156,7 +156,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         switch type {
         case .began:
-            Logger.debug("Audio session interruption began")
+            Logger.debug("AudioStreamManager", "Audio session interruption began")
             // Store the pause start time if not already paused
             if !wasSuspended {
                 currentPauseStart = Date()
@@ -173,17 +173,17 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             )
             
         case .ended:
-            Logger.debug("Audio session interruption ended - autoResume: \(autoResumeAfterInterruption), wasSuspended: \(wasSuspended)")
+            Logger.debug("AudioStreamManager", "Audio session interruption ended - autoResume: \(autoResumeAfterInterruption), wasSuspended: \(wasSuspended)")
             if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-                Logger.debug("Interruption options - shouldResume: \(options.contains(.shouldResume))")
+                Logger.debug("AudioStreamManager", "Interruption options - shouldResume: \(options.contains(.shouldResume))")
                 
                 // Calculate pause duration if we have a pause start time
                 if let pauseStart = currentPauseStart {
                     let pauseDuration = Date().timeIntervalSince(pauseStart)
                     totalPausedDuration += pauseDuration
                     currentPauseStart = nil
-                    Logger.debug("Added interruption pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
+                    Logger.debug("AudioStreamManager", "Added interruption pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
                 }
                 
                 // For phone calls, we should auto-resume if enabled, regardless of previous pause state
@@ -191,7 +191,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     // Add a longer delay for phone calls and ensure proper session setup
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                         guard let self = self else { return }
-                        Logger.debug("Attempting to auto-resume recording after phone call")
+                        Logger.debug("AudioStreamManager", "Attempting to auto-resume recording after phone call")
                         
                         // Configure audio session
                         do {
@@ -201,14 +201,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                             
                             // Resume if we're still recording and paused
                             if self.isRecording && self.isPaused {
-                                Logger.debug("Resuming recording after phone call interruption")
+                                Logger.debug("AudioStreamManager", "Resuming recording after phone call interruption")
                                 self.audioEngine.prepare() 
                                 self.resumeRecording()
                             } else {
-                                Logger.debug("Cannot resume - recording state invalid: isRecording=\(self.isRecording), isPaused=\(self.isPaused)")
+                                Logger.debug("AudioStreamManager", "Cannot resume - recording state invalid: isRecording=\(self.isRecording), isPaused=\(self.isPaused)")
                             }
                         } catch {
-                            Logger.debug("Failed to reactivate audio session: \(error)")
+                            Logger.debug("AudioStreamManager", "Failed to reactivate audio session: \(error)")
                             self.delegate?.audioStreamManager(self, didFailWithError: "Failed to auto-resume: \(error.localizedDescription)")
                         }
                     }
@@ -236,7 +236,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             try audioSession?.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .mixWithOthers])
             try audioSession?.setActive(true)
         } catch {
-            Logger.debug("Failed to configure audio session: \(error)")
+            Logger.debug("AudioStreamManager", "Failed to configure audio session: \(error)")
         }
         
         // Setup Now Playing info
@@ -381,7 +381,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 let pauseDuration = Date().timeIntervalSince(pauseStart)
                 totalPausedDuration += pauseDuration
                 currentPauseStart = nil
-                Logger.debug("Added background pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
+                Logger.debug("AudioStreamManager", "Added background pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
             }
             
             notificationManager?.stopUpdates()
@@ -436,7 +436,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             self.wasIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled
             UIApplication.shared.isIdleTimerDisabled = true
             self.isWakeLockEnabled = true
-            Logger.debug("Wake lock enabled")
+            Logger.debug("AudioStreamManager", "Wake lock enabled")
         }
     }
     
@@ -450,7 +450,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         DispatchQueue.main.async {
             UIApplication.shared.isIdleTimerDisabled = self.wasIdleTimerDisabled
             self.isWakeLockEnabled = false
-            Logger.debug("Wake lock disabled")
+            Logger.debug("AudioStreamManager", "Wake lock disabled")
         }
     }
     
@@ -458,17 +458,17 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     /// - Returns: The URL of the newly created recording file, or nil if creation failed.
     private func createRecordingFile(isCompressed: Bool = false) -> URL? {
         // Add debug logging
-        Logger.debug("Creating recording file - settings filename: \(recordingSettings?.filename ?? "nil")")
+        Logger.debug("AudioStreamManager", "Creating recording file - settings filename: \(recordingSettings?.filename ?? "nil")")
         
         // Get base directory - use default if no custom directory provided
         let baseDirectory: URL
         if let customDir = recordingSettings?.outputDirectory {
             baseDirectory = URL(fileURLWithPath: customDir)
-            Logger.debug("Using custom directory: \(customDir)")
+            Logger.debug("AudioStreamManager", "Using custom directory: \(customDir)")
         } else {
             // Use existing default behavior
             baseDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-            Logger.debug("Using default directory: \(baseDirectory.path)")
+            Logger.debug("AudioStreamManager", "Using default directory: \(baseDirectory.path)")
         }
         
         // Generate or reuse UUID for filename
@@ -481,7 +481,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             recordingUUID = newUUID
             baseFilename = newUUID.uuidString
         }
-        Logger.debug("Using base filename: \(baseFilename)")
+        Logger.debug("AudioStreamManager", "Using base filename: \(baseFilename)")
         
         // Remove any existing extension from the filename
         let filenameWithoutExtension = baseFilename.replacingOccurrences(
@@ -499,19 +499,19 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
         
         let fullFilename = "\(filenameWithoutExtension).\(fileExtension)"
-        Logger.debug("Full filename: \(fullFilename)")
+        Logger.debug("AudioStreamManager", "Full filename: \(fullFilename)")
         
         let fileURL = baseDirectory.appendingPathComponent(fullFilename)
-        Logger.debug("Final file URL: \(fileURL.path)")
+        Logger.debug("AudioStreamManager", "Final file URL: \(fileURL.path)")
         
         // Check if file already exists
         if fileManager.fileExists(atPath: fileURL.path) {
-            Logger.debug("File already exists at: \(fileURL.path)")
+            Logger.debug("AudioStreamManager", "File already exists at: \(fileURL.path)")
             return nil
         }
         
         if !fileManager.createFile(atPath: fileURL.path, contents: nil, attributes: nil) {
-            Logger.debug("Failed to create file at: \(fileURL.path)")
+            Logger.debug("AudioStreamManager", "Failed to create file at: \(fileURL.path)")
             return nil
         }
         return fileURL
@@ -591,7 +591,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             do {
                 let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedURL.path)
                 if let compressedSize = compressedAttributes[.size] as? Int64 {
-                    Logger.debug("Compressed file status - Size: \(compressedSize)")
+                    Logger.debug("AudioStreamManager", "Compressed file status - Size: \(compressedSize)")
                     let compressionBundle: [String: Any] = [
                         "fileUri": compressedURL.absoluteString,
                         "mimeType": compressedFormat == "aac" ? "audio/aac" : "audio/opus",
@@ -602,7 +602,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     status["compression"] = compressionBundle
                 }
             } catch {
-                Logger.debug("Error getting compressed file attributes: \(error)")
+                Logger.debug("AudioStreamManager", "Error getting compressed file attributes: \(error)")
             }
         }
         
@@ -634,8 +634,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         let nodeOutputFormat = inputNode.outputFormat(forBus: 0)
         
         // Log format information for diagnostic purposes
-        Logger.debug("Installing tap - Hardware input format: \(describeAudioFormat(inputHardwareFormat))")
-        Logger.debug("Node output format: \(describeAudioFormat(nodeOutputFormat))")
+        Logger.debug("AudioStreamManager", "Installing tap - Hardware input format: \(describeAudioFormat(inputHardwareFormat))")
+        Logger.debug("AudioStreamManager", "Node output format: \(describeAudioFormat(nodeOutputFormat))")
         
         // Remove any existing tap
         inputNode.removeTap(onBus: 0)
@@ -654,12 +654,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         // Install the tap with hardware format
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputHardwareFormat, block: tapBlock)
-        Logger.debug("Tap installed with hardware-compatible format")
+        Logger.debug("AudioStreamManager", "Tap installed with hardware-compatible format")
         
         // Prepare the engine if requested
         if prepareEngine {
             audioEngine.prepare()
-            Logger.debug("Engine prepared after tap installation")
+            Logger.debug("AudioStreamManager", "Engine prepared after tap installation")
         }
         
         return inputHardwareFormat
@@ -676,13 +676,13 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         // Skip if already prepared or recording
         guard !isPrepared && !isRecording else {
-            Logger.debug("Already prepared or recording in progress.")
+            Logger.debug("AudioStreamManager", "Already prepared or recording in progress.")
             return isPrepared
         }
 
         // Check for active call using the new method
         if isPhoneCallActive() {
-            Logger.debug("Cannot prepare recording during an active phone call")
+            Logger.debug("AudioStreamManager", "Cannot prepare recording during an active phone call")
             delegate?.audioStreamManager(self, didFailWithError: "Cannot prepare recording during an active phone call")
             return false
         }
@@ -694,7 +694,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             Thread.sleep(forTimeInterval: 0.1) // Brief pause to ensure clean state
             try session.setActive(true, options: .notifyOthersOnDeactivation)
         } catch {
-            Logger.debug("Failed to reset audio session: \(error)")
+            Logger.debug("AudioStreamManager", "Failed to reset audio session: \(error)")
             delegate?.audioStreamManager(self, didFailWithError: "Failed to reset audio session: \(error.localizedDescription)")
             return false
         }
@@ -731,14 +731,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 let header = createWavHeader(dataSize: 0)
                 self.fileHandle?.write(header)
                 self.totalDataSize = Int64(WAV_HEADER_SIZE) // Initialize size with header size
-                Logger.debug("File handle opened and initial header written for \(url.path). Initial size: \(self.totalDataSize)")
+                Logger.debug("AudioStreamManager", "File handle opened and initial header written for \(url.path). Initial size: \(self.totalDataSize)")
             } catch {
-                Logger.debug("Error creating/opening file handle: \(error.localizedDescription)")
+                Logger.debug("AudioStreamManager", "Error creating/opening file handle: \(error.localizedDescription)")
                 // No need to call cleanupPreparation here, return false will handle it
                 return false
             }
         } else {
-            Logger.debug("Error: Failed to create recording file URL.")
+            Logger.debug("AudioStreamManager", "Error: Failed to create recording file URL.")
             return false
         }
         
@@ -746,11 +746,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         // Then set up audio session and tap
         do {
-            Logger.debug("Configuring audio session with sample rate: \(settings.sampleRate) Hz")
+            Logger.debug("AudioStreamManager", "Configuring audio session with sample rate: \(settings.sampleRate) Hz")
             
             let session = AVAudioSession.sharedInstance()
             if let currentRoute = session.currentRoute.outputs.first {
-                Logger.debug("Current audio output: \(currentRoute.portType)")
+                Logger.debug("AudioStreamManager", "Current audio output: \(currentRoute.portType)")
                 newSettings.sampleRate = settings.sampleRate  // Keep original sample rate
             }
             
@@ -767,12 +767,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             
             // Append necessary options for background recording if keepAwake is enabled
             if settings.keepAwake {
-                Logger.debug("keepAwake enabled - configuring for background recording")
+                Logger.debug("AudioStreamManager", "keepAwake enabled - configuring for background recording")
                 // Add background audio option
                 options.insert(.mixWithOthers)
                 try session.setActive(true, options: .notifyOthersOnDeactivation)
             } else {
-                Logger.debug("keepAwake disabled - using standard session configuration")
+                Logger.debug("AudioStreamManager", "keepAwake disabled - using standard session configuration")
                 // If keepAwake is false, don't add background audio options
                 try session.setActive(true)
             }
@@ -788,27 +788,27 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             try session.setActive(true, options: .notifyOthersOnDeactivation)
 
             // Log session config details as single lines for clarity
-            Logger.debug("Audio session configured:")
-            Logger.debug("  - category: \(category)")
-            Logger.debug("  - mode: \(mode)")
-            Logger.debug("  - options: \(options)")
-            Logger.debug("  - keepAwake: \(settings.keepAwake)")
-            Logger.debug("  - emission interval: \(emissionInterval * 1000)ms")
-            Logger.debug("  - analysis interval: \(emissionIntervalAnalysis * 1000)ms")
-            Logger.debug("  - requested sample rate: \(settings.sampleRate)Hz")
-            Logger.debug("  - actual session sample rate: \(session.sampleRate)Hz") // Log actual rate
-            Logger.debug("  - channels: \(settings.numberOfChannels)")
-            Logger.debug("  - bit depth: \(settings.bitDepth)-bit")
-            Logger.debug("  - compression enabled: \(settings.enableCompressedOutput)")
+            Logger.debug("AudioStreamManager", "Audio session configured:")
+            Logger.debug("AudioStreamManager", "  - category: \(category)")
+            Logger.debug("AudioStreamManager", "  - mode: \(mode)")
+            Logger.debug("AudioStreamManager", "  - options: \(options)")
+            Logger.debug("AudioStreamManager", "  - keepAwake: \(settings.keepAwake)")
+            Logger.debug("AudioStreamManager", "  - emission interval: \(emissionInterval * 1000)ms")
+            Logger.debug("AudioStreamManager", "  - analysis interval: \(emissionIntervalAnalysis * 1000)ms")
+            Logger.debug("AudioStreamManager", "  - requested sample rate: \(settings.sampleRate)Hz")
+            Logger.debug("AudioStreamManager", "  - actual session sample rate: \(session.sampleRate)Hz") // Log actual rate
+            Logger.debug("AudioStreamManager", "  - channels: \(settings.numberOfChannels)")
+            Logger.debug("AudioStreamManager", "  - bit depth: \(settings.bitDepth)-bit")
+            Logger.debug("AudioStreamManager", "  - compression enabled: \(settings.enableCompressedOutput)")
 
             // Use our shared tap installation method
             let tapFormat = installTapWithHardwareFormat()
 
             // Log tap configuration
-            Logger.debug("Final Tap Configuration (Using Hardware Format):")
-            Logger.debug("  - Tap Format: \(describeAudioFormat(tapFormat))")
-            Logger.debug("  - Session Rate: \(session.sampleRate) Hz")
-            Logger.debug("  - Requested Output Format: \(settings.bitDepth)-bit at \(settings.sampleRate)Hz")
+            Logger.debug("AudioStreamManager", "Final Tap Configuration (Using Hardware Format):")
+            Logger.debug("AudioStreamManager", "  - Tap Format: \(describeAudioFormat(tapFormat))")
+            Logger.debug("AudioStreamManager", "  - Session Rate: \(session.sampleRate) Hz")
+            Logger.debug("AudioStreamManager", "  - Requested Output Format: \(settings.bitDepth)-bit at \(settings.sampleRate)Hz")
 
             recordingSettings = newSettings  // Keep original settings with desired sample rate
 
@@ -826,13 +826,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     AVEncoderBitDepthHintKey: settings.bitDepth
                 ]
                 
-                Logger.debug("Initializing compressed recording with settings: \(compressedSettings)")
+                
+                Logger.debug("AudioStreamManager", "Initializing compressed recording with settings: \(compressedSettings)")
                 
                 // Create file for compressed recording
                 compressedFileURL = createRecordingFile(isCompressed: true)
                 
                 if let url = compressedFileURL {
-                    Logger.debug("Using compressed file URL: \(url.path)")
+                    Logger.debug("AudioStreamManager", "Using compressed file URL: \(url.path)")
                     
                     // Initialize recorder with proper error handling
                     do {
@@ -841,28 +842,28 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                             recorder.delegate = self
                             
                             if !recorder.prepareToRecord() {
-                                Logger.debug("Failed to prepare recorder")
+                                Logger.debug("AudioStreamManager", "Failed to prepare recorder")
                                 compressedFileURL = nil
                                 compressedRecorder = nil
                             } else {
                                 // Note: We don't start the recorder yet, just prepare it
-                                Logger.debug("Compressed recording prepared successfully")
+                                Logger.debug("AudioStreamManager", "Compressed recording prepared successfully")
                                 compressedFormat = settings.compressedFormat
                                 compressedBitRate = settings.compressedBitRate
                             }
                         }
                     } catch {
-                        Logger.debug("Failed to initialize compressed recorder: \(error)")
+                        Logger.debug("AudioStreamManager", "Failed to initialize compressed recorder: \(error)")
                         compressedFileURL = nil
                         compressedRecorder = nil
                     }
                 } else {
-                    Logger.debug("Failed to create compressed recording file")
+                    Logger.debug("AudioStreamManager", "Failed to create compressed recording file")
                 }
             }
             
         } catch {
-            Logger.debug("Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
+            Logger.debug("AudioStreamManager", "Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
             return false
         }
         
@@ -875,7 +876,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }, reject: { code, message in
                 // Handle the rejection here if needed
             })
-            Logger.debug("AudioProcessor activated successfully.")
+            Logger.debug("AudioStreamManager", "AudioProcessor activated successfully.")
         }
         
         // Prepare notifications if enabled but don't show yet

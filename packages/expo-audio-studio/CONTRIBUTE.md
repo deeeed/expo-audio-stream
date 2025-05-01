@@ -27,7 +27,7 @@ For Android development, you can use ADB (Android Debug Bridge) to view and filt
 To see all logs from the library:
 
 ```bash
-adb logcat -v time | grep "ExpoAudioStream"
+adb logcat -v time | grep "ExpoAudioStudio"
 ```
 
 #### Filtering by Component
@@ -36,20 +36,20 @@ To view logs from a specific component:
 
 ```bash
 # View logs from the AudioDeviceManager
-adb logcat -v time | grep "ExpoAudioStream:AudioDeviceManager"
+adb logcat -v time | grep "ExpoAudioStudio:AudioDeviceManager"
 
 # View logs from the AudioRecorderManager
-adb logcat -v time | grep "ExpoAudioStream:AudioRecorderManager"
+adb logcat -v time | grep "ExpoAudioStudio:AudioRecorderManager"
 ```
 
 #### Common Debug Commands
 
 ```bash
 # View only errors from the library
-adb logcat -v time | grep "ExpoAudioStream" | grep " E "
+adb logcat -v time | grep "ExpoAudioStudio" | grep " E "
 
 # Save logs to a file for analysis
-adb logcat -v time | grep "ExpoAudioStream" > expo_audio_logs.txt
+adb logcat -v time | grep "ExpoAudioStudio" > expo_audio_logs.txt
 
 # Clear logcat buffer
 adb logcat -c
@@ -57,15 +57,49 @@ adb logcat -c
 
 #### Useful Log Tags
 
-- `ExpoAudioStream:AudioProcessor` - Audio analysis and processing
-- `ExpoAudioStream:AudioDeviceManager` - Device selection and monitoring
-- `ExpoAudioStream:AudioRecorderManager` - Recording lifecycle
-- `ExpoAudioStream:ExpoAudioStreamModule` - Module initialization and API calls
-- `ExpoAudioStream:AudioTrimmer` - Audio trimming operations
+- `ExpoAudioStudio:AudioProcessor` - Audio analysis and processing
+- `ExpoAudioStudio:AudioDeviceManager` - Device selection and monitoring
+- `ExpoAudioStudio:AudioRecorderManager` - Recording lifecycle
+- `ExpoAudioStudio:ExpoAudioStreamModule` - Module initialization and API calls
+- `ExpoAudioStudio:AudioTrimmer` - Audio trimming operations
 
 ### iOS (Xcode)
 
-> This section will be expanded in a future PR to include information about extracting and filtering logs from iOS using Xcode and the Console app.
+This monorepo includes an `AudioDevPlayground` app for testing. When launched in development mode, you can use these commands to view logs:
+
+#### Simulator
+
+```bash
+# View all logs from the AudioDevPlayground app
+xcrun simctl spawn booted log stream --predicate 'process contains "AudioDevPlayground"'
+
+# View only error logs
+xcrun simctl spawn booted log stream --level error --predicate 'process contains "AudioDevPlayground"'
+
+# View logs from our module in the playground app
+xcrun simctl spawn booted log stream --predicate 'process contains "AudioDevPlayground" && subsystem contains "ExpoAudioStream"'
+```
+
+#### Physical Device
+
+For connected physical iOS devices, use these commands instead:
+
+```bash
+# View all logs from the AudioDevPlayground app on device
+log stream --predicate 'process contains "AudioDevPlayground"'
+
+# View only error logs
+log stream --level error --predicate 'process contains "AudioDevPlayground"'
+
+# View logs from our module in the playground app
+log stream --predicate 'process contains "AudioDevPlayground" && subsystem contains "ExpoAudioStream"'
+```
+
+For a better debugging experience, use the Console app:
+
+1. Open **Console** app on your Mac
+2. Select your device/simulator from the sidebar
+3. Filter with: `process:AudioDevPlayground` or similar
 
 ## Code Style
 

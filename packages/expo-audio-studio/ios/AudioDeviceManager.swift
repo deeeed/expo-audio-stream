@@ -53,7 +53,7 @@ class AudioDeviceManager {
     
     /// Maps AVAudioSession port types to standardized device types
     func mapDeviceType(_ portType: AVAudioSession.Port) -> String {
-        Logger.debug("Mapping device type for port: \(portType.rawValue)")
+        Logger.debug("AudioDeviceManager", "Mapping device type for port: \(portType.rawValue)")
         switch portType {
         case .builtInMic:
             return deviceTypeBuiltinMic
@@ -79,11 +79,11 @@ class AudioDeviceManager {
         let timeSinceLastPreparation = now - AudioDeviceManager.lastPreparationTime
         
         if AudioDeviceManager.isAudioSessionPrepared && !force && timeSinceLastPreparation < 5.0 {
-            Logger.debug("Audio session already prepared, skipping")
+            Logger.debug("AudioDeviceManager", "Audio session already prepared, skipping")
             return true
         }
         
-        Logger.debug("Preparing audio session for device detection")
+        Logger.debug("AudioDeviceManager", "Preparing audio session for device detection")
         do {
             let session = AVAudioSession.sharedInstance()
             
@@ -101,10 +101,10 @@ class AudioDeviceManager {
             AudioDeviceManager.isAudioSessionPrepared = true
             AudioDeviceManager.lastPreparationTime = now
             
-            Logger.debug("Audio session prepared for device detection")
+            Logger.debug("AudioDeviceManager", "Audio session prepared for device detection")
             return true
         } catch {
-            Logger.debug("Failed to prepare audio session: \(error.localizedDescription)")
+            Logger.debug("AudioDeviceManager", "Failed to prepare audio session: \(error.localizedDescription)")
             return false
         }
     }
@@ -116,7 +116,7 @@ class AudioDeviceManager {
         let timeSinceLastPreparation = now - AudioDeviceManager.lastPreparationTime
         
         if timeSinceLastPreparation < 1.0 {
-            Logger.debug("Skipping force refresh - too soon since last preparation (\(timeSinceLastPreparation) seconds)")
+            Logger.debug("AudioDeviceManager", "Skipping force refresh - too soon since last preparation (\(timeSinceLastPreparation) seconds)")
             return false
         }
         
@@ -125,7 +125,7 @@ class AudioDeviceManager {
     
     /// Gets capabilities for an audio input device
     func getDeviceCapabilities(_ port: AVAudioSessionPortDescription) -> [String: Any] {
-        Logger.debug("Getting capabilities for device: \(port.portName) (ID: \(port.uid))")
+        Logger.debug("AudioDeviceManager", "Getting capabilities for device: \(port.portName) (ID: \(port.uid))")
         let session = AVAudioSession.sharedInstance()
         
         // Test standard sample rates for support
@@ -146,12 +146,12 @@ class AudioDeviceManager {
     
     /// Gets a list of available audio input devices
     func getAvailableInputDevices(promise: Promise) {
-        Logger.debug("Getting available input devices")
+        Logger.debug("AudioDeviceManager", "Getting available input devices")
         
         // Prepare audio session if needed
         let prepared = prepareAudioSession()
         if !prepared {
-            Logger.debug("Warning: Audio session preparation failed, device list may be incomplete")
+            Logger.debug("AudioDeviceManager", "Warning: Audio session preparation failed, device list may be incomplete")
         }
         
         do {
@@ -174,7 +174,7 @@ class AudioDeviceManager {
                 
                 let deviceId = normalizeBluetoothDeviceId(input.uid)
                 
-                Logger.debug("Current route device: \(input.portName) (type: \(deviceType), ID: \(deviceId))")
+                Logger.debug("AudioDeviceManager", "Current route device: \(input.portName) (type: \(deviceType), ID: \(deviceId))")
                 
                 devices.append([
                     "id": deviceId,
@@ -199,7 +199,7 @@ class AudioDeviceManager {
                     
                     // Skip if already in our list
                     if !devices.contains(where: { ($0["id"] as? String) == deviceId }) {
-                        Logger.debug("Available input: \(port.portName) (type: \(deviceType), ID: \(deviceId))")
+                        Logger.debug("AudioDeviceManager", "Available input: \(port.portName) (type: \(deviceType), ID: \(deviceId))")
                         
                         devices.append([
                             "id": deviceId,
@@ -214,22 +214,22 @@ class AudioDeviceManager {
                 }
             }
             
-            Logger.debug("Found \(devices.count) available input devices")
+            Logger.debug("AudioDeviceManager", "Found \(devices.count) available input devices")
             promise.resolve(devices)
         } catch {
-            Logger.debug("Error getting available input devices: \(error.localizedDescription)")
+            Logger.debug("AudioDeviceManager", "Error getting available input devices: \(error.localizedDescription)")
             promise.reject("DEVICE_DETECTION_ERROR", "Failed to get available audio devices: \(error.localizedDescription)")
         }
     }
     
     /// Gets the currently selected audio input device
     func getCurrentInputDevice(promise: Promise) {
-        Logger.debug("Getting current input device")
+        Logger.debug("AudioDeviceManager", "Getting current input device")
         
         // Prepare audio session if needed
         let prepared = prepareAudioSession()
         if !prepared {
-            Logger.debug("Warning: Audio session preparation failed, current device may not be correctly detected")
+            Logger.debug("AudioDeviceManager", "Warning: Audio session preparation failed, current device may not be correctly detected")
         }
         
         do {
@@ -245,7 +245,7 @@ class AudioDeviceManager {
                 let isDefault = session.preferredInput == nil || session.preferredInput?.portType == currentPort.portType
                 let deviceId = normalizeBluetoothDeviceId(currentPort.uid)
                 
-                Logger.debug("Current input device: \(currentPort.portName) (ID: \(deviceId), type: \(deviceType))")
+                Logger.debug("AudioDeviceManager", "Current input device: \(currentPort.portName) (ID: \(deviceId), type: \(deviceType))")
                 
                 let device: [String: Any] = [
                     "id": deviceId,
@@ -266,7 +266,7 @@ class AudioDeviceManager {
                 let deviceType = mapDeviceType(preferredInput.portType)
                 let deviceId = normalizeBluetoothDeviceId(preferredInput.uid)
                 
-                Logger.debug("Current input from preferred: \(preferredInput.portName) (ID: \(deviceId), type: \(deviceType))")
+                Logger.debug("AudioDeviceManager", "Current input from preferred: \(preferredInput.portName) (ID: \(deviceId), type: \(deviceType))")
                 
                 let device: [String: Any] = [
                     "id": deviceId,
@@ -283,10 +283,10 @@ class AudioDeviceManager {
             }
             
             // No input device is currently selected
-            Logger.debug("No current input device found")
+            Logger.debug("AudioDeviceManager", "No current input device found")
             promise.resolve(nil)
         } catch {
-            Logger.debug("Error getting current input device: \(error.localizedDescription)")
+            Logger.debug("AudioDeviceManager", "Error getting current input device: \(error.localizedDescription)")
             promise.reject("DEVICE_DETECTION_ERROR", "Failed to get current audio device: \(error.localizedDescription)")
         }
     }
@@ -294,11 +294,11 @@ class AudioDeviceManager {
     /// Gets the default audio input device (usually built-in mic)
     /// This is an async version useful for fallback logic.
     func getDefaultInputDevice() async -> AudioDevice? {
-        Logger.debug("Getting default input device")
+        Logger.debug("AudioDeviceManager", "Getting default input device")
 
         let prepared = prepareAudioSession()
         if !prepared {
-            Logger.debug("Warning: Audio session preparation failed, default device detection may be inaccurate")
+            Logger.debug("AudioDeviceManager", "Warning: Audio session preparation failed, default device detection may be inaccurate")
         }
 
         let session = AVAudioSession.sharedInstance()
@@ -311,7 +311,7 @@ class AudioDeviceManager {
                 let deviceId = normalizeBluetoothDeviceId(defaultPort.uid)
                 let capabilities = getDeviceCapabilities(defaultPort)
 
-                 Logger.debug("Found default device: \(defaultPort.portName) (ID: \(deviceId), Type: \(deviceType))")
+                 Logger.debug("AudioDeviceManager", "Found default device: \(defaultPort.portName) (ID: \(deviceId), Type: \(deviceType))")
 
                 // Convert capabilities dictionary to Capabilities struct/object if needed
                  let audioCapabilities = AudioDeviceCapabilities(
@@ -330,23 +330,23 @@ class AudioDeviceManager {
                      isAvailable: true // It's available if found here
                  )
             } else {
-                Logger.debug("Could not find built-in mic as default device.")
+                Logger.debug("AudioDeviceManager", "Could not find built-in mic as default device.")
                 return nil
             }
         } catch {
-            Logger.debug("Error getting default input device: \(error)")
+            Logger.debug("AudioDeviceManager", "Error getting default input device: \(error)")
             return nil
         }
     }
     
     /// Selects a specific audio input device for recording
     func selectInputDevice(_ deviceId: String, promise: Promise) {
-        Logger.debug("Attempting to select input device with ID: \(deviceId)")
+        Logger.debug("AudioDeviceManager", "Attempting to select input device with ID: \(deviceId)")
         
         // Prepare audio session - use force: true for device selection to ensure we get the latest devices
         let prepared = prepareAudioSession(force: true)
         if !prepared {
-            Logger.debug("Warning: Audio session preparation failed, device selection may not work correctly")
+            Logger.debug("AudioDeviceManager", "Warning: Audio session preparation failed, device selection may not work correctly")
         }
         
         do {
@@ -359,7 +359,7 @@ class AudioDeviceManager {
             let normalizedRequestedId = normalizeBluetoothDeviceId(deviceId)
             let isBluetoothDevice = deviceId.contains(":")
             
-            Logger.debug("Selecting \(isBluetoothDevice ? "Bluetooth" : "non-Bluetooth") device with normalized ID: \(normalizedRequestedId)")
+            Logger.debug("AudioDeviceManager", "Selecting \(isBluetoothDevice ? "Bluetooth" : "non-Bluetooth") device with normalized ID: \(normalizedRequestedId)")
             
             // Find the device with the specified ID
             let selectedPort: AVAudioSessionPortDescription?
@@ -369,29 +369,29 @@ class AudioDeviceManager {
                 selectedPort = session.availableInputs?.first { port in
                     let portNormalizedId = normalizeBluetoothDeviceId(port.uid)
                     let matches = portNormalizedId == normalizedRequestedId
-                    Logger.debug("Checking device \(port.portName) (ID: \(port.uid), Normalized: \(portNormalizedId)) - Matches: \(matches)")
+                    Logger.debug("AudioDeviceManager", "Checking device \(port.portName) (ID: \(port.uid), Normalized: \(portNormalizedId)) - Matches: \(matches)")
                     return matches
                 }
             } else {
                 // For non-Bluetooth devices, direct match
                 selectedPort = session.availableInputs?.first { port in
                     let matches = port.uid == deviceId
-                    Logger.debug("Checking device \(port.portName) (ID: \(port.uid)) - Matches: \(matches)")
+                    Logger.debug("AudioDeviceManager", "Checking device \(port.portName) (ID: \(port.uid)) - Matches: \(matches)")
                     return matches
                 }
             }
             
             guard let selectedPort = selectedPort else {
-                Logger.debug("Device not found with ID \(deviceId)")
+                Logger.debug("AudioDeviceManager", "Device not found with ID \(deviceId)")
                 
                 // Log all available devices to help debugging
                 if let availableInputs = session.availableInputs {
-                    Logger.debug("Available devices:")
+                    Logger.debug("AudioDeviceManager", "Available devices:")
                     for (index, device) in availableInputs.enumerated() {
-                        Logger.debug("\(index+1). \(device.portName) (ID: \(device.uid), Normalized: \(normalizeBluetoothDeviceId(device.uid)))")
+                        Logger.debug("AudioDeviceManager", "\(index+1). \(device.portName) (ID: \(device.uid), Normalized: \(normalizeBluetoothDeviceId(device.uid)))")
                     }
                 } else {
-                    Logger.debug("No available devices found")
+                    Logger.debug("AudioDeviceManager", "No available devices found")
                 }
                 
                 promise.reject("DEVICE_NOT_FOUND", "The selected audio device is not available")
@@ -399,31 +399,31 @@ class AudioDeviceManager {
             }
             
             // Set the preferred input device
-            Logger.debug("Setting preferred input to: \(selectedPort.portName) (ID: \(selectedPort.uid))")
+            Logger.debug("AudioDeviceManager", "Setting preferred input to: \(selectedPort.portName) (ID: \(selectedPort.uid))")
             try session.setPreferredInput(selectedPort)
             
             // Verify selection
             if let currentInput = session.currentRoute.inputs.first {
                 let succeeded = (currentInput.uid == selectedPort.uid || 
                                 normalizeBluetoothDeviceId(currentInput.uid) == normalizeBluetoothDeviceId(selectedPort.uid))
-                Logger.debug("Device selection \(succeeded ? "succeeded" : "failed") - Current device: \(currentInput.portName) (ID: \(currentInput.uid))")
+                Logger.debug("AudioDeviceManager", "Device selection \(succeeded ? "succeeded" : "failed") - Current device: \(currentInput.portName) (ID: \(currentInput.uid))")
             }
             
-            Logger.debug("Device selected successfully")
+            Logger.debug("AudioDeviceManager", "Device selected successfully")
             promise.resolve(true)
         } catch {
-            Logger.debug("Failed to select device: \(error.localizedDescription)")
+            Logger.debug("AudioDeviceManager", "Failed to select device: \(error.localizedDescription)")
             promise.reject("DEVICE_SELECTION_FAILED", "Failed to select audio device: \(error.localizedDescription)")
         }
     }
     
     /// Selects a specific audio input device asynchronously (useful for internal calls)
     func selectDevice(_ deviceId: String) async -> Bool {
-        Logger.debug("Attempting to select input device with ID: \(deviceId) (async)")
+        Logger.debug("AudioDeviceManager", "Attempting to select input device with ID: \(deviceId) (async)")
 
         let prepared = prepareAudioSession(force: true)
         if !prepared {
-            Logger.debug("Warning: Audio session preparation failed, device selection may not work correctly")
+            Logger.debug("AudioDeviceManager", "Warning: Audio session preparation failed, device selection may not work correctly")
             return false
         }
 
@@ -434,7 +434,7 @@ class AudioDeviceManager {
             let normalizedRequestedId = normalizeBluetoothDeviceId(deviceId)
             let isBluetoothDevice = deviceId.contains(":")
 
-            Logger.debug("Selecting \(isBluetoothDevice ? "Bluetooth" : "non-Bluetooth") device with normalized ID: \(normalizedRequestedId)")
+            Logger.debug("AudioDeviceManager", "Selecting \(isBluetoothDevice ? "Bluetooth" : "non-Bluetooth") device with normalized ID: \(normalizedRequestedId)")
 
             let selectedPort: AVAudioSessionPortDescription?
             if isBluetoothDevice {
@@ -446,11 +446,11 @@ class AudioDeviceManager {
             }
 
             guard let portToSet = selectedPort else {
-                Logger.debug("Device not found with ID \(deviceId) for async selection")
+                Logger.debug("AudioDeviceManager", "Device not found with ID \(deviceId) for async selection")
                 return false
             }
 
-            Logger.debug("Setting preferred input to: \(portToSet.portName) (ID: \(portToSet.uid)) (async)")
+            Logger.debug("AudioDeviceManager", "Setting preferred input to: \(portToSet.portName) (ID: \(portToSet.uid)) (async)")
             try session.setPreferredInput(portToSet)
              // Add a small delay hoping the system applies the change before potential next operations
             try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
@@ -458,7 +458,7 @@ class AudioDeviceManager {
             // Optional: Verify selection succeeded (might be less reliable immediately after setting)
             if let currentInput = session.currentRoute.inputs.first {
                  let succeeded = (currentInput.uid == portToSet.uid || normalizeBluetoothDeviceId(currentInput.uid) == normalizedRequestedId)
-                 Logger.debug("Async selection verification: \(succeeded ? "succeeded" : "failed")")
+                 Logger.debug("AudioDeviceManager", "Async selection verification: \(succeeded ? "succeeded" : "failed")")
                  return succeeded
              } else {
                  // If no current input after setting, assume failure
@@ -466,19 +466,19 @@ class AudioDeviceManager {
              }
 
         } catch {
-            Logger.debug("Failed to select device asynchronously: \(error.localizedDescription)")
+            Logger.debug("AudioDeviceManager", "Failed to select device asynchronously: \(error.localizedDescription)")
             return false
         }
     }
     
     /// Determines if a device is still available
     func isDeviceAvailable(_ deviceId: String) -> Bool {
-        Logger.debug("Checking availability for device ID: \(deviceId)")
+        Logger.debug("AudioDeviceManager", "Checking availability for device ID: \(deviceId)")
         
         // Prepare audio session if needed
         let prepared = prepareAudioSession()
         if !prepared {
-            Logger.debug("Warning: Audio session preparation failed, device availability check may not be accurate")
+            Logger.debug("AudioDeviceManager", "Warning: Audio session preparation failed, device availability check may not be accurate")
         }
         
         let session = AVAudioSession.sharedInstance()
@@ -491,26 +491,26 @@ class AudioDeviceManager {
             let baseDeviceId = deviceId.split(separator: "-").first ?? Substring(deviceId)
             
             // Log all available inputs for debugging
-            Logger.debug("Available devices to check against:")
+            Logger.debug("AudioDeviceManager", "Available devices to check against:")
             if let availableInputs = session.availableInputs {
                 for (index, device) in availableInputs.enumerated() {
                     let normalizedId = normalizeBluetoothDeviceId(device.uid)
                     let matches = device.uid.starts(with: String(baseDeviceId))
-                    Logger.debug("\(index+1). \(device.portName) (ID: \(device.uid), Normalized: \(normalizedId)) - Matches: \(matches)")
+                    Logger.debug("AudioDeviceManager", "\(index+1). \(device.portName) (ID: \(device.uid), Normalized: \(normalizedId)) - Matches: \(matches)")
                 }
             } else {
-                Logger.debug("No available devices found")
+                Logger.debug("AudioDeviceManager", "No available devices found")
             }
             
             // Also check current route
             for (index, input) in session.currentRoute.inputs.enumerated() {
                 let normalizedId = normalizeBluetoothDeviceId(input.uid)
                 let matches = input.uid.starts(with: String(baseDeviceId))
-                Logger.debug("Current route input \(index+1): \(input.portName) (ID: \(input.uid), Normalized: \(normalizedId)) - Matches: \(matches)")
+                Logger.debug("AudioDeviceManager", "Current route input \(index+1): \(input.portName) (ID: \(input.uid), Normalized: \(normalizedId)) - Matches: \(matches)")
             }
             
             let result = session.availableInputs?.contains { $0.uid.starts(with: String(baseDeviceId)) } ?? false
-            Logger.debug("Bluetooth device \(deviceId) with base ID \(baseDeviceId) available: \(result)")
+            Logger.debug("AudioDeviceManager", "Bluetooth device \(deviceId) with base ID \(baseDeviceId) available: \(result)")
             return result
         } else {
             // Standard device ID check for non-Bluetooth devices
@@ -521,12 +521,12 @@ class AudioDeviceManager {
     /// Resets the selected device to system default (usually built-in mic)
     /// - Parameter completion: Callback with success (Bool) and optional error
     func resetToDefaultDevice(completion: @escaping (Bool, Error?) -> Void) {
-        Logger.debug("Attempting to reset to default input device")
+        Logger.debug("AudioDeviceManager", "Attempting to reset to default input device")
         
         // Prepare audio session if needed
         let prepared = prepareAudioSession()
         if !prepared {
-            Logger.debug("Warning: Audio session preparation failed, device reset may not work correctly")
+            Logger.debug("AudioDeviceManager", "Warning: Audio session preparation failed, device reset may not work correctly")
         }
         
         do {
@@ -534,9 +534,9 @@ class AudioDeviceManager {
             
             // Log current device before reset
             if let currentDevice = session.currentRoute.inputs.first {
-                Logger.debug("Current device before reset: \(currentDevice.portName) (ID: \(currentDevice.uid))")
+                Logger.debug("AudioDeviceManager", "Current device before reset: \(currentDevice.portName) (ID: \(currentDevice.uid))")
             } else {
-                Logger.debug("No current device before reset")
+                Logger.debug("AudioDeviceManager", "No current device before reset")
             }
             
             // Setting preferred input to nil lets the system choose the default
@@ -544,18 +544,18 @@ class AudioDeviceManager {
             
             // Log the device after reset
             if let newDevice = session.currentRoute.inputs.first {
-                Logger.debug("Reset to default device: \(newDevice.portName) (ID: \(newDevice.uid))")
+                Logger.debug("AudioDeviceManager", "Reset to default device: \(newDevice.portName) (ID: \(newDevice.uid))")
                 
                 // Check if it's actually the built-in mic (which is the typical default)
                 let isBuiltIn = newDevice.portType == .builtInMic
-                Logger.debug("Reset device is built-in mic: \(isBuiltIn)")
+                Logger.debug("AudioDeviceManager", "Reset device is built-in mic: \(isBuiltIn)")
             } else {
-                Logger.debug("No device found after reset")
+                Logger.debug("AudioDeviceManager", "No device found after reset")
             }
             
             completion(true, nil)
         } catch {
-            Logger.debug("Failed to reset to default device: \(error.localizedDescription)")
+            Logger.debug("AudioDeviceManager", "Failed to reset to default device: \(error.localizedDescription)")
             completion(false, error)
         }
     }
@@ -565,7 +565,7 @@ class AudioDeviceManager {
         // Ensure we don't add multiple observers
         stopMonitoringDeviceChanges()
 
-        Logger.debug("Starting device change monitoring")
+        Logger.debug("AudioDeviceManager", "Starting device change monitoring")
         routeChangeObserver = NotificationCenter.default.addObserver(
             forName: AVAudioSession.routeChangeNotification,
             object: nil,
@@ -578,7 +578,7 @@ class AudioDeviceManager {
     /// Stops monitoring device changes
     private func stopMonitoringDeviceChanges() {
         if let observer = routeChangeObserver {
-            Logger.debug("Stopping device change monitoring")
+            Logger.debug("AudioDeviceManager", "Stopping device change monitoring")
             NotificationCenter.default.removeObserver(observer)
             routeChangeObserver = nil
         }
@@ -592,17 +592,17 @@ class AudioDeviceManager {
             return
         }
 
-         Logger.debug("Route change detected, reason: \(reason.rawValue)")
+         Logger.debug("AudioDeviceManager", "Route change detected, reason: \(reason.rawValue)")
 
         // Only proceed if a device was potentially removed or the route changed significantly
         guard reason == .oldDeviceUnavailable || reason == .newDeviceAvailable || reason == .override || reason == .routeConfigurationChange else {
-             Logger.debug("Ignoring route change reason: \(reason.rawValue)")
+             Logger.debug("AudioDeviceManager", "Ignoring route change reason: \(reason.rawValue)")
             return
         }
 
         // Get the *previous* route description
         guard let previousRoute = userInfo[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription else {
-            Logger.debug("No previous route info found for disconnection check.")
+            Logger.debug("AudioDeviceManager", "No previous route info found for disconnection check.")
             return
         }
 
@@ -615,7 +615,7 @@ class AudioDeviceManager {
             let normalizedPreviousId = normalizeBluetoothDeviceId(previousInputPort.uid)
             // Check if the previously connected input is NOT in the set of currently available inputs
             if !currentInputIds.contains(normalizedPreviousId) {
-                 Logger.debug("Detected disconnection of device: \(previousInputPort.portName) (Normalized ID: \(normalizedPreviousId))")
+                 Logger.debug("AudioDeviceManager", "Detected disconnection of device: \(previousInputPort.portName) (Normalized ID: \(normalizedPreviousId))")
                 // Notify the delegate (AudioStreamManager) about the specific disconnected device
                 delegate?.audioDeviceManager(self, didDetectDisconnectionOfDevice: normalizedPreviousId)
                 // Found a disconnected device, can stop checking previous inputs for this event

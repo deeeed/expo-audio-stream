@@ -286,7 +286,7 @@ public class AudioProcessor {
         numberOfChannels: Int
     ) -> AudioAnalysisData? {
         guard !data.isEmpty else {
-            Logger.debug("Data is empty, rejecting")
+            Logger.debug("AudioProcessor", "Data is empty, rejecting")
             reject("DATA_EMPTY", "The audio data is empty.")
             return nil
         }
@@ -305,7 +305,7 @@ public class AudioProcessor {
                 return int32Pointer.map { Float($0) / Float(Int32.max) }
             }
         default:
-            Logger.debug("Unsupported bit depth. Rejecting")
+            Logger.debug("AudioProcessor", "Unsupported bit depth. Rejecting")
             reject("UNSUPPORTED_BIT_DEPTH", "Unsupported bit depth: \(bitDepth)")
             return nil
         }
@@ -337,7 +337,7 @@ public class AudioProcessor {
         bitDepth: Int,
         numberOfChannels: Int
     ) -> AudioAnalysisData? {
-        Logger.debug("Processing audio data with sample rate: \(sampleRate), segmentDurationMs: \(segmentDurationMs), bitDepth: \(bitDepth), numberOfChannels: \(numberOfChannels)")
+        Logger.debug("AudioProcessor", "Processing audio data with sample rate: \(sampleRate), segmentDurationMs: \(segmentDurationMs), bitDepth: \(bitDepth), numberOfChannels: \(numberOfChannels)")
         
         let startTime = CACurrentMediaTime()
 
@@ -385,7 +385,7 @@ public class AudioProcessor {
         let endTime = CACurrentMediaTime()
         let processingTimeMs = Float((endTime - startTime) * 1000)
 
-        Logger.debug("Processed \(dataPoints.count) data points in \(processingTimeMs) ms")
+        Logger.debug("AudioProcessor", "Processed \(dataPoints.count) data points in \(processingTimeMs) ms")
 
         return AudioAnalysisData(
             segmentDurationMs: segmentDurationMs,
@@ -511,7 +511,7 @@ public class AudioProcessor {
         featureOptions: [String: Bool]
     ) -> AudioAnalysisData? {
         guard let audioFile = audioFile else {
-            Logger.debug("No audio file loaded")
+            Logger.debug("AudioProcessor", "No audio file loaded")
             return nil
         }
 
@@ -527,7 +527,7 @@ public class AudioProcessor {
         
         // Validate frame range
         guard startFrame >= 0 && endFrame <= audioFile.length && startFrame < endFrame else {
-            Logger.debug("Invalid time range")
+            Logger.debug("AudioProcessor", "Invalid time range")
             return nil
         }
 
@@ -535,7 +535,7 @@ public class AudioProcessor {
         let framesPerBuffer = AVAudioFrameCount(Float(sampleRate) * Float(segmentDurationMs) / 1000.0)
         
         guard let buffer = AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat, frameCapacity: framesPerBuffer) else {
-            Logger.debug("Failed to create buffer")
+            Logger.debug("AudioProcessor", "Failed to create buffer")
             return nil
         }
 
@@ -613,7 +613,7 @@ public class AudioProcessor {
                 dataPoints.append(dataPoint)
                 currentId += 1
             } catch {
-                Logger.debug("Error reading audio data: \(error)")
+                Logger.debug("AudioProcessor", "Error reading audio data: \(error)")
                 return nil
             }
             
@@ -656,20 +656,20 @@ public class AudioProcessor {
         progressCallback: ((Float, Int64, Int64) -> Void)? = nil
     ) -> TrimResult? {
         // Log the input parameters
-        Logger.debug("Starting audio trim operation:")
-        Logger.debug("- Mode: \(mode)")
+        Logger.debug("AudioProcessor", "Starting audio trim operation:")
+        Logger.debug("AudioProcessor", "- Mode: \(mode)")
         if let start = startTimeMs, let end = endTimeMs {
-            Logger.debug("- Time range: \(start)ms to \(end)ms")
+            Logger.debug("AudioProcessor", "- Time range: \(start)ms to \(end)ms")
         }
         if let ranges = ranges {
-            Logger.debug("- Ranges count: \(ranges.count)")
+            Logger.debug("AudioProcessor", "- Ranges count: \(ranges.count)")
         }
         
         // Log output format details
         if let format = outputFormat {
             let formatType = format["format"] as? String ?? "unknown"
             let bitrate = format["bitrate"] as? Int ?? 0
-            Logger.debug("- Output format: \(formatType), bitrate: \(bitrate)")
+            Logger.debug("AudioProcessor", "- Output format: \(formatType), bitrate: \(bitrate)")
         }
         
         guard let audioFile = audioFile else { return nil }
@@ -696,7 +696,7 @@ public class AudioProcessor {
         let formatStr = validFormats.contains(requestedFormat.lowercased()) ? requestedFormat.lowercased() : "aac"
 
         if formatStr != requestedFormat.lowercased() {
-            Logger.debug("Unsupported format '\(requestedFormat)', falling back to 'aac'")
+            Logger.debug("AudioProcessor", "Unsupported format '\(requestedFormat)', falling back to 'aac'")
         }
 
         let targetSampleRate = outputFormat?["sampleRate"] as? Double ?? inputSampleRate
@@ -747,14 +747,14 @@ public class AudioProcessor {
                 }
 
                 // When creating the output file
-                Logger.debug("Creating output file at: \(outputURL.path)")
+                Logger.debug("AudioProcessor", "Creating output file at: \(outputURL.path)")
                 
                 // After processing is complete
-                Logger.debug("Trim operation completed")
-                Logger.debug("- Output file: \(outputURL.path)")
-                Logger.debug("- File exists: \(FileManager.default.fileExists(atPath: outputURL.path))")
-                Logger.debug("- File size: \(try? FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? Int64 ?? 0) bytes")
-                Logger.debug("- File extension: \(outputURL.pathExtension)")
+                Logger.debug("AudioProcessor", "Trim operation completed")
+                Logger.debug("AudioProcessor", "- Output file: \(outputURL.path)")
+                Logger.debug("AudioProcessor", "- File exists: \(FileManager.default.fileExists(atPath: outputURL.path))")
+                Logger.debug("AudioProcessor", "- File size: \(try? FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? Int64 ?? 0) bytes")
+                Logger.debug("AudioProcessor", "- File extension: \(outputURL.pathExtension)")
                 
                 return createTrimResult(from: outputURL, keepRanges: keepRanges, formatStr: formatStr, sampleRate: Int(inputSampleRate), channels: inputChannels, bitDepth: 16, bitrate: bitrate)
             } else {
@@ -830,14 +830,14 @@ public class AudioProcessor {
                         // Find closest supported sample rate
                         if !supportedSampleRates.contains(sampleRate) {
                             let closestRate = supportedSampleRates.min(by: { abs($0 - sampleRate) < abs($1 - sampleRate) }) ?? 44100.0
-                            Logger.debug("Unsupported sample rate \(sampleRate)Hz for AAC, using closest supported rate: \(closestRate)Hz")
+                            Logger.debug("AudioProcessor", "Unsupported sample rate \(sampleRate)Hz for AAC, using closest supported rate: \(closestRate)Hz")
                             sampleRate = closestRate
                         }
                         
                         // Validate channels (AAC typically supports 1 or 2 channels)
                         var channels = outputFormat?["channels"] as? Int ?? 2
                         if channels > 2 {
-                            Logger.debug("AAC encoding doesn't support \(channels) channels, limiting to 2 channels")
+                            Logger.debug("AudioProcessor", "AAC encoding doesn't support \(channels) channels, limiting to 2 channels")
                             channels = 2
                         } else if channels < 1 {
                             channels = 1
@@ -846,10 +846,10 @@ public class AudioProcessor {
                         // Validate bitrate (AAC typically supports 8000-320000 bps)
                         var bitrate = outputFormat?["bitrate"] as? Int ?? 128000
                         if bitrate < 8000 {
-                            Logger.debug("AAC bitrate too low, setting to minimum 8000 bps")
+                            Logger.debug("AudioProcessor", "AAC bitrate too low, setting to minimum 8000 bps")
                             bitrate = 8000
                         } else if bitrate > 320000 {
-                            Logger.debug("AAC bitrate too high, setting to maximum 320000 bps")
+                            Logger.debug("AudioProcessor", "AAC bitrate too high, setting to maximum 320000 bps")
                             bitrate = 320000
                         }
                         
@@ -863,7 +863,7 @@ public class AudioProcessor {
                         ]
                         fileType = .m4a
                         
-                        Logger.debug("""
+                        Logger.debug("AudioProcessor", """
                             Configuring AAC output:
                             - Container: m4a
                             - Format: AAC
@@ -939,7 +939,7 @@ public class AudioProcessor {
                                 }
                                 
                                 if let error = error {
-                                    Logger.debug("Conversion error: \(error)")
+                                    Logger.debug("AudioProcessor", "Conversion error: \(error)")
                                     continue
                                 }
                                 
@@ -951,7 +951,7 @@ public class AudioProcessor {
                                     }
                                     
                                     if !writerInput.append(sampleBuffer) {
-                                        Logger.debug("Failed to append sample buffer: \(assetWriter.error?.localizedDescription ?? "Unknown error")")
+                                        Logger.debug("AudioProcessor", "Failed to append sample buffer: \(assetWriter.error?.localizedDescription ?? "Unknown error")")
                                     }
                                 }
                                 
@@ -961,11 +961,11 @@ public class AudioProcessor {
                                 progressCallback?(progress, 0, totalFrames * Int64(inputFormat.streamDescription.pointee.mBytesPerFrame))
                                 
                                 if framesProcessed % 10000 == 0 { // Log every 10000 frames to avoid excessive logging
-                                    Logger.debug("Processed \(framesProcessed)/\(totalFramesToProcess) frames")
+                                    Logger.debug("AudioProcessor", "Processed \(framesProcessed)/\(totalFramesToProcess) frames")
                                 }
                                 
                             } catch {
-                                Logger.debug("Error reading audio: \(error)")
+                                Logger.debug("AudioProcessor", "Error reading audio: \(error)")
                                 break
                             }
                         }
@@ -976,15 +976,15 @@ public class AudioProcessor {
                     let finishSemaphore = DispatchSemaphore(value: 0)
                     assetWriter.finishWriting { 
                         if let error = assetWriter.error {
-                            Logger.debug("Error finishing writing: \(error)")
+                            Logger.debug("AudioProcessor", "Error finishing writing: \(error)")
                         } else {
-                            Logger.debug("Writing finished successfully")
+                            Logger.debug("AudioProcessor", "Writing finished successfully")
                             
                             // Verify the output file
                             let fileExists = FileManager.default.fileExists(atPath: tempOutputURL.path)
                             let fileSize = (try? FileManager.default.attributesOfItem(atPath: tempOutputURL.path)[.size] as? Int64) ?? 0
                             
-                            Logger.debug("""
+                            Logger.debug("AudioProcessor", """
                                 Output file verification:
                                 - Path: \(tempOutputURL.path)
                                 - Exists: \(fileExists)
