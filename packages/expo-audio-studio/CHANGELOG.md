@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.6.0] - 2025-05-01
+### Changed
+- fix(audio-studio): resolve web audio recording issue without compression #217 (#219) ([2daa373](https://github.com/deeeed/expo-audio-stream/commit/2daa373ec507550ffa4571699fb1c680e2df8f14))
 ## [2.5.0] - 2025-04-30
 ### Changed
 - fix(ios): ensure complete audio data emission on recording stop/pause (#215) ([236e7aa](https://github.com/deeeed/expo-audio-stream/commit/236e7aa040d11626f06da9bbf5746cdcb6f2b457))
@@ -200,7 +203,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.5.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.6.0...HEAD
+[2.6.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.5.0...@siteed/expo-audio-studio@2.6.0
 [2.5.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.4.1...@siteed/expo-audio-studio@2.5.0
 [2.4.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.4.0...@siteed/expo-audio-studio@2.4.1
 [2.4.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.3.1...@siteed/expo-audio-studio@2.4.0

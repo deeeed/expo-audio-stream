@@ -1,7 +1,7 @@
 // packages/expo-audio-stream/src/WebRecorder.web.ts
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
-import { BitDepth, ConsoleLike, RecordingConfig } from './ExpoAudioStream.types'
+import { ConsoleLike, RecordingConfig } from './ExpoAudioStream.types'
 import {
     EmitAudioAnalysisFunction,
     EmitAudioEventFunction,

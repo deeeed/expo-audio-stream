@@ -15,6 +15,7 @@ echo -e "${BLUE}Changed to script directory: $(pwd)${NC}"
 
 # Cleanup and rebuild first
 echo -e "${YELLOW}Cleaning and rebuilding...${NC}"
+yarn lint --fix
 yarn clean
 yarn build
 yarn build:plugin
