@@ -417,7 +417,10 @@ export default function RecordScreen() {
 
     const [isRecordingPrepared, setIsRecordingPrepared] = useState(false)
 
-    // Handle device change when disconnected during recording
+    // Add a useRef for tracking if configuration has been prepared
+    const preparedConfigRef = useRef<string | null>(null);
+
+    // Restore device disconnection handler
     const handleDeviceDisconnected = useCallback(() => {
         if (isRecording && !isPaused) {
             logger.warn('Device disconnection detected, pausing recording')
@@ -434,7 +437,7 @@ export default function RecordScreen() {
         }
     }, [isRecording, isPaused, pauseRecording, show])
 
-    // Handle device fallback selection
+    // Restore device fallback handler
     const handleDeviceFallback = useCallback((newDevice: AudioDevice) => {
         logger.debug(`Switching to fallback device: ${newDevice.name} (${newDevice.id})`)
         setStartRecordingConfig(prev => ({
@@ -443,56 +446,136 @@ export default function RecordScreen() {
         }))
     }, [])
 
+    // Move handlePrepareRecording definition here before the useEffect that uses it
     const handlePrepareRecording = useCallback(async () => {
         try {
-            setProcessing(true)
+            setProcessing(true);
             
             // Only check directory on native platforms
             if (!isWeb && !defaultDirectory) {
-                throw new Error('Storage directory not initialized')
+                throw new Error('Storage directory not initialized');
             }
 
             // Request permissions early
-            const permissionsGranted = await requestPermissions()
-            if (!permissionsGranted) return
+            const permissionsGranted = await requestPermissions();
+            if (!permissionsGranted) return;
 
             // Ensure filename has proper extension if provided
-            let finalFileName = customFileName
+            let finalFileName = customFileName;
             if (finalFileName && !finalFileName.endsWith('.wav')) {
-                finalFileName = `${finalFileName}.wav`
+                finalFileName = `${finalFileName}.wav`;
             }
 
             const finalConfig = {
                 ...startRecordingConfig,
                 filename: finalFileName || undefined,
                 outputDirectory: !isWeb ? defaultDirectory : undefined,
-            }
+            };
 
-            logger.debug(`Preparing recording with config:`, finalConfig)
-            await prepareRecording(finalConfig)
-            logger.debug(`Recording prepared successfully`)
-            setIsRecordingPrepared(true)
+            logger.debug(`Preparing recording with config:`, finalConfig);
+            await prepareRecording(finalConfig);
+            logger.debug(`Recording prepared successfully`);
+            setIsRecordingPrepared(true);
+            
+            // Store the config signature that was successfully prepared - ONLY critical parameters
+            preparedConfigRef.current = JSON.stringify({
+                deviceId: startRecordingConfig.deviceId,
+                // Android needs to reinitialize when sample rate changes
+                ...(Platform.OS === 'android' ? { sampleRate: startRecordingConfig.sampleRate } : {}),
+                // Store the entire compression object
+                compression: startRecordingConfig.compression,
+                filename: customFileName,
+                directory: defaultDirectory,
+                ios: startRecordingConfig.ios
+            });
             
             show({
                 type: 'success',
                 message: 'Recording prepared and ready to start',
                 duration: 2000,
-            })
+            });
         } catch (error) {
-            logger.error(`Error while preparing recording:`, error)
+            logger.error(`Error while preparing recording:`, error);
             if (error instanceof Error) {
                 show({
                     type: 'error',
                     message: `Preparation failed: ${error.message}`,
                     duration: 3000,
-                })
+                });
             }
-            setIsRecordingPrepared(false)
+            setIsRecordingPrepared(false);
         } finally {
-            setProcessing(false)
+            setProcessing(false);
         }
-    }, [defaultDirectory, requestPermissions, customFileName, startRecordingConfig, prepareRecording, show])
+    }, [defaultDirectory, requestPermissions, customFileName, startRecordingConfig, prepareRecording, show]);
 
+    // Now define the useEffect that depends on handlePrepareRecording
+    useEffect(() => {
+        if (!isRecordingPrepared || isRecording || isPaused) return;
+        
+        // Create config signature from ONLY critical hardware/format parameters
+        const configSignature = JSON.stringify({
+            // Truly hardware-dependent parameters
+            deviceId: startRecordingConfig.deviceId,
+            // Android needs to reinitialize when sample rate changes
+            ...(Platform.OS === 'android' ? { sampleRate: startRecordingConfig.sampleRate } : {}),
+            // Compression settings - on both platforms this affects recorder initialization
+            compression: startRecordingConfig.compression,  // Include the entire compression object
+            // Storage settings
+            filename: customFileName,
+            directory: defaultDirectory,
+            // iOS-specific audio session settings
+            ios: startRecordingConfig.ios
+        });
+        
+        // If prepared config doesn't match current config, re-prepare
+        if (preparedConfigRef.current !== configSignature) {
+            const changes = [];
+            try {
+                const oldConfig = JSON.parse(preparedConfigRef.current || '{}');
+                const newConfig = JSON.parse(configSignature);
+                
+                if (oldConfig.deviceId !== newConfig.deviceId) changes.push('input device');
+                if (Platform.OS === 'android' && oldConfig.sampleRate !== newConfig.sampleRate) changes.push('sample rate');
+                
+                // Better compression change detection
+                const oldCompression = oldConfig.compression || {};
+                const newCompression = newConfig.compression || {};
+                if (oldCompression.enabled !== newCompression.enabled) changes.push('compression enabled');
+                if (oldCompression.format !== newCompression.format) changes.push('compression format');
+                if (oldCompression.bitrate !== newCompression.bitrate) changes.push('compression bitrate');
+                
+                if (oldConfig.filename !== newConfig.filename) changes.push('filename');
+                if (oldConfig.directory !== newConfig.directory) changes.push('directory');
+            } catch (_e) {
+                // First preparation, ignore
+            }
+            
+            const changeReason = changes.length > 0 ? changes.join(', ') : 'settings';
+            logger.debug(`Critical recording settings changed (${changeReason}), re-preparing`);
+            show({
+                type: 'info',
+                message: `Recording settings changed (${changeReason}), re-preparing...`,
+                duration: 2000,
+            });
+            handlePrepareRecording();
+        }
+    }, [
+        startRecordingConfig.deviceId,
+        ...(Platform.OS === 'android' ? [startRecordingConfig.sampleRate] : []), 
+        // Track the entire compression object to catch all changes
+        startRecordingConfig.compression,  
+        startRecordingConfig.ios, 
+        customFileName, 
+        defaultDirectory, 
+        isRecordingPrepared, 
+        isRecording, 
+        isPaused, 
+        handlePrepareRecording, 
+        show
+    ]);
+
+    // Also update when recording starts/stops to reset the prepared config
     const handleStart = useCallback(async () => {
         try {
             setProcessing(true);
@@ -691,6 +774,9 @@ export default function RecordScreen() {
                     duration: 2000,
                 });
             }
+
+            // After starting, clear the prepared config ref
+            preparedConfigRef.current = null;
         } catch (error) {
             logger.error(`Error while starting recording:`, error);
             if (error instanceof Error) {
@@ -780,6 +866,9 @@ export default function RecordScreen() {
 
             setResult(null);
             router.navigate(`(recordings)/${result.filename}`);
+
+            // After stopping, clear the prepared config ref
+            preparedConfigRef.current = null;
         } catch (error) {
             logger.error(`Error while stopping recording`, error);
             setError('Failed to stop recording. Please try again.');

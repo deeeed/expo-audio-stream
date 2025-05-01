@@ -157,23 +157,88 @@ export function RecordingSettings({
         />
       </View>
       
-      <View>
-        <Text variant="titleMedium" style={{ marginBottom: 8 }}>Encoding</Text>
-        <SegmentedButtons
-          value={config.encoding || 'pcm_32bit'}
-          onValueChange={(value) => {
+      <View style={{ 
+        backgroundColor: theme.colors.surfaceVariant,
+        borderRadius: 8,
+        padding: 12,
+        marginVertical: 8
+      }}>
+        <Text variant="titleMedium" style={{ marginBottom: 12 }}>Compression Settings</Text>
+        
+        <LabelSwitch
+          label="Enable Compression"
+          value={config.compression?.enabled ?? true}
+          onValueChange={(enabled) => {
             const updatedConfig = {
               ...config,
-              encoding: value as RecordingConfig['encoding'],
+              compression: {
+                ...(config.compression ?? { format: 'opus', bitrate: DEFAULT_BITRATE }),
+                enabled,
+              },
             };
             onConfigChange(updatedConfig);
           }}
-          buttons={[
-            { value: 'pcm_16bit', label: '16-bit' },
-            { value: 'pcm_32bit', label: '32-bit' },
-            { value: 'pcm_8bit', label: '8-bit' },
-          ]}
+          disabled={isDisabled}
         />
+
+        {config.compression?.enabled && (
+          <View style={{ marginLeft: 12, marginTop: 8 }}>
+            <View>
+              <Text variant="titleSmall" style={{ marginBottom: 8 }}>Format</Text>
+              {Platform.OS === 'ios' ? (
+                <>
+                  <Text>AAC</Text>
+                  <Text variant="bodySmall" style={{ marginTop: 4, color: theme.colors.outline }}>
+                    Only AAC format is supported on iOS devices.
+                  </Text>
+                </>
+              ) : (
+                <SegmentedButtons
+                  value={config.compression?.format || 'opus'}
+                  onValueChange={(value) => {
+                    const updatedConfig = {
+                      ...config,
+                      compression: {
+                        ...(config.compression ?? { enabled: true, bitrate: DEFAULT_BITRATE }),
+                        format: value as 'aac' | 'opus',
+                      },
+                    };
+                    onConfigChange(updatedConfig);
+                  }}
+                  buttons={[
+                    { value: 'opus', label: 'OPUS' },
+                    ...(!isWeb ? [{ value: 'aac', label: 'AAC' }] : []),
+                  ]}
+                />
+              )}
+            </View>
+            
+            <View style={{ marginTop: 12 }}>
+              <Text variant="titleSmall" style={{ marginBottom: 8 }}>Bitrate</Text>
+              <SegmentedButtons
+                value={String(config.compression?.bitrate || DEFAULT_BITRATE)}
+                onValueChange={(value) => {
+                  const updatedConfig = {
+                    ...config,
+                    compression: {
+                      ...(config.compression ?? { enabled: true, format: Platform.OS === 'ios' ? 'aac' : 'opus' }),
+                      bitrate: parseInt(value, 10),
+                    },
+                  };
+                  onConfigChange(updatedConfig);
+                }}
+                buttons={[
+                  { value: '32000', label: '32 kbps (Voice)' },
+                  { value: '64000', label: '64 kbps (Studio)' },
+                ]}
+              />
+            </View>
+            
+            <Text variant="bodySmall" style={{ marginTop: 12, color: theme.colors.outline }}>
+              Compression reduces file size but may affect audio quality. Higher bitrates preserve more detail.
+            </Text>
+          </View>
+        )}
       </View>
       
       <SegmentDurationSelector
@@ -189,78 +254,6 @@ export function RecordingSettings({
         maxDurationMs={1000}
         skipConfirmation
       />
-      
-      <LabelSwitch
-        label="Enable Compression"
-        value={config.compression?.enabled ?? true}
-        onValueChange={(enabled) => {
-          const updatedConfig = {
-            ...config,
-            compression: {
-              ...(config.compression ?? { format: 'opus', bitrate: DEFAULT_BITRATE }),
-              enabled,
-            },
-          };
-          onConfigChange(updatedConfig);
-        }}
-        disabled={isDisabled}
-      />
-
-      {config.compression?.enabled && (
-        <>
-          <View>
-            <Text variant="titleMedium" style={{ marginBottom: 8 }}>Compression Format</Text>
-            {Platform.OS === 'ios' ? (
-              <>
-                <Text>AAC</Text>
-                <Text variant="bodySmall" style={{ marginTop: 4, color: theme.colors.outline }}>
-                  Only AAC format is supported on iOS devices.
-                </Text>
-              </>
-            ) : (
-              <SegmentedButtons
-                value={config.compression?.format || 'opus'}
-                onValueChange={(value) => {
-                  const updatedConfig = {
-                    ...config,
-                    compression: {
-                      ...(config.compression ?? { enabled: true, bitrate: DEFAULT_BITRATE }),
-                      format: value as 'aac' | 'opus',
-                    },
-                  };
-                  onConfigChange(updatedConfig);
-                }}
-                buttons={[
-                  { value: 'opus', label: 'OPUS' },
-                  // Only show AAC option for native platforms
-                  ...(!isWeb ? [{ value: 'aac', label: 'AAC' }] : []),
-                ]}
-              />
-            )}
-          </View>
-          
-          <View>
-            <Text variant="titleMedium" style={{ marginBottom: 8 }}>Bitrate</Text>
-            <SegmentedButtons
-              value={String(config.compression?.bitrate || DEFAULT_BITRATE)}
-              onValueChange={(value) => {
-                const updatedConfig = {
-                  ...config,
-                  compression: {
-                    ...(config.compression ?? { enabled: true, format: Platform.OS === 'ios' ? 'aac' : 'opus' }),
-                    bitrate: parseInt(value, 10),
-                  },
-                };
-                onConfigChange(updatedConfig);
-              }}
-              buttons={[
-                { value: '32000', label: '32 kbps (Voice)' },
-                { value: '64000', label: '64 kbps (Studio)' },
-              ]}
-            />
-          </View>
-        </>
-      )}
       
       <LabelSwitch
         label="Keep Recording in Background"
