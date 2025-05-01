@@ -3,12 +3,12 @@ package net.siteed.audiostream
 import android.util.Log
 
 /**
- * Utility class for standardized logging across the ExpoAudioStream library.
+ * Utility class for standardized logging across the ExpoAudioStudio library.
  * Provides consistent logging format and tags for easier filtering in logcat.
  */
 object LogUtils {
-    // Format: [ExpoAudioStream:ClassName]
-    private const val TAG_PREFIX = "ExpoAudioStream"
+    // Format: [ExpoAudioStudio:ClassName]
+    private const val TAG_PREFIX = "ExpoAudioStudio"
     
     /**
      * Logs a debug message with a consistent format.

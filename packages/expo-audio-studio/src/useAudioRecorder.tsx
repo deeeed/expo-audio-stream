@@ -212,8 +212,7 @@ export function useAudioRecorder({
             const maxDuration = visualizationDuration
 
             logger?.debug(
-                `[handleAudioAnalysis] Received audio analysis: maxDuration=${maxDuration} analysis.dataPoints=${analysis.dataPoints.length} analysisData.dataPoints=${savedAnalysisData.dataPoints.length}`,
-                analysis
+                `[handleAudioAnalysis] Received audio analysis: maxDuration=${maxDuration} analysis.dataPoints=${analysis.dataPoints.length} analysisData.dataPoints=${savedAnalysisData.dataPoints.length}`
             )
 
             // Combine data points

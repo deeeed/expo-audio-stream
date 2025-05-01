@@ -45,6 +45,7 @@
 - [WaveformConfig](interfaces/WaveformConfig.md)
 - [WavFileInfo](interfaces/WavFileInfo.md)
 - [WavHeaderOptions](interfaces/WavHeaderOptions.md)
+- [WebConfig](interfaces/WebConfig.md)
 
 ## Type Aliases
 

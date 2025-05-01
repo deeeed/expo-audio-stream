@@ -51,10 +51,13 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     var isPaused = false
     var isPrepared = false  // Add this new state flag
     
+    // Move static variables to class level
+    private var debugBufferCounter = 0
+    private var tapCallCount = 0
+    
     // Wake lock related properties
     private var wasIdleTimerDisabled: Bool = false  // Track previous idle timer state
     private var isWakeLockEnabled: Bool = false     // Track current wake lock state
-
 
     // Data emission for onAudioStream
     internal var lastEmissionTime: Date?
@@ -153,7 +156,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         switch type {
         case .began:
-            Logger.debug("Audio session interruption began")
+            Logger.debug("AudioStreamManager", "Audio session interruption began")
             // Store the pause start time if not already paused
             if !wasSuspended {
                 currentPauseStart = Date()
@@ -170,17 +173,17 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             )
             
         case .ended:
-            Logger.debug("Audio session interruption ended - autoResume: \(autoResumeAfterInterruption), wasSuspended: \(wasSuspended)")
+            Logger.debug("AudioStreamManager", "Audio session interruption ended - autoResume: \(autoResumeAfterInterruption), wasSuspended: \(wasSuspended)")
             if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-                Logger.debug("Interruption options - shouldResume: \(options.contains(.shouldResume))")
+                Logger.debug("AudioStreamManager", "Interruption options - shouldResume: \(options.contains(.shouldResume))")
                 
                 // Calculate pause duration if we have a pause start time
                 if let pauseStart = currentPauseStart {
                     let pauseDuration = Date().timeIntervalSince(pauseStart)
                     totalPausedDuration += pauseDuration
                     currentPauseStart = nil
-                    Logger.debug("Added interruption pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
+                    Logger.debug("AudioStreamManager", "Added interruption pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
                 }
                 
                 // For phone calls, we should auto-resume if enabled, regardless of previous pause state
@@ -188,7 +191,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     // Add a longer delay for phone calls and ensure proper session setup
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                         guard let self = self else { return }
-                        Logger.debug("Attempting to auto-resume recording after phone call")
+                        Logger.debug("AudioStreamManager", "Attempting to auto-resume recording after phone call")
                         
                         // Configure audio session
                         do {
@@ -198,14 +201,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                             
                             // Resume if we're still recording and paused
                             if self.isRecording && self.isPaused {
-                                Logger.debug("Resuming recording after phone call interruption")
+                                Logger.debug("AudioStreamManager", "Resuming recording after phone call interruption")
                                 self.audioEngine.prepare() 
                                 self.resumeRecording()
                             } else {
-                                Logger.debug("Cannot resume - recording state invalid: isRecording=\(self.isRecording), isPaused=\(self.isPaused)")
+                                Logger.debug("AudioStreamManager", "Cannot resume - recording state invalid: isRecording=\(self.isRecording), isPaused=\(self.isPaused)")
                             }
                         } catch {
-                            Logger.debug("Failed to reactivate audio session: \(error)")
+                            Logger.debug("AudioStreamManager", "Failed to reactivate audio session: \(error)")
                             self.delegate?.audioStreamManager(self, didFailWithError: "Failed to auto-resume: \(error.localizedDescription)")
                         }
                     }
@@ -233,7 +236,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             try audioSession?.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .mixWithOthers])
             try audioSession?.setActive(true)
         } catch {
-            Logger.debug("Failed to configure audio session: \(error)")
+            Logger.debug("AudioStreamManager", "Failed to configure audio session: \(error)")
         }
         
         // Setup Now Playing info
@@ -378,7 +381,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 let pauseDuration = Date().timeIntervalSince(pauseStart)
                 totalPausedDuration += pauseDuration
                 currentPauseStart = nil
-                Logger.debug("Added background pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
+                Logger.debug("AudioStreamManager", "Added background pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
             }
             
             notificationManager?.stopUpdates()
@@ -433,7 +436,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             self.wasIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled
             UIApplication.shared.isIdleTimerDisabled = true
             self.isWakeLockEnabled = true
-            Logger.debug("Wake lock enabled")
+            Logger.debug("AudioStreamManager", "Wake lock enabled")
         }
     }
     
@@ -447,7 +450,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         DispatchQueue.main.async {
             UIApplication.shared.isIdleTimerDisabled = self.wasIdleTimerDisabled
             self.isWakeLockEnabled = false
-            Logger.debug("Wake lock disabled")
+            Logger.debug("AudioStreamManager", "Wake lock disabled")
         }
     }
     
@@ -455,17 +458,17 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     /// - Returns: The URL of the newly created recording file, or nil if creation failed.
     private func createRecordingFile(isCompressed: Bool = false) -> URL? {
         // Add debug logging
-        Logger.debug("Creating recording file - settings filename: \(recordingSettings?.filename ?? "nil")")
+        Logger.debug("AudioStreamManager", "Creating recording file - settings filename: \(recordingSettings?.filename ?? "nil")")
         
         // Get base directory - use default if no custom directory provided
         let baseDirectory: URL
         if let customDir = recordingSettings?.outputDirectory {
             baseDirectory = URL(fileURLWithPath: customDir)
-            Logger.debug("Using custom directory: \(customDir)")
+            Logger.debug("AudioStreamManager", "Using custom directory: \(customDir)")
         } else {
             // Use existing default behavior
             baseDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-            Logger.debug("Using default directory: \(baseDirectory.path)")
+            Logger.debug("AudioStreamManager", "Using default directory: \(baseDirectory.path)")
         }
         
         // Generate or reuse UUID for filename
@@ -478,7 +481,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             recordingUUID = newUUID
             baseFilename = newUUID.uuidString
         }
-        Logger.debug("Using base filename: \(baseFilename)")
+        Logger.debug("AudioStreamManager", "Using base filename: \(baseFilename)")
         
         // Remove any existing extension from the filename
         let filenameWithoutExtension = baseFilename.replacingOccurrences(
@@ -496,19 +499,19 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
         
         let fullFilename = "\(filenameWithoutExtension).\(fileExtension)"
-        Logger.debug("Full filename: \(fullFilename)")
+        Logger.debug("AudioStreamManager", "Full filename: \(fullFilename)")
         
         let fileURL = baseDirectory.appendingPathComponent(fullFilename)
-        Logger.debug("Final file URL: \(fileURL.path)")
+        Logger.debug("AudioStreamManager", "Final file URL: \(fileURL.path)")
         
         // Check if file already exists
         if fileManager.fileExists(atPath: fileURL.path) {
-            Logger.debug("File already exists at: \(fileURL.path)")
+            Logger.debug("AudioStreamManager", "File already exists at: \(fileURL.path)")
             return nil
         }
         
         if !fileManager.createFile(atPath: fileURL.path, contents: nil, attributes: nil) {
-            Logger.debug("Failed to create file at: \(fileURL.path)")
+            Logger.debug("AudioStreamManager", "Failed to create file at: \(fileURL.path)")
             return nil
         }
         return fileURL
@@ -588,7 +591,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             do {
                 let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedURL.path)
                 if let compressedSize = compressedAttributes[.size] as? Int64 {
-                    Logger.debug("Compressed file status - Size: \(compressedSize)")
+                    Logger.debug("AudioStreamManager", "Compressed file status - Size: \(compressedSize)")
                     let compressionBundle: [String: Any] = [
                         "fileUri": compressedURL.absoluteString,
                         "mimeType": compressedFormat == "aac" ? "audio/aac" : "audio/opus",
@@ -599,7 +602,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     status["compression"] = compressionBundle
                 }
             } catch {
-                Logger.debug("Error getting compressed file attributes: \(error)")
+                Logger.debug("AudioStreamManager", "Error getting compressed file attributes: \(error)")
             }
         }
         
@@ -616,6 +619,52 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                audioSession.currentRoute.outputs.contains { $0.portType == .builtInReceiver }
     }
 
+    /// Installs the audio tap with the hardware-compatible format
+    /// - Parameters:
+    ///   - customTapBlock: Optional custom tap block for specialized processing (like in fallback)
+    ///   - prepareEngine: Whether to call prepare() on the engine after installing the tap (default: true)
+    /// - Returns: The hardware input format that was used for the tap
+    private func installTapWithHardwareFormat(
+        customTapBlock: ((AVAudioPCMBuffer, AVAudioTime) -> Void)? = nil,
+        prepareEngine: Bool = true
+    ) -> AVAudioFormat {
+        // Get the hardware input format
+        let inputNode = audioEngine.inputNode
+        let inputHardwareFormat = inputNode.inputFormat(forBus: 0)
+        let nodeOutputFormat = inputNode.outputFormat(forBus: 0)
+        
+        // Log format information for diagnostic purposes
+        Logger.debug("AudioStreamManager", "Installing tap - Hardware input format: \(describeAudioFormat(inputHardwareFormat))")
+        Logger.debug("AudioStreamManager", "Node output format: \(describeAudioFormat(nodeOutputFormat))")
+        
+        // Remove any existing tap
+        inputNode.removeTap(onBus: 0)
+        
+        // Create the default tap block if none provided
+        let tapBlock = customTapBlock ?? { [weak self] (buffer, time) in
+            guard let self = self,
+                  let fileURL = self.recordingFileURL,
+                  self.isRecording else {
+                return
+            }
+            // processAudioBuffer will handle resampling if needed
+            self.processAudioBuffer(buffer, fileURL: fileURL)
+            self.lastBufferTime = time
+        }
+        
+        // Install the tap with hardware format
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputHardwareFormat, block: tapBlock)
+        Logger.debug("AudioStreamManager", "Tap installed with hardware-compatible format")
+        
+        // Prepare the engine if requested
+        if prepareEngine {
+            audioEngine.prepare()
+            Logger.debug("AudioStreamManager", "Engine prepared after tap installation")
+        }
+        
+        return inputHardwareFormat
+    }
+    
     /// Prepares the audio recording with the specified settings without starting it.
     /// This reduces latency when startRecording is called later.
     /// - Parameters:
@@ -627,13 +676,13 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         // Skip if already prepared or recording
         guard !isPrepared && !isRecording else {
-            Logger.debug("Already prepared or recording in progress.")
+            Logger.debug("AudioStreamManager", "Already prepared or recording in progress.")
             return isPrepared
         }
 
         // Check for active call using the new method
         if isPhoneCallActive() {
-            Logger.debug("Cannot prepare recording during an active phone call")
+            Logger.debug("AudioStreamManager", "Cannot prepare recording during an active phone call")
             delegate?.audioStreamManager(self, didFailWithError: "Cannot prepare recording during an active phone call")
             return false
         }
@@ -645,7 +694,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             Thread.sleep(forTimeInterval: 0.1) // Brief pause to ensure clean state
             try session.setActive(true, options: .notifyOthersOnDeactivation)
         } catch {
-            Logger.debug("Failed to reset audio session: \(error)")
+            Logger.debug("AudioStreamManager", "Failed to reset audio session: \(error)")
             delegate?.audioStreamManager(self, didFailWithError: "Failed to reset audio session: \(error.localizedDescription)")
             return false
         }
@@ -682,14 +731,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 let header = createWavHeader(dataSize: 0)
                 self.fileHandle?.write(header)
                 self.totalDataSize = Int64(WAV_HEADER_SIZE) // Initialize size with header size
-                Logger.debug("File handle opened and initial header written for \(url.path). Initial size: \(self.totalDataSize)")
+                Logger.debug("AudioStreamManager", "File handle opened and initial header written for \(url.path). Initial size: \(self.totalDataSize)")
             } catch {
-                Logger.debug("Error creating/opening file handle: \(error.localizedDescription)")
+                Logger.debug("AudioStreamManager", "Error creating/opening file handle: \(error.localizedDescription)")
                 // No need to call cleanupPreparation here, return false will handle it
                 return false
             }
         } else {
-            Logger.debug("Error: Failed to create recording file URL.")
+            Logger.debug("AudioStreamManager", "Error: Failed to create recording file URL.")
             return false
         }
         
@@ -697,11 +746,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         // Then set up audio session and tap
         do {
-            Logger.debug("Configuring audio session with sample rate: \(settings.sampleRate) Hz")
+            Logger.debug("AudioStreamManager", "Configuring audio session with sample rate: \(settings.sampleRate) Hz")
             
             let session = AVAudioSession.sharedInstance()
             if let currentRoute = session.currentRoute.outputs.first {
-                Logger.debug("Current audio output: \(currentRoute.portType)")
+                Logger.debug("AudioStreamManager", "Current audio output: \(currentRoute.portType)")
                 newSettings.sampleRate = settings.sampleRate  // Keep original sample rate
             }
             
@@ -718,12 +767,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             
             // Append necessary options for background recording if keepAwake is enabled
             if settings.keepAwake {
-                Logger.debug("keepAwake enabled - configuring for background recording")
+                Logger.debug("AudioStreamManager", "keepAwake enabled - configuring for background recording")
                 // Add background audio option
                 options.insert(.mixWithOthers)
                 try session.setActive(true, options: .notifyOthersOnDeactivation)
             } else {
-                Logger.debug("keepAwake disabled - using standard session configuration")
+                Logger.debug("AudioStreamManager", "keepAwake disabled - using standard session configuration")
                 // If keepAwake is false, don't add background audio options
                 try session.setActive(true)
             }
@@ -739,60 +788,29 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             try session.setActive(true, options: .notifyOthersOnDeactivation)
 
             // Log session config details as single lines for clarity
-            Logger.debug("Audio session configured:")
-            Logger.debug("  - category: \(category)")
-            Logger.debug("  - mode: \(mode)")
-            Logger.debug("  - options: \(options)")
-            Logger.debug("  - keepAwake: \(settings.keepAwake)")
-            Logger.debug("  - emission interval: \(emissionInterval * 1000)ms")
-            Logger.debug("  - analysis interval: \(emissionIntervalAnalysis * 1000)ms")
-            Logger.debug("  - requested sample rate: \(settings.sampleRate)Hz")
-            Logger.debug("  - actual session sample rate: \(session.sampleRate)Hz") // Log actual rate
-            Logger.debug("  - channels: \(settings.numberOfChannels)")
-            Logger.debug("  - bit depth: \(settings.bitDepth)-bit")
-            Logger.debug("  - compression enabled: \(settings.enableCompressedOutput)")
+            Logger.debug("AudioStreamManager", "Audio session configured:")
+            Logger.debug("AudioStreamManager", "  - category: \(category)")
+            Logger.debug("AudioStreamManager", "  - mode: \(mode)")
+            Logger.debug("AudioStreamManager", "  - options: \(options)")
+            Logger.debug("AudioStreamManager", "  - keepAwake: \(settings.keepAwake)")
+            Logger.debug("AudioStreamManager", "  - emission interval: \(emissionInterval * 1000)ms")
+            Logger.debug("AudioStreamManager", "  - analysis interval: \(emissionIntervalAnalysis * 1000)ms")
+            Logger.debug("AudioStreamManager", "  - requested sample rate: \(settings.sampleRate)Hz")
+            Logger.debug("AudioStreamManager", "  - actual session sample rate: \(session.sampleRate)Hz") // Log actual rate
+            Logger.debug("AudioStreamManager", "  - channels: \(settings.numberOfChannels)")
+            Logger.debug("AudioStreamManager", "  - bit depth: \(settings.bitDepth)-bit")
+            Logger.debug("AudioStreamManager", "  - compression enabled: \(settings.enableCompressedOutput)")
 
-            // --- Revised Tap Format Logic ---
-            // Get the input node's format primarily for channel count and data type.
-            let nodeFormat = audioEngine.inputNode.outputFormat(forBus: 0)
-            let actualSessionRate = session.sampleRate // Use the session's negotiated rate.
+            // Use our shared tap installation method
+            let tapFormat = installTapWithHardwareFormat()
 
-            Logger.debug("Node format suggests: \(describeAudioFormat(nodeFormat))")
-            Logger.debug("Session reports actual rate: \(actualSessionRate) Hz")
-
-            // Create the tap format using the ACTUAL session sample rate, but node's channel count/type.
-            // This aims to match the hardware stream (like 16kHz HFP) more reliably.
-            guard let tapFormat = AVAudioFormat(
-                commonFormat: nodeFormat.commonFormat, // Keep node's format (e.g., Float32)
-                sampleRate: actualSessionRate,         // Use ACTUAL session rate
-                channels: nodeFormat.channelCount,     // Use node's channel count
-                interleaved: nodeFormat.isInterleaved  // Use node's interleaving
-            ) else {
-                Logger.debug("Failed to create tap format with session rate \(actualSessionRate) and node details.")
-                // Throw an error to prevent proceeding with invalid setup
-                throw NSError(domain: "AudioStreamManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create tap format for installation."])
-            }
-
-            // Log tap config details as single lines
-            Logger.debug("Final Tap Configuration (Using Session Rate):")
-            Logger.debug("  - Tap Format: \(describeAudioFormat(tapFormat))")
-            Logger.debug("  - Node Format Was: \(describeAudioFormat(nodeFormat))")
-            Logger.debug("  - Requested Output Format: \(settings.bitDepth)-bit at \(settings.sampleRate)Hz")
+            // Log tap configuration
+            Logger.debug("AudioStreamManager", "Final Tap Configuration (Using Hardware Format):")
+            Logger.debug("AudioStreamManager", "  - Tap Format: \(describeAudioFormat(tapFormat))")
+            Logger.debug("AudioStreamManager", "  - Session Rate: \(session.sampleRate) Hz")
+            Logger.debug("AudioStreamManager", "  - Requested Output Format: \(settings.bitDepth)-bit at \(settings.sampleRate)Hz")
 
             recordingSettings = newSettings  // Keep original settings with desired sample rate
-
-            // Install tap with the format derived from session sample rate
-            audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: tapFormat) { [weak self] (buffer, time) in // Use newly constructed tapFormat
-                guard let self = self,
-                      let fileURL = self.recordingFileURL,
-                      self.isRecording else { // Only process buffer if actually recording
-                    // Logger.debug("Tap received buffer but self, fileURL, or isRecording is invalid. Ignoring.")
-                    return
-                }
-                // processAudioBuffer will handle resampling if tapFormat.sampleRate != settings.sampleRate
-                self.processAudioBuffer(buffer, fileURL: fileURL)
-                self.lastBufferTime = time
-            }
 
             audioEngine.prepare() // Prepare the engine without starting it
             
@@ -808,13 +826,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     AVEncoderBitDepthHintKey: settings.bitDepth
                 ]
                 
-                Logger.debug("Initializing compressed recording with settings: \(compressedSettings)")
+                
+                Logger.debug("AudioStreamManager", "Initializing compressed recording with settings: \(compressedSettings)")
                 
                 // Create file for compressed recording
                 compressedFileURL = createRecordingFile(isCompressed: true)
                 
                 if let url = compressedFileURL {
-                    Logger.debug("Using compressed file URL: \(url.path)")
+                    Logger.debug("AudioStreamManager", "Using compressed file URL: \(url.path)")
                     
                     // Initialize recorder with proper error handling
                     do {
@@ -823,28 +842,28 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                             recorder.delegate = self
                             
                             if !recorder.prepareToRecord() {
-                                Logger.debug("Failed to prepare recorder")
+                                Logger.debug("AudioStreamManager", "Failed to prepare recorder")
                                 compressedFileURL = nil
                                 compressedRecorder = nil
                             } else {
                                 // Note: We don't start the recorder yet, just prepare it
-                                Logger.debug("Compressed recording prepared successfully")
+                                Logger.debug("AudioStreamManager", "Compressed recording prepared successfully")
                                 compressedFormat = settings.compressedFormat
                                 compressedBitRate = settings.compressedBitRate
                             }
                         }
                     } catch {
-                        Logger.debug("Failed to initialize compressed recorder: \(error)")
+                        Logger.debug("AudioStreamManager", "Failed to initialize compressed recorder: \(error)")
                         compressedFileURL = nil
                         compressedRecorder = nil
                     }
                 } else {
-                    Logger.debug("Failed to create compressed recording file")
+                    Logger.debug("AudioStreamManager", "Failed to create compressed recording file")
                 }
             }
             
         } catch {
-            Logger.debug("Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
+            Logger.debug("AudioStreamManager", "Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
             return false
         }
         
@@ -857,7 +876,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }, reject: { code, message in
                 // Handle the rejection here if needed
             })
-            Logger.debug("AudioProcessor activated successfully.")
+            Logger.debug("AudioStreamManager", "AudioProcessor activated successfully.")
         }
         
         // Prepare notifications if enabled but don't show yet
@@ -880,6 +899,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // If already prepared, use the prepared state
         if isPrepared {
             Logger.debug("Using prepared recording state")
+            
+            // Install tap with hardware format
+            _ = installTapWithHardwareFormat()
+            Logger.debug("Tap was reinstalled during recording start")
         } else {
             // If not prepared, prepare now
             Logger.debug("Not prepared, preparing recording first")
@@ -889,6 +912,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }
         }
         
+        // Rest of the method remains unchanged
         // Check for active phone call again, in case one started after preparation
         if isPhoneCallActive() {
             Logger.debug("Cannot start recording during an active phone call")
@@ -1078,6 +1102,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
         
         do {
+            // Check and reinstall tap with hardware format
+            _ = installTapWithHardwareFormat()
+            Logger.debug("Tap reinstalled for resume")
+            
             // Try to restart the engine
             try audioEngine.start()
             
@@ -1095,10 +1123,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             // Clear the stored valid duration
             lastValidDuration = nil
             
+            // Reset emission timers to ensure emission starts immediately after resume
+            lastEmissionTime = Date()
+            lastEmissionTimeAnalysis = Date()
+            
             // Notify delegate
             delegate?.audioStreamManager(self, didResumeRecording: Date())
             
-            Logger.debug("Recording resumed")
+            Logger.debug("Recording resumed successfully")
             
         } catch {
             Logger.debug("Failed to resume recording: \(error.localizedDescription)")
@@ -1285,6 +1317,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             return
         }
 
+        // DEBUG: Add tap and buffer info
+        debugBufferCounter += 1
+        
+        // Log every 10th buffer to avoid excessive logs
+        if debugBufferCounter % 10 == 0 {
+            Logger.debug("BUFFER DEBUG: Processing buffer #\(debugBufferCounter), channelCount: \(buffer.format.channelCount), frameLength: \(buffer.frameLength)")
+        }
+
         // targetSampleRate and targetFormat remain the user's requested final format
         let targetSampleRate = Double(settings.sampleRate)
         let targetFormat: AVAudioCommonFormat = settings.bitDepth == 32 ? .pcmFormatFloat32 : .pcmFormatInt16
@@ -1360,24 +1400,37 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         let currentTotalSize = self.totalDataSize // Use the most up-to-date size for events
 
         // Emit AudioData event
-        if let lastEmission = self.lastEmissionTime,
-           currentTime.timeIntervalSince(lastEmission) >= emissionInterval,
-           !accumulatedData.isEmpty {
-            let dataToEmit = accumulatedData
-            let recordingTime = currentRecordingDuration()
-            self.lastEmissionTime = currentTime
-            self.lastEmittedSize = currentTotalSize
-            accumulatedData.removeAll()
-            var compressionInfo: [String: Any]? = nil
-            // TODO: Get actual compressed file size if needed for this event
-            delegate?.audioStreamManager(
-                self,
-                didReceiveAudioData: dataToEmit,
-                recordingTime: recordingTime,
-                totalDataSize: currentTotalSize,
-                compressionInfo: compressionInfo
-            )
-            // Logger.debug("Emitted didReceiveAudioData event.") // Optional: Re-enable if needed
+        if let lastEmission = self.lastEmissionTime {
+            // Log emission evaluation every 10th buffer
+            if debugBufferCounter % 10 == 0 {
+                let timeGap = currentTime.timeIntervalSince(lastEmission)
+                let isTimeReady = timeGap >= emissionInterval
+                Logger.debug("EMISSION DEBUG: Time since last: \(timeGap)s, Threshold: \(emissionInterval)s, Ready: \(isTimeReady), DataSize: \(accumulatedData.count) bytes")
+            }
+            
+            if currentTime.timeIntervalSince(lastEmission) >= emissionInterval,
+               !accumulatedData.isEmpty {
+                let dataToEmit = accumulatedData
+                let recordingTime = currentRecordingDuration()
+                self.lastEmissionTime = currentTime
+                self.lastEmittedSize = currentTotalSize
+                accumulatedData.removeAll()
+                var compressionInfo: [String: Any]? = nil
+                
+                Logger.debug("EMISSION SUCCESS: Emitting \(dataToEmit.count) bytes at recording time \(recordingTime)s")
+                
+                delegate?.audioStreamManager(
+                    self,
+                    didReceiveAudioData: dataToEmit,
+                    recordingTime: recordingTime,
+                    totalDataSize: currentTotalSize,
+                    compressionInfo: compressionInfo
+                )
+            }
+        } else {
+            // This case occurs when lastEmissionTime is nil (either first run or after reset)
+            Logger.debug("EMISSION DEBUG: lastEmissionTime is nil, setting to current time")
+            lastEmissionTime = currentTime
         }
 
         // Dispatch analysis task
@@ -1768,12 +1821,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             // Switch on the *enum* value
             switch behavior {
             case .PAUSE:
+                Logger.debug("Device disconnect behavior set to PAUSE. Pausing recording.")
                 performPauseAction(reason: .deviceDisconnected)
 
             case .FALLBACK:
-                 Task { 
+                Logger.debug("Device disconnect behavior set to FALLBACK. Attempting to switch to default device.")
+                Task { 
                     await performFallbackAction()
-                 }
+                }
             }
         } else {
              Logger.debug("A different device disconnected (\(normalizedDisconnectedId)). Current recording device (\(normalizedCurrentId)) is still active. Ignoring.")
@@ -1807,13 +1862,26 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }
             Logger.debug("Found default device for fallback: \(defaultDevice.name) (ID: \(defaultDevice.id))")
 
-            // 2. Stop engine temporarily & Remove existing tap
-            let wasManuallyPaused = isPaused
-            if audioEngine.isRunning {
-                audioEngine.pause()
-            }
+            // CRITICAL: Complete engine reset - stronger than just pausing
+            audioEngine.stop()
+            audioEngine.reset() // Reset the entire engine
             audioEngine.inputNode.removeTap(onBus: 0)
-            Logger.debug("Fallback: Paused engine and removed existing tap.")
+            
+            // More aggressive session reset
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setActive(false, options: .notifyOthersOnDeactivation)
+                Thread.sleep(forTimeInterval: 0.2) // Give system time to release resources
+                
+                // Reconfigure the session completely
+                try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .mixWithOthers])
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+                Thread.sleep(forTimeInterval: 0.1) // Allow the session to activate fully
+            } catch {
+                Logger.debug("Session reset error: \(error.localizedDescription)")
+            }
+            
+            let wasManuallyPaused = isPaused
 
             // 3. Update settings and select the new device in the session
             recordingSettings?.deviceId = defaultDevice.id // Update setting
@@ -1824,56 +1892,153 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 return
             }
             Logger.debug("Successfully selected default device \(defaultDevice.id) in session.")
-
-            // --- Reinstall Tap --- 
-            // 4. Get the tap format for the *new* device
-            let session = AVAudioSession.sharedInstance()
-            let nodeFormat = audioEngine.inputNode.outputFormat(forBus: 0)
-            let actualSessionRate = session.sampleRate
-            Logger.debug("Fallback: New device node format: \(describeAudioFormat(nodeFormat))")
-            Logger.debug("Fallback: New device session rate: \(actualSessionRate) Hz")
             
-            guard let newTapFormat = AVAudioFormat(
-                commonFormat: nodeFormat.commonFormat,
-                sampleRate: actualSessionRate,
-                channels: nodeFormat.channelCount,
-                interleaved: nodeFormat.isInterleaved
-            ) else {
-                Logger.debug("Fallback failed: Could not create tap format for new device.")
-                performPauseAction(reason: .deviceSwitchFailed)
-                return
-            }
-            Logger.debug("Fallback: Determined new tap format: \(describeAudioFormat(newTapFormat))")
+            // Additional forced reset of engine to ensure clean state
+            audioEngine.reset()
+            audioEngine.prepare()
 
-            // 5. Install the new tap
-            audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: newTapFormat) { [weak self] (buffer, time) in
+            // Create a counter for tracking buffers since fallback
+            var buffersSinceFallback = 0
+            
+            // Create a specialized tap block for fallback with aggressive emission
+            let fallbackTapBlock = { [weak self] (buffer: AVAudioPCMBuffer, time: AVAudioTime) -> Void in
                 guard let self = self, self.isRecording else { return }
+                
+                // Process the buffer and ensure it's written to file
                 self.processAudioBuffer(buffer, fileURL: self.recordingFileURL!)
                 self.lastBufferTime = time
+                
+                // Special handling for fallback: force emission regularly to restart flow
+                let audioData = buffer.audioBufferList.pointee.mBuffers
+                guard let bufferData = audioData.mData else { return }
+                
+                let dataToAdd = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
+                if !dataToAdd.isEmpty {
+                    // Force emission every few buffers regardless of timing during recovery period
+                    buffersSinceFallback += 1
+                    
+                    // MORE AGGRESSIVE: Force emission every 2 buffers for the first 30 buffers
+                    if buffersSinceFallback <= 30 && buffersSinceFallback % 2 == 0 {
+                        DispatchQueue.main.async {
+                            // Bypass normal timing checks to ensure data flows
+                            let recordingTime = self.currentRecordingDuration()
+                            let totalSize = self.totalDataSize // Make sure we use the current value
+                            Logger.debug("FALLBACK FORCE EMIT: Forcing emission after fallback (buffer #\(buffersSinceFallback), size: \(dataToAdd.count) bytes, totalSize: \(totalSize))")
+                            
+                            self.delegate?.audioStreamManager(
+                                self,
+                                didReceiveAudioData: dataToAdd,
+                                recordingTime: recordingTime,
+                                totalDataSize: totalSize,
+                                compressionInfo: nil
+                            )
+                        }
+                    }
+                }
             }
-            Logger.debug("Fallback: Re-installed tap with new format.")
             
-            // 6. Prepare and Restart engine if it wasn't manually paused before
+            // Use our shared tap installation method with the custom block
+            installTapWithHardwareFormat(customTapBlock: fallbackTapBlock)
+            Logger.debug("Fallback: Re-installed tap with enhanced emission handling")
+            
+            // Force prepare engine again to ensure it's ready
             audioEngine.prepare()
             Logger.debug("Fallback: Prepared audio engine.")
 
             if !wasManuallyPaused {
-                 // Only start if it's not running (it should have been paused earlier)
-                 if !audioEngine.isRunning {
-                     do {
-                         try audioEngine.start()
-                         Logger.debug("Audio engine restarted for fallback.")
-                     } catch {
-                         Logger.debug("Fallback failed: Could not restart audio engine after tap reinstall. Pausing. Error: \(error)")
-                         performPauseAction(reason: .deviceSwitchFailed)
-                         return
-                     }
-                 } else {
+                // Only start if it's not running (it should have been paused earlier)
+                if !audioEngine.isRunning {
+                    do {
+                        try audioEngine.start()
+                        Logger.debug("Audio engine restarted for fallback.")
+                    } catch {
+                        // Try ONE more time with delay
+                        Thread.sleep(forTimeInterval: 0.2)
+                        do {
+                            try audioEngine.start()
+                            Logger.debug("Audio engine restarted on second attempt after fallback.")
+                        } catch {
+                            Logger.debug("Fallback failed: Could not restart audio engine after tap reinstall. Pausing. Error: \(error)")
+                            performPauseAction(reason: .deviceSwitchFailed)
+                            return
+                        }
+                    }
+                } else {
                     Logger.debug("Audio engine was already running during fallback attempt? Unexpected state.")
-                 }
-             } else {
-                 Logger.debug("Recording was manually paused, leaving engine paused after fallback.")
-             }
+                }
+            } else {
+                Logger.debug("Recording was manually paused, leaving engine paused after fallback.")
+            }
+
+            // Emit any remaining audio data from the previous device before resetting timers
+            if !accumulatedData.isEmpty {
+                Logger.debug("Emitting final audio chunk of \(accumulatedData.count) bytes from previous device")
+                let recordingTime = currentRecordingDuration()
+                let finalTotalSize = self.totalDataSize
+                
+                // Create a copy of accumulated data to avoid race conditions
+                let finalData = accumulatedData
+                
+                // Notify delegate with final audio data from previous device
+                delegate?.audioStreamManager(
+                    self,
+                    didReceiveAudioData: finalData,
+                    recordingTime: recordingTime,
+                    totalDataSize: finalTotalSize,
+                    compressionInfo: nil
+                )
+            }
+            
+            // Reset emission timers to force new data emission with the fallback device
+            lastEmissionTime = Date() // Reset to force immediate emission
+            lastEmissionTimeAnalysis = Date() // Reset analysis timer too
+            
+            // Important: Do not reset totalDataSize here - it needs to be maintained
+            // We only clear the buffers to start accumulating new data from the fallback device
+            accumulatedData.removeAll() // Clear any partial data from previous device
+            accumulatedAnalysisData.removeAll() // Clear analysis data buffer
+            Logger.debug("Emission timers reset. Current totalDataSize: \(totalDataSize)")
+
+            // CRITICAL: Multiple scheduled recovery attempts
+            for delaySeconds in [0.5, 1.0, 2.0, 3.0] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delaySeconds) { [weak self] in
+                    guard let self = self, self.isRecording, !self.isPaused else { return }
+                    Logger.debug("FALLBACK RECOVERY: Checking for data at \(delaySeconds)s")
+                    
+                    // Force an immediate emission if data is being received but not emitted
+                    if !self.accumulatedData.isEmpty {
+                        Logger.debug("FALLBACK RECOVERY: Forcing emission from accumulated data after \(delaySeconds)s (total size: \(self.totalDataSize))")
+                        let dataToEmit = self.accumulatedData
+                        let recordingTime = self.currentRecordingDuration()
+                        let totalSize = self.totalDataSize
+                        
+                        self.lastEmissionTime = Date() // Reset the emission timer
+                        self.accumulatedData.removeAll() // Clear the buffer
+                        
+                        // Direct delegate call with accumulated data
+                        self.delegate?.audioStreamManager(
+                            self,
+                            didReceiveAudioData: dataToEmit,
+                            recordingTime: recordingTime,
+                            totalDataSize: totalSize,
+                            compressionInfo: nil
+                        )
+                    }
+                    
+                    // If we're at the 3-second mark and the engine appears to not be running, attempt restart
+                    if delaySeconds >= 3.0 && (!self.audioEngine.isRunning || self.lastEmissionTime!.timeIntervalSinceNow < -3) {
+                        Logger.debug("FALLBACK RECOVERY: Emergency engine restart attempt")
+                        do {
+                            self.audioEngine.reset()
+                            self.audioEngine.prepare()
+                            try self.audioEngine.start()
+                            self.lastEmissionTime = Date()
+                        } catch {
+                            Logger.debug("Emergency restart failed: \(error)")
+                        }
+                    }
+                }
+            }
 
             // 7. Notify JS about successful fallback
             delegate?.audioStreamManager(self, didReceiveInterruption: [
