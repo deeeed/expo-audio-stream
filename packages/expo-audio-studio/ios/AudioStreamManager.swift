@@ -752,44 +752,33 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             Logger.debug("  - bit depth: \(settings.bitDepth)-bit")
             Logger.debug("  - compression enabled: \(settings.enableCompressedOutput)")
 
-            // --- Revised Tap Format Logic ---
-            // Get the input node's format primarily for channel count and data type.
+            // --- Tap Format Logic ---
+            // Get the input node's format for tap installation
             let nodeFormat = audioEngine.inputNode.outputFormat(forBus: 0)
-            let actualSessionRate = session.sampleRate // Use the session's negotiated rate.
+            let actualSessionRate = session.sampleRate
 
             Logger.debug("Node format suggests: \(describeAudioFormat(nodeFormat))")
             Logger.debug("Session reports actual rate: \(actualSessionRate) Hz")
 
-            // Create the tap format using the ACTUAL session sample rate, but node's channel count/type.
-            // This aims to match the hardware stream (like 16kHz HFP) more reliably.
-            guard let tapFormat = AVAudioFormat(
-                commonFormat: nodeFormat.commonFormat, // Keep node's format (e.g., Float32)
-                sampleRate: actualSessionRate,         // Use ACTUAL session rate
-                channels: nodeFormat.channelCount,     // Use node's channel count
-                interleaved: nodeFormat.isInterleaved  // Use node's interleaving
-            ) else {
-                Logger.debug("Failed to create tap format with session rate \(actualSessionRate) and node details.")
-                // Throw an error to prevent proceeding with invalid setup
-                throw NSError(domain: "AudioStreamManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create tap format for installation."])
-            }
+            // Use node's exact format to ensure compatibility with hardware
+            let tapFormat = nodeFormat
 
-            // Log tap config details as single lines
-            Logger.debug("Final Tap Configuration (Using Session Rate):")
+            // Log tap configuration
+            Logger.debug("Final Tap Configuration (Using Native Format):")
             Logger.debug("  - Tap Format: \(describeAudioFormat(tapFormat))")
-            Logger.debug("  - Node Format Was: \(describeAudioFormat(nodeFormat))")
+            Logger.debug("  - Session Rate: \(actualSessionRate) Hz")
             Logger.debug("  - Requested Output Format: \(settings.bitDepth)-bit at \(settings.sampleRate)Hz")
 
             recordingSettings = newSettings  // Keep original settings with desired sample rate
 
-            // Install tap with the format derived from session sample rate
-            audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: tapFormat) { [weak self] (buffer, time) in // Use newly constructed tapFormat
+            // Install tap with the exact node format
+            audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: tapFormat) { [weak self] (buffer, time) in
                 guard let self = self,
                       let fileURL = self.recordingFileURL,
-                      self.isRecording else { // Only process buffer if actually recording
-                    // Logger.debug("Tap received buffer but self, fileURL, or isRecording is invalid. Ignoring.")
+                      self.isRecording else {
                     return
                 }
-                // processAudioBuffer will handle resampling if tapFormat.sampleRate != settings.sampleRate
+                // processAudioBuffer will handle resampling if needed
                 self.processAudioBuffer(buffer, fileURL: fileURL)
                 self.lastBufferTime = time
             }
@@ -880,6 +869,41 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // If already prepared, use the prepared state
         if isPrepared {
             Logger.debug("Using prepared recording state")
+            
+            // Check if audio routing or format might have changed
+            let session = AVAudioSession.sharedInstance()
+            let currentNodeFormat = audioEngine.inputNode.outputFormat(forBus: 0)
+            let currentSessionRate = session.sampleRate
+            
+            // Log format information for diagnostic purposes
+            let formatCheckStr = "Format check: Node format: \(describeAudioFormat(currentNodeFormat)), Session rate: \(currentSessionRate) Hz"
+            
+            // Only reinstall tap if we detect a format change, to preserve zero latency when possible
+            if currentNodeFormat.sampleRate != currentSessionRate {
+                Logger.debug("\(formatCheckStr) - Format mismatch detected! Reinstalling tap.")
+                
+                // Remove existing tap and reinstall with node format
+                audioEngine.inputNode.removeTap(onBus: 0)
+                
+                // Use the node's exact format to ensure compatibility with hardware
+                let updatedTapFormat = currentNodeFormat
+                
+                // Reinstall tap with updated format
+                audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: updatedTapFormat) { [weak self] (buffer, time) in
+                    guard let self = self,
+                          let fileURL = self.recordingFileURL,
+                          self.isRecording else {
+                        return
+                    }
+                    self.processAudioBuffer(buffer, fileURL: fileURL)
+                    self.lastBufferTime = time
+                }
+                
+                audioEngine.prepare() // Re-prepare the engine with updated tap
+            } else {
+                Logger.debug("\(formatCheckStr) - Format consistent, using existing tap for zero latency.")
+            }
+            
         } else {
             // If not prepared, prepare now
             Logger.debug("Not prepared, preparing recording first")
@@ -889,6 +913,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }
         }
         
+        // Rest of the method remains unchanged
         // Check for active phone call again, in case one started after preparation
         if isPhoneCallActive() {
             Logger.debug("Cannot start recording during an active phone call")
@@ -1826,26 +1851,19 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             Logger.debug("Successfully selected default device \(defaultDevice.id) in session.")
 
             // --- Reinstall Tap --- 
-            // 4. Get the tap format for the *new* device
+            // Get the tap format for the new device
             let session = AVAudioSession.sharedInstance()
             let nodeFormat = audioEngine.inputNode.outputFormat(forBus: 0)
             let actualSessionRate = session.sampleRate
             Logger.debug("Fallback: New device node format: \(describeAudioFormat(nodeFormat))")
             Logger.debug("Fallback: New device session rate: \(actualSessionRate) Hz")
             
-            guard let newTapFormat = AVAudioFormat(
-                commonFormat: nodeFormat.commonFormat,
-                sampleRate: actualSessionRate,
-                channels: nodeFormat.channelCount,
-                interleaved: nodeFormat.isInterleaved
-            ) else {
-                Logger.debug("Fallback failed: Could not create tap format for new device.")
-                performPauseAction(reason: .deviceSwitchFailed)
-                return
-            }
+            // Use the node's exact format to ensure compatibility with hardware
+            let newTapFormat = nodeFormat
+            
             Logger.debug("Fallback: Determined new tap format: \(describeAudioFormat(newTapFormat))")
 
-            // 5. Install the new tap
+            // Install the new tap
             audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: newTapFormat) { [weak self] (buffer, time) in
                 guard let self = self, self.isRecording else { return }
                 self.processAudioBuffer(buffer, fileURL: self.recordingFileURL!)
