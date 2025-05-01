@@ -166,8 +166,25 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
                     return
                 }
                 
-                // Create settings with validation
-                let settingsResult = RecordingSettings.fromDictionary(options)
+                // Check if compression is enabled and format is Opus
+                var modifiedOptions = options
+                if let compression = options["compression"] as? [String: Any],
+                   let enabled = compression["enabled"] as? Bool, enabled,
+                   let format = compression["format"] as? String,
+                   format.lowercased() == "opus" {
+                    
+                    // Create a mutable copy of the compression dictionary
+                    var modifiedCompression = compression
+                    
+                    // Change format to AAC and log warning
+                    modifiedCompression["format"] = "aac"
+                    modifiedOptions["compression"] = modifiedCompression
+                    
+                    Logger.warn("[ExpoAudioStreamModule] startRecording: Opus format is not supported on iOS. Falling back to AAC format.")
+                }
+                
+                // Create settings with validation using the potentially modified options
+                let settingsResult = RecordingSettings.fromDictionary(modifiedOptions)
                 
                 switch settingsResult {
                 case .success(let settings):

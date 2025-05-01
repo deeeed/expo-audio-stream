@@ -383,9 +383,17 @@ const handleStopRecording = async () => {
 
 ### Platform Considerations
 
-- **iOS**: Both AAC and Opus are supported
-- **Android**: Both AAC and Opus are supported
-- **Web**: Opus is supported, AAC support depends on browser
+- **iOS**: 
+  - AAC is supported and recommended
+  - Opus format is **not supported** on iOS - if requested, the library will automatically fall back to AAC format and emit a warning
+  - Files are written directly to disk rather than stored in memory
+- **Android**: 
+  - Both AAC and Opus are supported
+  - Files are written directly to disk rather than stored in memory
+- **Web**: 
+  - Opus is supported
+  - AAC support depends on browser
+  - Data is stored in memory during recording unless `storeUncompressedAudio: false` is set
 
 ### Streaming Compressed Audio
 

@@ -210,24 +210,33 @@ export function RecordingSettings({
         <>
           <View>
             <Text variant="titleMedium" style={{ marginBottom: 8 }}>Compression Format</Text>
-            <SegmentedButtons
-              value={config.compression?.format || 'opus'}
-              onValueChange={(value) => {
-                const updatedConfig = {
-                  ...config,
-                  compression: {
-                    ...(config.compression ?? { enabled: true, bitrate: DEFAULT_BITRATE }),
-                    format: value as 'aac' | 'opus',
-                  },
-                };
-                onConfigChange(updatedConfig);
-              }}
-              buttons={[
-                { value: 'opus', label: 'OPUS' },
-                // Only show AAC option for native platforms
-                ...(!isWeb ? [{ value: 'aac', label: 'AAC' }] : []),
-              ]}
-            />
+            {Platform.OS === 'ios' ? (
+              <>
+                <Text>AAC</Text>
+                <Text variant="bodySmall" style={{ marginTop: 4, color: theme.colors.outline }}>
+                  Only AAC format is supported on iOS devices.
+                </Text>
+              </>
+            ) : (
+              <SegmentedButtons
+                value={config.compression?.format || 'opus'}
+                onValueChange={(value) => {
+                  const updatedConfig = {
+                    ...config,
+                    compression: {
+                      ...(config.compression ?? { enabled: true, bitrate: DEFAULT_BITRATE }),
+                      format: value as 'aac' | 'opus',
+                    },
+                  };
+                  onConfigChange(updatedConfig);
+                }}
+                buttons={[
+                  { value: 'opus', label: 'OPUS' },
+                  // Only show AAC option for native platforms
+                  ...(!isWeb ? [{ value: 'aac', label: 'AAC' }] : []),
+                ]}
+              />
+            )}
           </View>
           
           <View>
@@ -238,7 +247,7 @@ export function RecordingSettings({
                 const updatedConfig = {
                   ...config,
                   compression: {
-                    ...(config.compression ?? { enabled: true, format: 'opus' }),
+                    ...(config.compression ?? { enabled: true, format: Platform.OS === 'ios' ? 'aac' : 'opus' }),
                     bitrate: parseInt(value, 10),
                   },
                 };
