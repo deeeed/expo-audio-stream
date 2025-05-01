@@ -385,8 +385,7 @@ export default function RecordScreen() {
         }
 
         preloadWhisperModel()
-        // Update dependency to use unifiedIsModelLoading
-    }, [enableLiveTranscription, validSRTranscription, ready, initializeTranscription, unifiedIsModelLoading, isWeb]) // Added isWeb as it's used in condition
+    }, [enableLiveTranscription, validSRTranscription, ready, initializeTranscription, unifiedIsModelLoading])
 
     const isProgressiveBatchRunningRef = useRef(false);
     const enableLiveTranscriptionRef = useRef(enableLiveTranscription);
@@ -730,16 +729,10 @@ export default function RecordScreen() {
                 return;
             }
 
-            // Defer post-processing to let UI breathe
-            await new Promise(resolve => requestAnimationFrame(resolve));
-
             // Add transcripts to the result
             if (enableLiveTranscriptionRef.current) {
                 result.transcripts = transcripts;
             }
-
-            // Defer file storage operations
-            await new Promise(resolve => requestAnimationFrame(resolve));
 
             setResult(result);
 
@@ -747,13 +740,22 @@ export default function RecordScreen() {
                 try {
                     let arrayBuffer: ArrayBuffer = new ArrayBuffer(0);
                     let filename = result.filename;
+                    
+                    // Check for compressed file URI first
                     if(result.compression?.compressedFileUri) {
+                        logger.debug('Using compressed file URI');
                         const audioBuffer = result.compression.compressedFileUri;
                         arrayBuffer = await fetch(audioBuffer).then(res => res.arrayBuffer());
-                        // replace filename wav extension (if exists) with matching format
+                        // Replace filename wav extension (if exists) with matching format
                         filename = filename.replace(/\.wav$/, `.${result.compression?.format}`);
                     }
+                    // If no compressed file URI, use the regular file URI (uncompressed WAV)
+                    else if(result.fileUri) { 
+                        logger.debug('Using uncompressed file URI');
+                        arrayBuffer = await fetch(result.fileUri).then(res => res.arrayBuffer());
+                    }
 
+                    // Store the audio file
                     await storeAudioFile({
                         fileName: filename,
                         arrayBuffer,
@@ -761,16 +763,8 @@ export default function RecordScreen() {
                     });
 
                     await refreshFiles();
-                    logger.debug('Audio file stored successfully');
                 } catch (error) {
                     logger.error('Failed to store audio:', error);
-                    if (error instanceof Error) {
-                        logger.error('Error details:', {
-                            message: error.message,
-                            name: error.name,
-                            stack: error.stack
-                        });
-                    }
                     throw new Error('Failed to store audio file');
                 }
             } else {

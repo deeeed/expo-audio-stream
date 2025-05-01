@@ -39,6 +39,7 @@ export interface RecordingConfig {
 
     // Platform specific configuration
     ios?: IOSConfig // iOS-specific configuration
+    web?: WebConfig // Web-specific configuration
 
     // Compression settings
     compression?: {
@@ -258,6 +259,56 @@ function VoiceCommandScreen() {
   );
 }
 ```
+
+## Web Memory Optimization {#web-memory-optimization}
+
+On the web platform, audio recording can consume significant memory, especially for longer recordings. The library offers a memory optimization option to reduce memory usage by controlling how uncompressed audio data is stored.
+
+### Web Configuration Options
+
+```tsx
+interface WebConfig {
+    /**
+     * Whether to store uncompressed audio data for WAV generation (web only)
+     * 
+     * Default: true (for backward compatibility)
+     */
+    storeUncompressedAudio?: boolean
+}
+```
+
+### Memory Usage Control
+
+The `storeUncompressedAudio` option lets you control how audio data is handled in memory:
+
+- **When true (default)**: All PCM chunks are stored in memory during recording, enabling WAV file generation when compression is disabled. This provides maximum flexibility but can use significant memory for long recordings.
+
+- **When false**: Only compressed audio is kept (if compression is enabled), significantly reducing memory usage. This is ideal for long recordings where memory constraints are a concern.
+
+### Example Usage
+
+```tsx
+const { startRecording } = useAudioRecorder();
+
+// Memory-efficient recording for long sessions
+await startRecording({
+  sampleRate: 44100,
+  channels: 1,
+  compression: {
+    enabled: true,  // Enable compression to ensure audio is captured
+    format: 'opus',
+    bitrate: 64000
+  },
+  web: {
+    storeUncompressedAudio: false  // Only store compressed data
+  }
+});
+```
+
+### Platform Behavior
+
+- **Web**: The `storeUncompressedAudio` setting controls in-memory storage of PCM data
+- **iOS/Android**: This setting has no effect, as these platforms always write directly to files rather than storing in memory
 
 ## Compression Settings {#compression-settings}
 

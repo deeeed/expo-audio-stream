@@ -207,6 +207,19 @@ export interface IOSConfig {
     audioSession?: AudioSessionConfig
 }
 
+/** Web platform specific configuration options */
+export interface WebConfig {
+    /**
+     * Whether to store uncompressed audio data for WAV generation
+     *
+     * When true, all PCM chunks are stored in memory to create a WAV file when compression is disabled
+     * When false, uncompressed audio won't be available, but memory usage will be lower
+     *
+     * Default: true (for backward compatibility)
+     */
+    storeUncompressedAudio?: boolean
+}
+
 // Add new type for interruption reasons
 export type RecordingInterruptionReason =
     /** Audio focus was lost to another app */
@@ -311,6 +324,9 @@ export interface RecordingConfig {
 
     /** iOS-specific configuration */
     ios?: IOSConfig
+
+    /** Web-specific configuration options */
+    web?: WebConfig
 
     /** Duration of each segment in milliseconds for analysis (default: 100) */
     segmentDurationMs?: number

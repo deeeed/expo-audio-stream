@@ -1,12 +1,13 @@
 // packages/expo-audio-stream/src/WebRecorder.web.ts
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
-import { ConsoleLike, RecordingConfig } from './ExpoAudioStream.types'
+import { BitDepth, ConsoleLike, RecordingConfig } from './ExpoAudioStream.types'
 import {
     EmitAudioAnalysisFunction,
     EmitAudioEventFunction,
 } from './ExpoAudioStream.web'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
+import { writeWavHeader } from './utils/writeWavHeader'
 import { InlineFeaturesExtractor } from './workers/InlineFeaturesExtractor.web'
 import { InlineAudioWebWorker } from './workers/inlineAudioWebWorker.web'
 
@@ -16,6 +17,7 @@ interface AudioWorkletEvent {
         recordedData?: Float32Array
         sampleRate?: number
         position?: number
+        message?: string // For debug messages
     }
 }
 
@@ -60,6 +62,8 @@ export class WebRecorder {
         timestamp: number
     }) => void
     private _isDeviceDisconnected: boolean = false
+    private pcmData: Float32Array | null = null // Store original PCM data
+    private totalSampleCount: number = 0
 
     /**
      * Flag to indicate whether this is the first audio chunk after a device switch
@@ -183,6 +187,11 @@ export class WebRecorder {
                 event: AudioWorkletEvent
             ) => {
                 const command = event.data.command
+                if (command === 'debug') {
+                    this.logger?.debug(`[AudioWorklet] ${event.data.message}`)
+                    return
+                }
+
                 if (command !== 'newData') return
 
                 const pcmBufferFloat = event.data.recordedData
@@ -192,9 +201,11 @@ export class WebRecorder {
                 }
 
                 // Process data in smaller chunks and emit immediately
-                const chunkSize = this.audioContext.sampleRate * 2 // Reduce to 2 seconds chunks
                 const sampleRate =
                     event.data.sampleRate ?? this.audioContext.sampleRate
+                // Use chunk size from config interval or default to 2 seconds
+                const intervalMs = this.config.interval ?? DEFAULT_WEB_INTERVAL
+                const chunkSize = Math.floor(sampleRate * (intervalMs / 1000))
                 const duration = pcmBufferFloat.length / sampleRate
 
                 // Use incoming position if provided by worklet, otherwise use our tracked position
@@ -241,6 +252,17 @@ export class WebRecorder {
                         })
                     }
 
+                    // Only store PCM data if web.storeUncompressedAudio is not explicitly false
+                    const shouldStoreUncompressed =
+                        this.config.web?.storeUncompressedAudio !== false
+
+                    // Store PCM chunks when needed
+                    if (shouldStoreUncompressed) {
+                        // Store the original Float32Array data for later WAV creation
+                        this.appendPcmData(chunk)
+                        this.totalSampleCount += chunk.length
+                    }
+
                     // Emit chunk immediately
                     this.emitAudioEventCallback({
                         data: chunk,
@@ -265,21 +287,42 @@ export class WebRecorder {
                 this.pendingCompressedChunk = null
             }
 
-            this.logger?.debug(
-                `WebRecorder initialized -- recordSampleRate=${this.audioContext.sampleRate}, startPosition=${this.position}`,
-                this.config
-            )
-            this.audioWorkletNode.port.postMessage({
-                command: 'init',
-                recordSampleRate: this.audioContext.sampleRate,
-                exportSampleRate:
-                    this.config.sampleRate ?? this.audioContext.sampleRate,
+            // Ensure we use all relevant settings from config
+            const recordSampleRate = this.audioContext.sampleRate
+            const exportSampleRate =
+                this.config.sampleRate ?? this.audioContext.sampleRate
+            const channels = this.config.channels ?? this.numberOfChannels
+            const interval = this.config.interval ?? DEFAULT_WEB_INTERVAL
+
+            this.logger?.debug(`WebRecorder initialized with config:`, {
+                recordSampleRate,
+                exportSampleRate,
                 bitDepth: this.bitDepth,
                 exportBitDepth: this.exportBitDepth,
-                channels: this.numberOfChannels,
-                interval: this.config.interval ?? DEFAULT_WEB_INTERVAL,
+                channels,
+                interval,
+                position: this.position,
+                deviceId: this.config.deviceId || 'default',
+                compression: this.config.compression
+                    ? {
+                          enabled: this.config.compression.enabled,
+                          format: this.config.compression.format,
+                          bitrate: this.config.compression.bitrate,
+                      }
+                    : 'disabled',
+            })
+
+            // Initialize the worklet with all settings from config
+            this.audioWorkletNode.port.postMessage({
+                command: 'init',
+                recordSampleRate,
+                exportSampleRate,
+                bitDepth: this.bitDepth,
+                exportBitDepth: this.exportBitDepth,
+                channels,
+                interval,
                 position: this.position, // Pass the current position to the processor
-                // enableLogging: !!this.logger,
+                enableLogging: true,
             })
 
             // Connect the source to the AudioWorkletNode and start recording
@@ -288,6 +331,35 @@ export class WebRecorder {
         } catch (error) {
             console.error(`[${TAG}] Failed to initialize WebRecorder`, error)
         }
+    }
+
+    /**
+     * Append new PCM data to the existing buffer
+     * @param newData New Float32Array data to append
+     */
+    private appendPcmData(newData: Float32Array): void {
+        // Clone the incoming data to ensure it's not modified
+        const dataToAdd = new Float32Array(newData)
+
+        if (!this.pcmData) {
+            // First chunk - create a copy to avoid references to original data
+            this.pcmData = new Float32Array(dataToAdd)
+            return
+        }
+
+        // Create a new buffer with increased size
+        const newBuffer = new Float32Array(
+            this.pcmData.length + dataToAdd.length
+        )
+
+        // Copy existing data
+        newBuffer.set(this.pcmData)
+
+        // Append new data
+        newBuffer.set(dataToAdd, this.pcmData.length)
+
+        // Replace existing buffer
+        this.pcmData = newBuffer
     }
 
     /**
@@ -492,6 +564,10 @@ export class WebRecorder {
             )
             this.resetDataPointCounter(0) // Explicitly reset to 0 for new recordings
             this.isFirstChunkAfterSwitch = false
+
+            // Clear PCM data for new recording
+            this.pcmData = null
+            this.totalSampleCount = 0
         } else {
             this.logger?.debug(
                 `Preserving counter at ${this.dataPointIdCounter} during device switch`
@@ -504,17 +580,55 @@ export class WebRecorder {
     }
 
     /**
-     * Stops the audio recording process and returns the recorded data
-     * @param externalAudioChunks Optional array of Float32Array chunks from previous devices
-     * @returns Promise resolving to an object containing PCM data and optional compressed blob
+     * Creates a WAV file from the stored PCM data
      */
-    async stop(
-        externalAudioChunks?: Float32Array[]
-    ): Promise<{ pcmData: Float32Array; compressedBlob?: Blob }> {
+    private createWavFromPcmData(): Blob | null {
         try {
-            // Log what's happening for debugging
-            this.logger?.debug('Stopping recording and collecting final data')
+            // Check if we have PCM data
+            if (!this.pcmData || this.pcmData.length === 0) {
+                this.logger?.warn('No PCM data available to create WAV file')
+                return null
+            }
 
+            const sampleRate =
+                this.config.sampleRate || this.audioContext.sampleRate
+            const channels = this.numberOfChannels || 1
+
+            // Convert float32 PCM data to 16-bit PCM for WAV
+            const bytesPerSample = 2 // 16-bit = 2 bytes
+            const dataLength = this.pcmData.length * bytesPerSample
+            const buffer = new ArrayBuffer(dataLength)
+            const view = new DataView(buffer)
+
+            // Convert Float32Array (-1 to 1) to Int16Array (-32768 to 32767)
+            for (let i = 0; i < this.pcmData.length; i++) {
+                const sample = Math.max(-1, Math.min(1, this.pcmData[i]))
+                const int16Value = Math.round(sample * 32767)
+                view.setInt16(i * 2, int16Value, true)
+            }
+
+            // Use the existing writeWavHeader utility to add a WAV header
+            const wavBuffer = writeWavHeader({
+                buffer,
+                sampleRate,
+                numChannels: channels,
+                bitDepth: 16,
+                isFloat: false,
+            })
+
+            return new Blob([wavBuffer], { type: 'audio/wav' })
+        } catch (error) {
+            this.logger?.error('Error creating WAV file from PCM data:', error)
+            return null
+        }
+    }
+
+    /**
+     * Stops the audio recording process and returns the recorded data
+     * @returns Promise resolving to an object containing compressed and/or uncompressed blobs
+     */
+    async stop(): Promise<{ compressedBlob?: Blob; uncompressedBlob?: Blob }> {
+        try {
             // Stop any compressed recording first
             if (
                 this.compressedMediaRecorder &&
@@ -529,15 +643,24 @@ export class WebRecorder {
                 await new Promise((resolve) => setTimeout(resolve, 100))
             }
 
-            // Return the compressed blob if available
+            // Create uncompressed WAV file from the PCM data
+            let uncompressedBlob: Blob | undefined
+
+            // Only create WAV if we have PCM data
+            if (this.pcmData && this.pcmData.length > 0) {
+                uncompressedBlob =
+                    (await this.createWavFromPcmData()) || undefined
+            }
+
+            // Return the compressed and/or uncompressed blobs if available
             return {
-                pcmData: new Float32Array(), // Return empty array since we're streaming
                 compressedBlob:
                     this.compressedChunks.length > 0
                         ? new Blob(this.compressedChunks, {
                               type: 'audio/webm;codecs=opus',
                           })
                         : undefined,
+                uncompressedBlob,
             }
         } finally {
             this.cleanup()
@@ -545,6 +668,8 @@ export class WebRecorder {
             this.compressedChunks = []
             this.compressedSize = 0
             this.pendingCompressedChunk = null
+            this.pcmData = null
+            this.totalSampleCount = 0
         }
     }
 
