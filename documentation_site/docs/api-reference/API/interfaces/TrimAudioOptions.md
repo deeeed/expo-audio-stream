@@ -6,7 +6,7 @@
 
 # Interface: TrimAudioOptions
 
-Defined in: [src/ExpoAudioStream.types.ts:597](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L597)
+Defined in: [src/ExpoAudioStream.types.ts:601](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L601)
 
 Options for configuring the audio trimming operation.
 
@@ -16,7 +16,7 @@ Options for configuring the audio trimming operation.
 
 > `optional` **decodingOptions**: [`DecodingConfig`](DecodingConfig.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:677](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L677)
+Defined in: [src/ExpoAudioStream.types.ts:681](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L681)
 
 Options for decoding the input audio file.
 - See `DecodingConfig` for details.
@@ -27,7 +27,7 @@ Options for decoding the input audio file.
 
 > `optional` **endTimeMs**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:629](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L629)
+Defined in: [src/ExpoAudioStream.types.ts:633](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L633)
 
 The end time in milliseconds for the `'single'` mode.
 - If not provided, trimming extends to the end of the audio.
@@ -38,7 +38,7 @@ The end time in milliseconds for the `'single'` mode.
 
 > **fileUri**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:601](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L601)
+Defined in: [src/ExpoAudioStream.types.ts:605](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L605)
 
 The URI of the audio file to trim.
 
@@ -48,7 +48,7 @@ The URI of the audio file to trim.
 
 > `optional` **mode**: `"single"` \| `"keep"` \| `"remove"`
 
-Defined in: [src/ExpoAudioStream.types.ts:610](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L610)
+Defined in: [src/ExpoAudioStream.types.ts:614](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L614)
 
 The mode of trimming to apply.
 - `'single'`: Trims the audio to a single range defined by `startTimeMs` and `endTimeMs`.
@@ -67,7 +67,7 @@ The mode of trimming to apply.
 
 > `optional` **outputFileName**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:634](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L634)
+Defined in: [src/ExpoAudioStream.types.ts:638](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L638)
 
 The name of the output file. If not provided, a default name will be generated.
 
@@ -77,7 +77,7 @@ The name of the output file. If not provided, a default name will be generated.
 
 > `optional` **outputFormat**: `object`
 
-Defined in: [src/ExpoAudioStream.types.ts:639](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L639)
+Defined in: [src/ExpoAudioStream.types.ts:643](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L643)
 
 Configuration for the output audio format.
 
@@ -124,7 +124,7 @@ The sample rate of the output audio in Hertz (Hz).
 
 > `optional` **ranges**: [`TimeRange`](TimeRange.md)[]
 
-Defined in: [src/ExpoAudioStream.types.ts:617](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L617)
+Defined in: [src/ExpoAudioStream.types.ts:621](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L621)
 
 An array of time ranges to keep or remove, depending on the `mode`.
 - Required for `'keep'` and `'remove'` modes.
@@ -136,7 +136,7 @@ An array of time ranges to keep or remove, depending on the `mode`.
 
 > `optional` **startTimeMs**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:623](https://github.com/deeeed/expo-audio-stream/blob/acf23f6c5feaf05159a3376898117bd6525f08bd/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L623)
+Defined in: [src/ExpoAudioStream.types.ts:627](https://github.com/deeeed/expo-audio-stream/blob/9191a2cec8e21cd03a0d5be59d823583d449d9c9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L627)
 
 The start time in milliseconds for the `'single'` mode.
 - If not provided, trimming starts from the beginning of the audio (0 ms).
