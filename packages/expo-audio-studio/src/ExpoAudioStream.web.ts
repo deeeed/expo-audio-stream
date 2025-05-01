@@ -113,7 +113,56 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
     // Utility to handle user media stream
     async getMediaStream() {
         try {
-            return await navigator.mediaDevices.getUserMedia({ audio: true })
+            this.logger?.debug('Requesting user media (microphone)...')
+
+            // First check if the browser supports the necessary audio APIs
+            if (!navigator?.mediaDevices?.getUserMedia) {
+                this.logger?.error(
+                    'Browser does not support mediaDevices.getUserMedia'
+                )
+                throw new Error('Browser does not support audio recording')
+            }
+
+            // Get media with detailed audio constraints for better diagnostics
+            const constraints = {
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    // Add deviceId constraint if specified
+                    ...(this.recordingConfig?.deviceId
+                        ? {
+                              deviceId: {
+                                  exact: this.recordingConfig.deviceId,
+                              },
+                          }
+                        : {}),
+                },
+            }
+
+            this.logger?.debug('Media constraints:', constraints)
+
+            const stream =
+                await navigator.mediaDevices.getUserMedia(constraints)
+
+            // Get detailed info about the audio track for debugging
+            const audioTracks = stream.getAudioTracks()
+            if (audioTracks.length > 0) {
+                const track = audioTracks[0]
+                const settings = track.getSettings()
+                this.logger?.debug('Audio track obtained:', {
+                    label: track.label,
+                    id: track.id,
+                    enabled: track.enabled,
+                    muted: track.muted,
+                    readyState: track.readyState,
+                    settings,
+                })
+            } else {
+                this.logger?.warn('Stream has no audio tracks!')
+            }
+
+            return stream
         } catch (error) {
             this.logger?.error('Failed to get media stream:', error)
             throw error
@@ -400,7 +449,8 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         this.logger?.debug('Starting stop process')
 
         try {
-            const { compressedBlob } = await this.customRecorder.stop()
+            const { compressedBlob, uncompressedBlob } =
+                await this.customRecorder.stop()
 
             this.isRecording = false
             this.isPaused = false
@@ -409,20 +459,52 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             let fileUri = `${this.streamUuid}.${this.extension}`
             let mimeType = `audio/${this.extension}`
 
-            // Process compressed audio if available
-            if (compressedBlob && this.recordingConfig?.compression?.enabled) {
+            // Handle both compressed and uncompressed blobs according to configuration
+            const compressionEnabled =
+                this.recordingConfig?.compression?.enabled ?? false
+
+            // Process compressed blob if available
+            if (compressedBlob) {
                 const compressedUri = URL.createObjectURL(compressedBlob)
-                compression = {
+                const compressedInfo = {
                     compressedFileUri: compressedUri,
                     size: compressedBlob.size,
                     mimeType: 'audio/webm',
                     format: 'opus',
-                    bitrate: this.recordingConfig.compression.bitrate ?? 128000,
+                    bitrate:
+                        this.recordingConfig?.compression?.bitrate ?? 128000,
                 }
 
-                // Use compressed values when compression is enabled
-                fileUri = compressedUri
-                mimeType = 'audio/webm'
+                // If compression is enabled, use compressed blob as primary format
+                if (compressionEnabled) {
+                    this.logger?.debug(
+                        'Using compressed audio as primary output'
+                    )
+                    fileUri = compressedUri
+                    mimeType = 'audio/webm'
+
+                    // Store compression info
+                    compression = compressedInfo
+                } else {
+                    // Compression was enabled during recording but not set as primary
+                    // Store as alternate format
+                    compression = compressedInfo
+                }
+            }
+
+            // Process uncompressed WAV if available
+            if (uncompressedBlob) {
+                const wavUri = URL.createObjectURL(uncompressedBlob)
+
+                // If compression is disabled or no compressed blob is available,
+                // use WAV as primary format
+                if (!compressionEnabled || !compressedBlob) {
+                    this.logger?.debug(
+                        'Using uncompressed WAV as primary output'
+                    )
+                    fileUri = wavUri
+                    mimeType = 'audio/wav'
+                }
             }
 
             // Use the stored streamUuid for the final filename
@@ -442,6 +524,14 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
 
             // Reset after creating the result
             this.streamUuid = null
+
+            // Reset recording state variables to prepare for next recording
+            this.currentDurationMs = 0
+            this.currentSize = 0
+            this.lastEmittedSize = 0
+            this.totalCompressedSize = 0
+            this.lastEmittedCompressionSize = 0
+            this.audioChunks = []
 
             return result
         } catch (error) {

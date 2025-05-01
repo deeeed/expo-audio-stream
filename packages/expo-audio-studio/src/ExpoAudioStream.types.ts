@@ -334,6 +334,19 @@ export interface RecordingConfig {
         bitrate?: number
     }
 
+    /** Web-specific configuration options */
+    web?: {
+        /**
+         * Whether to store uncompressed audio data for WAV generation (web only)
+         *
+         * When true, all PCM chunks are stored in memory to create a WAV file when compression is disabled
+         * When false, uncompressed audio won't be available, but memory usage will be lower
+         *
+         * Default: true (for backward compatibility)
+         */
+        storeUncompressedAudio?: boolean
+    }
+
     /** Whether to automatically resume recording after an interruption (default is false) */
     autoResumeAfterInterruption?: boolean
 

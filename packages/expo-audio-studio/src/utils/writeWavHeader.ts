@@ -42,7 +42,7 @@ export const writeWavHeader = ({
 }: WavHeaderOptions): ArrayBuffer => {
     // For 32-bit float, we use format 3, otherwise format 1 for PCM
     const audioFormat = isFloat ? 3 : 1 // 3 = IEEE float, 1 = PCM
-    
+
     const bytesPerSample = bitDepth / 8
     const blockAlign = numChannels * bytesPerSample
     const byteRate = sampleRate * blockAlign
@@ -60,7 +60,7 @@ export const writeWavHeader = ({
         writeString(view, 0, 'RIFF') // ChunkID
         view.setUint32(4, 36 + dataSize, true) // ChunkSize: 4 + (8 + 16) + (8 + dataSize)
         writeString(view, 8, 'WAVE') // Format
-        
+
         // "fmt " sub-chunk
         writeString(view, 12, 'fmt ') // Subchunk1ID
         view.setUint32(16, 16, true) // Subchunk1Size (16 for PCM/Float)
@@ -70,7 +70,7 @@ export const writeWavHeader = ({
         view.setUint32(28, byteRate, true) // ByteRate = SampleRate * NumChannels * BitsPerSample/8
         view.setUint16(32, blockAlign, true) // BlockAlign = NumChannels * BitsPerSample/8
         view.setUint16(34, bitDepth, true) // BitsPerSample
-        
+
         // "data" sub-chunk
         writeString(view, 36, 'data') // Subchunk2ID
         view.setUint32(40, dataSize, true) // Subchunk2Size = NumSamples * NumChannels * BitsPerSample/8
@@ -78,7 +78,7 @@ export const writeWavHeader = ({
 
     if (buffer) {
         // Handle existing buffer
-        
+
         // Check for minimum size
         if (buffer.byteLength < 44) {
             throw new Error('Buffer is too small to contain a valid WAV header')
@@ -97,10 +97,10 @@ export const writeWavHeader = ({
             // Create a new buffer with header + data
             const newBuffer = new ArrayBuffer(44 + buffer.byteLength)
             const newView = new DataView(newBuffer)
-            
+
             // Write header to new buffer
             writeHeader(newView, buffer.byteLength)
-            
+
             // Copy audio data after header
             new Uint8Array(newBuffer).set(new Uint8Array(buffer), 44)
             return newBuffer
