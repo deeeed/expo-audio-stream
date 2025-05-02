@@ -1,0 +1,4 @@
+App Version: 0.12.1 (production)
+Screenshots last updated: Fri May  2 13:07:36 HKT 2025
+Devices:
+  - iphone:        8 screenshots
