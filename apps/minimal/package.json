@@ -9,6 +9,7 @@
         "web": "expo start --web",
         "test": "jest --watchAll",
         "lint": "expo lint",
+        "publish": "bash scripts/deploy-minimal.sh",
         "deploy": "NODE_ENV=production expo export -p web && gh-pages -t -d dist --dest minimal"
     },
     "jest": {

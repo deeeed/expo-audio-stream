@@ -1,0 +1,296 @@
+#!/bin/bash
+
+# Colors for better readability
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Ensure we exit on errors
+set -e
+
+# Change to the project root directory
+cd "$(dirname "$0")/.."
+PROJECT_ROOT=$(pwd)
+
+echo -e "${BLUE}===================================================${NC}"
+echo -e "${BLUE}       📱 AudioPlayground Deployment Script 📱      ${NC}"
+echo -e "${BLUE}===================================================${NC}"
+
+# Function to update version in package.json and app.config.ts
+update_version() {
+  # Get current version from package.json
+  CURRENT_VERSION=$(grep -o '"version": "[^"]*' package.json | cut -d'"' -f4)
+  echo -e "${CYAN}Current version: ${GREEN}$CURRENT_VERSION${NC}"
+
+  # Ask if user wants to update version - default to Yes
+  read -p "$(echo -e ${YELLOW}"Do you want to update the version before publishing? (Y/n): "${NC})" UPDATE_VERSION
+  UPDATE_VERSION=${UPDATE_VERSION:-y}  # Default to yes
+
+  if [[ "$UPDATE_VERSION" != "y" && "$UPDATE_VERSION" != "Y" ]]; then
+    echo -e "${CYAN}Version update skipped. Continuing with current version.${NC}"
+    return
+  fi
+
+  # Parse current version
+  IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+  
+  # Calculate next versions
+  NEXT_MAJOR="$((MAJOR+1)).0.0"
+  NEXT_MINOR="$MAJOR.$((MINOR+1)).0"
+  NEXT_PATCH="$MAJOR.$MINOR.$((PATCH+1))"
+
+  # Display version options
+  echo -e "\n${CYAN}Select new version:${NC}"
+  echo -e "1. ${GREEN}$NEXT_PATCH${NC} (Patch - for bug fixes)"
+  echo -e "2. ${GREEN}$NEXT_MINOR${NC} (Minor - for new features)"
+  echo -e "3. ${GREEN}$NEXT_MAJOR${NC} (Major - for breaking changes)"
+  echo -e "4. Custom version"
+
+  # Set default version based on platform
+  local default_choice=1
+  if [[ "$PLATFORM_CHOICE" == "2" || "$PLATFORM_CHOICE" == "3" ]]; then
+    # For Android or iOS, default to minor version update (needed for runtime updates)
+    default_choice=2
+    echo -e "${CYAN}Note: Native builds typically require at least a minor version update for OTA compatibility${NC}"
+  fi
+
+  # Ask user to select version
+  read -p "$(echo -e ${YELLOW}"Enter your choice [$default_choice]: "${NC})" VERSION_CHOICE
+  VERSION_CHOICE=${VERSION_CHOICE:-$default_choice}  # Default based on platform
+
+  case $VERSION_CHOICE in
+    1)
+      NEW_VERSION=$NEXT_PATCH
+      ;;
+    2)
+      NEW_VERSION=$NEXT_MINOR
+      ;;
+    3)
+      NEW_VERSION=$NEXT_MAJOR
+      ;;
+    4)
+      read -p "$(echo -e ${YELLOW}"Enter custom version (format: x.y.z): "${NC})" NEW_VERSION
+      if ! [[ $NEW_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo -e "${RED}Invalid version format. Please use x.y.z format where x, y, z are numbers.${NC}"
+        exit 1
+      fi
+      ;;
+    *)
+      if [[ "$PLATFORM_CHOICE" == "2" || "$PLATFORM_CHOICE" == "3" ]]; then
+        echo -e "${RED}Invalid choice. Using minor version.${NC}"
+        NEW_VERSION=$NEXT_MINOR
+      else
+        echo -e "${RED}Invalid choice. Using patch version.${NC}"
+        NEW_VERSION=$NEXT_PATCH
+      fi
+      ;;
+  esac
+
+  # Confirm version update
+  read -p "$(echo -e ${YELLOW}"Update version from $CURRENT_VERSION to $NEW_VERSION? (Y/n): "${NC})" CONFIRM_UPDATE
+  CONFIRM_UPDATE=${CONFIRM_UPDATE:-y}  # Default to yes
+
+  if [[ "$CONFIRM_UPDATE" != "y" && "$CONFIRM_UPDATE" != "Y" ]]; then
+    echo -e "${RED}Version update cancelled.${NC}"
+    exit 0
+  fi
+
+  # Update package.json
+  sed -i '' "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" package.json
+
+  # Update app.config.ts
+  sed -i '' "s/runtimeVersion: '[^']*'/runtimeVersion: '$NEW_VERSION'/" app.config.ts
+
+  echo -e "${GREEN}✅ Version updated to $NEW_VERSION in package.json and app.config.ts${NC}"
+
+  # Ask if user wants to commit changes
+  read -p "$(echo -e ${YELLOW}"Commit version changes to git? (Y/n): "${NC})" COMMIT_CHANGES
+  COMMIT_CHANGES=${COMMIT_CHANGES:-y}  # Default to yes
+
+  if [[ "$COMMIT_CHANGES" == "y" || "$COMMIT_CHANGES" == "Y" ]]; then
+    git add package.json app.config.ts
+    git commit -m "chore: bump version to $NEW_VERSION"
+    echo -e "${GREEN}✅ Changes committed to git${NC}"
+  fi
+}
+
+# Deploy to web function
+deploy_web() {
+  echo -e "\n${CYAN}Preparing web deployment...${NC}"
+  read -p "$(echo -e ${YELLOW}"Choose environment (development/production) [production]: "${NC})" WEB_ENV
+  WEB_ENV=${WEB_ENV:-production}
+  
+  if [[ "$WEB_ENV" == "development" ]]; then
+    echo -e "${CYAN}Deploying to web (development)...${NC}"
+    yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/
+  else
+    echo -e "${CYAN}Deploying to web (production)...${NC}"
+    yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && cp playstore_policy.html dist/ && gh-pages -t -d dist --dest playground
+  fi
+  
+  echo -e "${GREEN}✅ Web deployment completed!${NC}"
+}
+
+# Deploy to Android function
+deploy_android() {
+  echo -e "\n${CYAN}Android deployment options:${NC}"
+  echo -e "1. ${GREEN}Development${NC} (local debug APK)"
+  echo -e "2. ${GREEN}Preview${NC} (local optimized, unsigned APK)"
+  echo -e "3. ${GREEN}Preview APK${NC} (local optimized APK for distribution)"
+  echo -e "4. ${GREEN}Production${NC} (local optimized, signed AAB)"
+  echo -e "5. ${GREEN}Production + Submit${NC} (remote build with auto-submit to Play Store)"
+  
+  read -p "$(echo -e ${YELLOW}"Choose Android build type [5]: "${NC})" ANDROID_CHOICE
+  ANDROID_CHOICE=${ANDROID_CHOICE:-5}  # Default to production + submit
+  
+  case $ANDROID_CHOICE in
+    1)
+      echo -e "${CYAN}Building Android development version...${NC}"
+      yarn build:android:development
+      ;;
+    2)
+      echo -e "${CYAN}Building Android preview version...${NC}"
+      yarn build:android:preview
+      ;;
+    3)
+      echo -e "${CYAN}Building Android preview APK version...${NC}"
+      yarn build:android:preview_apk
+      ;;
+    4)
+      echo -e "${CYAN}Building Android production version locally...${NC}"
+      yarn build:android:production --local
+      
+      read -p "$(echo -e ${YELLOW}"Do you want to submit this build to the Play Store? (Y/n): "${NC})" SUBMIT_ANDROID
+      SUBMIT_ANDROID=${SUBMIT_ANDROID:-y}  # Default to yes
+      
+      if [[ "$SUBMIT_ANDROID" == "y" || "$SUBMIT_ANDROID" == "Y" ]]; then
+        echo -e "${CYAN}Submitting to Play Store...${NC}"
+        eas submit --platform android --path "$(find . -maxdepth 1 -name "*.aab" -type f -print0 | xargs -0 ls -t | head -n1)"
+      fi
+      ;;
+    5)
+      echo -e "${CYAN}Building and submitting Android production version to Play Store...${NC}"
+      yarn build:android:production --auto-submit
+      ;;
+    *)
+      echo -e "${RED}Invalid choice. Using Production + Submit.${NC}"
+      yarn build:android:production --auto-submit
+      ;;
+  esac
+  
+  echo -e "${GREEN}✅ Android deployment process completed!${NC}"
+}
+
+# Deploy to iOS function
+deploy_ios() {
+  echo -e "\n${CYAN}iOS deployment options:${NC}"
+  echo -e "1. ${GREEN}Development${NC} (local build for registered devices)"
+  echo -e "2. ${GREEN}Preview${NC} (local build for simulator/TestFlight)"
+  echo -e "3. ${GREEN}Production${NC} (local production build)"
+  echo -e "4. ${GREEN}Production + Submit${NC} (remote build with auto-submit to App Store)"
+  echo -e "5. ${GREEN}Submit Latest${NC} (submit latest build to App Store)"
+  
+  read -p "$(echo -e ${YELLOW}"Choose iOS build type [4]: "${NC})" IOS_CHOICE
+  IOS_CHOICE=${IOS_CHOICE:-4}  # Default to production + submit
+  
+  case $IOS_CHOICE in
+    1)
+      echo -e "${CYAN}Building iOS development version...${NC}"
+      read -p "$(echo -e ${YELLOW}"Do you need to register test devices first? (y/n) [n]: "${NC})" REGISTER_DEVICES
+      REGISTER_DEVICES=${REGISTER_DEVICES:-n}
+      
+      if [[ "$REGISTER_DEVICES" == "y" || "$REGISTER_DEVICES" == "Y" ]]; then
+        eas device:create
+      fi
+      yarn build:ios:development
+      ;;
+    2)
+      echo -e "${CYAN}Building iOS preview version...${NC}"
+      yarn build:ios:preview
+      ;;
+    3)
+      echo -e "${CYAN}Building iOS production version locally...${NC}"
+      yarn build:ios:production --local
+      
+      read -p "$(echo -e ${YELLOW}"Do you want to submit this build to the App Store? (Y/n): "${NC})" SUBMIT_IOS
+      SUBMIT_IOS=${SUBMIT_IOS:-y}  # Default to yes
+      
+      if [[ "$SUBMIT_IOS" == "y" || "$SUBMIT_IOS" == "Y" ]]; then
+        echo -e "${CYAN}Submitting to App Store...${NC}"
+        (
+          source .env.production && eas submit --platform ios \
+            --path "$(find . -maxdepth 1 -name "*.ipa" -type f -print0 | xargs -0 ls -t | head -n1)"
+        )
+      fi
+      ;;
+    4)
+      echo -e "${CYAN}Building and submitting iOS production version to App Store...${NC}"
+      yarn build:ios:production --auto-submit
+      ;;
+    5)
+      echo -e "${CYAN}Submitting latest iOS build to App Store...${NC}"
+      eas submit --platform ios --latest
+      ;;
+    *)
+      echo -e "${RED}Invalid choice. Using Production + Submit.${NC}"
+      yarn build:ios:production --auto-submit
+      ;;
+  esac
+  
+  echo -e "${GREEN}✅ iOS deployment process completed!${NC}"
+}
+
+# OTA Update function
+push_update() {
+  echo -e "\n${CYAN}Pushing OTA update...${NC}"
+  read -p "$(echo -e ${YELLOW}"Enter update message: "${NC})" UPDATE_MESSAGE
+  
+  echo -e "${CYAN}Cleaning and reinstalling dependencies...${NC}"
+  yarn clean
+  yarn install
+  
+  echo -e "${CYAN}Pushing update with message: ${UPDATE_MESSAGE}${NC}"
+  eas update --message "$UPDATE_MESSAGE"
+  
+  echo -e "${GREEN}✅ Update pushed successfully!${NC}"
+}
+
+# Main execution flow
+echo -e "${CYAN}This script will help you deploy AudioPlayground to various platforms.${NC}"
+
+# Ask for deployment platform
+echo -e "\n${CYAN}Select deployment platform:${NC}"
+echo -e "1. ${GREEN}Web${NC}"
+echo -e "2. ${GREEN}Android${NC}"
+echo -e "3. ${GREEN}iOS${NC}"
+echo -e "4. ${GREEN}Push OTA Update${NC}"
+
+read -p "$(echo -e ${YELLOW}"Enter your choice [1]: "${NC})" PLATFORM_CHOICE
+PLATFORM_CHOICE=${PLATFORM_CHOICE:-1}  # Default to web
+
+# Update version first (after platform selection to determine default version increment)
+update_version
+
+case $PLATFORM_CHOICE in
+  1)
+    deploy_web
+    ;;
+  2)
+    deploy_android
+    ;;
+  3)
+    deploy_ios
+    ;;
+  4)
+    push_update
+    ;;
+  *)
+    echo -e "${RED}Invalid choice. Defaulting to Web deployment.${NC}"
+    deploy_web
+    ;;
+esac
+
+echo -e "\n${GREEN}🎉 Deployment completed successfully! 🎉${NC}"

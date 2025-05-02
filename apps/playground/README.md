@@ -2,99 +2,134 @@
 
 A demo application showcasing real-time audio processing and visualization capabilities using **@siteed/expo-audio-studio**. 
 
+[![Web Demo](https://img.shields.io/badge/Demo-Web-blue)](https://deeeed.github.io/expo-audio-stream/)
+
 ## Features
 
 - Live audio recording with waveform visualization
 - On-device speech transcription
 - Background recording support
 - Rich notification controls with live waveform
+- Multi-platform support (iOS, Android, Web)
 
 This open-source app demonstrates implementation examples for developers building audio applications with React Native and Expo.
 
-## Try it online
+## Quick Start
 
-Visit the web demo: https://deeeed.github.io/expo-audio-stream/
+Get up and running quickly:
 
+```bash
+# Install dependencies
+yarn install
+
+# Start development server
+yarn start
+
+# Run on specific platforms
+yarn ios     # iOS
+yarn android # Android
+yarn web     # Web
+```
 
 ## Development Setup
 
+### Prerequisites
+
+- Node.js 18+ and Yarn
+- Expo CLI: `npm install -g expo-cli`
+- iOS: Xcode and CocoaPods
+- Android: Android Studio and SDK
+
 ### Environment Configuration
 
-1. Create a `.env.development` file in the project root with required variables:
+1. Create a `.env.development` file in the project root:
 ```bash
 APPLE_TEAM_ID=your_team_id
 EAS_PROJECT_ID=your_project_id
-APPLE_APP_ID=your_app_id
 ```
 
-2. Configure EAS environment variables:
+2. For EAS builds, configure environment variables:
 ```bash
 eas secret:create --scope project --name APPLE_TEAM_ID --value "your_team_id" --type string
 eas secret:create --scope project --name EAS_PROJECT_ID --value "your_project_id" --type string
-eas secret:create --scope project --name APPLE_APP_ID --value "your_app_id" --type string
 ```
 
-3. Verify environment setup:
-```bash
-eas env:list
-```
+### Development Workflow
 
-### Local Development
-
-1. Set custom port for development:
+1. Set custom port for development (if needed):
 ```bash
 ./setPort.sh
 ```
 
-2. For Android Debugging
+2. For Android debugging with custom port:
 ```bash
 adb reverse tcp:7365 tcp:7365
 ```
 
-### Building with EAS
-
-The project includes several build profiles:
-
-#### Development Build
-
+3. Run the development server:
 ```bash
-eas build --profile development --platform ios # for iOS
-eas build --profile development --platform android # for Android
+yarn start
 ```
 
-#### Production Build
+## Building and Testing
+
+I use EAS (Expo Application Services) for building.
+
+### Development Builds
+
+Development builds include developer tools and debugging capabilities:
 
 ```bash
-yarn build:ios:production --local
-yarn build:android:production --local
+# Local development builds
+yarn build:ios:development     # iOS
+yarn build:android:development # Android
 ```
 
-### Building Local Shareable Builds
+### Testing Builds
 
-#### Android APK
-1. Development APK:
+Create optimized builds for testing:
+
 ```bash
-eas build --platform android --profile development --local
+# Preview builds (optimized but with testing features)
+yarn build:ios:preview     # iOS
+yarn build:android:preview # Android
+
+# Get a shareable Android APK
+yarn build:android:preview_apk
 ```
 
-2. Preview APK (optimized, unsigned):
+## Deploying
+
+I've created a streamlined deployment process through an interactive script:
+
 ```bash
-eas build --platform android --profile preview --local
+# Run the deployment script
+yarn publish
 ```
 
-The APK will be available in the `android/app/build/outputs/apk/` directory.
+This script will:
+1. Guide you through version updates
+2. Let you select the target platform
+3. Handle building and publishing to appropriate channels
 
-#### iOS IPA
-2. For development testing on specific devices:
+For detailed deployment options, see [PUBLISH_STORE.md](./PUBLISH_STORE.md).
+
+## Troubleshooting
+
+### Common Issues
+
+**Metro bundler port conflicts**
 ```bash
-eas device:create # Register test devices first
-eas build --platform ios --profile development --local
+# Change the Metro port
+yarn start --port 8088
 ```
 
-Note: Local iOS builds require:
-- Xcode installed
-- Valid Apple Developer account
-- Provisioning profiles and certificates set up
-- Registered test devices (for development builds)
+**iOS build fails**
+- Ensure Xcode is up to date
+- Run `pod install` in the `ios` directory
+- Check Apple Developer account has correct provisioning profiles
 
-The IPA will be available in `~/Library/Developer/Xcode/Archives/`
+**Android build fails**
+- Ensure Android SDK is properly configured
+- Check gradle version compatibility
+- Run `cd android && ./gradlew clean` then try again
