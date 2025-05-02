@@ -8,6 +8,9 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Disable git pager
+export GIT_PAGER=cat
+
 # Ensure we exit on errors
 set -e
 
@@ -19,6 +22,7 @@ echo -e "${BLUE}===================================================${NC}"
 echo -e "${BLUE}            📝 Simple Changelog Helper 📝          ${NC}"
 echo -e "${BLUE}===================================================${NC}"
 
+# Define constants
 CHANGELOG_FILE="CHANGELOG.md"
 # We're already in apps/playground, so use . as the path
 PLAYGROUND_PATHS="."
@@ -32,21 +36,25 @@ echo -e "${CYAN}Current version: ${GREEN}$CURRENT_VERSION${NC}"
 
 # Function to show recent commits
 show_recent_commits() {
-  local PREV_TAG=$(git tag | grep "^$PACKAGE_NAME@" | sort -V | tail -1 2>/dev/null || echo "")
+  local PREV_TAG=$(git --no-pager tag | grep "^$PACKAGE_NAME@" | sort -V | tail -1 2>/dev/null || echo "")
   
   echo -e "\n${CYAN}=== Commit history ====${NC}"
-  echo -e "${GREEN}How to view all commits since last tag:${NC}"
-  echo -e "  git log --pretty=format:\"%h %s\" ${PREV_TAG:+$PREV_TAG..HEAD} -- $PLAYGROUND_PATHS"
-  echo -e "\n${GREEN}How to view all changed files:${NC}"
-  echo -e "  git diff --name-only ${PREV_TAG:+$PREV_TAG} HEAD -- $PLAYGROUND_PATHS"
-  echo -e "\n${YELLOW}-----------------------------------${NC}"
+  echo -e "${GREEN}Command to view all commits since last tag:${NC}"
+  echo -e "  git --no-pager log --pretty=format:\"%h %s\" ${PREV_TAG:+$PREV_TAG..HEAD} -- ."
   
   if [ -n "$PREV_TAG" ]; then
-    echo -e "${GREEN}Recent commits since ${PREV_TAG}:${NC}"
+    echo -e "\n${CYAN}All commits since ${PREV_TAG} (unfiltered):${NC}"
+    echo -e "${YELLOW}-----------------------------------${NC}"
+    
+    # Show raw commits without filtering
+    git --no-pager log --pretty=format:"- %h %s" $PREV_TAG..HEAD || echo "  No commits found"
+    
+    echo -e "\n${YELLOW}-----------------------------------${NC}"
+    echo -e "${GREEN}Categorized commits:${NC}"
     echo -e "${YELLOW}-----------------------------------${NC}"
     
     # Get all commits since last tag
-    COMMITS=$(git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD -- $PLAYGROUND_PATHS)
+    COMMITS=$(git --no-pager log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD)
     if [ -n "$COMMITS" ]; then
       # Extract feature commits
       echo -e "${GREEN}Features:${NC}"
@@ -65,14 +73,18 @@ show_recent_commits() {
     
     # Show changed files
     echo -e "\n${GREEN}Changed files:${NC}"
-    git diff --name-only $PREV_TAG HEAD -- $PLAYGROUND_PATHS | sed 's/^/- /' || echo "  None"
+    git --no-pager diff --name-only $PREV_TAG HEAD | sed 's/^/- /' || echo "  None"
   else
-    echo -e "${CYAN}No previous tag found. Showing recent commits:${NC}"
+    echo -e "\n${CYAN}No previous tag found. Showing recent commits:${NC}"
     echo -e "${YELLOW}-----------------------------------${NC}"
-    git log --pretty=format:"- %s (%h)" -n 15 -- $PLAYGROUND_PATHS || echo "  No commits found"
+    git --no-pager log --pretty=format:"- %h %s" -n 15 || echo "  No commits found"
     
     echo -e "\n${GREEN}Changed files (recent commits):${NC}"
-    git diff --name-only HEAD~15 HEAD -- $PLAYGROUND_PATHS 2>/dev/null | sed 's/^/- /' || echo "  None"
+    git --no-pager diff --name-only HEAD~15 HEAD 2>/dev/null | sed 's/^/- /' || echo "  None"
+
+    # Show changed files
+    echo -e "\n${GREEN}Changed files:${NC}"
+    git --no-pager diff --name-only $PREV_TAG HEAD | sed 's/^/- /' || echo "  None"
   fi
   
   # Command to create a tag after updating changelog
@@ -100,13 +112,73 @@ check_version_in_changelog() {
 create_changelog_entry() {
   local VERSION=$1
   local DATE=$(date +"%Y-%m-%d")
-  local PREV_TAG=$(git tag | grep "^$PACKAGE_NAME@" | sort -V | tail -1 2>/dev/null || echo "")
+  local PREV_TAG=$(git --no-pager tag | grep "^$PACKAGE_NAME@" | sort -V | tail -1 2>/dev/null || echo "")
   
   echo -e "\n${CYAN}Creating changelog entry for version $VERSION...${NC}"
   
   # Create a backup of the existing changelog if it exists
   if [ -f "$CHANGELOG_FILE" ]; then
     cp "$CHANGELOG_FILE" "$CHANGELOG_FILE.bak"
+  fi
+  
+  # Get all commits since last tag
+  local FEATURES=""
+  local FIXES=""
+  local CHANGES=""
+  
+  if [ -n "$PREV_TAG" ]; then
+    # Extract feature commits - make sure to format them as bulleted list
+    FEATURES=$(git --no-pager log --pretty=format:"%s" $PREV_TAG..HEAD | grep -i "feat:\|feature:\|feat " | sed -E 's/^(feat|feature)(\([^)]*\))?:? ?//i' | sed 's/^/- /' || echo "")
+    
+    # Extract fix commits - make sure to format them as bulleted list
+    FIXES=$(git --no-pager log --pretty=format:"%s" $PREV_TAG..HEAD | grep -i "fix:\|bugfix:\|fix " | sed -E 's/^(fix|bugfix)(\([^)]*\))?:? ?//i' | sed 's/^/- /' || echo "")
+    
+    # Extract other commits (chore, refactor, etc) - make sure to format them as bulleted list
+    CHANGES=$(git --no-pager log --pretty=format:"%s" $PREV_TAG..HEAD | grep -v -i "feat\|fix\|feature\|bugfix" | sed -E 's/^(chore|refactor|style|docs|perf|test|ci|build)(\([^)]*\))?:? ?//i' | sed 's/^/- /' || echo "")
+  fi
+  
+  # If FEATURES is empty, add a placeholder
+  if [ -z "$FEATURES" ]; then
+    FEATURES="- "
+  fi
+  
+  # If FIXES is empty, add a placeholder
+  if [ -z "$FIXES" ]; then
+    FIXES="- "
+  fi
+  
+  # If CHANGES is empty, add a placeholder
+  if [ -z "$CHANGES" ]; then
+    CHANGES="- "
+  fi
+  
+  # Create a new changelog section to display for confirmation
+  NEW_SECTION=$(cat <<EOF
+
+## [$VERSION] - $DATE
+
+### Added
+$FEATURES
+
+### Changed
+$CHANGES
+
+### Fixed
+$FIXES
+EOF
+)
+
+  # Show new section to user and ask for confirmation
+  echo -e "${GREEN}=== New Changelog Section ====${NC}"
+  echo -e "${CYAN}$NEW_SECTION${NC}"
+  echo -e "${GREEN}============================${NC}"
+  
+  read -p "$(echo -e ${YELLOW}"Do you want to add this to your changelog? (Y/n): "${NC})" CONFIRM_CHANGE
+  CONFIRM_CHANGE=${CONFIRM_CHANGE:-y}
+  
+  if [[ "$CONFIRM_CHANGE" != "y" && "$CONFIRM_CHANGE" != "Y" ]]; then
+    echo -e "${RED}Operation cancelled. No changes made to $CHANGELOG_FILE.${NC}"
+    return 1
   fi
   
   # Create temp file for the new changelog
@@ -120,17 +192,7 @@ create_changelog_entry() {
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-
-## [$VERSION] - $DATE
-
-### Added
-- 
-
-### Changed
-- 
-
-### Fixed
-- 
+$NEW_SECTION
 
 [unreleased]: https://github.com/deeeed/expo-audio-stream/compare/$PACKAGE_NAME@$VERSION...HEAD
 [$VERSION]: https://github.com/deeeed/expo-audio-stream/releases/tag/$PACKAGE_NAME@$VERSION
@@ -147,18 +209,7 @@ EOF
         echo ""
         
         # Add the new version section
-        cat << EOF
-## [$VERSION] - $DATE
-
-### Added
-- 
-
-### Changed
-- 
-
-### Fixed
-- 
-EOF
+        echo -e "$NEW_SECTION"
         
         # Get everything after the unreleased line (skip unreleased line itself)
         grep -A 1000 "## \[Unreleased\]" "$CHANGELOG_FILE" | tail -n +2 || true
@@ -196,18 +247,7 @@ EOF
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-
-## [$VERSION] - $DATE
-
-### Added
-- 
-
-### Changed
-- 
-
-### Fixed
-- 
-
+$NEW_SECTION
 EOF
       # Append any existing content (skipping the header if it exists)
       if grep -q "# Changelog" "$CHANGELOG_FILE"; then
@@ -228,17 +268,16 @@ EOF
   # Replace the original file
   mv "$TMP_FILE" "$CHANGELOG_FILE"
   
-  echo -e "${GREEN}✅ Changelog entry created for version $VERSION${NC}"
-  echo -e "${YELLOW}Edit $CHANGELOG_FILE to add your changes${NC}"
+  echo -e "${GREEN}✅ Changelog entry created for version $VERSION with detected commits${NC}"
+  echo -e "${YELLOW}Review $CHANGELOG_FILE and edit if needed${NC}"
+  
+  return 0
 }
 
 # Main script execution
-
-# Check if a version was specified
 if [ -n "$1" ]; then
   VERSION=$1
 else
-  # Use current version if not provided
   VERSION=$CURRENT_VERSION
 fi
 
@@ -250,25 +289,25 @@ fi
 
 # Check if version exists in changelog
 if ! check_version_in_changelog "$VERSION"; then
-  # Create the changelog entry
-  create_changelog_entry "$VERSION"
+  # Create the changelog entry with confirmation
+  if ! create_changelog_entry "$VERSION"; then
+    echo -e "${YELLOW}Exiting without creating changelog entry.${NC}"
+    exit 0
+  fi
 fi
 
-# Show recent commits to help the user
+# Show recent commits to help the user understand what changed
 show_recent_commits
 
-echo -e "\n${YELLOW}Now edit CHANGELOG.md to fill in the details for version $VERSION${NC}"
-echo -e "${YELLOW}After updating the changelog, consider creating a tag:${NC}"
-echo -e "${CYAN}git tag -a ${PACKAGE_NAME}@${VERSION} -m \"Version ${VERSION}\"${NC}"
-echo -e "${CYAN}git push origin ${PACKAGE_NAME}@${VERSION}${NC}"
-
-# Show instructions
+# Show final instructions
 echo -e "\n${CYAN}=========================================${NC}"
 echo -e "${YELLOW}Next steps:${NC}"
-echo -e "1. Edit ${CHANGELOG_FILE} to fill in the details for version $VERSION"
-echo -e "2. Save the file"
+echo -e "1. Review ${CHANGELOG_FILE} - commits were automatically added"
+echo -e "2. Edit if needed with your preferred editor"
 echo -e "3. Add to git: git add ${CHANGELOG_FILE}"
 echo -e "4. Commit: git commit -m \"docs: update changelog for $VERSION\""
+echo -e "5. Create a tag: git tag -a ${PACKAGE_NAME}@${VERSION} -m \"Version ${VERSION}\""
+echo -e "6. Push tag: git push origin ${PACKAGE_NAME}@${VERSION}"
 echo -e "${CYAN}=========================================${NC}"
 
-exit 0 
+exit 0

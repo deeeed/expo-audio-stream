@@ -30,6 +30,9 @@ artifacts/
 *.ipa
 *.apk
 
+# backup
+*.bak
+
 # Metro
 .metro-health-check*
 

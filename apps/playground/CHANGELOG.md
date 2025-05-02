@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-- Updated deployment script to better handle changelog updates
+
+## [0.12.2] - 2025-05-02
+
+### Changed
+- implement changelog management in deployment script and add changelog helper script for better version tracking
 
 ## [0.12.1] - 2053-05-02
 
@@ -14,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Basic UI for audio controls
 - Support for iOS and Android platforms
 - Web export capability
+
 
 [unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@0.12.2...HEAD
 [0.12.2]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@0.12.1...audio-playground@0.12.2
