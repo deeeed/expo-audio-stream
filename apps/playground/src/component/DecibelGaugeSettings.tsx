@@ -2,8 +2,7 @@ import { Text, useTheme, AppTheme, LabelSwitch } from '@siteed/design-system'
 import { DecibelFormat } from '@siteed/expo-audio-ui'
 import React, { useCallback, useMemo, useState, useRef } from 'react'
 import { StyleSheet, View, TouchableOpacity, LayoutChangeEvent } from 'react-native'
-import { IconButton } from 'react-native-paper'
-import { SegmentedButtons } from 'react-native-paper'
+import { IconButton , SegmentedButtons } from 'react-native-paper'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
