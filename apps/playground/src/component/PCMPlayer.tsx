@@ -1,11 +1,15 @@
+import { useCallback, useEffect, useState, useMemo } from 'react'
+
 import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { AppTheme, useTheme, useToast } from '@siteed/design-system'
-import { writeWavHeader } from '@siteed/expo-audio-studio'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
-import { useCallback, useEffect, useState, useMemo } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { Button as PaperButton, Text } from 'react-native-paper'
+
+import type { AppTheme } from '@siteed/design-system'
+import { useTheme, useToast } from '@siteed/design-system'
+import { writeWavHeader } from '@siteed/expo-audio-studio'
+
 import { baseLogger } from '../config'
 
 
@@ -45,7 +49,7 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
         fontFamily: 'monospace',
         fontSize: 12,
         color: theme.colors.onSecondaryContainer,
-    }
+    },
 })
 
 function formatDuration(ms: number): string {
@@ -61,7 +65,7 @@ export function PCMPlayer({
     sampleRate, 
     bitDepth,
     channels = 1,
-    hasWavHeader = false
+    hasWavHeader = false,
 }: PCMPlayerProps) {
     const theme = useTheme()
     const styles = getStyles(theme)
@@ -82,7 +86,7 @@ export function PCMPlayer({
             totalSamples,
             sampleRate,
             channels,
-            totalDurationMs: durationMs
+            totalDurationMs: durationMs,
         })
         
         return durationMs
@@ -108,7 +112,7 @@ export function PCMPlayer({
                 channels,
                 bitDepth,
                 dataSize: data.length,
-                hasWavHeader
+                hasWavHeader,
             })
 
             let wavBuffer: ArrayBuffer
@@ -135,7 +139,7 @@ export function PCMPlayer({
                 uri = URL.createObjectURL(wavBlob)
                 logger.debug('Created blob URL for web playback:', {
                     wavBufferSize: wavBuffer.byteLength,
-                    originalDataSize: data.length
+                    originalDataSize: data.length,
                 })
             } else {
                 uri = `${FileSystem.cacheDirectory}temp_audio_${Date.now()}.wav`
@@ -152,7 +156,7 @@ export function PCMPlayer({
                 { shouldPlay: true }
             )
 
-            newSound.setOnPlaybackStatusUpdate(status => {
+            newSound.setOnPlaybackStatusUpdate((status) => {
                 if (status.isLoaded) {
                     setPosition(status.positionMillis)
                     
@@ -196,7 +200,7 @@ export function PCMPlayer({
                 >
                     <View style={styles.iconButton}>
                         <MaterialCommunityIcons
-                            name={isPlaying ? "pause" : "play"}
+                            name={isPlaying ? 'pause' : 'play'}
                             size={20}
                             color={theme.colors.onSecondaryContainer}
                         />

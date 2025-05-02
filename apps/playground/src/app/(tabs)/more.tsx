@@ -1,27 +1,32 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import {
-    AppTheme,
-    LabelSwitch,
-    ListItem,
-    ScreenWrapper,
-    useThemePreferences,
-} from '@siteed/design-system'
+import React, { memo, useCallback, useMemo, useState, useRef } from 'react'
+
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
-import React, { memo, useCallback, useMemo, useState, useRef } from 'react'
-import { Image, Pressable, StyleSheet, View, LayoutChangeEvent } from 'react-native'
+import { Image, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
     withTiming,
-} from "react-native-reanimated"
+} from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
+import type {
+    AppTheme } from '@siteed/design-system'
+import {
+    LabelSwitch,
+    ListItem,
+    ScreenWrapper,
+    useThemePreferences,
+} from '@siteed/design-system'
 
 import { TranscriberConfig } from '../../component/TranscriberConfig'
 import { Updater } from '../../component/Updater'
 import { useAppUpdates } from '../../hooks/useAppUpdates'
 import { isWeb } from '../../utils/utils'
+
+import type { LayoutChangeEvent } from 'react-native'
 
 const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
     return StyleSheet.create({
@@ -114,14 +119,14 @@ const AppInfoBanner = memo(function AppInfoBanner({
 
     const renderContent = () => (
         <>
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                     <Text style={{ color: theme.colors.onTertiaryContainer }}>
                         About Audio Playground
                     </Text>
                 </View>
                 <MaterialCommunityIcons
-                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
                     size={24}
                     color={theme.colors.onTertiaryContainer}
                 />
@@ -169,7 +174,7 @@ const AppInfoBanner = memo(function AppInfoBanner({
                         borderRadius: 12,
                         padding: 16,
                         marginBottom: 16,
-                        overflow: "hidden",
+                        overflow: 'hidden',
                         backgroundColor: theme.colors.tertiaryContainer,
                     },
                     animatedStyle,
@@ -194,7 +199,7 @@ export const MoreScreen = () => {
         isUpdateAvailable,
         checkUpdates,
         canUpdate,
-    } = useAppUpdates();
+    } = useAppUpdates()
 
     return (
         <ScreenWrapper
@@ -236,7 +241,7 @@ export const MoreScreen = () => {
             <View style={styles.configSection}>
                 <Text style={styles.sectionTitle}>Transcription Model</Text>
                 <TranscriberConfig
-                    compact={true}
+                    compact
                     onConfigChange={() => {
                         // Optional callback when config changes
                     }}
@@ -269,7 +274,7 @@ export const MoreScreen = () => {
                                 onPress={() => {
                                     router.navigate('/audio-device-test')
                                 }}
-                            />
+            />
             {__DEV__ && (
                 <>
                     {isWeb && (

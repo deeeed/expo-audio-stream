@@ -30,6 +30,9 @@ artifacts/
 *.ipa
 *.apk
 
+# backup
+*.bak
+
 # Metro
 .metro-health-check*
 
@@ -48,3 +51,9 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Detox and Fastlane artifacts
+fastlane/detox/
+
+# But keep our organized screenshots
+!screenshots/

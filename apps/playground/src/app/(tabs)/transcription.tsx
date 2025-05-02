@@ -1,15 +1,20 @@
-import { AppTheme, Button, LabelSwitch, Notice, NumberAdjuster, ScreenWrapper, Text, useTheme } from '@siteed/design-system'
 import React, { useCallback, useMemo } from 'react'
+
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { ProgressBar, SegmentedButtons } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
+import type { AppTheme } from '@siteed/design-system'
+import { Button, LabelSwitch, Notice, NumberAdjuster, ScreenWrapper, Text, useTheme } from '@siteed/design-system'
 
 import { PCMPlayer } from '../../component/PCMPlayer'
 import { TranscriberConfig } from '../../component/TranscriberConfig'
 import Transcript from '../../component/Transcript'
 import { TranscriptionHistoryList } from '../../component/TranscriptionHistoryList'
-import { EXTRACT_DURATION_OPTIONS, SelectedFile, useAudioTranscription } from '../../hooks/useAudioTranscription'
+import { EXTRACT_DURATION_OPTIONS, useAudioTranscription } from '../../hooks/useAudioTranscription'
 import { useSampleAudio } from '../../hooks/useSampleAudio'
+
+import type { SelectedFile } from '../../hooks/useAudioTranscription'
 
 const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
     return StyleSheet.create({
@@ -207,12 +212,12 @@ export function TranscriptionScreen() {
         handleExtractAudio,
         handleFileSelection,
         resetTranscriptionState,
-    } = useAudioTranscription();
+    } = useAudioTranscription()
     
     const { isLoading: isSampleLoading, loadSampleAudio } = useSampleAudio({
         onError: (error) => {
             console.error('Error loading sample audio file:', error)
-        }
+        },
     })
     
     const handleLoadSampleAudio = useCallback(async () => {
@@ -240,7 +245,7 @@ export function TranscriptionScreen() {
             // This will set the selectedFile state internally and then extract the audio
             handleExtractAudio({ 
                 file: selectedFileInfo, 
-                duration: isCustomDuration ? customDuration : extractDuration 
+                duration: isCustomDuration ? customDuration : extractDuration, 
             })
             
         } catch (error) {
@@ -250,7 +255,7 @@ export function TranscriptionScreen() {
 
     return (
         <ScreenWrapper 
-            withScrollView={true}
+            withScrollView
             useInsets={false}
             contentContainerStyle={styles.container}
         >
@@ -266,12 +271,12 @@ export function TranscriptionScreen() {
                 onValueChange={setAutoTranscribeOnSelect}
                 containerStyle={{
                     backgroundColor: theme.colors.surface,
-                    marginBottom: 10
+                    marginBottom: 10,
                 }}
             />
 
             <TranscriberConfig 
-                compact={true}
+                compact
                 onConfigChange={resetTranscriptionState}
             />
 
@@ -331,24 +336,24 @@ export function TranscriptionScreen() {
                         
                         <ScrollView 
                             horizontal 
-                            showsHorizontalScrollIndicator={true}
+                            showsHorizontalScrollIndicator
                             contentContainerStyle={{ paddingBottom: 8 }}
                         >
                             <SegmentedButtons
                                 value={isCustomDuration ? 'custom' : extractDuration.toString()}
                                 onValueChange={(value) => {
                                     if (value === 'custom') {
-                                        setIsCustomDuration(true);
-                                        resetTranscriptionState();
+                                        setIsCustomDuration(true)
+                                        resetTranscriptionState()
                                     } else {
-                                        setIsCustomDuration(false);
-                                        setExtractDuration(parseInt(value, 10));
-                                        resetTranscriptionState();
+                                        setIsCustomDuration(false)
+                                        setExtractDuration(parseInt(value, 10))
+                                        resetTranscriptionState()
                                     }
                                 }}
                                 buttons={[
                                     ...EXTRACT_DURATION_OPTIONS
-                                        .filter(option => 
+                                        .filter((option) => 
                                             option.value === -1 || // Always include 'Full' option
                                             (selectedFile.duration && option.value <= selectedFile.duration * 1000) // Convert duration to ms
                                         )
@@ -356,7 +361,7 @@ export function TranscriptionScreen() {
                                             value: option.value.toString(),
                                             label: option.label,
                                         })),
-                                    { value: 'custom', label: 'Custom' }
+                                    { value: 'custom', label: 'Custom' },
                                 ]}
                             />
                         </ScrollView>
@@ -366,8 +371,8 @@ export function TranscriptionScreen() {
                                 label="Custom Duration (ms)"
                                 value={customDuration}
                                 onChange={(value) => {
-                                    setCustomDuration(value);
-                                    resetTranscriptionState();
+                                    setCustomDuration(value)
+                                    resetTranscriptionState()
                                 }}
                                 min={1000}
                                 max={600000}
@@ -461,7 +466,7 @@ export function TranscriptionScreen() {
             )}
 
             {lastTranscriptionLog && (
-                <View style={{marginTop: theme.margin.m}}>
+                <View style={{ marginTop: theme.margin.m }}>
                     <TranscriptionHistoryList 
                         currentLog={lastTranscriptionLog} 
                         useVirtualizedList={false}

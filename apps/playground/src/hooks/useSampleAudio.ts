@@ -1,7 +1,9 @@
+import { useCallback, useState } from 'react'
+
 import { Asset } from 'expo-asset'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
-import { useCallback, useState } from 'react'
+
 import { baseLogger } from '../config'
 import { isWeb } from '../utils/utils'
 
@@ -55,7 +57,7 @@ export function useSampleAudio(options?: UseSampleAudioOptions) {
         const destinationUri = `${FileSystem.cacheDirectory}${fileName}`
         await FileSystem.copyAsync({
           from: asset.localUri,
-          to: destinationUri
+          to: destinationUri,
         })
         
         // For iOS, ensure we keep the 'file://' prefix for Audio.Sound
@@ -101,7 +103,7 @@ export function useSampleAudio(options?: UseSampleAudioOptions) {
           logger.debug('Audio metadata loaded', {
             durationMs,
             estimatedSize: size,
-            fileName
+            fileName,
           })
         }
       } catch (error) {
@@ -137,7 +139,7 @@ export function useSampleAudio(options?: UseSampleAudioOptions) {
         name: fileName,
         size,
         durationMs,
-        isLoaded: true
+        isLoaded: true,
       }
       
       setSampleFile(sampleAudioFile)
@@ -155,6 +157,6 @@ export function useSampleAudio(options?: UseSampleAudioOptions) {
   return {
     isLoading,
     sampleFile,
-    loadSampleAudio
+    loadSampleAudio,
   }
 } 

@@ -1,9 +1,12 @@
-import { AppTheme, useTheme } from '@siteed/design-system'
 import React, { useMemo } from 'react'
+
 import { StyleSheet, Text, View } from 'react-native'
 import { ProgressBar } from 'react-native-paper'
 
-import { ProgressItem } from '../context/TranscriptionProvider.types'
+import type { AppTheme } from '@siteed/design-system'
+import { useTheme } from '@siteed/design-system'
+
+import type { ProgressItem } from '../context/TranscriptionProvider.types'
 
 const getStyles = (_: { theme: AppTheme }) => {
     return StyleSheet.create({

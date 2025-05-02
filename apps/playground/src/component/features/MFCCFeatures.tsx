@@ -1,5 +1,7 @@
 import React from 'react'
+
 import { StyleSheet, View } from 'react-native'
+
 import { useTheme, Text } from '@siteed/design-system'
 import type { AppTheme } from '@siteed/design-system'
 

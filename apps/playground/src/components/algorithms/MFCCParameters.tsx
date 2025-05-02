@@ -1,7 +1,10 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
-import { AppTheme, useThemePreferences } from '@siteed/design-system';
+import React from 'react'
+
+import { View, StyleSheet } from 'react-native'
+import { Text, TextInput } from 'react-native-paper'
+
+import type { AppTheme } from '@siteed/design-system'
+import { useThemePreferences } from '@siteed/design-system'
 
 interface MFCCParametersProps {
   parameters: {
@@ -30,19 +33,19 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
       color: theme.colors.outline,
       marginBottom: 4,
     },
-  });
-};
+  })
+}
 
 function MFCCParameters({ parameters, onParameterChange }: MFCCParametersProps) {
-  const { theme } = useThemePreferences();
-  const styles = getStyles({ theme });
+  const { theme } = useThemePreferences()
+  const styles = getStyles({ theme })
 
   const handleChange = (paramName: string, value: string) => {
-    const numValue = Number(value);
+    const numValue = Number(value)
     if (!isNaN(numValue)) {
-      onParameterChange(paramName, numValue);
+      onParameterChange(paramName, numValue)
     }
-  };
+  }
 
   return (
     <View style={styles.container}>
@@ -90,7 +93,7 @@ function MFCCParameters({ parameters, onParameterChange }: MFCCParametersProps) 
         />
       </View>
     </View>
-  );
+  )
 }
 
-export default MFCCParameters; 
+export default MFCCParameters 

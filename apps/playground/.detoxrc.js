@@ -35,33 +35,23 @@ module.exports = {
     },
     'android.release': {
       type: 'android.apk',
+      // Use the standard paths that Gradle generates regardless of APP_NAME value
       binaryPath: 'android/app/build/outputs/apk/release/app-release.apk',
-      build: 'yarn build:android:production'
+      testBinaryPath: 'android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk',
+      build: 'cd android && ./gradlew assembleRelease assembleAndroidTest -DtestBuildType=release',
     }
   },
   devices: {
     simulator: {
       type: 'ios.simulator',
       device: {
-        type: 'iPhone 15'
-      }
-    },
-    iphone15ProMax: {
-      type: 'ios.simulator',
-      device: {
-        type: 'iPhone 15 Pro Max'
+        type: 'iPhone 16 Pro Max'
       }
     },
     ipadPro: {
       type: 'ios.simulator',
       device: {
-        type: 'iPad Pro (12.9-inch) (6th generation)'
-      }
-    },
-    iphone15: {
-      type: 'ios.simulator',
-      device: {
-        type: 'iPhone 15'
+        type: 'iPad Pro 13-inch (M4)'
       }
     },
     attached: {
@@ -73,7 +63,7 @@ module.exports = {
     emulator: {
       type: 'android.emulator',
       device: {
-        avdName: 'Pixel_8_Pro_API_35'
+        avdName: 'medium'
       }
     },
     iosDevice: {
@@ -92,17 +82,13 @@ module.exports = {
       device: 'simulator',
       app: 'ios.release'
     },
-    'ios.iphone15ProMax.debug': {
-      device: 'iphone15ProMax',
-      app: 'ios.debug'
-    },
     'ios.iPadPro.debug': {
       device: 'ipadPro',
       app: 'ios.debug'
     },
-    'ios.iphone15.debug': {
-      device: 'iphone15',
-      app: 'ios.debug'
+    'ios.iPadPro.release': {
+      device: 'ipadPro',
+      app: 'ios.release'
     },
     'android.att.debug': {
       device: 'attached',

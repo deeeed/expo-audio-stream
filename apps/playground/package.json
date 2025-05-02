@@ -1,6 +1,6 @@
 {
     "name": "audio-playground",
-    "version": "0.12.1",
+    "version": "0.12.2",
     "main": "src/index",
     "scripts": {
         "eas-build-pre-install": "corepack enable && cd ../.. && yarn install && echo 'Building packages...' && cd packages/expo-audio-studio && yarn build && yarn build:plugin && echo 'Built expo-audio-studio' && cd ../playgroundapi && yarn build && echo 'Built playgroundapi' && cd ../react-native-essentia && yarn prepare || echo 'Warning: react-native-essentia build failed but continuing'",
@@ -10,8 +10,22 @@
         "web": "NODE_ENV=development expo start --web --port 7365 --dev-client",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "lint": "eslint src",
+        "lint:fix": "eslint src --fix",
+        "lint:fix-nullish": "bash scripts/fix-nullish-coalescing.sh",
+        "lint:fix-imports": "bash scripts/fix-unused-imports.sh",
         "clean": "rimraf dist",
         "publish": "bash scripts/deploy-playground.sh",
+        "setup:development": "scripts/setup-env.sh development",
+        "setup:preview": "scripts/setup-env.sh preview",
+        "setup:production": "scripts/setup-env.sh production",
+        "setup:development:force": "scripts/setup-env.sh development force",
+        "setup:preview:force": "scripts/setup-env.sh preview force",
+        "setup:production:force": "scripts/setup-env.sh production force",
+        "screenshot:development": "yarn setup:development && ./scripts/generate-screenshots.sh all env=development",
+        "screenshot:preview": "yarn setup:preview && ./scripts/generate-screenshots.sh all env=development",
+        "screenshot:production": "yarn setup:production && ./scripts/generate-screenshots.sh all env=production",
+        "prepare:appstore": "yarn setup:production && ./scripts/setup-simulators.sh && yarn screenshot:production && echo 'App Store preparation complete! Screenshots are ready in fastlane/detox folders.'",
+        "prepare:appstore:force": "yarn setup:production:force && ./scripts/setup-simulators.sh && yarn screenshot:production && echo 'App Store preparation complete with forced rebuild! Screenshots are ready in fastlane/detox folders.'",
         "build:android:test": "APP_VARIANT=development eas build --platform android --profile test --local",
         "build:android:development": "APP_VARIANT=development eas build --platform android --profile development --local",
         "build:android:preview": "APP_VARIANT=preview eas build --platform android --profile preview --local",
@@ -32,7 +46,8 @@
         "open:ios": "open -a \"Xcode\" ios",
         "open:android": "open -a \"Android Studio\" android",
         "predeploy": "APP_VARIANT=production EXPO_WEB=true expo export -p web",
-        "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/"
+        "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/",
+        "prepare": "cd ../../ && husky install apps/playground/.husky"
     },
     "dependencies": {
         "@expo/metro-runtime": "~4.0.1",
@@ -124,10 +139,14 @@
         "eslint-plugin-import": "^2.31.0",
         "eslint-plugin-prettier": "^5.2.1",
         "eslint-plugin-promise": "^7.2.1",
+        "eslint-plugin-react-hooks": "^5.2.0",
+        "eslint-plugin-unused-imports": "^4.1.4",
         "expo-dev-client": "~5.0.18",
         "gh-pages": "^6.2.0",
+        "husky": "^9.1.7",
         "jest": "^29",
         "joi": "^17.13.3",
+        "lint-staged": "^15.5.1",
         "prettier": "^3.4.2",
         "prettier-eslint": "^16.3.0",
         "rimraf": "^6.0.1",
@@ -143,5 +162,11 @@
             "nativeModulesDir": "../packages/"
         }
     },
-    "packageManager": "yarn@4.2.2"
+    "packageManager": "yarn@4.2.2",
+    "lint-staged": {
+        "src/**/*.{js,jsx,ts,tsx}": [
+            "eslint --fix",
+            "prettier --write"
+        ]
+    }
 }

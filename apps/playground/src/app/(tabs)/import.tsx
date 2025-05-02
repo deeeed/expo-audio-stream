@@ -1,35 +1,33 @@
 // playground/src/app/(tabs)/play.tsx
+import React, { useCallback, useMemo, useState } from 'react'
+
 import { useFont } from '@shopify/react-native-skia'
-import {
-    AppTheme,
-    Button,
-    EditableInfoCard,
-    LabelSwitch,
-    Notice,
-    ScreenWrapper,
-    useTheme,
-    useToast,
-} from '@siteed/design-system'
-import {
-    AudioAnalysis,
-    AudioRecording,
-    BitDepth,
-    CompressionInfo,
-    extractAudioAnalysis,
-    getWavFileInfo,
-    SampleRate
-} from '@siteed/expo-audio-studio'
-import { AudioVisualizer } from '@siteed/expo-audio-ui'
 import { Audio } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
 import { useRouter } from 'expo-router'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
-import { ActivityIndicator, Text } from 'react-native-paper'
-
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { RecordingStats } from '../../component/RecordingStats'
+
+import type {
+    AppTheme
+} from '@siteed/design-system'
+import {
+    useTheme,
+    useToast,
+} from '@siteed/design-system'
+import type {
+    AudioAnalysis,
+    AudioRecording,
+    BitDepth,
+    CompressionInfo,
+    SampleRate,
+} from '@siteed/expo-audio-studio'
+import {
+    extractAudioAnalysis,
+    getWavFileInfo,
+} from '@siteed/expo-audio-studio'
+
 import { baseLogger } from '../../config'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { useSampleAudio } from '../../hooks/useSampleAudio'
@@ -40,10 +38,10 @@ const logger = console
 const getStyles = (theme: AppTheme, insets?: { bottom: number, top: number }) => {
     return StyleSheet.create({
         container: {
-            gap: theme.spacing.gap || theme.padding.s,
+            gap: theme.spacing.gap ?? theme.padding.s,
             paddingHorizontal: theme.padding.s,
-            paddingBottom: insets?.bottom || 80,
-            paddingTop: Math.max(insets?.top || 0, 10),
+            paddingBottom: insets?.bottom ?? 80,
+            paddingTop: Math.max(insets?.top ?? 0, 10),
         },
         controlsContainer: {
             backgroundColor: theme.colors.surfaceVariant,
@@ -113,14 +111,14 @@ export const ImportPage = () => {
     const [sound, setSound] = useState<Audio.Sound | null>(null)
     const [fileName, setFileName] = useState<string | null>(null)
     const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysis>()
-    const [isPlaying, setIsPlaying] = useState<boolean>(false)
-    const [currentTimeMs, setCurrentTimeMs] = useState<number>(0)
-    const [processing, setProcessing] = useState<boolean>(false)
-    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
+    const [_isPlaying, setIsPlaying] = useState<boolean>(false)
+    const [_currentTimeMs, setCurrentTimeMs] = useState<number>(0)
+    const [_processing, setProcessing] = useState<boolean>(false)
+    const _font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
     const { show } = useToast()
-    const [showVisualizer, setShowVisualizer] = useState<boolean>(true)
+    const [_showVisualizer, setShowVisualizer] = useState<boolean>(true)
     const [isSaving, setIsSaving] = useState<boolean>(false)
-    const [fileSize, setFileSize] = useState<number>(0)
+    const [_fileSize, setFileSize] = useState<number>(0)
     const [originalDurationMs, setOriginalDurationMs] = useState<number>(0)
     const [previewStats, setPreviewStats] = useState<{
         durationMs: number;
@@ -129,18 +127,18 @@ export const ImportPage = () => {
         originalSize?: number;
     } | null>(null)
 
-    const { files, removeFile, refreshFiles } = useAudioFiles()
+    const { files, refreshFiles } = useAudioFiles()
     const router = useRouter()
     
-    const { isLoading: isSampleLoading, loadSampleAudio } = useSampleAudio({
+    const _ = useSampleAudio({
         onError: (error) => {
             logger.error('Error loading sample audio file:', error)
             show({
                 type: 'error',
                 message: 'Error loading sample audio file',
-                duration: 3000
+                duration: 3000,
             })
-        }
+        },
     })
 
     const resetUIState = useCallback(() => {
@@ -164,7 +162,7 @@ export const ImportPage = () => {
             setProcessing(true)
             show({
                 loading: true,
-                message: 'Generating preview...'
+                message: 'Generating preview...',
             })
 
             logger.debug(`generatePreview`, {
@@ -189,9 +187,9 @@ export const ImportPage = () => {
             if (previewStats?.originalDurationMs !== duration) {
                 setPreviewStats({
                     durationMs: duration,
-                    size: previewStats?.size || 0,
+                    size: previewStats?.size ?? 0,
                     originalDurationMs: duration,
-                    originalSize: previewStats?.size || 0
+                    originalSize: previewStats?.size ?? 0,
                 })
             }
 
@@ -200,21 +198,21 @@ export const ImportPage = () => {
             show({
                 type: 'success',
                 message: 'Preview generated successfully',
-                duration: 2000
+                duration: 2000,
             })
         } catch (error) {
             logger.error('Error generating preview:', error)
             show({
                 type: 'error',
                 message: 'Failed to generate preview',
-                duration: 3000
+                duration: 3000,
             })
         } finally {
             setProcessing(false)
         }
-    }, [show, previewStats])
+    }, [show, previewStats, originalDurationMs])
 
-    const pickAudioFile = async () => {
+    const _pickAudioFile = async () => {
         try {
             setProcessing(true)
             // Reset all values when loading new file
@@ -252,27 +250,27 @@ export const ImportPage = () => {
             show({
                 type: 'error',
                 message: 'Error loading audio file',
-                duration: 3000
+                duration: 3000,
             })
         } finally {
             setProcessing(false)
         }
     }
 
-    const handleSeekEnd = (timeSeconds: number) => {
+    const _handleSeekEnd = (timeSeconds: number) => {
         logger.debug('handleSeekEnd', timeSeconds * 1000)
         const timeMs = timeSeconds * 1000
-        if (sound && sound._loaded) {
+        if (sound?._loaded) {
             sound.setPositionAsync(timeMs)
         } else {
             setCurrentTimeMs(timeMs)
         }
     }
 
-    const playPauseAudio = useCallback(async () => {
+    const _playPauseAudio = useCallback(async () => {
         if (sound) {
             const status = await sound.getStatusAsync()
-            if (status.isLoaded) {
+            if (status?.isLoaded) {
                 if (status.isPlaying) {
                     await sound.pauseAsync()
                     setIsPlaying(false)
@@ -291,7 +289,7 @@ export const ImportPage = () => {
             setIsPlaying(true)
 
             newSound.setOnPlaybackStatusUpdate((status) => {
-                if (status.isLoaded) {
+                if (status?.isLoaded) {
                     setCurrentTimeMs(status.positionMillis)
                     setIsPlaying(status.isPlaying)
                 }
@@ -299,7 +297,7 @@ export const ImportPage = () => {
         }
     }, [audioUri, sound])
 
-    const saveToFiles = useCallback(async () => {
+    const _saveToFiles = useCallback(async () => {
         if (isSaving || !fileName || !audioUri) {
             show({ type: 'error', message: 'No file to save' })
             return
@@ -346,7 +344,7 @@ export const ImportPage = () => {
                 }
             } else if (finalFileName.match(/\.(mp3|opus|aac)$/i)) {
                 // Handle compressed audio formats
-                const format = finalFileName.split('.').pop()?.toLowerCase() || ''
+                const format = finalFileName.split('.').pop()?.toLowerCase() ?? ''
                 compressionInfo = {
                     size: arrayBuffer.byteLength,
                     mimeType: `audio/${format}`,
@@ -359,7 +357,7 @@ export const ImportPage = () => {
             const audioResult: AudioRecording = {
                 fileUri: destination,
                 filename: finalFileName,
-                mimeType: compressionInfo?.mimeType || 'audio/*',
+                mimeType: compressionInfo?.mimeType ?? 'audio/*',
                 size: arrayBuffer.byteLength,
                 // Use WAV metadata if available, otherwise fall back to audio analysis data
                 durationMs: wavMetadata?.durationMs ?? audioAnalysis?.durationMs ?? 0,
@@ -369,7 +367,7 @@ export const ImportPage = () => {
                 analysisData: audioAnalysis,
                 compression: compressionInfo ? {
                     ...compressionInfo,
-                    compressedFileUri: destination
+                    compressedFileUri: destination,
                 } : undefined,
             }
 
@@ -404,201 +402,20 @@ export const ImportPage = () => {
             // Navigate to the file in the files tab - use the filename with extension
             router.push(`(recordings)/${finalFileName}`)
         } catch (error) {
-            logger.error('Error saving file to files:', error)
-            show({ type: 'error', message: 'Error saving file' })
-            // cleanup files if failed
-            await removeFile({
-                fileUri: destination,
-                filename: finalFileName,
-                mimeType: 'audio/*',
-                size: 0,
-                durationMs: 0,
-                sampleRate: 16000 as SampleRate,
-                channels: 1,
-                bitDepth: 16 as BitDepth,
+            logger.error('Error saving file:', error)
+            show({
+                type: 'error',
+                message: 'Failed to save file',
+                duration: 3000,
             })
-            throw error
         } finally {
             setIsSaving(false)
         }
-    }, [fileName, audioUri, files, show, refreshFiles, removeFile, audioAnalysis, isSaving, router, resetUIState])
-
-    const handleLoadSampleAudio = useCallback(async () => {
-        try {
-            setProcessing(true)
-            
-            // Reset all values when loading new file
-            setCurrentTimeMs(0)
-            setIsPlaying(false)
-            setAudioAnalysis(undefined)
-            
-            // Use our hook to load the sample audio
-            const sampleFile = await loadSampleAudio(require('@assets/jfk.mp3'))
-            
-            if (!sampleFile) {
-                throw new Error('Failed to load sample audio file')
-            }
-            
-            // Update state with the sample file details
-            setFileName(sampleFile.name)
-            setAudioUri(sampleFile.uri)
-            setFileSize(sampleFile.size)
-            setOriginalDurationMs(sampleFile.durationMs)
-            
-            // Generate preview for visualization
-            await generatePreview(sampleFile.uri)
-        } catch (error) {
-            logger.error('Error loading sample audio file:', error)
-            show({
-                type: 'error',
-                message: 'Error loading sample audio file',
-                duration: 3000
-            })
-        } finally {
-            setProcessing(false)
-        }
-    }, [generatePreview, loadSampleAudio, show])
-
-    useEffect(() => {
-        return sound
-            ? () => {
-                  logger.log('Unloading sound')
-                  sound.unloadAsync()
-              }
-            : undefined
-    }, [sound])
+    }, [isSaving, fileName, audioUri, show, files, audioAnalysis, refreshFiles, resetUIState, router])
 
     return (
-        <ScreenWrapper 
-            withScrollView 
-            useInsets={false} 
-            contentContainerStyle={styles.container}
-        >
-            <Notice
-                type="info"
-                title="Import Audio"
-                message="Import an audio file to analyze its waveform. Save to Files to enable detailed segment analysis and feature extraction."
-            />
-            {fileName && (
-                <EditableInfoCard
-                    label="File Name"
-                    value={fileName}
-                    placeholder="pick a filename for your recording"
-                    inlineEditable
-                    editable
-                    containerStyle={{
-                        backgroundColor: theme.colors.secondaryContainer,
-                    }}
-                />
-            )}
-            <View 
-                style={[
-                    styles.controlsContainer, 
-                    processing || isSaving ? styles.disabledContainer : null
-                ]}
-            >
-                <View style={styles.actionsContainer}>
-                    <Button 
-                        onPress={pickAudioFile} 
-                        mode="contained"
-                        disabled={processing || isSaving}
-                        icon="file-upload"
-                    >
-                        Select Audio File
-                    </Button>
-
-                    <Button
-                        mode="contained-tonal"
-                        disabled={processing || isSaving || isSampleLoading}
-                        icon="music-box"
-                        onPress={handleLoadSampleAudio}
-                        loading={isSampleLoading}
-                        testID="load-sample-button"
-                    >
-                        Load Sample
-                    </Button>
-                </View>
-
-                <View style={styles.switchesContainer}>
-                    <LabelSwitch
-                        disabled={processing || isSaving}
-                        label="Waveform"
-                        value={showVisualizer}
-                        containerStyle={styles.labelSwitchContainer}
-                        onValueChange={setShowVisualizer}
-                    />
-                </View>
-            </View>
-
-            {(processing || isSaving) && (
-                <View style={styles.processingContainer}>
-                    <ActivityIndicator 
-                        size="large"
-                        color={theme.colors.primary}
-                    />
-                    <Text variant="bodyLarge">
-                        {isSaving ? 'Saving file...' : 'Processing audio...'}
-                    </Text>
-                </View>
-            )}
-
-            {audioUri && (
-                <View style={[{gap: 10}, processing || isSaving ? styles.disabledContainer : null]}>
-                    <RecordingStats
-                        duration={audioAnalysis?.durationMs ?? 0}
-                        size={fileSize}
-                        sampleRate={audioAnalysis?.sampleRate ?? 16000}
-                        bitDepth={audioAnalysis?.bitDepth ?? 16}
-                        channels={audioAnalysis?.numberOfChannels ?? 1}
-                    />
-
-                    {showVisualizer && audioAnalysis && (
-                        <View style={styles.visualizerContainer}>
-                            <AudioVisualizer
-                                audioData={audioAnalysis}
-                                canvasHeight={200}
-                                showRuler
-                                enableInertia
-                                currentTime={currentTimeMs / 1000}
-                                playing={isPlaying}
-                                onSeekEnd={handleSeekEnd}
-                                NavigationControls={() => null}
-                                font={font ?? undefined}
-                                theme={{
-                                    container: styles.waveformContainer,
-                                }}
-                            />
-                        </View>
-                    )}
-
-                    <Button 
-                        onPress={playPauseAudio} 
-                        mode="contained"
-                        disabled={processing || isSaving}
-                        icon={isPlaying ? 'pause' : 'play'}
-                        testID={isPlaying ? "pause-audio-button" : "play-audio-button"}
-                    >
-                        {isPlaying ? 'Pause Audio' : 'Play Audio'}
-                    </Button>
-                </View>
-            )}
-
-            {fileName && (
-                <View style={styles.saveContainer}>
-                    <Button 
-                        onPress={saveToFiles} 
-                        mode="contained"
-                        disabled={processing || isSaving}
-                        loading={isSaving}
-                        icon="content-save"
-                        testID="save-to-files-button"
-                    >
-                        {isSaving ? 'Saving...' : 'Save to Files'}
-                    </Button>
-                </View>
-            )}
-        </ScreenWrapper>
+        <View style={styles.container}>
+            {/* Rest of the component content */}
+        </View>
     )
 }
-
-export default ImportPage

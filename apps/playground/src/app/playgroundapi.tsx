@@ -1,10 +1,14 @@
-import { AppTheme, ScreenWrapper, useThemePreferences } from '@siteed/design-system';
-import PlaygroundAPIModule from 'playgroundapi';
-import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, Divider, Text } from 'react-native-paper';
-import { useSampleAudio } from '../hooks/useSampleAudio';
-import { useScreenHeader } from '../hooks/useScreenHeader';
+import React, { useMemo, useState } from 'react'
+
+import PlaygroundAPIModule from 'playgroundapi'
+import { StyleSheet, View } from 'react-native'
+import { Button, Divider, Text } from 'react-native-paper'
+
+import type { AppTheme } from '@siteed/design-system'
+import { ScreenWrapper, useThemePreferences } from '@siteed/design-system'
+
+import { useSampleAudio } from '../hooks/useSampleAudio'
+import { useScreenHeader } from '../hooks/useScreenHeader'
 
 interface ValidationResult {
   success: boolean;
@@ -70,129 +74,129 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             padding: theme.padding.s,
             borderRadius: theme.roundness,
             marginTop: 10,
-        }
-    });
-};
+        },
+    })
+}
 
 const PlaygroundAPIScreen = () => {
-    const { theme } = useThemePreferences();
-    const styles = useMemo(() => getStyles({ theme }), [theme]);
-    const [result, setResult] = useState<string | null>(null);
-    const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
-    const [audioValidationResult, setAudioValidationResult] = useState<ValidationResult | null>(null);
-    const [versionResult, setVersionResult] = useState<{ version?: string, error?: string } | null>(null);
-    const [moduleImportsResult, setModuleImportsResult] = useState<ModuleImportsResult | null>(null);
-    const [audioProcessingResult, setAudioProcessingResult] = useState<AudioProcessingResult | null>(null);
+    const { theme } = useThemePreferences()
+    const styles = useMemo(() => getStyles({ theme }), [theme])
+    const [result, setResult] = useState<string | null>(null)
+    const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
+    const [audioValidationResult, setAudioValidationResult] = useState<ValidationResult | null>(null)
+    const [versionResult, setVersionResult] = useState<{ version?: string, error?: string } | null>(null)
+    const [moduleImportsResult, setModuleImportsResult] = useState<ModuleImportsResult | null>(null)
+    const [audioProcessingResult, setAudioProcessingResult] = useState<AudioProcessingResult | null>(null)
     
     useScreenHeader({
-        title: "Playground API",
+        title: 'Playground API',
         backBehavior: {
-          fallbackUrl: "/more",
+          fallbackUrl: '/more',
         },
-      });
+      })
 
 
     // Use the sample audio hook for audio demos
     const { isLoading: isSampleLoading, sampleFile, loadSampleAudio } = useSampleAudio({
         onError: (error) => {
-            console.error('Failed to load sample audio:', error);
-        }
-    });
+            console.error('Failed to load sample audio:', error)
+        },
+    })
     
     const handleHello = async () => { 
         try {
-            const result = PlaygroundAPIModule.hello();
-            console.log(result);
-            setResult(result);
+            const result = PlaygroundAPIModule.hello()
+            console.log(result)
+            setResult(result)
         } catch (error) {
-            console.error(error);
-            setResult(`Error: ${error instanceof Error ? error.message : String(error)}`);
+            console.error(error)
+            setResult(`Error: ${error instanceof Error ? error.message : String(error)}`)
         }
-    };
+    }
 
     const handleValidateEssentiaIntegration = async () => {
         try {
-            const result = await PlaygroundAPIModule.validateEssentiaIntegration();
-            console.log('Essentia validation result:', result);
-            setValidationResult(result);
+            const result = await PlaygroundAPIModule.validateEssentiaIntegration()
+            console.log('Essentia validation result:', result)
+            setValidationResult(result)
         } catch (error) {
-            console.error('Essentia validation error:', error);
+            console.error('Essentia validation error:', error)
             setValidationResult({
                 success: false,
                 error: error instanceof Error ? error.message : String(error),
-            });
+            })
         }
-    };
+    }
 
     const handleValidateAudioProcessor = async () => {
         try {
-            const result = await PlaygroundAPIModule.validateAudioProcessorIntegration();
-            console.log('Audio processor validation result:', result);
-            setAudioValidationResult(result);
+            const result = await PlaygroundAPIModule.validateAudioProcessorIntegration()
+            console.log('Audio processor validation result:', result)
+            setAudioValidationResult(result)
         } catch (error) {
-            console.error('Audio processor validation error:', error);
+            console.error('Audio processor validation error:', error)
             setAudioValidationResult({
                 success: false,
                 error: error instanceof Error ? error.message : String(error),
-            });
+            })
         }
-    };
+    }
 
     const handleTestEssentiaVersion = async () => {
         try {
-            const result = await PlaygroundAPIModule.testEssentiaVersion();
-            console.log('Essentia version test:', result);
+            const result = await PlaygroundAPIModule.testEssentiaVersion()
+            console.log('Essentia version test:', result)
             setVersionResult({
                 version: result.version,
-                error: result.error
-            });
+                error: result.error,
+            })
         } catch (error) {
-            console.error('Essentia version test error:', error);
+            console.error('Essentia version test error:', error)
             setVersionResult({
-                error: error instanceof Error ? error.message : String(error)
-            });
+                error: error instanceof Error ? error.message : String(error),
+            })
         }
-    };
+    }
 
     const handleCheckModuleImports = async () => {
         try {
-            const result = await PlaygroundAPIModule.checkModuleImports();
-            console.log('Module imports check:', result);
-            setModuleImportsResult(result);
+            const result = await PlaygroundAPIModule.checkModuleImports()
+            console.log('Module imports check:', result)
+            setModuleImportsResult(result)
         } catch (error) {
-            console.error('Module imports check error:', error);
+            console.error('Module imports check error:', error)
             setModuleImportsResult({
                 success: false,
-                error: error instanceof Error ? error.message : String(error)
-            });
+                error: error instanceof Error ? error.message : String(error),
+            })
         }
-    };
+    }
 
     const handleProcessAudio = async () => {
         try {
             // Load sample audio file
-            const sampleAudioAsset = require('@assets/jfk.mp3');
-            const loadedSample = await loadSampleAudio(sampleAudioAsset, 'jfk.mp3');
+            const sampleAudioAsset = require('@assets/jfk.mp3')
+            const loadedSample = await loadSampleAudio(sampleAudioAsset, 'jfk.mp3')
             
             if (!loadedSample) {
-                throw new Error('Failed to load sample audio file');
+                throw new Error('Failed to load sample audio file')
             }
             
-            console.log('Using sample audio file:', loadedSample.name, 'at path:', loadedSample.uri);
+            console.log('Using sample audio file:', loadedSample.name, 'at path:', loadedSample.uri)
             
             // Process with module
-            const result = await PlaygroundAPIModule.processAudioWithModule(loadedSample.uri);
-            console.log('Audio processing result:', result);
+            const result = await PlaygroundAPIModule.processAudioWithModule(loadedSample.uri)
+            console.log('Audio processing result:', result)
             
-            setAudioProcessingResult(result);
+            setAudioProcessingResult(result)
         } catch (error) {
-            console.error('Audio processing error:', error);
+            console.error('Audio processing error:', error)
             setAudioProcessingResult({
                 success: false,
-                error: error instanceof Error ? error.message : String(error)
-            });
+                error: error instanceof Error ? error.message : String(error),
+            })
         }
-    };
+    }
 
     return (
         <ScreenWrapper withScrollView contentContainerStyle={styles.container}>
@@ -263,10 +267,12 @@ const PlaygroundAPIScreen = () => {
             )}
             
             {validationResult && (
-                <View style={[
+                <View
+style={[
                     styles.resultContainer,
-                    validationResult.success ? styles.successContainer : styles.errorContainer
-                ]}>
+                    validationResult.success ? styles.successContainer : styles.errorContainer,
+                ]}
+                >
                     <Text variant="titleMedium">Essentia Integration Validation:</Text>
                     <Text>Success: {validationResult.success ? 'Yes' : 'No'}</Text>
                     
@@ -306,10 +312,12 @@ const PlaygroundAPIScreen = () => {
             )}
 
             {audioValidationResult && (
-                <View style={[
+                <View
+style={[
                     styles.resultContainer,
-                    audioValidationResult.success ? styles.successContainer : styles.errorContainer
-                ]}>
+                    audioValidationResult.success ? styles.successContainer : styles.errorContainer,
+                ]}
+                >
                     <Text variant="titleMedium">Audio Processor Validation:</Text>
                     <Text>Success: {audioValidationResult.success ? 'Yes' : 'No'}</Text>
                     
@@ -334,10 +342,12 @@ const PlaygroundAPIScreen = () => {
             )}
 
             {versionResult && (
-                <View style={[
+                <View
+style={[
                     styles.resultContainer,
-                    versionResult.version ? styles.successContainer : styles.errorContainer
-                ]}>
+                    versionResult.version ? styles.successContainer : styles.errorContainer,
+                ]}
+                >
                     <Text variant="titleMedium">Essentia Version:</Text>
                     {versionResult.version && (
                         <Text>Version: {versionResult.version}</Text>
@@ -351,10 +361,12 @@ const PlaygroundAPIScreen = () => {
             )}
             
             {moduleImportsResult && (
-                <View style={[
+                <View
+style={[
                     styles.resultContainer,
-                    moduleImportsResult.success ? styles.successContainer : styles.errorContainer
-                ]}>
+                    moduleImportsResult.success ? styles.successContainer : styles.errorContainer,
+                ]}
+                >
                     <Text variant="titleMedium">Module Imports Check:</Text>
                     <Text>Success: {moduleImportsResult.success ? 'Yes' : 'No'}</Text>
                     
@@ -386,10 +398,12 @@ const PlaygroundAPIScreen = () => {
             )}
             
             {audioProcessingResult && (
-                <View style={[
+                <View
+style={[
                     styles.resultContainer,
-                    audioProcessingResult.success ? styles.successContainer : styles.errorContainer
-                ]}>
+                    audioProcessingResult.success ? styles.successContainer : styles.errorContainer,
+                ]}
+                >
                     <Text variant="titleMedium">Audio Processing Result:</Text>
                     <Text>Success: {audioProcessingResult.success ? 'Yes' : 'No'}</Text>
                     
@@ -423,7 +437,7 @@ const PlaygroundAPIScreen = () => {
                 </View>
             )}
         </ScreenWrapper>
-    );
-};
+    )
+}
 
-export default PlaygroundAPIScreen;
+export default PlaygroundAPIScreen

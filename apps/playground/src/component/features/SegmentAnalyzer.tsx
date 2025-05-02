@@ -1,9 +1,14 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { AppTheme, useTheme } from '@siteed/design-system'
-import { AudioAnalysis, AudioFeaturesOptions, BitDepth, DataPoint, extractAudioAnalysis } from '@siteed/expo-audio-studio'
 import React, { useCallback, useEffect, useState } from 'react'
+
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
+
+import type { AppTheme } from '@siteed/design-system'
+import { useTheme } from '@siteed/design-system'
+import type { AudioAnalysis, AudioFeaturesOptions, BitDepth, DataPoint } from '@siteed/expo-audio-studio'
+import { extractAudioAnalysis } from '@siteed/expo-audio-studio'
+
 import { baseLogger } from '../../config'
 import { useAudioSegmentData } from '../../hooks/useAudioSegmentData'
 import { HexDataViewer } from '../HexDataViewer'
@@ -155,7 +160,7 @@ export function SegmentAnalyzer({
     sampleRate,
     onError,
     analysisConfig,
-    bitDepth = 16
+    bitDepth = 16,
 }: SegmentAnalyzerProps) {
     const theme = useTheme()
     const styles = getStyles(theme)
@@ -167,7 +172,7 @@ export function SegmentAnalyzer({
         fileUri,
         selectedDataPoint: dataPoint,
         bitDepth,
-        includeNormalizedData: true
+        includeNormalizedData: true,
     })
 
     // Calculate positions for display
@@ -185,7 +190,7 @@ export function SegmentAnalyzer({
         startPosition,
         endPosition,
         length,
-        durationMs
+        durationMs,
     })
 
     const handleProcessSegment = useCallback(async () => {
@@ -196,7 +201,7 @@ export function SegmentAnalyzer({
             endTime: dataPoint.endTime,
             sampleRate,
             samples: dataPoint.samples,
-            analysisConfig
+            analysisConfig,
         })
 
         if (startPosition === undefined || endPosition === undefined) {
@@ -205,7 +210,7 @@ export function SegmentAnalyzer({
                 error,
                 dataPoint,
                 calculatedStart: startPosition,
-                calculatedEnd: endPosition
+                calculatedEnd: endPosition,
             })
             onError?.(error)
             return
@@ -217,7 +222,7 @@ export function SegmentAnalyzer({
             startTime: dataPoint.startTime,
             endTime: dataPoint.endTime,
             length,
-            durationMs
+            durationMs,
         })
 
         try {
@@ -242,8 +247,8 @@ export function SegmentAnalyzer({
                     targetSampleRate: sampleRate,
                     targetChannels: 1,
                     targetBitDepth: bitDepth,
-                    normalizeAudio: false
-                }
+                    normalizeAudio: false,
+                },
             })
 
             const timeElapsed = performance.now() - startTime
@@ -256,7 +261,7 @@ export function SegmentAnalyzer({
                 fileUri,
                 startPosition,
                 endPosition,
-                config: analysisConfig
+                config: analysisConfig,
             })
             onError?.(error instanceof Error ? error : new Error('Failed to process segment'))
         } finally {
@@ -379,7 +384,7 @@ export function SegmentAnalyzer({
                     <HexDataViewer
                         byteArray={audioData?.pcmData}
                         bitDepth={bitDepth}
-                        shouldComputeChecksum={true}
+                        shouldComputeChecksum
                     />
                 </>
             )}

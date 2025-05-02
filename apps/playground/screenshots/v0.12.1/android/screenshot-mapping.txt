@@ -1,0 +1,12 @@
+Screenshot File Mapping (Fri May  2 13:05:18 HKT 2025):
+Platform: android, Device: android-phone
+-------------------------------------------
+other-record-tab-advanced-bottom.png <- ✓ App Screenshots should capture Record screen in basic and advanced modes/record-tab-advanced-bottom.png
+01-record-basic-mode.png <- ✓ App Screenshots should capture Record screen in basic and advanced modes/record-tab-basic-mode.png
+02-record-advanced-mode.png <- ✓ App Screenshots should capture Record screen in basic and advanced modes/record-tab-advanced-mode.png
+other-record-tab-advanced-device-settings.png <- ✓ App Screenshots should capture Record screen in basic and advanced modes/record-tab-advanced-device-settings.png
+04-import-tab.png <- ✓ App Screenshots Tab Screenshots should capture Import tab screenshot/import-tab.png
+03-record-tab.png <- ✓ App Screenshots Tab Screenshots should capture Record tab screenshot/record-tab.png
+05-transcription-tab.png <- ✓ App Screenshots Tab Screenshots should capture Transcription tab screenshot/transcription-tab.png
+07-more-tab.png <- ✓ App Screenshots Tab Screenshots should capture More tab screenshot/more-tab.png
+06-files-tab.png <- ✓ App Screenshots Tab Screenshots should capture Files tab screenshot/files-tab.png

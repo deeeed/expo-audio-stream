@@ -1,13 +1,18 @@
-import { AppTheme, EditableInfoCard, LabelSwitch, Notice, useModal, useTheme } from '@siteed/design-system'
-import { getLogger } from '@siteed/react-native-logger'
 import React, { useCallback, useMemo } from 'react'
+
 import { StyleSheet, Text, View } from 'react-native'
-import {
-    BatchTranscriptionOptions,
-    RealtimeTranscriptionOptions
-} from '../hooks/useUnifiedTranscription'
+
+import type { AppTheme } from '@siteed/design-system'
+import { EditableInfoCard, LabelSwitch, Notice, useModal, useTheme } from '@siteed/design-system'
+import { getLogger } from '@siteed/react-native-logger'
 
 import { TranscriptionModeConfigForm } from './TranscriptionModeConfigForm'
+
+import type {
+    BatchTranscriptionOptions,
+    RealtimeTranscriptionOptions,
+} from '../hooks/useUnifiedTranscription'
+
 
 const logger = getLogger('TranscriptionModeConfig')
 
@@ -32,7 +37,7 @@ export const TranscriptionModeConfig = ({
     settings,
     onSettingsChange,
     validSampleRate,
-    isWeb = false
+    isWeb = false,
 }: TranscriptionModeConfigProps) => {
     const { openDrawer } = useModal()
     const theme = useTheme()
@@ -50,9 +55,9 @@ export const TranscriptionModeConfig = ({
                     const debouncedOnChange = (data: TranscriptionModeSettings) => {
                         // Only update if the data has actually changed
                         if (JSON.stringify(data) !== JSON.stringify(state.data)) {
-                            onChange(data);
+                            onChange(data)
                         }
-                    };
+                    }
                     
                     return (
                         <TranscriptionModeConfigForm
@@ -60,18 +65,18 @@ export const TranscriptionModeConfig = ({
                             onSettingsChange={debouncedOnChange}
                             isWeb={isWeb}
                         />
-                    );
+                    )
                 },
-            });
+            })
 
             if (result && JSON.stringify(result) !== JSON.stringify(settings)) {
-                logger.debug(`New transcription settings`, result);
-                onSettingsChange(result);
+                logger.debug(`New transcription settings`, result)
+                onSettingsChange(result)
             }
         } catch (error) {
-            logger.error(`Failed to change transcription settings`, error);
+            logger.error(`Failed to change transcription settings`, error)
         }
-    }, [openDrawer, settings, isWeb, onSettingsChange]);
+    }, [openDrawer, settings, isWeb, onSettingsChange])
 
     const renderConfigValue = useCallback(() => {
         if (!enabled || !validSampleRate) {
@@ -151,7 +156,7 @@ export const TranscriptionModeConfig = ({
                             backgroundColor: theme.colors.surface,
                         }}
                         renderValue={renderConfigValue}
-                        editable={true}
+                        editable
                         onEdit={handleEditConfig}
                     />
                     
@@ -221,6 +226,6 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
         infoText: {
             fontSize: 14,
             color: theme.colors.onSurfaceVariant,
-        }
+        },
     })
 } 

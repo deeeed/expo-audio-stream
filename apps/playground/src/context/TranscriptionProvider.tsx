@@ -1,6 +1,4 @@
 // apps/playground/src/context/TranscriptionProvider.tsx
-import { TranscriberData } from '@siteed/expo-audio-studio'
-import * as FileSystem from 'expo-file-system'
 import React, {
     createContext,
     useCallback,
@@ -8,23 +6,25 @@ import React, {
     useMemo,
     useReducer,
     useRef,
-    useState
+    useState,
 } from 'react'
+
+import * as FileSystem from 'expo-file-system'
 import { fromByteArray } from 'react-native-quick-base64'
 import {
     initWhisper,
-    TranscribeFileOptions,
-    TranscribeRealtimeOptions,
-    WhisperContext
 } from 'whisper.rn'
 
+import type { TranscriberData } from '@siteed/expo-audio-studio'
+
 import { baseLogger, config } from '../config'
-import { WHISPER_MODELS } from '../hooks/useWhisperModels'
 import {
     initialState,
     transcriptionReducer,
 } from './TranscriptionProvider.reducer'
-import {
+import { WHISPER_MODELS } from '../hooks/useWhisperModels'
+
+import type {
     RealtimeTranscribeParams,
     RealtimeTranscribeResult,
     TranscribeParams,
@@ -34,6 +34,11 @@ import {
     TranscriptionState,
     BatchTranscribeParams,
 } from './TranscriptionProvider.types'
+import type {
+    TranscribeFileOptions,
+    TranscribeRealtimeOptions,
+    WhisperContext,
+} from 'whisper.rn'
 
 const logger = baseLogger.extend('TranscriptionProvider')
 
@@ -77,7 +82,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
     }, [])
 
     const downloadModel = useCallback(async (modelId: string) => {
-        const model = WHISPER_MODELS.find(m => m.id === modelId)
+        const model = WHISPER_MODELS.find((m) => m.id === modelId)
         if (!model) throw new Error(`Model ${modelId} not found`)
 
         const directory = await getModelDirectory()
@@ -170,7 +175,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 payload: { isModelLoading: false, ready: true },
             })
             
-            return;
+            return
         } catch (error) {
             logger.error('Failed to initialize whisper:', error)
             dispatch({
@@ -197,17 +202,17 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             logger.debug('transcribe called, current state:', { 
                 hasContext: !!whisperContext, 
                 isModelLoading: state.isModelLoading,
-                ready: state.ready 
+                ready: state.ready, 
             })
 
             // Auto-initialize if not ready
-            let localContext = whisperContext;
+            let localContext = whisperContext
             if (!localContext && !state.isModelLoading) {
                 logger.debug('Model not initialized, auto-initializing before transcription')
                 try {
                     dispatch({
                         type: 'UPDATE_STATE',
-                        payload: { isModelLoading: true }
+                        payload: { isModelLoading: true },
                     })
                     
                     // Download model and initialize directly
@@ -227,7 +232,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     
                     dispatch({
                         type: 'UPDATE_STATE',
-                        payload: { isModelLoading: false, ready: true }
+                        payload: { isModelLoading: false, ready: true },
                     })
                     
                     if (!localContext) {
@@ -237,12 +242,12 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     logger.error('Auto-initialization failed:', error)
                     dispatch({
                         type: 'UPDATE_STATE',
-                        payload: { isModelLoading: false }
+                        payload: { isModelLoading: false },
                     })
                     return {
                         promise: Promise.reject(new Error('Failed to initialize model: ' + error)),
                         stop: async () => {},
-                        jobId
+                        jobId,
                     }
                 }
             }
@@ -251,7 +256,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 return {
                     promise: Promise.reject(new Error('No whisper context available')),
                     stop: async () => {},
-                    jobId
+                    jobId,
                 }
             }
 
@@ -259,34 +264,34 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 return {
                     promise: Promise.reject(new Error('No audio data or URI provided')),
                     stop: async () => {},
-                    jobId
+                    jobId,
                 }
             }
 
             // Determine what to use for transcription
-            let filePathOrBase64: string;
-            let useTranscribeData = false;
+            let filePathOrBase64: string
+            let useTranscribeData = false
             
             if (audioUri) {
                 // If audioUri is provided, use it directly
-                filePathOrBase64 = audioUri;
+                filePathOrBase64 = audioUri
             } else if (audioData) {
                 // Convert audioData to base64 if needed
-                useTranscribeData = true;
+                useTranscribeData = true
                 if (typeof audioData === 'string') {
                     // Already a string (likely base64)
-                    filePathOrBase64 = audioData;
-                    logger.debug(`Using string audio data, length=${audioData.length}`);
+                    filePathOrBase64 = audioData
+                    logger.debug(`Using string audio data, length=${audioData.length}`)
                 } else if (audioData instanceof ArrayBuffer || 
                           audioData instanceof Float32Array || 
                           audioData instanceof Uint8Array) {
                     // Convert buffer to base64
-                    filePathOrBase64 = fromByteArray(new Uint8Array(audioData instanceof ArrayBuffer ? audioData : audioData.buffer));
+                    filePathOrBase64 = fromByteArray(new Uint8Array(audioData instanceof ArrayBuffer ? audioData : audioData.buffer))
                 } else {
                     return {
                         promise: Promise.reject(new Error('Unsupported audio data format')),
                         stop: async () => {},
-                        jobId
+                        jobId,
                     }
                 }
             } else {
@@ -294,11 +299,11 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 return {
                     promise: Promise.reject(new Error('No audio data or URI provided')),
                     stop: async () => {},
-                    jobId
+                    jobId,
                 }
             }
 
-            const file = `file_${Date.now()}`;
+            const file = `file_${Date.now()}`
             
             dispatch({
                 type: 'UPDATE_PROGRESS_ITEM',
@@ -309,7 +314,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     progress: 0,
                     name: state.model,
                     status: 'processing',
-                }
+                },
             })
 
             const fullOptions: TranscribeFileOptions = {
@@ -363,7 +368,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             // Use the appropriate transcribe method based on the input type
             const { promise: whisperPromise, stop } = useTranscribeData 
                 ? localContext.transcribeData(filePathOrBase64, fullOptions)
-                : localContext.transcribe(filePathOrBase64, fullOptions);
+                : localContext.transcribe(filePathOrBase64, fullOptions)
 
             const transcriptionPromise = new Promise<TranscriberData>((resolve, reject) => {
                 transcribeResolveMapRef.current[jobId] = resolve
@@ -407,7 +412,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         
                         return finalTranscript
                     }
-                ).catch(error => {
+                ).catch((error) => {
                     if (transcribeRejectMapRef.current[jobId]) {
                         transcribeRejectMapRef.current[jobId](error)
                         delete transcribeResolveMapRef.current[jobId]
@@ -432,7 +437,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     delete transcribeResolveMapRef.current[jobId]
                     delete transcribeRejectMapRef.current[jobId]
                 },
-                jobId
+                jobId,
             }
         },
         [whisperContext, state.language, state.model, state.ready, state.isModelLoading, downloadModel]
@@ -471,7 +476,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
         async ({
             jobId,
             options,
-            onTranscriptionUpdate
+            onTranscriptionUpdate,
         }: RealtimeTranscribeParams): Promise<RealtimeTranscribeResult> => {
             logger.debug('Starting realtime transcription with jobId:', jobId, 'options:', JSON.stringify(options))
             
@@ -488,13 +493,13 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     await Promise.race([initPromise, timeoutPromise])
                     
                     // Add a delay to ensure state updates have propagated
-                    await new Promise(resolve => setTimeout(resolve, 500))
+                    await new Promise((resolve) => setTimeout(resolve, 500))
                     
                     // Check again after initialization with more diagnostic info
                     if (!whisperContext) {
                         logger.error('Whisper context still null after initialize call. State:', {
                             isModelLoading: state.isModelLoading,
-                            ready: state.ready
+                            ready: state.ready,
                         })
                         throw new Error('Whisper context still not initialized after waiting')
                     }
@@ -508,7 +513,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 // Configure realtime options
                 const realtimeOptions: Partial<TranscribeRealtimeOptions> = {
                     language: state.language === 'auto' ? undefined : state.language,
-                    ...options
+                    ...options,
                 }
                 
                 logger.debug('Calling whisperContext.transcribeRealtime with options:', JSON.stringify(realtimeOptions))
@@ -520,7 +525,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     chunks: [],
                     isBusy: true,
                     startTime: Date.now(),
-                    endTime: Date.now()
+                    endTime: Date.now(),
                 }
                 onTranscriptionUpdate(initialData)
                 
@@ -537,12 +542,12 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     if (now - lastUpdateTimestamp > 10000) {
                         logger.warn('Realtime transcription appears to have stalled - no updates for 10s')
                         // No need to clear the interval here since we're about to reset everything
-                        stop().catch(e => logger.error('Error stopping stalled transcription:', e))
+                        stop().catch((e) => logger.error('Error stopping stalled transcription:', e))
                         
                         // Provide error feedback
                         dispatch({
                             type: 'UPDATE_STATE',
-                            payload: { isBusy: false }
+                            payload: { isBusy: false },
                         })
                         
                         // throw new Error('Realtime transcription stalled - no updates received')
@@ -555,7 +560,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     
                     logger.debug(`Realtime event: capturing=${isCapturing}, hasData=${!!data}, code=${code}, error=${error || 'none'}, processTime=${processTime}ms`)
                     
-                    if (data && data.result) {
+                    if (data?.result) {
                         logger.debug(`Transcription result: "${data.result.substring(0, 100)}..." (${data.segments?.length || 0} segments)`)
                         
                         // Create chunks from segments
@@ -574,7 +579,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                             chunks: chunks,
                             isBusy: isCapturing,
                             startTime: Date.now() - recordingTime,
-                            endTime: Date.now()
+                            endTime: Date.now(),
                         }
                         
                         // Update state
@@ -582,8 +587,8 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                             type: 'UPDATE_STATE',
                             payload: {
                                 transcript: transcriptionData,
-                                isBusy: isCapturing
-                            }
+                                isBusy: isCapturing,
+                            },
                         })
                         
                         // Call the callback with the transcription data
@@ -597,7 +602,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         logger.debug('Realtime transcription finished')
                         dispatch({
                             type: 'UPDATE_STATE',
-                            payload: { isBusy: false }
+                            payload: { isBusy: false },
                         })
                     }
                     
@@ -617,9 +622,9 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         await stop()
                         dispatch({
                             type: 'UPDATE_STATE',
-                            payload: { isBusy: false }
+                            payload: { isBusy: false },
                         })
-                    }
+                    },
                 }
             } catch (error) {
                 logger.error('Failed to start realtime transcription:', error)
@@ -634,29 +639,29 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             base64Data,
             jobId,
             options,
-            onTranscriptionUpdate
+            onTranscriptionUpdate,
         }: BatchTranscribeParams): Promise<TranscriberData> => {
-            logger.debug(`transcribeBatchBase64 called with jobId ${jobId}, data length ${base64Data.length}`);
+            logger.debug(`transcribeBatchBase64 called with jobId ${jobId}, data length ${base64Data.length}`)
             
             if (!whisperContext) {
-                throw new Error('Whisper context not initialized. Call initialize() first.');
+                throw new Error('Whisper context not initialized. Call initialize() first.')
             }
             
             try {
                 // Create properly formatted options
                 const transcribeOptions = {
                     language: state.language === 'auto' ? undefined : state.language,
-                    ...options
-                };
+                    ...options,
+                }
                 
                 // Call native transcribeData with the correct signature
-                const { promise } = whisperContext.transcribeData(base64Data, transcribeOptions);
+                const { promise } = whisperContext.transcribeData(base64Data, transcribeOptions)
                 
                 // Wait for the result
-                const result = await promise;
+                const result = await promise
                 
                 if (!result) {
-                    throw new Error('Transcription failed: No result returned');
+                    throw new Error('Transcription failed: No result returned')
                 }
                 
                 // Process the result - use proper typing from whisper.rn package
@@ -667,7 +672,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         segment.t0 / 100,
                         segment.t1 ? segment.t1 / 100 : null,
                     ] as [number, number | null],
-                }));
+                }))
                 
                 // Create the final transcript
                 const transcription: TranscriberData = {
@@ -676,20 +681,20 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     chunks,
                     isBusy: false,
                     startTime: Date.now() - 5000, // Approximate
-                    endTime: Date.now()
-                };
+                    endTime: Date.now(),
+                }
                 
                 // Notify caller of result
-                onTranscriptionUpdate?.(transcription);
+                onTranscriptionUpdate?.(transcription)
                 
-                return transcription;
+                return transcription
             } catch (error) {
-                logger.error('Error in transcribeBatchBase64:', error);
-                throw error;
+                logger.error('Error in transcribeBatchBase64:', error)
+                throw error
             }
         },
         [whisperContext, state.language]
-    );
+    )
 
     const contextValue = useMemo(
         () => ({

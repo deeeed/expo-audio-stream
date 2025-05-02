@@ -1,12 +1,16 @@
 // playground/src/component/audio-recording-config/audio-recording-config-form.tsx
-import { AppTheme, LabelSwitch, useThemePreferences } from '@siteed/design-system'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+
 import { Platform, StyleSheet, View } from 'react-native'
 import { Button, RadioButton, SegmentedButtons, Text } from 'react-native-paper'
 
+import type { AppTheme } from '@siteed/design-system'
+import { LabelSwitch, useThemePreferences } from '@siteed/design-system'
+
 import { config } from '../config'
-import { TranscriptionState } from '../context/TranscriptionProvider.types'
 import { WEB_WHISPER_MODELS, WHISPER_MODELS } from '../hooks/useWhisperModels'
+
+import type { TranscriptionState } from '../context/TranscriptionProvider.types'
 
 // Use a subset of TranscriptionState for the form
 export type TranscriptionConfigFormState = Pick<
@@ -52,7 +56,7 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             marginTop: 'auto',
             paddingTop: theme.margin.m,
             paddingBottom: Platform.OS === 'ios' ? 20 : theme.padding.m,
-        }
+        },
     })
 }
 
@@ -73,19 +77,19 @@ export const TranscriptionConfigForm: React.FC<TranscriptionConfigFormProps> = (
     useEffect(() => {
         // If current model doesn't support multilingual but it's enabled, disable it
         if (!modelCapabilities.multilingual && selectedConfig.multilingual) {
-            setSelectedConfig(prev => ({
+            setSelectedConfig((prev) => ({
                 ...prev,
                 multilingual: false,
                 // Clear language if multilingual is disabled
-                language: undefined
+                language: undefined,
             }))
         }
         
         // If current model doesn't support quantization but it's enabled, disable it
         if (!modelCapabilities.quantizable && selectedConfig.quantized) {
-            setSelectedConfig(prev => ({
+            setSelectedConfig((prev) => ({
                 ...prev,
-                quantized: false
+                quantized: false,
             }))
         }
         
@@ -93,9 +97,9 @@ export const TranscriptionConfigForm: React.FC<TranscriptionConfigFormProps> = (
         if (Platform.OS !== 'web') {
             const hasTdrz = 'tdrz' in modelCapabilities && modelCapabilities.tdrz === true
             if (!hasTdrz && selectedConfig.tdrz) {
-                setSelectedConfig(prev => ({
+                setSelectedConfig((prev) => ({
                     ...prev,
-                    tdrz: false
+                    tdrz: false,
                 }))
             }
         }
@@ -104,16 +108,16 @@ export const TranscriptionConfigForm: React.FC<TranscriptionConfigFormProps> = (
         modelCapabilities, 
         selectedConfig.multilingual, 
         selectedConfig.quantized, 
-        selectedConfig.tdrz
+        selectedConfig.tdrz,
     ])
     
     const handleChange = useCallback(<K extends keyof TranscriptionConfigFormState>(
         key: K, 
         value: TranscriptionConfigFormState[K]
     ) => {
-        setSelectedConfig(prev => ({
+        setSelectedConfig((prev) => ({
             ...prev,
-            [key]: value
+            [key]: value,
         }))
     }, [])
     
@@ -124,9 +128,9 @@ export const TranscriptionConfigForm: React.FC<TranscriptionConfigFormProps> = (
     // Get model options based on platform
     const modelOptions = useMemo(() => {
         const models = Platform.OS === 'web' ? WEB_WHISPER_MODELS : WHISPER_MODELS
-        return models.map(model => ({
+        return models.map((model) => ({
             label: model.label,
-            value: model.id
+            value: model.id,
         }))
     }, [])
     
@@ -176,7 +180,7 @@ export const TranscriptionConfigForm: React.FC<TranscriptionConfigFormProps> = (
                                     value={selectedConfig.language || 'auto'}
                                     onValueChange={(value: string) => handleChange('language', value)}
                                 >
-                                    {languageOptions.map(option => (
+                                    {languageOptions.map((option) => (
                                         <View key={option.value} style={styles.radioOption}>
                                             <RadioButton value={option.value} />
                                             <Text style={{ color: theme.colors.text }}>{option.label}</Text>

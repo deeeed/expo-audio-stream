@@ -1,9 +1,12 @@
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import EssentiaJS from '@siteed/react-native-essentia';
-import { Button, Card, Chip, Divider, HelperText, Searchbar, SegmentedButtons, Text } from 'react-native-paper';
-import { AppTheme , useThemePreferences } from '@siteed/design-system';
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native'
+import { Button, Card, Chip, Divider, HelperText, Searchbar, SegmentedButtons, Text } from 'react-native-paper'
+
+import type { AppTheme } from '@siteed/design-system'
+import { useThemePreferences } from '@siteed/design-system'
+import EssentiaJS from '@siteed/react-native-essentia'
 
 // Define interfaces
 export interface AlgorithmExplorerProps {
@@ -168,243 +171,243 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
       flexDirection: 'row',
       alignItems: 'center',
       marginVertical: 2,
-    }
-  });
-};
+    },
+  })
+}
 
 // Add a safe text rendering utility function at the top of your component
 const safeRenderText = (value: unknown): string => {
   if (value === null || value === undefined) {
-    return 'N/A';
+    return 'N/A'
   }
   if (typeof value === 'string') {
-    return value;
+    return value
   }
   if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
+    return String(value)
   }
   if (Array.isArray(value)) {
-    return JSON.stringify(value);
+    return JSON.stringify(value)
   }
   if (typeof value === 'object') {
-    return JSON.stringify(value);
+    return JSON.stringify(value)
   }
-  return String(value);
-};
+  return String(value)
+}
 
 export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange }: AlgorithmExplorerProps) {
-  const { theme } = useThemePreferences();
-  const styles = useMemo(() => getStyles({ theme }), [theme]);
+  const { theme } = useThemePreferences()
+  const styles = useMemo(() => getStyles({ theme }), [theme])
   
   // State for algorithms list
-  const [algorithms, setAlgorithms] = useState<string[]>([]);
-  const [filteredAlgorithms, setFilteredAlgorithms] = useState<string[]>([]);
-  const [isLoadingAlgorithms, setIsLoadingAlgorithms] = useState(false);
-  const [algorithmError, setAlgorithmError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [algorithms, setAlgorithms] = useState<string[]>([])
+  const [filteredAlgorithms, setFilteredAlgorithms] = useState<string[]>([])
+  const [isLoadingAlgorithms, setIsLoadingAlgorithms] = useState(false)
+  const [algorithmError, setAlgorithmError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   
   // State for selected algorithm
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<string | null>(null);
-  const [algorithmInfo, setAlgorithmInfo] = useState<AlgorithmInfo | null>(null);
-  const [isLoadingAlgoInfo, setIsLoadingAlgoInfo] = useState(false);
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<string | null>(null)
+  const [algorithmInfo, setAlgorithmInfo] = useState<AlgorithmInfo | null>(null)
+  const [isLoadingAlgoInfo, setIsLoadingAlgoInfo] = useState(false)
   
   // State for parameter values - keep for display purposes only
-  const [parameterValues, setParameterValues] = useState<ParameterValue>({});
+  const [parameterValues, setParameterValues] = useState<ParameterValue>({})
   
   // Add new state for UX improvements
-  const [favoriteAlgorithms, setFavoriteAlgorithms] = useState<string[]>([]);
-  const [recentlyUsed, setRecentlyUsed] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('favorites');
+  const [favoriteAlgorithms, setFavoriteAlgorithms] = useState<string[]>([])
+  const [recentlyUsed, setRecentlyUsed] = useState<string[]>([])
+  const [selectedCategory, setSelectedCategory] = useState('favorites')
   
   // Add loading state for category switching
-  const [isLoadingCategory, setIsLoadingCategory] = useState(false);
+  const [isLoadingCategory, setIsLoadingCategory] = useState(false)
   
   // Expand the algorithm categories with icons for better visual hierarchy
   const algorithmCategories = useMemo<AlgorithmCategory[]>(() => [
     {
       name: 'Audio Analysis',
       algorithms: ['MFCC', 'Spectrum', 'SpectralCentroid', 'SpectralContrast', 'SpectralPeaks', 'BarkBands', 'ERBBands', 'MelBands', 'GFCC', 'BFCC'],
-      icon: 'waveform'
+      icon: 'waveform',
     },
     {
       name: 'Feature Extraction',
       algorithms: ['Energy', 'RMS', 'ZeroCrossingRate', 'Loudness', 'Flux', 'Rolloff', 'Decrease', 'Envelope'],
-      icon: 'chart-bar'
+      icon: 'chart-bar',
     },
     {
       name: 'Music Features',
       algorithms: ['Key', 'BpmHistogram', 'Rhythm', 'Pitch', 'PitchMelodia', 'Onsets', 'BeatTrackerMultiFeature'],
-      icon: 'music'
+      icon: 'music',
     },
     {
       name: 'Signal Processing',
       algorithms: ['FFT', 'IFFT', 'DCT', 'IDCT', 'Windowing', 'FrameCutter', 'Magnitude', 'PowerSpectrum', 'CartesianToPolar'],
-      icon: 'sine-wave'
+      icon: 'sine-wave',
     },
     {
       name: 'Audio Effects',
       algorithms: ['BandPass', 'HighPass', 'LowPass', 'Clipper', 'DCRemoval', 'EqualLoudness'],
-      icon: 'equalizer'
+      icon: 'equalizer',
     },
-  ], []);
+  ], [])
 
   // Function to load all available algorithms
   const loadAlgorithms = useCallback(async () => {
     if (!isInitialized) {
-      showToast('Please initialize Essentia first');
-      return;
+      showToast('Please initialize Essentia first')
+      return
     }
     
-    setIsLoadingAlgorithms(true);
-    setAlgorithmError(null);
+    setIsLoadingAlgorithms(true)
+    setAlgorithmError(null)
     
     try {
-      const result = await EssentiaJS.getAllAlgorithms();
+      const result = await EssentiaJS.getAllAlgorithms()
       
       if (result.success && Array.isArray(result.data)) {
-        const sortedAlgorithms = [...result.data].sort();
-        setAlgorithms(sortedAlgorithms);
-        setFilteredAlgorithms(sortedAlgorithms);
-        console.log(`Loaded ${result.data.length} algorithms from Essentia`);
+        const sortedAlgorithms = [...result.data].sort()
+        setAlgorithms(sortedAlgorithms)
+        setFilteredAlgorithms(sortedAlgorithms)
+        console.log(`Loaded ${result.data.length} algorithms from Essentia`)
       } else {
-        setAlgorithmError('Failed to load algorithms');
-        console.error('Unexpected result format:', result);
+        setAlgorithmError('Failed to load algorithms')
+        console.error('Unexpected result format:', result)
       }
     } catch (error) {
-      setAlgorithmError(`Error: ${error instanceof Error ? error.message : String(error)}`);
-      console.error('Error loading algorithms:', error);
+      setAlgorithmError(`Error: ${error instanceof Error ? error.message : String(error)}`)
+      console.error('Error loading algorithms:', error)
     } finally {
-      setIsLoadingAlgorithms(false);
+      setIsLoadingAlgorithms(false)
     }
-  }, [isInitialized, showToast]);
+  }, [isInitialized, showToast])
 
   // Load algorithms when initialized
   useEffect(() => {
     if (isInitialized) {
-      loadAlgorithms();
+      loadAlgorithms()
     }
-  }, [isInitialized, loadAlgorithms]);
+  }, [isInitialized, loadAlgorithms])
   
   // Filter algorithms based on search query
   useEffect(() => {
     if (searchQuery.trim() === '') {
-      setFilteredAlgorithms(algorithms);
+      setFilteredAlgorithms(algorithms)
     } else {
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery.toLowerCase()
       setFilteredAlgorithms(
-        algorithms.filter(algo => algo.toLowerCase().includes(query))
-      );
+        algorithms.filter((algo) => algo.toLowerCase().includes(query))
+      )
     }
-  }, [searchQuery, algorithms]);
+  }, [searchQuery, algorithms])
   
   // Get info for the selected algorithm
   const getAlgorithmInfo = useCallback(async (algorithmName: string) => {
     if (!isInitialized) {
-      showToast('Please initialize Essentia first');
-      return;
+      showToast('Please initialize Essentia first')
+      return
     }
     
-    setIsLoadingAlgoInfo(true);
-    setSelectedAlgorithm(algorithmName);
-    setParameterValues({});
+    setIsLoadingAlgoInfo(true)
+    setSelectedAlgorithm(algorithmName)
+    setParameterValues({})
     
     try {
-      const result = await EssentiaJS.getAlgorithmInfo(algorithmName);
+      const result = await EssentiaJS.getAlgorithmInfo(algorithmName)
       
       if (result.success && result.data) {
-        const info = result.data as AlgorithmInfo;
-        setAlgorithmInfo(info);
+        const info = result.data as AlgorithmInfo
+        setAlgorithmInfo(info)
         
         // Initialize default parameter values
-        const defaultParams: ParameterValue = {};
+        const defaultParams: ParameterValue = {}
         if (info.parameters) {
           Object.entries(info.parameters).forEach(([key, value]) => {
             if (value && typeof value === 'object' && 'defaultValue' in value) {
-              const defaultValue = value.defaultValue;
+              const defaultValue = value.defaultValue
               if (typeof defaultValue === 'string' || 
                   typeof defaultValue === 'number' || 
                   typeof defaultValue === 'boolean') {
-                defaultParams[key] = defaultValue;
+                defaultParams[key] = defaultValue
               }
             }
-          });
+          })
         }
         
-        setParameterValues(defaultParams);
+        setParameterValues(defaultParams)
       } else {
-        showToast(`Failed to get info for ${algorithmName}`);
-        setAlgorithmInfo(null);
+        showToast(`Failed to get info for ${algorithmName}`)
+        setAlgorithmInfo(null)
       }
     } catch (error) {
-      console.error('Error getting algorithm info:', error);
-      showToast(`Error: ${error instanceof Error ? error.message : String(error)}`);
-      setAlgorithmInfo(null);
+      console.error('Error getting algorithm info:', error)
+      showToast(`Error: ${error instanceof Error ? error.message : String(error)}`)
+      setAlgorithmInfo(null)
     } finally {
-      setIsLoadingAlgoInfo(false);
+      setIsLoadingAlgoInfo(false)
     }
-  }, [isInitialized, showToast]);
+  }, [isInitialized, showToast])
   
   // Handle parameter value changes - keep for display purposes only
   const handleParameterChange = (paramName: string, value: string) => {
     try {
-      let parsedValue: string | number | boolean = value;
+      let parsedValue: string | number | boolean = value
       
       // Try to parse numbers and booleans
       if (value.toLowerCase() === 'true') {
-        parsedValue = true;
+        parsedValue = true
       } else if (value.toLowerCase() === 'false') {
-        parsedValue = false;
+        parsedValue = false
       } else if (!isNaN(Number(value)) && value.trim() !== '') {
-        parsedValue = Number(value);
+        parsedValue = Number(value)
       } else if (value.startsWith('[') && value.endsWith(']')) {
         // Keep arrays as strings, they'll be parsed by Essentia
-        parsedValue = value;
+        parsedValue = value
       }
       
-      setParameterValues(prev => ({
+      setParameterValues((prev) => ({
         ...prev,
-        [paramName]: parsedValue
-      }));
+        [paramName]: parsedValue,
+      }))
     } catch (_error) {
       // If parsing fails, keep as string
-      setParameterValues(prev => ({
+      setParameterValues((prev) => ({
         ...prev,
-        [paramName]: value
-      }));
+        [paramName]: value,
+      }))
     }
-  };
+  }
   
   // Update recently used when selecting an algorithm
   const handleSelectAlgorithm = useCallback((algorithmName: string) => {
     // Update recently used
-    setRecentlyUsed(prev => {
-      const newList = prev.filter(item => item !== algorithmName);
-      return [algorithmName, ...newList].slice(0, 10); // Keep only the 10 most recent
-    });
+    setRecentlyUsed((prev) => {
+      const newList = prev.filter((item) => item !== algorithmName)
+      return [algorithmName, ...newList].slice(0, 10) // Keep only the 10 most recent
+    })
 
     // Call the existing function
-    getAlgorithmInfo(algorithmName);
-  }, [getAlgorithmInfo]);
+    getAlgorithmInfo(algorithmName)
+  }, [getAlgorithmInfo])
 
   // Toggle favorite status for an algorithm
   const toggleFavorite = useCallback((algorithmName: string) => {
-    setFavoriteAlgorithms(prev => {
+    setFavoriteAlgorithms((prev) => {
       const updatedFavorites = prev.includes(algorithmName) 
-        ? prev.filter(item => item !== algorithmName)
-        : [...prev, algorithmName];
+        ? prev.filter((item) => item !== algorithmName)
+        : [...prev, algorithmName]
       
       // Call the callback with updated favorites if provided
       if (onFavoritesChange) {
-        onFavoritesChange(updatedFavorites);
+        onFavoritesChange(updatedFavorites)
       }
       
-      return updatedFavorites;
-    });
-  }, [onFavoritesChange]);
+      return updatedFavorites
+    })
+  }, [onFavoritesChange])
 
   // Render a consistent algorithm chip with favorite option
   const renderAlgorithmChip = useCallback((algo: string) => {
-    const isFavorite = favoriteAlgorithms.includes(algo);
+    const isFavorite = favoriteAlgorithms.includes(algo)
     
     return (
       <View key={algo} style={styles.algorithmItem}>
@@ -425,19 +428,19 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
           {''}
         </Button>
       </View>
-    );
-  }, [favoriteAlgorithms, selectedAlgorithm, handleSelectAlgorithm, toggleFavorite, theme, styles]);
+    )
+  }, [favoriteAlgorithms, selectedAlgorithm, handleSelectAlgorithm, toggleFavorite, theme, styles])
 
   // Handle category change with loading state
   const handleCategoryChange = useCallback((newCategory: string) => {
-    setIsLoadingCategory(true);
-    setSelectedCategory(newCategory);
+    setIsLoadingCategory(true)
+    setSelectedCategory(newCategory)
     
     // Use setTimeout to allow the UI to update before rendering the new category content
     setTimeout(() => {
-      setIsLoadingCategory(false);
-    }, 300); // Small delay to show loading indicator
-  }, []);
+      setIsLoadingCategory(false)
+    }, 300) // Small delay to show loading indicator
+  }, [])
 
   // Render current category content
   const renderCategoryContent = useCallback(() => {
@@ -448,7 +451,7 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
           <ActivityIndicator size="small" color={theme.colors.primary} />
           <Text style={{ marginTop: 8 }}>Loading category...</Text>
         </View>
-      );
+      )
     }
     
     // Favorites view
@@ -458,16 +461,16 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
           <Text style={styles.emptyState}>
             No favorite algorithms yet. Star algorithms to add them here.
           </Text>
-        );
+        )
       }
       
       return (
         <View style={styles.chipContainer}>
           {favoriteAlgorithms
-            .filter(algo => filteredAlgorithms.includes(algo))
+            .filter((algo) => filteredAlgorithms.includes(algo))
             .map(renderAlgorithmChip)}
         </View>
-      );
+      )
     }
     
     // Recent view
@@ -477,16 +480,16 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
           <Text style={styles.emptyState}>
             No recently used algorithms. Select some algorithms to see them here.
           </Text>
-        );
+        )
       }
       
       return (
         <View style={styles.chipContainer}>
           {recentlyUsed
-            .filter(algo => filteredAlgorithms.includes(algo))
+            .filter((algo) => filteredAlgorithms.includes(algo))
             .map(renderAlgorithmChip)}
         </View>
-      );
+      )
     }
     
     // All view
@@ -497,152 +500,152 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
             {filteredAlgorithms.map(renderAlgorithmChip)}
           </View>
         </ScrollView>
-      );
+      )
     }
     
     // Category view
-    const category = algorithmCategories.find(c => c.name === selectedCategory);
+    const category = algorithmCategories.find((c) => c.name === selectedCategory)
     if (category) {
       return (
         <View style={styles.chipContainer}>
           {category.algorithms
-            .filter(algo => filteredAlgorithms.includes(algo) && algorithms.includes(algo))
+            .filter((algo) => filteredAlgorithms.includes(algo) && algorithms.includes(algo))
             .map(renderAlgorithmChip)}
           <Divider style={{ marginVertical: 8, width: '100%' }} />
           <Text style={{ marginBottom: 8 }}>Other algorithms in this category:</Text>
           {filteredAlgorithms
-            .filter(algo => !category.algorithms.includes(algo) && 
+            .filter((algo) => !category.algorithms.includes(algo) && 
                           algo.toLowerCase().includes(category.name.toLowerCase()))
             .map(renderAlgorithmChip)}
         </View>
-      );
+      )
     }
     
-    return null;
-  }, [selectedCategory, favoriteAlgorithms, recentlyUsed, filteredAlgorithms, algorithms, algorithmCategories, renderAlgorithmChip, styles, isLoadingCategory, theme.colors.primary]);
+    return null
+  }, [selectedCategory, favoriteAlgorithms, recentlyUsed, filteredAlgorithms, algorithms, algorithmCategories, renderAlgorithmChip, styles, isLoadingCategory, theme.colors.primary])
 
   // Create segmented buttons options for categories
   const segmentedButtonItems = useMemo(() => {
     const items = [
       { value: 'favorites', label: 'Favorites' },
       { value: 'recent', label: 'Recent' },
-      { value: 'all', label: 'All' }
-    ];
+      { value: 'all', label: 'All' },
+    ]
     
     // Add category items
-    algorithmCategories.forEach(category => {
-      items.push({ value: category.name, label: category.name });
-    });
+    algorithmCategories.forEach((category) => {
+      items.push({ value: category.name, label: category.name })
+    })
     
-    return items;
-  }, [algorithmCategories]);
+    return items
+  }, [algorithmCategories])
 
   // Export algorithms to console (keeping existing functionality)
   const handleExportAlgorithmList = async () => {
     if (!isInitialized) {
-      showToast('Please initialize Essentia first');
-      return;
+      showToast('Please initialize Essentia first')
+      return
     }
     
     if (algorithms.length === 0) {
-      showToast('No algorithms available. Try refreshing the list.');
-      return;
+      showToast('No algorithms available. Try refreshing the list.')
+      return
     }
     
     try {
-      console.log('===== ESSENTIA ALGORITHMS LIST =====');
-      console.log(`Total available algorithms: ${algorithms.length}`);
+      console.log('===== ESSENTIA ALGORITHMS LIST =====')
+      console.log(`Total available algorithms: ${algorithms.length}`)
       
       // List all algorithms alphabetically
-      console.log('\nAll available algorithms (alphabetical):');
-      console.log(algorithms.join(', '));
+      console.log('\nAll available algorithms (alphabetical):')
+      console.log(algorithms.join(', '))
       
       // For better performance, limit the detailed info to first 20 algorithms
-      const algoSubset = algorithms.length > 300 ? algorithms.slice(0, 300) : algorithms;
+      const algoSubset = algorithms.length > 300 ? algorithms.slice(0, 300) : algorithms
       
-      console.log('\nDetailed information for first 300 algorithms:');
+      console.log('\nDetailed information for first 300 algorithms:')
       
       // Get info for each algorithm in the subset
       for (const algo of algoSubset) {
-        console.log(`\n----- ${algo} -----`);
+        console.log(`\n----- ${algo} -----`)
         try {
-          const result = await EssentiaJS.getAlgorithmInfo(algo);
+          const result = await EssentiaJS.getAlgorithmInfo(algo)
           
           if (result.success && result.data) {
-            const info = result.data;
+            const info = result.data
             
             // Log inputs
-            console.log('Inputs:');
+            console.log('Inputs:')
             if (info.inputs && Array.isArray(info.inputs)) {
               info.inputs.forEach((input: { name: string; type: string }) => {
-                console.log(`  - ${input.name} (${input.type})`);
-              });
+                console.log(`  - ${input.name} (${input.type})`)
+              })
             } else {
-              console.log('  None or undefined');
+              console.log('  None or undefined')
             }
             
             // Log outputs
-            console.log('Outputs:');
+            console.log('Outputs:')
             if (info.outputs && Array.isArray(info.outputs)) {
               info.outputs.forEach((output: { name: string; type: string }) => {
-                console.log(`  - ${output.name} (${output.type})`);
-              });
+                console.log(`  - ${output.name} (${output.type})`)
+              })
             } else {
-              console.log('  None or undefined');
+              console.log('  None or undefined')
             }
             
             // Log parameters
-            console.log('Parameters:');
+            console.log('Parameters:')
             if (info.parameters) {
               Object.entries(info.parameters).forEach(([key, value]) => {
-                console.log(`  - ${key}: ${JSON.stringify(value)}`);
-              });
+                console.log(`  - ${key}: ${JSON.stringify(value)}`)
+              })
             } else {
-              console.log('  None or undefined');
+              console.log('  None or undefined')
             }
           } else {
-            console.log(`Failed to get info for ${algo}: ${result.error || 'Unknown error'}`);
+            console.log(`Failed to get info for ${algo}: ${result.error || 'Unknown error'}`)
           }
         } catch (error) {
-          console.error(`Error getting info for ${algo}:`, error);
+          console.error(`Error getting info for ${algo}:`, error)
         }
       }
       
-      console.log('\n===== END OF ALGORITHMS LIST =====');
-      showToast('Algorithm list exported to console');
+      console.log('\n===== END OF ALGORITHMS LIST =====')
+      showToast('Algorithm list exported to console')
     } catch (error) {
-      console.error('Error exporting algorithm list:', error);
-      showToast(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('Error exporting algorithm list:', error)
+      showToast(`Error: ${error instanceof Error ? error.message : String(error)}`)
     }
-  };
+  }
   
   // Render parameter inputs for the selected algorithm
   const renderParameterInputs = () => {
-    if (!algorithmInfo || !algorithmInfo.parameters) {
-      return <Text>No parameters available for this algorithm</Text>;
+    if (!algorithmInfo?.parameters) {
+      return <Text>No parameters available for this algorithm</Text>
     }
     
     return Object.entries(algorithmInfo.parameters).map(([paramName, paramInfo]) => {
       // First safely extract the description
-      let description = 'No description available';
+      let description = 'No description available'
       if (paramInfo && typeof paramInfo === 'object') {
         if ('description' in paramInfo) {
-          description = safeRenderText(paramInfo.description);
+          description = safeRenderText(paramInfo.description)
         } else if ('defaultValue' in paramInfo) {
-          description = `Type: ${typeof paramInfo.defaultValue}`;
+          description = `Type: ${typeof paramInfo.defaultValue}`
         }
       }
       
       // Safely extract default value
-      let defaultValue = 'N/A';
+      let defaultValue = 'N/A'
       if (paramInfo && typeof paramInfo === 'object' && 'defaultValue' in paramInfo) {
-        defaultValue = safeRenderText(paramInfo.defaultValue);
+        defaultValue = safeRenderText(paramInfo.defaultValue)
       }
       
       // Safely get parameter value for input
       const paramValue = paramName in parameterValues 
         ? safeRenderText(parameterValues[paramName]) 
-        : '';
+        : ''
       
       return (
         <View key={paramName} style={styles.parameterContainer}>
@@ -659,9 +662,9 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
             Default: {defaultValue}
           </HelperText>
         </View>
-      );
-    });
-  };
+      )
+    })
+  }
 
   return (
     <Card style={[styles.card, { borderWidth: 2, borderColor: theme.colors.primary }]}>
@@ -727,7 +730,7 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
             {/* Wrap SegmentedButtons in a horizontal ScrollView */}
             <ScrollView 
               horizontal 
-              showsHorizontalScrollIndicator={true}
+              showsHorizontalScrollIndicator
               style={{ marginTop: 10 }}
               contentContainerStyle={{ paddingBottom: 5 }}
             >
@@ -815,5 +818,5 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
         )}
       </Card.Content>
     </Card>
-  );
+  )
 } 

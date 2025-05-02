@@ -19,6 +19,9 @@ echo -e "${BLUE}===================================================${NC}"
 echo -e "${BLUE}       📱 AudioPlayground Deployment Script 📱      ${NC}"
 echo -e "${BLUE}===================================================${NC}"
 
+# Define constants
+CHANGELOG_FILE="CHANGELOG.md"
+
 # Function to clear caches thoroughly
 clear_all_caches() {
   echo -e "\n${CYAN}Clearing all caches for fresh build...${NC}"
@@ -51,7 +54,10 @@ clear_all_caches() {
 update_version() {
   # Get current version from package.json
   CURRENT_VERSION=$(grep -o '"version": "[^"]*' package.json | cut -d'"' -f4)
+  # Get package name from package.json
+  PACKAGE_NAME=$(grep -o '"name": "[^"]*' package.json | cut -d'"' -f4)
   echo -e "${CYAN}Current version: ${GREEN}$CURRENT_VERSION${NC}"
+  echo -e "${CYAN}Package name: ${GREEN}$PACKAGE_NAME${NC}"
 
   # Ask if user wants to update version - default to Yes
   read -p "$(echo -e ${YELLOW}"Do you want to update the version before publishing? (Y/n): "${NC})" UPDATE_VERSION
@@ -59,6 +65,8 @@ update_version() {
 
   if [[ "$UPDATE_VERSION" != "y" && "$UPDATE_VERSION" != "Y" ]]; then
     echo -e "${CYAN}Version update skipped. Continuing with current version.${NC}"
+    # Check if the current version is in the changelog
+    check_changelog "$CURRENT_VERSION"
     return
   fi
 
@@ -126,6 +134,51 @@ update_version() {
     exit 0
   fi
 
+  # Check if the new version is in the changelog
+  if ! grep -q "## \[$NEW_VERSION\]" "$CHANGELOG_FILE"; then
+    echo -e "${RED}❌ WARNING: Version $NEW_VERSION is not documented in CHANGELOG.md${NC}"
+    
+    # Run the changelog helper to show what's changed
+    echo -e "${CYAN}Here are the changes since the last version:${NC}"
+    bash "$(dirname "$0")/update-changelog.sh" "$NEW_VERSION"
+    
+    echo -e "\n${YELLOW}What would you like to do?${NC}"
+    echo -e "1. ${YELLOW}Pause to update CHANGELOG.md manually${NC} (recommended)"
+    echo -e "2. ${YELLOW}Continue without changelog entry${NC} (not recommended)"
+    echo -e "3. ${RED}Cancel deployment${NC}"
+    
+    read -p "$(echo -e ${YELLOW}"Enter your choice [1]: "${NC})" CHANGELOG_CHOICE
+    CHANGELOG_CHOICE=${CHANGELOG_CHOICE:-1}
+    
+    case $CHANGELOG_CHOICE in
+      1)
+        echo -e "\n${CYAN}Please update CHANGELOG.md now with the new version.${NC}"
+        echo -e "${CYAN}Press Enter when you have updated the changelog...${NC}"
+        read
+        
+        # Check if it was added successfully
+        if ! grep -q "## \[$NEW_VERSION\]" "$CHANGELOG_FILE"; then
+          echo -e "${RED}Version $NEW_VERSION still not found in CHANGELOG.md${NC}"
+          echo -e "${YELLOW}Continue anyway? (y/N): ${NC}"
+          read CONTINUE_ANYWAY
+          if [[ "$CONTINUE_ANYWAY" != "y" && "$CONTINUE_ANYWAY" != "Y" ]]; then
+            echo -e "${RED}Deployment cancelled.${NC}"
+            exit 1
+          fi
+        else
+          echo -e "${GREEN}✅ Version $NEW_VERSION found in changelog.${NC}"
+        fi
+        ;;
+      2)
+        echo -e "${YELLOW}Continuing without changelog entry. Consider updating the changelog later.${NC}"
+        ;;
+      3|*)
+        echo -e "${RED}Deployment cancelled.${NC}"
+        exit 0
+        ;;
+    esac
+  fi
+
   # Update package.json
   sed -i '' "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" package.json
 
@@ -141,8 +194,51 @@ update_version() {
   if [[ "$COMMIT_CHANGES" == "y" || "$COMMIT_CHANGES" == "Y" ]]; then
     git add package.json app.config.ts
     git commit -m "chore: bump version to $NEW_VERSION"
+    
+    # Ask if user wants to tag this version
+    read -p "$(echo -e ${YELLOW}"Tag this version in git? (Y/n): "${NC})" TAG_VERSION
+    TAG_VERSION=${TAG_VERSION:-y}  # Default to yes
+    
+    if [[ "$TAG_VERSION" == "y" || "$TAG_VERSION" == "Y" ]]; then
+      TAG_NAME="$PACKAGE_NAME@$NEW_VERSION"
+      git tag -a "$TAG_NAME" -m "Version $NEW_VERSION"
+      echo -e "${GREEN}✅ Created git tag $TAG_NAME${NC}"
+      
+      read -p "$(echo -e ${YELLOW}"Push tag to remote? (Y/n): "${NC})" PUSH_TAG
+      PUSH_TAG=${PUSH_TAG:-y}  # Default to yes
+      
+      if [[ "$PUSH_TAG" == "y" || "$PUSH_TAG" == "Y" ]]; then
+        git push origin "$TAG_NAME"
+        echo -e "${GREEN}✅ Pushed tag to remote${NC}"
+      fi
+    fi
+    
     echo -e "${GREEN}✅ Changes committed to git${NC}"
   fi
+}
+
+# Function to check if version exists in changelog
+check_changelog() {
+  local VERSION=$1
+  local CHANGELOG_FILE="CHANGELOG.md"
+  
+  # Check if changelog file exists
+  if [ ! -f "$CHANGELOG_FILE" ]; then
+    echo -e "${RED}❌ ERROR: CHANGELOG.md does not exist.${NC}"
+    echo -e "${YELLOW}Please run 'bash $(dirname "$0")/update-changelog.sh init' to create it.${NC}"
+    exit 1
+  fi
+  
+  # Check if the version is in the changelog
+  if ! grep -q "## \[$VERSION\]" "$CHANGELOG_FILE"; then
+    echo -e "${RED}❌ ERROR: Version $VERSION is not documented in CHANGELOG.md${NC}"
+    echo -e "${YELLOW}Please update the changelog before deployment:${NC}"
+    echo -e "${CYAN}  bash $(dirname "$0")/update-changelog.sh auto $VERSION${NC}"
+    echo -e "${CYAN}  bash $(dirname "$0")/update-changelog.sh manual $VERSION${NC}"
+    exit 1
+  fi
+  
+  echo -e "${GREEN}✅ Version $VERSION found in CHANGELOG.md${NC}"
 }
 
 # Deploy to web function
@@ -300,15 +396,31 @@ push_update() {
 # Main execution flow
 echo -e "${CYAN}This script will help you deploy AudioPlayground to various platforms.${NC}"
 
+# Get package name from package.json
+PACKAGE_NAME=$(grep -o '"name": "[^"]*' package.json | cut -d'"' -f4)
+
 # Ask for deployment platform
 echo -e "\n${CYAN}Select deployment platform:${NC}"
 echo -e "1. ${GREEN}Web${NC}"
 echo -e "2. ${GREEN}Android${NC}"
 echo -e "3. ${GREEN}iOS${NC}"
 echo -e "4. ${GREEN}Push OTA Update${NC}"
+echo -e "5. ${GREEN}Manage Changelog${NC}"
 
 read -p "$(echo -e ${YELLOW}"Enter your choice [1]: "${NC})" PLATFORM_CHOICE
 PLATFORM_CHOICE=${PLATFORM_CHOICE:-1}  # Default to web
+
+# If user chose to manage changelog, run that script instead
+if [[ "$PLATFORM_CHOICE" == "5" ]]; then
+  bash "$(dirname "$0")/update-changelog.sh"
+  exit 0
+fi
+
+# Check if there's at least one version tag
+if [ -z "$(git tag | grep "^$PACKAGE_NAME@")" ]; then
+  echo -e "\n${YELLOW}No $PACKAGE_NAME version tags found. Initializing changelog...${NC}"
+  bash "$(dirname "$0")/update-changelog.sh" init
+fi
 
 # Update version first (after platform selection to determine default version increment)
 update_version

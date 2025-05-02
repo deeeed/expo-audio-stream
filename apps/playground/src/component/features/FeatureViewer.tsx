@@ -1,6 +1,8 @@
-import { AudioFeatures } from '@siteed/expo-audio-studio'
 import React from 'react'
+
 import { StyleSheet, View } from 'react-native'
+
+import type { AudioFeatures } from '@siteed/expo-audio-studio'
 
 import { MFCCFeatures } from './MFCCFeatures'
 import { SpectralFeatures } from './SpectralFeatures'

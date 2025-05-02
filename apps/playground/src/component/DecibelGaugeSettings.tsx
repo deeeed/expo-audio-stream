@@ -1,14 +1,18 @@
-import { Text, useTheme, AppTheme, LabelSwitch } from '@siteed/design-system'
-import { DecibelFormat } from '@siteed/expo-audio-ui'
 import React, { useCallback, useMemo, useState, useRef } from 'react'
-import { StyleSheet, View, TouchableOpacity, LayoutChangeEvent } from 'react-native'
-import { IconButton } from 'react-native-paper'
-import { SegmentedButtons } from 'react-native-paper'
+
+import { StyleSheet, View, TouchableOpacity } from 'react-native'
+import { IconButton , SegmentedButtons } from 'react-native-paper'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated'
+
+import type { AppTheme } from '@siteed/design-system'
+import { Text, useTheme, LabelSwitch } from '@siteed/design-system'
+import type { DecibelFormat } from '@siteed/expo-audio-ui'
+
+import type { LayoutChangeEvent } from 'react-native'
 
 const getStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
@@ -163,7 +167,7 @@ export function DecibelGaugeSettings({
             onChange({ 
               dbRange: value,
               minDb: min,
-              maxDb: max 
+              maxDb: max, 
             })
           }}
           buttons={[
@@ -246,7 +250,7 @@ export function DecibelGaugeSettings({
         </View>
         
         <IconButton
-          icon={isExpanded ? "chevron-up" : "chevron-down"}
+          icon={isExpanded ? 'chevron-up' : 'chevron-down'}
           size={20}
           onPress={toggleExpanded}
           disabled={disabled}

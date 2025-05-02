@@ -1,11 +1,16 @@
-import { AppTheme, Button, EditableInfoCard, Notice, useModal, useTheme } from '@siteed/design-system'
 import React, { useCallback, useMemo, useState } from 'react'
+
 import { Platform, StyleSheet, View } from 'react-native'
 import { ProgressBar, Text } from 'react-native-paper'
 
+import type { AppTheme } from '@siteed/design-system'
+import { Button, EditableInfoCard, Notice, useModal, useTheme } from '@siteed/design-system'
+
 import { baseLogger } from '../config'
+import { TranscriptionConfigForm } from './TranscriptionConfigForm'
 import { useTranscription } from '../context/TranscriptionProvider'
-import { TranscriptionConfigForm, TranscriptionConfigFormState } from './TranscriptionConfigForm'
+
+import type { TranscriptionConfigFormState } from './TranscriptionConfigForm'
 
 const logger = baseLogger.extend('TranscriberConfig')
 
@@ -149,14 +154,14 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
     // Get download progress information
     const downloadProgress = useMemo(() => {
         const modelItem = progressItems.find(
-            item => item.name === model && item.status === 'downloading'
+            (item) => item.name === model && item.status === 'downloading'
         )
         return modelItem ? modelItem.progress / 100 : 0
     }, [progressItems, model])
 
     const isDownloading = useMemo(() => {
         return progressItems.some(
-            item => item.name === model && item.status === 'downloading'
+            (item) => item.name === model && item.status === 'downloading'
         )
     }, [progressItems, model])
 
@@ -169,10 +174,10 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
 
     // Get status text based on model state
     const statusText = useMemo(() => {
-        if (isDownloading) return "Downloading model..."
-        if (isModelLoading) return "Initializing model..."
-        if (ready) return "Model ready"
-        return "Model not loaded"
+        if (isDownloading) return 'Downloading model...'
+        if (isModelLoading) return 'Initializing model...'
+        if (ready) return 'Model ready'
+        return 'Model not loaded'
     }, [isDownloading, isModelLoading, ready])
 
     // Render compact view
@@ -192,14 +197,18 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
                             <Text style={styles.badgeText}>M</Text>
                         </View>
                     )}
-                    <View style={[
+                    <View
+style={[
                         styles.badge, 
-                        ready ? styles.readyBadge : styles.notReadyBadge
-                    ]}>
-                        <Text style={[
+                        ready ? styles.readyBadge : styles.notReadyBadge,
+                    ]}
+                    >
+                        <Text
+style={[
                             styles.badgeText,
-                            ready ? styles.readyBadgeText : styles.notReadyBadgeText
-                        ]}>
+                            ready ? styles.readyBadgeText : styles.notReadyBadgeText,
+                        ]}
+                        >
                             {ready ? '✓' : '×'}
                         </Text>
                     </View>
@@ -251,14 +260,18 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
                         <Text style={styles.badgeText}>Lang: {language}</Text>
                     </View>
                 )}
-                <View style={[
+                <View
+style={[
                     styles.badge, 
-                    ready ? styles.readyBadge : styles.notReadyBadge
-                ]}>
-                    <Text style={[
+                    ready ? styles.readyBadge : styles.notReadyBadge,
+                ]}
+                >
+                    <Text
+style={[
                         styles.badgeText,
-                        ready ? styles.readyBadgeText : styles.notReadyBadgeText
-                    ]}>
+                        ready ? styles.readyBadgeText : styles.notReadyBadgeText,
+                    ]}
+                    >
                         {ready ? 'Ready' : 'Not Loaded'}
                     </Text>
                 </View>
@@ -295,7 +308,7 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
         </View>
     )
 
-    const [showNoChangesNotice, setShowNoChangesNotice] = useState(false);
+    const [showNoChangesNotice, setShowNoChangesNotice] = useState(false)
 
     const handleConfigEdit = useCallback(async () => {
         const config = await openDrawer({
@@ -320,27 +333,27 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
                 config.model !== selectedConfig.model ||
                 config.multilingual !== selectedConfig.multilingual ||
                 config.quantized !== selectedConfig.quantized ||
-                config.language !== selectedConfig.language;
+                config.language !== selectedConfig.language
                 
             if (configChanged) {
-                logger.log('config has changed', config);
-                setSelectedConfig(config);
+                logger.log('config has changed', config)
+                setSelectedConfig(config)
                 
                 // Immediately apply and initialize the new configuration
                 try {
-                    await updateConfig(config, true); // Set to true to initialize immediately
-                    if (onConfigChange) onConfigChange();
+                    await updateConfig(config, true) // Set to true to initialize immediately
+                    if (onConfigChange) onConfigChange()
                 } catch (error) {
-                    console.error('Failed to update and initialize config', error);
+                    console.error('Failed to update and initialize config', error)
                 }
             } else {
                 // Show a temporary notice that no changes were made
-                setShowNoChangesNotice(true);
+                setShowNoChangesNotice(true)
                 
                 // Clear the notice after a few seconds
                 setTimeout(() => {
-                    setShowNoChangesNotice(false);
-                }, 3000);
+                    setShowNoChangesNotice(false)
+                }, 3000)
             }
         }
     }, [selectedConfig, openDrawer, updateConfig, onConfigChange])
@@ -348,10 +361,10 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
     return (
         <View style={styles.container}>
             <EditableInfoCard
-                label={compact ? "Model" : "Transcription Config"}
+                label={compact ? 'Model' : 'Transcription Config'}
                 value={modelName} // This is just a placeholder, we'll use renderValue
                 renderValue={() => compact ? renderCompactView() : renderDetailedView()}
-                editable={true}
+                editable
                 onEdit={handleConfigEdit}
             />
             
@@ -361,7 +374,7 @@ export const TranscriberConfig = ({ compact = true, onConfigChange }: Transcribe
                     <Notice
                         type="info"
                         title="Initializing Model"
-                        message={isDownloading ? "Downloading model files..." : "Setting up model..."}
+                        message={isDownloading ? 'Downloading model files...' : 'Setting up model...'}
                     />
                 </View>
             )}

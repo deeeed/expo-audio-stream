@@ -1,6 +1,9 @@
-import * as FileSystem from 'expo-file-system'
 import { useState, useCallback } from 'react'
-import { WhisperContext, initWhisper } from 'whisper.rn'
+
+import * as FileSystem from 'expo-file-system'
+import { initWhisper } from 'whisper.rn'
+
+import type { WhisperContext } from 'whisper.rn'
 
 export interface WhisperModel {
     id: string

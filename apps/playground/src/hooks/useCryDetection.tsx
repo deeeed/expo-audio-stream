@@ -1,22 +1,25 @@
 // apps/playground/src/hooks/useCryDetector.ts
-import EssentiaAPI, { ChromagramParams, MelSpectrogramParams, MFCCParams, SpectralContrastParams, TonnetzParams } from '@siteed/react-native-essentia';
-import { useCallback, useState } from 'react';
-import { baseLogger } from '../config';
-import { useOnnxModel } from './useOnnxModel';
+import { useCallback, useState } from 'react'
 
-const logger = baseLogger.extend('useCryDetector');
+import type { ChromagramParams, MelSpectrogramParams, MFCCParams, SpectralContrastParams, TonnetzParams } from '@siteed/react-native-essentia'
+import EssentiaAPI from '@siteed/react-native-essentia'
+
+import { baseLogger } from '../config'
+import { useOnnxModel } from './useOnnxModel'
+
+const logger = baseLogger.extend('useCryDetector')
 
 export interface UseCryDetectorProps {
     onError?: (error: Error) => void;
 }
 
 export const CRY_TYPE_LABELS = [
-  "belly_pain",
-  "burping",
-  "discomfort",
-  "hungry",
-  "tired",
-] as const;
+  'belly_pain',
+  'burping',
+  'discomfort',
+  'hungry',
+  'tired',
+] as const
 
 export type CryTypeLabel = (typeof CRY_TYPE_LABELS)[number];
 
@@ -37,47 +40,47 @@ export interface FeatureExtractionResult {
 }
 
 export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
-    const [isProcessing, setIsProcessing] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false)
 
     const { isLoading: isModelLoading, initModel, createTensor } = useOnnxModel({
         modelUri: require('@assets/models/cry-detect.onnx'),
         onError,
-    });
+    })
 
     // Common parameters
-    const hopSize = 160;   // 10 ms at 16,000 Hz
-    const fftSize = 1024;  // Renamed from n_fft to fftSize and used below
-    const sr = 16000;      // Sample rate
-    const threshold = 0.5; // Detection threshold
+    const hopSize = 160   // 10 ms at 16,000 Hz
+    const fftSize = 1024  // Renamed from n_fft to fftSize and used below
+    const sr = 16000      // Sample rate
+    const threshold = 0.5 // Detection threshold
 
     // Helper function to compute mean across frames with proper typing
     const computeMean = useCallback((data: number[][] | number[]): number[] => {
         if (data.length === 0) {
-            return [];
+            return []
         }
         
         if (Array.isArray(data[0])) {
             // Handle 2D array case
-            const frames = data as number[][];
-            const featureLength = frames[0].length;
-            const result = new Array(featureLength).fill(0);
+            const frames = data as number[][]
+            const featureLength = frames[0].length
+            const result = new Array(featureLength).fill(0)
             
             for (let i = 0; i < frames.length; i++) {
                 for (let j = 0; j < featureLength; j++) {
-                    result[j] += frames[i][j];
+                    result[j] += frames[i][j]
                 }
             }
             
             for (let j = 0; j < featureLength; j++) {
-                result[j] /= frames.length;
+                result[j] /= frames.length
             }
             
-            return result;
+            return result
         } else {
             // It's already a 1D array
-            return data as number[];
+            return data as number[]
         }
-    }, []);
+    }, [])
 
     // Individual feature extraction functions
     // 1. Extract MFCC
@@ -85,13 +88,13 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
         audioData: Float32Array
     ): Promise<FeatureExtractionResult> => {
         try {
-            const startTime = performance.now();
-            logger.debug('Extracting MFCC features');
+            const startTime = performance.now()
+            logger.debug('Extracting MFCC features')
             
-            await EssentiaAPI.setAudioData(audioData, sr);
+            await EssentiaAPI.setAudioData(audioData, sr)
             
-            const n_mfcc = 40;
-            const n_mels = 128;
+            const n_mfcc = 40
+            const n_mels = 128
             
             const mfccParams: MFCCParams = {
                 sampleRate: sr,
@@ -100,52 +103,52 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                 lowFrequencyBound: 0,
                 highFrequencyBound: sr / 2,
                 inputSize: fftSize,
-                weighting: "warping",
-                normalize: "unit_sum",
-                type: "power",
+                weighting: 'warping',
+                normalize: 'unit_sum',
+                type: 'power',
                 dctType: 2,
-                logType: "dbamp"
-            };
+                logType: 'dbamp',
+            }
 
-            const mfccResult = await EssentiaAPI.extractMFCC(mfccParams);
+            const mfccResult = await EssentiaAPI.extractMFCC(mfccParams)
             
             if (!('mfcc' in mfccResult)) {
-                throw new Error('MFCC extraction failed');
+                throw new Error('MFCC extraction failed')
             }
             
-            const mfcc = mfccResult.mfcc;
-            const mfccMean = computeMean(mfcc);
+            const mfcc = mfccResult.mfcc
+            const mfccMean = computeMean(mfcc)
             
             if (mfccMean.length !== n_mfcc) {
-                throw new Error(`MFCC length is ${mfccMean.length}, expected ${n_mfcc}`);
+                throw new Error(`MFCC length is ${mfccMean.length}, expected ${n_mfcc}`)
             }
             
-            const endTime = performance.now();
-            logger.debug('MFCC extraction completed', { length: mfccMean.length });
+            const endTime = performance.now()
+            logger.debug('MFCC extraction completed', { length: mfccMean.length })
             
             return {
                 features: mfccMean,
-                processingTimeMs: endTime - startTime
-            };
+                processingTimeMs: endTime - startTime,
+            }
         } catch (error) {
-            logger.error('Error extracting MFCC', { error });
-            onError?.(error instanceof Error ? error : new Error('MFCC extraction failed'));
-            throw error;
+            logger.error('Error extracting MFCC', { error })
+            onError?.(error instanceof Error ? error : new Error('MFCC extraction failed'))
+            throw error
         }
-    }, [computeMean, onError]);
+    }, [computeMean, onError])
 
     // 2. Extract Mel Spectrogram
     const extractMelSpectrogram = useCallback(async (
         audioData: Float32Array
     ): Promise<FeatureExtractionResult> => {
         try {
-            const startTime = performance.now();
-            logger.debug('Extracting Mel Spectrogram features');
+            const startTime = performance.now()
+            logger.debug('Extracting Mel Spectrogram features')
             
-            await EssentiaAPI.setAudioData(audioData, sr);
+            await EssentiaAPI.setAudioData(audioData, sr)
             
-            const n_mels = 128;
-            const paddedFrameSize = 1024;
+            const n_mels = 128
+            const paddedFrameSize = 1024
             
             const melParams: MelSpectrogramParams = {
                 sampleRate: sr,
@@ -154,94 +157,94 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                 nMels: n_mels,
                 fMin: 0,
                 fMax: sr / 2,
-                windowType: "hann",
+                windowType: 'hann',
                 normalize: true,
                 logScale: true,
-            };
+            }
 
-            const melResult = await EssentiaAPI.computeMelSpectrogram(melParams);
+            const melResult = await EssentiaAPI.computeMelSpectrogram(melParams)
             
             if (!melResult.data?.bands) {
-                throw new Error('Mel Spectrogram extraction failed');
+                throw new Error('Mel Spectrogram extraction failed')
             }
             
-            const melMean = computeMean(melResult.data.bands);
+            const melMean = computeMean(melResult.data.bands)
             
-            const endTime = performance.now();
-            logger.debug('Mel Spectrogram extraction completed', { length: melMean.length });
+            const endTime = performance.now()
+            logger.debug('Mel Spectrogram extraction completed', { length: melMean.length })
             
             return {
                 features: melMean,
-                processingTimeMs: endTime - startTime
-            };
+                processingTimeMs: endTime - startTime,
+            }
         } catch (error) {
-            logger.error('Error extracting Mel Spectrogram', { error });
-            onError?.(error instanceof Error ? error : new Error('Mel Spectrogram extraction failed'));
-            throw error;
+            logger.error('Error extracting Mel Spectrogram', { error })
+            onError?.(error instanceof Error ? error : new Error('Mel Spectrogram extraction failed'))
+            throw error
         }
-    }, [computeMean, onError]);
+    }, [computeMean, onError])
 
     // 3. Extract Chroma
     const extractChroma = useCallback(async (
         audioData: Float32Array
     ): Promise<FeatureExtractionResult> => {
         try {
-            const startTime = performance.now();
-            logger.debug('Extracting Chroma features');
+            const startTime = performance.now()
+            logger.debug('Extracting Chroma features')
             
-            await EssentiaAPI.setAudioData(audioData, sr);
+            await EssentiaAPI.setAudioData(audioData, sr)
             
-            const n_chroma = 12;
+            const n_chroma = 12
             
             const chromaParams: ChromagramParams = {
                 sampleRate: sr,
                 numberBins: n_chroma,
                 binsPerOctave: 12,
-                normalizeType: "unit_sum",
+                normalizeType: 'unit_sum',
                 minFrequency: 32.7,
-            };
+            }
             
-            const chromaResult = await EssentiaAPI.extractChroma(chromaParams);
+            const chromaResult = await EssentiaAPI.extractChroma(chromaParams)
             
             if (!('chroma' in chromaResult)) {
-                throw new Error('Chroma extraction failed');
+                throw new Error('Chroma extraction failed')
             }
             
-            const chroma = chromaResult.chroma;
-            const chromaMean = computeMean(chroma);
+            const chroma = chromaResult.chroma
+            const chromaMean = computeMean(chroma)
             
             if (chromaMean.length !== n_chroma) {
-                throw new Error(`Chroma length is ${chromaMean.length}, expected ${n_chroma}`);
+                throw new Error(`Chroma length is ${chromaMean.length}, expected ${n_chroma}`)
             }
             
-            const endTime = performance.now();
-            logger.debug('Chroma extraction completed', { length: chromaMean.length });
+            const endTime = performance.now()
+            logger.debug('Chroma extraction completed', { length: chromaMean.length })
             
             return {
                 features: chromaMean,
-                processingTimeMs: endTime - startTime
-            };
+                processingTimeMs: endTime - startTime,
+            }
         } catch (error) {
-            logger.error('Error extracting Chroma', { error });
-            onError?.(error instanceof Error ? error : new Error('Chroma extraction failed'));
-            throw error;
+            logger.error('Error extracting Chroma', { error })
+            onError?.(error instanceof Error ? error : new Error('Chroma extraction failed'))
+            throw error
         }
-    }, [computeMean, onError]);
+    }, [computeMean, onError])
 
     // 4. Extract Spectral Contrast
     const extractSpectralContrast = useCallback(async (
         audioData: Float32Array
     ): Promise<FeatureExtractionResult> => {
         try {
-            const startTime = performance.now();
-            logger.debug('Extracting Spectral Contrast features');
+            const startTime = performance.now()
+            logger.debug('Extracting Spectral Contrast features')
             
-            await EssentiaAPI.setAudioData(audioData, sr);
+            await EssentiaAPI.setAudioData(audioData, sr)
             
-            const n_bands = 7;
-            const fmin = 100;
-            const paddedFrameSize = 1024;
-            const nyquist = sr / 2;
+            const n_bands = 7
+            const fmin = 100
+            const paddedFrameSize = 1024
+            const nyquist = sr / 2
             
             const spectralContrastParams: SpectralContrastParams = {
                 sampleRate: sr,
@@ -249,83 +252,83 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                 numberBands: n_bands,
                 lowFrequencyBound: fmin,
                 highFrequencyBound: Math.min(11000, nyquist - 100),
-            };
+            }
             
-            const contrastResult = await EssentiaAPI.extractSpectralContrast(spectralContrastParams);
+            const contrastResult = await EssentiaAPI.extractSpectralContrast(spectralContrastParams)
             
             if (!('contrast' in contrastResult) || !('valleys' in contrastResult)) {
-                throw new Error('Spectral Contrast extraction failed');
+                throw new Error('Spectral Contrast extraction failed')
             }
             
             // Get the contrast mean
-            const contrastMean = computeMean(contrastResult.contrast);
+            const contrastMean = computeMean(contrastResult.contrast)
             
             // Get the valleys mean
-            const valleysMean = computeMean(contrastResult.valleys);
+            const valleysMean = computeMean(contrastResult.valleys)
             
             // Create Python-compatible format: append the first valley mean to the contrast means
             // This mimics librosa.feature.spectral_contrast output format
             const pythonCompatibleFeatures = [
                 ...contrastMean,
-                valleysMean.length > 0 ? valleysMean[0] : 0 // Add first valley or 0 if no valleys
-            ];
+                valleysMean.length > 0 ? valleysMean[0] : 0, // Add first valley or 0 if no valleys
+            ]
             
-            const endTime = performance.now();
+            const endTime = performance.now()
             logger.debug('Spectral Contrast extraction completed', { 
                 rawLength: contrastMean.length,
-                pythonCompatibleLength: pythonCompatibleFeatures.length
-            });
+                pythonCompatibleLength: pythonCompatibleFeatures.length,
+            })
             
             return {
                 features: pythonCompatibleFeatures,
-                processingTimeMs: endTime - startTime
-            };
+                processingTimeMs: endTime - startTime,
+            }
         } catch (error) {
-            logger.error('Error extracting Spectral Contrast', { error });
-            onError?.(error instanceof Error ? error : new Error('Spectral Contrast extraction failed'));
-            throw error;
+            logger.error('Error extracting Spectral Contrast', { error })
+            onError?.(error instanceof Error ? error : new Error('Spectral Contrast extraction failed'))
+            throw error
         }
-    }, [computeMean, onError]);
+    }, [computeMean, onError])
 
     // 5. Extract Tonnetz
     const extractTonnetz = useCallback(async (
         audioData: Float32Array
     ): Promise<FeatureExtractionResult> => {
         try {
-            const startTime = performance.now();
-            logger.debug('Extracting Tonnetz features');
+            const startTime = performance.now()
+            logger.debug('Extracting Tonnetz features')
             
-            await EssentiaAPI.setAudioData(audioData, sr);
+            await EssentiaAPI.setAudioData(audioData, sr)
             
-            const paddedFrameSize = 1024;
+            const paddedFrameSize = 1024
             
             const tonnetzParams: TonnetzParams = {
                 sampleRate: sr,
                 frameSize: paddedFrameSize,
                 hopSize,
-            };
-            
-            const tonnetzResult = await EssentiaAPI.extractTonnetz(tonnetzParams);
-            
-            if (!('tonnetz' in tonnetzResult)) {
-                throw new Error('Tonnetz extraction failed');
             }
             
-            const tonnetzMean = computeMean(tonnetzResult.tonnetz);
+            const tonnetzResult = await EssentiaAPI.extractTonnetz(tonnetzParams)
             
-            const endTime = performance.now();
-            logger.debug('Tonnetz extraction completed', { length: tonnetzMean.length });
+            if (!('tonnetz' in tonnetzResult)) {
+                throw new Error('Tonnetz extraction failed')
+            }
+            
+            const tonnetzMean = computeMean(tonnetzResult.tonnetz)
+            
+            const endTime = performance.now()
+            logger.debug('Tonnetz extraction completed', { length: tonnetzMean.length })
             
             return {
                 features: tonnetzMean,
-                processingTimeMs: endTime - startTime
-            };
+                processingTimeMs: endTime - startTime,
+            }
         } catch (error) {
-            logger.error('Error extracting Tonnetz', { error });
-            onError?.(error instanceof Error ? error : new Error('Tonnetz extraction failed'));
-            throw error;
+            logger.error('Error extracting Tonnetz', { error })
+            onError?.(error instanceof Error ? error : new Error('Tonnetz extraction failed'))
+            throw error
         }
-    }, [computeMean, onError]);
+    }, [computeMean, onError])
 
     // 6. Run prediction with the model
     const runPrediction = useCallback(async (
@@ -338,76 +341,76 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
         processingTimeMs: number
     }> => {
         try {
-            const startTime = performance.now();
-            logger.debug('Running model prediction', { featureLength: features.length });
+            const startTime = performance.now()
+            logger.debug('Running model prediction', { featureLength: features.length })
             
             if (features.length !== 194) {
-                throw new Error(`Expected 194 features, got ${features.length}`);
+                throw new Error(`Expected 194 features, got ${features.length}`)
             }
             
-            const model = await initModel();
-            const inputTensor = createTensor('float32', new Float32Array(features), [1, features.length]);
+            const model = await initModel()
+            const inputTensor = createTensor('float32', new Float32Array(features), [1, features.length])
             
             // Run the model with the correct input name
-            const results = await model.run({ float_input: inputTensor });
+            const results = await model.run({ float_input: inputTensor })
             
             // Debug log the results structure to help identify output names
-            logger.debug('Model results structure', { keys: Object.keys(results) });
+            logger.debug('Model results structure', { keys: Object.keys(results) })
             
             // Get probabilities and label outputs
-            const probabilitiesKey = 'probabilities';
-            const labelKey = 'label';
+            const probabilitiesKey = 'probabilities'
+            const labelKey = 'label'
             
             if (!results[probabilitiesKey] || !results[labelKey]) {
-                throw new Error('Model did not return expected outputs');
+                throw new Error('Model did not return expected outputs')
             }
             
             // Get the raw logits/probabilities
-            const logits = Array.from(results[probabilitiesKey].data as Float32Array);
-            const predictedLabelIndex = Number(results[labelKey].data[0]);
+            const logits = Array.from(results[probabilitiesKey].data as Float32Array)
+            const predictedLabelIndex = Number(results[labelKey].data[0])
             
             // Apply softmax to convert logits to probabilities
-            const maxLogit = Math.max(...logits);
-            const expValues = logits.map(x => Math.exp(x - maxLogit));
-            const sumExp = expValues.reduce((a, b) => a + b, 0);
-            const probabilities = expValues.map(x => x / sumExp);
+            const maxLogit = Math.max(...logits)
+            const expValues = logits.map((x) => Math.exp(x - maxLogit))
+            const sumExp = expValues.reduce((a, b) => a + b, 0)
+            const probabilities = expValues.map((x) => x / sumExp)
             
             // Get the highest probability
-            const maxProbability = Math.max(...probabilities);
-            const isCrying = maxProbability > threshold;
+            const maxProbability = Math.max(...probabilities)
+            const isCrying = maxProbability > threshold
             
             // Map probabilities to labels and sort
             const predictions = probabilities
                 .map((prob, idx) => ({
                     label: CRY_TYPE_LABELS[idx],
-                    probability: prob
+                    probability: prob,
                 }))
-                .sort((a, b) => b.probability - a.probability);
+                .sort((a, b) => b.probability - a.probability)
             
             // Get the predicted class
-            const classification = CRY_TYPE_LABELS[predictedLabelIndex];
+            const classification = CRY_TYPE_LABELS[predictedLabelIndex]
             
-            const endTime = performance.now();
+            const endTime = performance.now()
             logger.debug('Prediction completed', { 
                 probability: maxProbability, 
                 isCrying, 
                 classification,
-                predictions: predictions.slice(0, 3) // Log top 3 predictions
-            });
+                predictions: predictions.slice(0, 3), // Log top 3 predictions
+            })
             
             return {
                 probability: maxProbability,
                 isCrying,
                 classification,
                 predictions,
-                processingTimeMs: endTime - startTime
-            };
+                processingTimeMs: endTime - startTime,
+            }
         } catch (error) {
-            logger.error('Error running prediction', { error });
-            onError?.(error instanceof Error ? error : new Error('Model prediction failed'));
-            throw error;
+            logger.error('Error running prediction', { error })
+            onError?.(error instanceof Error ? error : new Error('Model prediction failed'))
+            throw error
         }
-    }, [initModel, createTensor, onError]);
+    }, [initModel, createTensor, onError])
 
     // Modified detectCryManually to use the individual functions
     const detectCryManually = useCallback(
@@ -416,39 +419,39 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
             timestamp: number = Date.now()
         ): Promise<CryDetectionResult | null> => {
             try {
-                setIsProcessing(true);
-                logger.debug('Starting manual cry detection');
+                setIsProcessing(true)
+                logger.debug('Starting manual cry detection')
     
                 // Extract all features
-                const mfccResult = await extractMFCC(audioData);
-                const melResult = await extractMelSpectrogram(audioData);
-                const chromaResult = await extractChroma(audioData);
-                const contrastResult = await extractSpectralContrast(audioData);
-                const tonnetzResult = await extractTonnetz(audioData);
+                const mfccResult = await extractMFCC(audioData)
+                const melResult = await extractMelSpectrogram(audioData)
+                const chromaResult = await extractChroma(audioData)
+                const contrastResult = await extractSpectralContrast(audioData)
+                const tonnetzResult = await extractTonnetz(audioData)
                 
                 // Log individual feature lengths with expected counts
                 logger.debug('Feature counts:', {
                     mfcc: {
                         actual: mfccResult.features.length,
-                        expected: 40
+                        expected: 40,
                     },
                     chroma: {
                         actual: chromaResult.features.length,
-                        expected: 12
+                        expected: 12,
                     },
                     mel: {
                         actual: melResult.features.length,
-                        expected: 128
+                        expected: 128,
                     },
                     contrast: {
                         actual: contrastResult.features.length,
-                        expected: 8  // n_bands (7) + 1
+                        expected: 8,  // n_bands (7) + 1
                     },
                     tonnetz: {
                         actual: tonnetzResult.features.length,
-                        expected: 6
-                    }
-                });
+                        expected: 6,
+                    },
+                })
                 
                 // Concatenate features in the same order as Python
                 const features: number[] = [
@@ -456,37 +459,37 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
                     ...chromaResult.features, 
                     ...melResult.features, 
                     ...contrastResult.features, 
-                    ...tonnetzResult.features
-                ];
+                    ...tonnetzResult.features,
+                ]
                 
                 // Log total concatenated feature length
                 logger.debug('Total features length', { 
                     total: features.length,
-                    expected: 194 // The expected length from the error check in runPrediction
-                });
+                    expected: 194, // The expected length from the error check in runPrediction
+                })
                 
                 // Run prediction
-                const predictionResult = await runPrediction(features);
+                const predictionResult = await runPrediction(features)
     
-                logger.debug('Cry detection completed');
+                logger.debug('Cry detection completed')
     
                 return { 
                     probability: predictionResult.probability, 
                     isCrying: predictionResult.isCrying, 
                     timestamp,
                     classification: predictionResult.classification,
-                    predictions: predictionResult.predictions
-                };
+                    predictions: predictionResult.predictions,
+                }
             } catch (error) {
-                logger.error('Error in cry detection', { error });
-                onError?.(error instanceof Error ? error : new Error('Cry detection failed'));
-                return null;
+                logger.error('Error in cry detection', { error })
+                onError?.(error instanceof Error ? error : new Error('Cry detection failed'))
+                return null
             } finally {
-                setIsProcessing(false);
+                setIsProcessing(false)
             }
         },
         [extractMFCC, extractMelSpectrogram, extractChroma, extractSpectralContrast, extractTonnetz, runPrediction, onError]
-    );
+    )
     
     return {
         isModelLoading,
@@ -498,6 +501,6 @@ export function useCryDetector({ onError }: UseCryDetectorProps = {}) {
         extractChroma,
         extractSpectralContrast,
         extractTonnetz,
-        runPrediction
-    };
+        runPrediction,
+    }
 }

@@ -54,6 +54,35 @@ eas secret:create --scope project --name APPLE_TEAM_ID --value "your_team_id" --
 eas secret:create --scope project --name EAS_PROJECT_ID --value "your_project_id" --type string
 ```
 
+### Environment Setup
+
+The app has three main environments, each with its own configuration and app name:
+
+| Environment | App Name | Use Case | Setup Command |
+|-------------|----------|----------|---------------|
+| Development | AudioDevPlayground | Local testing & debugging | `yarn setup:development` |
+| Preview | AudioDevPlayground | TestFlight/internal testing | `yarn setup:preview` |
+| Production | AudioPlayground | App Store/Play Store | `yarn setup:production` |
+
+To set up a specific environment:
+
+```bash
+# Choose one of:
+yarn setup:development
+yarn setup:preview
+yarn setup:production
+```
+
+This creates the proper native project files with the correct app name and configuration. The setup scripts will skip rebuilding if the correct environment is already set up.
+
+If you need to force a clean rebuild:
+```bash
+# Force clean rebuild:
+yarn setup:development:force
+yarn setup:preview:force  
+yarn setup:production:force
+```
+
 ### Development Workflow
 
 1. Set custom port for development (if needed):

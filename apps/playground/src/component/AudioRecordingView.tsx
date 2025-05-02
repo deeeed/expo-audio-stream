@@ -1,14 +1,22 @@
 // playground/src/component/AudioRecording.tsx
+import React, { useMemo, useState } from 'react'
+
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useFont } from '@shopify/react-native-skia'
+import * as FileSystem from 'expo-file-system'
+import * as Sharing from 'expo-sharing'
+import { StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Text } from 'react-native-paper'
+
+import type {
+    AppTheme } from '@siteed/design-system'
 import {
-    AppTheme,
     Button,
     useModal,
     useTheme,
-    useToast
+    useToast,
 } from '@siteed/design-system'
-import {
+import type {
     AudioAnalysis,
     AudioFeaturesOptions,
     AudioRecording,
@@ -16,21 +24,18 @@ import {
     DataPoint,
 } from '@siteed/expo-audio-studio'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
-import * as FileSystem from 'expo-file-system'
-import * as Sharing from 'expo-sharing'
-import React, { useMemo, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
-import { ActivityIndicator, Text } from 'react-native-paper'
 
 import { baseLogger } from '../config'
 import { useAudio } from '../hooks/useAudio'
 import { isWeb } from '../utils/utils'
-import { SelectedAudioVisualizerProps } from './AudioRecordingConfigForm'
 import { SegmentAnalyzer } from './features/SegmentAnalyzer'
 import { FeatureSelection } from './FeatureSelection'
 import { RecordingStats } from './RecordingStats'
-import { SegmentDuration, SegmentDurationSelector } from './SegmentDurationSelector'
+import { SegmentDurationSelector } from './SegmentDurationSelector'
 import Transcript from './Transcript'
+
+import type { SelectedAudioVisualizerProps } from './AudioRecordingConfigForm'
+import type { SegmentDuration } from './SegmentDurationSelector'
 
 const logger = baseLogger.extend('AudioRecording')
 
@@ -260,12 +265,12 @@ export const AudioRecordingView = ({
             padding: 5,
         },
         text: { 
-            color: theme.colors.text 
+            color: theme.colors.text, 
         },
         canvasContainer: {
             backgroundColor: theme.colors.surfaceVariant,
             borderRadius: 20,
-        }
+        },
     }), [theme])
 
     const handleShare = async (fileUri: string = audioUri) => {
@@ -350,7 +355,7 @@ export const AudioRecordingView = ({
             logger.error('Error playing audio:', error)
             show({ 
                 type: 'error', 
-                message: `Failed to play audio file: ${error instanceof Error ? error.message : 'Unknown error'}`
+                message: `Failed to play audio file: ${error instanceof Error ? error.message : 'Unknown error'}`,
             })
         }
     }
@@ -425,7 +430,7 @@ export const AudioRecordingView = ({
                 >
                     <View style={styles.iconButton}>
                         <MaterialCommunityIcons
-                            name={isPlaying ? "pause" : "play"}
+                            name={isPlaying ? 'pause' : 'play'}
                             size={20}
                             color={theme.colors.onPrimary}
                         />
@@ -523,7 +528,7 @@ export const AudioRecordingView = ({
             </View>
 
             {extractAnalysis && (
-                <View style={{marginTop: 20, gap: 10}}>
+                <View style={{ marginTop: 20, gap: 10 }}>
                     <Button
                         mode="outlined"
                         onPress={async () => {
@@ -531,7 +536,7 @@ export const AudioRecordingView = ({
                                 initialData: features,
                                 containerType: 'scrollview',
                                 footerType: 'confirm_cancel',
-                                render: ({state, onChange }) => (
+                                render: ({ state, onChange }) => (
                                     <FeatureSelection
                                         features={state.data}
                                         onChange={onChange}
@@ -593,7 +598,7 @@ export const AudioRecordingView = ({
                         sampleRate={recording.sampleRate}
                         onError={(error) => show({ 
                             type: 'error', 
-                            message: error.message 
+                            message: error.message, 
                         })}
                         analysisConfig={{
                             segmentDurationMs: segmentDuration,

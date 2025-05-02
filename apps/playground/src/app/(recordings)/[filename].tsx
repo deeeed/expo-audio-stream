@@ -1,22 +1,27 @@
 // playground/src/app/(recordings)/[filename].tsx
+import React, { useMemo, useState } from 'react'
+
 import { Entypo } from '@expo/vector-icons'
+import { router, useLocalSearchParams } from 'expo-router'
+import { Pressable, StyleSheet, View } from 'react-native'
+
+import type {
+    AppTheme } from '@siteed/design-system'
 import {
-    AppTheme,
     ScreenWrapper,
     useModal,
-    useTheme
+    useTheme,
 } from '@siteed/design-system'
-import { router, useLocalSearchParams } from 'expo-router'
-import React, { useMemo, useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
 
 import {
     AudioRecordingConfigForm,
-    SelectedAudioVisualizerProps,
 } from '../../component/AudioRecordingConfigForm'
 import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { useScreenHeader } from '../../hooks/useScreenHeader'
+
+import type {
+    SelectedAudioVisualizerProps } from '../../component/AudioRecordingConfigForm'
 
 const getStyles = (_: { theme: AppTheme }) => {
     return StyleSheet.create({
@@ -40,9 +45,9 @@ export const FullAudioViewerPage = () => {
     const { files, removeFile } = useAudioFiles()
 
     useScreenHeader({
-        title: "Analysis",
+        title: 'Analysis',
         backBehavior: {
-          fallbackUrl: "/files",
+          fallbackUrl: '/files',
         },
         rightElements: () => (<View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Pressable
@@ -71,8 +76,8 @@ export const FullAudioViewerPage = () => {
                     />
                 )}
             </Pressable>
-        </View>)
-      });
+        </View>),
+      })
 
 
     const { filename } = local
@@ -96,7 +101,7 @@ export const FullAudioViewerPage = () => {
                     recording={selectedFile}
                     audioAnalysis={selectedFile.analysisData}
                     visualConfig={config}
-                    extractAnalysis={true}
+                    extractAnalysis
                     showTranscript
                     onDelete={async () => {
                         if (!selectedFile) return

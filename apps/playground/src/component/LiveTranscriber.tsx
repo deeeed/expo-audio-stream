@@ -1,7 +1,9 @@
-import { useToast } from '@siteed/design-system'
-import { TranscriberData } from '@siteed/expo-audio-studio'
 import React, { useEffect } from 'react'
+
 import { View } from 'react-native'
+
+import { useToast } from '@siteed/design-system'
+import type { TranscriberData } from '@siteed/expo-audio-studio'
 
 import { LoadingIndicator } from './LoadingIndicator'
 import { ProgressItems } from './ProgressItems'

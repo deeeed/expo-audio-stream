@@ -1,7 +1,10 @@
-import { AppTheme, Button, useTheme } from '@siteed/design-system'
 import React, { useMemo, useState } from 'react'
+
 import { StyleSheet, View, ScrollView } from 'react-native'
 import { SegmentedButtons, Text } from 'react-native-paper'
+
+import type { AppTheme } from '@siteed/design-system'
+import { Button, useTheme } from '@siteed/design-system'
 
 const getStyles = ({ theme }: { theme: AppTheme }) => 
     StyleSheet.create({
@@ -28,7 +31,7 @@ const getStyles = ({ theme }: { theme: AppTheme }) =>
         scrollContent: {
             flexDirection: 'row',
             gap: theme.margin.s,
-        }
+        },
     })
 
 export type SegmentDuration = 10 | 100 | 1000 | 10000 | 30000 | 60000
@@ -67,7 +70,7 @@ export function SegmentDurationSelector({
 
         // Filter buttons based on maxDurationMs if provided
         return maxDurationMs 
-            ? allButtons.filter(button => parseInt(button.value) <= maxDurationMs)
+            ? allButtons.filter((button) => parseInt(button.value) <= maxDurationMs)
             : allButtons
     }, [maxDurationMs])
 

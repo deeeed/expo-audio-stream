@@ -1,10 +1,15 @@
 // import { FontAwesome } from '@expo/vector-icons'
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
-import { AppTheme, useTheme } from '@siteed/design-system'
-import { AudioAnalysis, ExtractedAudioData, extractMelSpectrogram, MelSpectrogram, TranscriberData } from '@siteed/expo-audio-studio'
 import React, { useCallback, useEffect, useState } from 'react'
+
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { Platform, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
+
+import type { AppTheme } from '@siteed/design-system'
+import { useTheme } from '@siteed/design-system'
+import type { AudioAnalysis, ExtractedAudioData, MelSpectrogram, TranscriberData } from '@siteed/expo-audio-studio'
+import { extractMelSpectrogram } from '@siteed/expo-audio-studio'
+
 import { TranscriptionResults } from '../../components/TranscriptionResults'
 import { baseLogger } from '../../config'
 import { LANGUAGE_NAMES, useLanguageDetection } from '../../hooks/useLanguageDetection'
@@ -26,7 +31,7 @@ export function SpeechAnalyzer({
     analysis, 
     audioData,
     sampleRate,
-    fileUri
+    fileUri,
 }: SpeechAnalyzerProps) {
     const theme = useTheme()
     const styles = getStyles(theme)
@@ -52,13 +57,13 @@ export function SpeechAnalyzer({
     }>({
         current: null,
         essentia: null,
-        difference: null
+        difference: null,
     })
 
     const { isModelLoading, isProcessing, processAudioSegment } = useSileroVAD({
         onError: (error) => {
             console.error('VAD Error:', error)
-        }
+        },
     })
 
     const { 
@@ -72,17 +77,17 @@ export function SpeechAnalyzer({
         },
         onTranscriptionUpdate: (data) => {
             setTranscriptionData(data)
-        }
+        },
     })
 
     const { 
         isProcessing: isLanguageProcessing, 
-        detectLanguage 
+        detectLanguage, 
     } = useLanguageDetection({
         onError: (error) => {
-            console.error('Language detection error:', error);
-            setTranscriptionError(error instanceof Error ? error.message : 'Unknown error during language detection');
-        }
+            console.error('Language detection error:', error)
+            setTranscriptionError(error instanceof Error ? error.message : 'Unknown error during language detection')
+        },
     })
 
     // Add debug logging
@@ -92,7 +97,7 @@ export function SpeechAnalyzer({
             dataPoints: analysis.dataPoints.length,
             firstDataPoint: analysis.dataPoints[0],
             pcmDataLength: audioData?.normalizedData?.length,
-            sampleRate
+            sampleRate,
         })
     }, [analysis, audioData, sampleRate])
 
@@ -171,8 +176,8 @@ export function SpeechAnalyzer({
                 ...spectrogramParams,
                 decodingOptions: {
                     targetSampleRate: sampleRate,
-                    normalizeAudio: true
-                }
+                    normalizeAudio: true,
+                },
             })
             
             // Run Essentia implementation with the same data
@@ -210,13 +215,13 @@ export function SpeechAnalyzer({
             setMelResults({
                 current: currentResult,
                 essentia: essentiaResult,
-                difference: avgDifference
+                difference: avgDifference,
             })
             
             logger.log('Mel Spectrogram comparison results:', {
                 currentShape: [currentResult.timeSteps, currentResult.nMels],
                 essentiaShape: [essentiaResult.timeSteps, essentiaResult.nMels],
-                avgDifference
+                avgDifference,
             })
         } catch (error) {
             console.error('Error extracting mel spectrogram:', error)
@@ -228,11 +233,11 @@ export function SpeechAnalyzer({
 
     const handleDetectLanguage = useCallback(async () => {
         if (!fileUri || !sampleRate) {
-            setTranscriptionError("Audio file and sample rate are required for language detection");
-            return;
+            setTranscriptionError('Audio file and sample rate are required for language detection')
+            return
         }
         
-        setTranscriptionError(null);
+        setTranscriptionError(null)
         
         try {
             const startTimeMs = (analysis.dataPoints[0]?.startTime ?? 0) * 1000
@@ -241,41 +246,41 @@ export function SpeechAnalyzer({
                 
                 logger.error('Invalid start or end time for language detection', {
                     startTimeMs,
-                    endTimeMs
+                    endTimeMs,
                 })
-                setTranscriptionError("Invalid start or end time for language detection");
-                return;
+                setTranscriptionError('Invalid start or end time for language detection')
+                return
             }
             const result = await detectLanguage({
                 fileUri,
                 sampleRate,
                 startTimeMs,
-                endTimeMs
-            });
+                endTimeMs,
+            })
             
             if (result) {
-                setDetectedLanguage(result.languageName);
-                setLanguageDetectionResults(result.similarities);
+                setDetectedLanguage(result.languageName)
+                setLanguageDetectionResults(result.similarities)
                 
                 // If we want to cache the spectrogram for other uses
                 if (result.melSpectrogram) {
-                    setMelResults(prevState => ({
+                    setMelResults((prevState) => ({
                         ...prevState,
-                        current: result.melSpectrogram || null
-                    }));
+                        current: result.melSpectrogram || null,
+                    }))
                 }
                 
                 logger.log('Language detection results:', {
                     detectedLanguage: result.detectedLanguage,
                     languageName: result.languageName,
-                    similarities: result.similarities
-                });
+                    similarities: result.similarities,
+                })
             }
         } catch (error) {
-            console.error('Language detection error:', error);
-            setTranscriptionError(error instanceof Error ? error.message : 'Unknown error during language detection');
+            console.error('Language detection error:', error)
+            setTranscriptionError(error instanceof Error ? error.message : 'Unknown error during language detection')
         }
-    }, [fileUri, sampleRate, analysis.dataPoints, analysis.durationMs, detectLanguage]);
+    }, [fileUri, sampleRate, analysis.dataPoints, detectLanguage])
 
     return (
         <View style={styles.speechSection}>
@@ -330,10 +335,13 @@ export function SpeechAnalyzer({
                 {hasEnoughData && vadResult && (
                     <View style={styles.resultCard}>
                         <Text variant="bodyMedium" style={styles.label}>Speech Detection:</Text>
-                        <Text variant="bodyMedium" style={[
+                        <Text
+variant="bodyMedium"
+style={[
                             styles.value,
-                            { color: vadResult.isSpeech ? theme.colors.success : theme.colors.error }
-                        ]}>
+                            { color: vadResult.isSpeech ? theme.colors.success : theme.colors.error },
+                        ]}
+                        >
                             {vadResult.isSpeech ? 'Speech Detected' : 'No Speech'} ({(vadResult.probability * 100).toFixed(1)}%)
                         </Text>
                     </View>
@@ -382,14 +390,17 @@ export function SpeechAnalyzer({
                                                 <Text variant="bodySmall" style={styles.languageLabel}>
                                                     {LANGUAGE_NAMES[lang] || lang}:
                                                 </Text>
-                                                <Text variant="bodySmall" style={[
+                                                <Text
+variant="bodySmall"
+style={[
                                                     styles.languageValue,
                                                     { 
                                                         fontWeight: detectedLanguage === LANGUAGE_NAMES[lang] ? 'bold' : 'normal',
                                                         color: detectedLanguage === LANGUAGE_NAMES[lang] ? 
-                                                            theme.colors.primary : theme.colors.onSecondaryContainer
-                                                    }
-                                                ]}>
+                                                            theme.colors.primary : theme.colors.onSecondaryContainer,
+                                                    },
+                                                ]}
+                                                >
                                                     {(similarity * 100).toFixed(1)}%
                                                 </Text>
                                             </View>

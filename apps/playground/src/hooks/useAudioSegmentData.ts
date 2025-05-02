@@ -1,8 +1,11 @@
-import { BitDepth, DataPoint, ExpoAudioStreamModule, ExtractedAudioData } from '@siteed/expo-audio-studio'
 import { useCallback, useEffect, useState } from 'react'
+
+import type { BitDepth, DataPoint, ExtractedAudioData } from '@siteed/expo-audio-studio'
+import { ExpoAudioStreamModule } from '@siteed/expo-audio-studio'
+
 import { baseLogger } from '../config'
 
-const logger = baseLogger.extend("useAudioSegmentData")
+const logger = baseLogger.extend('useAudioSegmentData')
 
 interface UseAudioSegmentDataProps {
     fileUri: string
@@ -15,7 +18,7 @@ export function useAudioSegmentData({
     fileUri, 
     selectedDataPoint,
     bitDepth = 16,
-    includeNormalizedData = false
+    includeNormalizedData = false,
 }: UseAudioSegmentDataProps) {
     const [audioData, setAudioData] = useState<ExtractedAudioData>()
     const [isLoading, setIsLoading] = useState(false)
@@ -39,18 +42,18 @@ export function useAudioSegmentData({
                     position: selectedDataPoint.startPosition,
                     length: selectedDataPoint.endPosition 
                         ? selectedDataPoint.endPosition - selectedDataPoint.startPosition
-                        : undefined
+                        : undefined,
                 }
                 : {
                     startTimeMs: selectedDataPoint.startTime,
-                    endTimeMs: selectedDataPoint.endTime
+                    endTimeMs: selectedDataPoint.endTime,
                 }
 
             logger.info('Calling extractAudioData with options:', {
                 fileUri,
                 extractionOptions,
                 bitDepth,
-                includeNormalizedData
+                includeNormalizedData,
             })
 
             const result = await ExpoAudioStreamModule.extractAudioData({
@@ -63,8 +66,8 @@ export function useAudioSegmentData({
                     targetBitDepth: bitDepth,
                     normalizeAudio: includeNormalizedData,
                     targetSampleRate: 16000,
-                    targetChannels: 1
-                }
+                    targetChannels: 1,
+                },
             })
 
             if (!result?.pcmData) {
@@ -79,7 +82,7 @@ export function useAudioSegmentData({
                 samples: result.samples,
                 durationMs: result.durationMs,
                 sampleRate: result.sampleRate,
-                channels: result.channels
+                channels: result.channels,
             })
 
             setAudioData(result)
@@ -87,7 +90,7 @@ export function useAudioSegmentData({
             logger.error('Failed to load audio segment data:', {
                 error: err,
                 fileUri,
-                selectedDataPoint
+                selectedDataPoint,
             })
             setError(err instanceof Error ? err : new Error('Unknown error'))
         } finally {
@@ -106,6 +109,6 @@ export function useAudioSegmentData({
         audioData,
         isLoading,
         error,
-        reload: loadData
+        reload: loadData,
     }
 } 

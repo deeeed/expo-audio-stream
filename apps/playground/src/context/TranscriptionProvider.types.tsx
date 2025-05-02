@@ -1,12 +1,15 @@
 // apps/playground/src/context/TranscriptionProvider.types.tsx
-import { Chunk, TranscriberData } from '@siteed/expo-audio-studio'
-import { ReactNode } from 'react'
-import { 
+import type { ReactNode } from 'react'
+
+
+
+
+import type { Chunk, TranscriberData } from '@siteed/expo-audio-studio'
+
+import type { 
   TranscribeFileOptions, 
-  TranscribeNewSegmentsResult, 
-  TranscribeResult as _WhisperTranscribeResult,
-  TranscribeRealtimeOptions,
-} from 'whisper.rn'
+  TranscribeNewSegmentsResult,
+  TranscribeRealtimeOptions } from 'whisper.rn'
 
 export interface ProgressItem {
     file: string

@@ -1,8 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { StyleSheet, View, FlatList, TouchableOpacity } from 'react-native';
-import { AppTheme, Text, useTheme, Button } from '@siteed/design-system';
-import { TranscriptionLog } from '../hooks/useAudioTranscription';
-import { TranscriptionHistory } from './TranscriptionHistory';
+import React, { useState, useEffect, useMemo } from 'react'
+
+import { StyleSheet, View, FlatList, TouchableOpacity } from 'react-native'
+
+import type { AppTheme } from '@siteed/design-system'
+import { Text, useTheme, Button } from '@siteed/design-system'
+
+import { TranscriptionHistory } from './TranscriptionHistory'
+
+import type { TranscriptionLog } from '../hooks/useAudioTranscription'
 
 interface TranscriptionHistoryListProps {
   currentLog?: TranscriptionLog | null;
@@ -62,18 +67,18 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
       color: theme.colors.onPrimaryContainer,
       fontWeight: 'bold',
     },
-  });
-};
+  })
+}
 
 export const TranscriptionHistoryList: React.FC<TranscriptionHistoryListProps> = ({
   currentLog,
   useVirtualizedList = true,
 }) => {
-  const theme = useTheme();
-  const styles = useMemo(() => getStyles({ theme }), [theme]);
-  const [history, setHistory] = useState<TranscriptionLog[]>([]);
-  const [filter, setFilter] = useState<string | null>(null);
-  const [cleared, setCleared] = useState(false);
+  const theme = useTheme()
+  const styles = useMemo(() => getStyles({ theme }), [theme])
+  const [history, setHistory] = useState<TranscriptionLog[]>([])
+  const [filter, setFilter] = useState<string | null>(null)
+  const [cleared, setCleared] = useState(false)
 
   // Update the effect to respect the cleared state
   useEffect(() => {
@@ -84,30 +89,30 @@ export const TranscriptionHistoryList: React.FC<TranscriptionHistoryListProps> =
           item.timestamp === currentLog.timestamp && 
           item.fileName === currentLog.fileName &&
           item.modelId === currentLog.modelId
-      );
+      )
       
       if (!exists) {
-        setHistory(prevHistory => [currentLog, ...prevHistory]);
+        setHistory((prevHistory) => [currentLog, ...prevHistory])
       }
     }
-  }, [currentLog, history, cleared]);
+  }, [currentLog, history, cleared])
 
   // Get unique model IDs for filtering
   const modelIds = useMemo(() => {
-    const ids = new Set(history.map(log => log.modelId));
-    return Array.from(ids);
-  }, [history]);
+    const ids = new Set(history.map((log) => log.modelId))
+    return Array.from(ids)
+  }, [history])
 
   // Filter history based on selected model
   const filteredHistory = useMemo(() => {
-    if (!filter) return history;
-    return history.filter(log => log.modelId === filter);
-  }, [history, filter]);
+    if (!filter) return history
+    return history.filter((log) => log.modelId === filter)
+  }, [history, filter])
 
   const handleClearHistory = () => {
-    setHistory([]);
-    setCleared(true);
-  };
+    setHistory([])
+    setCleared(true)
+  }
 
   if (history.length === 0) {
     return (
@@ -119,7 +124,7 @@ export const TranscriptionHistoryList: React.FC<TranscriptionHistoryListProps> =
           <Text style={styles.emptyText}>No transcription history yet</Text>
         </View>
       </View>
-    );
+    )
   }
 
   return (
@@ -146,15 +151,17 @@ export const TranscriptionHistoryList: React.FC<TranscriptionHistoryListProps> =
             ]}
             onPress={() => setFilter(null)}
           >
-            <Text style={[
+            <Text
+style={[
               styles.filterText,
               !filter && styles.filterTextActive,
-            ]}>
+            ]}
+            >
               All Models
             </Text>
           </TouchableOpacity>
           
-          {modelIds.map(id => (
+          {modelIds.map((id) => (
             <TouchableOpacity
               key={id}
               style={[
@@ -163,10 +170,12 @@ export const TranscriptionHistoryList: React.FC<TranscriptionHistoryListProps> =
               ]}
               onPress={() => setFilter(id)}
             >
-              <Text style={[
+              <Text
+style={[
                 styles.filterText,
                 filter === id && styles.filterTextActive,
-              ]}>
+              ]}
+              >
                 {id.toUpperCase()}
               </Text>
             </TouchableOpacity>
@@ -188,7 +197,7 @@ export const TranscriptionHistoryList: React.FC<TranscriptionHistoryListProps> =
         />
       ) : (
         <View style={styles.listContainer}>
-          {filteredHistory.map(item => (
+          {filteredHistory.map((item) => (
             <React.Fragment key={`${item.timestamp}-${item.modelId}`}>
               <TranscriptionHistory log={item} />
               <View style={{ height: 12 }} />
@@ -197,7 +206,7 @@ export const TranscriptionHistoryList: React.FC<TranscriptionHistoryListProps> =
         </View>
       )}
     </View>
-  );
-};
+  )
+}
 
-export default TranscriptionHistoryList; 
+export default TranscriptionHistoryList 

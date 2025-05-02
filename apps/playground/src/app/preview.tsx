@@ -1,15 +1,20 @@
-import { useFont } from '@shopify/react-native-skia'
-import { AppTheme, Notice, NumberAdjuster, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
-import { AudioAnalysis, extractPreview } from '@siteed/expo-audio-studio'
-import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
-import * as DocumentPicker from 'expo-document-picker'
 import React, { useCallback, useMemo, useState, useEffect } from 'react'
+
+import { useFont } from '@shopify/react-native-skia'
+import * as DocumentPicker from 'expo-document-picker'
 import { StyleSheet, View } from 'react-native'
 import { Button, IconButton, Text } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
+import type { AppTheme } from '@siteed/design-system'
+import { Notice, NumberAdjuster, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
+import type { AudioAnalysis } from '@siteed/expo-audio-studio'
+import { extractPreview } from '@siteed/expo-audio-studio'
+import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
+
 import { baseLogger } from '../config'
-import { isWeb } from '../utils/utils'
 import { useSampleAudio } from '../hooks/useSampleAudio'
+import { isWeb } from '../utils/utils'
 
 const SAMPLE_AUDIO = {
     web: '/audio_samples/jfk.mp3',
@@ -83,9 +88,9 @@ export default function PreviewScreen() {
             show({
                 type: 'error',
                 message: 'Error loading sample audio file',
-                duration: 3000
+                duration: 3000,
             })
-        }
+        },
     })
 
     const generatePreview = useCallback(async (fileUri: string) => {
@@ -95,12 +100,12 @@ export default function PreviewScreen() {
                 setCurrentFile({
                     fileUri,
                     mimeType: 'audio/mp3',
-                    filename: 'JFK Speech Sample'
+                    filename: 'JFK Speech Sample',
                 })
             }
             show({
                 loading: true,
-                message: 'Generating preview...'
+                message: 'Generating preview...',
             })
 
             const effectiveStartTime = startTime || 0
@@ -128,14 +133,14 @@ export default function PreviewScreen() {
                 stackBehavior: {
                     isStackable: false,
                 },
-                duration: 2000
+                duration: 2000,
             })
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to generate preview')
             show({
                 type: 'error',
                 message: 'Failed to generate preview',
-                duration: 3000
+                duration: 3000,
             })
             console.error('Error generating preview:', err)
         } finally {
@@ -155,7 +160,7 @@ export default function PreviewScreen() {
             const newFile = {
                 fileUri: result.assets[0].uri,
                 mimeType: result.assets[0].mimeType ?? 'audio/*',
-                filename: result.assets[0].name ?? 'Unknown'
+                filename: result.assets[0].name ?? 'Unknown',
             }
             
             setCurrentFile(newFile)
@@ -169,7 +174,7 @@ export default function PreviewScreen() {
             show({
                 type: 'error',
                 message: 'Failed to load audio file',
-                duration: 3000
+                duration: 3000,
             })
         }
     }, [generatePreview, show])
@@ -199,23 +204,23 @@ export default function PreviewScreen() {
         // Special case: if the end time is close to the audio duration, it might be clamped
         const audioDuration = previewData?.durationMs || 0
         
-        const matchingRange = QUICK_TIME_RANGES.find(range => {
+        const matchingRange = QUICK_TIME_RANGES.find((range) => {
             // For start time, use exact matching with tolerance
-            const startMatches = Math.abs(range.startTime - newStartTime) < 100;
+            const startMatches = Math.abs(range.startTime - newStartTime) < 100
             
             // For end time, handle special case when it's clamped to audio duration
-            let endMatches = Math.abs(range.endTime - newEndTime) < 100;
+            let endMatches = Math.abs(range.endTime - newEndTime) < 100
             
             // If end time is close to audio duration and the range's end time is beyond audio duration,
             // consider it a match (the component likely clamped the value)
             if (audioDuration > 0 && 
                 Math.abs(newEndTime - audioDuration) < 100 && 
                 range.endTime > audioDuration) {
-                endMatches = true;
+                endMatches = true
             }
             
-            return startMatches && endMatches;
-        });
+            return startMatches && endMatches
+        })
         
         logger.log('Matching range found?', matchingRange ? matchingRange.label : 'none', 
                    'audioDuration:', audioDuration, 
@@ -251,7 +256,7 @@ export default function PreviewScreen() {
             setCurrentFile({
                 fileUri: sampleFile.uri,
                 mimeType: 'audio/mp3',
-                filename: 'JFK Speech Sample'
+                filename: 'JFK Speech Sample',
             })
             
             await generatePreview(sampleFile.uri)
@@ -261,7 +266,7 @@ export default function PreviewScreen() {
             show({
                 type: 'error',
                 message: 'Failed to load sample audio',
-                duration: 3000
+                duration: 3000,
             })
         } finally {
             setIsProcessing(false)
@@ -274,7 +279,7 @@ export default function PreviewScreen() {
             durationMs: previewData?.durationMs || 0,
             startTime, 
             endTime,
-            disabled: isProcessing || !previewData
+            disabled: isProcessing || !previewData,
         })
         
         return (
@@ -305,13 +310,13 @@ export default function PreviewScreen() {
 
     // Render quick range buttons based on audio duration
     const renderQuickRangeButtons = () => {
-        const audioDuration = previewData?.durationMs || 0;
+        const audioDuration = previewData?.durationMs || 0
         
         // Filter quick ranges that make sense for this audio file
-        const applicableRanges = QUICK_TIME_RANGES.filter(range => {
+        const applicableRanges = QUICK_TIME_RANGES.filter((range) => {
             // Only show ranges where at least part of the range is within the audio duration
-            return range.startTime < audioDuration;
-        });
+            return range.startTime < audioDuration
+        })
         
         return (
             <View style={styles.quickRangeContainer}>
@@ -319,21 +324,21 @@ export default function PreviewScreen() {
                     // For ranges that extend beyond audio duration, modify the label
                     const label = range.endTime > audioDuration 
                         ? `${range.label.split('-')[0]}-End` 
-                        : range.label;
+                        : range.label
                     
                     return (
                         <Button
                             key={range.label}
-                            mode={selectedQuickRange === range.label ? "contained" : "outlined"}
+                            mode={selectedQuickRange === range.label ? 'contained' : 'outlined'}
                             onPress={() => handleQuickRangeSelect(range)}
                             disabled={isProcessing}
                         >
                             {label}
                         </Button>
-                    );
+                    )
                 })}
                 <IconButton
-                    mode={selectedQuickRange === 'reset' ? "contained" : "outlined"}
+                    mode={selectedQuickRange === 'reset' ? 'contained' : 'outlined'}
                     onPress={() => {
                         setStartTime(0)
                         setEndTime(0)
@@ -343,8 +348,8 @@ export default function PreviewScreen() {
                     icon="refresh"
                 />
             </View>
-        );
-    };
+        )
+    }
 
     return (
         <ScreenWrapper 

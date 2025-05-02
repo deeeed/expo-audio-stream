@@ -1,8 +1,11 @@
-import { Picker, SelectOption } from '@siteed/design-system'
-import { IOSConfig, AudioSessionConfig } from '@siteed/expo-audio-studio'
-import { getLogger } from '@siteed/react-native-logger'
 import React, { useCallback, useState } from 'react'
+
 import { StyleSheet, View } from 'react-native'
+
+import type { SelectOption } from '@siteed/design-system'
+import { Picker } from '@siteed/design-system'
+import type { IOSConfig, AudioSessionConfig } from '@siteed/expo-audio-studio'
+import { getLogger } from '@siteed/react-native-logger'
 
 const logger = getLogger('IOSSettingsConfigForm')
 

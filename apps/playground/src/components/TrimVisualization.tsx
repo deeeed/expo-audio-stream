@@ -1,7 +1,9 @@
 import React from 'react'
+
 import { View } from 'react-native'
 import { Text, useTheme } from 'react-native-paper'
-import { TimeRange } from '@siteed/expo-audio-studio'
+
+import type { TimeRange } from '@siteed/expo-audio-studio'
 
 interface TrimVisualizationProps {
     durationMs: number
@@ -16,7 +18,7 @@ const TrimVisualization: React.FC<TrimVisualizationProps> = ({
     mode, 
     startTime, 
     endTime, 
-    ranges 
+    ranges, 
 }) => {
     const theme = useTheme()
     const colors = theme.colors
@@ -44,7 +46,7 @@ const TrimVisualization: React.FC<TrimVisualizationProps> = ({
                 const segmentEnd = (i + 1) * segmentDuration
                 
                 // Check if this segment overlaps with any of the ranges
-                const isKept = ranges.some(range => 
+                const isKept = ranges.some((range) => 
                     // Check for any overlap between segment and range
                     (segmentStart <= range.endTimeMs && segmentEnd >= range.startTimeMs)
                 )
@@ -57,7 +59,7 @@ const TrimVisualization: React.FC<TrimVisualizationProps> = ({
                 const segmentEnd = (i + 1) * segmentDuration
                 
                 // Check if this segment overlaps with any of the ranges
-                const isInRange = ranges.some(range => 
+                const isInRange = ranges.some((range) => 
                     // Check for any overlap between segment and range
                     (segmentStart <= range.endTimeMs && segmentEnd >= range.startTimeMs)
                 )
@@ -76,7 +78,7 @@ const TrimVisualization: React.FC<TrimVisualizationProps> = ({
             return endTime - startTime
         } else {
             // Count kept segments and multiply by segment duration
-            const keptSegments = segments.filter(isKept => isKept).length
+            const keptSegments = segments.filter((isKept) => isKept).length
             return (keptSegments / segments.length) * durationMs
         }
     }
@@ -89,7 +91,7 @@ const TrimVisualization: React.FC<TrimVisualizationProps> = ({
         const timeMs = (durationMs * i) / 10
         return {
             position: i * 10, // percentage position
-            label: (timeMs / 1000).toFixed(1) + 's'
+            label: (timeMs / 1000).toFixed(1) + 's',
         }
     })
     
@@ -122,7 +124,7 @@ const TrimVisualization: React.FC<TrimVisualizationProps> = ({
                             style={{ 
                                 position: 'absolute', 
                                 left: `${marker.position}%`, 
-                                transform: [{ translateX: -4 }]
+                                transform: [{ translateX: -4 }],
                             }}
                         >
                             <Text variant="bodySmall" style={{ color: colors.outline, fontSize: 10 }}>
