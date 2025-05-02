@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import { useTheme, AppTheme } from "@siteed/design-system";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View, LayoutChangeEvent } from "react-native";
 import { Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, {
@@ -127,6 +127,12 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  contentMeasure: {
+    position: 'absolute',
+    opacity: 0,
+    zIndex: -1,
+    pointerEvents: 'none',
+  },
 });
 
 export function RecordingStats({ 
@@ -141,25 +147,169 @@ export function RecordingStats({
   const theme = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
   const animationHeight = useSharedValue(0);
+  const [contentHeight, setContentHeight] = useState(320); // Default fallback height
+  const contentMeasured = useRef(false);
   const styles = useMemo(() => getStyles(theme), [theme]);
 
-  const toggleExpanded = () => {
+  const handleContentLayout = useCallback((event: LayoutChangeEvent) => {
+    const { height } = event.nativeEvent.layout;
+    if (height > 0 && (!contentMeasured.current || height !== contentHeight)) {
+      setContentHeight(height);
+      contentMeasured.current = true;
+      
+      // If already expanded, update the animation height
+      if (isExpanded) {
+        animationHeight.value = withTiming(height, { duration: 300 });
+      }
+    }
+  }, [contentHeight, isExpanded, animationHeight]);
+
+  const toggleExpanded = useCallback(() => {
     const newIsExpanded = !isExpanded;
     setIsExpanded(newIsExpanded);
-    // Calculate the expanded height based on what sections are shown
-    let expandedHeight = 100; // Base height for audio specs
-    if (compression) expandedHeight += 120; // Add height for compression section
-    if (device) expandedHeight += 100; // Add height for device section
-    animationHeight.value = withTiming(newIsExpanded ? expandedHeight : 0, { duration: 300 });
-  };
+    animationHeight.value = withTiming(
+      newIsExpanded ? contentHeight : 0, 
+      { duration: 300 }
+    );
+  }, [isExpanded, animationHeight, contentHeight]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: animationHeight.value,
     opacity: animationHeight.value === 0 ? 0 : 1,
   }));
 
+  // Extract expandable content into a separate function
+  const renderExpandableContent = () => (
+    <View style={styles.detailsGrid}>
+      {/* Audio specs section */}
+      <View style={styles.audioSpecsRow}>
+        {(sampleRate) && (
+          <View style={styles.specItem}>
+            <Text style={styles.detailLabel}>
+              Sample Rate
+            </Text>
+            <Text style={styles.detailValue}>
+              {sampleRate} Hz
+            </Text>
+          </View>
+        )}
+        {(bitDepth) && (
+          <View style={styles.specItem}>
+            <Text style={styles.detailLabel}>
+              Bit Depth
+            </Text>
+            <Text style={styles.detailValue}>
+              {bitDepth} bit
+            </Text>
+          </View>
+        )}
+        {(channels) && (
+          <View style={styles.specItem}>
+            <Text style={styles.detailLabel}>
+              Channels
+            </Text>
+            <Text style={styles.detailValue}>
+              {channels}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Device information section */}
+      {device && (
+        <>
+          <View style={styles.sectionDivider}>
+            <Text style={styles.sectionTitle}>
+              Input Device
+            </Text>
+          </View>
+          
+          <View style={styles.audioSpecsRow}>
+            <View style={styles.specItem}>
+              <Text style={styles.detailLabel}>
+                Device
+              </Text>
+              <Text style={styles.detailValue}>
+                {device.name}
+              </Text>
+            </View>
+
+            <View style={styles.specItem}>
+              <Text style={styles.detailLabel}>
+                Type
+              </Text>
+              <Text style={styles.detailValue}>
+                {device.type.replace('_', ' ')}
+              </Text>
+            </View>
+
+            {device.isDefault && (
+              <View style={styles.specItem}>
+                <Text style={styles.detailLabel}>
+                  Default
+                </Text>
+                <Text style={styles.detailValue}>
+                  Yes
+                </Text>
+              </View>
+            )}
+          </View>
+        </>
+      )}
+
+      {/* Compression section */}
+      {(compression) && (
+        <>
+          <View style={styles.sectionDivider}>
+            <Text style={styles.sectionTitle}>
+              Storage Details
+            </Text>
+          </View>
+          
+          <View style={styles.audioSpecsRow}>
+            <View style={styles.specItem}>
+              <Text style={styles.detailLabel}>
+                Format
+              </Text>
+              <Text style={styles.detailValue}>
+                {compression.format.toUpperCase()}
+                {(compression.bitrate) ? ` (${(compression.bitrate / 1000).toFixed(0)} kbps)` : ''}
+              </Text>
+            </View>
+
+            <View style={styles.specItem}>
+              <Text style={styles.detailLabel}>
+                Uncompressed Size
+              </Text>
+              <Text style={styles.detailValue}>
+                {formatBytes(size)}
+              </Text>
+            </View>
+
+            <View style={styles.specItem}>
+              <Text style={styles.detailLabel}>
+                Size Reduction
+              </Text>
+              <Text style={styles.detailValue}>
+                {((1 - compression.size / size) * 100).toFixed(0)}%
+              </Text>
+            </View>
+          </View>
+        </>
+      )}
+    </View>
+  );
+
   return (
     <View style={styles.wrapper}>
+      {/* Hidden measurement view */}
+      <View 
+        style={styles.contentMeasure} 
+        onLayout={handleContentLayout}
+      >
+        {renderExpandableContent()}
+      </View>
+    
       <TouchableOpacity onPress={toggleExpanded}>
         <View style={styles.container}>
           <View style={styles.statItem}>
@@ -200,126 +350,7 @@ export function RecordingStats({
       </TouchableOpacity>
 
       <Animated.View style={[styles.expandedContent, animatedStyle]}>
-        <View 
-          style={styles.detailsGrid}
-        >
-          {/* Audio specs section */}
-          <View style={styles.audioSpecsRow}>
-            {(sampleRate) && (
-              <View style={styles.specItem}>
-                <Text style={styles.detailLabel}>
-                  Sample Rate
-                </Text>
-                <Text style={styles.detailValue}>
-                  {sampleRate} Hz
-                </Text>
-              </View>
-            )}
-            {(bitDepth) && (
-              <View style={styles.specItem}>
-                <Text style={styles.detailLabel}>
-                  Bit Depth
-                </Text>
-                <Text style={styles.detailValue}>
-                  {bitDepth} bit
-                </Text>
-              </View>
-            )}
-            {(channels) && (
-              <View style={styles.specItem}>
-                <Text style={styles.detailLabel}>
-                  Channels
-                </Text>
-                <Text style={styles.detailValue}>
-                  {channels}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Device information section */}
-          {device && (
-            <>
-              <View style={styles.sectionDivider}>
-                <Text style={styles.sectionTitle}>
-                  Input Device
-                </Text>
-              </View>
-              
-              <View style={styles.audioSpecsRow}>
-                <View style={styles.specItem}>
-                  <Text style={styles.detailLabel}>
-                    Device
-                  </Text>
-                  <Text style={styles.detailValue}>
-                    {device.name}
-                  </Text>
-                </View>
-
-                <View style={styles.specItem}>
-                  <Text style={styles.detailLabel}>
-                    Type
-                  </Text>
-                  <Text style={styles.detailValue}>
-                    {device.type.replace('_', ' ')}
-                  </Text>
-                </View>
-
-                {device.isDefault && (
-                  <View style={styles.specItem}>
-                    <Text style={styles.detailLabel}>
-                      Default
-                    </Text>
-                    <Text style={styles.detailValue}>
-                      Yes
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </>
-          )}
-
-          {/* Compression section */}
-          {(compression) && (
-            <>
-              <View style={styles.sectionDivider}>
-                <Text style={styles.sectionTitle}>
-                  Storage Details
-                </Text>
-              </View>
-              
-              <View style={styles.audioSpecsRow}>
-                <View style={styles.specItem}>
-                  <Text style={styles.detailLabel}>
-                    Format
-                  </Text>
-                  <Text style={styles.detailValue}>
-                    {compression.format.toUpperCase()}
-                    {(compression.bitrate) ? ` (${(compression.bitrate / 1000).toFixed(0)} kbps)` : ''}
-                  </Text>
-                </View>
-
-                <View style={styles.specItem}>
-                  <Text style={styles.detailLabel}>
-                    Uncompressed Size
-                  </Text>
-                  <Text style={styles.detailValue}>
-                    {formatBytes(size)}
-                  </Text>
-                </View>
-
-                <View style={styles.specItem}>
-                  <Text style={styles.detailLabel}>
-                    Size Reduction
-                  </Text>
-                  <Text style={styles.detailValue}>
-                    {((1 - compression.size / size) * 100).toFixed(0)}%
-                  </Text>
-                </View>
-              </View>
-            </>
-          )}
-        </View>
+        {renderExpandableContent()}
       </Animated.View>
     </View>
   );

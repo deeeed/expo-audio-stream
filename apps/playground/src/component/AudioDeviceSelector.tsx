@@ -1,7 +1,7 @@
 import { Text, useTheme, AppTheme } from '@siteed/design-system';
 import { AudioDevice, useAudioDevices } from '@siteed/expo-audio-studio';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform, StyleSheet, View, TouchableOpacity } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { Platform, StyleSheet, View, TouchableOpacity, LayoutChangeEvent } from 'react-native';
 import { ActivityIndicator, Card, IconButton, Button } from 'react-native-paper';
 import Animated, {
   useSharedValue,
@@ -144,6 +144,12 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  contentMeasure: {
+    position: 'absolute',
+    opacity: 0,
+    zIndex: -1,
+    pointerEvents: 'none',
+  },
 });
 
 interface AudioDeviceSelectorProps {
@@ -204,6 +210,8 @@ export function AudioDeviceSelector({
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const animationHeight = useSharedValue(0);
+  const [contentHeight, setContentHeight] = useState(300); // Default fallback height
+  const contentMeasured = useRef(false);
   const theme = useTheme();
 
   const styles = useMemo(() => getStyles(theme), [theme]);
@@ -260,28 +268,27 @@ export function AudioDeviceSelector({
     });
   }, [refreshDevices]);
 
-  const getExpandedHeight = useCallback(() => {
-    // Calculate height based on devices and capabilities
-    const deviceListHeight = devices.length * 48 + 16;
-    
-    let capabilitiesHeight = 0;
-    if (showCapabilities && selectedDevice) {
-      capabilitiesHeight = 60;
-      if (selectedDevice.capabilities.sampleRates?.length) capabilitiesHeight += 40;
-      if (selectedDevice.capabilities.channelCounts?.length) capabilitiesHeight += 40;
-      if (selectedDevice.capabilities.bitDepths?.length) capabilitiesHeight += 40;
-      capabilitiesHeight += 20;
+  const handleContentLayout = useCallback((event: LayoutChangeEvent) => {
+    const { height } = event.nativeEvent.layout;
+    if (height > 0 && (!contentMeasured.current || height !== contentHeight)) {
+      setContentHeight(height);
+      contentMeasured.current = true;
+      
+      // If already expanded, update the animation height
+      if (isExpanded) {
+        animationHeight.value = withTiming(height, { duration: 300 });
+      }
     }
-    
-    return deviceListHeight + capabilitiesHeight;
-  }, [devices.length, selectedDevice, showCapabilities]);
+  }, [contentHeight, isExpanded, animationHeight]);
 
   const toggleExpanded = useCallback(() => {
     const newIsExpanded = !isExpanded;
     setIsExpanded(newIsExpanded);
-    const expandedHeight = getExpandedHeight();
-    animationHeight.value = withTiming(newIsExpanded ? expandedHeight : 0, { duration: 300 });
-  }, [isExpanded, animationHeight, getExpandedHeight]);
+    animationHeight.value = withTiming(
+      newIsExpanded ? contentHeight : 0, 
+      { duration: 300 }
+    );
+  }, [isExpanded, animationHeight, contentHeight]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: animationHeight.value,
@@ -369,6 +376,86 @@ export function AudioDeviceSelector({
     );
   }
 
+  // Add this function right before the return statement of the component
+  const renderExpandableContent = () => (
+    <>
+      {devices.length > 0 ? (
+        <View>
+          {devices.map((device) => (
+            <TouchableOpacity
+              key={device.id}
+              style={[
+                styles.deviceItem,
+                device.id === selectedDeviceId ? styles.deviceItemSelected : undefined
+              ]}
+              onPress={() => handleSelectDevice(device)}
+              disabled={disabled || loading}
+            >
+              <IconButton
+                icon={getIconForDeviceType(device.type)}
+                size={20}
+                style={styles.deviceItemIcon}
+              />
+              <Text variant="bodyMedium" style={styles.deviceItemText}>
+                {device.name}
+                {device.isDefault && (
+                  <Text variant="labelSmall" style={{ color: theme.colors.primary }}>
+                    {' '}(Default)
+                  </Text>
+                )}
+              </Text>
+              {device.id === selectedDeviceId && (
+                <View style={styles.deviceItemCheck}>
+                  <IconButton icon="check" size={16} />
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.emptyListMessage}>
+          <Text>No devices found</Text>
+        </View>
+      )}
+      
+      {/* Capabilities section with improved layout */}
+      {showCapabilities && selectedDevice && (
+        <View style={styles.capabilitiesContainer}>
+          <Text variant="labelSmall" style={{ marginBottom: 12 }}>Device Capabilities</Text>
+          <View style={styles.deviceInfo}>
+            <View style={styles.deviceInfoItem}>
+              <Text style={styles.deviceInfoText}>Type: {selectedDevice.type}</Text>
+            </View>
+            
+            {selectedDevice.capabilities.sampleRates && selectedDevice.capabilities.sampleRates.length > 0 && (
+              <View style={styles.deviceInfoItem}>
+                <Text style={styles.deviceInfoText}>
+                  Sample rates: {selectedDevice.capabilities.sampleRates.join(', ')} Hz
+                </Text>
+              </View>
+            )}
+            
+            {selectedDevice.capabilities.channelCounts && selectedDevice.capabilities.channelCounts.length > 0 && (
+              <View style={styles.deviceInfoItem}>
+                <Text style={styles.deviceInfoText}>
+                  Channels: {selectedDevice.capabilities.channelCounts.join(', ')}
+                </Text>
+              </View>
+            )}
+            
+            {selectedDevice.capabilities.bitDepths && selectedDevice.capabilities.bitDepths.length > 0 && (
+              <View style={styles.deviceInfoItem}>
+                <Text style={styles.deviceInfoText}>
+                  Bit depth: {selectedDevice.capabilities.bitDepths.join(', ')} bit
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+    </>
+  );
+
   // Standard implementation for native platforms and web with multiple devices
   return (
     <View testID={testID} style={styles.container}>
@@ -376,6 +463,14 @@ export function AudioDeviceSelector({
         <ActivityIndicator style={{ margin: 20 }} />
       ) : (
         <>
+          {/* Hidden measurement view */}
+          <View 
+            style={styles.contentMeasure} 
+            onLayout={handleContentLayout}
+          >
+            {renderExpandableContent()}
+          </View>
+
           <TouchableOpacity 
             onPress={toggleExpanded}
             disabled={disabled || loading}
@@ -426,80 +521,7 @@ export function AudioDeviceSelector({
           {error && <Text style={styles.errorText}>{error}</Text>}
           
           <Animated.View style={animatedStyle}>
-            {devices.length > 0 ? (
-              <View>
-                {devices.map((device) => (
-                  <TouchableOpacity
-                    key={device.id}
-                    style={[
-                      styles.deviceItem,
-                      device.id === selectedDeviceId ? styles.deviceItemSelected : undefined
-                    ]}
-                    onPress={() => handleSelectDevice(device)}
-                    disabled={disabled || loading}
-                  >
-                    <IconButton
-                      icon={getIconForDeviceType(device.type)}
-                      size={20}
-                      style={styles.deviceItemIcon}
-                    />
-                    <Text variant="bodyMedium" style={styles.deviceItemText}>
-                      {device.name}
-                      {device.isDefault && (
-                        <Text variant="labelSmall" style={{ color: theme.colors.primary }}>
-                          {' '}(Default)
-                        </Text>
-                      )}
-                    </Text>
-                    {device.id === selectedDeviceId && (
-                      <View style={styles.deviceItemCheck}>
-                        <IconButton icon="check" size={16} />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyListMessage}>
-                <Text>No devices found</Text>
-              </View>
-            )}
-            
-            {/* Capabilities section with improved layout */}
-            {showCapabilities && selectedDevice && (
-              <View style={styles.capabilitiesContainer}>
-                <Text variant="labelSmall" style={{ marginBottom: 12 }}>Device Capabilities</Text>
-                <View style={styles.deviceInfo}>
-                  <View style={styles.deviceInfoItem}>
-                    <Text style={styles.deviceInfoText}>Type: {selectedDevice.type}</Text>
-                  </View>
-                  
-                  {selectedDevice.capabilities.sampleRates && selectedDevice.capabilities.sampleRates.length > 0 && (
-                    <View style={styles.deviceInfoItem}>
-                      <Text style={styles.deviceInfoText}>
-                        Sample rates: {selectedDevice.capabilities.sampleRates.join(', ')} Hz
-                      </Text>
-                    </View>
-                  )}
-                  
-                  {selectedDevice.capabilities.channelCounts && selectedDevice.capabilities.channelCounts.length > 0 && (
-                    <View style={styles.deviceInfoItem}>
-                      <Text style={styles.deviceInfoText}>
-                        Channels: {selectedDevice.capabilities.channelCounts.join(', ')}
-                      </Text>
-                    </View>
-                  )}
-                  
-                  {selectedDevice.capabilities.bitDepths && selectedDevice.capabilities.bitDepths.length > 0 && (
-                    <View style={styles.deviceInfoItem}>
-                      <Text style={styles.deviceInfoText}>
-                        Bit depth: {selectedDevice.capabilities.bitDepths.join(', ')} bit
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            )}
+            {renderExpandableContent()}
           </Animated.View>
         </>
       )}

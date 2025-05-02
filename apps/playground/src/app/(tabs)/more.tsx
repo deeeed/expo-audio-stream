@@ -8,8 +8,8 @@ import {
 } from '@siteed/design-system'
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
-import React, { memo, useCallback, useMemo, useState } from 'react'
-import { Image, Pressable, StyleSheet, View } from 'react-native'
+import React, { memo, useCallback, useMemo, useState, useRef } from 'react'
+import { Image, Pressable, StyleSheet, View, LayoutChangeEvent } from 'react-native'
 import { Text } from 'react-native-paper'
 import Animated, {
     useAnimatedStyle,
@@ -62,6 +62,12 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
             backgroundColor: theme.colors.surface,
             margin: 0,
         },
+        contentMeasure: {
+            position: 'absolute',
+            opacity: 0,
+            zIndex: -1,
+            pointerEvents: 'none',
+        },
     })
 }
 
@@ -75,7 +81,22 @@ const AppInfoBanner = memo(function AppInfoBanner({
 }) {
     const [isExpanded, setIsExpanded] = useState(false)
     const animatedHeight = useSharedValue(56)
-    const EXPANDED_HEIGHT = 200
+    const [contentHeight, setContentHeight] = useState(200) // Default fallback height
+    const contentMeasured = useRef(false)
+    const styles = useMemo(() => getStyles({ theme }), [theme])
+
+    const handleContentLayout = useCallback((event: LayoutChangeEvent) => {
+        const { height } = event.nativeEvent.layout
+        if (height > 0 && (!contentMeasured.current || height !== contentHeight)) {
+            setContentHeight(height)
+            contentMeasured.current = true
+            
+            // If already expanded, update the animation height
+            if (isExpanded) {
+                animatedHeight.value = withTiming(height, { duration: 300 })
+            }
+        }
+    }, [contentHeight, isExpanded, animatedHeight])
 
     const animatedStyle = useAnimatedStyle(() => ({
         height: animatedHeight.value,
@@ -84,15 +105,64 @@ const AppInfoBanner = memo(function AppInfoBanner({
     const toggleExpanded = useCallback(() => {
         setIsExpanded((prev) => {
             const newIsExpanded = !prev
-            animatedHeight.value = withTiming(newIsExpanded ? EXPANDED_HEIGHT : 56, {
+            animatedHeight.value = withTiming(newIsExpanded ? contentHeight : 56, {
                 duration: 300,
             })
             return newIsExpanded
         })
-    }, [animatedHeight])
+    }, [animatedHeight, contentHeight])
+
+    const renderContent = () => (
+        <>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                    <Text style={{ color: theme.colors.onTertiaryContainer }}>
+                        About Audio Playground
+                    </Text>
+                </View>
+                <MaterialCommunityIcons
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    size={24}
+                    color={theme.colors.onTertiaryContainer}
+                />
+            </View>
+
+            {(isExpanded || contentMeasured.current === false) && (
+                <Text
+                    style={{
+                        marginTop: 16,
+                        color: theme.colors.onTertiaryContainer,
+                    }}
+                >
+                    Audio Playground is a professional audio recording application featuring advanced
+                    real-time waveform visualization. It demonstrates high-quality audio processing
+                    capabilities including live recording, playback, and visual representation of
+                    audio signals. Perfect for developers and audio enthusiasts looking to understand
+                    audio processing in mobile applications.
+                </Text>
+            )}
+        </>
+    )
 
     return (
         <Pressable onPress={toggleExpanded}>
+            {/* Hidden measurement view */}
+            <View 
+                style={styles.contentMeasure} 
+                onLayout={handleContentLayout}
+            >
+                <View
+                    style={{
+                        borderRadius: 12,
+                        padding: 16,
+                        marginBottom: 16,
+                        backgroundColor: theme.colors.tertiaryContainer,
+                    }}
+                >
+                    {renderContent()}
+                </View>
+            </View>
+            
             <Animated.View
                 style={[
                     {
@@ -105,33 +175,7 @@ const AppInfoBanner = memo(function AppInfoBanner({
                     animatedStyle,
                 ]}
             >
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
-                        <Text style={{ color: theme.colors.onTertiaryContainer }}>
-                            About Audio Playground
-                        </Text>
-                    </View>
-                    <MaterialCommunityIcons
-                        name={isExpanded ? "chevron-up" : "chevron-down"}
-                        size={24}
-                        color={theme.colors.onTertiaryContainer}
-                    />
-                </View>
-
-                {isExpanded && (
-                    <Text
-                        style={{
-                            marginTop: 16,
-                            color: theme.colors.onTertiaryContainer,
-                        }}
-                    >
-                        Audio Playground is a professional audio recording application featuring advanced
-                        real-time waveform visualization. It demonstrates high-quality audio processing
-                        capabilities including live recording, playback, and visual representation of
-                        audio signals. Perfect for developers and audio enthusiasts looking to understand
-                        audio processing in mobile applications.
-                    </Text>
-                )}
+                {renderContent()}
             </Animated.View>
         </Pressable>
     )
