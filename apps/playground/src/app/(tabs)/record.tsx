@@ -1159,6 +1159,7 @@ export default function RecordScreen() {
                         enableLiveTranscription={enableLiveTranscription}
                         showVisualization={showVisualization}
                         onShowVisualizationChange={setShowVisualization}
+                        currentDevice={currentDevice}
                     />
 
                     <TranscriptionModeConfig

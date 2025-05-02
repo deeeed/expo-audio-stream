@@ -10,7 +10,6 @@ import {
 } from '@siteed/expo-audio-studio';
 import { SegmentedButtons } from 'react-native-paper';
 
-import { AudioDeviceSelector } from './AudioDeviceSelector';
 import { SegmentDuration, SegmentDurationSelector } from './SegmentDurationSelector';
 import { NativeNotificationConfig } from './NativeNotificationConfig';
 import { IOSSettingsConfig } from './IOSSettingsConfig';
@@ -41,6 +40,8 @@ interface RecordingSettingsProps {
   // Add state for visualization display
   showVisualization: boolean;
   onShowVisualizationChange: (show: boolean) => void;
+  // Add current device as a prop
+  currentDevice?: AudioDevice | null;
 }
 
 export function RecordingSettings({
@@ -55,6 +56,8 @@ export function RecordingSettings({
   // Add props for visualization display
   showVisualization,
   onShowVisualizationChange,
+  // Add currentDevice prop
+  currentDevice,
 }: RecordingSettingsProps) {
   const theme = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
@@ -78,20 +81,7 @@ export function RecordingSettings({
   const [iosSettings, setIOSSettings] = useState<RecordingConfig['ios']>(
     config.ios
   );
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [currentDevice, setCurrentDevice] = useState<AudioDevice | null>(null);
-
-  // Handle device selection
-  const handleDeviceSelected = (device: AudioDevice) => {
-    setCurrentDevice(device);
-    const updatedConfig = {
-      ...config,
-      deviceId: device.id,
-    };
-    onConfigChange(updatedConfig);
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  
   const handleConfigUpdate = (updates: Partial<RecordingConfig>) => {
     const updatedConfig = {
       ...config,
@@ -119,13 +109,6 @@ export function RecordingSettings({
             onCustomFileNameChange(newFileName);
           }
         }}
-      />
-
-      <AudioDeviceSelector
-        testID="audio-device-selector"
-        showCapabilities={true}
-        disabled={isDisabled}
-        onDeviceSelected={handleDeviceSelected}
       />
 
       {currentDevice && (
