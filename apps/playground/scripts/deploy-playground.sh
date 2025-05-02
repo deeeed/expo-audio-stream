@@ -19,6 +19,34 @@ echo -e "${BLUE}===================================================${NC}"
 echo -e "${BLUE}       📱 AudioPlayground Deployment Script 📱      ${NC}"
 echo -e "${BLUE}===================================================${NC}"
 
+# Function to clear caches thoroughly
+clear_all_caches() {
+  echo -e "\n${CYAN}Clearing all caches for fresh build...${NC}"
+  
+  # Clear yarn cache
+  yarn clean
+  
+  # Clear Metro cache
+  if [ -d "node_modules/.cache" ]; then
+    echo -e "${YELLOW}Removing Metro bundler cache...${NC}"
+    rm -rf node_modules/.cache
+  fi
+  
+  # Clear Expo cache directories if they exist
+  if [ -d ".expo" ]; then
+    echo -e "${YELLOW}Removing Expo cache...${NC}"
+    rm -rf .expo
+  fi
+  
+  # Clear build directories
+  if [ -d "dist" ]; then
+    echo -e "${YELLOW}Removing dist directory...${NC}"
+    rm -rf dist
+  fi
+  
+  echo -e "${GREEN}✅ All caches cleared successfully!${NC}"
+}
+
 # Function to update version in package.json and app.config.ts
 update_version() {
   # Get current version from package.json
@@ -123,12 +151,15 @@ deploy_web() {
   read -p "$(echo -e ${YELLOW}"Choose environment (development/production) [production]: "${NC})" WEB_ENV
   WEB_ENV=${WEB_ENV:-production}
   
+  # Clear caches first
+  clear_all_caches
+  
   if [[ "$WEB_ENV" == "development" ]]; then
     echo -e "${CYAN}Deploying to web (development)...${NC}"
-    yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/
+    NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/
   else
     echo -e "${CYAN}Deploying to web (production)...${NC}"
-    yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && cp playstore_policy.html dist/ && gh-pages -t -d dist --dest playground
+    NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && cp playstore_policy.html dist/ && gh-pages -t -d dist --dest playground
   fi
   
   echo -e "${GREEN}✅ Web deployment completed!${NC}"
@@ -145,6 +176,9 @@ deploy_android() {
   
   read -p "$(echo -e ${YELLOW}"Choose Android build type [5]: "${NC})" ANDROID_CHOICE
   ANDROID_CHOICE=${ANDROID_CHOICE:-5}  # Default to production + submit
+  
+  # Clear caches first
+  clear_all_caches
   
   case $ANDROID_CHOICE in
     1)
@@ -195,6 +229,9 @@ deploy_ios() {
   
   read -p "$(echo -e ${YELLOW}"Choose iOS build type [4]: "${NC})" IOS_CHOICE
   IOS_CHOICE=${IOS_CHOICE:-4}  # Default to production + submit
+  
+  # Clear caches first
+  clear_all_caches
   
   case $IOS_CHOICE in
     1)
@@ -248,8 +285,10 @@ push_update() {
   echo -e "\n${CYAN}Pushing OTA update...${NC}"
   read -p "$(echo -e ${YELLOW}"Enter update message: "${NC})" UPDATE_MESSAGE
   
-  echo -e "${CYAN}Cleaning and reinstalling dependencies...${NC}"
-  yarn clean
+  # Clear caches first
+  clear_all_caches
+  
+  echo -e "${CYAN}Reinstalling dependencies...${NC}"
   yarn install
   
   echo -e "${CYAN}Pushing update with message: ${UPDATE_MESSAGE}${NC}"
