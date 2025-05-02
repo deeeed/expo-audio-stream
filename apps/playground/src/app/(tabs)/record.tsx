@@ -1093,34 +1093,32 @@ export default function RecordScreen() {
     )
 
     const renderStopped = () => (
-        <View style={{ gap: 10 }} testID="stopped-recording-view">
-            {/* Essential settings: filename and device selection */}
+        <View style={{ gap: 16 }} testID="stopped-recording-view">
+            {/* Essential Controls Card */}
             <View style={{ 
                 backgroundColor: colors.surface, 
                 borderRadius: 12, 
-                padding: 16, 
-                marginBottom: 8 
+                padding: 16
             }}>
-                {/* Basic Mode Settings */}
-                {!advancedMode && (
-                    <EditableInfoCard
-                        testID="filename-input"
-                        label="File Name"
-                        value={customFileName}
-                        placeholder="Name your recording"
-                        inlineEditable
-                        editable={!isRecording && !isPaused}
-                        containerStyle={{
-                            backgroundColor: colors.secondaryContainer,
-                            marginBottom: 16
-                        }}
-                        onInlineEdit={(newFileName?: unknown) => {
-                            if (typeof newFileName === 'string') {
-                                setCustomFileName(newFileName);
-                            }
-                        }}
-                    />
-                )}
+                <Text variant="titleMedium" style={{ marginBottom: 12, color: colors.onSurface }}>Recording Setup</Text>
+                
+                <EditableInfoCard
+                    testID="filename-input"
+                    label="File Name"
+                    value={customFileName}
+                    placeholder="Name your recording"
+                    inlineEditable
+                    editable={!isRecording && !isPaused}
+                    containerStyle={{
+                        backgroundColor: colors.secondaryContainer,
+                        marginBottom: 16
+                    }}
+                    onInlineEdit={(newFileName?: unknown) => {
+                        if (typeof newFileName === 'string') {
+                            setCustomFileName(newFileName);
+                        }
+                    }}
+                />
 
                 <AudioDeviceSelector
                     testID="audio-device-selector"
@@ -1134,67 +1132,8 @@ export default function RecordScreen() {
                     }}
                 />
                 
-                {/* Advanced Mode Toggle */}
+                {/* Live Transcription Switch - Always visible */}
                 <View style={{ marginTop: 16 }}>
-                    <LabelSwitch 
-                        label="Advanced settings"
-                        value={advancedMode} 
-                        onValueChange={setAdvancedMode}
-                    />
-                </View>
-            </View>
-
-            {/* Advanced settings */}
-            {advancedMode && (
-                <>
-                    {/* Use RecordingSettings Component */}
-                    <RecordingSettings
-                        config={startRecordingConfig}
-                        onConfigChange={setStartRecordingConfig}
-                        customFileName={customFileName}
-                        onCustomFileNameChange={setCustomFileName}
-                        isRecording={isRecording}
-                        isPaused={isPaused}
-                        isRecordingPrepared={isRecordingPrepared}
-                        enableLiveTranscription={enableLiveTranscription}
-                        showVisualization={showVisualization}
-                        onShowVisualizationChange={setShowVisualization}
-                        currentDevice={currentDevice}
-                    />
-
-                    <TranscriptionModeConfig
-                        enabled={enableLiveTranscription}
-                        onEnabledChange={(enabled) => {
-                            setEnableLiveTranscription(enabled);
-                            
-                            // Preload the model if enabled
-                            if (enabled && !ready && !unifiedIsModelLoading && validSRTranscription) {
-                                show({
-                                    type: 'info',
-                                    message: 'Preparing speech recognition model...',
-                                    duration: 2000,
-                                });
-                                initializeTranscription().catch(error => {
-                                    logger.error('Failed to initialize transcription:', error);
-                                });
-                            }
-                        }}
-                        settings={transcriptionSettings}
-                        onSettingsChange={setTranscriptionSettings}
-                        validSampleRate={validSRTranscription}
-                        isWeb={isWeb}
-                    />
-                </>
-            )}
-            
-            {/* Simple mode transcription toggle */}
-            {!advancedMode && (
-                <View style={{ 
-                    backgroundColor: colors.surface, 
-                    borderRadius: 12, 
-                    padding: 16, 
-                    marginBottom: 8 
-                }}>
                     <LabelSwitch
                         label="Enable Live Transcription"
                         value={enableLiveTranscription}
@@ -1215,40 +1154,127 @@ export default function RecordScreen() {
                         }}
                     />
                 </View>
-            )}
-            
-            {/* Show loading indicator when model is loading */}
-            {enableLiveTranscription && unifiedIsModelLoading && (
-                <View style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: colors.primaryContainer,
-                    padding: 12,
-                    borderRadius: 8
+                
+                {/* Show transcription loading indicator inline */}
+                {enableLiveTranscription && unifiedIsModelLoading && (
+                    <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        marginTop: 8,
+                        backgroundColor: colors.primaryContainer,
+                        padding: 8,
+                        borderRadius: 8
+                    }}>
+                        <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
+                        <Text variant="labelMedium">Loading speech recognition model...</Text>
+                    </View>
+                )}
+                
+                {/* Advanced Settings Toggle */}
+                <View style={{ 
+                    marginTop: 16, 
+                    borderTopWidth: 1, 
+                    borderTopColor: colors.outlineVariant,
+                    paddingTop: 16 
                 }}>
-                    <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
-                    <Text variant="labelMedium">Loading speech recognition model...</Text>
+                    <LabelSwitch 
+                        label="Show Advanced Settings"
+                        value={advancedMode} 
+                        onValueChange={setAdvancedMode}
+                    />
+                </View>
+            </View>
+
+            {/* Advanced Settings Card - only visible when toggled on */}
+            {advancedMode && (
+                <View style={{ 
+                    backgroundColor: colors.surface, 
+                    borderRadius: 12, 
+                    padding: 16 
+                }}>
+                    <Text variant="titleMedium" style={{ marginBottom: 12, color: colors.onSurface }}>Advanced Settings</Text>
+                    
+                    <RecordingSettings
+                        config={startRecordingConfig}
+                        onConfigChange={setStartRecordingConfig}
+                        customFileName={customFileName}
+                        onCustomFileNameChange={setCustomFileName}
+                        isRecording={isRecording}
+                        isPaused={isPaused}
+                        isRecordingPrepared={isRecordingPrepared}
+                        enableLiveTranscription={enableLiveTranscription}
+                        showVisualization={showVisualization}
+                        onShowVisualizationChange={setShowVisualization}
+                        currentDevice={currentDevice}
+                        hideFilenameInput={true}
+                    />
+                    
+                    {enableLiveTranscription && (
+                        <View style={{ 
+                            marginTop: 16, 
+                            borderTopWidth: 1, 
+                            borderTopColor: colors.outlineVariant,
+                            paddingTop: 16 
+                        }}>
+                            <Text variant="titleSmall" style={{ marginBottom: 8 }}>Transcription Settings</Text>
+                            <TranscriptionModeConfig
+                                enabled={enableLiveTranscription}
+                                onEnabledChange={(enabled) => {
+                                    setEnableLiveTranscription(enabled);
+                                    
+                                    // Preload the model if enabled
+                                    if (enabled && !ready && !unifiedIsModelLoading && validSRTranscription) {
+                                        show({
+                                            type: 'info',
+                                            message: 'Preparing speech recognition model...',
+                                            duration: 2000,
+                                        });
+                                        initializeTranscription().catch(error => {
+                                            logger.error('Failed to initialize transcription:', error);
+                                        });
+                                    }
+                                }}
+                                settings={transcriptionSettings}
+                                onSettingsChange={setTranscriptionSettings}
+                                validSampleRate={validSRTranscription}
+                                isWeb={isWeb}
+                            />
+                        </View>
+                    )}
                 </View>
             )}
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
-                <Button 
-                    testID="prepare-recording-button"
-                    mode="outlined" 
-                    onPress={handlePrepareRecording}
-                    disabled={isRecordingPrepared}
-                    style={{ flex: 1 }}
-                >
-                    {isRecordingPrepared ? 'Prepared' : 'Prepare Recording'}
-                </Button>
-                <Button 
-                    testID="start-recording-button"
-                    mode="contained" 
-                    onPress={handleStart}
-                    style={{ flex: 1 }}
-                >
-                    {isRecordingPrepared ? 'Start' : 'Start Recording'}
-                </Button>
+            {/* Recording Control Buttons */}
+            <View style={{ 
+                backgroundColor: colors.surface, 
+                borderRadius: 12, 
+                padding: 16,
+                marginTop: 8
+            }}>
+                {/* Stack buttons vertically on very small screens, horizontally otherwise */}
+                <View style={{ 
+                    flexDirection: 'column', 
+                    gap: 12
+                }}>
+                    <Button 
+                        testID="prepare-recording-button"
+                        mode="outlined" 
+                        onPress={handlePrepareRecording}
+                        disabled={isRecordingPrepared}
+                        icon={isRecordingPrepared ? "check" : "cog"}
+                    >
+                        {isRecordingPrepared ? 'Ready' : 'Prepare'}
+                    </Button>
+                    <Button 
+                        testID="start-recording-button"
+                        mode="contained" 
+                        onPress={handleStart}
+                        icon="record"
+                        buttonColor={isRecordingPrepared ? colors.primary : undefined}
+                    >
+                        {isRecordingPrepared ? 'Start' : 'Record'}
+                    </Button>
+                </View>
             </View>
         </View>
     )

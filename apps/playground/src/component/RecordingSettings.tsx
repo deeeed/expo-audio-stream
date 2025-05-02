@@ -42,6 +42,8 @@ interface RecordingSettingsProps {
   onShowVisualizationChange: (show: boolean) => void;
   // Add current device as a prop
   currentDevice?: AudioDevice | null;
+  // Add prop to hide the filename input when already shown in parent
+  hideFilenameInput?: boolean;
 }
 
 export function RecordingSettings({
@@ -58,6 +60,8 @@ export function RecordingSettings({
   onShowVisualizationChange,
   // Add currentDevice prop
   currentDevice,
+  // Add the new prop with default value
+  hideFilenameInput = false,
 }: RecordingSettingsProps) {
   const theme = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
@@ -94,22 +98,25 @@ export function RecordingSettings({
 
   return (
     <View style={styles.container}>
-      <EditableInfoCard
-        testID="filename-input"
-        label="File Name"
-        value={customFileName}
-        placeholder="pick a filename for your recording"
-        inlineEditable
-        editable={!isDisabled}
-        containerStyle={{
-          backgroundColor: theme.colors.secondaryContainer,
-        }}
-        onInlineEdit={(newFileName) => {
-          if (typeof newFileName === 'string') {
-            onCustomFileNameChange(newFileName);
-          }
-        }}
-      />
+      {/* Only render filename input if not hidden */}
+      {!hideFilenameInput && (
+        <EditableInfoCard
+          testID="filename-input"
+          label="File Name"
+          value={customFileName}
+          placeholder="pick a filename for your recording"
+          inlineEditable
+          editable={!isDisabled}
+          containerStyle={{
+            backgroundColor: theme.colors.secondaryContainer,
+          }}
+          onInlineEdit={(newFileName) => {
+            if (typeof newFileName === 'string') {
+              onCustomFileNameChange(newFileName);
+            }
+          }}
+        />
+      )}
 
       {currentDevice && (
         <DeviceValidationManager
