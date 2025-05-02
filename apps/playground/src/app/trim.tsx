@@ -15,6 +15,7 @@ import { AudioTimeRangeSelector } from '@siteed/expo-audio-ui'
 import TrimVisualization from '../components/TrimVisualization'
 import { baseLogger } from '../config'
 import { useSampleAudio } from '../hooks/useSampleAudio'
+import { useScreenHeader } from '../hooks/useScreenHeader'
 
 import type { AVPlaybackStatus } from 'expo-av'
 
@@ -74,6 +75,13 @@ export default function TrimScreen() {
     const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
     const colors = theme.colors
     const { show } = useToast()
+
+    useScreenHeader({
+        title: 'Audio Trimming',
+        backBehavior: {
+            fallbackUrl: '/more',
+        },
+    })
 
     // Audio file state
     const [currentFile, setCurrentFile] = useState<AudioFile | null>(null)

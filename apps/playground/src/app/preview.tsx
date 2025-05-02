@@ -15,6 +15,7 @@ import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
 import { baseLogger } from '../config'
 import { useSampleAudio } from '../hooks/useSampleAudio'
 import { isWeb } from '../utils/utils'
+import { useScreenHeader } from '../hooks/useScreenHeader'
 
 const SAMPLE_AUDIO = {
     web: '/audio_samples/jfk.mp3',
@@ -80,8 +81,6 @@ export default function PreviewScreen() {
     const [selectedQuickRange, setSelectedQuickRange] = useState<string | undefined>('First 10s')
 
     const { show } = useToast()
-    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
-    
     const { isLoading: isSampleLoading, loadSampleAudio } = useSampleAudio({
         onError: (error) => {
             logger.error('Error loading sample audio file:', error)
@@ -93,6 +92,15 @@ export default function PreviewScreen() {
         },
     })
 
+    useScreenHeader({
+        title: 'Audio Preview',
+        backBehavior: {
+            fallbackUrl: '/more',
+        },
+    })
+
+    const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 10)
+    
     const generatePreview = useCallback(async (fileUri: string) => {
         try {
             setIsProcessing(true)
