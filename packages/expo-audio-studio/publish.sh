@@ -73,7 +73,9 @@ read -p "$(echo -e ${YELLOW}Do you want to deploy the playground app? [y/N]: ${N
 if [[ $deploy_playground =~ ^[Yy]$ ]]; then
     echo -e "${BLUE}Publishing playground app...${NC}"
     cd ../../apps/playground
-    yarn deploy
+    
+    # Use our new interactive deployment script
+    yarn publish
 fi
 
 # Ask about deploying minimal app
@@ -81,7 +83,9 @@ read -p "$(echo -e ${YELLOW}Do you want to deploy the minimal app? [y/N]: ${NC})
 if [[ $deploy_minimal =~ ^[Yy]$ ]]; then
     echo -e "${BLUE}Publishing minimal app...${NC}"
     cd ../minimal
-    yarn deploy
+    
+    # Use our new interactive deployment script
+    yarn publish
 fi
 
 echo -e "${GREEN}Publication process completed successfully!${NC}"

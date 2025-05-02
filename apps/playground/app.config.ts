@@ -120,7 +120,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     updates: {
         url: 'https://u.expo.dev/' + validatedEnv.EAS_PROJECT_ID,
     },
-    runtimeVersion: '0.12.0',
+    runtimeVersion: '0.12.1',
     owner: 'deeeed',
     plugins: [
         [

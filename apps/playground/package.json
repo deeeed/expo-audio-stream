@@ -1,6 +1,6 @@
 {
     "name": "audio-playground",
-    "version": "0.12.0",
+    "version": "0.12.1",
     "main": "src/index",
     "scripts": {
         "eas-build-pre-install": "corepack enable && cd ../.. && yarn install && echo 'Building packages...' && cd packages/expo-audio-studio && yarn build && yarn build:plugin && echo 'Built expo-audio-studio' && cd ../playgroundapi && yarn build && echo 'Built playgroundapi' && cd ../react-native-essentia && yarn prepare || echo 'Warning: react-native-essentia build failed but continuing'",
@@ -11,6 +11,7 @@
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "lint": "eslint src",
         "clean": "rimraf dist",
+        "publish": "bash scripts/deploy-playground.sh",
         "build:android:test": "APP_VARIANT=development eas build --platform android --profile test --local",
         "build:android:development": "APP_VARIANT=development eas build --platform android --profile development --local",
         "build:android:preview": "APP_VARIANT=preview eas build --platform android --profile preview --local",
@@ -30,7 +31,6 @@
         "e2e:ios:import": "detox test -c ios.sim.debug -o e2e/import.test.ts",
         "open:ios": "open -a \"Xcode\" ios",
         "open:android": "open -a \"Android Studio\" android",
-        "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && cp playstore_policy.html dist/ && gh-pages -t -d dist --dest playground",
         "predeploy": "APP_VARIANT=production EXPO_WEB=true expo export -p web",
         "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/"
     },
