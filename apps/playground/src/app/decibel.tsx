@@ -3,10 +3,11 @@ import { Canvas, useFont } from '@shopify/react-native-skia'
 import { AppTheme, Button, ScreenWrapper, useTheme } from '@siteed/design-system'
 import { useSharedAudioRecorder } from '@siteed/expo-audio-studio'
 import { DecibelGauge } from '@siteed/expo-audio-ui'
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { baseLogger } from '../config'
+import { DecibelGaugeSettings, GaugeSettings } from '../component/DecibelGaugeSettings'
 
 const logger = baseLogger.extend('DecibelScreen')
 
@@ -73,13 +74,25 @@ export default function DecibelScreen() {
         analysisData
     } = useSharedAudioRecorder()
 
+    // Gauge configuration state
+    const [gaugeSettings, setGaugeSettings] = useState<GaugeSettings>({
+        inputFormat: 'dBFS',
+        outputFormat: 'dB SPL',
+        showTickMarks: true,
+        showNeedle: false,
+        showValue: true,
+        showUnit: true,
+        dbRange: '-60_0',
+        minDb: -60,
+        maxDb: 0
+    })
+
     const currentDb = useMemo(() => {
         if (!analysisData?.dataPoints.length) return -60
         const lastPoint = analysisData.dataPoints[analysisData.dataPoints.length - 1]
         return lastPoint.dB || -60
     }, [analysisData])
     
-
     const handleToggleRecording = useCallback(async () => {
         logger.info('handleToggleRecording', { isRecording })
         if (isRecording) {
@@ -93,36 +106,52 @@ export default function DecibelScreen() {
         }
     }, [isRecording, startRecording, stopRecording])
 
+    const handleGaugeSettingsChange = useCallback((settings: Partial<GaugeSettings>) => {
+        setGaugeSettings(prev => ({
+            ...prev,
+            ...settings
+        }))
+    }, [])
+
+    const gaugeTheme = useMemo(() => ({
+        minDb: gaugeSettings.minDb,
+        maxDb: gaugeSettings.maxDb,
+        backgroundColor: '#333333',
+        size: {
+            width: 300,
+            height: 220,
+        },
+        text: {
+            yOffset: 10,
+            xOffset: -35,
+        },
+    }), [gaugeSettings.minDb, gaugeSettings.maxDb])
+
     return (
         <ScreenWrapper 
             withScrollView 
             useInsets={false} 
             contentContainerStyle={styles.container}
         >
+            {/* Gauge Settings Component */}
+            <DecibelGaugeSettings 
+                settings={gaugeSettings}
+                onChange={handleGaugeSettingsChange}
+                disabled={isRecording}
+            />
+            
             <View style={styles.gaugeContainer}>                
                 <View style={styles.visualizationContainer}>
                     <Canvas style={styles.gaugeCanvas}>
                         <DecibelGauge
                             db={currentDb}
-                            showTickMarks
-                            showUnit={true}
-                            inputFormat="dBFS"
-                            outputFormat="dB SPL"
-                            theme={{
-                                minDb: -60,
-                                maxDb: 0,
-                                backgroundColor: '#333333',
-                                size: {
-                                    width: 300,
-                                    height: 220,
-                                },
-                                text: {
-                                    yOffset: 10,
-                                    xOffset: -35,
-                                },
-                            }}
-                            showValue
-                            showNeedle={false}
+                            showTickMarks={gaugeSettings.showTickMarks}
+                            showUnit={gaugeSettings.showUnit}
+                            inputFormat={gaugeSettings.inputFormat}
+                            outputFormat={gaugeSettings.outputFormat}
+                            theme={gaugeTheme}
+                            showValue={gaugeSettings.showValue}
+                            showNeedle={gaugeSettings.showNeedle}
                             font={font}
                         />
                     </Canvas>
