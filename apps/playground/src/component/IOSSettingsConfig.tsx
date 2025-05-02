@@ -1,8 +1,11 @@
-import { AppTheme, EditableInfoCard, useModal, useTheme } from '@siteed/design-system'
-import { RecordingConfig } from '@siteed/expo-audio-studio'
-import { getLogger } from '@siteed/react-native-logger'
 import React, { useState, useMemo } from 'react'
+
 import { Platform, StyleSheet, View, Text } from 'react-native'
+
+import type { AppTheme } from '@siteed/design-system'
+import { EditableInfoCard, useModal, useTheme } from '@siteed/design-system'
+import type { RecordingConfig } from '@siteed/expo-audio-studio'
+import { getLogger } from '@siteed/react-native-logger'
 
 import { IOSSettingsConfigForm } from './IOSSettingsConfigForm'
 
@@ -125,6 +128,6 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             paddingLeft: 8,
             borderLeftWidth: 2,
             borderLeftColor: theme.colors.primaryContainer,
-        }
+        },
     })
 }

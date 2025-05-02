@@ -1,14 +1,13 @@
 // playground/src/app/(tabs)/minimal.tsx
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
 import {
     Canvas,
     Group,
     Rect,
-    SkFont,
     useFont,
 } from '@shopify/react-native-skia'
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-    LayoutChangeEvent,
     StyleSheet,
     Text,
     View,
@@ -22,6 +21,11 @@ import {
     useSharedValue,
     withTiming,
 } from 'react-native-reanimated'
+
+import type {
+    SkFont } from '@shopify/react-native-skia'
+import type {
+    LayoutChangeEvent } from 'react-native'
 
 const getStyles = (screenWidth: number, canvasWidth: number) => {
     return StyleSheet.create({

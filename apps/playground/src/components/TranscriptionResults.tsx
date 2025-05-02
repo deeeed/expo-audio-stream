@@ -1,10 +1,13 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Text, ActivityIndicator } from 'react-native-paper';
+import React from 'react'
 
-import { AppTheme, useTheme } from '@siteed/design-system';
-import Transcript from '../component/Transcript';
-import { TranscriberData } from '@siteed/expo-audio-studio/src/ExpoAudioStream.types';
+import { View, StyleSheet } from 'react-native'
+import { Text, ActivityIndicator } from 'react-native-paper'
+
+import type { AppTheme } from '@siteed/design-system'
+import { useTheme } from '@siteed/design-system'
+import type { TranscriberData } from '@siteed/expo-audio-studio/src/ExpoAudioStream.types'
+
+import Transcript from '../component/Transcript'
 
 interface TranscriptionResultsProps {
   transcriptionData?: TranscriberData;
@@ -17,10 +20,10 @@ export function TranscriptionResults({
   transcriptionData,
   isLoading,
   error,
-  isProcessing 
+  isProcessing, 
 }: TranscriptionResultsProps) {
-  const theme = useTheme();
-  const styles = getStyles(theme);
+  const theme = useTheme()
+  const styles = getStyles(theme)
 
   if (isLoading) {
     return (
@@ -28,7 +31,7 @@ export function TranscriptionResults({
         <ActivityIndicator size="large" />
         <Text style={styles.loadingText}>Loading transcription model...</Text>
       </View>
-    );
+    )
   }
 
   if (error) {
@@ -36,7 +39,7 @@ export function TranscriptionResults({
       <View style={styles.container}>
         <Text style={styles.errorText}>Error: {error}</Text>
       </View>
-    );
+    )
   }
 
   return (
@@ -54,7 +57,7 @@ export function TranscriptionResults({
         />
       )}
     </View>
-  );
+  )
 }
 
 const getStyles = (theme: AppTheme) => StyleSheet.create({
@@ -88,4 +91,4 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     fontSize: 14,
   },
-}); 
+}) 

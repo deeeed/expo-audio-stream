@@ -1,6 +1,13 @@
 // playground/src/app/(tabs)/files.tsx
+import { useCallback, useMemo } from 'react'
+
+import { useFocusEffect, useRouter } from 'expo-router'
+import { FlatList, StyleSheet, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
+import type {
+    AppTheme } from '@siteed/design-system'
 import {
-    AppTheme,
     Button,
     RefreshControl,
     Result,
@@ -9,12 +16,9 @@ import {
     useTheme,
     useToast,
 } from '@siteed/design-system'
-import { AudioRecording } from '@siteed/expo-audio-studio'
+import type { AudioRecording } from '@siteed/expo-audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
-import { useFocusEffect, useRouter } from 'expo-router'
-import { useCallback, useMemo } from 'react'
-import { FlatList, StyleSheet, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
 
 import { AudioRecordingView } from '../../component/AudioRecordingView'
 import { useAudioFiles } from '../../context/AudioFilesProvider'
@@ -28,10 +32,10 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
             backgroundColor: theme.colors.background,
         },
         contentContainer: {
-            gap: theme.spacing.gap || 10,
+            gap: theme.spacing.gap ?? 10,
             paddingHorizontal: theme.padding.s,
-            paddingBottom: insets?.bottom || 80,
-            paddingTop: Math.max(insets?.top || 0, 10),
+            paddingBottom: insets?.bottom ?? 80,
+            paddingTop: Math.max(insets?.top ?? 0, 10),
         },
         recordingContainer: {
             gap: 10,
@@ -65,20 +69,20 @@ const FilesScreen = () => {
     useFocusEffect(
         useCallback(() => {
             // Only refresh files when the screen is focused
-            let isActive = true;
+            let isActive = true
             
             const loadFiles = async () => {
                 if (isActive) {
-                    logger.debug('Screen focused, refreshing files');
-                    await refreshFiles();
+                    logger.debug('Screen focused, refreshing files')
+                    await refreshFiles()
                 }
-            };
+            }
             
-            loadFiles();
+            loadFiles()
             
             return () => {
-                isActive = false;
-            };
+                isActive = false
+            }
         }, [refreshFiles])
     )
 
@@ -140,7 +144,7 @@ const FilesScreen = () => {
                             onPress={clearFiles}
                             buttonColor="red"
                             textColor="white"
-                    >
+                        >
                         Clear Directory ({formatBytes(totalAudioStorageSize)})
                     </Button>
                     </View>

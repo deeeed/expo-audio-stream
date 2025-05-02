@@ -1,15 +1,18 @@
+import React, { useMemo } from 'react'
+
+import { Platform, StyleSheet, View } from 'react-native'
+import { SegmentedButtons, Text } from 'react-native-paper'
+
+import type {
+    AppTheme } from '@siteed/design-system'
 import {
-    AppTheme,
     ColorPicker,
     LabelSwitch,
     NumberAdjuster,
     TextInput,
     useTheme,
 } from '@siteed/design-system'
-import { NotificationConfig, WaveformConfig } from '@siteed/expo-audio-studio'
-import React, { useMemo } from 'react'
-import { Platform, StyleSheet, View } from 'react-native'
-import { SegmentedButtons, Text } from 'react-native-paper'
+import type { NotificationConfig, WaveformConfig } from '@siteed/expo-audio-studio'
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({

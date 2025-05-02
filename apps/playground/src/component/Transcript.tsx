@@ -1,5 +1,5 @@
-import { Chunk, TranscriberData } from '@siteed/expo-audio-studio'
 import React, { useEffect, useRef, useMemo } from 'react'
+
 import {
     ScrollView,
     StyleSheet,
@@ -7,7 +7,10 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native'
-import { AppTheme, useTheme } from '@siteed/design-system'
+
+import type { AppTheme } from '@siteed/design-system'
+import { useTheme } from '@siteed/design-system'
+import type { Chunk, TranscriberData } from '@siteed/expo-audio-studio'
 
 import { formatDuration } from '../utils/utils'
 

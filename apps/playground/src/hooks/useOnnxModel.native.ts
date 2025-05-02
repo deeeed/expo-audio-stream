@@ -1,18 +1,19 @@
 /* eslint-disable import/namespace */
 // apps/playground/src/hooks/useOnnxModel.native.ts
-import * as ort from 'onnxruntime-react-native';
-import { Asset } from 'expo-asset';
-import { createOnnxModelHook } from './useOnnxModel.shared';
+import { Asset } from 'expo-asset'
+import * as ort from 'onnxruntime-react-native'
+
+import { createOnnxModelHook } from './useOnnxModel.shared'
 
 const nativeImplementation = {
     async createModel(modelUri: string) {
-        const modelAsset = await Asset.loadAsync(modelUri);
+        const modelAsset = await Asset.loadAsync(modelUri)
         if (!modelAsset[0]?.localUri) {
-            throw new Error('Model asset missing localUri');
+            throw new Error('Model asset missing localUri')
         }
-        return await ort.InferenceSession.create(modelAsset[0].localUri);
+        return await ort.InferenceSession.create(modelAsset[0].localUri)
     },
-    Tensor: ort.Tensor
-};
+    Tensor: ort.Tensor,
+}
 
-export const useOnnxModel = createOnnxModelHook(nativeImplementation); 
+export const useOnnxModel = createOnnxModelHook(nativeImplementation) 

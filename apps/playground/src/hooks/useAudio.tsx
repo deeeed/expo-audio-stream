@@ -1,16 +1,21 @@
 // playground/src/hooks/useAudio.tsx
-import { useToast } from '@siteed/design-system'
-import {
-    AudioAnalysis,
-    AudioRecording,
-    extractAudioAnalysis,
-} from '@siteed/expo-audio-studio'
-import { Audio, AVPlaybackStatus } from 'expo-av'
 import { useCallback, useEffect, useState } from 'react'
 
-import { SelectedAnalysisConfig } from '../component/AudioRecordingAnalysisConfig'
+import { Audio } from 'expo-av'
+
+import { useToast } from '@siteed/design-system'
+import type {
+    AudioAnalysis,
+    AudioRecording } from '@siteed/expo-audio-studio'
+import {
+    extractAudioAnalysis,
+} from '@siteed/expo-audio-studio'
+
 import { baseLogger } from '../config'
 import { fetchArrayBuffer, isWeb } from '../utils/utils'
+
+import type { SelectedAnalysisConfig } from '../component/AudioRecordingAnalysisConfig'
+import type { AVPlaybackStatus } from 'expo-av'
 
 interface PlayOptions {
     audioUri?: string
@@ -123,7 +128,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         recording?.channels,
         recording?.mimeType,
         recording?.compression?.format,
-        show
+        show,
     ])
 
     const updatePlaybackStatus = useCallback((status: AVPlaybackStatus) => {

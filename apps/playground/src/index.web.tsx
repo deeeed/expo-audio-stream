@@ -1,13 +1,15 @@
 import '@expo/metro-runtime'
 import { LoadSkiaWeb } from '@shopify/react-native-skia/lib/module/web'
 import { version as SkiaVersion } from 'canvaskit-wasm/package.json'
-import { version as OrtVersion } from 'onnxruntime-web/package.json'
-import { renderRootComponent } from 'expo-router/build/renderRootComponent'
 import Constants from 'expo-constants'
+import { renderRootComponent } from 'expo-router/build/renderRootComponent'
+import { version as OrtVersion } from 'onnxruntime-web/package.json'
 
 import { AppRoot } from './AppRoot'
 import { initWorker } from './utils/indexedDB'
-import { InferenceSession, Tensor } from 'onnxruntime-react-native'
+
+import type { InferenceSession, Tensor } from 'onnxruntime-react-native'
+
 
 // Proper type definition for ONNX Runtime
 interface OrtEnv {
@@ -62,9 +64,9 @@ function loadOnnxRuntime({ ortVersion }: Pick<InitConfig, 'ortVersion'>): Promis
         wasm: {
           wasmPaths: ortBaseUrl,
           wasmSimd: true,
-          wasmThreaded: false  // Disable threaded WASM to avoid loading issues
-        }
-      }
+          wasmThreaded: false,  // Disable threaded WASM to avoid loading issues
+        },
+      },
     } as OnnxRuntime
     
     script.src = `${ortBaseUrl}/ort.min.js`
@@ -94,7 +96,7 @@ async function initializeApp(): Promise<void> {
     console.log(`__DEV__=${__DEV__} ONNX Runtime loaded`)
 
     initWorker({ 
-      audioStorageWorkerUrl: `${config.baseUrl}/audioStorage.worker.js`
+      audioStorageWorkerUrl: `${config.baseUrl}/audioStorage.worker.js`,
     })
   } catch (error) {
     console.error('Initialization failed:', error)

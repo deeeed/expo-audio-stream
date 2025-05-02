@@ -1,17 +1,21 @@
+import React, { useMemo } from 'react'
+
+import { Platform, StyleSheet, View } from 'react-native'
+import { Text } from 'react-native-paper'
+
+import type {
+    AppTheme } from '@siteed/design-system'
 import {
-    AppTheme,
     EditableInfoCard,
     LabelSwitch,
     useModal,
     useTheme,
 } from '@siteed/design-system'
-import { NotificationConfig } from '@siteed/expo-audio-studio'
+import type { NotificationConfig } from '@siteed/expo-audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
-import React, { useMemo } from 'react'
-import { Platform, StyleSheet, View } from 'react-native'
 
 import { NotificationConfigForm } from './NotificationConfigForm'
-import { Text } from 'react-native-paper'
+
 
 const logger = getLogger('NativeNotificationConfig')
 
@@ -42,7 +46,7 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             paddingLeft: 8,
             borderLeftWidth: 2,
             borderLeftColor: theme.colors.primaryContainer,
-        }
+        },
     })
 }
 

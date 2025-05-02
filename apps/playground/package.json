@@ -11,6 +11,8 @@
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "lint": "eslint src",
         "lint:fix": "eslint src --fix",
+        "lint:fix-nullish": "bash scripts/fix-nullish-coalescing.sh",
+        "lint:fix-imports": "bash scripts/fix-unused-imports.sh",
         "clean": "rimraf dist",
         "publish": "bash scripts/deploy-playground.sh",
         "setup:development": "scripts/setup-env.sh development",
@@ -44,7 +46,8 @@
         "open:ios": "open -a \"Xcode\" ios",
         "open:android": "open -a \"Android Studio\" android",
         "predeploy": "APP_VARIANT=production EXPO_WEB=true expo export -p web",
-        "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/"
+        "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/",
+        "prepare": "cd ../../ && husky install apps/playground/.husky"
     },
     "dependencies": {
         "@expo/metro-runtime": "~4.0.1",
@@ -136,10 +139,14 @@
         "eslint-plugin-import": "^2.31.0",
         "eslint-plugin-prettier": "^5.2.1",
         "eslint-plugin-promise": "^7.2.1",
+        "eslint-plugin-react-hooks": "^5.2.0",
+        "eslint-plugin-unused-imports": "^4.1.4",
         "expo-dev-client": "~5.0.18",
         "gh-pages": "^6.2.0",
+        "husky": "^9.1.7",
         "jest": "^29",
         "joi": "^17.13.3",
+        "lint-staged": "^15.5.1",
         "prettier": "^3.4.2",
         "prettier-eslint": "^16.3.0",
         "rimraf": "^6.0.1",
@@ -155,5 +162,11 @@
             "nativeModulesDir": "../packages/"
         }
     },
-    "packageManager": "yarn@4.2.2"
+    "packageManager": "yarn@4.2.2",
+    "lint-staged": {
+        "src/**/*.{js,jsx,ts,tsx}": [
+            "eslint --fix",
+            "prettier --write"
+        ]
+    }
 }

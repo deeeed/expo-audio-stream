@@ -1,8 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Button, Card, Text, SegmentedButtons, TextInput } from 'react-native-paper';
-import { AppTheme, useThemePreferences } from '@siteed/design-system';
-import EssentiaJS, { AlgorithmResult } from '@siteed/react-native-essentia';
+import React, { useState, useMemo, useEffect } from 'react'
+
+import { View, StyleSheet } from 'react-native'
+import { Button, Card, Text, SegmentedButtons, TextInput } from 'react-native-paper'
+
+import type { AppTheme } from '@siteed/design-system'
+import { useThemePreferences } from '@siteed/design-system'
+import type { AlgorithmResult } from '@siteed/react-native-essentia'
+import EssentiaJS from '@siteed/react-native-essentia'
 
 // Define available algorithms and their default parameters
 interface AlgorithmConfig {
@@ -29,30 +33,30 @@ const AVAILABLE_ALGORITHMS: Record<string, AlgorithmConfig> = {
         default: 13,
         description: 'Number of output MFCC coefficients',
         min: 1,
-        max: 100
+        max: 100,
       },
       numberBands: {
         type: 'number',
         default: 40,
         description: 'Number of mel-bands',
         min: 1,
-        max: 100
+        max: 100,
       },
       lowFrequencyBound: {
         type: 'number',
         default: 0,
         description: 'Lower bound of the frequency range (Hz)',
         min: 0,
-        max: 22050
+        max: 22050,
       },
       highFrequencyBound: {
         type: 'number',
         default: 22050,
         description: 'Upper bound of the frequency range (Hz)',
         min: 0,
-        max: 22050
-      }
-    }
+        max: 22050,
+      },
+    },
   },
   Spectrum: {
     name: 'Spectrum',
@@ -64,9 +68,9 @@ const AVAILABLE_ALGORITHMS: Record<string, AlgorithmConfig> = {
         default: 2048,
         description: 'FFT size',
         min: 32,
-        max: 65536
-      }
-    }
+        max: 65536,
+      },
+    },
   },
   HPCP: {
     name: 'HPCP',
@@ -78,23 +82,23 @@ const AVAILABLE_ALGORITHMS: Record<string, AlgorithmConfig> = {
         default: 12,
         description: 'Size of HPCP (recommended: 12 for Tonnetz)',
         min: 12,
-        max: 120
+        max: 120,
       },
       referenceFrequency: {
         type: 'number',
         default: 440,
         description: 'Reference frequency for A4 in Hz',
         min: 220,
-        max: 880
+        max: 880,
       },
       harmonics: {
         type: 'number',
         default: 8,
         description: 'Number of harmonics to consider',
         min: 1,
-        max: 20
-      }
-    }
+        max: 20,
+      },
+    },
   },
   Tonnetz: {
     name: 'Tonnetz',
@@ -104,12 +108,12 @@ const AVAILABLE_ALGORITHMS: Record<string, AlgorithmConfig> = {
       generateSampleHPCP: {
         type: 'boolean',
         default: true,
-        description: 'Generate a sample HPCP vector for demonstration'
-      }
-    }
-  }
+        description: 'Generate a sample HPCP vector for demonstration',
+      },
+    },
+  },
   // Add more algorithms as needed
-};
+}
 
 interface AlgorithmSelectorProps {
   onExecute: (result: AlgorithmResult) => void;
@@ -153,114 +157,114 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
     },
     resultContainer: {
       marginTop: 16,
-    }
-  });
-};
+    },
+  })
+}
 
 function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps) {
-  const { theme } = useThemePreferences();
-  const styles = useMemo(() => getStyles({ theme }), [theme]);
+  const { theme } = useThemePreferences()
+  const styles = useMemo(() => getStyles({ theme }), [theme])
 
   // State for selected algorithm and parameters
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('MFCC');
-  const [parameters, setParameters] = useState<Record<string, number | boolean | string>>({});
-  const [isExecuting, setIsExecuting] = useState<boolean>(false);
-  const [result, setResult] = useState<AlgorithmResult | null>(null);
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('MFCC')
+  const [parameters, setParameters] = useState<Record<string, number | boolean | string>>({})
+  const [isExecuting, setIsExecuting] = useState<boolean>(false)
+  const [result, setResult] = useState<AlgorithmResult | null>(null)
 
   // Initialize parameters when algorithm changes
   useEffect(() => {
     if (selectedAlgorithm && AVAILABLE_ALGORITHMS[selectedAlgorithm]) {
-      const defaultParams: Record<string, number | boolean | string> = {};
-      const algorithmConfig = AVAILABLE_ALGORITHMS[selectedAlgorithm];
+      const defaultParams: Record<string, number | boolean | string> = {}
+      const algorithmConfig = AVAILABLE_ALGORITHMS[selectedAlgorithm]
       
       Object.entries(algorithmConfig.parameters).forEach(([key, config]) => {
-        defaultParams[key] = config.default;
-      });
+        defaultParams[key] = config.default
+      })
       
-      setParameters(defaultParams);
+      setParameters(defaultParams)
     }
-  }, [selectedAlgorithm]);
+  }, [selectedAlgorithm])
 
   const handleParameterChange = (paramName: string, value: string) => {
-    const paramConfig = AVAILABLE_ALGORITHMS[selectedAlgorithm].parameters[paramName];
+    const paramConfig = AVAILABLE_ALGORITHMS[selectedAlgorithm].parameters[paramName]
     
     if (paramConfig.type === 'number') {
-      const numValue = Number(value);
+      const numValue = Number(value)
       if (!isNaN(numValue)) {
-        setParameters(prev => ({
+        setParameters((prev) => ({
           ...prev,
-          [paramName]: numValue
-        }));
+          [paramName]: numValue,
+        }))
       }
     } else {
-      setParameters(prev => ({
+      setParameters((prev) => ({
         ...prev,
-        [paramName]: value
-      }));
+        [paramName]: value,
+      }))
     }
-  };
+  }
 
   const setDummyAudioData = async () => {
     try {
       // Create dummy PCM data - same as in extractMFCCFromSegment
-      const dummyPcmData = new Float32Array(4096);
+      const dummyPcmData = new Float32Array(4096)
       for (let i = 0; i < dummyPcmData.length; i++) {
-        dummyPcmData[i] = Math.sin(i * 0.01);
+        dummyPcmData[i] = Math.sin(i * 0.01)
       }
       
       // Set the audio data
-      const success = await EssentiaJS.setAudioData(dummyPcmData, 44100);
-      console.log('Set audio data result:', success);
-      return success;
+      const success = await EssentiaJS.setAudioData(dummyPcmData, 44100)
+      console.log('Set audio data result:', success)
+      return success
     } catch (error) {
-      console.error('Error setting audio data:', error);
-      return false;
+      console.error('Error setting audio data:', error)
+      return false
     }
-  };
+  }
 
   const executeAlgorithm = async () => {
     if (!isInitialized) {
-      alert('Essentia is not initialized. Please initialize it first.');
-      return;
+      alert('Essentia is not initialized. Please initialize it first.')
+      return
     }
 
-    setIsExecuting(true);
-    setResult(null);
+    setIsExecuting(true)
+    setResult(null)
 
     try {      
         // Original code for other algorithms
-        const audioDataSuccess = await setDummyAudioData();
+        const audioDataSuccess = await setDummyAudioData()
         
         if (!audioDataSuccess) {
-          throw new Error('Failed to set audio data');
+          throw new Error('Failed to set audio data')
         }
         
-        console.log(`Executing ${selectedAlgorithm} with parameters:`, parameters);
-        const result = await EssentiaJS.executeAlgorithm(selectedAlgorithm, parameters);
+        console.log(`Executing ${selectedAlgorithm} with parameters:`, parameters)
+        const result = await EssentiaJS.executeAlgorithm(selectedAlgorithm, parameters)
       
-      console.log(`${selectedAlgorithm} execution result:`, result);
-      setResult(result);
-      onExecute(result);
+      console.log(`${selectedAlgorithm} execution result:`, result)
+      setResult(result)
+      onExecute(result)
     } catch (error) {
-      console.error('Error executing algorithm:', error);
+      console.error('Error executing algorithm:', error)
       setResult({
         success: false,
         error: {
           code: 'ALGORITHM_ERROR',
-          message: error instanceof Error ? error.message : String(error)
+          message: error instanceof Error ? error.message : String(error),
         },
-      });
+      })
     } finally {
-      setIsExecuting(false);
+      setIsExecuting(false)
     }
-  };
+  }
 
   const renderParameters = () => {
     if (!selectedAlgorithm || !AVAILABLE_ALGORITHMS[selectedAlgorithm]) {
-      return null;
+      return null
     }
 
-    const algorithmConfig = AVAILABLE_ALGORITHMS[selectedAlgorithm];
+    const algorithmConfig = AVAILABLE_ALGORITHMS[selectedAlgorithm]
     
     return (
       <View style={styles.parameterContainer}>
@@ -280,8 +284,8 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
           </View>
         ))}
       </View>
-    );
-  };
+    )
+  }
 
   return (
     <Card style={styles.card}>
@@ -291,7 +295,7 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
         <SegmentedButtons
           value={selectedAlgorithm}
           onValueChange={setSelectedAlgorithm}
-          buttons={Object.values(AVAILABLE_ALGORITHMS).map(algo => ({
+          buttons={Object.values(AVAILABLE_ALGORITHMS).map((algo) => ({
             value: algo.name,
             label: algo.name,
           }))}
@@ -333,7 +337,7 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
         )}
       </Card.Content>
     </Card>
-  );
+  )
 }
 
-export default AlgorithmSelector; 
+export default AlgorithmSelector 

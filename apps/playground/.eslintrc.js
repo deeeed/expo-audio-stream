@@ -11,6 +11,7 @@ module.exports = {
         'eslint:recommended',
         'plugin:promise/recommended',
         'plugin:react/recommended',
+        'plugin:react-hooks/recommended',
         'plugin:@typescript-eslint/recommended',
         'plugin:import/recommended',
         'plugin:import/typescript',
@@ -27,8 +28,9 @@ module.exports = {
     },
     plugins: [
         '@typescript-eslint',
-        'prettier',
         'promise',
+        'react-hooks',
+        'unused-imports',
     ],
     settings: {
         react: {
@@ -47,34 +49,41 @@ module.exports = {
     rules: {
         // suppress errors for missing 'import React' in files
         'react/react-in-jsx-scope': 'off',
-        '@typescript-eslint/no-unused-vars': [
+        // Handle unused imports/variables
+        'no-unused-vars': 'off',
+        '@typescript-eslint/no-unused-vars': 'off',
+        'unused-imports/no-unused-imports': 'error',
+        'unused-imports/no-unused-vars': [
             'error',
             {
                 args: 'all',
                 argsIgnorePattern: '^_',
-                caughtErrors: 'all',
+                varsIgnorePattern: '^_',
                 caughtErrorsIgnorePattern: '^_',
                 destructuredArrayIgnorePattern: '^_',
-                varsIgnorePattern: '^_',
                 ignoreRestSiblings: true,
             },
         ],
-        'promise/catch-or-return': 'error',
-        'promise/always-return': 'error',
-        'promise/no-nesting': 'warn',
-        'promise/no-promise-in-callback': 'warn',
-        'promise/no-callback-in-promise': 'warn',
-        'promise/no-new-statics': 'error',
-        'promise/no-return-wrap': 'error',
-        'promise/param-names': 'error',
-        'promise/no-return-in-finally': 'warn',
+        'react-hooks/rules-of-hooks': 'error',
+        'react-hooks/exhaustive-deps': 'warn',
+        'import/no-named-as-default': 'off',
+        'import/no-named-as-default-member': 'off',
+        '@typescript-eslint/prefer-nullish-coalescing': 'off',
+        '@typescript-eslint/prefer-optional-chain': 'error',
+        // Allow require() for assets only
+        '@typescript-eslint/no-var-requires': 'off',
         '@typescript-eslint/no-require-imports': ['error', {
-            // Allow requires only for asset imports
             allow: ['@assets/*']
         }],
-        '@typescript-eslint/no-var-requires': 'off',
-        // TODO: Revisit these rules when onnxruntime-react-native provides better TypeScript support
-        // Currently ignoring ESLint checks for onnxruntime-react-native due to missing type definitions
+        'max-len': ['warn', { 
+            code: 200, 
+            tabWidth: 4, 
+            ignoreComments: true,
+            ignoreUrls: true,
+            ignoreStrings: true,
+            ignoreTemplateLiterals: true,
+            ignoreRegExpLiterals: true 
+        }],
         'import/no-unresolved': [
             'error',
             {
@@ -84,6 +93,5 @@ module.exports = {
                 ]
             }
         ],
-        'import/namespace': 'error',
     },
 }

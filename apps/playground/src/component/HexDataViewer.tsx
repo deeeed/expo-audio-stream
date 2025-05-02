@@ -1,10 +1,13 @@
-import { useTheme } from '@siteed/design-system'
-import { getLogger } from '@siteed/react-native-logger'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+
+import crc32 from 'crc-32'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { SegmentedButtons } from 'react-native-paper'
+
+import { useTheme } from '@siteed/design-system'
 import { convertPCMToFloat32 } from '@siteed/expo-audio-studio/src'
-import crc32 from 'crc-32'
+import { getLogger } from '@siteed/react-native-logger'
+
 
 interface HexDataViewerProps {
     byteArray: Uint8Array
@@ -26,22 +29,22 @@ const bytesToHex = (bytes: Uint8Array) => {
 }
 
 const bytesToBase64 = (bytes: Uint8Array): string => {
-    let binary = '';
-    const chunkSize = 8192; // Process in chunks to avoid stack overflow
+    let binary = ''
+    const chunkSize = 8192 // Process in chunks to avoid stack overflow
     for (let i = 0; i < bytes.length; i += chunkSize) {
         // Use subarray and apply to handle chunks efficiently
-        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)))
     }
-    return btoa(binary);
+    return btoa(binary)
 }
 
 const bytesToString = (bytes: Uint8Array): string => {
-    let result = '';
-    const chunkSize = 8192; // Process in chunks
+    let result = ''
+    const chunkSize = 8192 // Process in chunks
     for (let i = 0; i < bytes.length; i += chunkSize) {
-        result += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+        result += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)))
     }
-    return result;
+    return result
 }
 
 const computeChecksum = (bytes: Uint8Array): number => {
@@ -50,8 +53,8 @@ const computeChecksum = (bytes: Uint8Array): number => {
 
 const computeFloat32Checksum = (float32Data: string): number => {
     const values = float32Data.split(' ')
-        .map(val => parseFloat(val))
-        .filter(val => !isNaN(val))
+        .map((val) => parseFloat(val))
+        .filter((val) => !isNaN(val))
     
     if (values.length === 0) return 0
 
@@ -75,7 +78,7 @@ const formatChecksum = (value: number): string => {
 export const HexDataViewer = ({ 
     byteArray, 
     bitDepth,
-    shouldComputeChecksum = false 
+    shouldComputeChecksum = false, 
 }: HexDataViewerProps) => {
     const [viewMode, setViewMode] = useState<ViewMode>('hex')
     const [expanded, setExpanded] = useState(false)
@@ -92,11 +95,11 @@ export const HexDataViewer = ({
     const convertToFloat32 = useCallback(async () => {
         if (viewMode === 'float32') {
             try {
-                logger.debug(`Starting PCM to Float32 conversion for buffer with byteLength: ${byteArray.byteLength}`);
+                logger.debug(`Starting PCM to Float32 conversion for buffer with byteLength: ${byteArray.byteLength}`)
                 const pcmConversionResult = await convertPCMToFloat32({
                     buffer: byteArray.buffer as ArrayBuffer,
                     bitDepth,
-                    skipWavHeader: true
+                    skipWavHeader: true,
                 })
                 const float32String = pcmConversionResult.pcmValues.join(' ')
                 setFloat32Data(float32String)
@@ -110,17 +113,17 @@ export const HexDataViewer = ({
     const displayedData = useMemo(() => {
         switch (viewMode) {
             case 'hex':
-                return bytesToHex(byteArray);
+                return bytesToHex(byteArray)
             case 'base64':
-                return bytesToBase64(byteArray);
+                return bytesToBase64(byteArray)
             case 'string':
-                return bytesToString(byteArray);
+                return bytesToString(byteArray)
             case 'float32':
-                return float32Data;
+                return float32Data
             default:
-                return '';
+                return ''
         }
-    }, [viewMode, byteArray, float32Data]);
+    }, [viewMode, byteArray, float32Data])
 
     const previewData = displayedData.slice(0, PREVIEW_LENGTH)
     const isExpandable = displayedData.length > PREVIEW_LENGTH
@@ -139,7 +142,7 @@ export const HexDataViewer = ({
                 mode: viewMode,
                 dataLength: byteArray.length,
                 float32Length: float32Data.length,
-                checksum: sum
+                checksum: sum,
             })
             
             setChecksum(sum)
@@ -164,7 +167,7 @@ export const HexDataViewer = ({
                     {
                         value: 'string',
                         label: 'String',
-                    }
+                    },
                 ]}
                 style={styles.segmentedButton}
             />

@@ -1,24 +1,29 @@
-import { MaterialIcons } from "@expo/vector-icons";
+import React, { useCallback, useMemo, useState } from 'react'
+
+import { MaterialIcons } from '@expo/vector-icons'
+import * as Application from 'expo-application'
+import * as Clipboard from 'expo-clipboard'
+import Constants from 'expo-constants'
+import * as Device from 'expo-device'
+import { useFocusEffect } from 'expo-router'
+import { FlatList, StyleSheet, View } from 'react-native'
+import { Text } from 'react-native-paper'
+
+import type {
+  AppTheme } from '@siteed/design-system'
 import {
-  AppTheme,
   Button,
   RefreshControl,
   useTheme,
   useToast,
-} from "@siteed/design-system";
-import { clearLogs, getLogs } from "@siteed/react-native-logger";
-import * as Application from "expo-application";
-import * as Clipboard from "expo-clipboard";
-import Constants from "expo-constants";
-import * as Device from "expo-device";
-import { useFocusEffect } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
-import { FlatList, ListRenderItemInfo, StyleSheet, View } from "react-native";
-import { Text } from "react-native-paper";
+} from '@siteed/design-system'
+import { clearLogs, getLogs } from '@siteed/react-native-logger'
 
-import { useScreenHeader } from "../hooks/useScreenHeader";
-import { HeaderIcon } from "../component/HeaderIcon";
-import { isWeb } from "../utils/utils";
+import { HeaderIcon } from '../component/HeaderIcon'
+import { useScreenHeader } from '../hooks/useScreenHeader'
+import { isWeb } from '../utils/utils'
+
+import type { ListRenderItemInfo } from 'react-native'
 
 type SystemInfo = {
   deviceName: string;
@@ -31,85 +36,85 @@ type SystemInfo = {
 };
 
 export const LogViewer = () => {
-  const { show } = useToast();
-  const theme = useTheme();
-  const styles = useMemo(() => getStyles({ theme }), [theme]);
-  const [logs, setLogs] = useState(getLogs());
+  const { show } = useToast()
+  const theme = useTheme()
+  const styles = useMemo(() => getStyles({ theme }), [theme])
+  const [logs, setLogs] = useState(getLogs())
 
   const handleRefresh = useCallback(() => {
-    setLogs(getLogs());
-  }, []);
+    setLogs(getLogs())
+  }, [])
 
   const handleClear = useCallback(() => {
-    clearLogs();
-    handleRefresh();
-  }, [handleRefresh]);
+    clearLogs()
+    handleRefresh()
+  }, [handleRefresh])
 
   const getSystemInfo = useCallback(async (): Promise<SystemInfo> => {
     const runtimeVersion =
-      typeof Constants.expoConfig?.runtimeVersion === "string"
+      typeof Constants.expoConfig?.runtimeVersion === 'string'
         ? Constants.expoConfig.runtimeVersion
-        : "unknown";
-    const appVariant = Constants.expoConfig?.name.includes("_")
-      ? Constants.expoConfig.name.split("_")[0]
-      : "production";
+        : 'unknown'
+    const appVariant = Constants.expoConfig?.name.includes('_')
+      ? Constants.expoConfig.name.split('_')[0]
+      : 'production'
 
     return {
-      deviceName: Device.deviceName ?? "Unknown",
-      osName: Device.osName ?? "Unknown",
-      osVersion: Device.osVersion ?? "Unknown",
-      appVersion: Application.nativeApplicationVersion ?? "Unknown",
-      buildVersion: Application.nativeBuildVersion ?? "Unknown",
+      deviceName: Device.deviceName ?? 'Unknown',
+      osName: Device.osName ?? 'Unknown',
+      osVersion: Device.osVersion ?? 'Unknown',
+      appVersion: Application.nativeApplicationVersion ?? 'Unknown',
+      buildVersion: Application.nativeBuildVersion ?? 'Unknown',
       runtimeVersion,
       appVariant,
-    };
-  }, []);
+    }
+  }, [])
 
   const handleCopyWithSystemInfo = useCallback(async () => {
     try {
-      const systemInfo = await getSystemInfo();
+      const systemInfo = await getSystemInfo()
       const systemInfoText = Object.entries(systemInfo)
         .map(([key, value]) => `${key}: ${value}`)
-        .join("\n");
+        .join('\n')
 
       const logsText = logs
         .map((log) => `${log.timestamp} ${log.namespace} ${log.message}`)
-        .join("\n");
+        .join('\n')
 
-      const fullText = `System Information:\n${systemInfoText}\n\nLogs:\n${logsText}`;
-      await Clipboard.setStringAsync(fullText);
+      const fullText = `System Information:\n${systemInfoText}\n\nLogs:\n${logsText}`
+      await Clipboard.setStringAsync(fullText)
       show({
         iconVisible: true,
-        message: "Logs and system info copied to clipboard",
-      });
+        message: 'Logs and system info copied to clipboard',
+      })
     } catch (_err) {
       show({
         iconVisible: true,
-        message: "Failed to copy information",
-        type: "error",
-      });
+        message: 'Failed to copy information',
+        type: 'error',
+      })
     }
-  }, [logs, show, getSystemInfo]);
+  }, [logs, show, getSystemInfo])
 
   const handleCopyLogs = useCallback(() => {
     try {
       const logsText = logs
         .map((log) => `${log.timestamp} ${log.namespace} ${log.message}`)
-        .join("\n");
+        .join('\n')
 
-      Clipboard.setStringAsync(logsText);
+      Clipboard.setStringAsync(logsText)
       show({
         iconVisible: true,
-        message: "Logs copied to clipboard",
-      });
+        message: 'Logs copied to clipboard',
+      })
     } catch (_err) {
       show({
         iconVisible: true,
-        message: "Failed to copy logs",
-        type: "error",
-      });
+        message: 'Failed to copy logs',
+        type: 'error',
+      })
     }
-  }, [logs, show]);
+  }, [logs, show])
 
   const renderHeaderIcons = useCallback(() => {
     return (
@@ -121,22 +126,22 @@ export const LogViewer = () => {
         inactiveColor={theme.colors.text}
         tooltip="Clear Logs"
       />
-    );
-  }, [handleClear, theme.colors]);
+    )
+  }, [handleClear, theme.colors])
 
   useScreenHeader({
-    title: "Logs",
+    title: 'Logs',
     backBehavior: {
-      fallbackUrl: "/more",
+      fallbackUrl: '/more',
     },
     rightElements: renderHeaderIcons,
-  });
+  })
 
   useFocusEffect(
     useCallback(() => {
-      handleRefresh();
+      handleRefresh()
     }, [handleRefresh]),
-  );
+  )
 
   const renderItem = ({ item }: ListRenderItemInfo<(typeof logs)[0]>) => (
     <View style={styles.logEntry}>
@@ -148,7 +153,7 @@ export const LogViewer = () => {
       </View>
       <Text style={styles.message}>{item.message}</Text>
     </View>
-  );
+  )
 
   return (
     <View style={styles.container}>
@@ -185,21 +190,21 @@ export const LogViewer = () => {
         )}
       </View>
     </View>
-  );
-};
+  )
+}
 
 const getStyles = ({ theme }: { theme: AppTheme }) =>
   StyleSheet.create({
     container: {
-      display: "flex",
+      display: 'flex',
       flex: 1,
-      width: "100%",
+      width: '100%',
       padding: 5,
     },
     context: {
       color: theme.colors.primary,
       fontSize: 10,
-      fontWeight: "bold",
+      fontWeight: 'bold',
     },
     logEntry: {},
     message: { fontSize: 10 },
@@ -217,12 +222,12 @@ const getStyles = ({ theme }: { theme: AppTheme }) =>
       backgroundColor: theme.colors.background,
       borderTopWidth: 1,
       borderTopColor: theme.colors.outline,
-      flexDirection: "row",
+      flexDirection: 'row',
       gap: 8,
     },
     copyButton: {
       flex: 1,
     },
-  });
+  })
 
-export default LogViewer;
+export default LogViewer

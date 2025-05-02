@@ -1,7 +1,10 @@
-import { AppTheme, LabelSwitch, useTheme, Button } from '@siteed/design-system'
-import { AudioFeaturesOptions } from '@siteed/expo-audio-studio'
 import React, { useCallback, useMemo } from 'react'
+
 import { StyleSheet, View } from 'react-native'
+
+import type { AppTheme } from '@siteed/design-system'
+import { LabelSwitch, useTheme, Button } from '@siteed/design-system'
+import type { AudioFeaturesOptions } from '@siteed/expo-audio-studio'
 
 const getStyles = ({ theme }: { theme: AppTheme }) => 
     StyleSheet.create({
@@ -66,7 +69,6 @@ export function FeatureSelection({ features, onChange }: FeatureSelectionProps) 
         )
         onChange(allUnselected)
     }, [onChange])
-
 
 
     return (

@@ -1,8 +1,12 @@
-import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { AppTheme, Text, useTheme, Button, } from '@siteed/design-system';
-import { Card } from 'react-native-paper';
-import { TranscriptionLog } from '../hooks/useAudioTranscription';
+import React, { useMemo, useState } from 'react'
+
+import { StyleSheet, View } from 'react-native'
+import { Card } from 'react-native-paper'
+
+import type { AppTheme } from '@siteed/design-system'
+import { Text, useTheme, Button } from '@siteed/design-system'
+
+import type { TranscriptionLog } from '../hooks/useAudioTranscription'
 
 interface TranscriptionHistoryProps {
   log: TranscriptionLog;
@@ -113,21 +117,21 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
       color: theme.colors.onSurface,
       lineHeight: 20,
     },
-  });
-};
+  })
+}
 
 export const TranscriptionHistory: React.FC<TranscriptionHistoryProps> = ({
   log,
 }) => {
-  const theme = useTheme();
-  const styles = useMemo(() => getStyles({ theme }), [theme]);
-  const [showDetails, setShowDetails] = useState(false);
+  const theme = useTheme()
+  const styles = useMemo(() => getStyles({ theme }), [theme])
+  const [showDetails, setShowDetails] = useState(false)
 
-  const formattedDate = new Date(log.timestamp).toLocaleString();
+  const formattedDate = new Date(log.timestamp).toLocaleString()
   
   const handleViewDetails = () => {
-    setShowDetails(!showDetails);
-  };
+    setShowDetails(!showDetails)
+  }
 
   return (
     <View style={styles.container}>
@@ -191,7 +195,7 @@ export const TranscriptionHistory: React.FC<TranscriptionHistoryProps> = ({
                 icon="information-outline"
                 style={{ paddingHorizontal: theme.padding.m }}
               >
-                {showDetails ? "Hide Details" : "Details"}
+                {showDetails ? 'Hide Details' : 'Details'}
               </Button>
             </View>
             
@@ -205,5 +209,5 @@ export const TranscriptionHistory: React.FC<TranscriptionHistoryProps> = ({
         </View>
       </Card>
     </View>
-  );
-};
+  )
+}

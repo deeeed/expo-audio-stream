@@ -1,5 +1,5 @@
 // apps/playground/src/context/TranscriptionProvider.reducer.tsx
-import {
+import type {
     TranscriptionAction,
     TranscriptionState,
 } from './TranscriptionProvider.types'

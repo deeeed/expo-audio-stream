@@ -1,10 +1,13 @@
 // playground/src/app/(tabs)/play.tsx
-import { ScreenWrapper, useTheme, AppTheme } from '@siteed/design-system'
-import { ExpoAudioStreamModule } from '@siteed/expo-audio-studio'
 import React, { useCallback, useEffect, useState } from 'react'
+
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Alert, Linking, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
+
+import type { AppTheme } from '@siteed/design-system'
+import { ScreenWrapper, useTheme } from '@siteed/design-system'
+import { ExpoAudioStreamModule } from '@siteed/expo-audio-studio'
 
 import { baseLogger } from '../config'
 

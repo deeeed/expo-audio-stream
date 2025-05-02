@@ -1,8 +1,10 @@
 // playground/src/component/audio-recording-config/audio-recording-config-form.tsx
-import { LabelSwitch, NumberAdjuster } from '@siteed/design-system'
-import { AudioVisualizerProps } from '@siteed/expo-audio-ui'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+
 import { StyleSheet, View } from 'react-native'
+
+import { LabelSwitch, NumberAdjuster } from '@siteed/design-system'
+import type { AudioVisualizerProps } from '@siteed/expo-audio-ui'
 
 const getStyles = () => {
     return StyleSheet.create({

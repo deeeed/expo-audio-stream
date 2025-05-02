@@ -1,13 +1,19 @@
+import React, { useCallback, useMemo, useState } from 'react'
+
 import { Ionicons } from '@expo/vector-icons'
 import { Canvas, useFont } from '@shopify/react-native-skia'
-import { AppTheme, Button, ScreenWrapper, useTheme } from '@siteed/design-system'
-import { useSharedAudioRecorder } from '@siteed/expo-audio-studio'
-import { DecibelGauge } from '@siteed/expo-audio-ui'
-import React, { useCallback, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
+import type { AppTheme } from '@siteed/design-system'
+import { Button, ScreenWrapper, useTheme } from '@siteed/design-system'
+import { useSharedAudioRecorder } from '@siteed/expo-audio-studio'
+import { DecibelGauge } from '@siteed/expo-audio-ui'
+
+import { DecibelGaugeSettings } from '../component/DecibelGaugeSettings'
 import { baseLogger } from '../config'
-import { DecibelGaugeSettings, GaugeSettings } from '../component/DecibelGaugeSettings'
+
+import type { GaugeSettings } from '../component/DecibelGaugeSettings'
 
 const logger = baseLogger.extend('DecibelScreen')
 
@@ -71,7 +77,7 @@ export default function DecibelScreen() {
         startRecording,
         stopRecording,
         isRecording,
-        analysisData
+        analysisData,
     } = useSharedAudioRecorder()
 
     // Gauge configuration state
@@ -84,7 +90,7 @@ export default function DecibelScreen() {
         showUnit: true,
         dbRange: '-60_0',
         minDb: -60,
-        maxDb: 0
+        maxDb: 0,
     })
 
     const currentDb = useMemo(() => {
@@ -107,9 +113,9 @@ export default function DecibelScreen() {
     }, [isRecording, startRecording, stopRecording])
 
     const handleGaugeSettingsChange = useCallback((settings: Partial<GaugeSettings>) => {
-        setGaugeSettings(prev => ({
+        setGaugeSettings((prev) => ({
             ...prev,
-            ...settings
+            ...settings,
         }))
     }, [])
 
@@ -164,7 +170,7 @@ export default function DecibelScreen() {
                 color={isRecording ? theme.colors.error : theme.colors.primary}
                 icon={() => (
                     <Ionicons 
-                        name={isRecording ? "stop-circle" : "mic"} 
+                        name={isRecording ? 'stop-circle' : 'mic'} 
                         size={20} 
                         color="white"
                     />

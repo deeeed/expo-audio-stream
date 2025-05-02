@@ -1,15 +1,22 @@
-import { AppTheme, Notice, NumberAdjuster, EditableInfoCard, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
-import { SampleRate, trimAudio, TrimAudioOptions, TrimAudioResult } from '@siteed/expo-audio-studio'
-import { AudioTimeRangeSelector } from '@siteed/expo-audio-ui'
-import { Audio, AVPlaybackStatus } from 'expo-av'
-import * as DocumentPicker from 'expo-document-picker'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+import { Audio } from 'expo-av'
+import * as DocumentPicker from 'expo-document-picker'
 import { Platform, StyleSheet, View } from 'react-native'
 import { Button, ProgressBar, SegmentedButtons, Text } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
+import type { AppTheme } from '@siteed/design-system'
+import { Notice, NumberAdjuster, EditableInfoCard, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
+import type { SampleRate, TrimAudioOptions, TrimAudioResult } from '@siteed/expo-audio-studio'
+import { trimAudio } from '@siteed/expo-audio-studio'
+import { AudioTimeRangeSelector } from '@siteed/expo-audio-ui'
+
 import TrimVisualization from '../components/TrimVisualization'
 import { baseLogger } from '../config'
 import { useSampleAudio } from '../hooks/useSampleAudio'
+
+import type { AVPlaybackStatus } from 'expo-av'
 
 const logger = baseLogger.extend('TrimScreen')
 
@@ -57,7 +64,7 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
             padding: 16,
             borderRadius: 8,
             marginTop: 16,
-        }
+        },
     })
 }
 
@@ -90,8 +97,8 @@ export default function TrimScreen() {
     const [showManualInput, setShowManualInput] = useState(false)
 
     // Add this to your state declarations
-    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-    const [pendingModeChange, setPendingModeChange] = useState<'single' | 'keep' | 'remove' | null>(null);
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+    const [pendingModeChange, setPendingModeChange] = useState<'single' | 'keep' | 'remove' | null>(null)
 
     const { isLoading: isSampleLoading, loadSampleAudio } = useSampleAudio({
         onError: (error) => {
@@ -99,9 +106,9 @@ export default function TrimScreen() {
             show({
                 type: 'error',
                 message: 'Error loading sample audio file',
-                duration: 3000
+                duration: 3000,
             })
-        }
+        },
     })
 
     const pickAudioFile = useCallback(async () => {
@@ -120,7 +127,7 @@ export default function TrimScreen() {
             // Show loading toast
             show({
                 loading: true,
-                message: 'Loading audio file...'
+                message: 'Loading audio file...',
             })
             
             // Get audio duration by loading the file with Expo AV
@@ -147,7 +154,7 @@ export default function TrimScreen() {
                     
                     console.log('Audio metadata loaded', {
                         durationMs,
-                        filename
+                        filename,
                     })
                 }
             } catch (error) {
@@ -161,7 +168,7 @@ export default function TrimScreen() {
                 fileUri,
                 mimeType,
                 filename,
-                durationMs
+                durationMs,
             }
             
             setCurrentFile(newFile)
@@ -193,7 +200,7 @@ export default function TrimScreen() {
             show({
                 type: 'error',
                 message: 'Failed to load audio file',
-                duration: 3000
+                duration: 3000,
             })
         }
     }, [show])
@@ -214,7 +221,7 @@ export default function TrimScreen() {
                 fileUri: sampleFile.uri,
                 mimeType: 'audio/mp3',
                 filename: 'JFK Speech Sample',
-                durationMs: sampleFile.durationMs // Use the actual duration from the sample file
+                durationMs: sampleFile.durationMs, // Use the actual duration from the sample file
             })
             
             // Set output format to 'aac' instead of 'mp3'
@@ -235,7 +242,7 @@ export default function TrimScreen() {
             show({
                 type: 'error',
                 message: 'Failed to load sample audio',
-                duration: 3000
+                duration: 3000,
             })
         } finally {
             setIsProcessing(false)
@@ -252,7 +259,7 @@ export default function TrimScreen() {
             show({
                 type: 'error',
                 message: 'End time must be greater than start time',
-                duration: 3000
+                duration: 3000,
             })
             return
         }
@@ -260,14 +267,14 @@ export default function TrimScreen() {
         const newRange: TimeRange = {
             startTimeMs: startTime,
             endTimeMs: endTime,
-            id: Date.now().toString()
+            id: Date.now().toString(),
         }
 
-        setTimeRanges(prev => [...prev, newRange])
+        setTimeRanges((prev) => [...prev, newRange])
     }, [startTime, endTime, show])
 
     const removeTimeRange = useCallback((id: string) => {
-        setTimeRanges(prev => prev.filter(range => range.id !== id))
+        setTimeRanges((prev) => prev.filter((range) => range.id !== id))
     }, [])
 
     const handleModeChange = (newMode: 'single' | 'keep' | 'remove') => {
@@ -277,27 +284,27 @@ export default function TrimScreen() {
             ((trimMode === 'keep' || trimMode === 'remove') && timeRanges.length > 0)
         ) {
             // Store the pending mode change and show confirmation dialog
-            setPendingModeChange(newMode);
-            setShowConfirmDialog(true);
+            setPendingModeChange(newMode)
+            setShowConfirmDialog(true)
         } else {
             // No confirmation needed, just switch
-            applyModeChange(newMode);
+            applyModeChange(newMode)
         }
-    };
+    }
 
     const applyModeChange = (newMode: 'single' | 'keep' | 'remove') => {
-        setTrimMode(newMode);
+        setTrimMode(newMode)
         // Reset ranges when switching modes
         if (newMode !== 'single') {
-            setTimeRanges([]);
+            setTimeRanges([])
         } else {
             // Reset to default range for single mode
-            setStartTime(0);
-            setEndTime(currentFile?.durationMs || 60000);
+            setStartTime(0)
+            setEndTime(currentFile?.durationMs || 60000)
         }
         // Clear pending mode change
-        setPendingModeChange(null);
-    };
+        setPendingModeChange(null)
+    }
 
     const handleTrimAudio = useCallback(async () => {
         if (!currentFile) return
@@ -317,29 +324,29 @@ export default function TrimScreen() {
 
             // Validate trim range and ensure we're not trimming the entire file
             // which seems to cause the native code to just copy the file
-            const maxDuration = currentFile.durationMs || 60000;
+            const maxDuration = currentFile.durationMs || 60000
             
             // Make sure we're not trying to trim the entire file
-            let actualStartTime = Math.max(0, startTime);
-            let actualEndTime = Math.min(endTime, maxDuration);
+            let actualStartTime = Math.max(0, startTime)
+            let actualEndTime = Math.min(endTime, maxDuration)
             
             // If we're selecting the entire file (or very close to it), adjust the range slightly
             if (actualStartTime <= 10 && actualEndTime >= maxDuration - 10) {
                 // Add a small offset to start and end to force actual trimming
-                actualStartTime = 10;
-                actualEndTime = maxDuration - 10;
+                actualStartTime = 10
+                actualEndTime = maxDuration - 10
                 
-                console.log(`Adjusted range to ${actualStartTime}ms - ${actualEndTime}ms to force trimming`);
+                console.log(`Adjusted range to ${actualStartTime}ms - ${actualEndTime}ms to force trimming`)
             }
             
             // Ensure we have a reasonable duration
             if (actualEndTime - actualStartTime < 100) {
                 // If range is too small, adjust it
-                actualEndTime = actualStartTime + 100;
-                console.log(`Range too small, adjusted to ${actualStartTime}ms - ${actualEndTime}ms`);
+                actualEndTime = actualStartTime + 100
+                console.log(`Range too small, adjusted to ${actualStartTime}ms - ${actualEndTime}ms`)
             }
             
-            console.log(`Trimming audio from ${actualStartTime}ms to ${actualEndTime}ms (duration: ${actualEndTime - actualStartTime}ms)`);
+            console.log(`Trimming audio from ${actualStartTime}ms to ${actualEndTime}ms (duration: ${actualEndTime - actualStartTime}ms)`)
 
             // Prepare trim options based on mode
             const trimOptions: TrimAudioOptions = {
@@ -349,30 +356,30 @@ export default function TrimScreen() {
                     format: outputFormat,
                     sampleRate: outputSampleRate,
                     bitrate: outputFormat === 'wav' ? 16000 : 128000,
-                }
+                },
             }
 
             // Add custom filename if provided
             if (customFileName) {
                 // Ensure filename has the correct extension
-                let finalFileName = customFileName;
+                let finalFileName = customFileName
                 if (!finalFileName.toLowerCase().endsWith(`.${outputFormat}`)) {
-                    finalFileName = `${finalFileName}.${outputFormat}`;
+                    finalFileName = `${finalFileName}.${outputFormat}`
                 }
-                trimOptions.outputFileName = finalFileName;
+                trimOptions.outputFileName = finalFileName
             }
 
             if (trimMode === 'single') {
-                trimOptions.startTimeMs = actualStartTime;
-                trimOptions.endTimeMs = actualEndTime;
+                trimOptions.startTimeMs = actualStartTime
+                trimOptions.endTimeMs = actualEndTime
             } else {
                 // For keep or remove modes, use the time ranges
                 // Make sure none of the ranges cover the entire file
-                trimOptions.ranges = timeRanges.map(range => {
-                    const start = Math.max(10, range.startTimeMs);
-                    const end = Math.min(range.endTimeMs, maxDuration - 10);
-                    return { startTimeMs: start, endTimeMs: end };
-                });
+                trimOptions.ranges = timeRanges.map((range) => {
+                    const start = Math.max(10, range.startTimeMs)
+                    const end = Math.min(range.endTimeMs, maxDuration - 10)
+                    return { startTimeMs: start, endTimeMs: end }
+                })
             }
 
             // Execute trim with progress callback
@@ -388,7 +395,7 @@ export default function TrimScreen() {
             // Show success toast with processing time information
             const processingTimeSeconds = result.processingInfo?.durationMs 
                 ? (result.processingInfo.durationMs / 1000).toFixed(2) 
-                : "unknown";
+                : 'unknown'
                 
             show({
                 type: 'success',
@@ -396,14 +403,14 @@ export default function TrimScreen() {
                 stackBehavior: {
                     isStackable: false,
                 },
-                duration: 3000
+                duration: 3000,
             })
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to trim audio')
             show({
                 type: 'error',
                 message: 'Failed to trim audio',
-                duration: 3000
+                duration: 3000,
             })
             console.error('Error trimming audio:', err)
         } finally {
@@ -467,7 +474,7 @@ export default function TrimScreen() {
             show({
                 type: 'error',
                 message: 'Failed to play audio',
-                duration: 3000
+                duration: 3000,
             })
         }
     }, [trimResult, sound, onPlaybackStatusUpdate, show])
@@ -508,11 +515,11 @@ export default function TrimScreen() {
                 <Text variant="titleMedium">Trim Range</Text>
                 <Button
                     mode="text"
-                    icon={showManualInput ? "keyboard-close" : "pencil"}
-                    onPress={() => setShowManualInput(prev => !prev)}
+                    icon={showManualInput ? 'keyboard-close' : 'pencil'}
+                    onPress={() => setShowManualInput((prev) => !prev)}
                     compact
                 >
-                    {showManualInput ? "Hide" : "Edit"}
+                    {showManualInput ? 'Hide' : 'Edit'}
                 </Button>
             </View>
             
@@ -571,10 +578,10 @@ export default function TrimScreen() {
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                     <Button
                         mode="text"
-                        onPress={() => setShowManualInput(prev => !prev)}
+                        onPress={() => setShowManualInput((prev) => !prev)}
                         compact
                     >
-                        {showManualInput ? "Hide" : "Edit"}
+                        {showManualInput ? 'Hide' : 'Edit'}
                     </Button>
                     <Button 
                         mode="contained-tonal" 
@@ -646,7 +653,7 @@ export default function TrimScreen() {
                                     paddingVertical: 4,
                                     flexDirection: 'row',
                                     alignItems: 'center',
-                                    gap: 8
+                                    gap: 8,
                                 }}
                             >
                                 <Text style={{ fontSize: 12 }}>
@@ -657,7 +664,7 @@ export default function TrimScreen() {
                                         fontSize: 14, 
                                         color: colors.error,
                                         fontWeight: 'bold',
-                                        paddingHorizontal: 4
+                                        paddingHorizontal: 4,
                                     }}
                                     onPress={() => removeTimeRange(range.id)}
                                 >
@@ -720,14 +727,16 @@ export default function TrimScreen() {
             
             {/* Confirmation Dialog */}
             {showConfirmDialog && (
-                <View style={{ 
+                <View
+style={{ 
                     marginTop: 8, 
                     backgroundColor: colors.errorContainer, 
                     padding: 12, 
                     borderRadius: 8,
                     borderWidth: 1,
-                    borderColor: colors.error
-                }}>
+                    borderColor: colors.error,
+                }}
+                >
                     <Text variant="titleSmall" style={{ color: colors.error, marginBottom: 4 }}>
                         Reset Selection?
                     </Text>
@@ -738,8 +747,8 @@ export default function TrimScreen() {
                         <Button 
                             mode="text" 
                             onPress={() => {
-                                setShowConfirmDialog(false);
-                                setPendingModeChange(null);
+                                setShowConfirmDialog(false)
+                                setPendingModeChange(null)
                             }}
                         >
                             Cancel
@@ -747,9 +756,9 @@ export default function TrimScreen() {
                         <Button 
                             mode="contained" 
                             onPress={() => {
-                                setShowConfirmDialog(false);
+                                setShowConfirmDialog(false)
                                 if (pendingModeChange) {
-                                    applyModeChange(pendingModeChange);
+                                    applyModeChange(pendingModeChange)
                                 }
                             }}
                         >
@@ -949,9 +958,9 @@ export default function TrimScreen() {
                                                 <Button 
                                                     mode="contained" 
                                                     onPress={togglePlayback}
-                                                    icon={isPlaying ? "pause" : "play"}
+                                                    icon={isPlaying ? 'pause' : 'play'}
                                                 >
-                                                    {isPlaying ? "Pause" : "Play"}
+                                                    {isPlaying ? 'Pause' : 'Play'}
                                                 </Button>
                                                 <Button 
                                                     mode="outlined" 

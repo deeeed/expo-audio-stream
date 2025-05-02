@@ -1,14 +1,19 @@
-import React, { useState, useMemo, useCallback, useRef } from "react";
-import { useTheme, AppTheme } from "@siteed/design-system";
-import { StyleSheet, TouchableOpacity, View, LayoutChangeEvent } from "react-native";
-import { Text } from "react-native-paper";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useState, useMemo, useCallback, useRef } from 'react'
+
+import { Ionicons } from '@expo/vector-icons'
+import { StyleSheet, TouchableOpacity, View } from 'react-native'
+import { Text } from 'react-native-paper'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-} from "react-native-reanimated";
-import { AudioDevice, CompressionInfo } from "@siteed/expo-audio-studio";
+} from 'react-native-reanimated'
+
+import type { AppTheme } from '@siteed/design-system'
+import { useTheme } from '@siteed/design-system'
+import type { AudioDevice, CompressionInfo } from '@siteed/expo-audio-studio'
+
+import type { LayoutChangeEvent } from 'react-native'
 
 interface RecordingStatsProps {
   readonly duration: number;
@@ -21,17 +26,17 @@ interface RecordingStatsProps {
 }
 
 function formatDuration(durationMs: number) {
-  const minutes = Math.floor(durationMs / 60000);
-  const seconds = Math.floor((durationMs % 60000) / 1000);
-  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  const minutes = Math.floor(durationMs / 60000)
+  const seconds = Math.floor((durationMs % 60000) / 1000)
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
 }
 
 const getStyles = (theme: AppTheme) => StyleSheet.create({
@@ -42,21 +47,21 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
     backgroundColor: theme.colors.surfaceVariant,
   },
   container: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 16,
   },
   statItem: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
   },
   label: {
     marginBottom: 4,
     color: theme.colors.onSurfaceVariant,
   },
   value: {
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: theme.colors.primary,
   },
   divider: {
@@ -133,7 +138,7 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
     zIndex: -1,
     pointerEvents: 'none',
   },
-});
+})
 
 export function RecordingStats({ 
   duration, 
@@ -142,41 +147,41 @@ export function RecordingStats({
   sampleRate,
   bitDepth,
   channels,
-  device
+  device,
 }: RecordingStatsProps) {
-  const theme = useTheme();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const animationHeight = useSharedValue(0);
-  const [contentHeight, setContentHeight] = useState(320); // Default fallback height
-  const contentMeasured = useRef(false);
-  const styles = useMemo(() => getStyles(theme), [theme]);
+  const theme = useTheme()
+  const [isExpanded, setIsExpanded] = useState(false)
+  const animationHeight = useSharedValue(0)
+  const [contentHeight, setContentHeight] = useState(320) // Default fallback height
+  const contentMeasured = useRef(false)
+  const styles = useMemo(() => getStyles(theme), [theme])
 
   const handleContentLayout = useCallback((event: LayoutChangeEvent) => {
-    const { height } = event.nativeEvent.layout;
+    const { height } = event.nativeEvent.layout
     if (height > 0 && (!contentMeasured.current || height !== contentHeight)) {
-      setContentHeight(height);
-      contentMeasured.current = true;
+      setContentHeight(height)
+      contentMeasured.current = true
       
       // If already expanded, update the animation height
       if (isExpanded) {
-        animationHeight.value = withTiming(height, { duration: 300 });
+        animationHeight.value = withTiming(height, { duration: 300 })
       }
     }
-  }, [contentHeight, isExpanded, animationHeight]);
+  }, [contentHeight, isExpanded, animationHeight])
 
   const toggleExpanded = useCallback(() => {
-    const newIsExpanded = !isExpanded;
-    setIsExpanded(newIsExpanded);
+    const newIsExpanded = !isExpanded
+    setIsExpanded(newIsExpanded)
     animationHeight.value = withTiming(
       newIsExpanded ? contentHeight : 0, 
       { duration: 300 }
-    );
-  }, [isExpanded, animationHeight, contentHeight]);
+    )
+  }, [isExpanded, animationHeight, contentHeight])
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: animationHeight.value,
     opacity: animationHeight.value === 0 ? 0 : 1,
-  }));
+  }))
 
   // Extract expandable content into a separate function
   const renderExpandableContent = () => (
@@ -298,7 +303,7 @@ export function RecordingStats({
         </>
       )}
     </View>
-  );
+  )
 
   return (
     <View style={styles.wrapper}>
@@ -342,7 +347,7 @@ export function RecordingStats({
             </Text>
           </View>
           <Ionicons
-            name={isExpanded ? "chevron-up" : "chevron-down"}
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
             size={24}
             style={styles.icon}
           />
@@ -353,5 +358,5 @@ export function RecordingStats({
         {renderExpandableContent()}
       </Animated.View>
     </View>
-  );
+  )
 } 

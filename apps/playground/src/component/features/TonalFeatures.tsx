@@ -1,7 +1,9 @@
-import { useTheme } from '@siteed/design-system'
 import React from 'react'
+
 import { StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
+
+import { useTheme } from '@siteed/design-system'
 
 const getStyles = () => StyleSheet.create({
     container: {

@@ -1,16 +1,19 @@
+import React, { useCallback, useEffect, useRef } from 'react'
+
+import { StyleSheet, View } from 'react-native'
+import { SegmentedButtons } from 'react-native-paper'
+
 import {
     NumberAdjuster,
     Text,
-    useTheme
+    useTheme,
 } from '@siteed/design-system'
-import React, { useCallback, useEffect, useRef } from 'react'
-import { StyleSheet, View } from 'react-native'
-import { SegmentedButtons } from 'react-native-paper'
-import {
+
+import type { TranscriptionModeSettings } from './TranscriptionModeConfig'
+import type {
     BatchTranscriptionOptions,
-    RealtimeTranscriptionOptions
+    RealtimeTranscriptionOptions,
 } from '../hooks/useUnifiedTranscription'
-import { TranscriptionModeSettings } from './TranscriptionModeConfig'
 
 interface TranscriptionModeConfigFormProps {
     settings: TranscriptionModeSettings;
@@ -21,24 +24,24 @@ interface TranscriptionModeConfigFormProps {
 export const TranscriptionModeConfigForm = ({
     settings,
     onSettingsChange,
-    isWeb = false
+    isWeb = false,
 }: TranscriptionModeConfigFormProps) => {
-    const { colors } = useTheme();
+    const { colors } = useTheme()
     
     // Remove the local state entirely and use the props directly
     // This prevents state synchronization issues
-    const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     
     // Debounced update function
     const updateSettings = useCallback((updatedSettings: TranscriptionModeSettings) => {
         if (updateTimeoutRef.current) {
-            clearTimeout(updateTimeoutRef.current);
+            clearTimeout(updateTimeoutRef.current)
         }
         
         updateTimeoutRef.current = setTimeout(() => {
-            onSettingsChange(updatedSettings);
-        }, 100);
-    }, [onSettingsChange]);
+            onSettingsChange(updatedSettings)
+        }, 100)
+    }, [onSettingsChange])
     
     // Handle mode selection
     const handleModeChange = useCallback(
@@ -46,10 +49,10 @@ export const TranscriptionModeConfigForm = ({
             updateSettings({
                 ...settings,
                 mode: mode as 'realtime' | 'batch',
-            });
+            })
         },
         [settings, updateSettings]
-    );
+    )
 
     // Handle realtime options change
     const handleRealtimeChange = useCallback(
@@ -58,12 +61,12 @@ export const TranscriptionModeConfigForm = ({
                 ...settings,
                 realtimeOptions: {
                     ...settings.realtimeOptions,
-                    [key]: value
-                }
-            });
+                    [key]: value,
+                },
+            })
         },
         [settings, updateSettings]
-    );
+    )
 
     // Handle batch options change
     const handleBatchChange = useCallback(
@@ -72,21 +75,21 @@ export const TranscriptionModeConfigForm = ({
                 ...settings,
                 batchOptions: {
                     ...settings.batchOptions,
-                    [key]: value
-                }
-            });
+                    [key]: value,
+                },
+            })
         },
         [settings, updateSettings]
-    );
+    )
 
     // Clean up timeout on unmount
     useEffect(() => {
         return () => {
             if (updateTimeoutRef.current) {
-                clearTimeout(updateTimeoutRef.current);
+                clearTimeout(updateTimeoutRef.current)
             }
-        };
-    }, []);
+        }
+    }, [])
 
     const dynamicStyles = StyleSheet.create({
         modeInfoContainer: {
@@ -94,8 +97,8 @@ export const TranscriptionModeConfigForm = ({
             padding: 8,
             borderRadius: 4,
             marginBottom: 16,
-        }
-    });
+        },
+    })
 
     return (
         <View style={styles.container}>
@@ -113,12 +116,12 @@ export const TranscriptionModeConfigForm = ({
                         buttons={[
                             {
                                 value: 'realtime',
-                                label: 'Realtime'
+                                label: 'Realtime',
                             },
                             {
                                 value: 'batch',
-                                label: 'Batch'
-                            }
+                                label: 'Batch',
+                            },
                         ]}
                     />
                 </View>
@@ -266,5 +269,5 @@ const styles = StyleSheet.create({
     },
     optionContainer: {
         marginBottom: 16,
-    }
+    },
 }) 

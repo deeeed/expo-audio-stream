@@ -1,8 +1,11 @@
-import { TranscriberData } from '@siteed/expo-audio-studio'
 import { useCallback, useEffect, useState } from 'react'
+
+import type { TranscriberData } from '@siteed/expo-audio-studio'
+
 import { baseLogger } from '../config'
 import { useTranscription } from '../context/TranscriptionProvider'
-import { AudioInputData } from '../context/TranscriptionProvider.types'
+
+import type { AudioInputData } from '../context/TranscriptionProvider.types'
 
 const logger = baseLogger.extend('useTranscriptionAnalyzer')
 
@@ -15,7 +18,7 @@ interface UseTranscriptionAnalyzerProps {
 export function useTranscriptionAnalyzer({
     onError,
     onTranscriptionUpdate,
-    language = 'auto'
+    language = 'auto',
 }: UseTranscriptionAnalyzerProps) {
     const [isInitialized, setIsInitialized] = useState(false)
     const [isProcessing, setIsProcessing] = useState(false)
@@ -40,14 +43,14 @@ export function useTranscriptionAnalyzer({
                 // Simply call initialize and set state to initialized
                 transcriptionContext.initialize()
                     .then(() => {
-                        setIsInitialized(true);
-                        return true;
+                        setIsInitialized(true)
+                        return true
                     })
                     .catch((error: unknown) => {
-                        logger.error('Failed to initialize transcription:', error);
-                        onError?.(error instanceof Error ? error : new Error('Failed to initialize transcription'));
-                        return false;
-                    });
+                        logger.error('Failed to initialize transcription:', error)
+                        onError?.(error instanceof Error ? error : new Error('Failed to initialize transcription'))
+                        return false
+                    })
             }
         }
     }, [transcriptionContext, isInitialized, language, onError])
@@ -95,11 +98,11 @@ export function useTranscriptionAnalyzer({
                         chunks,
                         isBusy: true,
                         startTime: Date.now(),
-                        endTime: Date.now()
+                        endTime: Date.now(),
                     }
                     
                     onTranscriptionUpdate?.(updateData)
-                }
+                },
             })
             
             setActiveJobId(jobId)
@@ -121,6 +124,6 @@ export function useTranscriptionAnalyzer({
     return {
         isProcessing: isProcessing || transcriptionContext.isBusy,
         isModelLoading: transcriptionContext.isModelLoading,
-        processAudioSegment
+        processAudioSegment,
     }
 } 

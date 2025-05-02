@@ -1,7 +1,10 @@
-import { AppTheme, useTheme } from "@siteed/design-system";
-import React, { useMemo } from "react";
-import { StyleSheet, View } from "react-native";
-import { Button, Text } from "react-native-paper";
+import React, { useMemo } from 'react'
+
+import { StyleSheet, View } from 'react-native'
+import { Button, Text } from 'react-native-paper'
+
+import type { AppTheme } from '@siteed/design-system'
+import { useTheme } from '@siteed/design-system'
 
 export interface UpdaterProps {
   isUpdateAvailable: boolean;
@@ -18,11 +21,11 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
       backgroundColor: theme.colors.surface,
       padding: 16,
       borderRadius: 8,
-      alignItems: "center",
+      alignItems: 'center',
       gap: 12,
     },
-  });
-};
+  })
+}
 
 export const Updater: React.FC<UpdaterProps> = ({
   isUpdateAvailable,
@@ -32,8 +35,8 @@ export const Updater: React.FC<UpdaterProps> = ({
   onCheck,
   canUpdate,
 }) => {
-  const theme = useTheme();
-  const styles = useMemo(() => getStyles({ theme }), [theme]);
+  const theme = useTheme()
+  const styles = useMemo(() => getStyles({ theme }), [theme])
 
   return (
     <View style={styles.container}>
@@ -41,10 +44,10 @@ export const Updater: React.FC<UpdaterProps> = ({
         <>
           <Text variant="bodyMedium">
             {downloading
-              ? "Downloading update..."
+              ? 'Downloading update...'
               : canUpdate
-                ? "Update ready to install"
-                : "A new version is available"}
+                ? 'Update ready to install'
+                : 'A new version is available'}
           </Text>
           {canUpdate ? (
             <Button
@@ -82,5 +85,5 @@ export const Updater: React.FC<UpdaterProps> = ({
         </>
       )}
     </View>
-  );
-};
+  )
+}

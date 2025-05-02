@@ -1,12 +1,14 @@
-import { AppTheme, LabelSwitch, useTheme } from '@siteed/design-system'
-import {
-    AudioFeaturesOptions,
-    RecordingConfig,
-} from '@siteed/expo-audio-studio'
 import React, { useCallback, useMemo } from 'react'
+
 import { StyleSheet, View } from 'react-native'
 
-const getStyles = ({theme}: {theme: AppTheme}) => {
+import type { AppTheme } from '@siteed/design-system'
+import { LabelSwitch, useTheme } from '@siteed/design-system'
+import type {
+    AudioFeaturesOptions,
+} from '@siteed/expo-audio-studio'
+
+const getStyles = ({ theme }: {theme: AppTheme}) => {
     return StyleSheet.create({
         container: {
             padding: theme.padding.s,
@@ -48,9 +50,9 @@ export const AudioRecordingAnalysisConfig = ({
     onChange,
 }: AudioRecordingAnalysisConfigProps) => {
     const theme = useTheme()
-    const styles = useMemo(() => getStyles({theme}), [theme])
+    const styles = useMemo(() => getStyles({ theme }), [theme])
 
-    const handleChange = useCallback(
+    const _handleChange = useCallback(
         (
             key: keyof SelectedAnalysisConfig,
             value: number | boolean | string

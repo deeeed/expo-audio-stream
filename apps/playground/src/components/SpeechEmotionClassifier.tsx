@@ -1,9 +1,12 @@
-import { AppTheme, useTheme } from '@siteed/design-system';
-import EssentiaJS from '@siteed/react-native-essentia';
-import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, Card, Text } from 'react-native-paper';
-import type { SpeechEmotionFeatures } from '@siteed/react-native-essentia';
+import React, { useState } from 'react'
+
+import { StyleSheet, View } from 'react-native'
+import { Button, Card, Text } from 'react-native-paper'
+
+import type { AppTheme } from '@siteed/design-system'
+import { useTheme } from '@siteed/design-system'
+import EssentiaJS from '@siteed/react-native-essentia'
+import type { SpeechEmotionFeatures } from '@siteed/react-native-essentia'
 
 interface SpeechEmotionClassifierProps {
   showToast: (message: string) => void;
@@ -46,61 +49,61 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
       fontSize: 12,
       marginTop: 8,
     },
-  });
-};
+  })
+}
 
 export function SpeechEmotionClassifier({ showToast }: SpeechEmotionClassifierProps) {
-  const theme = useTheme();
-  const styles = getStyles({ theme });
+  const theme = useTheme()
+  const styles = getStyles({ theme })
   
-  const [isClassifyingEmotion, setIsClassifyingEmotion] = useState<boolean>(false);
-  const [emotionResult, setEmotionResult] = useState<SpeechEmotionResult | null>(null);
+  const [isClassifyingEmotion, setIsClassifyingEmotion] = useState<boolean>(false)
+  const [emotionResult, setEmotionResult] = useState<SpeechEmotionResult | null>(null)
 
   const handleSpeechEmotionClassification = async () => {
     try {
-      setIsClassifyingEmotion(true);
-      setEmotionResult(null);
+      setIsClassifyingEmotion(true)
+      setEmotionResult(null)
       
       // Create dummy PCM data - using different frequencies to simulate speech
-      const dummyPcmData = new Float32Array(8192);
+      const dummyPcmData = new Float32Array(8192)
       for (let i = 0; i < dummyPcmData.length; i++) {
         // Simulate some speech-like characteristics with multiple frequencies
         dummyPcmData[i] = 
           0.5 * Math.sin(i * 0.01) +  // Low frequency component
           0.3 * Math.sin(i * 0.05) +  // Mid frequency
           0.2 * Math.sin(i * 0.2) +   // High frequency component
-          0.1 * Math.random();        // Some noise
+          0.1 * Math.random()        // Some noise
       }
       
       // Set the audio data
-      await EssentiaJS.setAudioData(dummyPcmData, 16000); // Speech is typically 16kHz
+      await EssentiaJS.setAudioData(dummyPcmData, 16000) // Speech is typically 16kHz
       
       // Extract speech emotion features
-      const result = await EssentiaJS.extractSpeechEmotionFeatures();
+      const result = await EssentiaJS.extractSpeechEmotionFeatures()
       
-      console.log('Speech emotion classification result:', result);
+      console.log('Speech emotion classification result:', result)
       
       if (result.success && result.data) {
         setEmotionResult({
-          features: result.data
-        });
-        showToast('Speech emotion classification completed successfully');
+          features: result.data,
+        })
+        showToast('Speech emotion classification completed successfully')
       } else {
-        throw new Error(result.error?.message || 'Unknown error during emotion classification');
+        throw new Error(result.error?.message || 'Unknown error during emotion classification')
       }
     } catch (error) {
-      console.error('Speech emotion classification error:', error);
+      console.error('Speech emotion classification error:', error)
       setEmotionResult({
-        error: error instanceof Error ? error.message : String(error)
-      });
-      showToast('Speech emotion classification failed');
+        error: error instanceof Error ? error.message : String(error),
+      })
+      showToast('Speech emotion classification failed')
     } finally {
-      setIsClassifyingEmotion(false);
+      setIsClassifyingEmotion(false)
     }
-  };
+  }
 
   const renderEmotionClassificationResults = () => {
-    if (!emotionResult) return null;
+    if (!emotionResult) return null
     
     if (emotionResult.error) {
       return (
@@ -108,7 +111,7 @@ export function SpeechEmotionClassifier({ showToast }: SpeechEmotionClassifierPr
           <Text style={{ color: 'red', fontWeight: 'bold' }}>Error:</Text>
           <Text style={{ color: 'red' }}>{emotionResult.error}</Text>
         </View>
-      );
+      )
     }
     
     return (
@@ -119,8 +122,8 @@ export function SpeechEmotionClassifier({ showToast }: SpeechEmotionClassifierPr
           {JSON.stringify(emotionResult.features, null, 2).length > 500 ? '...' : ''}
         </Text>
       </View>
-    );
-  };
+    )
+  }
 
   return (
     <Card style={styles.card}>
@@ -143,5 +146,5 @@ export function SpeechEmotionClassifier({ showToast }: SpeechEmotionClassifierPr
         {emotionResult && renderEmotionClassificationResults()}
       </Card.Content>
     </Card>
-  );
+  )
 } 

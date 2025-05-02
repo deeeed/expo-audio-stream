@@ -1,13 +1,17 @@
-import {
+import { Pressable } from 'react-native'
+
+import { useTheme } from '@siteed/design-system'
+
+import type {
   MaterialCommunityIcons,
   FontAwesome,
   Feather,
   Entypo,
   Ionicons,
   MaterialIcons,
-} from "@expo/vector-icons";
-import { useTheme } from "@siteed/design-system";
-import { Pressable, StyleProp, ViewStyle, TextStyle } from "react-native";
+} from '@expo/vector-icons'
+import type { StyleProp, ViewStyle, TextStyle } from 'react-native'
+
 
 export interface HeaderIconProps {
   onPress: () => void;
@@ -44,7 +48,7 @@ export function HeaderIcon({
   hitSlop = 8,
   tooltip,
 }: HeaderIconProps) {
-  const theme = useTheme();
+  const theme = useTheme()
 
   return (
     <Pressable
@@ -73,5 +77,5 @@ export function HeaderIcon({
         />
       )}
     </Pressable>
-  );
+  )
 }

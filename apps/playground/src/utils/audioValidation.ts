@@ -1,4 +1,4 @@
-import { ExtractedAudioData } from '@siteed/expo-audio-studio'
+import type { ExtractedAudioData } from '@siteed/expo-audio-studio'
 
 export interface AudioStats {
     max: number
@@ -56,7 +56,7 @@ export function validateAudioData(
         totalSamples: data.length,
         sampleRate: sampleRate ?? 16000,
         hasSignal: max !== min || max !== 0,
-        signalStrength: sum / sampleSize
+        signalStrength: sum / sampleSize,
     }
 }
 
@@ -87,8 +87,8 @@ export function validateExtractedAudio(
             hasWavHeader: extractedData.hasWavHeader,
             pcmDataSize: extractedData.pcmData?.byteLength,
             normalizedDataSize: extractedData.normalizedData?.length,
-            base64DataSize: extractedData.base64Data?.length
-        }
+            base64DataSize: extractedData.base64Data?.length,
+        },
     })
 
     // Validate signal presence

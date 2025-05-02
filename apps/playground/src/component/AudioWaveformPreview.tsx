@@ -1,6 +1,10 @@
-import { Canvas, Path, SkPath, Skia } from '@shopify/react-native-skia'
 import React, { useCallback, useMemo, useState } from 'react'
-import { LayoutChangeEvent, StyleSheet, View } from 'react-native'
+
+import { Canvas, Path, Skia } from '@shopify/react-native-skia'
+import { StyleSheet, View } from 'react-native'
+
+import type { SkPath } from '@shopify/react-native-skia'
+import type { LayoutChangeEvent } from 'react-native'
 
 const getStyles = (canvasWidth: number) => {
     return StyleSheet.create({

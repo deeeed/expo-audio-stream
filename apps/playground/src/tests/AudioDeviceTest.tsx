@@ -1,11 +1,15 @@
-import { AppTheme, Text, useTheme } from '@siteed/design-system';
-import { AudioDevice, useAudioDevices } from '@siteed/expo-audio-studio';
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Divider } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useCallback, useEffect, useState, useMemo } from 'react'
 
-import { AudioDeviceSelector } from '../component/AudioDeviceSelector';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native'
+import { Button, Card, Divider } from 'react-native-paper'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
+import type { AppTheme } from '@siteed/design-system'
+import { Text, useTheme } from '@siteed/design-system'
+import type { AudioDevice } from '@siteed/expo-audio-studio'
+import { useAudioDevices } from '@siteed/expo-audio-studio'
+
+import { AudioDeviceSelector } from '../component/AudioDeviceSelector'
 
 // Move styles out of component
 const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
@@ -117,8 +121,8 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
         : { marginBottom: 8 }
       ),
     },
-  });
-};
+  })
+}
 
 /**
  * Cross-platform test component for audio device detection and selection
@@ -131,37 +135,37 @@ export function AudioDeviceTest() {
     resetToDefaultDevice,
     refreshDevices,
     selectDevice,
-  } = useAudioDevices();
-  const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  } = useAudioDevices()
+  const theme = useTheme()
+  const insets = useSafeAreaInsets()
 
   // Memoize styles based on theme and insets
-  const styles = useMemo(() => getStyles({ theme, insets }), [theme, insets]);
+  const styles = useMemo(() => getStyles({ theme, insets }), [theme, insets])
 
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(
     currentDevice?.id || (devices.length > 0 ? devices[0].id : undefined)
-  );
-  const [testResult, setTestResult] = useState<string | null>(null);
-  const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
-  const [selectedDeviceCapabilities, setSelectedDeviceCapabilities] = useState<{ property: string, value: string }[]>([]);
+  )
+  const [testResult, setTestResult] = useState<string | null>(null)
+  const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle')
+  const [selectedDeviceCapabilities, setSelectedDeviceCapabilities] = useState<{ property: string, value: string }[]>([])
 
   // Update selectedDeviceId when currentDevice changes
   useEffect(() => {
     if (currentDevice && (!selectedDeviceId || selectedDeviceId !== currentDevice.id)) {
-      setSelectedDeviceId(currentDevice.id);
+      setSelectedDeviceId(currentDevice.id)
     } else if (!selectedDeviceId && devices.length > 0) {
       // If no device is selected, select the first available one
-      setSelectedDeviceId(devices[0].id);
-      selectDevice(devices[0].id);
+      setSelectedDeviceId(devices[0].id)
+      selectDevice(devices[0].id)
     }
-  }, [currentDevice, devices, selectedDeviceId, selectDevice]);
+  }, [currentDevice, devices, selectedDeviceId, selectDevice])
 
   // Update capabilities info when selectedDeviceId changes
   useEffect(() => {
     if (selectedDeviceId) {
-      const device = devices.find(d => d.id === selectedDeviceId);
+      const device = devices.find((d) => d.id === selectedDeviceId)
       if (device) {
-        const caps = device.capabilities;
+        const caps = device.capabilities
         // Don't join with newlines anymore, we'll display each property individually
         const capsData = [
           { property: 'Device Type', value: device.type },
@@ -169,64 +173,64 @@ export function AudioDeviceTest() {
           { property: 'Channels', value: `${caps.channelCounts?.join(', ') || 'Unknown'}` },
           { property: 'Bit Depth', value: `${caps.bitDepths?.join(', ') || 'Unknown'} bit` },
           { property: 'Echo Cancellation', value: caps.hasEchoCancellation ? 'Yes' : 'No' },
-          { property: 'Noise Suppression', value: caps.hasNoiseSuppression ? 'Yes' : 'No' }
-        ];
+          { property: 'Noise Suppression', value: caps.hasNoiseSuppression ? 'Yes' : 'No' },
+        ]
 
         // Just store the data array instead of a joined string
-        setSelectedDeviceCapabilities(capsData);
+        setSelectedDeviceCapabilities(capsData)
       }
     }
-  }, [selectedDeviceId, devices]);
+  }, [selectedDeviceId, devices])
 
   // Add information about audio capabilities
   const webAudioInfo =
     "Note: Web Audio API doesn't provide a way to query exact device capabilities. " +
-    "The Web Audio API uses 32-bit float internally, but actual hardware support " +
-    "varies by browser and device. Most browsers support all the listed capabilities " +
-    "but may perform conversions behind the scenes.";
+    'The Web Audio API uses 32-bit float internally, but actual hardware support ' +
+    'varies by browser and device. Most browsers support all the listed capabilities ' +
+    'but may perform conversions behind the scenes.'
 
   const nativeAudioInfo =
-    "Note: Native platforms may automatically configure the optimal audio settings " +
-    "based on the device capabilities and system settings. The reported values represent " +
-    "what the system has configured for use.";
+    'Note: Native platforms may automatically configure the optimal audio settings ' +
+    'based on the device capabilities and system settings. The reported values represent ' +
+    'what the system has configured for use.'
 
   const handleDeviceSelected = useCallback((device: AudioDevice) => {
-    console.log('Device selected:', device.name, device.id);
-    setSelectedDeviceId(device.id);
-    selectDevice(device.id);
-  }, [selectDevice]);
+    console.log('Device selected:', device.name, device.id)
+    setSelectedDeviceId(device.id)
+    selectDevice(device.id)
+  }, [selectDevice])
 
   const runDeviceTest = useCallback(async () => {
     try {
-      setTestStatus('running');
-      setTestResult('Testing audio device access...');
+      setTestStatus('running')
+      setTestResult('Testing audio device access...')
 
       if (!selectedDeviceId) {
-        throw new Error('No device selected');
+        throw new Error('No device selected')
       }
 
       if (Platform.OS === 'web') {
         // Web-specific test
-        await navigator.mediaDevices.getUserMedia({ audio: { deviceId: selectedDeviceId } });
-        setTestResult('Successfully accessed microphone!');
+        await navigator.mediaDevices.getUserMedia({ audio: { deviceId: selectedDeviceId } })
+        setTestResult('Successfully accessed microphone!')
 
-        const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-        const audioInputs = mediaDevices.filter(device => device.kind === 'audioinput');
+        const mediaDevices = await navigator.mediaDevices.enumerateDevices()
+        const audioInputs = mediaDevices.filter((device) => device.kind === 'audioinput')
 
         setTestResult(
           `Success! Found ${audioInputs.length} audio input devices.\n` +
           `Selected device: ${currentDevice?.name || 'None'}\n` +
-          `Device IDs: ${audioInputs.map(d => d.deviceId.substring(0, 8) + '...').join(', ')}\n` +
-          `${audioInputs.some(d => !d.label) ? 'Some devices have no labels due to browser privacy restrictions.' : 'All devices have labels.'}`
-        );
+          `Device IDs: ${audioInputs.map((d) => d.deviceId.substring(0, 8) + '...').join(', ')}\n` +
+          `${audioInputs.some((d) => !d.label) ? 'Some devices have no labels due to browser privacy restrictions.' : 'All devices have labels.'}`
+        )
       } else {
         // Native test
         // Most of the device access is already handled by the AudioDeviceManager
         // Just verify the selected device and report success
-        const device = devices.find(d => d.id === selectedDeviceId);
+        const device = devices.find((d) => d.id === selectedDeviceId)
 
         if (!device) {
-          throw new Error('Selected device not found');
+          throw new Error('Selected device not found')
         }
 
         setTestResult(
@@ -235,23 +239,23 @@ export function AudioDeviceTest() {
           `Device Type: ${device.type}\n` +
           `Is Default: ${device.isDefault ? 'Yes' : 'No'}\n` +
           `Available: ${device.isAvailable ? 'Yes' : 'No'}`
-        );
+        )
       }
 
-      setTestStatus('success');
+      setTestStatus('success')
     } catch (err) {
-      console.error('Device test failed:', err);
-      setTestResult(`Test failed: ${err instanceof Error ? err.message : String(err)}`);
-      setTestStatus('error');
+      console.error('Device test failed:', err)
+      setTestResult(`Test failed: ${err instanceof Error ? err.message : String(err)}`)
+      setTestStatus('error')
     }
-  }, [selectedDeviceId, currentDevice, devices]);
+  }, [selectedDeviceId, currentDevice, devices])
 
   const resetTest = useCallback(() => {
-    setTestResult(null);
-    setTestStatus('idle');
-  }, []);
+    setTestResult(null)
+    setTestStatus('idle')
+  }, [])
 
-  const isButtonDisabled = testStatus === 'running' || !selectedDeviceId;
+  const isButtonDisabled = testStatus === 'running' || !selectedDeviceId
 
   return (
     <ScrollView style={styles.container}>
@@ -269,7 +273,7 @@ export function AudioDeviceTest() {
           <AudioDeviceSelector
             value={selectedDeviceId}
             onDeviceSelected={handleDeviceSelected}
-            showCapabilities={true}
+            showCapabilities
           />
         </Card.Content>
       </Card>
@@ -345,11 +349,13 @@ export function AudioDeviceTest() {
           </Button>
 
           {testResult && (
-            <View style={[
+            <View
+style={[
               styles.testResult,
               testStatus === 'success' ? styles.successResult :
-                testStatus === 'error' ? styles.errorResult : {}
-            ]}>
+                testStatus === 'error' ? styles.errorResult : {},
+            ]}
+            >
               {testResult.split('\n').map((line, index) => (
                 <Text key={index} variant="bodyMedium">{line}</Text>
               ))}
@@ -391,5 +397,5 @@ export function AudioDeviceTest() {
         </Card.Content>
       </Card>
     </ScrollView>
-  );
+  )
 } 

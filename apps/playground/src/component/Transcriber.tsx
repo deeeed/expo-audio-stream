@@ -1,6 +1,8 @@
-import { Chunk, TranscriberData } from '@siteed/expo-audio-studio'
 import React, { useEffect, useState } from 'react'
+
 import { View } from 'react-native'
+
+import type { Chunk, TranscriberData } from '@siteed/expo-audio-studio'
 
 import { baseLogger } from '../config'
 import { ProgressItems } from './ProgressItems'
@@ -50,7 +52,7 @@ const Transcriber: React.FC<TranscriberProps> = ({
     useEffect(() => {
         if(!isWeb) {
             // TODO: activate on native
-            return;
+            return
         }
 
         if (sampleRate !== WhisperSampleRate) {
@@ -97,7 +99,7 @@ const Transcriber: React.FC<TranscriberProps> = ({
 
     useEffect(() => {
         console.debug('Transcriber transcript useEffect', transcript)
-        if (transcript && transcript.text) {
+        if (transcript?.text) {
             logger.log(
                 `Transcription ${transcript.isBusy ? 'in progress' : 'completed'}: ${transcript.text}`,
                 transcript

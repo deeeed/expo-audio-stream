@@ -1,6 +1,6 @@
 // playground/src/utils/indexedDB.ts
 
-import { AudioRecording } from '@siteed/expo-audio-studio'
+import type { AudioRecording } from '@siteed/expo-audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 
 interface OpenDatabaseParams {
@@ -91,21 +91,21 @@ export const storeAudioFile = async ({
         // CRITICAL FIX: Ensure we have valid array buffer data
         // Check if arrayBuffer is actually a Blob (this can happen due to type coercion)
         if (arrayBuffer instanceof Blob || (typeof arrayBuffer === 'object' && arrayBuffer !== null && 'arrayBuffer' in arrayBuffer)) {
-            logger.debug(`Converting Blob to ArrayBuffer`);
+            logger.debug(`Converting Blob to ArrayBuffer`)
             try {
                 // @ts-expect-error - Handle potential Blob object
-                const buffer = await arrayBuffer.arrayBuffer();
-                arrayBuffer = buffer;
+                const buffer = await arrayBuffer.arrayBuffer()
+                arrayBuffer = buffer
             } catch (error) {
-                logger.error(`Failed to convert Blob to ArrayBuffer:`, error);
-                throw new Error('Invalid audio data: Failed to convert to ArrayBuffer');
+                logger.error(`Failed to convert Blob to ArrayBuffer:`, error)
+                throw new Error('Invalid audio data: Failed to convert to ArrayBuffer')
             }
         }
         
         // Simple size validation
         if (!(arrayBuffer instanceof ArrayBuffer) || arrayBuffer.byteLength === 0) {
-            logger.error(`Invalid or empty ArrayBuffer`);
-            throw new Error('Invalid audio data');
+            logger.error(`Invalid or empty ArrayBuffer`)
+            throw new Error('Invalid audio data')
         }
 
         if (worker && !skipWorker) {
@@ -124,7 +124,7 @@ export const storeAudioFile = async ({
                 worker?.addEventListener('message', handleMessage)
                 worker?.postMessage({
                     type: 'storeAudioFile',
-                    payload: { fileName, arrayBuffer, metadata }
+                    payload: { fileName, arrayBuffer, metadata },
                 })
             })
         }
@@ -145,13 +145,13 @@ export const storeAudioFile = async ({
             }
 
             transaction.onerror = () => {
-                logger.error(`Failed to store ${fileName}:`, transaction.error);
+                logger.error(`Failed to store ${fileName}:`, transaction.error ?? 'Unknown error')
                 reject(transaction.error)
             }
         })
     } catch (error) {
-        logger.error(`Error in storeAudioFile:`, error);
-        throw error;
+        logger.error(`Error in storeAudioFile:`, error)
+        throw error
     }
 }
 
@@ -175,7 +175,7 @@ export const getAudioFile = async ({
             } else {
                 logger.warn(`Audio file ${fileName} not found`)
             }
-            resolve(request.result || null)
+            resolve(request.result ?? null)
         }
 
         request.onerror = () => {
@@ -271,7 +271,7 @@ export const deleteAudioFile = async ({
             worker?.addEventListener('message', handleMessage)
             worker?.postMessage({
                 type: 'deleteAudioFile',
-                payload: { fileName }
+                payload: { fileName },
             })
         })
     }
@@ -319,4 +319,46 @@ export const listAudioFiles = async (): Promise<AudioFileRecord[]> => {
             reject(request.error)
         }
     })
+}
+
+// Helper function to check if IndexedDB is supported
+function isIndexedDBSupported(): boolean {
+    return typeof window !== 'undefined' && 'indexedDB' in window;
+}
+
+// Helper function to get IndexedDB instance
+async function getIndexedDBInstance(): Promise<IDBDatabase> {
+    return openDatabase({ dbName: 'AudioStorage', dbVersion: 1 });
+}
+
+export const getIndexedDBAudioFileMetadata = async (
+    fileName: string
+): Promise<AudioRecording | null> => {
+    try {
+        if (!isIndexedDBSupported()) {
+            console.warn('IndexedDB is not supported in this browser')
+            return null
+        }
+
+        const db = await getIndexedDBInstance()
+        const transaction = db.transaction(['metadata'], 'readonly')
+        const store = transaction.objectStore('metadata')
+        
+        const request = store.get(fileName)
+        
+        return new Promise((resolve, reject) => {
+            request.onsuccess = () => {
+                const metadata = request.result ?? null
+                resolve(metadata)
+            }
+            
+            request.onerror = (event: Event) => {
+                logger.error('Error getting file metadata from IndexedDB', event)
+                reject(new Error('Failed to retrieve file metadata from IndexedDB'))
+            }
+        })
+    } catch (error) {
+        logger.error('Error in getIndexedDBAudioFileMetadata', error)
+        return null
+    }
 }

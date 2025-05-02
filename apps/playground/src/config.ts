@@ -1,9 +1,10 @@
-import { getLogger } from '@siteed/react-native-logger'
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 
-import { mobileTabletCheck } from './utils/utils'
+import { getLogger } from '@siteed/react-native-logger'
+
 import { WHISPER_MODELS, WEB_WHISPER_MODELS } from './hooks/useWhisperModels'
+import { mobileTabletCheck } from './utils/utils'
 
 const baseUrl =
     Constants.expoConfig?.experiments?.baseUrl?.replace(/\/$/, '') ?? ''
@@ -14,8 +15,8 @@ export const WhisperSampleRate = 16000
 // Helper function to get model capabilities
 const getModelCapabilities = (modelId: string, isWeb: boolean) => {
     const models = isWeb ? WEB_WHISPER_MODELS : WHISPER_MODELS
-    const model = models.find(m => m.id === modelId)
-    return model?.capabilities || {
+    const model = models.find((m) => m.id === modelId)
+    return model?.capabilities ?? {
         multilingual: false,
         quantizable: false,
     }
