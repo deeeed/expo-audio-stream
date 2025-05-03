@@ -5,6 +5,8 @@ import 'ts-node/register'
 import { ConfigContext, ExpoConfig } from '@expo/config'
 import { config as dotenvConfig } from 'dotenv-flow'
 import Joi from 'joi'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { version as packageVersion } from './package.json'
 
 dotenvConfig({
@@ -40,6 +42,22 @@ const validatedEnv = env as typeof env & {
     APP_VARIANT: 'development' | 'staging' | 'production'
 }
 
+try {
+  const ortPackageJsonPath = join(__dirname, 'node_modules/onnxruntime-web/package.json')
+  const canvasKitPackageJsonPath = join(__dirname, 'node_modules/canvaskit-wasm/package.json')
+
+  const ortPackageJson = JSON.parse(readFileSync(ortPackageJsonPath, 'utf-8'))
+  const canvasKitPackageJson = JSON.parse(readFileSync(canvasKitPackageJsonPath, 'utf-8'))
+
+  validatedEnv.ORT_VERSION = ortPackageJson.version
+  validatedEnv.CANVASKIT_VERSION = canvasKitPackageJson.version
+
+} catch (readError) {
+  console.error('Error reading package.json for version injection:', readError)
+  validatedEnv.ORT_VERSION = undefined
+  validatedEnv.CANVASKIT_VERSION = undefined
+}
+
 // Add a helper function for logging
 function logConfig(config: Record<string, unknown>, prefix = '') {
     console.log('\n🔧 Environment Configuration:')
@@ -67,6 +85,8 @@ logConfig({
     'EAS Project ID': validatedEnv.EAS_PROJECT_ID,
     'Apple Team ID': validatedEnv.APPLE_TEAM_ID || 'Not set',
     'Environment': process.env.NODE_ENV || 'development',
+    'ORT Version (Injected)': validatedEnv.ORT_VERSION || 'Not Found',
+    'CanvasKit Version (Injected)': validatedEnv.CANVASKIT_VERSION || 'Not Found',
 })
 
 export default ({ config }: ConfigContext): ExpoConfig => {
@@ -130,7 +150,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             },
         ],
         [
-            '../../packages/expo-audio-studio/app.plugin.js',
+            '../../packages/expo-audio-studio/app.plugin.cjs',
             {
                 enablePhoneStateHandling: true,
                 enableNotifications: true,
@@ -164,8 +184,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             },
         ],
         'onnxruntime-react-native',
-        ['./plugins/withCustomGradleConfig', {}],
-        ['./plugins/withLibcppFix', {}],
+        ['./plugins/withCustomGradleConfig.cjs', {}],
+        ['./plugins/withLibcppFix.cjs', {}],
+        [
+            'react-native-edge-to-edge',
+            {
+                enableEdgeToEdge: true,
+            },
+        ],
         [
             '@config-plugins/detox',
             {
@@ -195,6 +221,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         eas: {
             projectId: validatedEnv.EAS_PROJECT_ID,
         },
+        APP_VARIANT: validatedEnv.APP_VARIANT,
+        ORT_VERSION: validatedEnv.ORT_VERSION,
+        CANVASKIT_VERSION: validatedEnv.CANVASKIT_VERSION,
     },
 }
 

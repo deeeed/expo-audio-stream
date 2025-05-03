@@ -22,7 +22,7 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
             gap: theme.spacing.gap,
             paddingHorizontal: theme.padding.s,
             paddingBottom: insets?.bottom || 80,
-            paddingTop: Math.max(insets?.top || 0, 10),
+            paddingTop: 0,
         },
         progressContainer: {
             flexDirection: 'row',

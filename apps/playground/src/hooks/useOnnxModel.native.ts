@@ -1,6 +1,7 @@
 /* eslint-disable import/namespace */
 // apps/playground/src/hooks/useOnnxModel.native.ts
 import { Asset } from 'expo-asset'
+// @ts-expect-error invalid import
 import * as ort from 'onnxruntime-react-native'
 
 import { createOnnxModelHook } from './useOnnxModel.shared'

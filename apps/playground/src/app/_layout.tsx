@@ -4,6 +4,8 @@ import { useEffect, useRef } from 'react'
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import Constants from 'expo-constants'
 import { Stack } from 'expo-router/stack'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { SystemBars } from 'react-native-edge-to-edge'
 
 import { useTheme } from '@siteed/design-system'
 import { AudioRecorderProvider } from '@siteed/expo-audio-studio'
@@ -21,7 +23,6 @@ export default function RootLayout() {
     const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? ''
     const theme = useTheme()
 
-
     const hasCheckedForUpdates = useRef<boolean>(isWeb)
     const { checkUpdates } = useAppUpdates()
 
@@ -32,46 +33,64 @@ export default function RootLayout() {
       }
     }, [checkUpdates])
 
-
     useEffect(() => {
         logger.log(`Base URL: ${baseUrl}`)
     }, [baseUrl])
 
+    // Create a merged theme that properly combines DefaultTheme with our custom theme
+    const navigationTheme = {
+        ...DefaultTheme,
+        ...theme,
+        colors: {
+            ...DefaultTheme.colors,
+            ...theme.colors,
+        },
+        fonts: DefaultTheme.fonts,
+    }
+
     return (
-        <ApplicationContextProvider debugMode>
-            <TranscriptionProvider>
-                <AudioRecorderProvider
-                    config={{
-                        logger: getLogger('AudioRecorderProvider'),
-                        // audioWorkletUrl: config.audioWorkletUrl,
-                        // featuresExtratorUrl: config.featuresExtratorUrl,
-                    }}
-                >
-                    <AudioFilesProvider>
-                        <ThemeProvider
-                            value={{
-                                ...theme,
-                                fonts: DefaultTheme.fonts,
-                            }}
-                        >
-                            {/* WebAppBanner appears above all content on web platform */}
-                            <WebAppBanner />
-                            
-                            <Stack
-                                screenOptions={{
-                                    headerBackButtonMenuEnabled: false,
-                                }}
-                            >
-                                <Stack.Screen
-                                    name="(tabs)"
-                                    options={{ headerShown: false }}
-                                />
-                                {/* <Stack.Screen name="playbug" /> */}
-                            </Stack>
-                        </ThemeProvider>
-                    </AudioFilesProvider>
-                </AudioRecorderProvider>
-            </TranscriptionProvider>
-        </ApplicationContextProvider>
+        <SafeAreaProvider>
+            <ApplicationContextProvider debugMode>
+                <TranscriptionProvider>
+                    <AudioRecorderProvider
+                        config={{
+                            logger: getLogger('AudioRecorderProvider'),
+                            // audioWorkletUrl: config.audioWorkletUrl,
+                            // featuresExtratorUrl: config.featuresExtratorUrl,
+                        }}
+                    >
+                        <AudioFilesProvider>
+                            <ThemeProvider value={navigationTheme}>
+                                {/* Use SystemBars to manage system bars styling */}
+                                <SystemBars style={theme.dark ? 'light' : 'dark'} />
+                                
+                                {/* WebAppBanner appears above all content on web platform */}
+                                <WebAppBanner />
+                                
+                                <Stack
+                                    screenOptions={{
+                                        headerBackButtonMenuEnabled: false,
+                                        headerStyle: {
+                                            backgroundColor: theme.colors.background,
+                                        },
+                                        headerTintColor: theme.colors.text,
+                                        // Configure for proper edge-to-edge display
+                                        contentStyle: {
+                                            backgroundColor: theme.colors.background,
+                                        },
+                                    }}
+                                >
+                                    <Stack.Screen
+                                        name="(tabs)"
+                                        options={{ headerShown: false }}
+                                    />
+                                    {/* <Stack.Screen name="playbug" /> */}
+                                </Stack>
+                            </ThemeProvider>
+                        </AudioFilesProvider>
+                    </AudioRecorderProvider>
+                </TranscriptionProvider>
+            </ApplicationContextProvider>
+        </SafeAreaProvider>
     )
 }

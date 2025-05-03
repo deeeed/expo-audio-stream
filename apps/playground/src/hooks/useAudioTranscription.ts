@@ -68,7 +68,9 @@ export function useAudioTranscription() {
   const [isCustomDuration, setIsCustomDuration] = useState<boolean>(false)
   const [audioExtracted, setAudioExtracted] = useState<boolean>(false)
   const [extractedAudioData, setExtractedAudioData] = useState<ExtractedAudioData | null>(null)
-  const processingTimer = useRef<ReturnType<typeof setInterval>>()
+  const processingTimer = useRef<ReturnType<typeof setInterval> | undefined>(
+    undefined
+  )
   const [currentProcessingTime, setCurrentProcessingTime] = useState<number>(0)
   const [lastTranscriptionLog, setLastTranscriptionLog] = useState<TranscriptionLog | null>(null)
   const [autoTranscribeOnSelect, setAutoTranscribeOnSelect] = useState(true)

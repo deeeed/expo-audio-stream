@@ -216,12 +216,16 @@ style={[
                 
                 {(isDownloading || isModelLoading) && (
                     <View style={[styles.compactProgressContainer, { minHeight: 10, width: '100%' }]}>
-                        <ProgressBar 
-                            progress={isDownloading ? downloadProgress : 0.5} 
-                            indeterminate={!isDownloading && isModelLoading}
-                            style={[styles.progressBar, { height: 8, minHeight: 8 }]}
-                            color={theme.colors.primary}
-                        />
+                        {isDownloading ? (
+                            <ProgressBar 
+                                key="downloading"
+                                progress={downloadProgress} 
+                                style={[styles.progressBar, { height: 8, minHeight: 8 }]}
+                                color={theme.colors.primary}
+                            />
+                        ) : (
+                            <View style={[styles.progressBar, { height: 8, minHeight: 8, backgroundColor: theme.colors.primary, opacity: 0.3 }]} />
+                        )}
                     </View>
                 )}
             </View>
@@ -281,12 +285,16 @@ style={[
             
             {(isDownloading || isModelLoading) && (
                 <View style={[styles.progressContainer, { minHeight: 10, width: '100%' }]}>
-                    <ProgressBar 
-                        progress={isDownloading ? downloadProgress : 0.5} 
-                        indeterminate={!isDownloading && isModelLoading}
-                        style={[styles.progressBar, { height: 8, minHeight: 8 }]}
-                        color={theme.colors.primary}
-                    />
+                    {isDownloading ? (
+                        <ProgressBar 
+                            key="downloading"
+                            progress={downloadProgress} 
+                            style={[styles.progressBar, { height: 8, minHeight: 8 }]}
+                            color={theme.colors.primary}
+                        />
+                    ) : (
+                        <View style={[styles.progressBar, { height: 8, minHeight: 8, backgroundColor: theme.colors.primary, opacity: 0.3 }]} />
+                    )}
                     {isDownloading && (
                         <Text style={styles.progressText}>
                             {Math.round(downloadProgress * 100)}%
