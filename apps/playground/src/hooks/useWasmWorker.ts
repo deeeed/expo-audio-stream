@@ -8,14 +8,14 @@ export interface UseWasmWorkerOptions {
 
 export function useWasmWorker({ onComplete, onError, onLog }: UseWasmWorkerOptions) {
     // Keep a static worker instance that persists across hook instances
-    const staticWorker = useRef<Worker>()
-    const timeoutRef = useRef<NodeJS.Timeout>()
+    const staticWorker = useRef<Worker | null>(null)
+    const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
     // Initialize the static worker if it doesn't exist
     if (!staticWorker.current) {
-        staticWorker.current = new Worker(
-            new URL('/wasm/wasm-worker.js', window.location.href)
-        )
+        // Reference the worker from the public directory
+        // The path should be absolute from the web server root
+        staticWorker.current = new Worker('/wasm/wasm-worker.js');
     }
 
     const handleMessage = useCallback((event: MessageEvent) => {

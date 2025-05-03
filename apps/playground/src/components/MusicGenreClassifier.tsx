@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
 
-import { View, StyleSheet } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { Button, Card, Text } from 'react-native-paper'
 
 import type { AppTheme } from '@siteed/design-system'
 import { useTheme } from '@siteed/design-system'
+import type { MusicGenreFeatures } from '@siteed/react-native-essentia'
 import EssentiaJS from '@siteed/react-native-essentia'
-import type { MusicGenreFeatures } from '@siteed/react-native-essentia/src/types/pipeline.types'
 
 interface MusicGenreClassifierProps {
   showToast: (message: string) => void;
@@ -55,7 +55,7 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
 export function MusicGenreClassifier({ showToast }: MusicGenreClassifierProps) {
   const theme = useTheme()
   const styles = getStyles({ theme })
-  
+
   const [isClassifyingGenre, setIsClassifyingGenre] = useState<boolean>(false)
   const [genreClassificationResult, setGenreClassificationResult] = useState<GenreClassificationResult | null>(null)
 
@@ -63,21 +63,21 @@ export function MusicGenreClassifier({ showToast }: MusicGenreClassifierProps) {
     try {
       setIsClassifyingGenre(true)
       setGenreClassificationResult(null)
-      
+
       // Create dummy PCM data
       const dummyPcmData = new Float32Array(4096)
       for (let i = 0; i < dummyPcmData.length; i++) {
         dummyPcmData[i] = Math.sin(i * 0.01) + Math.sin(i * 0.05)  // Add some harmonic content
       }
-      
+
       // Set the audio data
       await EssentiaJS.setAudioData(dummyPcmData, 44100)
-      
+
       // Use the improved helper method without needing to pass a configuration
       const result = await EssentiaJS.extractMusicGenreFeatures()
-      
+
       console.log('Music genre classification result:', result)
-      
+
       if (result.success && result.data) {
         setGenreClassificationResult({
           features: result.data,
@@ -99,7 +99,7 @@ export function MusicGenreClassifier({ showToast }: MusicGenreClassifierProps) {
 
   const renderGenreClassificationResults = () => {
     if (!genreClassificationResult) return null
-    
+
     if (genreClassificationResult.error) {
       return (
         <View style={styles.resultContainer}>
@@ -108,7 +108,7 @@ export function MusicGenreClassifier({ showToast }: MusicGenreClassifierProps) {
         </View>
       )
     }
-    
+
     return (
       <View style={styles.resultContainer}>
         <Text style={{ fontWeight: 'bold' }}>Music Genre Classification Features:</Text>
@@ -125,7 +125,7 @@ export function MusicGenreClassifier({ showToast }: MusicGenreClassifierProps) {
       <Card.Content>
         <Text style={styles.cardTitle}>Music Genre Classification</Text>
         <Text>Test the music genre classification pipeline with synthetic audio data.</Text>
-        
+
         <View style={styles.buttonContainer}>
           <Button
             mode="contained"
@@ -137,7 +137,7 @@ export function MusicGenreClassifier({ showToast }: MusicGenreClassifierProps) {
             Classify Music Genre
           </Button>
         </View>
-        
+
         {genreClassificationResult && renderGenreClassificationResults()}
       </Card.Content>
     </Card>

@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react'
 
 import { baseLogger } from '../config'
 
-import type { InferenceSession, Tensor } from 'onnxruntime-react-native'
+import type { InferenceSession, Tensor } from 'onnxruntime-common'
 
 const logger = baseLogger.extend('useOnnxModel')
 

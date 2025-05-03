@@ -248,14 +248,6 @@ export const MoreScreen = () => {
                 />
             </View>
 
-            <ListItem
-                contentContainerStyle={styles.listItemContainer}
-                label="Logs"
-                subLabel="Console logs"
-                onPress={() => {
-                    router.navigate('/logs')
-                }}
-            />
             {isWeb && (
                 <ListItem
                     contentContainerStyle={{
@@ -270,14 +262,6 @@ export const MoreScreen = () => {
                 />
             )}
             <ListItem
-                contentContainerStyle={styles.listItemContainer}
-                label="Permissions"
-                subLabel="Check and request permissions"
-                onPress={() => {
-                    router.navigate('/permissions')
-                }}
-            />
-            <ListItem
                                 contentContainerStyle={{
                                     ...styles.listItemContainer,
                                     backgroundColor: theme.colors.primaryContainer,
@@ -287,6 +271,22 @@ export const MoreScreen = () => {
                                 onPress={() => {
                                     router.navigate('/audio-device-test')
                                 }}
+            />
+            <ListItem
+                contentContainerStyle={styles.listItemContainer}
+                label="Logs"
+                subLabel="Console logs"
+                onPress={() => {
+                    router.navigate('/logs')
+                }}
+            />
+            <ListItem
+                contentContainerStyle={styles.listItemContainer}
+                label="Permissions"
+                subLabel="Check and request permissions"
+                onPress={() => {
+                    router.navigate('/permissions')
+                }}
             />
             {__DEV__ && (
                 <>

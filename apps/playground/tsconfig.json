@@ -4,6 +4,7 @@
         "strict": true,
         "types": ["node"],
         "experimentalDecorators": true,
+        "resolveJsonModule": true,
         "paths": {
             "@siteed/expo-audio-studio": [
                 "../../packages/expo-audio-studio/src/index"
