@@ -1,5 +1,5 @@
 // playground/src/app/_layout.tsx
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import Constants from 'expo-constants'
@@ -17,20 +17,20 @@ import { TranscriptionProvider } from '../context/TranscriptionProvider'
 import { WebAppBanner } from '../components/WebAppBanner'
 import { useAppUpdates } from '../hooks/useAppUpdates'
 import { isWeb } from '../utils/utils'
+
 const logger = getLogger('RootLayout')
 
 export default function RootLayout() {
     const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? ''
     const theme = useTheme()
-
-    const hasCheckedForUpdates = useRef<boolean>(isWeb)
     const { checkUpdates } = useAppUpdates()
 
+    // Check for updates on app startup
     useEffect(() => {
-      if (!hasCheckedForUpdates.current && !isWeb) {
-        checkUpdates(true)
-        hasCheckedForUpdates.current = true
-      }
+        if (!isWeb) {
+            logger.info('Checking for updates at app startup')
+            checkUpdates(true) // Silent check (no toasts)
+        }
     }, [checkUpdates])
 
     useEffect(() => {

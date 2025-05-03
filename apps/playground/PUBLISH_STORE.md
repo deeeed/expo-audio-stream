@@ -40,6 +40,34 @@ I follow semantic versioning (MAJOR.MINOR.PATCH) for releases:
 - **MINOR**: New features with backward compatibility (e.g., 1.1.0)
 - **MAJOR**: Breaking changes or significant overhauls (e.g., 2.0.0)
 
+## Update Types: Native vs. JavaScript-Only
+
+### Identifying Native Changes
+
+Native changes **require full app store submissions** and include:
+
+- Expo SDK version upgrades
+- React Native version upgrades
+- Adding/updating native modules
+- Changes to app permissions
+- Changes to native configuration files
+
+### CHANGELOG Documentation
+
+When making changes, categorize them in CHANGELOG.md:
+
+```markdown
+## [Unreleased]
+
+### Native Changes (Requires App Store Submission)
+- Upgraded to Expo SDK 53
+- Added new camera permissions
+
+### JavaScript Changes (OTA Compatible)
+- Fixed audio playback bug
+- Added new UI features
+```
+
 ## Interactive Deployment Script
 
 For most deployment scenarios, I recommend using the interactive deployment script:
@@ -120,20 +148,67 @@ yarn build:ios:production --auto-submit
 npx eas submit --platform ios --latest
 ```
 
-## Over-the-Air Updates
+## Over-the-Air Updates with Expo
 
-For minor changes that don't require new native code, you can push OTA updates:
+AudioPlayground uses Expo Updates for Over-The-Air updates. This allows you to publish updates directly to users without going through the app stores.
+
+### Understanding `runtimeVersion`
+
+- The `runtimeVersion` in app.config.ts determines compatibility between app builds and OTA updates
+- Only updates with the same `runtimeVersion` will be applied to existing installations
+- We sync `runtimeVersion` with our package version (in package.json) for consistency
+- Our automated scripts manage this synchronization for you
+
+### OTA Update Commands
+
+We provide several convenience commands for OTA updates:
 
 ```bash
-# Clean and reinstall dependencies
-yarn clean
-yarn install
+# 1. Increment version and update CHANGELOG
+yarn update:patch   # For bug fixes
+yarn update:minor   # For new features
+yarn update:major   # For breaking changes
 
-# Push update
-npx eas update --message "Description of the changes"
+# 2. Push the update
+yarn ota-update:production   # Main production branch
+yarn ota-update:preview      # Preview/beta testing branch
+yarn ota-update:development  # Development branch
 ```
 
-> ⚠️ **Important**: OTA updates only work for builds using the same `runtimeVersion`
+Each of these commands will:
+1. Update the runtimeVersion to match package.json version
+2. Update the CHANGELOG.md (moving Unreleased changes to the new version)
+3. Push the update to EAS using the appropriate channel
+
+### When to Use OTA vs. Store Updates
+
+| Change Type | Update Method | Version Change |
+|-------------|---------------|----------------|
+| JS-only bug fixes | OTA update | PATCH (0.12.x) |
+| JS-only features | OTA update | MINOR (0.x.0) |
+| Native code changes | Full rebuild | MAJOR (x.0.0) |
+| Expo SDK upgrades | Full rebuild | MAJOR (x.0.0) |
+| Native module updates | Full rebuild | MAJOR or MINOR |
+
+### Workflow Example
+
+1. Make JS-only changes to fix a bug
+2. Document the changes in CHANGELOG.md under [Unreleased]
+3. Run OTA update:
+   ```bash
+   # Update version and push update
+   yarn update:patch
+   yarn ota-update:production
+   ```
+
+### Background Updates
+
+With Expo SDK 53, we've implemented background updates. The app will:
+- Check for updates on launch
+- Check for updates periodically while in use
+- Check for updates when backgrounded (using expo-background-task)
+
+This ensures users always have the latest version without needing to manually check.
 
 ## CI/CD Pipeline
 
