@@ -256,6 +256,19 @@ export const MoreScreen = () => {
                     router.navigate('/logs')
                 }}
             />
+            {isWeb && (
+                <ListItem
+                    contentContainerStyle={{
+                        ...styles.listItemContainer,
+                        backgroundColor: theme.colors.primaryContainer,
+                    }}
+                    label="Download Apps"
+                    subLabel="Get AudioPlayground for iOS and Android"
+                    onPress={() => {
+                        router.navigate('/download')
+                    }}
+                />
+            )}
             <ListItem
                 contentContainerStyle={styles.listItemContainer}
                 label="Permissions"

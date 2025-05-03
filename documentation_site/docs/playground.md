@@ -19,6 +19,23 @@ sidebar_label: Playground Application
   </div>
 </div>
 
+<div style={{display: "flex", flexDirection: "column", alignItems: "center", margin: "20px 0"}}>
+  <p><strong>Download AudioPlayground to experience all features on your device</strong></p>
+  <div style={{display: "flex", justifyContent: "center", gap: "20px", margin: "10px 0"}}>
+    <a href="https://apps.apple.com/app/audio-playground/id6739774966">
+      <img src="https://developer.apple.com/app-store/marketing/guidelines/images/badge-download-on-the-app-store.svg" alt="Download on the App Store" height="40" />
+    </a>
+    <a href="https://play.google.com/store/apps/details?id=net.siteed.audioplayground">
+      <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="40" />
+    </a>
+    <a href="https://deeeed.github.io/expo-audio-stream/playground" style={{textDecoration: "none"}}>
+      <div style={{display: "inline-block", padding: "10px 20px", backgroundColor: "#007bff", color: "white", borderRadius: "5px", fontSize: "16px"}}>
+        Try it on the Web
+      </div>
+    </a>
+  </div>
+</div>
+
 The playground application is a showcase for the `@siteed/expo-audio-studio` library. It demonstrates the various features of the library and provides visualizations for different audio features.
 
 ## Features

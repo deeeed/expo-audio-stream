@@ -28,7 +28,18 @@ Key features:
 - Speech recognition and audio analysis examples
 - Available on iOS and Android app stores
 
-Try the web version at [https://deeeed.github.io/expo-audio-stream/playground/](https://deeeed.github.io/expo-audio-stream/playground/)
+<div align="center">
+  <p>Try it now:</p>
+  <div style="display: flex; justify-content: center; gap: 20px; margin: 10px 0;">
+    <a href="https://apps.apple.com/app/audio-playground/id6739774966">
+      <img src="https://developer.apple.com/app-store/marketing/guidelines/images/badge-download-on-the-app-store.svg" alt="Download on the App Store" height="40" />
+    </a>
+    <a href="https://play.google.com/store/apps/details?id=net.siteed.audioplayground">
+      <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="40" />
+    </a>
+  </div>
+  <p>Or try the web version at <a href="https://deeeed.github.io/expo-audio-stream/playground/">https://deeeed.github.io/expo-audio-stream/playground/</a></p>
+</div>
 
 ### Sherpa-ONNX Demo
 
