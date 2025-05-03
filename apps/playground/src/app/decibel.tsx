@@ -12,6 +12,7 @@ import { DecibelGauge } from '@siteed/expo-audio-ui'
 
 import { DecibelGaugeSettings } from '../component/DecibelGaugeSettings'
 import { baseLogger } from '../config'
+import { useScreenHeader } from '../hooks/useScreenHeader'
 
 import type { GaugeSettings } from '../component/DecibelGaugeSettings'
 
@@ -70,6 +71,12 @@ export default function DecibelScreen() {
     const theme = useTheme()
     const { bottom, top } = useSafeAreaInsets()
     const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
+    useScreenHeader({
+        title: 'Decibel Meter',
+        backBehavior: {
+            fallbackUrl: '/more',
+        },
+    })
     
     const font = useFont(require('@assets/Roboto/Roboto-Regular.ttf'), 30)
 

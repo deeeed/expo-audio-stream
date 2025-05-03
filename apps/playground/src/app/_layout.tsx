@@ -12,6 +12,7 @@ import { getLogger } from '@siteed/react-native-logger'
 import { ApplicationContextProvider } from '../context/ApplicationProvider'
 import { AudioFilesProvider } from '../context/AudioFilesProvider'
 import { TranscriptionProvider } from '../context/TranscriptionProvider'
+import { WebAppBanner } from '../components/WebAppBanner'
 import { useAppUpdates } from '../hooks/useAppUpdates'
 import { isWeb } from '../utils/utils'
 const logger = getLogger('RootLayout')
@@ -53,6 +54,9 @@ export default function RootLayout() {
                                 fonts: DefaultTheme.fonts,
                             }}
                         >
+                            {/* WebAppBanner appears above all content on web platform */}
+                            <WebAppBanner />
+                            
                             <Stack
                                 screenOptions={{
                                     headerBackButtonMenuEnabled: false,

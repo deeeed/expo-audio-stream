@@ -2,6 +2,18 @@
 
 This document outlines my release and deployment process for AudioPlayground. It covers versioning, building, and submitting to app stores.
 
+## Current App Availability
+
+AudioPlayground is publicly available on the following platforms:
+
+| Platform | URL |
+|----------|-----|
+| App Store (iOS) | [https://apps.apple.com/app/audio-playground/id6739774966](https://apps.apple.com/app/audio-playground/id6739774966) |
+| Google Play (Android) | [https://play.google.com/store/apps/details?id=net.siteed.audioplayground](https://play.google.com/store/apps/details?id=net.siteed.audioplayground) |
+| Web | [https://deeeed.github.io/expo-audio-stream/playground/](https://deeeed.github.io/expo-audio-stream/playground/) |
+
+When publishing updates, these are the destinations where the app will be updated.
+
 ## System Requirements
 
 Before starting development or deployment, make sure your system has all the necessary dependencies installed:
@@ -105,7 +117,7 @@ eas device:create
 yarn build:ios:production --auto-submit
 
 # Submit latest build to App Store
-eas submit --platform ios --latest
+npx eas submit --platform ios --latest
 ```
 
 ## Over-the-Air Updates
@@ -118,7 +130,7 @@ yarn clean
 yarn install
 
 # Push update
-eas update --message "Description of the changes"
+npx eas update --message "Description of the changes"
 ```
 
 > ⚠️ **Important**: OTA updates only work for builds using the same `runtimeVersion`

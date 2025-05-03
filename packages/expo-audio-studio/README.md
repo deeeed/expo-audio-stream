@@ -21,6 +21,18 @@
     </div>
   </div>
 
+  <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
+    <p><strong>Try AudioPlayground: Complete audio processing app built with this library</strong></p>
+    <div style="display: flex; justify-content: center; gap: 20px; margin: 10px 0;">
+      <a href="https://apps.apple.com/app/audio-playground/id6739774966">
+        <img src="https://developer.apple.com/app-store/marketing/guidelines/images/badge-download-on-the-app-store.svg" alt="Download on the App Store" height="40" />
+      </a>
+      <a href="https://play.google.com/store/apps/details?id=net.siteed.audioplayground">
+        <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="40" />
+      </a>
+    </div>
+  </div>
+
   <a href="https://deeeed.github.io/expo-audio-stream/playground" style="text-decoration:none;">
     <div style="display:inline-block; padding:10px 20px; background-color:#007bff; color:white; border-radius:5px; font-size:16px;">
       Try it in the Playground
