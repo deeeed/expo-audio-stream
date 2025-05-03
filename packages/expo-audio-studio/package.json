@@ -66,7 +66,7 @@
     ],
     "scripts": {
         "build": "tsc",
-        "build:plugin": "tsc --build plugin/tsconfig.json",
+        "build:plugin": "tsc --build plugin/tsconfig.json && node scripts/convert-to-cjs.js",
         "build:plugin:dev": "expo-module build plugin",
         "build:dev": "expo-module build",
         "clean": "expo-module clean && rimraf plugin/build",
@@ -74,7 +74,7 @@
         "test": "expo-module test",
         "typecheck": "tsc --noEmit",
         "docgen": "typedoc src/index.ts --plugin typedoc-plugin-markdown --readme none --out ../../documentation_site/docs/api-reference/API",
-        "prepare": "yarn build && yarn build:plugin && node -e \"require('fs').renameSync('./plugin/build/index.js', './plugin/build/index.cjs')\" && node -e \"require('fs').renameSync('./plugin/build/index.d.ts', './plugin/build/index.d.cts')\"",
+        "prepare": "yarn build && yarn build:plugin && node -e \"require('fs').renameSync('./plugin/build/index.d.ts', './plugin/build/index.d.cts')\"",
         "prepublishOnly": "expo-module prepublishOnly",
         "expo-module": "expo-module",
         "open:ios": "open -a \"Xcode\" ../../apps/playground/ios",
