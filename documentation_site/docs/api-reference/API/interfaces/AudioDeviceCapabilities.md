@@ -6,7 +6,7 @@
 
 # Interface: AudioDeviceCapabilities
 
-Defined in: [src/ExpoAudioStream.types.ts:252](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L252)
+Defined in: [src/ExpoAudioStream.types.ts:252](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L252)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:252](https://github.com/deeeed/expo-au
 
 > **bitDepths**: `number`[]
 
-Defined in: [src/ExpoAudioStream.types.ts:258](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L258)
+Defined in: [src/ExpoAudioStream.types.ts:258](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L258)
 
 Supported bit depths for the device
 
@@ -24,7 +24,7 @@ Supported bit depths for the device
 
 > **channelCounts**: `number`[]
 
-Defined in: [src/ExpoAudioStream.types.ts:256](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L256)
+Defined in: [src/ExpoAudioStream.types.ts:256](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L256)
 
 Supported channel counts for the device
 
@@ -34,7 +34,7 @@ Supported channel counts for the device
 
 > `optional` **hasAutomaticGainControl**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:264](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L264)
+Defined in: [src/ExpoAudioStream.types.ts:264](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L264)
 
 Whether the device supports automatic gain control
 
@@ -44,7 +44,7 @@ Whether the device supports automatic gain control
 
 > `optional` **hasEchoCancellation**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:260](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L260)
+Defined in: [src/ExpoAudioStream.types.ts:260](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L260)
 
 Whether the device supports echo cancellation
 
@@ -54,7 +54,7 @@ Whether the device supports echo cancellation
 
 > `optional` **hasNoiseSuppression**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:262](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L262)
+Defined in: [src/ExpoAudioStream.types.ts:262](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L262)
 
 Whether the device supports noise suppression
 
@@ -64,6 +64,6 @@ Whether the device supports noise suppression
 
 > **sampleRates**: `number`[]
 
-Defined in: [src/ExpoAudioStream.types.ts:254](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L254)
+Defined in: [src/ExpoAudioStream.types.ts:254](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L254)
 
 Supported sample rates for the device

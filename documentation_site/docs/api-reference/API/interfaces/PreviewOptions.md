@@ -6,7 +6,7 @@
 
 # Interface: PreviewOptions
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:144](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L144)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:144](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L144)
 
 Options for generating a quick preview of audio waveform.
 This is optimized for UI rendering with a specified number of points.
@@ -21,7 +21,7 @@ This is optimized for UI rendering with a specified number of points.
 
 > `optional` **decodingOptions**: [`DecodingConfig`](DecodingConfig.md)
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:164](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L164)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:164](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L164)
 
 Optional configuration for decoding the audio file.
 Defaults to:
@@ -36,7 +36,7 @@ Defaults to:
 
 > `optional` **endTimeMs**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:137](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L137)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:137](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L137)
 
 End time in milliseconds
 
@@ -50,7 +50,7 @@ End time in milliseconds
 
 > **fileUri**: `string`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:146](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L146)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:146](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L146)
 
 URI of the audio file to analyze
 
@@ -60,7 +60,7 @@ URI of the audio file to analyze
 
 > `optional` **logger**: [`ConsoleLike`](../type-aliases/ConsoleLike.md)
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:155](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L155)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:155](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L155)
 
 Optional logger for debugging.
 
@@ -70,7 +70,7 @@ Optional logger for debugging.
 
 > `optional` **numberOfPoints**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:151](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L151)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:151](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L151)
 
 Total number of points to generate for the preview.
 
@@ -86,7 +86,7 @@ Total number of points to generate for the preview.
 
 > `optional` **startTimeMs**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:135](https://github.com/deeeed/expo-audio-stream/blob/e9d4ade779a423b3aff172ba9ca49eec6c8962d9/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L135)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:135](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L135)
 
 Start time in milliseconds
 
