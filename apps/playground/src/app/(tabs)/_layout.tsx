@@ -4,6 +4,7 @@ import React from 'react'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Tabs } from 'expo-router'
 import { Text } from 'react-native-paper'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useTheme } from '@siteed/design-system'
 import { useSharedAudioRecorder } from '@siteed/expo-audio-studio'
@@ -15,9 +16,24 @@ const recordingColor = 'rgba(255, 99, 71, 1)'
 export default function TabLayout() {
     const { isRecording } = useSharedAudioRecorder()
     const { colors } = useTheme()
+    const insets = useSafeAreaInsets()
 
     return (
-        <Tabs screenOptions={{ tabBarActiveTintColor: colors.primary }}>
+        <Tabs 
+            screenOptions={{
+                tabBarActiveTintColor: colors.primary,
+                tabBarInactiveTintColor: colors.text,
+                tabBarStyle: {
+                    backgroundColor: colors.background,
+                    borderTopColor: colors.border,
+                    paddingBottom: insets.bottom, // Add padding for bottom safe area
+                },
+                headerStyle: {
+                    backgroundColor: colors.background,
+                },
+                headerTintColor: colors.text,
+            }}
+        >
             <Tabs.Screen
                 name="index"
                 options={{

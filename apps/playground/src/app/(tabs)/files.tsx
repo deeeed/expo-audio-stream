@@ -34,19 +34,34 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
         contentContainer: {
             gap: theme.spacing.gap ?? 10,
             paddingHorizontal: theme.padding.s,
-            paddingBottom: insets?.bottom ?? 80,
-            paddingTop: Math.max(insets?.top ?? 0, 10),
+            paddingBottom: (insets?.bottom ?? 0) + 16,
+            paddingTop: 0,
         },
         recordingContainer: {
             gap: 10,
             borderWidth: 1,
+            borderColor: theme.colors.border,
+            borderRadius: 8,
+            backgroundColor: theme.colors.surfaceVariant,
         },
         headerContainer: {
             flexDirection: 'row',
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: 10,
+            marginBottom: 8,
         },
+        listContainer: {
+            flex: 1,
+            backgroundColor: theme.colors.background,
+        },
+        clearButton: {
+            backgroundColor: theme.dark ? '#CF6679' : 'red',
+            borderRadius: 4,
+        },
+        clearButtonText: {
+            color: theme.dark ? '#000' : 'white',
+        }
     })
 }
 
@@ -68,7 +83,6 @@ const FilesScreen = () => {
 
     useFocusEffect(
         useCallback(() => {
-            // Only refresh files when the screen is focused
             let isActive = true
             
             const loadFiles = async () => {
@@ -105,18 +119,20 @@ const FilesScreen = () => {
 
     if (!ready) {
         return (
-            <Skeleton
-                items={[
-                    { circles: 1, bars: 3 },
-                    { circles: 1, bars: 3 },
-                ]}
-            />
+            <ScreenWrapper style={styles.container}>
+                <Skeleton
+                    items={[
+                        { circles: 1, bars: 3 },
+                        { circles: 1, bars: 3 },
+                    ]}
+                />
+            </ScreenWrapper>
         )
     }
 
     if (!files || files.length === 0) {
         return (
-            <ScreenWrapper useInsets style={styles.container}>
+            <ScreenWrapper style={styles.container}>
                 <Result
                     title="No recordings found"
                     status="info"
@@ -131,6 +147,7 @@ const FilesScreen = () => {
     }
 
     return (
+        <View style={styles.listContainer}>
             <FlatList
                 data={files}
                 keyExtractor={(item, index) => `${item.fileUri}_${index}`}
@@ -142,11 +159,11 @@ const FilesScreen = () => {
                     <View style={styles.headerContainer}>
                         <Button
                             onPress={clearFiles}
-                            buttonColor="red"
-                            textColor="white"
+                            style={styles.clearButton}
+                            textColor={styles.clearButtonText.color}
                         >
-                        Clear Directory ({formatBytes(totalAudioStorageSize)})
-                    </Button>
+                            Clear Directory ({formatBytes(totalAudioStorageSize)})
+                        </Button>
                     </View>
                 }
                 renderItem={({ item }) => (
@@ -160,6 +177,7 @@ const FilesScreen = () => {
                     />
                 )}
             />
+        </View>
     )
 }
 

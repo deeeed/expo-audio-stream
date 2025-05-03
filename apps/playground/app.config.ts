@@ -187,6 +187,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         ['./plugins/withCustomGradleConfig.cjs', {}],
         ['./plugins/withLibcppFix.cjs', {}],
         [
+            'react-native-edge-to-edge',
+            {
+                enableEdgeToEdge: true,
+            },
+        ],
+        [
             '@config-plugins/detox',
             {
               skipProguard: false,
