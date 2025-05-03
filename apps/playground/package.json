@@ -47,7 +47,15 @@
         "open:android": "open -a \"Android Studio\" android",
         "predeploy": "APP_VARIANT=production EXPO_WEB=true expo export -p web",
         "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/",
-        "prepare": "cd ../../ && husky install apps/playground/.husky"
+        "prepare": "cd ../../ && husky install apps/playground/.husky",
+        "update-runtime-version": "node scripts/update-runtime-version.js",
+        "update:patch": "yarn version --patch && yarn update-runtime-version",
+        "update:minor": "yarn version --minor && yarn update-runtime-version",
+        "update:major": "yarn version --major && yarn update-runtime-version",
+        "ota-update": "yarn update-runtime-version && npx eas update --auto",
+        "ota-update:production": "yarn update-runtime-version && npx eas update --auto --branch production --message \"$(git log -1 --pretty=%B)\"",
+        "ota-update:preview": "yarn update-runtime-version && npx eas update --auto --branch preview --message \"$(git log -1 --pretty=%B)\"",
+        "ota-update:development": "yarn update-runtime-version && npx eas update --auto --branch development --message \"$(git log -1 --pretty=%B)\""
     },
     "dependencies": {
         "@expo/metro-runtime": "~5.0.4",
@@ -73,6 +81,7 @@
         "expo": "^53.0.6",
         "expo-application": "~6.1.4",
         "expo-av": "~15.1.4",
+        "expo-background-task": "~0.2.6",
         "expo-build-properties": "~0.14.6",
         "expo-clipboard": "~7.1.4",
         "expo-constants": "~17.1.5",
@@ -84,6 +93,7 @@
         "expo-router": "~5.0.5",
         "expo-sharing": "~13.1.5",
         "expo-status-bar": "~2.2.3",
+        "expo-task-manager": "~13.1.5",
         "expo-updates": "~0.28.12",
         "is-base64": "^1.1.0",
         "lodash": "^4.17.21",

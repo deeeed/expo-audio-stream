@@ -12118,6 +12118,7 @@ __metadata:
     expo: "npm:^53.0.6"
     expo-application: "npm:~6.1.4"
     expo-av: "npm:~15.1.4"
+    expo-background-task: "npm:~0.2.6"
     expo-build-properties: "npm:~0.14.6"
     expo-clipboard: "npm:~7.1.4"
     expo-constants: "npm:~17.1.5"
@@ -12130,6 +12131,7 @@ __metadata:
     expo-router: "npm:~5.0.5"
     expo-sharing: "npm:~13.1.5"
     expo-status-bar: "npm:~2.2.3"
+    expo-task-manager: "npm:~13.1.5"
     expo-updates: "npm:~0.28.12"
     gh-pages: "npm:^6.2.0"
     husky: "npm:^9.1.7"
@@ -18133,6 +18135,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-background-task@npm:~0.2.6":
+  version: 0.2.6
+  resolution: "expo-background-task@npm:0.2.6"
+  dependencies:
+    expo-task-manager: "npm:~13.1.5"
+  peerDependencies:
+    expo: "*"
+  checksum: 10/c7f8344f5c11e37aea3191c95a48364d4f22cef3ba528e0ec85b436472a9650a0af5e8d9bc989b1b79d4dccb7c7c5ce14d6586dded953adaeffa495421366144
+  languageName: node
+  linkType: hard
+
 "expo-blur@npm:~14.0.3":
   version: 14.0.3
   resolution: "expo-blur@npm:14.0.3"
@@ -18720,6 +18733,18 @@ __metadata:
     react-native-web:
       optional: true
   checksum: 10/a3065b69a3d8312a6ec672920bb794b0b7338afb87e2f08b55a3f273a82e1b22635f8217663b1dda4b68980f8ebb7f1d4f266802d879884b33c59659804d9678
+  languageName: node
+  linkType: hard
+
+"expo-task-manager@npm:~13.1.5":
+  version: 13.1.5
+  resolution: "expo-task-manager@npm:13.1.5"
+  dependencies:
+    unimodules-app-loader: "npm:~5.1.3"
+  peerDependencies:
+    expo: "*"
+    react-native: "*"
+  checksum: 10/32597e5fc2a3160271ccb5e7d05a210eb8d99a088fa4309f1bdb40c3b0f92ec8f0082af450f7b8c3ca7427940f246440524a14702b17c08da76384b80dd13875
   languageName: node
   linkType: hard
 
@@ -35393,6 +35418,13 @@ __metadata:
     trough: "npm:^2.0.0"
     vfile: "npm:^6.0.0"
   checksum: 10/d9e6e88900a075f391b6bbf06f34062d41fa6257798110d1647753cfc2c6a6e2c1d016434e8ee35706c50485f9fb9ae4707a6a4790bd8dc461ec7e7315ed908b
+  languageName: node
+  linkType: hard
+
+"unimodules-app-loader@npm:~5.1.3":
+  version: 5.1.3
+  resolution: "unimodules-app-loader@npm:5.1.3"
+  checksum: 10/6c9ccae8c3ad7ed1dc30d4c6523c23a0eade51e451bb42a14015801421536757520b537d053b150ddbe612a5c23857af79052c9efba42dfefd5b9a03108694e9
   languageName: node
   linkType: hard
 

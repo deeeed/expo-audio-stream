@@ -208,6 +208,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
               ],
             },
         ],
+        "expo-background-task",
         'expo-localization',
         // [
         //     'expo-asset',

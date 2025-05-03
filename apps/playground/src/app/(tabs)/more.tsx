@@ -1,7 +1,6 @@
 import React, { memo, useCallback, useMemo, useState, useRef } from 'react'
 
 import { MaterialCommunityIcons } from '@expo/vector-icons'
-import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import { Image, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
@@ -28,6 +27,8 @@ import { isWeb } from '../../utils/utils'
 
 import type { LayoutChangeEvent } from 'react-native'
 
+// Background update registration is now handled by useAppUpdates
+
 const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: number, top: number } }) => {
     return StyleSheet.create({
         container: {
@@ -49,6 +50,11 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
             fontSize: 12,
             paddingTop: 5,
             color: 'lightgrey',
+        },
+        versionContainer: {
+            flexDirection: 'row',
+            justifyContent: 'center',
+            gap: 10,
         },
         configSection: {
             marginTop: 16,
@@ -191,7 +197,6 @@ export const MoreScreen = () => {
     const { toggleDarkMode, darkMode, theme } = useThemePreferences()
     const { bottom, top } = useSafeAreaInsets()
     const styles = useMemo(() => getStyles({ theme, insets: { bottom, top } }), [theme, bottom, top])
-    const appVersion = Constants.expoConfig?.version
     const {
         checking,
         downloading,
@@ -199,7 +204,18 @@ export const MoreScreen = () => {
         isUpdateAvailable,
         checkUpdates,
         canUpdate,
+        runtimeVersion: runtimeVersionRaw,
+        appVersion,
+        lastChecked,
+        updateDetails,
+        updatesEnabled,
+        toggleUpdatesEnabled,
     } = useAppUpdates()
+
+    // Convert complex runtimeVersion to string if needed
+    const runtimeVersion = typeof runtimeVersionRaw === 'string' 
+        ? runtimeVersionRaw 
+        : 'Unknown'
 
     return (
         <ScreenWrapper
@@ -213,7 +229,10 @@ export const MoreScreen = () => {
                     style={{ width: 100, height: 100 }}
                 />
                 <Text>Audio PlayGround</Text>
-                <Text style={styles.version}>v{appVersion}</Text>
+                <View style={styles.versionContainer}>
+                    <Text style={styles.version}>v{appVersion}</Text>
+                    <Text style={styles.version}>Runtime: {runtimeVersion}</Text>
+                </View>
             </View>
 
             <AppInfoBanner theme={theme} />
@@ -228,14 +247,28 @@ export const MoreScreen = () => {
             />
 
             {!isWeb && (
-                <Updater
-                    isUpdateAvailable={isUpdateAvailable}
-                    checking={checking}
-                    downloading={downloading}
-                    onUpdate={doUpdate}
-                    onCheck={() => checkUpdates(false)}
-                    canUpdate={canUpdate}
-                />
+                <>
+                    <Updater
+                        isUpdateAvailable={isUpdateAvailable}
+                        checking={checking}
+                        downloading={downloading}
+                        onUpdate={doUpdate}
+                        onCheck={() => checkUpdates(false)}
+                        canUpdate={canUpdate}
+                        lastChecked={lastChecked}
+                        updateDetails={updateDetails}
+                    />
+                    
+                    <LabelSwitch
+                        label="Automatic Updates"
+                        containerStyle={{
+                            backgroundColor: theme.colors.surface,
+                            marginTop: 8,
+                        }}
+                        onValueChange={toggleUpdatesEnabled}
+                        value={updatesEnabled}
+                    />
+                </>
             )}
 
             <View style={styles.configSection}>
