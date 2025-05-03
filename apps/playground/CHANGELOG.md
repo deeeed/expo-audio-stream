@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [1.0.0] - 2025-05-03
+
+### Added
+- prepare expo plugin for expo 53 update (#225)
+- Update AudioPlayground branding and enhance app distribution (#224)
+
+### Changed
+- update api references for v2.6.3
+- release @siteed/expo-audio-studio@2.6.3
+
+
 ## [0.12.3] - 2025-05-02
 
 ### Changed
@@ -26,7 +37,9 @@ All notable changes to this project will be documented in this file.
 
 
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@0.12.3...HEAD
+
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.0.0...HEAD
+[1.0.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@0.12.3...audio-playground@1.0.0
 [0.12.3]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@0.12.2...audio-playground@0.12.3
 [0.12.2]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@0.12.1...audio-playground@0.12.2
 [0.12.1]: https://github.com/deeeed/expo-audio-stream/releases/tag/audio-playground@0.12.1

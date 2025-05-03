@@ -151,6 +151,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         ],
         [
             '../../packages/expo-audio-studio/app.plugin.cjs',
+            // '@siteed/expo-audio-studio',
             {
                 enablePhoneStateHandling: true,
                 enableNotifications: true,
