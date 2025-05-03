@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.6.3] - 2025-05-03
+### Changed
+- chore: update readme with store download information (#224) ([c404d86](https://github.com/deeeed/expo-audio-stream/commit/c404d860cdb1c4c4bbc3767214f56bf547acec33))
 ## [2.6.2] - 2025-05-01
 ### Changed
 - fix(audio-studio): ensure foreground-only audio recording works with FOREGROUND_SERVICE #202 (#221) ([abc450c](https://github.com/deeeed/expo-audio-stream/commit/abc450cb73968cc260e430758df9b72e00f75ef7))
@@ -210,7 +213,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.6.2...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.6.3...HEAD
+[2.6.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.6.2...@siteed/expo-audio-studio@2.6.3
 [2.6.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.6.1...@siteed/expo-audio-studio@2.6.2
 [2.6.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.6.0...@siteed/expo-audio-studio@2.6.1
 [2.6.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.5.0...@siteed/expo-audio-studio@2.6.0
