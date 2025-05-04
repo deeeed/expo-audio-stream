@@ -425,7 +425,7 @@ func loadAudioFile(_ fileUri: String) throws -> AudioData {
     let frameCount = UInt32(file.length)
     let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount)!
     
-    try file.read(into: buffer)
+    try file.read(into: buffer, frameCount: frameCount)
     
     // Convert buffer to float array
     let samples: [Float]
@@ -598,12 +598,13 @@ func extractRawAudioData(
         finalBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: frameCount)!
         
         var error: NSError?
-        let status = converter.convert(to: finalBuffer, error: &error) { inNumPackets, outStatus in
+        _ = converter.convert(to: finalBuffer, error: &error) { inNumPackets, outStatus in
             outStatus.pointee = .haveData
             return buffer
         }
         
         if let error = error {
+            Logger.debug("AudioProcessingHelpers", "Format conversion failed: \(error.localizedDescription)")
             throw error
         }
     } else {
