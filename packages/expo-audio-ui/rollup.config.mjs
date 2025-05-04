@@ -1,8 +1,10 @@
+import terser from '@rollup/plugin-terser' // Import terser plugin
 import typescript from '@rollup/plugin-typescript'
 import url from '@rollup/plugin-url'
-import terser from '@rollup/plugin-terser' // Import terser plugin
+import { createRequire } from 'module'
 
-import packageJson from './package.json' assert { type: 'json' }
+const require = createRequire(import.meta.url)
+const packageJson = require('./package.json')
 
 export default {
     input: 'src/index.ts',
