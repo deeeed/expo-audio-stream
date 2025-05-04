@@ -67,6 +67,12 @@
         "YARN_ENABLE_GLOBAL_CACHE": "false"
       },
       "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle",
+        "cache": {
+          "disabled": true
+        }
+      },
       "cache": {
         "disabled": false,
         "paths": ["node_modules"]

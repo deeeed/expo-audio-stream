@@ -291,7 +291,7 @@ deploy_android() {
       ;;
     4)
       echo -e "${CYAN}Building Android production version locally...${NC}"
-      yarn build:android:production --local
+      yarn build:android:production --local --no-wait
       
       read -p "$(echo -e ${YELLOW}"Do you want to submit this build to the Play Store? (Y/n): "${NC})" SUBMIT_ANDROID
       SUBMIT_ANDROID=${SUBMIT_ANDROID:-y}  # Default to yes

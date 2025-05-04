@@ -31,6 +31,7 @@
         "build:android:preview": "APP_VARIANT=preview npx eas build --platform android --profile preview --local",
         "build:android:preview_apk": "APP_VARIANT=preview_apk npx eas build --platform android --profile preview_apk --local",
         "build:android:production": "NODE_ENV=production APP_VARIANT=production npx eas build --platform android --profile production",
+        "build:android:production:local": "NODE_ENV=production APP_VARIANT=production npx eas build --platform android --profile production --local --no-wait",
         "build:ios:test": "APP_VARIANT=development npx eas build --platform ios --profile test --local",
         "build:ios:development": "APP_VARIANT=development NODE_ENV=development npx eas build --platform ios --profile development --local",
         "build:ios:preview": "APP_VARIANT=preview NODE_ENV=development npx eas build --platform ios --profile preview --local",

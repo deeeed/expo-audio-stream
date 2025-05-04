@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [1.2.0] - 2025-05-04
+
+### Changed
+- add Git LFS setup scripts and contributing guidelines for ONNX model management
+- update dependencies for expo, react, and react-native to latest versions; enhance rollup configuration
+
 ## [1.0.1] - 2025-05-04
 
 ### Changed
@@ -49,7 +55,9 @@ All notable changes to this project will be documented in this file.
 
 
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.0.1...HEAD
+
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.2.0...HEAD
+[1.2.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.0.1...audio-playground@1.2.0
 [1.0.1]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.0.0...audio-playground@1.0.1
 [1.0.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@0.12.3...audio-playground@1.0.0
 [0.12.3]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@0.12.2...audio-playground@0.12.3
