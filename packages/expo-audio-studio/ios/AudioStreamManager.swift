@@ -363,9 +363,15 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     
     @objc private func handleAppDidEnterBackground(_ notification: Notification) {
         if isRecording {
-            // If keepAwake is false, we should track this as a pause
+            // If keepAwake is false, we should track this as a pause and actually pause the engine
             if let settings = recordingSettings, !settings.keepAwake {
+                Logger.debug("AudioStreamManager", "App entering background with keepAwake=false, pausing recording")
                 currentPauseStart = Date()
+                // Explicitly pause the engine but don't change isPaused state
+                // so we can automatically resume when returning to foreground
+                audioEngine.pause()
+            } else {
+                Logger.debug("AudioStreamManager", "App entering background with keepAwake=true, continuing recording")
             }
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -382,6 +388,23 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 totalPausedDuration += pauseDuration
                 currentPauseStart = nil
                 Logger.debug("AudioStreamManager", "Added background pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
+                
+                // Now restart the engine if it was paused due to background
+                do {
+                    // Reinstall tap with hardware format to ensure we have good input
+                    _ = installTapWithHardwareFormat()
+                    // Restart the engine
+                    try audioEngine.start()
+                    Logger.debug("AudioStreamManager", "Successfully restarted audio engine after returning from background")
+                } catch {
+                    Logger.debug("AudioStreamManager", "Failed to restart audio engine after returning from background: \(error)")
+                    // If we can't restart, officially pause the recording
+                    if !isPaused {
+                        isPaused = true
+                        // Notify delegate
+                        delegate?.audioStreamManager(self, didPauseRecording: Date())
+                    }
+                }
             }
             
             notificationManager?.stopUpdates()
@@ -768,9 +791,21 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             // Append necessary options for background recording if keepAwake is enabled
             if settings.keepAwake {
                 Logger.debug("AudioStreamManager", "keepAwake enabled - configuring for background recording")
-                // Add background audio option
+                // Set the category to PlayAndRecord with proper background options
                 options.insert(.mixWithOthers)
-                try session.setActive(true, options: .notifyOthersOnDeactivation)
+                // Add duckOthers to reduce volume of other apps instead of stopping them
+                options.insert(.duckOthers)
+                
+                // Configure audio session for background audio
+                do {
+                    try session.setCategory(.playAndRecord, mode: .default, options: options)
+                    try session.setActive(true, options: .notifyOthersOnDeactivation)
+                    // Ensure the app has appropriate Info.plist settings for background audio
+                    Logger.debug("AudioStreamManager", "Audio session configured for background recording with options: \(options)")
+                } catch {
+                    Logger.debug("AudioStreamManager", "Failed to configure audio session for background: \(error)")
+                    try session.setActive(true, options: .notifyOthersOnDeactivation)
+                }
             } else {
                 Logger.debug("AudioStreamManager", "keepAwake disabled - using standard session configuration")
                 // If keepAwake is false, don't add background audio options

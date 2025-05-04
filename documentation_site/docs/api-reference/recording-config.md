@@ -26,7 +26,7 @@ export interface RecordingConfig {
     interval?: number // Interval in milliseconds at which to emit recording data
 
     // Device and notification settings
-    keepAwake?: boolean // Continue recording when app is in background (default is true)
+    keepAwake?: boolean // Continue recording when app is in background. On iOS, requires both 'audio' and 'processing' background modes (default is true)
     showNotification?: boolean // Show a notification during recording (default is false)
     showWaveformInNotification?: boolean // Show waveform in the notification (Android only)
     notification?: NotificationConfig // Configuration for the notification
@@ -540,3 +540,102 @@ const config = {
 - **Web**: 
   - Interruptions are handled through the Web Audio API's state changes
   - Phone call handling is not supported
+
+## Background Recording on iOS
+
+When setting `keepAwake: true` for iOS background recording:
+
+- **Required**: The `audio` background mode
+  - This is essential for accessing the microphone in the background
+  - Without this, iOS will suspend your audio session when backgrounded
+  
+- **Recommended**: The `processing` background mode
+  - Provides additional background execution time for audio processing
+  - Helpful for longer recordings or when using audio analysis features
+
+### iOS Configuration
+
+In your `app.config.ts` or plugin configuration:
+
+```typescript
+iosBackgroundModes: {
+  useAudio: true,     // REQUIRED for background recording
+  useProcessing: true // RECOMMENDED for better performance
+}
+```
+
+The key takeaway: `useAudio: true` is required for any background recording to work.
+
+## Troubleshooting Background Recording
+
+If recording stops when your app moves to the background despite having `keepAwake: true`:
+
+- **iOS**: Verify your app has the "audio" background mode in Info.plist (required)
+  - Adding the "processing" background mode is also recommended
+- **Android**: Check that your app has the required foreground service permissions
+
+Example iOS Info.plist configuration:
+
+```xml
+<key>UIBackgroundModes</key>
+<array>
+  <string>audio</string>
+  <string>processing</string> <!-- recommended but optional -->
+  <!-- other background modes -->
+</array>
+```
+
+## Example Usage
+
+```tsx
+import { useAudioRecorder } from '@siteed/expo-audio-studio';
+
+const config = {
+    sampleRate: 16000,
+    channels: 1,
+    encoding: 'pcm_16bit',
+    interval: 500,
+    enableProcessing: true,
+    keepAwake: true,
+    showNotification: true,
+    compression: {
+        enabled: true,
+        format: 'aac',
+        bitrate: 128000
+    },
+    pointsPerSecond: 1000,
+    algorithm: 'rms',
+    features: { energy: true, rms: true },
+    autoResumeAfterInterruption: true,
+    onAudioStream: async (event) => {
+        console.log('Audio data:', event);
+    },
+    onAudioAnalysis: async (data) => {
+        console.log('Processing:', data);
+    },
+    onRecordingInterrupted: (event) => {
+        console.log('Recording interrupted:', event);
+    }
+};
+
+const {
+    startRecording,
+    stopRecording,
+    isRecording,
+    durationMs,
+    size,
+} = useAudioRecorder({ debug: true });
+
+const handleStart = async () => {
+    const { granted } = await Audio.requestPermissionsAsync();
+    if (granted) {
+        const result = await startRecording(config);
+        console.log('Recording started with config:', result);
+    }
+};
+
+const handleStop = async () => {
+    const result = await stopRecording();
+    console.log('Recording stopped with result:', result);
+};
+```

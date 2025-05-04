@@ -157,7 +157,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 enableNotifications: true,
                 enableBackgroundAudio: true,
                 iosBackgroundModes: {
-                    useAudio: false,
+                    useAudio: true,
                     useProcessing: true,
                     useVoIP: false,
                     useLocation: false,
