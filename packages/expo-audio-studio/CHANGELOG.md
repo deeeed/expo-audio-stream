@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.8.0] - 2025-05-04
+### Changed
+- feat(playground): Version 1.0.1 with Audio Enhancements, App Updates, and Navigation Refactor (#229) ([868fca0](https://github.com/deeeed/expo-audio-stream/commit/868fca026119aea116a22670c2b6fe364b6df06c))
+- chore: enhance publish script to include git push after documentation updates ([1b0b0db](https://github.com/deeeed/expo-audio-stream/commit/1b0b0db6cf40a6397e6d7438cb7543c93e67b143))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.7.0 ([fe19a2f](https://github.com/deeeed/expo-audio-stream/commit/fe19a2fa1af6033cfa025691f25a0e9bcd64b37c))
 ## [2.7.0] - 2025-05-04
 ### Changed
 - fix: Enhance iOS Background Audio Recording and Audio Format Conversion (#228) ([c17169b](https://github.com/deeeed/expo-audio-stream/commit/c17169bf9275706abf287712acc30df2f1814ed7))
@@ -217,7 +222,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.7.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.0...HEAD
+[2.8.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.7.0...@siteed/expo-audio-studio@2.8.0
 [2.7.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.6.3...@siteed/expo-audio-studio@2.7.0
 [2.6.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.6.2...@siteed/expo-audio-studio@2.6.3
 [2.6.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.6.1...@siteed/expo-audio-studio@2.6.2
