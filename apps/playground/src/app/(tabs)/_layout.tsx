@@ -33,13 +33,8 @@ export default function TabLayout() {
                 },
                 headerTintColor: colors.text,
             }}
+            initialRouteName="record"
         >
-            <Tabs.Screen
-                name="index"
-                options={{
-                    href: null,
-                }}
-            />
             <Tabs.Screen
                 name="record"
                 options={{
@@ -71,7 +66,6 @@ export default function TabLayout() {
                 name="import"
                 options={{
                     title: 'Import',
-                    href: 'import',
                     tabBarIcon: ({ color }) => (
                         <MaterialCommunityIcons
                             name="file-upload"
@@ -85,7 +79,6 @@ export default function TabLayout() {
                 name="transcription"
                 options={{
                     title: 'Transcription',
-                    href: 'transcription',
                     tabBarIcon: ({ color }) => (
                         <MaterialCommunityIcons
                             name="text-to-speech"
@@ -99,7 +92,6 @@ export default function TabLayout() {
                 name="files"
                 options={{
                     title: 'Files',
-                    href: 'files',
                     tabBarIcon: ({ color }) => (
                         <MaterialCommunityIcons
                             name="cog"
