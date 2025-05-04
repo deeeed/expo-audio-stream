@@ -11,7 +11,7 @@ This monorepo contains the following packages:
 
 ## ❤️ Support This Project
 
-Love expo-audio-stream? Support my journey in audio, AI, & blockchain, and help fund new tools! Sponsor me.
+Love this repo? Support my journey in audio, AI, & blockchain, and help fund new tools! Sponsor me.
 
 [![Sponsor this project](https://img.shields.io/github/sponsors/deeeed?label=Sponsor&logo=GitHub)](https://github.com/sponsors/deeeed)
 
