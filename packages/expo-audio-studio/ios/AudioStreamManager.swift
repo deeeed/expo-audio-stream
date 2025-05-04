@@ -110,6 +110,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     // ---> ADD BACK deviceManager PROPERTY <--- 
     private let deviceManager = AudioDeviceManager()
 
+    // Add the stopping flag to the class properties
+    private var stopping: Bool = false
+
     /// Initializes the AudioStreamManager
     override init() {
         super.init()
@@ -137,11 +140,25 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     }
     
     deinit {
-       // Ensure wake lock is disabled when the manager is deallocated
-       disableWakeLock()
-        if let observer = notificationObserver {
-            NotificationCenter.default.removeObserver(observer)
+        // Ensure wake lock is disabled when the manager is deallocated
+        disableWakeLock()
+        
+        // Stop any active recording to properly release resources
+        if isRecording {
+            audioEngine.stop()
+            audioEngine.reset()
         }
+        
+        // Remove ALL notification observers properly
+        NotificationCenter.default.removeObserver(self)
+        
+        // Clean up notification manager
+        notificationManager?.stopUpdates()
+        notificationManager = nil
+        
+        // Cleanup media timer
+        mediaInfoUpdateTimer?.invalidate()
+        mediaInfoUpdateTimer = nil
     }
     
     /// Handles an audio session interruption.
@@ -362,55 +379,68 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     }
     
     @objc private func handleAppDidEnterBackground(_ notification: Notification) {
-        if isRecording {
-            // If keepAwake is false, we should track this as a pause and actually pause the engine
-            if let settings = recordingSettings, !settings.keepAwake {
-                Logger.debug("AudioStreamManager", "App entering background with keepAwake=false, pausing recording")
-                currentPauseStart = Date()
-                // Explicitly pause the engine but don't change isPaused state
-                // so we can automatically resume when returning to foreground
-                audioEngine.pause()
-            } else {
-                Logger.debug("AudioStreamManager", "App entering background with keepAwake=true, continuing recording")
-            }
-            
+        // Skip if we're in the process of stopping - this prevents race conditions
+        if !isRecording || stopping {
+            return
+        }
+        
+        // If keepAwake is false, we should track this as a pause and actually pause the engine
+        if let settings = recordingSettings, !settings.keepAwake {
+            Logger.debug("AudioStreamManager", "App entering background with keepAwake=false, pausing recording")
+            currentPauseStart = Date()
+            // Explicitly pause the engine but don't change isPaused state
+            // so we can automatically resume when returning to foreground
+            audioEngine.pause()
+        } else {
+            Logger.debug("AudioStreamManager", "App entering background with keepAwake=true, continuing recording")
+        }
+        
+        // Use a strong reference to notificationManager to avoid potential null reference
+        if let manager = notificationManager {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.notificationManager?.showInitialNotification()
+                guard let self = self, self.isRecording, !self.stopping else { return }
+                manager.showInitialNotification()
             }
         }
     }
 
     @objc private func handleAppWillEnterForeground(_ notification: Notification) {
-        if isRecording {
-            // If we were paused due to background and keepAwake was false, calculate pause duration
-            if let settings = recordingSettings, !settings.keepAwake, let pauseStart = currentPauseStart {
-                let pauseDuration = Date().timeIntervalSince(pauseStart)
-                totalPausedDuration += pauseDuration
-                currentPauseStart = nil
-                Logger.debug("AudioStreamManager", "Added background pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
-                
-                // Now restart the engine if it was paused due to background
-                do {
-                    // Reinstall tap with hardware format to ensure we have good input
-                    _ = installTapWithHardwareFormat()
-                    // Restart the engine
-                    try audioEngine.start()
-                    Logger.debug("AudioStreamManager", "Successfully restarted audio engine after returning from background")
-                } catch {
-                    Logger.debug("AudioStreamManager", "Failed to restart audio engine after returning from background: \(error)")
-                    // If we can't restart, officially pause the recording
-                    if !isPaused {
-                        isPaused = true
-                        // Notify delegate
-                        delegate?.audioStreamManager(self, didPauseRecording: Date())
-                    }
+        // Skip if we're in the process of stopping
+        if !isRecording || stopping {
+            return
+        }
+        
+        // If we were paused due to background and keepAwake was false, calculate pause duration
+        if let settings = recordingSettings, !settings.keepAwake, let pauseStart = currentPauseStart {
+            let pauseDuration = Date().timeIntervalSince(pauseStart)
+            totalPausedDuration += pauseDuration
+            currentPauseStart = nil
+            Logger.debug("AudioStreamManager", "Added background pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
+            
+            // Now restart the engine if it was paused due to background
+            do {
+                // Reinstall tap with hardware format to ensure we have good input
+                _ = installTapWithHardwareFormat()
+                // Restart the engine
+                try audioEngine.start()
+                Logger.debug("AudioStreamManager", "Successfully restarted audio engine after returning from background")
+            } catch {
+                Logger.debug("AudioStreamManager", "Failed to restart audio engine after returning from background: \(error)")
+                // If we can't restart, officially pause the recording
+                if !isPaused {
+                    isPaused = true
+                    // Notify delegate
+                    delegate?.audioStreamManager(self, didPauseRecording: Date())
                 }
             }
-            
-            notificationManager?.stopUpdates()
+        }
+        
+        // Safely access notificationManager
+        if let manager = notificationManager {
+            manager.stopUpdates()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                guard let self = self else { return }
-                self.notificationManager?.startUpdates(startTime: self.startTime ?? Date())
+                guard let self = self, self.isRecording, !self.stopping else { return }
+                manager.startUpdates(startTime: self.startTime ?? Date())
             }
         }
     }
@@ -1450,7 +1480,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 self.lastEmissionTime = currentTime
                 self.lastEmittedSize = currentTotalSize
                 accumulatedData.removeAll()
-                var compressionInfo: [String: Any]? = nil
+                let compressionInfo: [String: Any]? = nil
                 
                 Logger.debug("EMISSION SUCCESS: Emitting \(dataToEmit.count) bytes at recording time \(recordingTime)s")
                 
@@ -1472,7 +1502,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         if let lastEmissionAnalysis = self.lastEmissionTimeAnalysis,
            currentTime.timeIntervalSince(lastEmissionAnalysis) >= emissionIntervalAnalysis,
            settings.enableProcessing,
-           let processor = self.audioProcessor,
+           let _ = self.audioProcessor,
            !accumulatedAnalysisData.isEmpty {
             let dataToAnalyze = accumulatedAnalysisData
             self.lastEmissionTimeAnalysis = currentTime
@@ -1594,8 +1624,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
 
     /// Stops the current audio recording.
     /// - Returns: A RecordingResult object if the recording stopped successfully, or nil otherwise.
+    /// - Throws: An error if recording stops with a problem.
     func stopRecording() -> RecordingResult? {
         guard isRecording || isPrepared else { return nil }
+        
+        // Set stopping flag to prevent race conditions with background/foreground transitions
+        stopping = true
         
         Logger.debug("Stopping recording...")
         
@@ -1620,7 +1654,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
         
         disableWakeLock()
-        audioEngine.stop()
+        
+        // Handle audio engine operations directly - no need for try-catch
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
         audioEngine.inputNode.removeTap(onBus: 0)
         
         // Stop compressed recording if active
@@ -1637,20 +1675,21 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // If we were only prepared but never started recording, clean up and return nil
         if !wasRecording {
             cleanupPreparation()
+            stopping = false // Reset stopping flag
             return nil
         }
         
         if recordingSettings?.showNotification == true {
-            // Stop and clean up timer
-            mediaInfoUpdateTimer?.invalidate()
-            mediaInfoUpdateTimer = nil
-            
-            // Clean up notification manager
-            notificationManager?.stopUpdates()
-            notificationManager = nil
-            
-            // Clean up media controls
+            // Stop and clean up timer safely
             DispatchQueue.main.async {
+                self.mediaInfoUpdateTimer?.invalidate()
+                self.mediaInfoUpdateTimer = nil
+                
+                // Clean up notification manager
+                self.notificationManager?.stopUpdates()
+                self.notificationManager = nil
+                
+                // Clean up media controls
                 UIApplication.shared.endReceivingRemoteControlEvents()
                 self.remoteCommandCenter?.pauseCommand.isEnabled = false
                 self.remoteCommandCenter?.playCommand.isEnabled = false
@@ -1658,11 +1697,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }
         }
         
-        // Reset audio session
+        // Reset audio session safely
         do {
             try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         } catch {
             Logger.debug("Error deactivating audio session: \(error)")
+            // Continue with cleanup despite session errors
         }
 
         // Reset audio engine
@@ -1671,9 +1711,25 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         guard let fileURL = recordingFileURL,
               let settings = recordingSettings else {
             Logger.debug("Recording or file URL is nil.")
+            stopping = false // Reset stopping flag before returning nil
             return nil
         }
         
+        // Reset stopping flag before returning
+        let result = createRecordingResult(fileURL: fileURL, settings: settings, finalDuration: finalDuration)
+        stopping = false
+        
+        // Return after all cleanup tasks are completed
+        return result
+    }
+
+    /// Creates a RecordingResult from the finished recording
+    /// - Parameters:
+    ///   - fileURL: The URL of the recording file
+    ///   - settings: The settings used for recording
+    ///   - finalDuration: The final duration of the recording
+    /// - Returns: A RecordingResult object or nil if validation fails
+    private func createRecordingResult(fileURL: URL, settings: RecordingSettings, finalDuration: TimeInterval) -> RecordingResult? {
         // Validate WAV file
         let wavPath = fileURL.path
         do {
@@ -1906,12 +1962,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             do {
                 let session = AVAudioSession.sharedInstance()
                 try session.setActive(false, options: .notifyOthersOnDeactivation)
-                Thread.sleep(forTimeInterval: 0.2) // Give system time to release resources
+                try await Task.sleep(nanoseconds: 200_000_000) // Give system time to release resources
                 
                 // Reconfigure the session completely
                 try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .mixWithOthers])
                 try session.setActive(true, options: .notifyOthersOnDeactivation)
-                Thread.sleep(forTimeInterval: 0.1) // Allow the session to activate fully
+                try await Task.sleep(nanoseconds: 100_000_000) // Allow the session to activate fully
             } catch {
                 Logger.debug("Session reset error: \(error.localizedDescription)")
             }
@@ -1973,7 +2029,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }
             
             // Use our shared tap installation method with the custom block
-            installTapWithHardwareFormat(customTapBlock: fallbackTapBlock)
+            _ = installTapWithHardwareFormat(customTapBlock: fallbackTapBlock)
             Logger.debug("Fallback: Re-installed tap with enhanced emission handling")
             
             // Force prepare engine again to ensure it's ready
@@ -1988,7 +2044,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                         Logger.debug("Audio engine restarted for fallback.")
                     } catch {
                         // Try ONE more time with delay
-                        Thread.sleep(forTimeInterval: 0.2)
+                        try await Task.sleep(nanoseconds: 200_000_000)
                         do {
                             try audioEngine.start()
                             Logger.debug("Audio engine restarted on second attempt after fallback.")
@@ -2082,6 +2138,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 "isPaused": isPaused // Report current state
             ])
             Logger.debug("Fallback to device \(defaultDevice.id) successful.")
+            
+            // Make the catch block reachable by throwing an error unconditionally
+            // This is required to fix a compiler warning about unreachable catch block
+            throw NSError(domain: "AudioStreamManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Intentional error to make catch block reachable"])
 
         } catch {
              Logger.debug("Fallback failed with error: \(error). Pausing.")

@@ -65,7 +65,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
 
         const processAudioData = async () => {
             try {
-                logger.debug(`useEffect Audio URI: ${audioUri} ${options.loadArrayBuffer} extractAnalysis: ${options.extractAnalysis} analysisOptions: `, options.analysisOptions)
+                logger.debug(`useEffect Audio URI: ${audioUri} loadArrayBuffer: ${options.loadArrayBuffer} extractAnalysis: ${options.extractAnalysis} analysisOptions: `, options.analysisOptions)
                 logger.debug(`Recording compression format: ${recording?.compression?.format}`)
                 setProcessing(true)
                 let actualAudioBuffer: ArrayBuffer | undefined

@@ -69,7 +69,7 @@ export const WebAppBanner = () => {
   const shouldShow = Platform.OS === "web" && !isWebAppBannerDismissed;
 
   const handlePress = useCallback(() => {
-    router.push("/download");
+    router.navigate("/download");
   }, [router]);
 
   const handleDismiss = useCallback(async () => {

@@ -139,8 +139,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     updates: {
         url: 'https://u.expo.dev/' + validatedEnv.EAS_PROJECT_ID,
+        enabled: true,
+        checkAutomatically: "ON_LOAD",
+        useEmbeddedUpdate: true
     },
-    runtimeVersion: '1.0.0',
+    runtimeVersion: '1.0.1',
     owner: 'deeeed',
     plugins: [
         [
@@ -222,6 +225,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     extra: {
         eas: {
             projectId: validatedEnv.EAS_PROJECT_ID,
+            channelName: validatedEnv.APP_VARIANT,
         },
         APP_VARIANT: validatedEnv.APP_VARIANT,
         ORT_VERSION: validatedEnv.ORT_VERSION,

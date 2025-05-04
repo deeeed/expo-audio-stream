@@ -208,8 +208,6 @@ export const MoreScreen = () => {
         appVersion,
         lastChecked,
         updateDetails,
-        updatesEnabled,
-        toggleUpdatesEnabled,
     } = useAppUpdates()
 
     // Convert complex runtimeVersion to string if needed
@@ -247,28 +245,16 @@ export const MoreScreen = () => {
             />
 
             {!isWeb && (
-                <>
-                    <Updater
-                        isUpdateAvailable={isUpdateAvailable}
-                        checking={checking}
-                        downloading={downloading}
-                        onUpdate={doUpdate}
-                        onCheck={() => checkUpdates(false)}
-                        canUpdate={canUpdate}
-                        lastChecked={lastChecked}
-                        updateDetails={updateDetails}
-                    />
-                    
-                    <LabelSwitch
-                        label="Automatic Updates"
-                        containerStyle={{
-                            backgroundColor: theme.colors.surface,
-                            marginTop: 8,
-                        }}
-                        onValueChange={toggleUpdatesEnabled}
-                        value={updatesEnabled}
-                    />
-                </>
+                <Updater
+                    isUpdateAvailable={isUpdateAvailable}
+                    checking={checking}
+                    downloading={downloading}
+                    onUpdate={doUpdate}
+                    onCheck={() => checkUpdates(false)}
+                    canUpdate={canUpdate}
+                    lastChecked={lastChecked}
+                    updateDetails={updateDetails}
+                />
             )}
 
             <View style={styles.configSection}>

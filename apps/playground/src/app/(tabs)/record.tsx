@@ -886,6 +886,7 @@ export default function RecordScreen() {
                 }
             } else {
                 const jsonPath = result.fileUri.replace(/\.wav$/, '.json')
+                logger.debug(`Saving metadata to ${jsonPath}`)
                 await FileSystem.writeAsStringAsync(
                     jsonPath,
                     JSON.stringify(result, null, 2),

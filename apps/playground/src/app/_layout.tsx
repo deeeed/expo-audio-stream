@@ -15,24 +15,14 @@ import { ApplicationContextProvider } from '../context/ApplicationProvider'
 import { AudioFilesProvider } from '../context/AudioFilesProvider'
 import { TranscriptionProvider } from '../context/TranscriptionProvider'
 import { WebAppBanner } from '../components/WebAppBanner'
-import { useAppUpdates } from '../hooks/useAppUpdates'
-import { isWeb } from '../utils/utils'
 
 const logger = getLogger('RootLayout')
 
 export default function RootLayout() {
     const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? ''
     const theme = useTheme()
-    const { checkUpdates } = useAppUpdates()
 
-    // Check for updates on app startup
-    useEffect(() => {
-        if (!isWeb) {
-            logger.info('Checking for updates at app startup')
-            checkUpdates(true) // Silent check (no toasts)
-        }
-    }, [checkUpdates])
-
+    // No longer checking for updates on app startup
     useEffect(() => {
         logger.log(`Base URL: ${baseUrl}`)
     }, [baseUrl])

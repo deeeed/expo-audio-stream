@@ -37,43 +37,66 @@ class AudioNotificationManager {
     }
     
     func showInitialNotification() {
-        updateNotification()
+        // Wrap notification generation in a main thread dispatch
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // No need for try-catch as this method doesn't throw
+            self.updateNotification()
+        }
     }
     
     func startUpdates(startTime: Date) {
-        DispatchQueue.main.async {
-            self.updateTimer?.invalidate()
+        // Cancel any existing timer first
+        stopUpdates()
+        
+        // Create a new timer on the main thread
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             
             self.updateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
                 guard let self = self else { return }
-                
-                let now = Date()
-                if now.timeIntervalSince(self.lastUpdateTime) >= self.minUpdateInterval {
-                    self.updateNotification()
-                    self.lastUpdateTime = now
-                }
+                self.currentDuration = Date().timeIntervalSince(startTime)
+                self.updateState(isPaused: false)
             }
-            RunLoop.main.add(self.updateTimer!, forMode: .common)
             
-            self.showInitialNotification()
+            // Run the timer even when scrolling
+            self.updateTimer?.tolerance = 0.1
+            RunLoop.current.add(self.updateTimer!, forMode: .common)
+            
+            // Update notification immediately
+            self.updateState(isPaused: false)
         }
     }
     
     func stopUpdates() {
-        DispatchQueue.main.async {
+        // Always execute timer invalidation on main thread
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
             self.updateTimer?.invalidate()
             self.updateTimer = nil
             
-            self.notificationCenter.removeDeliveredNotifications(withIdentifiers: [self.notificationId])
-            self.notificationCenter.removePendingNotificationRequests(withIdentifiers: [self.notificationId])
+            // Clean up notification
+            do {
+                self.notificationCenter.removeDeliveredNotifications(withIdentifiers: [self.notificationId])
+                self.notificationCenter.removePendingNotificationRequests(withIdentifiers: [self.notificationId])
+            } catch {
+                Logger.debug("AudioNotificationManager", "Error removing notifications: \(error)")
+            }
         }
     }
     
     func updateState(isPaused: Bool) {
-        let now = Date()
-        if now.timeIntervalSince(lastUpdateTime) >= minUpdateInterval {
-            updateNotification(forcePauseState: isPaused)
-            lastUpdateTime = now
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            let now = Date()
+            if now.timeIntervalSince(self.lastUpdateTime) >= self.minUpdateInterval {
+                // No need for try-catch as this method doesn't throw
+                self.updateNotification(forcePauseState: isPaused)
+                self.lastUpdateTime = now
+            }
         }
     }
     
@@ -92,7 +115,7 @@ class AudioNotificationManager {
             guard let self = self else { return }
             
             // If we have a notification and it was recently updated, skip
-            if let existing = notifications.first(where: { $0.request.identifier == self.notificationId }),
+            if let _ = notifications.first(where: { $0.request.identifier == self.notificationId }),
                Date().timeIntervalSince(self.lastUpdateTime) < self.minUpdateInterval {
                 return
             }
