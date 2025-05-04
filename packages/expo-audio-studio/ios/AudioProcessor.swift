@@ -801,7 +801,16 @@ public class AudioProcessor {
                         try audioFile.read(into: buffer, frameCount: frameCount)
                         let converter = AVAudioConverter(from: inputFormat, to: targetFormat)!
                         let convertedBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: frameCount)!
-                        try converter.convert(to: convertedBuffer, from: buffer)
+                        var error: NSError?
+                        _ = converter.convert(to: convertedBuffer, error: &error) { inNumPackets, outStatus in
+                            outStatus.pointee = .haveData
+                            return buffer
+                        }
+                        if let error = error {
+                            Logger.debug("AudioProcessor", "Format conversion failed: \(error.localizedDescription)")
+                            reject("CONVERSION_ERROR", "Failed to convert audio format: \(error.localizedDescription)")
+                            return nil
+                        }
                         try outputFile.write(from: convertedBuffer)
                         cumulativeFrames += Int64(frameCount)
                         let progress = Float(cumulativeFrames) / Float(totalFrames) * 100
@@ -933,7 +942,7 @@ public class AudioProcessor {
                                 let convertedBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: framesToRead)!
                                 
                                 var error: NSError?
-                                let conversionStatus = converter.convert(to: convertedBuffer, error: &error) { inNumPackets, outStatus in
+                                _ = converter.convert(to: convertedBuffer, error: &error) { inNumPackets, outStatus in
                                     outStatus.pointee = .haveData
                                     return buffer
                                 }
