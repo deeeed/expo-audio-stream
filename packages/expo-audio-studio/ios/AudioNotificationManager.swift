@@ -37,7 +37,13 @@ class AudioNotificationManager {
     }
     
     func showInitialNotification() {
-        updateNotification()
+        // Wrap notification generation in a main thread dispatch
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // No need for try-catch as this method doesn't throw
+            self.updateNotification()
+        }
     }
     
     func startUpdates(startTime: Date) {
@@ -70,10 +76,15 @@ class AudioNotificationManager {
     }
     
     func updateState(isPaused: Bool) {
-        let now = Date()
-        if now.timeIntervalSince(lastUpdateTime) >= minUpdateInterval {
-            updateNotification(forcePauseState: isPaused)
-            lastUpdateTime = now
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            let now = Date()
+            if now.timeIntervalSince(self.lastUpdateTime) >= self.minUpdateInterval {
+                // No need for try-catch as this method doesn't throw
+                self.updateNotification(forcePauseState: isPaused)
+                self.lastUpdateTime = now
+            }
         }
     }
     

@@ -137,11 +137,25 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     }
     
     deinit {
-       // Ensure wake lock is disabled when the manager is deallocated
-       disableWakeLock()
-        if let observer = notificationObserver {
-            NotificationCenter.default.removeObserver(observer)
+        // Ensure wake lock is disabled when the manager is deallocated
+        disableWakeLock()
+        
+        // Stop any active recording to properly release resources
+        if isRecording {
+            audioEngine.stop()
+            audioEngine.reset()
         }
+        
+        // Remove ALL notification observers properly
+        NotificationCenter.default.removeObserver(self)
+        
+        // Clean up notification manager
+        notificationManager?.stopUpdates()
+        notificationManager = nil
+        
+        // Cleanup media timer
+        mediaInfoUpdateTimer?.invalidate()
+        mediaInfoUpdateTimer = nil
     }
     
     /// Handles an audio session interruption.
@@ -374,8 +388,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 Logger.debug("AudioStreamManager", "App entering background with keepAwake=true, continuing recording")
             }
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.notificationManager?.showInitialNotification()
+            // Use a strong reference to notificationManager to avoid potential null reference
+            if let manager = notificationManager {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    guard self != nil else { return }
+                    manager.showInitialNotification()
+                }
             }
         }
     }
@@ -407,10 +425,13 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 }
             }
             
-            notificationManager?.stopUpdates()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                guard let self = self else { return }
-                self.notificationManager?.startUpdates(startTime: self.startTime ?? Date())
+            // Safely access notificationManager
+            if let manager = notificationManager {
+                manager.stopUpdates()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    guard let self = self else { return }
+                    manager.startUpdates(startTime: self.startTime ?? Date())
+                }
             }
         }
     }
@@ -1594,6 +1615,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
 
     /// Stops the current audio recording.
     /// - Returns: A RecordingResult object if the recording stopped successfully, or nil otherwise.
+    /// - Throws: An error if recording stops with a problem.
     func stopRecording() -> RecordingResult? {
         guard isRecording || isPrepared else { return nil }
         
@@ -1620,7 +1642,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
         
         disableWakeLock()
-        audioEngine.stop()
+        
+        // Handle audio engine operations directly - no need for try-catch
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
         audioEngine.inputNode.removeTap(onBus: 0)
         
         // Stop compressed recording if active
@@ -1641,16 +1667,16 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
         
         if recordingSettings?.showNotification == true {
-            // Stop and clean up timer
-            mediaInfoUpdateTimer?.invalidate()
-            mediaInfoUpdateTimer = nil
-            
-            // Clean up notification manager
-            notificationManager?.stopUpdates()
-            notificationManager = nil
-            
-            // Clean up media controls
+            // Stop and clean up timer safely
             DispatchQueue.main.async {
+                self.mediaInfoUpdateTimer?.invalidate()
+                self.mediaInfoUpdateTimer = nil
+                
+                // Clean up notification manager
+                self.notificationManager?.stopUpdates()
+                self.notificationManager = nil
+                
+                // Clean up media controls
                 UIApplication.shared.endReceivingRemoteControlEvents()
                 self.remoteCommandCenter?.pauseCommand.isEnabled = false
                 self.remoteCommandCenter?.playCommand.isEnabled = false
@@ -1658,11 +1684,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }
         }
         
-        // Reset audio session
+        // Reset audio session safely
         do {
             try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         } catch {
             Logger.debug("Error deactivating audio session: \(error)")
+            // Continue with cleanup despite session errors
         }
 
         // Reset audio engine
@@ -1674,6 +1701,17 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             return nil
         }
         
+        // Return after all cleanup tasks are completed
+        return createRecordingResult(fileURL: fileURL, settings: settings, finalDuration: finalDuration)
+    }
+
+    /// Creates a RecordingResult from the finished recording
+    /// - Parameters:
+    ///   - fileURL: The URL of the recording file
+    ///   - settings: The settings used for recording
+    ///   - finalDuration: The final duration of the recording
+    /// - Returns: A RecordingResult object or nil if validation fails
+    private func createRecordingResult(fileURL: URL, settings: RecordingSettings, finalDuration: TimeInterval) -> RecordingResult? {
         // Validate WAV file
         let wavPath = fileURL.path
         do {
