@@ -6,7 +6,7 @@
 
 # Interface: WebConfig
 
-Defined in: [src/ExpoAudioStream.types.ts:211](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L211)
+Defined in: [src/ExpoAudioStream.types.ts:211](https://github.com/deeeed/expo-audio-stream/blob/fe19a2fa1af6033cfa025691f25a0e9bcd64b37c/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L211)
 
 Web platform specific configuration options
 
@@ -16,7 +16,7 @@ Web platform specific configuration options
 
 > `optional` **storeUncompressedAudio**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:220](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L220)
+Defined in: [src/ExpoAudioStream.types.ts:220](https://github.com/deeeed/expo-audio-stream/blob/fe19a2fa1af6033cfa025691f25a0e9bcd64b37c/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L220)
 
 Whether to store uncompressed audio data for WAV generation
 

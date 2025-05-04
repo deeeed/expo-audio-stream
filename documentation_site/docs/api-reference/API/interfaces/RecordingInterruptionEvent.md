@@ -6,7 +6,7 @@
 
 # Interface: RecordingInterruptionEvent
 
-Defined in: [src/ExpoAudioStream.types.ts:245](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L245)
+Defined in: [src/ExpoAudioStream.types.ts:245](https://github.com/deeeed/expo-audio-stream/blob/fe19a2fa1af6033cfa025691f25a0e9bcd64b37c/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L245)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:245](https://github.com/deeeed/expo-au
 
 > **isPaused**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:249](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L249)
+Defined in: [src/ExpoAudioStream.types.ts:249](https://github.com/deeeed/expo-audio-stream/blob/fe19a2fa1af6033cfa025691f25a0e9bcd64b37c/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L249)
 
 Indicates whether the recording is paused due to the interruption
 
@@ -24,6 +24,6 @@ Indicates whether the recording is paused due to the interruption
 
 > **reason**: [`RecordingInterruptionReason`](../type-aliases/RecordingInterruptionReason.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:247](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L247)
+Defined in: [src/ExpoAudioStream.types.ts:247](https://github.com/deeeed/expo-audio-stream/blob/fe19a2fa1af6033cfa025691f25a0e9bcd64b37c/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L247)
 
 The reason for the recording interruption

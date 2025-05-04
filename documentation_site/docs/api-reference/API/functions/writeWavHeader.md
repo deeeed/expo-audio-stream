@@ -8,7 +8,7 @@
 
 > **writeWavHeader**(`options`): `ArrayBuffer`
 
-Defined in: [src/utils/writeWavHeader.ts:36](https://github.com/deeeed/expo-audio-stream/blob/801aa6585cbafa9b58a81bf4356176436fc03ce1/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L36)
+Defined in: [src/utils/writeWavHeader.ts:36](https://github.com/deeeed/expo-audio-stream/blob/fe19a2fa1af6033cfa025691f25a0e9bcd64b37c/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L36)
 
 Writes or updates a WAV (RIFF) header based on the provided options.
 
