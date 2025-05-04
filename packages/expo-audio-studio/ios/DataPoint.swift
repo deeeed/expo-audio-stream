@@ -44,11 +44,11 @@ extension DataPoint {
             "silent": silent,
             "features": features?.toDictionary() ?? [:],
             "speech": speech?.toDictionary() ?? [:],
-            "startTime": startTime ?? 0,
-            "endTime": endTime ?? 0,
-            "startPosition": startPosition ?? 0,
-            "endPosition": endPosition ?? 0,
-            "samples": samples ?? 0
+            "startTime": startTime,
+            "endTime": endTime,
+            "startPosition": startPosition,
+            "endPosition": endPosition,
+            "samples": samples
         ]
     }
 }
