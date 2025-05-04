@@ -9,6 +9,12 @@ This monorepo contains the following packages:
 **Give it a GitHub star 🌟, if you found this repo useful.**
 [![GitHub stars](https://img.shields.io/github/stars/deeeed/expo-audio-stream.svg?style=social&label=Star&maxAge=2592000)](https://github.com/deeeed/expo-audio-stream)
 
+## ❤️ Support This Project
+
+Love expo-audio-stream? Support my journey in audio, AI, & blockchain, and help fund new tools! Sponsor me.
+
+[![Sponsor this project](https://img.shields.io/github/sponsors/deeeed?label=Sponsor&logo=GitHub)](https://github.com/sponsors/deeeed)
+
 <div align="center">
   <h2>Try them out</h2>
   <p><a href="https://deeeed.github.io/expo-audio-stream">https://deeeed.github.io/expo-audio-stream</a></p>
