@@ -337,7 +337,6 @@ func computeMelSpectrogram(from segment: [Float], sampleRate: Float) -> [Float] 
 }
 
 func computeSpectralContrast(from segment: [Float], sampleRate: Float) -> [Float] {
-    let nBands = 7
     let fftData = sharedFFT.processSegment(segment)
     
     let magnitudeSpectrum = computeMagnitudeSpectrum(from: fftData)
@@ -490,8 +489,8 @@ func computeFeatures(segmentData: [Float], sampleRate: Float, sumSquares: Float,
     let zcr = featureOptions["zcr"] == true ? Float(zeroCrossings) / Float(segmentLength) : 0
     
     // Compute min and max amplitudes
-    let minAmplitude = segmentData.min() ?? 0
-    let maxAmplitude = segmentData.max() ?? 0
+    let _ = segmentData.min() ?? 0
+    let _ = segmentData.max() ?? 0
     
     // Call feature extraction functions
     let mfcc = featureOptions["mfcc"] == true ? extractMFCC(from: segmentData, sampleRate: sampleRate) : []

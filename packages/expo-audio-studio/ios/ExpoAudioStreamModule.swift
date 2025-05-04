@@ -705,7 +705,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
             Logger.debug("ExpoAudioStreamModule", "getAvailableInputDevices called. Refresh: \(options?["refresh"] ?? false)")
             if let options = options, let refresh = options["refresh"] as? Bool, refresh {
                 Logger.debug("ExpoAudioStreamModule", "Forcing refresh of audio devices")
-                self.deviceManager.forceRefreshAudioSession()
+                _ = self.deviceManager.forceRefreshAudioSession()
             }
             
             // Call the device manager with the promise

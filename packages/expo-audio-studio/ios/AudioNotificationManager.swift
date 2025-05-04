@@ -92,7 +92,7 @@ class AudioNotificationManager {
             guard let self = self else { return }
             
             // If we have a notification and it was recently updated, skip
-            if let existing = notifications.first(where: { $0.request.identifier == self.notificationId }),
+            if let _ = notifications.first(where: { $0.request.identifier == self.notificationId }),
                Date().timeIntervalSince(self.lastUpdateTime) < self.minUpdateInterval {
                 return
             }

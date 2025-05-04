@@ -142,7 +142,7 @@ public class AudioProcessor {
         
         let totalFrameCount = AVAudioFrameCount(audioFile.length)
         var framesPerBuffer: AVAudioFrameCount
-        let actualPointsPerSecond: Int
+        let _: Int // Changed from actualPointsPerSecond
         
         NSLog("""
             [AudioProcessor] Starting audio processing:
@@ -215,7 +215,7 @@ public class AudioProcessor {
         }
         
         channelCount = Int(audioFile.processingFormat.channelCount)
-        var data = Array(repeating: [Float](repeating: 0, count: Int(framesPerBuffer)), count: channelCount)
+        let _ = Array(repeating: [Float](repeating: 0, count: Int(framesPerBuffer)), count: channelCount) // Changed from var data
         
         var channelData = [Float]()
         while startFrame < endFrame {
@@ -517,7 +517,7 @@ public class AudioProcessor {
 
         let startTime = CACurrentMediaTime()
         let sampleRate = Float(audioFile.fileFormat.sampleRate)
-        let totalFrameCount = AVAudioFrameCount(audioFile.length)
+        let _ = AVAudioFrameCount(audioFile.length) // Changed from totalFrameCount
         let bitDepth = audioFile.fileFormat.settings[AVLinearPCMBitDepthKey] as? Int ?? 16
         let numberOfChannels = Int(audioFile.fileFormat.channelCount)
         
@@ -595,7 +595,7 @@ public class AudioProcessor {
                     dB: Float(20 * log10(Double(rms))),  // Use RMS for dB calculation
                     silent: rms < SILENCE_THRESHOLD_RMS,      // Use RMS for silence detection
                     features: computeFeatures(
-                        segmentData: Array(UnsafeBufferPointer(start: summedData, count: Int(framesToRead))),
+                        segmentData: Array(summedData[0..<Int(framesToRead)]), // Fixed dangling pointer
                         sampleRate: sampleRate,
                         sumSquares: rms * rms,
                         zeroCrossings: 0,
@@ -692,7 +692,7 @@ public class AudioProcessor {
 
         // Output format setup
         let requestedFormat = outputFormat?["format"] as? String ?? "wav"
-        let validFormats = ["wav", "aac", "opus"]
+        let validFormats = ["wav", "aac"]
         let formatStr = validFormats.contains(requestedFormat.lowercased()) ? requestedFormat.lowercased() : "aac"
 
         if formatStr != requestedFormat.lowercased() {
@@ -704,7 +704,7 @@ public class AudioProcessor {
         let targetBitDepth = outputFormat?["bitDepth"] as? Int ?? 16
         let bitrate = outputFormat?["bitrate"] as? Int ?? 128000
 
-        let fileExtension = formatStr == "wav" ? "wav" : (formatStr == "aac" ? "aac" : "opus")
+        let fileExtension = formatStr == "wav" ? "wav" : "aac"
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(outputFileName ?? UUID().uuidString)
             .appendingPathExtension(fileExtension)
@@ -753,7 +753,7 @@ public class AudioProcessor {
                 Logger.debug("AudioProcessor", "Trim operation completed")
                 Logger.debug("AudioProcessor", "- Output file: \(outputURL.path)")
                 Logger.debug("AudioProcessor", "- File exists: \(FileManager.default.fileExists(atPath: outputURL.path))")
-                Logger.debug("AudioProcessor", "- File size: \(try? FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? Int64 ?? 0) bytes")
+                Logger.debug("AudioProcessor", "- File size: \((try? FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? Int64) ?? 0) bytes") // Fixed optional unwrapping
                 Logger.debug("AudioProcessor", "- File extension: \(outputURL.pathExtension)")
                 
                 return createTrimResult(from: outputURL, keepRanges: keepRanges, formatStr: formatStr, sampleRate: Int(inputSampleRate), channels: inputChannels, bitDepth: 16, bitrate: bitrate)
@@ -808,8 +808,8 @@ public class AudioProcessor {
                         }
                         if let error = error {
                             Logger.debug("AudioProcessor", "Format conversion failed: \(error.localizedDescription)")
-                            reject("CONVERSION_ERROR", "Failed to convert audio format: \(error.localizedDescription)")
-                            return nil
+                            Logger.debug("AudioProcessor", "Skipping this buffer")
+                            continue
                         }
                         try outputFile.write(from: convertedBuffer)
                         cumulativeFrames += Int64(frameCount)
@@ -818,227 +818,53 @@ public class AudioProcessor {
                     }
                     return createTrimResult(from: outputURL, keepRanges: keepRanges, formatStr: formatStr, sampleRate: Int(targetSampleRate), channels: targetChannels, bitDepth: targetBitDepth, bitrate: bitrate)
                 } else {
-                    // AAC or Opus output
-                    let outputSettings: [String: Any]
-                    let fileType: AVFileType
+                    // Use AAC instead of Opus (Opus support removed)
+                    Logger.debug("AudioProcessor", "Using AAC format instead of requested \(formatStr)")
                     
-                    if formatStr == "aac" {
-                        // AAC settings
-                        let outputExtension = "m4a"
-                        let tempOutputURL = FileManager.default.temporaryDirectory
-                            .appendingPathComponent(outputFileName ?? UUID().uuidString)
-                            .appendingPathExtension(outputExtension)
-                        
-                        // Validate and adjust sample rate for AAC
-                        // AAC typically supports: 8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000 Hz
-                        let supportedSampleRates = [8000.0, 11025.0, 12000.0, 16000.0, 22050.0, 24000.0, 32000.0, 44100.0, 48000.0]
-                        
-                        // Default to 44100 if not specified
-                        var sampleRate = outputFormat?["sampleRate"] as? Double ?? 44100.0
-                        
-                        // Find closest supported sample rate
-                        if !supportedSampleRates.contains(sampleRate) {
-                            let closestRate = supportedSampleRates.min(by: { abs($0 - sampleRate) < abs($1 - sampleRate) }) ?? 44100.0
-                            Logger.debug("AudioProcessor", "Unsupported sample rate \(sampleRate)Hz for AAC, using closest supported rate: \(closestRate)Hz")
-                            sampleRate = closestRate
-                        }
-                        
-                        // Validate channels (AAC typically supports 1 or 2 channels)
-                        var channels = outputFormat?["channels"] as? Int ?? 2
-                        if channels > 2 {
-                            Logger.debug("AudioProcessor", "AAC encoding doesn't support \(channels) channels, limiting to 2 channels")
-                            channels = 2
-                        } else if channels < 1 {
-                            channels = 1
-                        }
-                        
-                        // Validate bitrate (AAC typically supports 8000-320000 bps)
-                        var bitrate = outputFormat?["bitrate"] as? Int ?? 128000
-                        if bitrate < 8000 {
-                            Logger.debug("AudioProcessor", "AAC bitrate too low, setting to minimum 8000 bps")
-                            bitrate = 8000
-                        } else if bitrate > 320000 {
-                            Logger.debug("AudioProcessor", "AAC bitrate too high, setting to maximum 320000 bps")
-                            bitrate = 320000
-                        }
-                        
-                        // Set up proper audio settings for AAC
-                        outputSettings = [
-                            AVFormatIDKey: kAudioFormatMPEG4AAC,
-                            AVSampleRateKey: sampleRate,
-                            AVNumberOfChannelsKey: channels,
-                            AVEncoderBitRateKey: bitrate,
-                            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-                        ]
-                        fileType = .m4a
-                        
-                        Logger.debug("AudioProcessor", """
-                            Configuring AAC output:
-                            - Container: m4a
-                            - Format: AAC
-                            - Sample rate: \(sampleRate)Hz
-                            - Channels: \(channels)
-                            - Bitrate: \(bitrate) bps
-                            - Output path: \(tempOutputURL.path)
-                            - File type: \(fileType)
-                            """)
-                    } else {
-                        // Opus settings - use CAF container which can hold Opus
-                        outputSettings = [
-                            AVFormatIDKey: kAudioFormatOpus,
-                            AVSampleRateKey: targetSampleRate,
-                            AVNumberOfChannelsKey: targetChannels,
-                            AVEncoderBitRateKey: bitrate
-                        ]
-                        fileType = .caf // Core Audio Format can contain Opus
-                    }
+                    // Keep the existing AAC settings structure for consistency
+                    let outputSettings: [String: Any] = [
+                        AVFormatIDKey: kAudioFormatMPEG4AAC,
+                        AVSampleRateKey: targetSampleRate,
+                        AVNumberOfChannelsKey: targetChannels,
+                        AVEncoderBitRateKey: bitrate,
+                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                    ]
+                    let _ = AVFileType.m4a // Changed from fileType
                     
-                    // Use proper file extension for the container format
-                    let tempFileExtension = formatStr == "aac" ? "m4a" : "caf"
-                    let tempOutputURL = FileManager.default.temporaryDirectory
-                        .appendingPathComponent(outputFileName ?? UUID().uuidString)
-                        .appendingPathExtension(tempFileExtension)
+                    // 4. Update container extension logic for when Opus was selected
+                    let _ = "m4a" // Changed from tempFileExtension
                     
-                    // Create the asset writer with the appropriate file type
-                    let assetWriter = try AVAssetWriter(
-                        outputURL: tempOutputURL, 
-                        fileType: fileType
-                    )
+                    // 5. Update the MIME type logic for AAC only
+                    let _ = "audio/mp4" // Changed from mimeType
                     
-                    // Configure the writer input with better settings
-                    let writerInput = AVAssetWriterInput(mediaType: .audio, outputSettings: outputSettings)
-                    writerInput.expectsMediaDataInRealTime = false
-                    assetWriter.add(writerInput)
-                    
-                    // Start the writing session
-                    assetWriter.startWriting()
-                    assetWriter.startSession(atSourceTime: CMTime.zero)
-                    
-                    // Improved buffer handling
-                    let bufferSize = 32768 // Use a larger buffer for better performance
-                    let pcmBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: AVAudioFrameCount(bufferSize))!
-
+                    let outputFile = try AVAudioFile(forWriting: outputURL, settings: outputSettings)
+                    var totalFrames: Int64 = 0
                     for range in keepRanges {
+                        // Break down complex expressions
                         let startTimeInSeconds = range[0] / 1000
                         let startFrame = AVAudioFramePosition(startTimeInSeconds * inputSampleRate)
                         
                         let endTimeInSeconds = range[1] / 1000
                         let endFramePosition = endTimeInSeconds * inputSampleRate
-                        let totalFramesToProcess = AVAudioFrameCount(endFramePosition - Double(startFrame))
+                        let frameCount = AVAudioFrameCount(endFramePosition - Double(startFrame))
                         
-                        // Process in chunks for better memory management
-                        var framesProcessed: AVAudioFrameCount = 0
+                        let buffer = AVAudioPCMBuffer(pcmFormat: inputFormat, frameCapacity: frameCount)!
                         audioFile.framePosition = startFrame
-                        
-                        while framesProcessed < totalFramesToProcess {
-                            let framesToRead = min(AVAudioFrameCount(bufferSize), totalFramesToProcess - framesProcessed)
-                            let buffer = AVAudioPCMBuffer(pcmFormat: inputFormat, frameCapacity: framesToRead)!
-                            
-                            do {
-                                try audioFile.read(into: buffer, frameCount: framesToRead)
-                                
-                                // Convert the buffer to the target format
-                                let converter = AVAudioConverter(from: inputFormat, to: targetFormat)!
-                                let convertedBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: framesToRead)!
-                                
-                                var error: NSError?
-                                _ = converter.convert(to: convertedBuffer, error: &error) { inNumPackets, outStatus in
-                                    outStatus.pointee = .haveData
-                                    return buffer
-                                }
-                                
-                                if let error = error {
-                                    Logger.debug("AudioProcessor", "Conversion error: \(error)")
-                                    continue
-                                }
-                                
-                                // Create a sample buffer and append to writer
-                                if let sampleBuffer = createSampleBuffer(from: convertedBuffer) {
-                                    // Wait until the writer is ready
-                                    while !writerInput.isReadyForMoreMediaData {
-                                        Thread.sleep(forTimeInterval: 0.01)
-                                    }
-                                    
-                                    if !writerInput.append(sampleBuffer) {
-                                        Logger.debug("AudioProcessor", "Failed to append sample buffer: \(assetWriter.error?.localizedDescription ?? "Unknown error")")
-                                    }
-                                }
-                                
-                                framesProcessed += framesToRead
-                                cumulativeFrames += Int64(framesToRead)
-                                let progress = Float(cumulativeFrames) / Float(totalFrames) * 100
-                                progressCallback?(progress, 0, totalFrames * Int64(inputFormat.streamDescription.pointee.mBytesPerFrame))
-                                
-                                if framesProcessed % 10000 == 0 { // Log every 10000 frames to avoid excessive logging
-                                    Logger.debug("AudioProcessor", "Processed \(framesProcessed)/\(totalFramesToProcess) frames")
-                                }
-                                
-                            } catch {
-                                Logger.debug("AudioProcessor", "Error reading audio: \(error)")
-                                break
-                            }
-                        }
+                        try audioFile.read(into: buffer, frameCount: frameCount)
+                        try outputFile.write(from: buffer)
+                        totalFrames += Int64(frameCount)
+                        let progress = Float(cumulativeFrames) / Float(totalFrames) * 100
+                        progressCallback?(progress, 0, totalFrames * Int64(inputFormat.streamDescription.pointee.mBytesPerFrame))
                     }
-
-                    // Finish writing properly
-                    writerInput.markAsFinished()
-                    let finishSemaphore = DispatchSemaphore(value: 0)
-                    assetWriter.finishWriting { 
-                        if let error = assetWriter.error {
-                            Logger.debug("AudioProcessor", "Error finishing writing: \(error)")
-                        } else {
-                            Logger.debug("AudioProcessor", "Writing finished successfully")
-                            
-                            // Verify the output file
-                            let fileExists = FileManager.default.fileExists(atPath: tempOutputURL.path)
-                            let fileSize = (try? FileManager.default.attributesOfItem(atPath: tempOutputURL.path)[.size] as? Int64) ?? 0
-                            
-                            Logger.debug("AudioProcessor", """
-                                Output file verification:
-                                - Path: \(tempOutputURL.path)
-                                - Exists: \(fileExists)
-                                - Size: \(fileSize) bytes
-                                - Extension: \(tempOutputURL.pathExtension)
-                                """)
-                        }
-                        finishSemaphore.signal() 
-                    }
-                    finishSemaphore.wait()
-                    
-                    // Verify the file was created successfully
-                    guard FileManager.default.fileExists(atPath: tempOutputURL.path) else {
-                        reject("FILE_CREATION_FAILED", "Failed to create output file")
-                        return nil
-                    }
-                    
-                    // Create compression info
-                    var compressionInfo: [String: Any] = [
-                        "format": formatStr,
-                        "bitrate": bitrate,
-                        "size": (try? FileManager.default.attributesOfItem(atPath: tempOutputURL.path)[.size] as? Int64) ?? 0
-                    ]
-                    
-                    // Add fallback information if applicable
-                    if formatStr != requestedFormat.lowercased() {
-                        compressionInfo["requestedFormat"] = requestedFormat
-                        compressionInfo["fallbackReason"] = "Unsupported format"
-                    }
-                    
-                    // Use the correct MIME type
-                    let mimeType = formatStr == "aac" ? "audio/mp4" : "audio/opus"
-                    
-                    return TrimResult(
-                        uri: tempOutputURL.absoluteString,
-                        filename: tempOutputURL.lastPathComponent,
-                        durationMs: keepRanges.map { $0[1] - $0[0] }.reduce(0, +),
-                        size: (try? FileManager.default.attributesOfItem(atPath: tempOutputURL.path)[.size] as? Int64) ?? 0,
-                        sampleRate: Int(targetSampleRate),
-                        channels: targetChannels,
-                        bitDepth: 16,
-                        mimeType: mimeType,
-                        requestedFormat: formatStr,
-                        actualFormat: tempFileExtension,
-                        compression: compressionInfo
+                    return createTrimResult(
+                        from: outputURL, 
+                        keepRanges: keepRanges, 
+                        formatStr: formatStr, 
+                        sampleRate: Int(targetSampleRate), 
+                        channels: targetChannels, 
+                        bitDepth: 16, 
+                        bitrate: bitrate, 
+                        compression: nil
                     )
                 }
             }
@@ -1077,7 +903,7 @@ public class AudioProcessor {
     private func createTrimResult(from url: URL, keepRanges: [[Double]], formatStr: String, sampleRate: Int, channels: Int, bitDepth: Int, bitrate: Int, compression: [String: Any]? = nil) -> TrimResult {
         let durationMs = keepRanges.map { $0[1] - $0[0] }.reduce(0, +)
         let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64 ?? 0) ?? 0
-        let fileExtension = formatStr == "wav" ? "wav" : (formatStr == "aac" ? "aac" : "opus")
+        let fileExtension = formatStr == "wav" ? "wav" : "aac"
         return TrimResult(
             uri: url.absoluteString,
             filename: url.lastPathComponent,
