@@ -294,6 +294,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///   - promise: A promise to resolve with the recording result or reject with an error.
         AsyncFunction("stopRecording") { (promise: Promise) in
             Logger.debug("ExpoAudioStreamModule", "stopRecording called.")
+            
             if let recordingResult = self.streamManager.stopRecording() {
                 var resultDict: [String: Any] = [
                     "fileUri": recordingResult.fileUri,
