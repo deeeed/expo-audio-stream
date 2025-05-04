@@ -63,6 +63,7 @@ else
     cd "$ROOT_DIR"
     git add "docs" "documentation_site"
     git commit -m "docs: update api references for v$version"
+    git push
     
     # Return to script directory
     cd "$SCRIPT_DIR"
