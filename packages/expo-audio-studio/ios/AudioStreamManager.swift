@@ -110,6 +110,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     // ---> ADD BACK deviceManager PROPERTY <--- 
     private let deviceManager = AudioDeviceManager()
 
+    // Add the stopping flag to the class properties
+    private var stopping: Bool = false
+
     /// Initializes the AudioStreamManager
     override init() {
         super.init()
@@ -376,62 +379,68 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     }
     
     @objc private func handleAppDidEnterBackground(_ notification: Notification) {
-        if isRecording {
-            // If keepAwake is false, we should track this as a pause and actually pause the engine
-            if let settings = recordingSettings, !settings.keepAwake {
-                Logger.debug("AudioStreamManager", "App entering background with keepAwake=false, pausing recording")
-                currentPauseStart = Date()
-                // Explicitly pause the engine but don't change isPaused state
-                // so we can automatically resume when returning to foreground
-                audioEngine.pause()
-            } else {
-                Logger.debug("AudioStreamManager", "App entering background with keepAwake=true, continuing recording")
-            }
-            
-            // Use a strong reference to notificationManager to avoid potential null reference
-            if let manager = notificationManager {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                    guard self != nil else { return }
-                    manager.showInitialNotification()
-                }
+        // Skip if we're in the process of stopping - this prevents race conditions
+        if !isRecording || stopping {
+            return
+        }
+        
+        // If keepAwake is false, we should track this as a pause and actually pause the engine
+        if let settings = recordingSettings, !settings.keepAwake {
+            Logger.debug("AudioStreamManager", "App entering background with keepAwake=false, pausing recording")
+            currentPauseStart = Date()
+            // Explicitly pause the engine but don't change isPaused state
+            // so we can automatically resume when returning to foreground
+            audioEngine.pause()
+        } else {
+            Logger.debug("AudioStreamManager", "App entering background with keepAwake=true, continuing recording")
+        }
+        
+        // Use a strong reference to notificationManager to avoid potential null reference
+        if let manager = notificationManager {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self, self.isRecording, !self.stopping else { return }
+                manager.showInitialNotification()
             }
         }
     }
 
     @objc private func handleAppWillEnterForeground(_ notification: Notification) {
-        if isRecording {
-            // If we were paused due to background and keepAwake was false, calculate pause duration
-            if let settings = recordingSettings, !settings.keepAwake, let pauseStart = currentPauseStart {
-                let pauseDuration = Date().timeIntervalSince(pauseStart)
-                totalPausedDuration += pauseDuration
-                currentPauseStart = nil
-                Logger.debug("AudioStreamManager", "Added background pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
-                
-                // Now restart the engine if it was paused due to background
-                do {
-                    // Reinstall tap with hardware format to ensure we have good input
-                    _ = installTapWithHardwareFormat()
-                    // Restart the engine
-                    try audioEngine.start()
-                    Logger.debug("AudioStreamManager", "Successfully restarted audio engine after returning from background")
-                } catch {
-                    Logger.debug("AudioStreamManager", "Failed to restart audio engine after returning from background: \(error)")
-                    // If we can't restart, officially pause the recording
-                    if !isPaused {
-                        isPaused = true
-                        // Notify delegate
-                        delegate?.audioStreamManager(self, didPauseRecording: Date())
-                    }
+        // Skip if we're in the process of stopping
+        if !isRecording || stopping {
+            return
+        }
+        
+        // If we were paused due to background and keepAwake was false, calculate pause duration
+        if let settings = recordingSettings, !settings.keepAwake, let pauseStart = currentPauseStart {
+            let pauseDuration = Date().timeIntervalSince(pauseStart)
+            totalPausedDuration += pauseDuration
+            currentPauseStart = nil
+            Logger.debug("AudioStreamManager", "Added background pause duration: \(pauseDuration), total paused: \(totalPausedDuration)")
+            
+            // Now restart the engine if it was paused due to background
+            do {
+                // Reinstall tap with hardware format to ensure we have good input
+                _ = installTapWithHardwareFormat()
+                // Restart the engine
+                try audioEngine.start()
+                Logger.debug("AudioStreamManager", "Successfully restarted audio engine after returning from background")
+            } catch {
+                Logger.debug("AudioStreamManager", "Failed to restart audio engine after returning from background: \(error)")
+                // If we can't restart, officially pause the recording
+                if !isPaused {
+                    isPaused = true
+                    // Notify delegate
+                    delegate?.audioStreamManager(self, didPauseRecording: Date())
                 }
             }
-            
-            // Safely access notificationManager
-            if let manager = notificationManager {
-                manager.stopUpdates()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                    guard let self = self else { return }
-                    manager.startUpdates(startTime: self.startTime ?? Date())
-                }
+        }
+        
+        // Safely access notificationManager
+        if let manager = notificationManager {
+            manager.stopUpdates()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self, self.isRecording, !self.stopping else { return }
+                manager.startUpdates(startTime: self.startTime ?? Date())
             }
         }
     }
@@ -1619,6 +1628,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     func stopRecording() -> RecordingResult? {
         guard isRecording || isPrepared else { return nil }
         
+        // Set stopping flag to prevent race conditions with background/foreground transitions
+        stopping = true
+        
         Logger.debug("Stopping recording...")
         
         // IMPORTANT: Emit any remaining audio data before stopping the engine
@@ -1663,6 +1675,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // If we were only prepared but never started recording, clean up and return nil
         if !wasRecording {
             cleanupPreparation()
+            stopping = false // Reset stopping flag
             return nil
         }
         
@@ -1698,11 +1711,16 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         guard let fileURL = recordingFileURL,
               let settings = recordingSettings else {
             Logger.debug("Recording or file URL is nil.")
+            stopping = false // Reset stopping flag before returning nil
             return nil
         }
         
+        // Reset stopping flag before returning
+        let result = createRecordingResult(fileURL: fileURL, settings: settings, finalDuration: finalDuration)
+        stopping = false
+        
         // Return after all cleanup tasks are completed
-        return createRecordingResult(fileURL: fileURL, settings: settings, finalDuration: finalDuration)
+        return result
     }
 
     /// Creates a RecordingResult from the finished recording

@@ -65,7 +65,7 @@ const SherpaOnnxDemo: React.FC = () => {
 
   // Helper function to navigate to a tab
   const navigateToTab = (tab: string) => {
-    router.push(`/${tab}`);
+    router.navigate(`/${tab}`);
   };
 
   return (

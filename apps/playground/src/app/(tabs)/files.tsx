@@ -171,7 +171,7 @@ const FilesScreen = () => {
                         recording={item}
                         onDelete={() => handleDelete(item)}
                         onActionPress={() => {
-                            router.push(`(recordings)/${item.filename}`)
+                            router.navigate(`(recordings)/${item.filename}`)
                         }}
                         actionText="Visualize"
                     />

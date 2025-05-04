@@ -402,7 +402,7 @@ export const ImportPage = () => {
             resetUIState()
             
             // Navigate to the file in the files tab - use the filename with extension
-            router.push(`(recordings)/${finalFileName}`)
+            router.navigate(`(recordings)/${finalFileName}`)
         } catch (error) {
             logger.error('Error saving file to files:', error)
             show({ type: 'error', message: 'Error saving file' })
