@@ -79,7 +79,7 @@
         "canvaskit-wasm": "^0.40.0",
         "crc-32": "^1.2.2",
         "debug": "^4.3.4",
-        "expo": "^53.0.6",
+        "expo": "^53.0.7",
         "expo-application": "~6.1.4",
         "expo-av": "~15.1.4",
         "expo-background-task": "~0.2.6",
