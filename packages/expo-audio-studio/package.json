@@ -3,8 +3,22 @@
     "version": "2.8.0",
     "description": "Comprehensive audio processing library for React Native and Expo with recording, analysis, visualization, and streaming capabilities across iOS, Android, and web",
     "license": "MIT",
-    "main": "build/index.js",
-    "types": "build/index.d.ts",
+    "type": "commonjs",
+    "main": "./build/cjs/index.js",
+    "module": "./build/esm/index.js",
+    "types": "./build/types/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./build/types/index.d.ts",
+            "import": "./build/esm/index.js",
+            "require": "./build/cjs/index.js",
+            "default": "./build/cjs/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "expo": {
+        "plugin": "./app.plugin.cjs"
+    },
     "author": "Arthur Breton <abreton@siteed.net> (https://github.com/deeeed)",
     "homepage": "https://github.com/deeeed/expo-audio-stream/blob/main/packages/expo-audio-studio/README.md",
     "repository": {
@@ -65,16 +79,20 @@
         "!**/.*"
     ],
     "scripts": {
-        "build": "tsc",
-        "build:plugin": "tsc --build plugin/tsconfig.json && node scripts/convert-to-cjs.js",
+        "build": "rimraf build && npm run build:types && npm run build:cjs && npm run build:esm && npm run build:plugin",
+        "build:cjs": "tsc -p tsconfig.cjs.json",
+        "build:esm": "tsc -p tsconfig.esm.json",
+        "build:types": "tsc -p tsconfig.types.json",
+        "build:plugin": "tsc --build plugin/tsconfig.json && npm run build:plugin:cjs",
+        "build:plugin:cjs": "node -e \"const fs=require('fs');const path=require('path');const content=fs.readFileSync('./plugin/build/index.js','utf8').replace(/export default/,'module.exports =');fs.writeFileSync('./plugin/build/index.cjs',content);\"",
         "build:plugin:dev": "expo-module build plugin",
         "build:dev": "expo-module build",
-        "clean": "expo-module clean && rimraf plugin/build",
+        "clean": "expo-module clean && rimraf build plugin/build",
         "lint": "expo-module lint",
         "test": "expo-module test",
         "typecheck": "tsc --noEmit",
         "docgen": "typedoc src/index.ts --plugin typedoc-plugin-markdown --readme none --out ../../documentation_site/docs/api-reference/API",
-        "prepare": "yarn build && yarn build:plugin && node -e \"require('fs').renameSync('./plugin/build/index.d.ts', './plugin/build/index.d.cts')\"",
+        "prepare": "yarn build && node -e \"require('fs').renameSync('./plugin/build/index.d.ts', './plugin/build/index.d.cts')\"",
         "prepublishOnly": "expo-module prepublishOnly",
         "expo-module": "expo-module",
         "open:ios": "open -a \"Xcode\" ../../apps/playground/ios",
