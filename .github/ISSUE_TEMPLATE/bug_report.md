@@ -7,17 +7,17 @@ assignees: ''
 ---
 
 ## Environment
-- expo-audio-studio version: <!-- e.g., 1.2.0 -->
+<!-- REQUIRED FIELDS - issues without this information will be automatically closed -->
+- expo-audio-studio version: <!-- REQUIRED e.g., 1.2.0 -->
 - Expo SDK version: <!-- e.g., 49.0.0 -->
-- React Native version: <!-- e.g., 0.72.3 -->
-- Platform & OS version: <!-- e.g., iOS 16.5, Android 13, Web Chrome 115 -->
+- Platform & OS version: <!-- REQUIRED e.g., iOS 16.5, Android 13, Web Chrome 115 -->
 - Device: <!-- e.g., iPhone 14 Pro, Pixel 7 -->
 
 ## Description
-<!-- A clear and concise description of the issue -->
+<!-- REQUIRED: A clear and concise description of the issue (minimum 20 characters) -->
 
 ## Cross-Platform Validation
-<!-- It helps tremendously if you can try to reproduce the issue on the official AudioPlayground app -->
+<!-- RECOMMENDED: It helps tremendously if you can try to reproduce the issue on the official AudioPlayground app -->
 
 ### AudioPlayground Apps
 - Web: https://deeeed.github.io/expo-audio-stream/playground
@@ -31,6 +31,7 @@ assignees: ''
 - Try different audio devices, sample rates, and compression settings
 
 Can this issue be reproduced in the AudioPlayground app?
+<!-- RECOMMENDED but not required -->
 - [ ] Yes, on all platforms (Web, iOS, Android)
 - [ ] Yes, but only on specific platforms (please specify): <!-- e.g., iOS only, Android and Web -->
 - [ ] No, it only happens in my app
@@ -45,6 +46,7 @@ Is the behavior consistent across platforms?
 - [ ] No, the behavior differs between platforms (please describe the differences)
 
 ## Configuration
+<!-- RECOMMENDED: Your recording configuration -->
 
 ```ts
 // Please provide your recording configuration
@@ -56,7 +58,7 @@ const config: RecordingConfig = {
 
 ## Logs
 <!-- 
-To help debug the issue, please start the recording with logging enabled:
+RECOMMENDED: To help debug the issue, please start the recording with logging enabled:
 
 ```ts
 const result = await startRecording({
@@ -70,34 +72,21 @@ Then paste the relevant logs here:
 ```log
 ```
 
-## Media
-<!-- 
-Please provide any relevant media that demonstrates the issue:
-- Screen recording showing the problem
-- Audio sample that demonstrates the issue
-- Screenshots of any error messages
--->
-
 ## Expected Behavior
-<!-- What did you expect to happen? -->
+<!-- RECOMMENDED: What did you expect to happen? -->
 
 ## Actual Behavior
-<!-- What actually happened instead? -->
+<!-- RECOMMENDED: What actually happened instead? -->
 
 ## Additional Context
-<!-- Add any other context about the problem here -->
-
-## Thank You
-Your feedback helps improve this library. Thank you for taking the time to report this issue and provide these details!
+<!-- Any other context about the problem here -->
 
 ## Checklist
-Before submitting, please check that you have:
-- [ ] Updated to the latest version of expo-audio-studio
-- [ ] Checked the [documentation](https://deeeed.github.io/expo-audio-stream/docs/)
-- [ ] Included complete and relevant logs
-- [ ] Tested in the official AudioPlayground app on at least one platform
-- [ ] Compared behavior across multiple platforms if possible
-- [ ] Included a minimal reproduction code example
-- [ ] Checked for existing similar issues
-- [ ] Verified microphone permissions are properly set up
-- [ ] Included device/environment details 
+<!-- Please check the boxes that apply: -->
+- [ ] I have updated to the latest version of expo-audio-studio
+- [ ] I have checked the documentation
+- [ ] I have tested in the official AudioPlayground app
+- [ ] I have verified microphone permissions are properly set up
+- [ ] I have filled out all required fields in this template
+
+<!-- THANK YOU for taking the time to report this issue and provide these details! -->

@@ -1,0 +1,105 @@
+name: Issue Validator
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Validate Issue
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title;
+            const body = issue.body || '';
+            
+            let shouldClose = false;
+            let closeReason = '';
+            
+            // Check title format and length
+            if (!title.startsWith('[BUG]')) {
+              shouldClose = true;
+              closeReason = 'Issue title must start with [BUG]';
+            } else if (title.replace('[BUG]', '').trim().length < 10) {
+              shouldClose = true;
+              closeReason = 'Issue title is too short. Please provide a descriptive title that clearly explains the issue.';
+            }
+            
+            // Required sections
+            const requiredSections = [
+              { pattern: '## Environment', message: 'Environment section is required' },
+              { pattern: '## Description', message: 'Description of the issue is required' },
+              { pattern: 'expo-audio-studio version:', message: 'expo-audio-studio version is required' },
+              { pattern: 'Platform & OS version:', message: 'Platform & OS version is required' }
+            ];
+            
+            // Check for required sections
+            for (const section of requiredSections) {
+              if (!body.includes(section.pattern)) {
+                shouldClose = true;
+                closeReason = section.message;
+                break;
+              }
+            }
+            
+            // Check that placeholders are replaced
+            if (!shouldClose) {
+              const placeholders = [
+                { pattern: 'expo-audio-studio version: <!-- e.g., 1.2.0 -->', message: 'Please specify your expo-audio-studio version' },
+                { pattern: 'Platform & OS version: <!-- e.g., iOS 16.5, Android 13, Web Chrome 115 -->', message: 'Please specify your Platform & OS version' }
+              ];
+              
+              for (const placeholder of placeholders) {
+                if (body.includes(placeholder.pattern)) {
+                  shouldClose = true;
+                  closeReason = placeholder.message;
+                  break;
+                }
+              }
+              
+              // Check if description is too short
+              const descriptionMatch = body.match(/## Description\s+(.*?)(?=\s*##|$)/s);
+              if (descriptionMatch && descriptionMatch[1].trim().length < 20) {
+                shouldClose = true;
+                closeReason = 'Description is too short. Please provide a detailed description of the issue.';
+              }
+            }
+            
+            // Auto-close if validation fails
+            if (shouldClose) {
+              await github.rest.issues.createComment({
+                issue_number: issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `Thank you for submitting an issue. However, it has been automatically closed because: **${closeReason}**.\n\nPlease update your issue with complete information following the template and reopen it.\n\nMinimum requirements:\n- Descriptive title that starts with [BUG]\n- Environment details (expo-audio-studio version, Platform & OS)\n- Clear description of the issue`
+              });
+              
+              await github.rest.issues.update({
+                issue_number: issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'closed'
+              });
+              
+              // Add an 'incomplete' label
+              await github.rest.issues.addLabels({
+                issue_number: issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: ['incomplete']
+              });
+            } else {
+              // Add a 'triage' label for valid issues that need review
+              await github.rest.issues.addLabels({
+                issue_number: issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: ['triage']
+              });
+            } 
