@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.8.2] - 2025-05-06
+### Changed
+- chore(expo-audio-studio): update TypeScript configurations for dual module support and enhance CommonJS compatibility ([7377a5f](https://github.com/deeeed/expo-audio-stream/commit/7377a5fd3925a21d8628eb31b64c8c65102a1713))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.8.1 ([78721e4](https://github.com/deeeed/expo-audio-stream/commit/78721e41bbc9e4e999118474c887cca7b5420915))
 ## [2.8.1] - 2025-05-06
 ### Changed
 - feat(expo-audio-studio): implement dual module format (ESM/CommonJS) to resolve module resolution issues (#235) ([58c5a94](https://github.com/deeeed/expo-audio-stream/commit/58c5a94ecf2fdcefa554b2f8664743730001e6d8))
@@ -226,7 +230,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.1...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.2...HEAD
+[2.8.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.1...@siteed/expo-audio-studio@2.8.2
 [2.8.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.0...@siteed/expo-audio-studio@2.8.1
 [2.8.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.7.0...@siteed/expo-audio-studio@2.8.0
 [2.7.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.6.3...@siteed/expo-audio-studio@2.7.0

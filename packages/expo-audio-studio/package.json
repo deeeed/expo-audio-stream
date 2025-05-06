@@ -1,6 +1,6 @@
 {
     "name": "@siteed/expo-audio-studio",
-    "version": "2.8.1",
+    "version": "2.8.2",
     "description": "Comprehensive audio processing library for React Native and Expo with recording, analysis, visualization, and streaming capabilities across iOS, Android, and web",
     "license": "MIT",
     "type": "commonjs",
