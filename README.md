@@ -107,6 +107,7 @@ For more details, check out the [sherpa-onnx demo](https://deeeed.github.io/expo
 - [x] Migrate audio analysis to c++ native library (implemented in @siteed/react-native-essentia)
 - [x] Cross-platform audio device detection, selection, and fallback handling
 - [x] Add Zero-Latency Audio Recording with `prepareRecording` API 
+- [ ] Setup Beta channel to avoid regressions
 - [ ] Improve native code quality and configure sonarcloud to prevent CI errors.
 - [ ] Integrate sherpa onnx models into expo-audio-studio and playground
 - [ ] Implement example app for custom VAD.
