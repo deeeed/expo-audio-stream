@@ -1,7 +1,7 @@
 // This is a CommonJS file (.cjs) which loads the plugin configuration
 try {
     // Export the plugin from its CommonJS build
-    module.exports = require('./plugin/build/index.cjs')
+    module.exports = require('./plugin/build/cjs/index.js')
 } catch (error) {
     console.error(
         '[@siteed/expo-audio-studio] Plugin loading error:',

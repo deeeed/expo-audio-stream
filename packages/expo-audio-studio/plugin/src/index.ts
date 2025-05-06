@@ -278,4 +278,5 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
     return config as any
 }
 
+// Export as default
 export default withRecordingPermission
