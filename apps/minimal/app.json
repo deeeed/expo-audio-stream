@@ -32,11 +32,7 @@
     },
     "plugins": [
       "expo-router",
-      // [
-      //   "./plugins/withCustomGradleConfig",
-      //   {}
-      // ],
-      "../../packages/expo-audio-stream/app.plugin.js",
+      "../../packages/expo-audio-studio/app.plugin.js",
       "expo-audio",
       "expo-font"
     ],

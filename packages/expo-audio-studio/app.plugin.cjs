@@ -1,7 +1,7 @@
-// This is a CommonJS file (.cjs) which loads the plugin configuration
+// only here for ts-node and projects using app.config.ts instead of app.json.
 try {
     // Export the plugin from its CommonJS build
-    module.exports = require('./plugin/build/cjs/index.js')
+    module.exports = require('./plugin/build/')
 } catch (error) {
     console.error(
         '[@siteed/expo-audio-studio] Plugin loading error:',
