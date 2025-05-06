@@ -108,7 +108,6 @@
         "react-native": "0.79.2",
         "react-native-edge-to-edge": "1.6.0",
         "react-native-gesture-handler": "~2.24.0",
-        "react-native-localize": "^3.2.1",
         "react-native-paper": "^5.14.0",
         "react-native-paper-dates": "^0.22.26",
         "react-native-quick-base64": "^2.1.2",
