@@ -8,5 +8,8 @@ try {
         error.message
     )
     // Fallback plugin that does nothing but logs error
-    module.exports = (config) => config
+    module.exports = (config) => {
+        console.warn('[@siteed/expo-audio-studio] Using fallback plugin due to loading error. Run `yarn build` in the package directory.')
+        return config
+    }
 }

@@ -16,6 +16,9 @@
         },
         "./package.json": "./package.json"
     },
+    "expo": {
+        "plugin": "./app.plugin.cjs"
+    },
     "author": "Arthur Breton <abreton@siteed.net> (https://github.com/deeeed)",
     "homepage": "https://github.com/deeeed/expo-audio-stream/blob/main/packages/expo-audio-studio/README.md",
     "repository": {
