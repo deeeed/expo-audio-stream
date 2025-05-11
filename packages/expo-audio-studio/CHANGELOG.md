@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.8.4] - 2025-05-11
+### Changed
+- fix(expo-audio-studio): expo plugin setup ([78810c1](https://github.com/deeeed/expo-audio-stream/commit/78810c1682fc357ed79297971d53d61de88b901f))
 ## [2.8.3] - 2025-05-06
 ### Changed
 - chore(expo-audio-studio): update plugin configuration to use ESM format and streamline build process ([97432eb](https://github.com/deeeed/expo-audio-stream/commit/97432eb2944f43e03a1464fdc166a49392582b08))
@@ -234,7 +237,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.3...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.4...HEAD
+[2.8.4]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.3...@siteed/expo-audio-studio@2.8.4
 [2.8.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.2...@siteed/expo-audio-studio@2.8.3
 [2.8.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.1...@siteed/expo-audio-studio@2.8.2
 [2.8.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.0...@siteed/expo-audio-studio@2.8.1
