@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.8.6] - 2025-05-11
+### Changed
+- chore(expo-audio-studio): update Android module configuration and prevent plugin conflicts ([7f696fb](https://github.com/deeeed/expo-audio-stream/commit/7f696fb4277f1747d1ba753397d2d6a97ea19abc))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.8.5 ([bece9b6](https://github.com/deeeed/expo-audio-stream/commit/bece9b6b43cb1a780d9786e376efdd93ef82446f))
 ## [2.8.5] - 2025-05-11
 ### Changed
 - chore(expo-audio-studio): remove exports field from package.json ([9dd5029](https://github.com/deeeed/expo-audio-stream/commit/9dd5029d81fcc3a4d5b95ee5956beb8481f3950a))
@@ -241,7 +245,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.5...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.6...HEAD
+[2.8.6]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.5...@siteed/expo-audio-studio@2.8.6
 [2.8.5]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.4...@siteed/expo-audio-studio@2.8.5
 [2.8.4]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.3...@siteed/expo-audio-studio@2.8.4
 [2.8.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.2...@siteed/expo-audio-studio@2.8.3
