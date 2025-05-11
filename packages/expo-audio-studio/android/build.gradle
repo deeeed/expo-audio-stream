@@ -5,6 +5,10 @@ apply plugin: 'maven-publish'
 group = 'net.siteed.audiostream'
 version = '0.1.0'
 
+// These properties prevent plugin conflicts in all Expo versions
+project.ext.isLibrary = true
+project.ext.preventPluginConflict = true
+
 buildscript {
   def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
   if (expoModulesCorePlugin.exists()) {
