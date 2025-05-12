@@ -13,6 +13,8 @@ ios/Frameworks/device/*.a
 ios/Frameworks/simulator/*.a
 android/src/main/jniLibs/**/*.a
 
+cpp/include/essentia/
+
 # Xcode
 #
 build/

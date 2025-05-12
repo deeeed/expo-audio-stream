@@ -1,5 +1,3 @@
-// packages/expo-audio-stream/android/src/main/java/net/siteed/audiostream/AudioProcessor.kt
-// packages/expo-audio-stream/android/src/main/java/net/siteed/audiostream/AudioProcessor.kt
 package net.siteed.audiostream
 
 import java.nio.ByteBuffer

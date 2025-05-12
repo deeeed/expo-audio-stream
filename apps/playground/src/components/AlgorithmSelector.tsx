@@ -8,14 +8,17 @@ import { useThemePreferences } from '@siteed/design-system'
 import type { AlgorithmResult } from '@siteed/react-native-essentia'
 import EssentiaJS from '@siteed/react-native-essentia'
 
+type ParameterType = 'number' | 'boolean' | 'string';
+type ParameterValue = number | boolean | string;
+
 // Define available algorithms and their default parameters
 interface AlgorithmConfig {
   name: string;
   displayName: string;
   description: string;
   parameters: Record<string, {
-    type: 'number' | 'boolean' | 'string';
-    default: number | boolean | string;
+    type: ParameterType;
+    default: ParameterValue;
     description: string;
     min?: number;
     max?: number;
@@ -161,33 +164,33 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
   })
 }
 
-function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps) {
+function AlgorithmSelector({ onExecute, isInitialized }: Readonly<AlgorithmSelectorProps>) {
   const { theme } = useThemePreferences()
   const styles = useMemo(() => getStyles({ theme }), [theme])
 
   // State for selected algorithm and parameters
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('MFCC')
-  const [parameters, setParameters] = useState<Record<string, number | boolean | string>>({})
+  const [parameters, setParameters] = useState<Record<string, ParameterValue>>({})
   const [isExecuting, setIsExecuting] = useState<boolean>(false)
   const [result, setResult] = useState<AlgorithmResult | null>(null)
 
   // Initialize parameters when algorithm changes
   useEffect(() => {
     if (selectedAlgorithm && AVAILABLE_ALGORITHMS[selectedAlgorithm]) {
-      const defaultParams: Record<string, number | boolean | string> = {}
+      const defaultParams: Record<string, ParameterValue> = {}
       const algorithmConfig = AVAILABLE_ALGORITHMS[selectedAlgorithm]
-      
+
       Object.entries(algorithmConfig.parameters).forEach(([key, config]) => {
         defaultParams[key] = config.default
       })
-      
+
       setParameters(defaultParams)
     }
   }, [selectedAlgorithm])
 
   const handleParameterChange = (paramName: string, value: string) => {
     const paramConfig = AVAILABLE_ALGORITHMS[selectedAlgorithm].parameters[paramName]
-    
+
     if (paramConfig.type === 'number') {
       const numValue = Number(value)
       if (!isNaN(numValue)) {
@@ -211,7 +214,7 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
       for (let i = 0; i < dummyPcmData.length; i++) {
         dummyPcmData[i] = Math.sin(i * 0.01)
       }
-      
+
       // Set the audio data
       const success = await EssentiaJS.setAudioData(dummyPcmData, 44100)
       console.log('Set audio data result:', success)
@@ -231,17 +234,17 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
     setIsExecuting(true)
     setResult(null)
 
-    try {      
-        // Original code for other algorithms
-        const audioDataSuccess = await setDummyAudioData()
-        
-        if (!audioDataSuccess) {
-          throw new Error('Failed to set audio data')
-        }
-        
-        console.log(`Executing ${selectedAlgorithm} with parameters:`, parameters)
-        const result = await EssentiaJS.executeAlgorithm(selectedAlgorithm, parameters)
-      
+    try {
+      // Original code for other algorithms
+      const audioDataSuccess = await setDummyAudioData()
+
+      if (!audioDataSuccess) {
+        throw new Error('Failed to set audio data')
+      }
+
+      console.log(`Executing ${selectedAlgorithm} with parameters:`, parameters)
+      const result = await EssentiaJS.executeAlgorithm(selectedAlgorithm, parameters)
+
       console.log(`${selectedAlgorithm} execution result:`, result)
       setResult(result)
       onExecute(result)
@@ -265,19 +268,19 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
     }
 
     const algorithmConfig = AVAILABLE_ALGORITHMS[selectedAlgorithm]
-    
+
     return (
       <View style={styles.parameterContainer}>
         <Text style={styles.cardTitle}>Parameters</Text>
-        
+
         {Object.entries(algorithmConfig.parameters).map(([paramName, config]) => (
           <View key={paramName} style={styles.parameterRow}>
             <Text style={styles.parameterLabel}>{paramName}</Text>
             <Text style={styles.parameterDescription}>{config.description}</Text>
-            
+
             <TextInput
               mode="outlined"
-              value={String(parameters[paramName] || config.default)}
+              value={String(parameters[paramName] ?? config.default)}
               onChangeText={(value) => handleParameterChange(paramName, value)}
               keyboardType={config.type === 'number' ? 'numeric' : 'default'}
             />
@@ -291,7 +294,7 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
     <Card style={styles.card}>
       <Card.Content>
         <Text style={styles.cardTitle}>Algorithm Selection</Text>
-        
+
         <SegmentedButtons
           value={selectedAlgorithm}
           onValueChange={setSelectedAlgorithm}
@@ -300,15 +303,15 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
             label: algo.name,
           }))}
         />
-        
+
         {selectedAlgorithm && AVAILABLE_ALGORITHMS[selectedAlgorithm] && (
           <View style={styles.cardContent}>
             <Text>{AVAILABLE_ALGORITHMS[selectedAlgorithm].description}</Text>
           </View>
         )}
-        
+
         {renderParameters()}
-        
+
         <View style={styles.buttonContainer}>
           <Button
             mode="contained"
@@ -319,7 +322,7 @@ function AlgorithmSelector({ onExecute, isInitialized }: AlgorithmSelectorProps)
             Execute {selectedAlgorithm}
           </Button>
         </View>
-        
+
         {result && (
           <View style={styles.resultContainer}>
             <Text style={{ fontWeight: 'bold' }}>

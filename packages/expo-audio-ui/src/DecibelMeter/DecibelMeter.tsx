@@ -122,9 +122,10 @@ export function DecibelMeter({
             const position = i * spacing
             const tickStart = meterWidth
             const { tickHeight, labelFontSize } = rulerConfig
+            const tickKey = `tick-${numTicks - i}`
 
             return (
-                <React.Fragment key={i}>
+                <React.Fragment key={tickKey}>
                     <Line
                         p1={{
                             x: isVertical ? tickStart : position,

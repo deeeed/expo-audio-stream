@@ -51,28 +51,6 @@ const styles = StyleSheet.create<Styles>({
     },
 })
 
-const _DecibelGaugeStory = (
-    args: React.ComponentProps<typeof DecibelGauge>
-) => {
-    const font = useFont(RobotoRegular, 14)
-
-    if (!font) {
-        return (
-            <View style={styles.container}>
-                <Text>Loading font...</Text>
-            </View>
-        )
-    }
-
-    return (
-        <View style={styles.container}>
-            <View style={styles.gaugeWrapper}>
-                <DecibelGauge {...args} font={font} />
-            </View>
-        </View>
-    )
-}
-
 export default {
     title: 'DecibelGauge',
     component: DecibelGauge,

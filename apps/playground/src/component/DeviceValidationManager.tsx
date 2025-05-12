@@ -66,7 +66,7 @@ export function DeviceValidationManager({
   sampleRateForTranscription,
   enableLiveTranscription = false,
   onUpdateConfig,
-}: DeviceValidationManagerProps) {
+}: Readonly<DeviceValidationManagerProps>) {
   const theme = useTheme()
   const styles = useMemo(() => getStyles(theme), [theme])
   
@@ -76,10 +76,10 @@ export function DeviceValidationManager({
     if (!device?.capabilities?.sampleRates) return true
     
     // Check if the current sample rate is in device capabilities
-    const deviceSupported = device.capabilities.sampleRates.includes(recordingConfig.sampleRate || 44100)
+    const deviceSupported = device.capabilities.sampleRates.includes(recordingConfig.sampleRate ?? 44100)
     
     // Even if not explicitly reported, common sample rates usually work
-    const isCommonRate = COMMON_SAMPLE_RATES.includes(recordingConfig.sampleRate || 44100)
+    const isCommonRate = COMMON_SAMPLE_RATES.includes(recordingConfig.sampleRate ?? 44100)
     
     return deviceSupported || isCommonRate
   }, [device, recordingConfig.sampleRate])
@@ -90,10 +90,10 @@ export function DeviceValidationManager({
     if (!device?.capabilities?.channelCounts) return true
     
     // Check if the current channel count is in device capabilities
-    const deviceSupported = device.capabilities.channelCounts.includes(recordingConfig.channels || 1)
+    const deviceSupported = device.capabilities.channelCounts.includes(recordingConfig.channels ?? 1)
     
     // Even if not explicitly reported, common channel counts usually work
-    const isCommonChannel = COMMON_CHANNEL_COUNTS.includes(recordingConfig.channels || 1)
+    const isCommonChannel = COMMON_CHANNEL_COUNTS.includes(recordingConfig.channels ?? 1)
     
     return deviceSupported || isCommonChannel
   }, [device, recordingConfig.channels])
@@ -124,9 +124,10 @@ export function DeviceValidationManager({
     // Fix sample rate if not supported
     if (!sampleRateSupported && device.capabilities.sampleRates?.length) {
       // Find closest supported sample rate
-      const desired = recordingConfig.sampleRate || 44100
+      const desired = recordingConfig.sampleRate ?? 44100
       const closest = device.capabilities.sampleRates.reduce((prev, curr) => 
-        Math.abs(curr - desired) < Math.abs(prev - desired) ? curr : prev
+        Math.abs(curr - desired) < Math.abs(prev - desired) ? curr : prev, 
+        device.capabilities.sampleRates[0]
       )
       
       // Convert to SampleRate type
