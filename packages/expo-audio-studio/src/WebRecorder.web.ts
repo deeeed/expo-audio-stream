@@ -48,15 +48,15 @@ export class WebRecorder {
     private bitDepth: number // Bit depth of the audio
     private exportBitDepth: number // Bit depth of the audio
     private audioAnalysisData: AudioAnalysis // Keep updating the full audio analysis data with latest events
-    private logger?: ConsoleLike
+    private readonly logger?: ConsoleLike
     private compressedMediaRecorder: MediaRecorder | null = null
     private compressedChunks: Blob[] = []
     private compressedSize: number = 0
     private pendingCompressedChunk: Blob | null = null
     private dataPointIdCounter: number = 0 // Add this property to track the counter
     private deviceDisconnectionHandler: (() => void) | null = null
-    private mediaStream: MediaStream | null = null
-    private onInterruptionCallback?: (event: {
+    private readonly mediaStream: MediaStream | null = null
+    private readonly onInterruptionCallback?: (event: {
         reason: string
         isPaused: boolean
         timestamp: number
@@ -302,7 +302,7 @@ export class WebRecorder {
                 channels,
                 interval,
                 position: this.position,
-                deviceId: this.config.deviceId || 'default',
+                deviceId: this.config.deviceId ?? 'default',
                 compression: this.config.compression
                     ? {
                           enabled: this.config.compression.enabled,
@@ -407,100 +407,109 @@ export class WebRecorder {
      * @param event - The event containing audio analysis results
      */
     handleFeatureExtractorMessage(event: AudioFeaturesEvent) {
-        if (event.data.command === 'features') {
-            const segmentResult = event.data.result
+        if (event.data.command !== 'features') return
 
-            // Track existing IDs to prevent duplicates
-            const existingIds = new Set(
-                this.audioAnalysisData.dataPoints.map((dp) => dp.id)
+        const segmentResult = event.data.result
+        const uniqueNewDataPoints = this.filterUniqueDataPoints(
+            segmentResult.dataPoints
+        )
+
+        // Update counter based on the highest ID seen
+        this.updateDataPointCounter(uniqueNewDataPoints)
+
+        // Update analysis data with the new results
+        this.updateAudioAnalysisData(segmentResult, uniqueNewDataPoints)
+
+        // Send filtered result to avoid duplicate IDs
+        const filteredSegmentResult = {
+            ...segmentResult,
+            dataPoints: uniqueNewDataPoints,
+        }
+
+        this.emitAudioAnalysisCallback(filteredSegmentResult)
+    }
+
+    /**
+     * Filters out data points with duplicate IDs
+     */
+    private filterUniqueDataPoints(dataPoints: any[]): any[] {
+        // Track existing IDs to prevent duplicates
+        const existingIds = new Set(
+            this.audioAnalysisData.dataPoints.map((dp) => dp.id)
+        )
+
+        // Filter out datapoints with duplicate IDs
+        const uniquePoints = dataPoints.filter((dp) => !existingIds.has(dp.id))
+
+        // Log filtered duplicates if any
+        if (uniquePoints.length < dataPoints.length && this.logger?.warn) {
+            this.logger.warn(
+                `Filtered ${dataPoints.length - uniquePoints.length} duplicate datapoints`
             )
+        }
 
-            // Filter out datapoints with duplicate IDs
-            const uniqueNewDataPoints = segmentResult.dataPoints.filter(
-                (dp) => {
-                    return !existingIds.has(dp.id)
-                }
-            )
+        return uniquePoints
+    }
 
-            // Log filtered duplicates if any
-            if (
-                uniqueNewDataPoints.length < segmentResult.dataPoints.length &&
-                this.logger?.warn
-            ) {
-                this.logger.warn(
-                    `Filtered ${segmentResult.dataPoints.length - uniqueNewDataPoints.length} duplicate datapoints`
+    /**
+     * Updates the counter based on the highest ID in datapoints
+     */
+    private updateDataPointCounter(dataPoints: any[]): void {
+        if (dataPoints.length === 0) return
+
+        const lastDataPoint = dataPoints[dataPoints.length - 1]
+        if (lastDataPoint && typeof lastDataPoint.id === 'number') {
+            const nextIdValue = lastDataPoint.id + 1
+            if (nextIdValue > this.dataPointIdCounter) {
+                this.dataPointIdCounter = nextIdValue
+                this.logger?.debug(
+                    `Counter updated to ${this.dataPointIdCounter}`
                 )
             }
+        }
+    }
 
-            // Update counter based on the highest ID seen
-            if (uniqueNewDataPoints.length > 0) {
-                const lastDataPoint =
-                    uniqueNewDataPoints[uniqueNewDataPoints.length - 1]
+    /**
+     * Updates audio analysis data with segment results
+     */
+    private updateAudioAnalysisData(
+        segmentResult: AudioAnalysis,
+        uniqueDataPoints: any[]
+    ): void {
+        // Add unique data points to our analysis data
+        this.audioAnalysisData.dataPoints.push(...uniqueDataPoints)
+        this.audioAnalysisData.durationMs += segmentResult.durationMs
+        this.audioAnalysisData.sampleRate = segmentResult.sampleRate
 
-                if (lastDataPoint && typeof lastDataPoint.id === 'number') {
-                    const nextIdValue = lastDataPoint.id + 1
+        // Update amplitude range if present
+        if (segmentResult.amplitudeRange) {
+            this.audioAnalysisData.amplitudeRange = this.mergeRange(
+                this.audioAnalysisData.amplitudeRange,
+                segmentResult.amplitudeRange
+            )
+        }
 
-                    if (nextIdValue > this.dataPointIdCounter) {
-                        this.dataPointIdCounter = nextIdValue
-                        this.logger?.debug(
-                            `Counter updated to ${this.dataPointIdCounter}`
-                        )
-                    }
-                }
-            }
+        // Update RMS range if present
+        if (segmentResult.rmsRange) {
+            this.audioAnalysisData.rmsRange = this.mergeRange(
+                this.audioAnalysisData.rmsRange,
+                segmentResult.rmsRange
+            )
+        }
+    }
 
-            // Add unique data points to our analysis data
-            this.audioAnalysisData.dataPoints.push(...uniqueNewDataPoints)
-            this.audioAnalysisData.durationMs += segmentResult.durationMs
-            this.audioAnalysisData.sampleRate = segmentResult.sampleRate
+    /**
+     * Merges value ranges
+     */
+    private mergeRange(
+        existing: { min: number; max: number } | undefined,
+        newRange: { min: number; max: number }
+    ): { min: number; max: number } {
+        if (!existing) return { ...newRange }
 
-            // Merge amplitude ranges
-            if (segmentResult.amplitudeRange) {
-                if (!this.audioAnalysisData.amplitudeRange) {
-                    this.audioAnalysisData.amplitudeRange = {
-                        ...segmentResult.amplitudeRange,
-                    }
-                } else {
-                    this.audioAnalysisData.amplitudeRange = {
-                        min: Math.min(
-                            this.audioAnalysisData.amplitudeRange.min,
-                            segmentResult.amplitudeRange.min
-                        ),
-                        max: Math.max(
-                            this.audioAnalysisData.amplitudeRange.max,
-                            segmentResult.amplitudeRange.max
-                        ),
-                    }
-                }
-            }
-
-            // Merge RMS ranges
-            if (segmentResult.rmsRange) {
-                if (!this.audioAnalysisData.rmsRange) {
-                    this.audioAnalysisData.rmsRange = {
-                        ...segmentResult.rmsRange,
-                    }
-                } else {
-                    this.audioAnalysisData.rmsRange = {
-                        min: Math.min(
-                            this.audioAnalysisData.rmsRange.min,
-                            segmentResult.rmsRange.min
-                        ),
-                        max: Math.max(
-                            this.audioAnalysisData.rmsRange.max,
-                            segmentResult.rmsRange.max
-                        ),
-                    }
-                }
-            }
-
-            // Send filtered result to avoid duplicate IDs
-            const filteredSegmentResult = {
-                ...segmentResult,
-                dataPoints: uniqueNewDataPoints,
-            }
-
-            this.emitAudioAnalysisCallback(filteredSegmentResult)
+        return {
+            min: Math.min(existing.min, newRange.min),
+            max: Math.max(existing.max, newRange.max),
         }
     }
 
@@ -510,8 +519,7 @@ export class WebRecorder {
      */
     resetDataPointCounter(startCounterFrom?: number): void {
         // Set the counter with the passed value or 0
-        this.dataPointIdCounter =
-            startCounterFrom !== undefined ? startCounterFrom : 0
+        this.dataPointIdCounter = startCounterFrom ?? 0
         this.logger?.debug(
             `Reset data point counter to ${this.dataPointIdCounter}`
         )
@@ -591,7 +599,7 @@ export class WebRecorder {
             }
 
             const sampleRate =
-                this.config.sampleRate || this.audioContext.sampleRate
+                this.config.sampleRate ?? this.audioContext.sampleRate
             const channels = this.numberOfChannels || 1
 
             // Convert float32 PCM data to 16-bit PCM for WAV
@@ -648,8 +656,7 @@ export class WebRecorder {
 
             // Only create WAV if we have PCM data
             if (this.pcmData && this.pcmData.length > 0) {
-                uncompressedBlob =
-                    (await this.createWavFromPcmData()) || undefined
+                uncompressedBlob = this.createWavFromPcmData() || undefined
             }
 
             // Return the compressed and/or uncompressed blobs if available
@@ -686,11 +693,10 @@ export class WebRecorder {
 
         // Check if AudioContext is already closed before attempting to close it
         if (this.audioContext && this.audioContext.state !== 'closed') {
-            try {
-                this.audioContext.close()
-            } catch (e) {
-                // Ignore closure errors - this happens if already closed
-            }
+            this.audioContext.close().catch((e) => {
+                // Log closure errors but continue cleanup
+                this.logger?.warn('Error closing AudioContext:', e)
+            })
         }
 
         // Safely disconnect audioWorkletNode if it exists
@@ -698,7 +704,8 @@ export class WebRecorder {
             try {
                 this.audioWorkletNode.disconnect()
             } catch (e) {
-                // Ignore disconnection errors - node might be already disconnected
+                // Log disconnection errors but continue cleanup
+                this.logger?.warn('Error disconnecting audioWorkletNode:', e)
             }
         }
 
@@ -707,7 +714,8 @@ export class WebRecorder {
             try {
                 this.source.disconnect()
             } catch (e) {
-                // Ignore disconnection errors - source might be already disconnected
+                // Log disconnection errors but continue cleanup
+                this.logger?.warn('Error disconnecting source:', e)
             }
         }
 
@@ -797,8 +805,12 @@ export class WebRecorder {
             this.audioWorkletNode.connect(this.audioContext.destination)
             this.audioWorkletNode.port.postMessage({ command: 'resume' })
             this.compressedMediaRecorder?.resume()
-        } catch (error) {
+        } catch (error: unknown) {
             this.logger?.error('Error in resume(): ', error)
+            // Rethrow the error to inform callers
+            throw new Error(
+                `Failed to resume recording: ${error instanceof Error ? error.message : 'unknown error'}`
+            )
         }
     }
 
@@ -837,6 +849,8 @@ export class WebRecorder {
                 'Failed to initialize compressed recorder:',
                 error
             )
+            // Setting to null to indicate initialization failed
+            this.compressedMediaRecorder = null
         }
     }
 
@@ -903,6 +917,10 @@ export class WebRecorder {
                     this.audioWorkletNode.disconnect()
                 } catch (e) {
                     // Ignore disconnection errors as the track might already be gone
+                    this.logger?.warn(
+                        'Error disconnecting audioWorkletNode:',
+                        e
+                    )
                 }
             }
         }

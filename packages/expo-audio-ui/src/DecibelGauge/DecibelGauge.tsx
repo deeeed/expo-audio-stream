@@ -297,9 +297,9 @@ export function DecibelGauge({
             {showTickMarks &&
                 tickPaths.map((path, index) => (
                     <Path
-                        key={index}
+                        key={`tick-${index}`}
                         path={path}
-                        color={mergedTheme.colors.tickMarks || 'white'}
+                        color={mergedTheme.colors.tickMarks ?? 'white'}
                         style="stroke"
                         strokeWidth={1}
                     />
@@ -331,10 +331,7 @@ export function DecibelGauge({
             )}
             {showValue && font && (
                 <SkiaText
-                    x={
-                        centerX +
-                        (mergedTheme.text?.xOffset ?? (showNeedle ? 0 : 0))
-                    }
+                    x={centerX + (mergedTheme.text?.xOffset ?? 0)}
                     y={
                         centerY +
                         (mergedTheme.text?.yOffset ?? (showNeedle ? 100 : 0))

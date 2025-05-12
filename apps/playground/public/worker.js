@@ -3,12 +3,9 @@ module.exports = function (self) {
     console.log('Worker script loaded')
     self.onmessage = function (event) {
         'use strict'
-        let recLength = 0,
-            recBuffer = [],
-            recordSampleRate,
+        let recordSampleRate,
             exportInterval = null,
-            newRecBuffer = [],
-            headerSent = false
+            newRecBuffer = [];
 
         self.addEventListener('message', function (e) {
             console.log('Worker received message:', event.data)
@@ -34,39 +31,30 @@ module.exports = function (self) {
         function init(config) {
             console.debug('Initializing worker with config', config)
             recordSampleRate = config.sampleRate
-            headerSent = false
             startExportInterval(config.interval, config.sampleRate) // Start exporting automatically
         }
 
         function record(inputBuffer) {
-            recBuffer.push(inputBuffer[0])
             newRecBuffer.push(inputBuffer[0])
-            recLength += inputBuffer[0].length
         }
 
         function exportBuffer(exportSampleRate) {
-            const mergedBuffers = mergeBuffers(
-                newRecBuffer,
-                newRecBuffer.reduce((len, buf) => len + buf.length, 0)
-            )
+            const bufferLength = newRecBuffer.reduce((len, buf) => len + buf.length, 0)
+            const mergedBuffers = mergeBuffers(newRecBuffer, bufferLength)
             const downsampledBuffer = downsampleBuffer(
                 mergedBuffers,
                 exportSampleRate
             )
-            const encodedWav = encodeWAV(downsampledBuffer, headerSent)
+            const encodedWav = encodeWAV(downsampledBuffer)
             const audioBlob = new Blob([encodedWav], {
                 type: 'application/octet-stream',
             })
             postMessage(audioBlob)
             newRecBuffer = [] // Clear the new data buffer after export
-            headerSent = true // Indicate that the header has been sent
         }
 
         function clear() {
-            recLength = 0
-            recBuffer = []
             newRecBuffer = []
-            headerSent = false
             if (exportInterval) {
                 clearInterval(exportInterval)
                 exportInterval = null
@@ -117,9 +105,9 @@ module.exports = function (self) {
         function mergeBuffers(bufferArray, recLength) {
             const result = new Float32Array(recLength)
             let offset = 0
-            for (let i = 0; i < bufferArray.length; i++) {
-                result.set(bufferArray[i], offset)
-                offset += bufferArray[i].length
+            for (const buffer of bufferArray) {
+                result.set(buffer, offset)
+                offset += buffer.length
             }
             return result
         }

@@ -111,7 +111,7 @@ function downloadPrebuiltBinaries() {
         }
 
         // Copy the files from the extracted directory to the correct locations
-        const sourcePath = path.join(extractDir, 'rn-essentia-static-main');
+        let sourcePath = path.join(extractDir, 'rn-essentia-static-main');
         if (!fs.existsSync(sourcePath)) {
           const extractedItems = fs.readdirSync(extractDir);
           console.log('Available extracted items:', extractedItems);
@@ -212,7 +212,6 @@ function downloadPrebuiltBinaries() {
           copyFolderRecursiveSync(headersSrc, path.join(__dirname, 'cpp/include'));
         } else {
           console.warn('C++ headers not found in downloaded package');
-          // TODO: Create fallback headers if needed
         }
 
         console.log('Extraction and file copying complete');
@@ -319,6 +318,7 @@ function isIOSDevelopmentEnvironment() {
     execSync('xcode-select -p', { stdio: 'ignore' });
     return true;
   } catch (e) {
+    console.error('Failed to check Xcode command line tools:', e);
     return false;
   }
 }

@@ -23,7 +23,7 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
         container: {
             gap: theme.spacing.gap || 16,
             paddingHorizontal: theme.padding.s,
-            paddingBottom: insets?.bottom || 80,
+            paddingBottom: insets?.bottom ?? 80,
             paddingTop: 0,
         },
         gaugeContainer: {
