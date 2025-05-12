@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native'
@@ -186,16 +185,15 @@ const safeRenderText = (value: unknown): string => {
   if (typeof value === 'number' || typeof value === 'boolean') {
     return String(value)
   }
-  if (Array.isArray(value)) {
-    return JSON.stringify(value)
-  }
+  // Handle all object types (including arrays) with JSON.stringify
   if (typeof value === 'object') {
     return JSON.stringify(value)
   }
+  // For any other types
   return String(value)
 }
 
-export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange }: AlgorithmExplorerProps) {
+export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange }: Readonly<AlgorithmExplorerProps>) {
   const { theme } = useThemePreferences()
   const styles = useMemo(() => getStyles({ theme }), [theme])
   
@@ -265,7 +263,7 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
       const result = await EssentiaJS.getAllAlgorithms()
       
       if (result.success && Array.isArray(result.data)) {
-        const sortedAlgorithms = [...result.data].sort()
+        const sortedAlgorithms = [...result.data].sort((a, b) => a.localeCompare(b))
         setAlgorithms(sortedAlgorithms)
         setFilteredAlgorithms(sortedAlgorithms)
         console.log(`Loaded ${result.data.length} algorithms from Essentia`)
@@ -349,9 +347,9 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
   
   // Handle parameter value changes - keep for display purposes only
   const handleParameterChange = (paramName: string, value: string) => {
+    let parsedValue: string | number | boolean = value
+    
     try {
-      let parsedValue: string | number | boolean = value
-      
       // Try to parse numbers and booleans
       if (value.toLowerCase() === 'true') {
         parsedValue = true
@@ -363,18 +361,16 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
         // Keep arrays as strings, they'll be parsed by Essentia
         parsedValue = value
       }
-      
-      setParameterValues((prev) => ({
-        ...prev,
-        [paramName]: parsedValue,
-      }))
-    } catch (_error) {
+    } catch (error) {
       // If parsing fails, keep as string
-      setParameterValues((prev) => ({
-        ...prev,
-        [paramName]: value,
-      }))
+      console.warn(`Error parsing parameter value: ${error instanceof Error ? error.message : String(error)}`)
+      parsedValue = value
     }
+    
+    setParameterValues((prev) => ({
+      ...prev,
+      [paramName]: parsedValue,
+    }))
   }
   
   // Update recently used when selecting an algorithm
@@ -442,7 +438,76 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
     }, 300) // Small delay to show loading indicator
   }, [])
 
-  // Render current category content
+  // Render favorites view
+  const renderFavoritesView = useCallback(() => {
+    if (favoriteAlgorithms.length === 0) {
+      return (
+        <Text style={styles.emptyState}>
+          No favorite algorithms yet. Star algorithms to add them here.
+        </Text>
+      )
+    }
+    
+    return (
+      <View style={styles.chipContainer}>
+        {favoriteAlgorithms
+          .filter((algo) => filteredAlgorithms.includes(algo))
+          .map(renderAlgorithmChip)}
+      </View>
+    )
+  }, [favoriteAlgorithms, filteredAlgorithms, renderAlgorithmChip, styles.chipContainer, styles.emptyState])
+  
+  // Render recent view
+  const renderRecentView = useCallback(() => {
+    if (recentlyUsed.length === 0) {
+      return (
+        <Text style={styles.emptyState}>
+          No recently used algorithms. Select some algorithms to see them here.
+        </Text>
+      )
+    }
+    
+    return (
+      <View style={styles.chipContainer}>
+        {recentlyUsed
+          .filter((algo) => filteredAlgorithms.includes(algo))
+          .map(renderAlgorithmChip)}
+      </View>
+    )
+  }, [recentlyUsed, filteredAlgorithms, renderAlgorithmChip, styles.chipContainer, styles.emptyState])
+  
+  // Render all algorithms view
+  const renderAllView = useCallback(() => {
+    return (
+      <ScrollView style={{ maxHeight: 200 }}>
+        <View style={styles.chipContainer}>
+          {filteredAlgorithms.map(renderAlgorithmChip)}
+        </View>
+      </ScrollView>
+    )
+  }, [filteredAlgorithms, renderAlgorithmChip, styles.chipContainer])
+  
+  // Render category view
+  const renderCategoryView = useCallback((categoryName: string) => {
+    const category = algorithmCategories.find((c) => c.name === categoryName)
+    if (!category) return null
+    
+    return (
+      <View style={styles.chipContainer}>
+        {category.algorithms
+          .filter((algo) => filteredAlgorithms.includes(algo) && algorithms.includes(algo))
+          .map(renderAlgorithmChip)}
+        <Divider style={{ marginVertical: 8, width: '100%' }} />
+        <Text style={{ marginBottom: 8 }}>Other algorithms in this category:</Text>
+        {filteredAlgorithms
+          .filter((algo) => !category.algorithms.includes(algo) && 
+                        algo.toLowerCase().includes(category.name.toLowerCase()))
+          .map(renderAlgorithmChip)}
+      </View>
+    )
+  }, [algorithms, filteredAlgorithms, algorithmCategories, renderAlgorithmChip, styles.chipContainer])
+
+  // Render current category content - now simplified by using the specific render functions
   const renderCategoryContent = useCallback(() => {
     // Show loading indicator when switching categories
     if (isLoadingCategory) {
@@ -454,75 +519,27 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
       )
     }
     
-    // Favorites view
-    if (selectedCategory === 'favorites') {
-      if (favoriteAlgorithms.length === 0) {
-        return (
-          <Text style={styles.emptyState}>
-            No favorite algorithms yet. Star algorithms to add them here.
-          </Text>
-        )
-      }
-      
-      return (
-        <View style={styles.chipContainer}>
-          {favoriteAlgorithms
-            .filter((algo) => filteredAlgorithms.includes(algo))
-            .map(renderAlgorithmChip)}
-        </View>
-      )
+    // Render the appropriate view based on selected category
+    switch (selectedCategory) {
+      case 'favorites':
+        return renderFavoritesView()
+      case 'recent':
+        return renderRecentView()
+      case 'all':
+        return renderAllView()
+      default:
+        return renderCategoryView(selectedCategory)
     }
-    
-    // Recent view
-    if (selectedCategory === 'recent') {
-      if (recentlyUsed.length === 0) {
-        return (
-          <Text style={styles.emptyState}>
-            No recently used algorithms. Select some algorithms to see them here.
-          </Text>
-        )
-      }
-      
-      return (
-        <View style={styles.chipContainer}>
-          {recentlyUsed
-            .filter((algo) => filteredAlgorithms.includes(algo))
-            .map(renderAlgorithmChip)}
-        </View>
-      )
-    }
-    
-    // All view
-    if (selectedCategory === 'all') {
-      return (
-        <ScrollView style={{ maxHeight: 200 }}>
-          <View style={styles.chipContainer}>
-            {filteredAlgorithms.map(renderAlgorithmChip)}
-          </View>
-        </ScrollView>
-      )
-    }
-    
-    // Category view
-    const category = algorithmCategories.find((c) => c.name === selectedCategory)
-    if (category) {
-      return (
-        <View style={styles.chipContainer}>
-          {category.algorithms
-            .filter((algo) => filteredAlgorithms.includes(algo) && algorithms.includes(algo))
-            .map(renderAlgorithmChip)}
-          <Divider style={{ marginVertical: 8, width: '100%' }} />
-          <Text style={{ marginBottom: 8 }}>Other algorithms in this category:</Text>
-          {filteredAlgorithms
-            .filter((algo) => !category.algorithms.includes(algo) && 
-                          algo.toLowerCase().includes(category.name.toLowerCase()))
-            .map(renderAlgorithmChip)}
-        </View>
-      )
-    }
-    
-    return null
-  }, [selectedCategory, favoriteAlgorithms, recentlyUsed, filteredAlgorithms, algorithms, algorithmCategories, renderAlgorithmChip, styles, isLoadingCategory, theme.colors.primary])
+  }, [
+    isLoadingCategory, 
+    selectedCategory, 
+    renderFavoritesView, 
+    renderRecentView, 
+    renderAllView, 
+    renderCategoryView, 
+    styles.loadingContainer, 
+    theme.colors.primary
+  ])
 
   // Create segmented buttons options for categories
   const segmentedButtonItems = useMemo(() => {
@@ -540,6 +557,53 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
     return items
   }, [algorithmCategories])
 
+  // Helper function to log algorithm details
+  const logAlgorithmInfo = async (algo: string) => {
+    console.log(`\n----- ${algo} -----`)
+    try {
+      const result = await EssentiaJS.getAlgorithmInfo(algo)
+      
+      if (!result.success || !result.data) {
+        console.log(`Failed to get info for ${algo}: ${result.error ?? 'Unknown error'}`)
+        return
+      }
+
+      const info = result.data
+      
+      // Log inputs
+      console.log('Inputs:')
+      if (info.inputs && Array.isArray(info.inputs)) {
+        info.inputs.forEach((input: { name: string; type: string }) => {
+          console.log(`  - ${input.name} (${input.type})`)
+        })
+      } else {
+        console.log('  None or undefined')
+      }
+      
+      // Log outputs
+      console.log('Outputs:')
+      if (info.outputs && Array.isArray(info.outputs)) {
+        info.outputs.forEach((output: { name: string; type: string }) => {
+          console.log(`  - ${output.name} (${output.type})`)
+        })
+      } else {
+        console.log('  None or undefined')
+      }
+      
+      // Log parameters
+      console.log('Parameters:')
+      if (info.parameters) {
+        Object.entries(info.parameters).forEach(([key, value]) => {
+          console.log(`  - ${key}: ${JSON.stringify(value)}`)
+        })
+      } else {
+        console.log('  None or undefined')
+      }
+    } catch (error) {
+      console.error(`Error getting info for ${algo}:`, error)
+    }
+  }
+
   // Export algorithms to console (keeping existing functionality)
   const handleExportAlgorithmList = async () => {
     if (!isInitialized) {
@@ -553,6 +617,7 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
     }
     
     try {
+      // Log the header info
       console.log('===== ESSENTIA ALGORITHMS LIST =====')
       console.log(`Total available algorithms: ${algorithms.length}`)
       
@@ -560,55 +625,13 @@ export function AlgorithmExplorer({ isInitialized, showToast, onFavoritesChange 
       console.log('\nAll available algorithms (alphabetical):')
       console.log(algorithms.join(', '))
       
-      // For better performance, limit the detailed info to first 20 algorithms
+      // For better performance, limit the detailed info to first 300 algorithms
       const algoSubset = algorithms.length > 300 ? algorithms.slice(0, 300) : algorithms
-      
       console.log('\nDetailed information for first 300 algorithms:')
       
       // Get info for each algorithm in the subset
       for (const algo of algoSubset) {
-        console.log(`\n----- ${algo} -----`)
-        try {
-          const result = await EssentiaJS.getAlgorithmInfo(algo)
-          
-          if (result.success && result.data) {
-            const info = result.data
-            
-            // Log inputs
-            console.log('Inputs:')
-            if (info.inputs && Array.isArray(info.inputs)) {
-              info.inputs.forEach((input: { name: string; type: string }) => {
-                console.log(`  - ${input.name} (${input.type})`)
-              })
-            } else {
-              console.log('  None or undefined')
-            }
-            
-            // Log outputs
-            console.log('Outputs:')
-            if (info.outputs && Array.isArray(info.outputs)) {
-              info.outputs.forEach((output: { name: string; type: string }) => {
-                console.log(`  - ${output.name} (${output.type})`)
-              })
-            } else {
-              console.log('  None or undefined')
-            }
-            
-            // Log parameters
-            console.log('Parameters:')
-            if (info.parameters) {
-              Object.entries(info.parameters).forEach(([key, value]) => {
-                console.log(`  - ${key}: ${JSON.stringify(value)}`)
-              })
-            } else {
-              console.log('  None or undefined')
-            }
-          } else {
-            console.log(`Failed to get info for ${algo}: ${result.error || 'Unknown error'}`)
-          }
-        } catch (error) {
-          console.error(`Error getting info for ${algo}:`, error)
-        }
+        await logAlgorithmInfo(algo)
       }
       
       console.log('\n===== END OF ALGORITHMS LIST =====')
