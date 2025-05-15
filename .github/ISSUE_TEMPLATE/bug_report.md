@@ -58,13 +58,23 @@ const config: RecordingConfig = {
 
 ## Logs
 <!-- 
-RECOMMENDED: To help debug the issue, please start the recording with logging enabled:
+RECOMMENDED: To help debug the issue, please enable logging at the provider level:
 
-```ts
-const result = await startRecording({
-  ...config,
-  logger: console, // Enable detailed logging
-});
+```tsx
+// In your app component or where you set up the AudioRecorderProvider
+import { AudioRecorderProvider } from '@siteed/expo-audio-studio';
+
+export default function App() {
+  return (
+    <AudioRecorderProvider
+      config={{
+        logger: console // Enable detailed logging
+      }}
+    >
+      {/* Your app components */}
+    </AudioRecorderProvider>
+  );
+}
 ```
 
 Then paste the relevant logs here:
