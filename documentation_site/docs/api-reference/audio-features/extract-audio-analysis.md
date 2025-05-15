@@ -9,6 +9,8 @@ sidebar_label: extractAudioAnalysis
 
 The `extractAudioAnalysis` function is used to extract audio analysis data from a recording file. This function processes the audio data and returns an `AudioAnalysis` object. This information can be used to visualize audio, as demonstrated in the playground app.
 
+> **Note:** Advanced feature extraction capabilities (spectral features, chromagram, pitch detection, etc.) are still experimental and being optimized for better performance. These features require significant processing power and may impact performance, especially during live recording scenarios.
+
 ## Interface
 
 ```ts

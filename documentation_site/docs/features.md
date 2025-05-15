@@ -30,6 +30,7 @@ sidebar_label: Features
 ## Audio Processing
 
 - **Comprehensive [audio analysis](api-reference/audio-features/audio-analysis-overview.md)** with feature extraction (energy, RMS, MFCC, etc.)
+- **Advanced features extraction** (spectral features, chromagram, pitch detection, etc.) is available but experimental, especially during live recording due to high processing requirements
 - **[Mel spectrogram generation](api-reference/audio-processing/extract-mel-spectrogram.md)** for machine learning and visualization
 - **Precision [audio trimming](api-reference/audio-processing/trim-audio.md)** with multi-segment support
 - **Format conversion** and normalization capabilities

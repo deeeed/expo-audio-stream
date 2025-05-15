@@ -55,12 +55,17 @@ export interface AudioFeatures {
 
 /**
  * Options to specify which audio features to extract.
+ * Note: Advanced features (spectral features, chromagram, pitch, etc.) are experimental,
+ * especially during live recording, due to high processing requirements.
  */
 export interface AudioFeaturesOptions {
+    // Basic features - well optimized
     energy?: boolean
-    mfcc?: boolean
     rms?: boolean
     zcr?: boolean
+    
+    // Advanced features - experimental, may impact performance in live recording
+    mfcc?: boolean
     spectralCentroid?: boolean
     spectralFlatness?: boolean
     spectralRolloff?: boolean
@@ -72,6 +77,8 @@ export interface AudioFeaturesOptions {
     spectralContrast?: boolean
     tonnetz?: boolean
     pitch?: boolean
+    
+    // Utility
     crc32?: boolean
 }
 

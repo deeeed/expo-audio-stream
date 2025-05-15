@@ -108,6 +108,7 @@ For more details, check out the [sherpa-onnx demo](https://deeeed.github.io/expo
 - [x] Cross-platform audio device detection, selection, and fallback handling
 - [x] Add Zero-Latency Audio Recording with `prepareRecording` API 
 - [ ] Setup Beta channel to avoid regressions
+- [ ] Optimize advanced audio feature extraction (spectral features, pitch detection, etc.) for better performance in live recording scenarios
 - [x] Improve native code quality and configure sonarcloud to prevent CI errors.
 - [ ] Integrate sherpa onnx models into expo-audio-studio and playground
 - [ ] Implement example app for custom VAD.
