@@ -2,7 +2,7 @@
 name: Bug report
 about: Create a bug report to help improve expo-audio-studio
 title: '[BUG] '
-labels: bug
+labels: 
 assignees: ''
 ---
 
