@@ -63,7 +63,7 @@ export interface AudioFeaturesOptions {
     energy?: boolean
     rms?: boolean
     zcr?: boolean
-    
+
     // Advanced features - experimental, may impact performance in live recording
     mfcc?: boolean
     spectralCentroid?: boolean
@@ -77,7 +77,7 @@ export interface AudioFeaturesOptions {
     spectralContrast?: boolean
     tonnetz?: boolean
     pitch?: boolean
-    
+
     // Utility
     crc32?: boolean
 }
