@@ -56,6 +56,17 @@ else
   exit 1
 fi
 
+# Create version.h file
+echo "Creating version.h file..."
+mkdir -p cpp/include/essentia
+cat > cpp/include/essentia/version.h << EOL
+#ifndef VERSION_H_
+#define VERSION_H_
+#define ESSENTIA_VERSION "2.1-beta5"
+#define ESSENTIA_GIT_SHA "v2.1_beta5-dirty"
+#endif /* VERSION_H_ */
+EOL
+
 # Download dependencies like nlohmann/json
 if [ ! -f "cpp/third_party/nlohmann/json.hpp" ]; then
   echo "Downloading nlohmann/json..."
