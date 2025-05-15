@@ -850,7 +850,8 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                     }
                 } catch (err) {
                     this.logger?.warn(
-                        'Error determining current device, using default'
+                        'Error determining current device, using default',
+                        err
                     )
                 }
             }
