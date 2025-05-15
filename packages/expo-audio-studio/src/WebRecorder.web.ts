@@ -214,6 +214,11 @@ export class WebRecorder {
                         ? event.data.position
                         : this.position
 
+                // Simple position tracking for logging (no duplicate filtering)
+                this.logger?.debug(
+                    `Audio chunk: position=${incomingPosition.toFixed(3)}s, size=${pcmBufferFloat.length}`
+                )
+
                 // Calculate bytes per sample based on bit depth
                 const bytesPerSample = this.bitDepth / 8
 
@@ -228,6 +233,17 @@ export class WebRecorder {
                         (i + chunk.length) * bytesPerSample
                     )
                     const samples = chunk.length // Number of samples in this chunk
+
+                    // Only store PCM data if web.storeUncompressedAudio is not explicitly false
+                    const shouldStoreUncompressed =
+                        this.config.web?.storeUncompressedAudio !== false
+
+                    // Store PCM chunks when needed - this is for the final WAV file
+                    if (shouldStoreUncompressed) {
+                        // Store the original Float32Array data for later WAV creation
+                        this.appendPcmData(chunk)
+                        this.totalSampleCount += chunk.length
+                    }
 
                     // Process features if enabled
                     if (
@@ -252,39 +268,36 @@ export class WebRecorder {
                         })
                     }
 
-                    // Only store PCM data if web.storeUncompressedAudio is not explicitly false
-                    const shouldStoreUncompressed =
-                        this.config.web?.storeUncompressedAudio !== false
+                    // Logic for uncompressed chunk emission
+                    const compressionEnabled =
+                        this.config.compression?.enabled === true
 
-                    // Store PCM chunks when needed
-                    if (shouldStoreUncompressed) {
-                        // Store the original Float32Array data for later WAV creation
-                        this.appendPcmData(chunk)
-                        this.totalSampleCount += chunk.length
-                    }
+                    // Prepare compression data if available
+                    const compression = this.pendingCompressedChunk
+                        ? {
+                              data: this.pendingCompressedChunk,
+                              size: this.pendingCompressedChunk.size,
+                              totalSize: this.compressedSize,
+                              mimeType: 'audio/webm',
+                              format: 'opus',
+                              bitrate:
+                                  this.config.compression?.bitrate ?? 128000,
+                          }
+                        : undefined
 
-                    // Emit chunk immediately
+                    // Emit chunk immediately - whether compressed or not
                     this.emitAudioEventCallback({
                         data: chunk,
                         position: chunkPosition,
-                        compression: this.pendingCompressedChunk
-                            ? {
-                                  data: this.pendingCompressedChunk,
-                                  size: this.pendingCompressedChunk.size,
-                                  totalSize: this.compressedSize,
-                                  mimeType: 'audio/webm',
-                                  format: 'opus',
-                                  bitrate:
-                                      this.config.compression?.bitrate ??
-                                      128000,
-                              }
-                            : undefined,
+                        compression,
                     })
+
+                    // Reset pending compressed chunk after we've used it
+                    this.pendingCompressedChunk = null
                 }
 
                 // Update our position based on the worklet's position if provided
                 this.position = incomingPosition + duration
-                this.pendingCompressedChunk = null
             }
 
             // Ensure we use all relevant settings from config
@@ -664,8 +677,8 @@ export class WebRecorder {
                 compressedBlob:
                     this.compressedChunks.length > 0
                         ? new Blob(this.compressedChunks, {
-                              type: 'audio/webm;codecs=opus',
-                          })
+                            type: 'audio/webm;codecs=opus',
+                        })
                         : undefined,
                 uncompressedBlob,
             }
@@ -677,6 +690,7 @@ export class WebRecorder {
             this.pendingCompressedChunk = null
             this.pcmData = null
             this.totalSampleCount = 0
+            this.dataPointIdCounter = 0 // Reset counter
         }
     }
 
@@ -839,8 +853,11 @@ export class WebRecorder {
 
             this.compressedMediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
+                    // Store the compressed chunk for final blob creation
                     this.compressedChunks.push(event.data)
                     this.compressedSize += event.data.size
+
+                    // Store the pending compressed chunk for the next PCM chunk to use
                     this.pendingCompressedChunk = event.data
                 }
             }
