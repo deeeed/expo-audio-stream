@@ -268,10 +268,6 @@ export class WebRecorder {
                         })
                     }
 
-                    // Logic for uncompressed chunk emission
-                    const compressionEnabled =
-                        this.config.compression?.enabled === true
-
                     // Prepare compression data if available
                     const compression = this.pendingCompressedChunk
                         ? {
@@ -677,8 +673,8 @@ export class WebRecorder {
                 compressedBlob:
                     this.compressedChunks.length > 0
                         ? new Blob(this.compressedChunks, {
-                            type: 'audio/webm;codecs=opus',
-                        })
+                              type: 'audio/webm;codecs=opus',
+                          })
                         : undefined,
                 uncompressedBlob,
             }
