@@ -269,17 +269,19 @@ export const MoreScreen = () => {
 
             {isWeb && (
                 <>
-                    <ListItem
-                        contentContainerStyle={{
-                            ...styles.listItemContainer,
-                            backgroundColor: theme.colors.primaryContainer,
-                        }}
+                    {__DEV__ && (
+                        <ListItem
+                            contentContainerStyle={{
+                                ...styles.listItemContainer,
+                                backgroundColor: theme.colors.primaryContainer,
+                            }}
                         label="Web Audio Test"
                         subLabel="Debug web audio chunks duplication"
-                        onPress={() => {
-                            router.navigate('/web-audio-test')
-                        }}
-                    />
+                            onPress={() => {
+                                router.navigate('/web-audio-test')
+                            }}
+                        />
+                    )}
                     <ListItem
                         contentContainerStyle={{
                             ...styles.listItemContainer,
