@@ -1,6 +1,6 @@
 {
     "name": "audio-playground",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "main": "src/index",
     "scripts": {
         "eas-build-pre-install": "corepack enable && cd ../.. && yarn install && echo 'Building packages...' && cd packages/expo-audio-studio && yarn build && yarn build:plugin && echo 'Built expo-audio-studio' && cd ../playgroundapi && yarn build && echo 'Built playgroundapi' && cd ../react-native-essentia && yarn prepare || echo 'Warning: react-native-essentia build failed but continuing'",
