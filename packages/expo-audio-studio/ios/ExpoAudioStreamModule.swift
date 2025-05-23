@@ -156,6 +156,8 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         ///       - `enabled`: Boolean to enable/disable compression (default is false).
         ///       - `format`: The compression format (default is "aac").
         ///       - `bitrate`: The compression bitrate in bps (default is 128000).
+        ///     - `bufferDurationSeconds`: The buffer duration in seconds (default is 0.02 seconds).
+        ///     - `skipFileWriting`: When true, only emits audio data without writing to file (default is false).
         ///   - promise: A promise to resolve with the recording settings or reject with an error.
         AsyncFunction("startRecording") { (options: [String: Any], promise: Promise) in
             Logger.debug("ExpoAudioStreamModule", "startRecording called with options: \(options)")

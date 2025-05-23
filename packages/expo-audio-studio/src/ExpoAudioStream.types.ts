@@ -370,6 +370,12 @@ export interface RecordingConfig {
 
     /** How to handle device disconnection during recording */
     deviceDisconnectionBehavior?: DeviceDisconnectionBehaviorType
+
+    /** When true, only emits audio data without writing to file */
+    skipFileWriting?: boolean
+
+    /** Buffer duration in seconds. If not set, we use default buffer AVAudioFrameCount of 1024. */
+    bufferDurationSeconds?: number
 }
 
 export interface NotificationConfig {
