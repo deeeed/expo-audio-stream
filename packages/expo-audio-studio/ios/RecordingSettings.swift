@@ -77,7 +77,6 @@ enum RecordingError: Error {
 struct RecordingSettings {
     // Core recording settings
     var sampleRate: Double
-    var desiredSampleRate: Double
     var bufferDurationSeconds: Double = 0.02
     var numberOfChannels: Int = 1
     var bitDepth: Int = 16
@@ -141,7 +140,6 @@ struct RecordingSettings {
         // Create settings
         var settings = RecordingSettings(
             sampleRate: dict["sampleRate"] as? Double ?? 44100.0,
-            desiredSampleRate: dict["desiredSampleRate"] as? Double ?? 44100.0,
             enableCompressedOutput: enableCompressedOutput,
             compressedFormat: compressedFormat,
             compressedBitRate: compressedBitRate,
