@@ -78,10 +78,13 @@ struct RecordingSettings {
     // Core recording settings
     var sampleRate: Double
     var desiredSampleRate: Double
+    var bufferDurationSeconds: Double = 0.02
     var numberOfChannels: Int = 1
     var bitDepth: Int = 16
     var interval: Int?
     var intervalAnalysis: Int?
+    /// When true, only emits audio data without writing to file
+    var skipFileWriting: Bool = false
     
     // Feature flags
     var keepAwake: Bool = true

@@ -102,6 +102,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     
     // Add property to track auto-resume preference
     private var autoResumeAfterInterruption: Bool = false
+
+    private var bufferDurationSeconds: Double?
+    private var skipFileWriting: Bool = false
     
     // Add these properties
     private var emissionInterval: TimeInterval = 1.0  // Default 1 second
