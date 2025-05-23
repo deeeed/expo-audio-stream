@@ -709,9 +709,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
         
         // Install the tap with hardware format
-        var bufferSize = 1024
+        var bufferSize: AVAudioFrameCount = 1024
         if let bufferDurationSeconds = bufferDurationSeconds {
-            bufferSize = Int(bufferDurationSeconds * Double(inputHardwareFormat.sampleRate))
+            bufferSize = AVAudioFrameCount(bufferDurationSeconds * Double(inputHardwareFormat.sampleRate))
         }
         inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputHardwareFormat, block: tapBlock)
         Logger.debug("AudioStreamManager", "Tap installed with hardware-compatible format")
