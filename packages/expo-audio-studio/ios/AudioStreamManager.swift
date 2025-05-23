@@ -877,6 +877,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             Logger.debug("AudioStreamManager", "  - channels: \(settings.numberOfChannels)")
             Logger.debug("AudioStreamManager", "  - bit depth: \(settings.bitDepth)-bit")
             Logger.debug("AudioStreamManager", "  - compression enabled: \(settings.enableCompressedOutput)")
+            if let bufferDurationSeconds {
+                Logger.debug("AudioStreamManager", "  - buffer size: \(bufferDurationSeconds)")
+            }
+            Logger.debug("AudioStreamManager", "  - skip file writing: \(skipFileWriting)")
+
 
             // Use our shared tap installation method
             let tapFormat = installTapWithHardwareFormat()
