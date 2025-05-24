@@ -140,6 +140,28 @@ Interval in milliseconds at which to emit analysis data
 
 ***
 
+### bufferDurationSeconds?
+
+> `optional` **bufferDurationSeconds**: `number`
+
+Defined in: [src/ExpoAudioStream.types.ts:371](https://github.com/deeeed/expo-audio-stream/blob/5d8518e2259372c13fd38b3adc7b767434cbd154/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L371)
+
+Buffer duration in seconds. If not set, we use default buffer AVAudioFrameCount of 1024.
+
+***
+
+### skipFileWriting?
+
+> `optional` **skipFileWriting**: `boolean`
+
+Defined in: [src/ExpoAudioStream.types.ts:369](https://github.com/deeeed/expo-audio-stream/blob/5d8518e2259372c13fd38b3adc7b767434cbd154/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L369)
+
+When true, only emits audio data without writing to file
+
+***
+
+
+
 ### ios?
 
 > `optional` **ios**: [`IOSConfig`](IOSConfig.md)
