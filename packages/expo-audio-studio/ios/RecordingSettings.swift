@@ -77,11 +77,13 @@ enum RecordingError: Error {
 struct RecordingSettings {
     // Core recording settings
     var sampleRate: Double
-    var desiredSampleRate: Double
+    var bufferDurationSeconds: Double?
     var numberOfChannels: Int = 1
     var bitDepth: Int = 16
     var interval: Int?
     var intervalAnalysis: Int?
+    /// When true, only emits audio data without writing to file
+    var skipFileWriting: Bool = false
     
     // Feature flags
     var keepAwake: Bool = true
@@ -138,7 +140,6 @@ struct RecordingSettings {
         // Create settings
         var settings = RecordingSettings(
             sampleRate: dict["sampleRate"] as? Double ?? 44100.0,
-            desiredSampleRate: dict["desiredSampleRate"] as? Double ?? 44100.0,
             enableCompressedOutput: enableCompressedOutput,
             compressedFormat: compressedFormat,
             compressedBitRate: compressedBitRate,
@@ -150,6 +151,8 @@ struct RecordingSettings {
         settings.bitDepth = dict["bitDepth"] as? Int ?? 16
         settings.interval = dict["interval"] as? Int
         settings.intervalAnalysis = dict["intervalAnalysis"] as? Int
+        settings.bufferDurationSeconds = dict["bufferDurationSeconds"] as? Double
+        settings.skipFileWriting = dict["skipFileWriting"] as? Bool ?? false
         
         // Parse feature flags
         settings.keepAwake = dict["keepAwake"] as? Bool ?? true

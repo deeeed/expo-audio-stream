@@ -102,6 +102,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     
     // Add property to track auto-resume preference
     private var autoResumeAfterInterruption: Bool = false
+
+    private var bufferDurationSeconds: Double?
+    private var skipFileWriting: Bool = false
     
     // Add these properties
     private var emissionInterval: TimeInterval = 1.0  // Default 1 second
@@ -706,7 +709,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
         
         // Install the tap with hardware format
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputHardwareFormat, block: tapBlock)
+        var bufferSize: AVAudioFrameCount = 1024
+        if let bufferDurationSeconds = bufferDurationSeconds {
+            bufferSize = AVAudioFrameCount(bufferDurationSeconds * Double(inputHardwareFormat.sampleRate))
+        }
+        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputHardwareFormat, block: tapBlock)
         Logger.debug("AudioStreamManager", "Tap installed with hardware-compatible format")
         
         // Prepare the engine if requested
@@ -754,6 +761,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
 
         // Update auto-resume preference from settings
         autoResumeAfterInterruption = settings.autoResumeAfterInterruption
+
+        bufferDurationSeconds = settings.bufferDurationSeconds
+        skipFileWriting = settings.skipFileWriting
         
         emissionInterval = max(100.0, Double(settings.interval ?? 1000)) / 1000.0
         emissionIntervalAnalysis = max(100.0, Double(settings.intervalAnalysis ?? 500)) / 1000.0
@@ -768,31 +778,33 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         lastEmittedCompressedSizeAnalysis = 0
         isPaused = false
 
-        // Create recording file first
-        recordingFileURL = createRecordingFile()
-        if let url = recordingFileURL {
-            do {
-                // Ensure directory exists if needed (createRecordingFile should handle this, but belt-and-suspenders)
-                try fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
-                // Create the file if it doesn't exist (createRecordingFile should also handle this)
-                if !fileManager.fileExists(atPath: url.path) {
-                    fileManager.createFile(atPath: url.path, contents: nil, attributes: nil)
+        if !skipFileWriting {
+            // Create recording file first
+            recordingFileURL = createRecordingFile()
+            if let url = recordingFileURL {
+                do {
+                    // Ensure directory exists if needed (createRecordingFile should handle this, but belt-and-suspenders)
+                    try fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
+                    // Create the file if it doesn't exist (createRecordingFile should also handle this)
+                    if !fileManager.fileExists(atPath: url.path) {
+                        fileManager.createFile(atPath: url.path, contents: nil, attributes: nil)
+                    }
+                    // Open the handle for writing
+                    self.fileHandle = try FileHandle(forWritingTo: url)
+                    // Write initial dummy header immediately
+                    let header = createWavHeader(dataSize: 0)
+                    self.fileHandle?.write(header)
+                    self.totalDataSize = Int64(WAV_HEADER_SIZE) // Initialize size with header size
+                    Logger.debug("AudioStreamManager", "File handle opened and initial header written for \(url.path). Initial size: \(self.totalDataSize)")
+                } catch {
+                    Logger.debug("AudioStreamManager", "Error creating/opening file handle: \(error.localizedDescription)")
+                    // No need to call cleanupPreparation here, return false will handle it
+                    return false
                 }
-                // Open the handle for writing
-                self.fileHandle = try FileHandle(forWritingTo: url)
-                // Write initial dummy header immediately
-                let header = createWavHeader(dataSize: 0)
-                self.fileHandle?.write(header)
-                self.totalDataSize = Int64(WAV_HEADER_SIZE) // Initialize size with header size
-                Logger.debug("AudioStreamManager", "File handle opened and initial header written for \(url.path). Initial size: \(self.totalDataSize)")
-            } catch {
-                Logger.debug("AudioStreamManager", "Error creating/opening file handle: \(error.localizedDescription)")
-                // No need to call cleanupPreparation here, return false will handle it
+            } else {
+                Logger.debug("AudioStreamManager", "Error: Failed to create recording file URL.")
                 return false
             }
-        } else {
-            Logger.debug("AudioStreamManager", "Error: Failed to create recording file URL.")
-            return false
         }
         
         var newSettings = settings
@@ -865,6 +877,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             Logger.debug("AudioStreamManager", "  - channels: \(settings.numberOfChannels)")
             Logger.debug("AudioStreamManager", "  - bit depth: \(settings.bitDepth)-bit")
             Logger.debug("AudioStreamManager", "  - compression enabled: \(settings.enableCompressedOutput)")
+            if let bufferDurationSeconds {
+                Logger.debug("AudioStreamManager", "  - buffer size: \(bufferDurationSeconds)")
+            }
+            Logger.debug("AudioStreamManager", "  - skip file writing: \(skipFileWriting)")
+
 
             // Use our shared tap installation method
             let tapFormat = installTapWithHardwareFormat()
@@ -991,9 +1008,13 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             return nil
         }
         
-        guard let settings = recordingSettings, 
-              let fileUri = recordingFileURL?.absoluteString else {
-            Logger.debug("Missing settings or file URI")
+        guard let settings = recordingSettings else {
+            Logger.debug("Missing settings")
+            return nil
+        }
+        
+        if !skipFileWriting, recordingFileURL?.absoluteString == nil {
+            Logger.debug("Missing file URI")
             return nil
         }
         
@@ -1038,7 +1059,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }
 
             return StartRecordingResult(
-                fileUri: fileUri,
+                fileUri: recordingFileURL?.absoluteString ?? "",
                 mimeType: mimeType,
                 channels: settings.numberOfChannels,
                 bitDepth: settings.bitDepth,
@@ -1436,23 +1457,24 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // Create an immutable copy for background/event emission
         let dataToWrite = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
 
-        // --- Background File Writing ---
-        // Use the persistent fileHandle opened during preparation.
-        DispatchQueue.global(qos: .utility).async { [weak self] in
-            guard let self = self, let handle = self.fileHandle else {
-                Logger.debug("BG Write Error: File handle is nil.")
-                return
-            }
-            do {
-                try handle.seekToEnd()
-                try handle.write(contentsOf: dataToWrite)
-                // Update total size state
-                self.totalDataSize += Int64(dataToWrite.count)
-            } catch {
-                 Logger.debug("BG Write Error: Failed to seek/write: \(error.localizedDescription)")
+        if !skipFileWriting {
+            // --- Background File Writing ---
+            // Use the persistent fileHandle opened during preparation.
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                guard let self = self, let handle = self.fileHandle else {
+                    Logger.debug("BG Write Error: File handle is nil.")
+                    return
+                }
+                do {
+                    try handle.seekToEnd()
+                    try handle.write(contentsOf: dataToWrite)
+                    // Update total size state
+                    self.totalDataSize += Int64(dataToWrite.count)
+                } catch {
+                    Logger.debug("BG Write Error: Failed to seek/write: \(error.localizedDescription)")
+                }
             }
         }
-
         // --- Event Emission & Analysis ---
         accumulatedData.append(dataToWrite)
         accumulatedAnalysisData.append(dataToWrite)
@@ -1708,15 +1730,21 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // Reset audio engine
         audioEngine.reset()
         
-        guard let fileURL = recordingFileURL,
-              let settings = recordingSettings else {
-            Logger.debug("Recording or file URL is nil.")
+        if !skipFileWriting,
+           recordingFileURL == nil {
+            Logger.debug("Recording file URL is nil.")
+            stopping = false // Reset stopping flag before returning nil
+            return nil
+        }
+        
+        guard let settings = recordingSettings else {
+            Logger.debug("Recording settings is nil.")
             stopping = false // Reset stopping flag before returning nil
             return nil
         }
         
         // Reset stopping flag before returning
-        let result = createRecordingResult(fileURL: fileURL, settings: settings, finalDuration: finalDuration)
+        let result = createRecordingResult(fileURL: recordingFileURL, settings: settings, finalDuration: finalDuration)
         stopping = false
         
         // Return after all cleanup tasks are completed
@@ -1729,35 +1757,39 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     ///   - settings: The settings used for recording
     ///   - finalDuration: The final duration of the recording
     /// - Returns: A RecordingResult object or nil if validation fails
-    private func createRecordingResult(fileURL: URL, settings: RecordingSettings, finalDuration: TimeInterval) -> RecordingResult? {
-        // Validate WAV file
-        let wavPath = fileURL.path
+    private func createRecordingResult(fileURL: URL?, settings: RecordingSettings, finalDuration: TimeInterval) -> RecordingResult? {
         do {
-            // Check if WAV file exists
-            let wavFileAttributes = try FileManager.default.attributesOfItem(atPath: wavPath)
-            let wavFileSize = wavFileAttributes[FileAttributeKey.size] as? Int64 ?? 0
-            
-            Logger.debug("""
+            // Validate WAV file
+            var wavFileSize: Int64?
+            if !skipFileWriting, let fileURL {
+                let wavPath = fileURL.path
+                // Check if WAV file exists
+                let wavFileAttributes = try FileManager.default.attributesOfItem(atPath: wavPath)
+                let finalFileSize = wavFileAttributes[FileAttributeKey.size] as? Int64 ?? 0
+                wavFileSize = finalFileSize
+                
+                Logger.debug("""
                 WAV File validation:
                 - Path: \(wavPath)
                 - Exists: true
-                - Size: \(wavFileSize) bytes
+                - Size: \(finalFileSize) bytes
                 - Duration: \(finalDuration) seconds
                 - Expected minimum size: \(WAV_HEADER_SIZE) bytes (WAV header)
                 """)
-            
-            // Use the final totalDataSize tracked by the background queue
-            let finalDataChunkSize = self.totalDataSize - Int64(WAV_HEADER_SIZE)
-            if finalDataChunkSize <= 0 {
-                Logger.debug("Recording file data chunk size is zero or negative (\(finalDataChunkSize) bytes), likely no audio data was recorded successfully after header")
-                // Optionally delete the empty file?
-                // try? FileManager.default.removeItem(at: fileURL)
-                return nil
+                
+                // Use the final totalDataSize tracked by the background queue
+                let finalDataChunkSize = self.totalDataSize - Int64(WAV_HEADER_SIZE)
+                if finalDataChunkSize <= 0 {
+                    Logger.debug("Recording file data chunk size is zero or negative (\(finalDataChunkSize) bytes), likely no audio data was recorded successfully after header")
+                    // Optionally delete the empty file?
+                    // try? FileManager.default.removeItem(at: fileURL)
+                    return nil
+                }
+                
+                // Update the WAV header with the correct final file size
+                updateWavHeader(fileURL: fileURL, totalDataSize: finalDataChunkSize)
+                Logger.debug("Final WAV header updated. Data chunk size: \(finalDataChunkSize)")
             }
-
-            // Update the WAV header with the correct final file size
-            updateWavHeader(fileURL: fileURL, totalDataSize: finalDataChunkSize)
-            Logger.debug("Final WAV header updated. Data chunk size: \(finalDataChunkSize)")
             
             // Validate compressed file if enabled
             var compression: CompressedRecordingInfo?
@@ -1794,11 +1826,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             let durationMs = Int64(finalDuration * 1000)
             
             let result = RecordingResult(
-                fileUri: fileURL.absoluteString,
-                filename: fileURL.lastPathComponent,
+                fileUri: fileURL?.absoluteString ?? "",
+                filename: fileURL?.lastPathComponent ?? "",
                 mimeType: mimeType,
                 duration: durationMs,
-                size: wavFileSize,
+                size: wavFileSize ?? 0,
                 channels: settings.numberOfChannels,
                 bitDepth: settings.bitDepth,
                 sampleRate: settings.sampleRate,
@@ -1807,8 +1839,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             
             Logger.debug("""
                 Recording completed successfully:
-                - WAV file: \(fileURL.lastPathComponent)
-                - Size: \(wavFileSize) bytes
+                - WAV file: \(fileURL?.lastPathComponent ?? "No file")
+                - Size: \(wavFileSize ?? self.totalDataSize) bytes
                 - Duration: \(durationMs)ms
                 - Sample rate: \(settings.sampleRate)Hz
                 - Bit depth: \(settings.bitDepth)-bit
