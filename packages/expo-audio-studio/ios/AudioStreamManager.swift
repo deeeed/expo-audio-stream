@@ -1059,7 +1059,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }
 
             return StartRecordingResult(
-                fileUri: fileUri,
+                fileUri: recordingFileURL?.absoluteString ?? "",
                 mimeType: mimeType,
                 channels: settings.numberOfChannels,
                 bitDepth: settings.bitDepth,
@@ -1730,16 +1730,21 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // Reset audio engine
         audioEngine.reset()
         
-        guard !skipFileWriting, 
-              let fileURL = recordingFileURL,
-              let settings = recordingSettings else {
-            Logger.debug("Recording or file URL is nil.")
+        if !skipFileWriting,
+           recordingFileURL == nil {
+            Logger.debug("Recording file URL is nil.")
+            stopping = false // Reset stopping flag before returning nil
+            return nil
+        }
+        
+        guard let settings = recordingSettings else {
+            Logger.debug("Recording settings is nil.")
             stopping = false // Reset stopping flag before returning nil
             return nil
         }
         
         // Reset stopping flag before returning
-        let result = createRecordingResult(fileURL: fileURL, settings: settings, finalDuration: finalDuration)
+        let result = createRecordingResult(fileURL: recordingFileURL, settings: settings, finalDuration: finalDuration)
         stopping = false
         
         // Return after all cleanup tasks are completed
@@ -1752,35 +1757,39 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     ///   - settings: The settings used for recording
     ///   - finalDuration: The final duration of the recording
     /// - Returns: A RecordingResult object or nil if validation fails
-    private func createRecordingResult(fileURL: URL, settings: RecordingSettings, finalDuration: TimeInterval) -> RecordingResult? {
-        // Validate WAV file
-        let wavPath = fileURL.path
+    private func createRecordingResult(fileURL: URL?, settings: RecordingSettings, finalDuration: TimeInterval) -> RecordingResult? {
         do {
-            // Check if WAV file exists
-            let wavFileAttributes = try FileManager.default.attributesOfItem(atPath: wavPath)
-            let wavFileSize = wavFileAttributes[FileAttributeKey.size] as? Int64 ?? 0
-            
-            Logger.debug("""
+            // Validate WAV file
+            var wavFileSize: Int64?
+            if !skipFileWriting, let fileURL {
+                let wavPath = fileURL.path
+                // Check if WAV file exists
+                let wavFileAttributes = try FileManager.default.attributesOfItem(atPath: wavPath)
+                let finalFileSize = wavFileAttributes[FileAttributeKey.size] as? Int64 ?? 0
+                wavFileSize = finalFileSize
+                
+                Logger.debug("""
                 WAV File validation:
                 - Path: \(wavPath)
                 - Exists: true
-                - Size: \(wavFileSize) bytes
+                - Size: \(finalFileSize) bytes
                 - Duration: \(finalDuration) seconds
                 - Expected minimum size: \(WAV_HEADER_SIZE) bytes (WAV header)
                 """)
-            
-            // Use the final totalDataSize tracked by the background queue
-            let finalDataChunkSize = self.totalDataSize - Int64(WAV_HEADER_SIZE)
-            if finalDataChunkSize <= 0 {
-                Logger.debug("Recording file data chunk size is zero or negative (\(finalDataChunkSize) bytes), likely no audio data was recorded successfully after header")
-                // Optionally delete the empty file?
-                // try? FileManager.default.removeItem(at: fileURL)
-                return nil
+                
+                // Use the final totalDataSize tracked by the background queue
+                let finalDataChunkSize = self.totalDataSize - Int64(WAV_HEADER_SIZE)
+                if finalDataChunkSize <= 0 {
+                    Logger.debug("Recording file data chunk size is zero or negative (\(finalDataChunkSize) bytes), likely no audio data was recorded successfully after header")
+                    // Optionally delete the empty file?
+                    // try? FileManager.default.removeItem(at: fileURL)
+                    return nil
+                }
+                
+                // Update the WAV header with the correct final file size
+                updateWavHeader(fileURL: fileURL, totalDataSize: finalDataChunkSize)
+                Logger.debug("Final WAV header updated. Data chunk size: \(finalDataChunkSize)")
             }
-
-            // Update the WAV header with the correct final file size
-            updateWavHeader(fileURL: fileURL, totalDataSize: finalDataChunkSize)
-            Logger.debug("Final WAV header updated. Data chunk size: \(finalDataChunkSize)")
             
             // Validate compressed file if enabled
             var compression: CompressedRecordingInfo?
@@ -1817,11 +1826,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             let durationMs = Int64(finalDuration * 1000)
             
             let result = RecordingResult(
-                fileUri: fileURL.absoluteString,
-                filename: fileURL.lastPathComponent,
+                fileUri: fileURL?.absoluteString ?? "",
+                filename: fileURL?.lastPathComponent ?? "",
                 mimeType: mimeType,
                 duration: durationMs,
-                size: wavFileSize,
+                size: wavFileSize ?? 0,
                 channels: settings.numberOfChannels,
                 bitDepth: settings.bitDepth,
                 sampleRate: settings.sampleRate,
@@ -1830,8 +1839,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             
             Logger.debug("""
                 Recording completed successfully:
-                - WAV file: \(fileURL.lastPathComponent)
-                - Size: \(wavFileSize) bytes
+                - WAV file: \(fileURL?.lastPathComponent ?? "No file")
+                - Size: \(wavFileSize ?? self.totalDataSize) bytes
                 - Duration: \(durationMs)ms
                 - Sample rate: \(settings.sampleRate)Hz
                 - Bit depth: \(settings.bitDepth)-bit
