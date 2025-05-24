@@ -77,7 +77,7 @@ enum RecordingError: Error {
 struct RecordingSettings {
     // Core recording settings
     var sampleRate: Double
-    var bufferDurationSeconds: Double = 0.02
+    var bufferDurationSeconds: Double?
     var numberOfChannels: Int = 1
     var bitDepth: Int = 16
     var interval: Int?
@@ -151,6 +151,8 @@ struct RecordingSettings {
         settings.bitDepth = dict["bitDepth"] as? Int ?? 16
         settings.interval = dict["interval"] as? Int
         settings.intervalAnalysis = dict["intervalAnalysis"] as? Int
+        settings.bufferDurationSeconds = dict["bufferDurationSeconds"] as? Double
+        settings.skipFileWriting = dict["skipFileWriting"] as? Bool ?? false
         
         // Parse feature flags
         settings.keepAwake = dict["keepAwake"] as? Bool ?? true
