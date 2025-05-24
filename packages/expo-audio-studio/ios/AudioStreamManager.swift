@@ -1008,9 +1008,13 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             return nil
         }
         
-        guard let settings = recordingSettings, 
-              let fileUri = recordingFileURL?.absoluteString else {
-            Logger.debug("Missing settings or file URI")
+        guard let settings = recordingSettings else {
+            Logger.debug("Missing settings")
+            return nil
+        }
+        
+        if !skipFileWriting, recordingFileURL?.absoluteString == nil {
+            Logger.debug("Missing file URI")
             return nil
         }
         
