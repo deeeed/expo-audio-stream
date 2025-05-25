@@ -447,6 +447,22 @@ swift test --filter AudioProcessorTests/testTrimAudio
 
 ## Pull Request Process
 
+### MANDATORY: Integration Tests for New Features
+
+**All new features MUST include integration tests that validate ACTUAL platform behavior.** See [PR_METHODOLOGY.md](../../docs/PR_METHODOLOGY.md) for detailed requirements.
+
+Integration tests are critical because they:
+- Reveal undocumented platform limitations (e.g., iOS minimum buffer sizes)
+- Validate actual behavior, not mocked behavior
+- Ensure cross-platform consistency
+- Serve as living documentation
+
+Example from the buffer duration feature:
+```swift
+// Integration test discovered iOS enforces minimum 4800 frames
+// This critical limitation would have been missed by unit tests
+```
+
 ### Before Submitting
 
 1. **Run Full Test Suite**
@@ -474,19 +490,37 @@ swift test --filter AudioProcessorTests/testTrimAudio
 ## Description
 Brief description of the feature/fix
 
+## Integration Tests
+- [ ] **MANDATORY for new features**: Integration tests that validate ACTUAL platform behavior
+- [ ] Tests reveal any platform limitations (document them!)
+- [ ] iOS integration tests pass
+- [ ] Android integration tests pass
+- [ ] Test results included below
+
+## Test Results
+```
+# Paste integration test output here
+# Example: iOS buffer duration test revealed 4800 frame minimum
+```
+
 ## Architecture Decision
 Link to design doc or explain architectural choices
 
 ## Testing
 - [ ] Unit tests added/updated
-- [ ] iOS tests pass
-- [ ] Android tests pass
-- [ ] Integration tests pass
+- [ ] Platform tests pass (iOS/Android/Web)
+- [ ] Cross-platform consistency verified
+
+## Documentation
+- [ ] Updated EXISTING docs (don't create new files for config options)
+- [ ] Added examples to relevant guides
+- [ ] Platform-specific behavior documented
 
 ## Checklist
-- [ ] Tests included (recommended for new features)
-- [ ] Documentation updated
-- [ ] No breaking changes (or documented)
+- [ ] Integration tests REQUIRED for features
+- [ ] Minimal file changes
+- [ ] No unnecessary subdirectories
+- [ ] Breaking changes documented
 - [ ] Follows code style guidelines
 ```
 
