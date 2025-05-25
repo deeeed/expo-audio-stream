@@ -10,6 +10,16 @@ object LogUtils {
     // Format: [ExpoAudioStudio:ClassName]
     private const val TAG_PREFIX = "ExpoAudioStudio"
     
+    // Check if we're running in a test environment
+    private val isInTest: Boolean by lazy {
+        try {
+            Class.forName("org.junit.Test")
+            true
+        } catch (e: ClassNotFoundException) {
+            false
+        }
+    }
+    
     /**
      * Logs a debug message with a consistent format.
      * 
@@ -17,7 +27,11 @@ object LogUtils {
      * @param message The message to log
      */
     fun d(className: String, message: String) {
-        Log.d("$TAG_PREFIX:$className", message)
+        if (isInTest) {
+            println("D/$TAG_PREFIX:$className: $message")
+        } else {
+            Log.d("$TAG_PREFIX:$className", message)
+        }
     }
     
     /**
@@ -28,7 +42,12 @@ object LogUtils {
      * @param throwable Optional throwable to include in the log
      */
     fun e(className: String, message: String, throwable: Throwable? = null) {
-        Log.e("$TAG_PREFIX:$className", message, throwable)
+        if (isInTest) {
+            println("E/$TAG_PREFIX:$className: $message")
+            throwable?.printStackTrace()
+        } else {
+            Log.e("$TAG_PREFIX:$className", message, throwable)
+        }
     }
     
     /**
@@ -39,7 +58,12 @@ object LogUtils {
      * @param throwable Optional throwable to include in the log
      */
     fun w(className: String, message: String, throwable: Throwable? = null) {
-        Log.w("$TAG_PREFIX:$className", message, throwable)
+        if (isInTest) {
+            println("W/$TAG_PREFIX:$className: $message")
+            throwable?.printStackTrace()
+        } else {
+            Log.w("$TAG_PREFIX:$className", message, throwable)
+        }
     }
     
     /**
@@ -49,7 +73,11 @@ object LogUtils {
      * @param message The message to log
      */
     fun i(className: String, message: String) {
-        Log.i("$TAG_PREFIX:$className", message)
+        if (isInTest) {
+            println("I/$TAG_PREFIX:$className: $message")
+        } else {
+            Log.i("$TAG_PREFIX:$className", message)
+        }
     }
     
     /**
