@@ -25,10 +25,114 @@ When designing and implementing features, apply these architectural principles:
 - When a file becomes too long, split it into smaller files.
 - When a function becomes too long, split it into smaller functions.
 
+## Test-Driven Development (TDD)
+
+**RECOMMENDED**: New features should follow Test-Driven Development practices when possible. The testing framework is now available to support this approach.
+
+### TDD Workflow for New Features
+
+1. **Architecture First**
+   - Define the feature's API and interfaces before implementation
+   - Create a design document outlining the approach
+   - Consider cross-platform consistency from the start
+
+2. **Write Tests Before Code (When Feasible)**
+   - Create comprehensive test cases that define expected behavior
+   - Include unit tests, integration tests, and platform-specific tests
+   - Tests should fail initially (Red phase)
+
+3. **Implementation Order**
+   - TypeScript interfaces/types first
+   - iOS implementation + tests passing
+   - Android implementation + tests passing
+   - Web implementation (if applicable) + tests passing
+   - Cross-platform integration tests
+
+4. **Test Categories**
+   - **Unit Tests**: Pure logic, no platform dependencies
+   - **Platform Tests**: iOS/Android specific implementations
+   - **Integration Tests**: End-to-end feature validation
+   - **Consistency Tests**: Ensure identical behavior across platforms
+
+### Example TDD Flow
+
+```typescript
+// 1. FIRST: Define the interface
+interface AudioFeature {
+  process(data: Float32Array): FeatureResult;
+}
+
+// 2. SECOND: Write failing tests
+describe('AudioFeature', () => {
+  it('should process audio data correctly', () => {
+    const feature = new AudioFeature();
+    const result = feature.process(testData);
+    expect(result.value).toBe(expectedValue);
+  });
+});
+
+// 3. THIRD: Implement for each platform
+// - iOS: Swift implementation
+// - Android: Kotlin implementation
+// - Web: TypeScript implementation
+
+// 4. FOURTH: Validate cross-platform consistency
+it('should produce identical results on all platforms', () => {
+  expect(iosResult).toEqual(androidResult);
+  expect(androidResult).toEqual(webResult);
+});
+```
+
+### Test Requirements
+
+- Target 80% code coverage for new features
+- Aim for 100% coverage for critical paths and public APIs
+- All edge cases and error scenarios should be tested
+- Performance benchmarks for computationally intensive features
+
+> **Note**: The testing framework is newly established. While comprehensive testing is highly recommended, contributors should balance test coverage with practical development needs.
+
 ## Debugging Approach
+
+### Problem-Solving Methodology
 
 When debugging a problem:
 - Ensure you have sufficient information to deeply understand the problem
 - Add logging and tracing before making changes
 - If logs clearly indicate the problem, implement a targeted solution
 - If unsure, reflect on 4-6 possible causes, identify the 1-2 most likely, and proceed accordingly
+- **Always add tests to prevent regression of fixed bugs when possible**
+
+### Logging Best Practices
+
+1. **Structured Logging**
+   - Use consistent log prefixes/tags for filtering
+   - Include component/module names in logs
+   - Use appropriate log levels (ERROR, WARN, INFO, DEBUG)
+
+2. **Platform-Specific Debugging**
+   - **Android**: Use ADB logcat with grep filters
+   - **iOS**: Use Console app or log stream commands
+   - **Web**: Use browser developer tools
+
+3. **Debugging Guidelines**
+   - Add temporary debug logs when investigating issues
+   - Remove or convert to appropriate log level before committing
+   - Include relevant context in error messages
+   - Log function entry/exit for complex flows when debugging
+
+4. **Performance Debugging**
+   - Measure and log execution times for critical operations
+   - Use platform-specific profiling tools
+   - Monitor memory usage and potential leaks
+
+### Example Logging Pattern
+
+```typescript
+// Good: Structured, filterable, informative
+console.log('[ModuleName:FunctionName] Processing started', { userId, timestamp });
+console.error('[ModuleName:FunctionName] Failed to process', { error, context });
+
+// Bad: Unstructured, hard to filter
+console.log('error happened');
+```
