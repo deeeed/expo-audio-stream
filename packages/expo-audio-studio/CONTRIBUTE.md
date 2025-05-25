@@ -182,6 +182,46 @@ cd packages/expo-audio-studio
 yarn test:integration
 ```
 
+#### 6. Update Playground App
+
+**MANDATORY**: Update the playground app to demonstrate the new feature:
+
+```bash
+cd apps/playground
+```
+
+Required updates:
+1. **Add UI controls** in the appropriate settings screen
+2. **Show feature in action** with real examples
+3. **Display platform limitations** discovered during testing
+4. **Include performance metrics** if relevant
+
+Example additions for a new feature:
+```typescript
+// In RecordingSettings.tsx or appropriate component
+<SettingsSection title="Buffer Configuration">
+  <Slider
+    label="Buffer Duration"
+    value={config.bufferDurationSeconds}
+    onValueChange={(value) => updateConfig({ bufferDurationSeconds: value })}
+    minimumValue={0.01}
+    maximumValue={0.5}
+  />
+  {Platform.OS === 'ios' && (
+    <Text style={styles.warning}>
+      Note: iOS enforces minimum 0.1s buffer size
+    </Text>
+  )}
+</SettingsSection>
+
+// Add toggle for skip file writing
+<Switch
+  label="Skip File Writing (Streaming Only)"
+  value={config.skipFileWriting}
+  onValueChange={(value) => updateConfig({ skipFileWriting: value })}
+/>
+```
+
 ## Test-Driven Development Workflow
 
 ### The TDD Cycle (Recommended Approach)
@@ -522,6 +562,7 @@ Link to design doc or explain architectural choices
 - [ ] No unnecessary subdirectories
 - [ ] Breaking changes documented
 - [ ] Follows code style guidelines
+- [ ] Playground app updated with new feature
 ```
 
 ## Release Process

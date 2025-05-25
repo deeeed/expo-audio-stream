@@ -120,6 +120,6 @@ packages/expo-audio-studio/
 ## Next Steps
 
 1. Review and merge this PR
-2. Implement Android support
-3. Implement Web support
-4. Update playground app with examples 
+2. **Update playground app with buffer duration and skip file writing controls**
+3. Implement Android support
+4. Implement Web support 

@@ -84,6 +84,41 @@ class FeatureIntegrationTest {
 - [ ] Android implementation (if applicable)
 - [ ] Web implementation (if applicable)
 - [ ] Test results included in PR description
+- [ ] Playground app updated with new feature
+
+## Playground App Updates
+
+**MANDATORY**: After implementing a new feature with passing integration tests, you MUST update the playground app to demonstrate the feature.
+
+The playground app (`apps/playground`) serves as:
+- Living documentation of all library features
+- Testing ground for real-world usage
+- Demo for potential users
+- Integration test environment
+
+### Required Updates
+
+1. **Add UI controls** for new configuration options
+2. **Create examples** showing typical usage
+3. **Include edge cases** discovered during testing
+4. **Document platform differences** in the UI
+
+### Example: Buffer Duration Feature
+
+```typescript
+// In playground app settings
+<Slider
+  label="Buffer Duration (seconds)"
+  value={bufferDuration}
+  onValueChange={setBufferDuration}
+  minimumValue={0.01}
+  maximumValue={0.5}
+  step={0.01}
+/>
+<Text style={styles.hint}>
+  iOS minimum: 0.1s (platform limitation)
+</Text>
+```
 
 ## Why Integration Tests Matter
 
