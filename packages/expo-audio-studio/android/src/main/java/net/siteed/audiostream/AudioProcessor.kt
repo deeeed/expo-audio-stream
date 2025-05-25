@@ -1059,19 +1059,9 @@ class AudioProcessor(private val filesDir: File) {
     }
 
     private fun convertChannels(pcmData: ByteArray, originalChannels: Int, targetChannels: Int): ByteArray {
-        val result = ByteArray(pcmData.size * targetChannels / originalChannels)
-        val inputBuffer = ByteBuffer.wrap(pcmData).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-        val outputBuffer = ByteBuffer.wrap(result).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-
-        for (i in result.indices) {
-            val channelData = ShortArray(targetChannels)
-            for (j in 0 until targetChannels) {
-                channelData[j] = inputBuffer.get()
-            }
-            outputBuffer.put(channelData)
-        }
-
-        return result
+        // Use the correct implementation from AudioFormatUtils
+        // Assuming 16-bit audio (which is the default for most audio processing)
+        return AudioFormatUtils.convertChannels(pcmData, originalChannels, targetChannels, 16)
     }
 
     private fun debugWavHeader(file: File) {

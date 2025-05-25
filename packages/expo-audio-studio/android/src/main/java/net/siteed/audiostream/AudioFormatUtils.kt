@@ -3,6 +3,7 @@ package net.siteed.audiostream
 import android.media.AudioFormat
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.*
 
 object AudioFormatUtils {
     /**
@@ -85,19 +86,269 @@ object AudioFormatUtils {
      * @return The converted audio data
      */
     fun convertBitDepth(audioData: ByteArray, sourceBitDepth: Int, targetBitDepth: Int): ByteArray {
-        // First convert to float array for normalization
-        val floatArray = convertByteArrayToFloatArray(audioData, "pcm_${sourceBitDepth}bit")
-        
-        // Convert back to bytes with new bit depth
-        return when (targetBitDepth) {
-            8 -> floatArray.map { ((it + 1.0f) * 127.5f).toInt().toByte() }.toByteArray()
-            16 -> ByteBuffer.allocate(floatArray.size * 2).order(ByteOrder.LITTLE_ENDIAN).apply {
-                floatArray.forEach { asShortBuffer().put((it * 32767f).toInt().toShort()) }
-            }.array()
-            32 -> ByteBuffer.allocate(floatArray.size * 4).order(ByteOrder.LITTLE_ENDIAN).apply {
-                floatArray.forEach { putFloat(it) }
-            }.array()
-            else -> throw IllegalArgumentException("Unsupported target bit depth: $targetBitDepth")
+        if (sourceBitDepth == targetBitDepth || audioData.isEmpty()) {
+            return audioData
         }
+        
+        return when {
+            sourceBitDepth == 8 && targetBitDepth == 16 -> convert8to16(audioData)
+            sourceBitDepth == 16 && targetBitDepth == 8 -> convert16to8(audioData)
+            sourceBitDepth == 16 && targetBitDepth == 32 -> convert16to32(audioData)
+            sourceBitDepth == 32 && targetBitDepth == 16 -> convert32to16(audioData)
+            sourceBitDepth == 8 && targetBitDepth == 32 -> {
+                // Convert 8 -> 16 -> 32
+                val temp16 = convert8to16(audioData)
+                convert16to32(temp16)
+            }
+            sourceBitDepth == 32 && targetBitDepth == 8 -> {
+                // Convert 32 -> 16 -> 8
+                val temp16 = convert32to16(audioData)
+                convert16to8(temp16)
+            }
+            else -> throw IllegalArgumentException("Unsupported bit depth conversion: $sourceBitDepth to $targetBitDepth")
+        }
+    }
+    
+    private fun convert8to16(data: ByteArray): ByteArray {
+        val output = ByteBuffer.allocate(data.size * 2).order(ByteOrder.LITTLE_ENDIAN)
+        for (sample in data) {
+            // Convert unsigned 8-bit (0-255) to signed 16-bit (-32768 to 32767)
+            val unsigned = sample.toInt() and 0xFF
+            // Map [0, 255] to [-32768, 32767]
+            // Special case for 0 to map to -32768
+            val signed16 = when (unsigned) {
+                0 -> -32768
+                255 -> 32767
+                else -> {
+                    val normalized = (unsigned - 128) / 128.0f
+                    (normalized * 32768).toInt().coerceIn(-32768, 32767)
+                }
+            }.toShort()
+            output.putShort(signed16)
+        }
+        return output.array()
+    }
+    
+    private fun convert16to8(data: ByteArray): ByteArray {
+        val input = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
+        val output = ByteArray(data.size / 2)
+        
+        for (i in output.indices) {
+            // Convert signed 16-bit to unsigned 8-bit
+            val sample16 = input.getShort()
+            // Map [-32768, 32767] to [0, 255]
+            val normalized = sample16 / 32768.0f
+            val sample8 = ((normalized * 128) + 128).toInt().coerceIn(0, 255).toByte()
+            output[i] = sample8
+        }
+        return output
+    }
+    
+    private fun convert16to32(data: ByteArray): ByteArray {
+        val input = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
+        val output = ByteBuffer.allocate(data.size * 2).order(ByteOrder.LITTLE_ENDIAN)
+        
+        while (input.hasRemaining()) {
+            val sample16 = input.getShort()
+            // Scale 16-bit to 32-bit range
+            val sample32 = (sample16.toInt() shl 16)
+            output.putInt(sample32)
+        }
+        return output.array()
+    }
+    
+    private fun convert32to16(data: ByteArray): ByteArray {
+        val input = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
+        val output = ByteBuffer.allocate(data.size / 2).order(ByteOrder.LITTLE_ENDIAN)
+        
+        while (input.hasRemaining()) {
+            val sample32 = input.getInt()
+            // Scale 32-bit to 16-bit range
+            val sample16 = (sample32 shr 16).toShort()
+            output.putShort(sample16)
+        }
+        return output.array()
+    }
+
+    /**
+     * Convert between different channel configurations
+     */
+    fun convertChannels(data: ByteArray, fromChannels: Int, toChannels: Int, bitDepth: Int): ByteArray {
+        if (fromChannels == toChannels || data.isEmpty()) {
+            return data
+        }
+        
+        val bytesPerSample = bitDepth / 8
+        val samplesPerFrame = fromChannels
+        val totalFrames = data.size / (bytesPerSample * samplesPerFrame)
+        
+        return when {
+            fromChannels == 1 && toChannels == 2 -> monoToStereo(data, bitDepth, totalFrames)
+            fromChannels == 2 && toChannels == 1 -> stereoToMono(data, bitDepth, totalFrames)
+            else -> throw IllegalArgumentException("Unsupported channel conversion: $fromChannels to $toChannels")
+        }
+    }
+    
+    private fun monoToStereo(data: ByteArray, bitDepth: Int, totalFrames: Int): ByteArray {
+        val bytesPerSample = bitDepth / 8
+        val output = ByteBuffer.allocate(data.size * 2).order(ByteOrder.LITTLE_ENDIAN)
+        val input = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
+        
+        for (i in 0 until totalFrames) {
+            when (bitDepth) {
+                16 -> {
+                    val sample = input.getShort()
+                    output.putShort(sample) // Left
+                    output.putShort(sample) // Right
+                }
+                32 -> {
+                    val sample = input.getInt()
+                    output.putInt(sample) // Left
+                    output.putInt(sample) // Right
+                }
+                8 -> {
+                    val sample = input.get()
+                    output.put(sample) // Left
+                    output.put(sample) // Right
+                }
+            }
+        }
+        return output.array()
+    }
+    
+    private fun stereoToMono(data: ByteArray, bitDepth: Int, totalFrames: Int): ByteArray {
+        val bytesPerSample = bitDepth / 8
+        val output = ByteBuffer.allocate(data.size / 2).order(ByteOrder.LITTLE_ENDIAN)
+        val input = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
+        
+        for (i in 0 until totalFrames) {
+            when (bitDepth) {
+                16 -> {
+                    val left = input.getShort()
+                    val right = input.getShort()
+                    val mono = ((left + right) / 2).toShort()
+                    output.putShort(mono)
+                }
+                32 -> {
+                    val left = input.getInt()
+                    val right = input.getInt()
+                    val mono = ((left.toLong() + right.toLong()) / 2).toInt()
+                    output.putInt(mono)
+                }
+                8 -> {
+                    val left = input.get().toInt() and 0xFF
+                    val right = input.get().toInt() and 0xFF
+                    val mono = ((left + right) / 2).toByte()
+                    output.put(mono)
+                }
+            }
+        }
+        return output.array()
+    }
+    
+    /**
+     * Normalize audio to maximum amplitude
+     */
+    fun normalizeAudio(data: ByteArray, bitDepth: Int): ByteArray {
+        if (data.isEmpty()) return data
+        
+        val input = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
+        var maxAmplitude = 0
+        
+        // Find maximum amplitude
+        input.rewind()
+        when (bitDepth) {
+            16 -> {
+                while (input.hasRemaining()) {
+                    val sample = abs(input.getShort().toInt())
+                    maxAmplitude = maxOf(maxAmplitude, sample)
+                }
+            }
+            32 -> {
+                while (input.hasRemaining()) {
+                    val sample = abs(input.getInt())
+                    maxAmplitude = maxOf(maxAmplitude, sample)
+                }
+            }
+            8 -> {
+                while (input.hasRemaining()) {
+                    val sample = abs((input.get().toInt() and 0xFF) - 128)
+                    maxAmplitude = maxOf(maxAmplitude, sample)
+                }
+            }
+        }
+        
+        // If already at max or silent, return as is
+        if (maxAmplitude == 0) return data
+        
+        val maxValue = when (bitDepth) {
+            16 -> Short.MAX_VALUE.toInt()
+            32 -> Int.MAX_VALUE
+            8 -> 127
+            else -> throw IllegalArgumentException("Unsupported bit depth: $bitDepth")
+        }
+        
+        if (maxAmplitude >= maxValue) return data
+        
+        // Normalize
+        val scaleFactor = maxValue.toFloat() / maxAmplitude
+        val output = ByteBuffer.allocate(data.size).order(ByteOrder.LITTLE_ENDIAN)
+        input.rewind()
+        
+        when (bitDepth) {
+            16 -> {
+                while (input.hasRemaining()) {
+                    val sample = input.getShort()
+                    val normalized = (sample * scaleFactor).toInt().coerceIn(-32768, 32767).toShort()
+                    output.putShort(normalized)
+                }
+            }
+            32 -> {
+                while (input.hasRemaining()) {
+                    val sample = input.getInt()
+                    val normalized = (sample * scaleFactor).toLong().coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
+                    output.putInt(normalized)
+                }
+            }
+            8 -> {
+                while (input.hasRemaining()) {
+                    val sample = (input.get().toInt() and 0xFF) - 128
+                    val normalized = ((sample * scaleFactor).toInt() + 128).coerceIn(0, 255).toByte()
+                    output.put(normalized)
+                }
+            }
+        }
+        
+        return output.array()
+    }
+    
+    /**
+     * Resample audio data to a different sample rate
+     */
+    fun resampleAudio(samples: FloatArray, fromSampleRate: Int, toSampleRate: Int): FloatArray {
+        if (fromSampleRate == toSampleRate || samples.isEmpty()) {
+            return samples
+        }
+        
+        val resampleRatio = toSampleRate.toDouble() / fromSampleRate
+        val newLength = (samples.size * resampleRatio).toInt()
+        val resampled = FloatArray(newLength)
+        
+        for (i in resampled.indices) {
+            val sourceIndex = i / resampleRatio
+            val sourceIndexInt = sourceIndex.toInt()
+            val fraction = sourceIndex - sourceIndexInt
+            
+            if (sourceIndexInt >= samples.size - 1) {
+                resampled[i] = samples.last()
+            } else {
+                // Linear interpolation
+                val sample1 = samples[sourceIndexInt]
+                val sample2 = samples[sourceIndexInt + 1]
+                resampled[i] = (sample1 * (1 - fraction) + sample2 * fraction).toFloat()
+            }
+        }
+        
+        return resampled
     }
 }
