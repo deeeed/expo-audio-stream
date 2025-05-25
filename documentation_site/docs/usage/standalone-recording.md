@@ -90,6 +90,13 @@ export default function App() {
         
         // Optional: Auto-resume after interruption
         autoResumeAfterInterruption: false,
+        
+        // Optional: Buffer duration control
+        bufferDurationSeconds: 0.1, // Buffer size in seconds
+        // Default: undefined (uses 1024 frames, but iOS enforces minimum 0.1s)
+        
+        // Optional: Skip file writing for streaming-only scenarios
+        skipFileWriting: false, // Set to true to disable file I/O
     }
     
     const startResult = await startRecording(config)

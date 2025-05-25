@@ -111,7 +111,9 @@ struct RecordingSettings {
     
     // Add these new properties
     var deviceId: String?
-    var deviceDisconnectionBehavior: String?
+    var deviceDisconnectionBehavior: DeviceDisconnectionBehaviorType = .continueRecording
+    var bufferDurationSeconds: Double?
+    var skipFileWriting: Bool = false
     
     static func fromDictionary(_ dict: [String: Any]) -> Result<RecordingSettings, Error> {
         // Extract compression settings
@@ -133,7 +135,7 @@ struct RecordingSettings {
         
         // Add extraction of new properties
         let deviceId = dict["deviceId"] as? String
-        let deviceDisconnectionBehavior = dict["deviceDisconnectionBehavior"] as? String
+        let deviceDisconnectionBehaviorStr = dict["deviceDisconnectionBehavior"] as? String
         
         // Create settings
         var settings = RecordingSettings(
@@ -270,7 +272,15 @@ struct RecordingSettings {
         
         // Set new properties
         settings.deviceId = deviceId
-        settings.deviceDisconnectionBehavior = deviceDisconnectionBehavior
+        settings.deviceDisconnectionBehavior = DeviceDisconnectionBehaviorType(rawValue: deviceDisconnectionBehaviorStr) ?? .continueRecording
+        
+        if let bufferDuration = dict["bufferDurationSeconds"] as? Double {
+            settings.bufferDurationSeconds = bufferDuration
+        }
+        
+        if let skipFile = dict["skipFileWriting"] as? Bool {
+            settings.skipFileWriting = skipFile
+        }
         
         return .success(settings)
     }

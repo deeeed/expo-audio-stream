@@ -29,6 +29,24 @@ When designing and implementing features, apply these architectural principles:
 
 **RECOMMENDED**: New features should follow Test-Driven Development practices when possible. The testing framework is now available to support this approach.
 
+### MANDATORY: Integration Tests for New Features
+
+**Every new feature MUST include integration tests that validate ACTUAL platform behavior.** Integration tests are not optional - they are required because they:
+
+- Reveal undocumented platform limitations (e.g., iOS minimum buffer sizes)
+- Validate actual behavior, not mocked behavior
+- Ensure cross-platform consistency
+- Serve as living documentation of platform quirks
+
+Example discovery from integration testing:
+```swift
+// Integration test revealed iOS AVAudioEngine enforces minimum 4800 frames
+// This critical limitation would have been missed by unit tests
+// The library now handles this transparently with buffer accumulation
+```
+
+See `docs/PR_METHODOLOGY.md` for detailed requirements.
+
 ### TDD Workflow for New Features
 
 1. **Architecture First**
@@ -47,6 +65,7 @@ When designing and implementing features, apply these architectural principles:
    - Android implementation + tests passing
    - Web implementation (if applicable) + tests passing
    - Cross-platform integration tests
+   - **Update playground app to demonstrate the feature**
 
 4. **Test Categories**
    - **Unit Tests**: Pure logic, no platform dependencies
@@ -136,3 +155,31 @@ console.error('[ModuleName:FunctionName] Failed to process', { error, context })
 // Bad: Unstructured, hard to filter
 console.log('error happened');
 ```
+
+## Documentation Practices
+
+### Update Existing Documentation
+
+When adding new features or configuration options:
+
+1. **DO NOT create new documentation files** for simple additions
+2. **Update existing documentation** in the appropriate sections
+3. **Add examples** to relevant usage guides
+4. **Document platform-specific behavior** discovered through testing
+
+Example:
+```typescript
+// ❌ BAD: Creating new file for two config options
+docs/features/buffer-duration-skip-file.md
+
+// ✅ GOOD: Update existing files
+documentation_site/docs/usage/standalone-recording.md (add examples)
+documentation_site/docs/api-reference/recording-config.md (add API details)
+```
+
+### Documentation Structure
+
+- Keep documentation close to the code
+- Use JSDoc for inline API documentation
+- Update user-facing docs in `documentation_site/`
+- Keep technical/implementation docs in package-specific `docs/`

@@ -370,6 +370,31 @@ export interface RecordingConfig {
 
     /** How to handle device disconnection during recording */
     deviceDisconnectionBehavior?: DeviceDisconnectionBehaviorType
+
+    /**
+     * Buffer duration in seconds. Controls the size of audio buffers
+     * used during recording. Smaller values reduce latency but increase
+     * CPU usage. Larger values improve efficiency but increase latency.
+     * 
+     * Platform Notes:
+     * - iOS/macOS: Minimum effective 0.1s, uses accumulation below
+     * - Android: Respects all sizes within hardware limits
+     * - Web: Fully configurable
+     * 
+     * Default: undefined (uses platform default ~23ms at 44.1kHz)
+     * Recommended: 0.01 - 0.5 seconds
+     * Optimal iOS: >= 0.1 seconds
+     */
+    bufferDurationSeconds?: number;
+    
+    /**
+     * When true, audio data is only emitted through callbacks without
+     * writing to a file. This reduces storage usage and I/O overhead.
+     * The recording result will not include a fileUri.
+     * 
+     * Default: false
+     */
+    skipFileWriting?: boolean;
 }
 
 export interface NotificationConfig {

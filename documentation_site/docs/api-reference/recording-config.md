@@ -59,6 +59,10 @@ export interface RecordingConfig {
     // Callback functions
     onAudioStream?: (_: AudioDataEvent) => Promise<void> // Callback function to handle audio stream
     onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void> // Callback function to handle audio features
+    
+    // Performance and streaming options
+    bufferDurationSeconds?: number // Buffer duration in seconds (controls audio buffer size)
+    skipFileWriting?: boolean // Skip file I/O for streaming-only scenarios
 }
 
 ```
@@ -421,6 +425,145 @@ await startRecording({
     }
   }
 });
+```
+
+## Buffer Duration Control {#buffer-duration}
+
+The `bufferDurationSeconds` option allows you to control the size of audio buffers used during recording. This affects both latency and CPU usage.
+
+### Configuration
+
+```tsx
+const config = {
+    bufferDurationSeconds: 0.1, // 100ms buffers
+    // ... other config options
+};
+```
+
+**Default Behavior**: When `bufferDurationSeconds` is not specified (undefined):
+- The library requests 1024 frames (platform default)
+- At 44.1kHz, this equals ~23ms
+- However, iOS enforces a minimum of ~0.1s (4800 frames at 48kHz)
+- Android and Web respect the 1024 frame default
+
+### Performance Trade-offs
+
+| Buffer Size | Latency | CPU Usage | Best For |
+|------------|---------|-----------|----------|
+| < 50ms | Very Low | High | Real-time processing, voice commands |
+| 50-200ms | Low-Medium | Medium | Balanced performance |
+| > 200ms | Higher | Low | Efficient recording, battery optimization |
+
+### Platform Behavior
+
+- **iOS**: Enforces a minimum buffer size of ~0.1 seconds (4800 frames at 48kHz). Smaller requests are automatically handled through buffer accumulation.
+- **Android**: Respects requested buffer sizes within hardware limits
+- **Web**: Fully configurable through Web Audio API
+
+### Example: Low-Latency Voice Detection
+
+```tsx
+await startRecording({
+    sampleRate: 16000,
+    channels: 1,
+    bufferDurationSeconds: 0.02, // Request 20ms buffers
+    skipFileWriting: true, // No file I/O for lower latency
+    onAudioStream: async (data) => {
+        // Process voice commands with minimal delay
+        const command = await detectVoiceCommand(data);
+        if (command) {
+            await handleCommand(command);
+        }
+    }
+});
+```
+
+## Skip File Writing {#skip-file-writing}
+
+The `skipFileWriting` option enables streaming-only recording without creating files on disk. This is ideal for real-time processing scenarios where you don't need to persist the audio.
+
+### Configuration
+
+```tsx
+const config = {
+    skipFileWriting: true, // Disable file I/O
+    // ... other config options
+};
+```
+
+### Benefits
+
+- **Reduced I/O overhead**: No disk writes during recording
+- **Lower storage usage**: No temporary files created
+- **Better battery life**: Less system resource usage
+- **Improved performance**: All processing happens in memory
+
+### Important Notes
+
+- When enabled, the recording result will have an empty `fileUri`
+- Audio data is only available through the `onAudioStream` callback
+- Compression is also skipped when file writing is disabled
+
+### Example: Real-Time Transcription
+
+```tsx
+const transcriptionService = new TranscriptionService();
+
+await startRecording({
+    sampleRate: 16000,
+    channels: 1,
+    bufferDurationSeconds: 0.05, // 50ms chunks
+    skipFileWriting: true, // No file needed
+    onAudioStream: async (data) => {
+        // Send audio directly to transcription service
+        const transcript = await transcriptionService.process(data);
+        updateTranscriptUI(transcript);
+    }
+});
+
+// When stopping, no file will be returned
+const result = await stopRecording();
+console.log(result.fileUri); // Will be empty string
+console.log(result.filename); // Will be "stream-only"
+```
+
+### Example: Live Streaming to Server
+
+```tsx
+const websocket = new WebSocket('wss://audio-server.com/stream');
+
+await startRecording({
+    sampleRate: 44100,
+    channels: 2,
+    bufferDurationSeconds: 0.1, // 100ms chunks for network efficiency
+    skipFileWriting: true,
+    onAudioStream: async (data) => {
+        if (websocket.readyState === WebSocket.OPEN) {
+            // Stream audio data to server
+            websocket.send(data.data);
+        }
+    }
+});
+```
+
+### Combining with Buffer Duration
+
+These options work well together for optimizing streaming scenarios:
+
+```tsx
+// Ultra-low latency configuration
+const lowLatencyConfig = {
+    bufferDurationSeconds: 0.01, // 10ms (will use 100ms on iOS)
+    skipFileWriting: true,
+    // ... other options
+};
+
+// Efficient streaming configuration
+const efficientStreamingConfig = {
+    bufferDurationSeconds: 0.2, // 200ms for network efficiency
+    skipFileWriting: true,
+    // ... other options
+};
 ```
 
 ## Example Usage
