@@ -209,15 +209,7 @@ export interface IOSConfig {
 
 /** Web platform specific configuration options */
 export interface WebConfig {
-    /**
-     * Whether to store uncompressed audio data for WAV generation
-     *
-     * When true, all PCM chunks are stored in memory to create a WAV file when compression is disabled
-     * When false, uncompressed audio won't be available, but memory usage will be lower
-     *
-     * Default: true (for backward compatibility)
-     */
-    storeUncompressedAudio?: boolean
+    // Reserved for future web-specific options
 }
 
 // Add new type for interruption reasons
@@ -291,6 +283,45 @@ export const DeviceDisconnectionBehavior = {
 export type DeviceDisconnectionBehaviorType =
     (typeof DeviceDisconnectionBehavior)[keyof typeof DeviceDisconnectionBehavior]
 
+/**
+ * Configuration for audio output files during recording
+ */
+export interface OutputConfig {
+    /**
+     * Configuration for the primary (uncompressed) output file
+     */
+    primary?: {
+        /** Whether to create the primary output file (default: true) */
+        enabled?: boolean
+        /** Format for the primary output (currently only 'wav' is supported) */
+        format?: 'wav'
+    }
+    
+    /**
+     * Configuration for the compressed output file
+     */
+    compressed?: {
+        /** Whether to create a compressed output file (default: false) */
+        enabled?: boolean
+        /**
+         * Format for compression
+         * - 'aac': Advanced Audio Coding - supported on all platforms
+         * - 'opus': Opus encoding - supported on Android and Web; on iOS will automatically fall back to AAC
+         */
+        format?: 'aac' | 'opus'
+        /** Bitrate for compression in bits per second (default: 128000) */
+        bitrate?: number
+    }
+    
+    // Future enhancement: Post-processing pipeline
+    // postProcessing?: {
+    //     normalize?: boolean
+    //     trimSilence?: boolean
+    //     noiseReduction?: boolean
+    //     customProcessors?: AudioProcessor[]
+    // }
+}
+
 export interface RecordingConfig {
     /** Sample rate for recording in Hz (16000, 44100, or 48000) */
     sampleRate?: SampleRate
@@ -340,19 +371,16 @@ export interface RecordingConfig {
     /** Callback function to handle audio features extraction results */
     onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void>
 
-    /** Configuration for audio compression */
-    compression?: {
-        /** Enable audio compression */
-        enabled: boolean
-        /**
-         * Format for compression
-         * - 'aac': Advanced Audio Coding - supported on all platforms
-         * - 'opus': Opus encoding - supported on Android and Web; on iOS will automatically fall back to AAC
-         */
-        format: 'aac' | 'opus'
-        /** Bitrate for compression in bits per second */
-        bitrate?: number
-    }
+    /**
+     * Configuration for audio output files
+     * 
+     * Examples:
+     * - Primary only (default): `{ primary: { enabled: true } }`
+     * - Compressed only: `{ primary: { enabled: false }, compressed: { enabled: true, format: 'aac' } }`
+     * - Both outputs: `{ compressed: { enabled: true } }`
+     * - Streaming only: `{ primary: { enabled: false } }`
+     */
+    output?: OutputConfig
 
     /** Whether to automatically resume recording after an interruption (default is false) */
     autoResumeAfterInterruption?: boolean
@@ -386,15 +414,6 @@ export interface RecordingConfig {
      * Optimal iOS: >= 0.1 seconds
      */
     bufferDurationSeconds?: number;
-    
-    /**
-     * When true, audio data is only emitted through callbacks without
-     * writing to a file. This reduces storage usage and I/O overhead.
-     * The recording result will not include a fileUri.
-     * 
-     * Default: false
-     */
-    skipFileWriting?: boolean;
 }
 
 export interface NotificationConfig {

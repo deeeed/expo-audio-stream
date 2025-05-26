@@ -153,24 +153,52 @@ export function RecordingSettings({
       </View>
       
       <View
-style={{ 
-        backgroundColor: theme.colors.surfaceVariant,
-        borderRadius: 8,
-        padding: 12,
-        marginVertical: 8,
-      }}
+        style={{ 
+          backgroundColor: theme.colors.surfaceVariant,
+          borderRadius: 8,
+          padding: 12,
+          marginVertical: 8,
+        }}
       >
-        <Text variant="titleMedium" style={{ marginBottom: 12 }}>Compression Settings</Text>
+        <Text variant="titleMedium" style={{ marginBottom: 12 }}>Output Configuration</Text>
         
         <LabelSwitch
-          label="Enable Compression"
-          value={config.compression?.enabled ?? true}
+          label="Primary Output (WAV)"
+          value={config.output?.primary?.enabled ?? true}
           onValueChange={(enabled) => {
             const updatedConfig = {
               ...config,
-              compression: {
-                ...(config.compression ?? { format: 'opus', bitrate: DEFAULT_BITRATE }),
-                enabled,
+              output: {
+                ...config.output,
+                primary: {
+                  ...config.output?.primary,
+                  enabled,
+                },
+              },
+            }
+            onConfigChange(updatedConfig)
+          }}
+          disabled={isDisabled}
+        />
+        
+        <Text variant="bodySmall" style={{ marginTop: 4, marginBottom: 12, color: theme.colors.outline }}>
+          Creates uncompressed WAV file. Disable for streaming-only or compressed-only recording.
+        </Text>
+
+        <LabelSwitch
+          label="Compressed Output"
+          value={config.output?.compressed?.enabled ?? false}
+          onValueChange={(enabled) => {
+            const updatedConfig = {
+              ...config,
+              output: {
+                ...config.output,
+                compressed: {
+                  ...config.output?.compressed,
+                  enabled,
+                  format: config.output?.compressed?.format || (Platform.OS === 'ios' ? 'aac' : 'opus'),
+                  bitrate: config.output?.compressed?.bitrate || DEFAULT_BITRATE,
+                },
               },
             }
             onConfigChange(updatedConfig)
@@ -178,7 +206,7 @@ style={{
           disabled={isDisabled}
         />
 
-        {config.compression?.enabled && (
+        {config.output?.compressed?.enabled && (
           <View style={{ marginLeft: 12, marginTop: 8 }}>
             <View>
               <Text variant="titleSmall" style={{ marginBottom: 8 }}>Format</Text>
@@ -186,18 +214,22 @@ style={{
                 <>
                   <Text>AAC</Text>
                   <Text variant="bodySmall" style={{ marginTop: 4, color: theme.colors.outline }}>
-                    Only AAC format is supported on iOS devices.
+                    Only AAC format is supported on iOS devices. Opus will automatically fall back to AAC.
                   </Text>
                 </>
               ) : (
                 <SegmentedButtons
-                  value={config.compression?.format || 'opus'}
+                  value={config.output?.compressed?.format || 'opus'}
                   onValueChange={(value) => {
                     const updatedConfig = {
                       ...config,
-                      compression: {
-                        ...(config.compression ?? { enabled: true, bitrate: DEFAULT_BITRATE }),
-                        format: value as 'aac' | 'opus',
+                      output: {
+                        ...config.output,
+                        compressed: {
+                          ...config.output?.compressed,
+                          enabled: true,
+                          format: value as 'aac' | 'opus',
+                        },
                       },
                     }
                     onConfigChange(updatedConfig)
@@ -213,13 +245,17 @@ style={{
             <View style={{ marginTop: 12 }}>
               <Text variant="titleSmall" style={{ marginBottom: 8 }}>Bitrate</Text>
               <SegmentedButtons
-                value={String(config.compression?.bitrate || DEFAULT_BITRATE)}
+                value={String(config.output?.compressed?.bitrate || DEFAULT_BITRATE)}
                 onValueChange={(value) => {
                   const updatedConfig = {
                     ...config,
-                    compression: {
-                      ...(config.compression ?? { enabled: true, format: Platform.OS === 'ios' ? 'aac' : 'opus' }),
-                      bitrate: parseInt(value, 10),
+                    output: {
+                      ...config.output,
+                      compressed: {
+                        ...config.output?.compressed,
+                        enabled: true,
+                        bitrate: parseInt(value, 10),
+                      },
                     },
                   }
                   onConfigChange(updatedConfig)
@@ -227,12 +263,27 @@ style={{
                 buttons={[
                   { value: '32000', label: '32 kbps (Voice)' },
                   { value: '64000', label: '64 kbps (Studio)' },
+                  { value: '128000', label: '128 kbps (High)' },
                 ]}
               />
             </View>
             
             <Text variant="bodySmall" style={{ marginTop: 12, color: theme.colors.outline }}>
               Compression reduces file size but may affect audio quality. Higher bitrates preserve more detail.
+            </Text>
+          </View>
+        )}
+
+        {/* Show warning if both outputs are disabled */}
+        {!config.output?.primary?.enabled && !config.output?.compressed?.enabled && (
+          <View style={{ 
+            backgroundColor: theme.colors.errorContainer,
+            borderRadius: 4,
+            padding: 8,
+            marginTop: 8,
+          }}>
+            <Text variant="bodySmall" style={{ color: theme.colors.onErrorContainer }}>
+              ⚠️ Streaming-only mode: No files will be created. Audio data will only be available through events.
             </Text>
           </View>
         )}
@@ -265,34 +316,7 @@ style={{
         disabled={isDisabled}
       />
       
-      {/* Web-specific option to control uncompressed audio storage */}
-      {isWeb && (
-        <View>
-          <LabelSwitch
-            label="Store Uncompressed Audio (Web only)"
-            value={config.web?.storeUncompressedAudio !== false} // Default to true unless explicitly false
-            onValueChange={(enabled) => {
-              const updatedConfig = {
-                ...config,
-                web: {
-                  ...(config.web || {}),
-                  storeUncompressedAudio: enabled,
-                },
-              }
-              onConfigChange(updatedConfig)
-            }}
-            disabled={isDisabled}
-          />
-          <Text variant="bodySmall" style={{ marginTop: 4, color: theme.colors.outline }}>
-            {config.web?.storeUncompressedAudio !== false
-              ? 'Stores uncompressed audio data in memory for direct access. Turn off for long recordings to save memory.'
-              : 'Memory-efficient mode. Only compressed audio will be accessible when recording stops.'}
-          </Text>
-          <Text variant="bodySmall" style={{ marginTop: 2, color: theme.colors.primary }}>
-            Note: Native platforms (iOS/Android) always store to files, not memory.
-          </Text>
-        </View>
-      )}
+
       
       {Platform.OS !== 'web' && (
         <NativeNotificationConfig

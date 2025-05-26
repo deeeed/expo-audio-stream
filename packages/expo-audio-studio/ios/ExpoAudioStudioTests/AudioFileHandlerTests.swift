@@ -7,6 +7,56 @@ class AudioFileHandlerTests: XCTestCase {
     var tempDir: URL!
     var audioProcessor: AudioProcessor!
     
+    // Helper function to create WAV header for tests
+    private func createWavHeader(sampleRate: Int, channels: Int, bitsPerSample: Int, dataSize: Int) -> Data {
+        var header = Data()
+        
+        let blockAlign = channels * (bitsPerSample / 8)
+        let byteRate = sampleRate * blockAlign
+        
+        // "RIFF" chunk descriptor
+        header.append(contentsOf: "RIFF".utf8)
+        header.append(contentsOf: UInt32(36 + dataSize).littleEndianBytes)
+        header.append(contentsOf: "WAVE".utf8)
+        
+        // "fmt " sub-chunk
+        header.append(contentsOf: "fmt ".utf8)
+        header.append(contentsOf: UInt32(16).littleEndianBytes)  // PCM format requires 16 bytes for the fmt sub-chunk
+        header.append(contentsOf: UInt16(1).littleEndianBytes)   // Audio format 1 for PCM
+        header.append(contentsOf: UInt16(channels).littleEndianBytes)
+        header.append(contentsOf: UInt32(sampleRate).littleEndianBytes)
+        header.append(contentsOf: UInt32(byteRate).littleEndianBytes)    // byteRate
+        header.append(contentsOf: UInt16(blockAlign).littleEndianBytes)  // blockAlign
+        header.append(contentsOf: UInt16(bitsPerSample).littleEndianBytes)  // bits per sample
+        
+        // "data" sub-chunk
+        header.append(contentsOf: "data".utf8)
+        header.append(contentsOf: UInt32(dataSize).littleEndianBytes)  // Sub-chunk data size
+        
+        return header
+    }
+    
+    // Helper function to update WAV header for tests
+    private func updateWavHeader(fileURL: URL) {
+        guard let fileHandle = try? FileHandle(forUpdating: fileURL) else { return }
+        defer { fileHandle.closeFile() }
+        
+        // Get file size
+        fileHandle.seekToEndOfFile()
+        let fileSize = fileHandle.offsetInFile
+        
+        // Update file size in header (bytes 4-7)
+        fileHandle.seek(toFileOffset: 4)
+        var size = UInt32(fileSize - 8).littleEndian
+        fileHandle.write(Data(bytes: &size, count: 4))
+        
+        // Update data chunk size (bytes 40-43)
+        fileHandle.seek(toFileOffset: 40)
+        var dataSize = UInt32(fileSize - 44).littleEndian
+        fileHandle.write(Data(bytes: &dataSize, count: 4))
+    }
+}
+    
     override func setUp() {
         super.setUp()
         
@@ -35,7 +85,7 @@ class AudioFileHandlerTests: XCTestCase {
         let dataSize = 1000
         
         // When
-        let header = AudioFileHandler.createWavHeader(
+        let header = createWavHeader(
             sampleRate: sampleRate,
             channels: channels,
             bitsPerSample: bitsPerSample,
@@ -222,7 +272,7 @@ class AudioFileHandlerTests: XCTestCase {
         }
         
         // When
-        AudioFileHandler.updateWavHeader(fileURL: fileURL)
+        updateWavHeader(fileURL: fileURL)
         
         // Then - Verify header was updated
         if let data = try? Data(contentsOf: fileURL) {

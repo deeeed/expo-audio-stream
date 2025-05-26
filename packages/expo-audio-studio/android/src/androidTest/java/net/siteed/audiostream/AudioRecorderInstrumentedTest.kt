@@ -305,10 +305,12 @@ class AudioRecorderInstrumentedTest {
             "encoding" to "pcm_16bit",
             "interval" to 100,
             "showNotification" to false,
-            "compression" to mapOf(
-                "enabled" to true,
-                "format" to "aac",
-                "bitrate" to 128000
+            "output" to mapOf(
+                "compressed" to mapOf(
+                    "enabled" to true,
+                    "format" to "aac",
+                    "bitrate" to 128000
+                )
             )
         )
         

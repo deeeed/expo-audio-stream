@@ -4,6 +4,45 @@ import android.media.AudioFormat
 import android.os.Build
 import java.io.File
 
+// New output configuration structure
+data class OutputConfig(
+    val primary: PrimaryOutput = PrimaryOutput(),
+    val compressed: CompressedOutput = CompressedOutput()
+) {
+    data class PrimaryOutput(
+        val enabled: Boolean = true,
+        val format: String = "wav"
+    )
+    
+    data class CompressedOutput(
+        val enabled: Boolean = false,
+        val format: String = "aac",
+        val bitrate: Int = 128000
+    )
+    
+    companion object {
+        fun fromMap(map: Map<String, Any?>?): OutputConfig {
+            if (map == null) return OutputConfig()
+            
+            val primaryMap = map.getTypedMap<Any?>("primary") { true }
+            val compressedMap = map.getTypedMap<Any?>("compressed") { true }
+            
+            val primary = PrimaryOutput(
+                enabled = primaryMap.getBooleanOrDefault("enabled", true),
+                format = primaryMap.getStringOrDefault("format", "wav")
+            )
+            
+            val compressed = CompressedOutput(
+                enabled = compressedMap.getBooleanOrDefault("enabled", false),
+                format = compressedMap.getStringOrDefault("format", "aac").lowercase(),
+                bitrate = compressedMap.getNumberOrDefault("bitrate", 128000)
+            )
+            
+            return OutputConfig(primary = primary, compressed = compressed)
+        }
+    }
+}
+
 data class RecordingConfig(
     val sampleRate: Int = Constants.DEFAULT_SAMPLE_RATE,
     val channels: Int = 1,
@@ -17,14 +56,13 @@ data class RecordingConfig(
     val showWaveformInNotification: Boolean = false,
     val notification: NotificationConfig = NotificationConfig(),
     val features: Map<String, Boolean> = emptyMap(),
-    val enableCompressedOutput: Boolean = false,
-    val compressedFormat: String = "opus",
-    val compressedBitRate: Int = 24000,
+    val output: OutputConfig = OutputConfig(),
     val autoResumeAfterInterruption: Boolean = false,
     val outputDirectory: String? = null,
     val filename: String? = null,
     val deviceId: String? = null,
     val deviceDisconnectionBehavior: String? = null,
+    val bufferDurationSeconds: Double? = null,
 ) {
     companion object {
         fun fromMap(options: Map<String, Any?>?): Result<Pair<RecordingConfig, AudioFormatInfo>> {
@@ -45,19 +83,17 @@ data class RecordingConfig(
             val notificationMap = options.getTypedMap<Any?>("notification") { true }
             val notificationConfig = NotificationConfig.fromMap(notificationMap)
 
-            // Parse compression config
-            val compressionMap = options.getTypedMap<Any?>("compression") { true }
-            val enableCompressedOutput = compressionMap["enabled"] as? Boolean ?: false
-            val compressedFormat = (compressionMap["format"] as? String)?.lowercase() ?: "aac"
-            val compressedBitRate = (compressionMap["bitrate"] as? Number)?.toInt() ?: 128000
+            // Parse output config
+            val outputMap = options.getTypedMap<Any?>("output") { true }
+            val outputConfig = OutputConfig.fromMap(outputMap)
 
             // Validate bitrate if compression is enabled
-            if (enableCompressedOutput) {
+            if (outputConfig.compressed.enabled) {
                 when {
-                    compressedBitRate < 8000 -> return Result.failure(
+                    outputConfig.compressed.bitrate < 8000 -> return Result.failure(
                         IllegalArgumentException("Bitrate must be at least 8000 bps")
                     )
-                    compressedBitRate > 960000 -> return Result.failure(
+                    outputConfig.compressed.bitrate > 960000 -> return Result.failure(
                         IllegalArgumentException("Bitrate cannot exceed 960000 bps")
                     )
                 }
@@ -102,9 +138,7 @@ data class RecordingConfig(
                 showWaveformInNotification = options.getBooleanOrDefault("showWaveformInNotification", false),
                 notification = notificationConfig,
                 features = features,
-                enableCompressedOutput = enableCompressedOutput,
-                compressedFormat = compressedFormat,
-                compressedBitRate = compressedBitRate,
+                output = outputConfig,
                 autoResumeAfterInterruption = options.getBooleanOrDefault("autoResumeAfterInterruption", false),
                 outputDirectory = outputDirectory?.let {
                     it.replace(Regex("^file://"), "")
@@ -113,7 +147,8 @@ data class RecordingConfig(
                 },
                 filename = options["filename"] as? String,
                 deviceId = deviceId,
-                deviceDisconnectionBehavior = deviceDisconnectionBehavior
+                deviceDisconnectionBehavior = deviceDisconnectionBehavior,
+                bufferDurationSeconds = (options["bufferDurationSeconds"] as? Number)?.toDouble(),
             )
 
             // Validate sample rate and channels

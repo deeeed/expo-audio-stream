@@ -8029,9 +8029,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@siteed/design-system@npm:^0.45.0":
-  version: 0.45.0
-  resolution: "@siteed/design-system@npm:0.45.0"
+"@siteed/design-system@npm:^0.51.0":
+  version: 0.51.0
+  resolution: "@siteed/design-system@npm:0.51.0"
   dependencies:
     "@pchmn/expo-material3-theme": "npm:^1.3.2"
     color: "npm:^4.2.3"
@@ -8056,7 +8056,7 @@ __metadata:
     react-native-paper-dates: "*"
     react-native-screens: "*"
     react-native-vector-icons: "*"
-  checksum: 10/026a8008e62bbd9c01c9b6cc55e986d3083711bb2befd6b9d4079e02757fa3d734b7cfe6020f648d78f7e2df8211d17508492f07ef69dba957e7e5391491e029
+  checksum: 10/d0fda0fbcd078cbab9acee9d4f2ded73f4537c64a5fdc62bbf6305342723386e06673ef6cc6d3b5c6296620198a3a357379c3edb76a8c599ca99513803d33acf
   languageName: node
   linkType: hard
 
@@ -12057,7 +12057,7 @@ __metadata:
     "@react-navigation/native": "npm:^7.0.0"
     "@reduxjs/toolkit": "npm:^2.5.0"
     "@shopify/react-native-skia": "npm:v2.0.0-next.4"
-    "@siteed/design-system": "npm:^0.45.0"
+    "@siteed/design-system": "npm:^0.51.0"
     "@siteed/expo-audio-studio": "workspace:^"
     "@siteed/expo-audio-ui": "workspace:^"
     "@siteed/react-native-essentia": "workspace:^"
@@ -35222,11 +35222,11 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A^4.6.4 || ^5.2.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.2.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.3.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.4.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.8.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.8.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A~5.8.3#optional!builtin<compat/typescript>":
   version: 5.8.3
-  resolution: "typescript@patch:typescript@npm%3A5.8.3#optional!builtin<compat/typescript>::version=5.8.3&hash=5786d5"
+  resolution: "typescript@patch:typescript@npm%3A5.8.3#optional!builtin<compat/typescript>::version=5.8.3&hash=b45daf"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10/b9b1e73dabac5dc730c041325dbd9c99467c1b0d239f1b74ec3b90d831384af3e2ba973946232df670519147eb51a2c20f6f96163cea2b359f03de1e2091cc4f
+  checksum: 10/98470634034ec37fd9ea61cc82dcf9a27950d0117a4646146b767d085a2ec14b137aae9642a83d1c62732d7fdcdac19bb6288b0bb468a72f7a06ae4e1d2c72c9
   languageName: node
   linkType: hard
 

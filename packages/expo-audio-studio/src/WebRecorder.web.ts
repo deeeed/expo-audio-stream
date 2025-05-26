@@ -154,7 +154,7 @@ export class WebRecorder {
         }
 
         // Initialize compressed recording if enabled
-        if (recordingConfig.compression?.enabled) {
+        if (recordingConfig.output?.compressed?.enabled) {
             this.initializeCompressedRecorder()
         }
 
@@ -234,9 +234,9 @@ export class WebRecorder {
                     )
                     const samples = chunk.length // Number of samples in this chunk
 
-                    // Only store PCM data if web.storeUncompressedAudio is not explicitly false
+                    // Only store PCM data if primary output is enabled
                     const shouldStoreUncompressed =
-                        this.config.web?.storeUncompressedAudio !== false
+                        this.config.output?.primary?.enabled ?? true
 
                     // Store PCM chunks when needed - this is for the final WAV file
                     if (shouldStoreUncompressed) {
@@ -275,9 +275,9 @@ export class WebRecorder {
                               size: this.pendingCompressedChunk.size,
                               totalSize: this.compressedSize,
                               mimeType: 'audio/webm',
-                              format: 'opus',
+                              format: this.config.output?.compressed?.format ?? 'opus',
                               bitrate:
-                                  this.config.compression?.bitrate ?? 128000,
+                                  this.config.output?.compressed?.bitrate ?? 128000,
                           }
                         : undefined
 
@@ -312,11 +312,11 @@ export class WebRecorder {
                 interval,
                 position: this.position,
                 deviceId: this.config.deviceId ?? 'default',
-                compression: this.config.compression
+                compression: this.config.output?.compressed
                     ? {
-                          enabled: this.config.compression.enabled,
-                          format: this.config.compression.format,
-                          bitrate: this.config.compression.bitrate,
+                          enabled: this.config.output.compressed.enabled,
+                          format: this.config.output.compressed.format,
+                          bitrate: this.config.output.compressed.bitrate,
                       }
                     : 'disabled',
             })
@@ -843,7 +843,7 @@ export class WebRecorder {
                 {
                     mimeType,
                     audioBitsPerSecond:
-                        this.config.compression?.bitrate ?? 128000,
+                        this.config.output?.compressed?.bitrate ?? 128000,
                 }
             )
 

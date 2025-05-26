@@ -68,10 +68,13 @@ const baseRecordingConfig: RecordingConfig = {
     segmentDurationMs: 100,
     enableProcessing: true,
     features: undefined,
-    compression: {
-        enabled: true,
-        format: Platform.OS === 'ios' ? 'aac' : 'opus',
-        bitrate: DEFAULT_BITRATE,
+    output: {
+        primary: { enabled: true },
+        compressed: {
+            enabled: true,
+            format: Platform.OS === 'ios' ? 'aac' : 'opus',
+            bitrate: DEFAULT_BITRATE,
+        },
     },
     autoResumeAfterInterruption: true,
     deviceDisconnectionBehavior: 'fallback',
@@ -495,8 +498,8 @@ export default function RecordScreen() {
                 deviceId: startRecordingConfig.deviceId,
                 // Android needs to reinitialize when sample rate changes
                 ...(Platform.OS === 'android' ? { sampleRate: startRecordingConfig.sampleRate } : {}),
-                // Store the entire compression object
-                compression: startRecordingConfig.compression,
+                // Store the entire output object
+                output: startRecordingConfig.output,
                 filename: customFileName,
                 directory: defaultDirectory,
                 ios: startRecordingConfig.ios,
@@ -533,8 +536,8 @@ export default function RecordScreen() {
             deviceId: startRecordingConfig.deviceId,
             // Android needs to reinitialize when sample rate changes
             ...(Platform.OS === 'android' ? { sampleRate: startRecordingConfig.sampleRate } : {}),
-            // Compression settings - on both platforms this affects recorder initialization
-            compression: startRecordingConfig.compression,  // Include the entire compression object
+            // Output settings - on both platforms this affects recorder initialization
+            output: startRecordingConfig.output,  // Include the entire output object
             // Storage settings
             filename: customFileName,
             directory: defaultDirectory,
@@ -552,12 +555,13 @@ export default function RecordScreen() {
                 if (oldConfig.deviceId !== newConfig.deviceId) changes.push('input device')
                 if (Platform.OS === 'android' && oldConfig.sampleRate !== newConfig.sampleRate) changes.push('sample rate')
                 
-                // Better compression change detection
-                const oldCompression = oldConfig.compression || {}
-                const newCompression = newConfig.compression || {}
-                if (oldCompression.enabled !== newCompression.enabled) changes.push('compression enabled')
-                if (oldCompression.format !== newCompression.format) changes.push('compression format')
-                if (oldCompression.bitrate !== newCompression.bitrate) changes.push('compression bitrate')
+                // Better output change detection
+                const oldOutput = oldConfig.output || {}
+                const newOutput = newConfig.output || {}
+                if (oldOutput.primary?.enabled !== newOutput.primary?.enabled) changes.push('primary output')
+                if (oldOutput.compressed?.enabled !== newOutput.compressed?.enabled) changes.push('compressed output enabled')
+                if (oldOutput.compressed?.format !== newOutput.compressed?.format) changes.push('compressed format')
+                if (oldOutput.compressed?.bitrate !== newOutput.compressed?.bitrate) changes.push('compressed bitrate')
                 
                 if (oldConfig.filename !== newConfig.filename) changes.push('filename')
                 if (oldConfig.directory !== newConfig.directory) changes.push('directory')
@@ -577,7 +581,7 @@ export default function RecordScreen() {
     }, [
         startRecordingConfig.deviceId,
         startRecordingConfig.sampleRate,
-        startRecordingConfig.compression,  
+        startRecordingConfig.output,  
         startRecordingConfig.ios, 
         customFileName, 
         defaultDirectory, 

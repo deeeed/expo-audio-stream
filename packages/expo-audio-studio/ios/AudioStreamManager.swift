@@ -546,7 +546,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // Choose extension based on whether this is a compressed file
         let fileExtension: String
         if isCompressed {
-            fileExtension = recordingSettings?.compressedFormat.lowercased() ?? "aac"
+            fileExtension = recordingSettings?.output.compressed.format.lowercased() ?? "aac"
         } else {
             fileExtension = "wav"
         }
@@ -638,7 +638,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
         
         // Add compression info if enabled
-        if settings.enableCompressedOutput,
+        if settings.output.compressed.enabled,
            let compressedURL = compressedFileURL,
            FileManager.default.fileExists(atPath: compressedURL.path) {
             do {
@@ -779,8 +779,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         lastEmittedCompressedSizeAnalysis = 0
         isPaused = false
 
-        // Create recording file first (unless skipFileWriting is enabled)
-        if !settings.skipFileWriting {
+        // Create recording file first (unless primary output is disabled)
+        if settings.output.primary.enabled {
             recordingFileURL = createRecordingFile()
             if let url = recordingFileURL {
                 do {
@@ -883,7 +883,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             Logger.debug("AudioStreamManager", "  - actual session sample rate: \(session.sampleRate)Hz") // Log actual rate
             Logger.debug("AudioStreamManager", "  - channels: \(settings.numberOfChannels)")
             Logger.debug("AudioStreamManager", "  - bit depth: \(settings.bitDepth)-bit")
-            Logger.debug("AudioStreamManager", "  - compression enabled: \(settings.enableCompressedOutput)")
+            Logger.debug("AudioStreamManager", "  - compression enabled: \(settings.output.compressed.enabled)")
 
             // Use our shared tap installation method
             let tapFormat = installTapWithHardwareFormat()
@@ -899,13 +899,13 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             audioEngine.prepare() // Prepare the engine without starting it
             
             // Setup compressed recording if enabled
-            if settings.enableCompressedOutput {
+            if settings.output.compressed.enabled {
                 // Create compressed settings
                 let compressedSettings: [String: Any] = [
-                    AVFormatIDKey: settings.compressedFormat == "aac" ? kAudioFormatMPEG4AAC : kAudioFormatOpus,
+                    AVFormatIDKey: settings.output.compressed.format == "aac" ? kAudioFormatMPEG4AAC : kAudioFormatOpus,
                     AVSampleRateKey: Float64(settings.sampleRate),
                     AVNumberOfChannelsKey: settings.numberOfChannels,
-                    AVEncoderBitRateKey: settings.compressedBitRate,
+                    AVEncoderBitRateKey: settings.output.compressed.bitrate,
                     AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
                     AVEncoderBitDepthHintKey: settings.bitDepth
                 ]
@@ -932,8 +932,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                             } else {
                                 // Note: We don't start the recorder yet, just prepare it
                                 Logger.debug("AudioStreamManager", "Compressed recording prepared successfully")
-                                compressedFormat = settings.compressedFormat
-                                compressedBitRate = settings.compressedBitRate
+                                            compressedFormat = settings.output.compressed.format
+            compressedBitRate = settings.output.compressed.bitrate
                             }
                         }
                     } catch {
@@ -1015,7 +1015,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             return nil
         }
         
-        // File URI is optional when skipFileWriting is true
+        // File URI is optional when primary output is disabled
         let fileUri = recordingFileURL?.absoluteString ?? ""
         
         do {
@@ -1458,8 +1458,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         let dataToWrite = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
 
         // --- Background File Writing ---
-        // Only write to file if skipFileWriting is false
-        if !settings.skipFileWriting {
+                    // Only write to file if primary output is enabled
+            if settings.output.primary.enabled {
             // Use the persistent fileHandle opened during preparation.
             DispatchQueue.global(qos: .utility).async { [weak self] in
                 guard let self = self, let handle = self.fileHandle else {
@@ -1741,8 +1741,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             return nil
         }
         
-        // For skipFileWriting mode, create a result without file validation
-        if settings.skipFileWriting {
+        // For streaming-only mode (no primary output), create a result without file validation
+        if !settings.output.primary.enabled {
             let durationMs = Int64(finalDuration * 1000)
             let result = RecordingResult(
                 fileUri: "",
@@ -1965,7 +1965,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
 
             // Get the string value from settings using the correct property name
             // The property in RecordingSettings likely matches the TS interface: deviceDisconnectionBehavior
-            let behaviorString = settings.deviceDisconnectionBehavior ?? "pause" // Use the correct property name
+            let behaviorString = settings.deviceDisconnectionBehavior.rawValue // Get the raw value from the enum
             let behavior = DeviceDisconnectionBehavior(rawValue: behaviorString) ?? .PAUSE // Convert to enum, default to .PAUSE
 
             Logger.debug("Recording device disconnected! Applying behavior: \(behavior.rawValue)")

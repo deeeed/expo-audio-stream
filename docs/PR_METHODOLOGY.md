@@ -77,6 +77,7 @@ class FeatureIntegrationTest {
 ## PR Checklist
 
 - [ ] Integration tests written and passing
+- [ ] **Playground builds successfully on all platforms**
 - [ ] Platform limitations documented
 - [ ] Existing docs updated (not new files)
 - [ ] TypeScript types updated
@@ -86,15 +87,19 @@ class FeatureIntegrationTest {
 - [ ] Test results included in PR description
 - [ ] Playground app updated with new feature
 
-## Playground App Updates
+## Playground App Updates & Build Validation
 
-**MANDATORY**: After implementing a new feature with passing integration tests, you MUST update the playground app to demonstrate the feature.
+**MANDATORY**: After implementing a new feature with passing integration tests, you MUST:
+
+1. **Update the playground app** to demonstrate the feature
+2. **Verify the playground builds successfully** on all target platforms
 
 The playground app (`apps/playground`) serves as:
 - Living documentation of all library features
 - Testing ground for real-world usage
 - Demo for potential users
 - Integration test environment
+- **Build validation environment** (ensures library can be consumed by real apps)
 
 ### Required Updates
 
@@ -120,12 +125,54 @@ The playground app (`apps/playground`) serves as:
 </Text>
 ```
 
-## Why Integration Tests Matter
+## Validation Process
 
-Unit tests can lie. Mocks can be wrong. Only integration tests reveal:
-- Platform minimum/maximum values
-- Undocumented API behavior
-- Performance characteristics
-- Edge cases in real usage
+### 1. Integration Tests (Platform Behavior)
+Run platform-specific integration tests to validate actual behavior:
 
-**Remember: If you didn't test it on the actual platform, you don't know if it works.** 
+```bash
+# iOS
+cd packages/expo-audio-studio/ios/tests/integration
+./run_integration_tests.sh
+
+# Android  
+cd apps/playground/android
+./gradlew :siteed-expo-audio-studio:connectedAndroidTest
+```
+
+### 2. Playground Build Validation (Real App Usage)
+Verify the library can be consumed by real applications:
+
+```bash
+# Build all workspace dependencies first
+cd apps/playground
+yarn build:deps
+
+# Then test playground builds
+yarn ios    # iOS
+yarn android # Android  
+yarn web    # Web
+```
+
+### 3. Package Build Validation
+Ensure the package and plugin build correctly:
+
+```bash
+cd packages/expo-audio-studio
+yarn build && yarn build:plugin
+```
+
+## Why Both Tests AND Build Validation Matter
+
+**Integration tests** reveal platform behavior but can pass while builds fail due to:
+- File inclusion issues in podspec/gradle
+- Redundant/conflicting code
+- Missing dependencies
+- Build configuration problems
+- **Unbuilt workspace packages** (common in monorepos)
+
+**Playground builds** ensure the library works in real applications but may not catch platform-specific edge cases.
+
+**Both are required** - integration tests validate behavior, playground builds validate usability.
+
+**Remember: If you didn't test it on the actual platform AND verify it builds in a real app, you don't know if it works.** 
