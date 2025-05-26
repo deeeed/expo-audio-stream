@@ -1,6 +1,6 @@
 {
     "name": "@siteed/expo-audio-studio",
-    "version": "2.10.0",
+    "version": "2.9.0",
     "description": "Comprehensive audio processing library for React Native and Expo with recording, analysis, visualization, and streaming capabilities across iOS, Android, and web",
     "license": "MIT",
     "type": "commonjs",
@@ -89,7 +89,7 @@
         "typecheck": "tsc --noEmit",
         "docgen": "typedoc src/index.ts --plugin typedoc-plugin-markdown --readme none --out ../../documentation_site/docs/api-reference/API",
         "prepare": "yarn build && node -e \"require('fs').renameSync('./plugin/build/index.d.ts', './plugin/build/index.d.cts')\"",
-        "prepublishOnly": "expo-module prepublishOnly",
+        "prepublishOnly.disabled": "expo-module prepublishOnly",
         "expo-module": "expo-module",
         "open:ios": "open -a \"Xcode\" ../../apps/playground/ios",
         "open:android": "open -a \"Android Studio\" ../../apps/playground/android",
