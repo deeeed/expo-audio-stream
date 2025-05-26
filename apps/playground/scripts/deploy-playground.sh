@@ -298,7 +298,7 @@ deploy_android() {
       
       if [[ "$SUBMIT_ANDROID" == "y" || "$SUBMIT_ANDROID" == "Y" ]]; then
         echo -e "${CYAN}Submitting to Play Store...${NC}"
-        yarn eas submit --platform android --path "$(find . -maxdepth 1 -name "*.aab" -type f -print0 | xargs -0 ls -t | head -n1)"
+        yarn dlx eas-cli submit --platform android --path "$(find . -maxdepth 1 -name "*.aab" -type f -print0 | xargs -0 ls -t | head -n1)"
       fi
       ;;
     5)
@@ -336,7 +336,7 @@ deploy_ios() {
       REGISTER_DEVICES=${REGISTER_DEVICES:-n}
       
       if [[ "$REGISTER_DEVICES" == "y" || "$REGISTER_DEVICES" == "Y" ]]; then
-        yarn eas device:create
+        yarn dlx eas-cli device:create
       fi
       yarn build:ios:development
       ;;
@@ -354,7 +354,7 @@ deploy_ios() {
       if [[ "$SUBMIT_IOS" == "y" || "$SUBMIT_IOS" == "Y" ]]; then
         echo -e "${CYAN}Submitting to App Store...${NC}"
         (
-          source .env.production && yarn eas submit --platform ios \
+          source .env.production && yarn dlx eas-cli submit --platform ios \
             --path "$(find . -maxdepth 1 -name "*.ipa" -type f -print0 | xargs -0 ls -t | head -n1)"
         )
       fi
@@ -365,7 +365,7 @@ deploy_ios() {
       ;;
     5)
       echo -e "${CYAN}Submitting latest iOS build to App Store...${NC}"
-      yarn eas submit --platform ios --latest
+      yarn dlx eas-cli submit --platform ios --latest
       ;;
     *)
       echo -e "${RED}Invalid choice. Using Production + Submit.${NC}"
@@ -388,7 +388,7 @@ push_update() {
   yarn install
   
   echo -e "${CYAN}Pushing update with message: ${UPDATE_MESSAGE}${NC}"
-  yarn eas update --message "$UPDATE_MESSAGE"
+  yarn dlx eas-cli update --message "$UPDATE_MESSAGE"
   
   echo -e "${GREEN}✅ Update pushed successfully!${NC}"
 }
