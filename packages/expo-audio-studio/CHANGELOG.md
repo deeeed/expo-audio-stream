@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.10.0] - 2025-05-26
+### Changed
+- chore(expo-audio-studio): update @siteed/design-system to version 0.51.0 and refactor recording configuration (#245) ([6486c66](https://github.com/deeeed/expo-audio-stream/commit/6486c66d687093b5257fddcce575d932b6a6443b))
+- feat(expo-audio-studio): add buffer duration control and skip file writing options ([bfdbcb8](https://github.com/deeeed/expo-audio-stream/commit/bfdbcb8bac7c0641d6bacfa9b6fc4e64c2621baa))
+- docs: enhance contribution guidelines with Test-Driven Development practices ([2c04eff](https://github.com/deeeed/expo-audio-stream/commit/2c04eff1f6d6d3c567aad8f7d7174b7f1ad533aa))
+- feat(expo-audio-studio): enhance testing framework and add instrumented tests (#242) ([6e823ec](https://github.com/deeeed/expo-audio-stream/commit/6e823ec79c77ff34441b5acf757fdbac0a974e46))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.9.0 ([5d8518e](https://github.com/deeeed/expo-audio-stream/commit/5d8518e2259372c13fd38b3adc7b767434cbd154))
 ## [2.9.0] - 2025-05-15
 ### Changed
 - refactor(WebRecorder): remove unused compression logic and clean up blob creation ([91f6bba](https://github.com/deeeed/expo-audio-stream/commit/91f6bba6a3afa9fe71811c2c67a5703b8751830c))
@@ -252,7 +259,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.9.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.0...HEAD
+[2.10.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.9.0...@siteed/expo-audio-studio@2.10.0
 [2.9.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.6...@siteed/expo-audio-studio@2.9.0
 [2.8.6]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.5...@siteed/expo-audio-studio@2.8.6
 [2.8.5]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.4...@siteed/expo-audio-studio@2.8.5
