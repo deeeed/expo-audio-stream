@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [1.4.0] - 2025-05-26
+
+### Added
+- update @siteed/design-system to version 0.51.0 and refactor recording configuration (#245)
+
+### Changed
+- enhance contribution guidelines with Test-Driven Development practices
+
+
+
 ## [1.3.0] - 2025-05-15
 
 ### Added
@@ -91,7 +101,9 @@ All notable changes to this project will be documented in this file.
 
 
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.3.0...HEAD
+
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.4.0...HEAD
+[1.4.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.3.0...audio-playground@1.4.0
 [1.3.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.2.0...audio-playground@1.3.0
 [1.2.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.0.1...audio-playground@1.2.0
 [1.0.1]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.0.0...audio-playground@1.0.1
