@@ -8029,9 +8029,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@siteed/design-system@npm:^0.51.0":
-  version: 0.51.0
-  resolution: "@siteed/design-system@npm:0.51.0"
+"@siteed/design-system@npm:^0.51.1":
+  version: 0.51.1
+  resolution: "@siteed/design-system@npm:0.51.1"
   dependencies:
     "@pchmn/expo-material3-theme": "npm:^1.3.2"
     color: "npm:^4.2.3"
@@ -8056,7 +8056,7 @@ __metadata:
     react-native-paper-dates: "*"
     react-native-screens: "*"
     react-native-vector-icons: "*"
-  checksum: 10/d0fda0fbcd078cbab9acee9d4f2ded73f4537c64a5fdc62bbf6305342723386e06673ef6cc6d3b5c6296620198a3a357379c3edb76a8c599ca99513803d33acf
+  checksum: 10/5c638d385ebeaf35fa9f8131b94e6a81f5b1829726bd52cb5db6846ba79ecd35ce194d987028ed2c0b5dc5a577d73f98b4b2c3ec32f94a961dbd8e8fa41992dd
   languageName: node
   linkType: hard
 
@@ -12057,7 +12057,7 @@ __metadata:
     "@react-navigation/native": "npm:^7.0.0"
     "@reduxjs/toolkit": "npm:^2.5.0"
     "@shopify/react-native-skia": "npm:v2.0.0-next.4"
-    "@siteed/design-system": "npm:^0.51.0"
+    "@siteed/design-system": "npm:^0.51.1"
     "@siteed/expo-audio-studio": "workspace:^"
     "@siteed/expo-audio-ui": "workspace:^"
     "@siteed/react-native-essentia": "workspace:^"

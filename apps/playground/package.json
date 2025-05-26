@@ -70,7 +70,7 @@
         "@react-navigation/native": "^7.0.0",
         "@reduxjs/toolkit": "^2.5.0",
         "@shopify/react-native-skia": "v2.0.0-next.4",
-        "@siteed/design-system": "^0.51.0",
+        "@siteed/design-system": "^0.51.1",
         "@siteed/expo-audio-studio": "workspace:^",
         "@siteed/expo-audio-ui": "workspace:^",
         "@siteed/react-native-essentia": "workspace:^",
