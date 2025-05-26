@@ -31,6 +31,7 @@
 - [MelSpectrogram](interfaces/MelSpectrogram.md)
 - [NotificationAction](interfaces/NotificationAction.md)
 - [NotificationConfig](interfaces/NotificationConfig.md)
+- [OutputConfig](interfaces/OutputConfig.md)
 - [PreviewOptions](interfaces/PreviewOptions.md)
 - [RecordingConfig](interfaces/RecordingConfig.md)
 - [RecordingInterruptionEvent](interfaces/RecordingInterruptionEvent.md)
