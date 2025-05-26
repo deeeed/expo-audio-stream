@@ -4,6 +4,7 @@
     "main": "src/index",
     "scripts": {
         "eas-build-pre-install": "corepack enable && cd ../.. && yarn install && echo 'Building packages...' && cd packages/expo-audio-studio && yarn build && yarn build:plugin && echo 'Built expo-audio-studio' && cd ../playgroundapi && yarn build && echo 'Built playgroundapi' && cd ../react-native-essentia && yarn prepare || echo 'Warning: react-native-essentia build failed but continuing'",
+        "build:deps": "cd ../../packages/expo-audio-studio && yarn build && yarn build:plugin && cd ../playgroundapi && yarn build && cd ../react-native-essentia && yarn prepare",
         "start": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --dev-client --port 7365",
         "android": "RCT_METRO_PORT=7365 NODE_ENV=development expo run:android --port 7365",
         "ios": "RCT_METRO_PORT=7365 NODE_ENV=development expo run:ios --device --port 7365",
@@ -69,7 +70,7 @@
         "@react-navigation/native": "^7.0.0",
         "@reduxjs/toolkit": "^2.5.0",
         "@shopify/react-native-skia": "v2.0.0-next.4",
-        "@siteed/design-system": "^0.45.0",
+        "@siteed/design-system": "^0.51.0",
         "@siteed/expo-audio-studio": "workspace:^",
         "@siteed/expo-audio-ui": "workspace:^",
         "@siteed/react-native-essentia": "workspace:^",

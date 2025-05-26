@@ -285,13 +285,13 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             bitDepth: this.bitDepth,
             channels: recordingConfig.channels ?? 1,
             sampleRate: recordingConfig.sampleRate ?? 44100,
-            compression: recordingConfig.compression
+            compression: recordingConfig.output?.compressed?.enabled
                 ? {
-                      ...recordingConfig.compression,
-                      bitrate: recordingConfig.compression?.bitrate ?? 128000,
+                      ...recordingConfig.output.compressed,
+                      bitrate: recordingConfig.output.compressed.bitrate ?? 128000,
                       size: 0,
                       mimeType: 'audio/webm',
-                      format: recordingConfig.compression?.format ?? 'opus',
+                      format: recordingConfig.output.compressed.format ?? 'opus',
                       compressedFileUri: '',
                   }
                 : undefined,
@@ -459,56 +459,49 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             let fileUri = `${this.streamUuid}.${this.extension}`
             let mimeType = `audio/${this.extension}`
 
-            // Handle both compressed and uncompressed blobs according to configuration
-            const compressionEnabled =
-                this.recordingConfig?.compression?.enabled ?? false
+            // Handle both compressed and uncompressed blobs according to new output configuration
+            const primaryEnabled = this.recordingConfig?.output?.primary?.enabled ?? true
+            const compressedEnabled = this.recordingConfig?.output?.compressed?.enabled ?? false
 
-            // Process compressed blob if available
-            if (compressedBlob) {
+            // Process compressed blob if available and enabled
+            if (compressedBlob && compressedEnabled) {
                 const compressedUri = URL.createObjectURL(compressedBlob)
                 const compressedInfo = {
                     compressedFileUri: compressedUri,
                     size: compressedBlob.size,
                     mimeType: 'audio/webm',
-                    format: 'opus',
+                    format: this.recordingConfig?.output?.compressed?.format ?? 'opus',
                     bitrate:
-                        this.recordingConfig?.compression?.bitrate ?? 128000,
+                        this.recordingConfig?.output?.compressed?.bitrate ?? 128000,
                 }
 
-                // If compression is enabled, use compressed blob as primary format
-                if (compressionEnabled) {
+                // Store compression info
+                compression = compressedInfo
+
+                // If primary is disabled, use compressed as main file
+                if (!primaryEnabled) {
                     this.logger?.debug(
-                        'Using compressed audio as primary output'
+                        'Using compressed audio as primary output (primary disabled)'
                     )
                     fileUri = compressedUri
                     mimeType = 'audio/webm'
-
-                    // Store compression info
-                    compression = compressedInfo
-                } else {
-                    // Compression was enabled during recording but not set as primary
-                    // Store as alternate format
-                    compression = compressedInfo
                 }
             }
 
-            // Process uncompressed WAV if available
-            if (uncompressedBlob) {
+            // Process uncompressed WAV if available and primary is enabled
+            if (uncompressedBlob && primaryEnabled) {
                 const wavUri = URL.createObjectURL(uncompressedBlob)
-
-                // If compression is disabled or no compressed blob is available,
-                // use WAV as primary format
-                if (!compressionEnabled || !compressedBlob) {
-                    this.logger?.debug(
-                        'Using uncompressed WAV as primary output'
-                    )
-                    fileUri = wavUri
-                    mimeType = 'audio/wav'
-                }
+                fileUri = wavUri
+                mimeType = 'audio/wav'
+            } else if (!primaryEnabled && !compressedEnabled) {
+                // No outputs enabled - streaming only mode
+                this.logger?.debug('No outputs enabled - streaming only mode')
+                fileUri = ''
+                mimeType = 'audio/wav'
             }
 
             // Use the stored streamUuid for the final filename
-            const filename = `${this.streamUuid}.${this.extension}`
+            const filename = fileUri ? `${this.streamUuid}.${this.extension}` : 'stream-only'
             const result: AudioRecording = {
                 fileUri,
                 filename,
@@ -517,7 +510,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                 channels: this.recordingConfig?.channels ?? 1,
                 sampleRate: this.recordingConfig?.sampleRate ?? 44100,
                 durationMs: this.currentDurationMs,
-                size: this.currentSize,
+                size: primaryEnabled ? this.currentSize : 0,
                 mimeType,
                 compression,
             }
@@ -630,13 +623,13 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             interval: this.currentInterval,
             intervalAnalysis: this.currentIntervalAnalysis,
             mimeType: `audio/${this.extension}`,
-            compression: this.recordingConfig?.compression?.enabled
+            compression: this.recordingConfig?.output?.compressed?.enabled
                 ? {
                       size: this.totalCompressedSize,
                       mimeType: 'audio/webm',
-                      format: this.recordingConfig.compression.format ?? 'opus',
+                      format: this.recordingConfig.output.compressed.format ?? 'opus',
                       bitrate:
-                          this.recordingConfig.compression.bitrate ?? 128000,
+                          this.recordingConfig.output.compressed.bitrate ?? 128000,
                       compressedFileUri: `${this.streamUuid}.webm`,
                   }
                 : undefined,

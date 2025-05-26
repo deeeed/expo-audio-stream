@@ -552,8 +552,8 @@ class AudioRecorderManager(
 
                 if (!initializeAudioRecord(promise)) return
 
-                if (recordingConfig.enableCompressedOutput && !initializeCompressedRecorder(
-                    if (recordingConfig.compressedFormat == "aac") "aac" else "opus",
+                if (recordingConfig.output.compressed.enabled && !initializeCompressedRecorder(
+                    if (recordingConfig.output.compressed.format == "aac") "aac" else "opus",
                     promise
                 )) return
 
@@ -593,9 +593,9 @@ class AudioRecorderManager(
                 "sampleRate" to recordingConfig.sampleRate,
                 "mimeType" to mimeType,
                 "compression" to if (compressedFile != null) bundleOf(
-                    "mimeType" to if (recordingConfig.compressedFormat == "aac") "audio/aac" else "audio/opus",
-                    "bitrate" to recordingConfig.compressedBitRate,
-                    "format" to recordingConfig.compressedFormat,
+                    "mimeType" to if (recordingConfig.output.compressed.format == "aac") "audio/aac" else "audio/opus",
+                    "bitrate" to recordingConfig.output.compressed.bitrate,
+                    "format" to recordingConfig.output.compressed.format,
                     "size" to 0,
                     "compressedFileUri" to compressedFile?.toURI().toString()
                 ) else null
@@ -712,11 +712,25 @@ class AudioRecorderManager(
                 AudioFormat.CHANNEL_IN_STEREO
             }
 
-            bufferSizeInBytes = AudioRecord.getMinBufferSize(
+            val minBufferSize = AudioRecord.getMinBufferSize(
                 recordingConfig.sampleRate,
                 channelConfig,
                 audioFormat
             )
+            
+            // Calculate buffer size based on bufferDurationSeconds if provided
+            bufferSizeInBytes = recordingConfig.bufferDurationSeconds?.let { bufferDuration ->
+                val bytesPerSample = when (recordingConfig.encoding) {
+                    "pcm_8bit" -> 1
+                    "pcm_16bit" -> 2
+                    "pcm_32bit" -> 4
+                    else -> 2
+                }
+                val requestedSize = (bufferDuration * recordingConfig.sampleRate * 
+                                   bytesPerSample * recordingConfig.channels).toInt()
+                // Use the larger of requested size or minimum buffer size
+                maxOf(requestedSize, minBufferSize)
+            } ?: minBufferSize
 
             when {
                 bufferSizeInBytes == AudioRecord.ERROR -> {
@@ -818,16 +832,24 @@ class AudioRecorderManager(
     private fun initializeRecordingResources(fileExtension: String, promise: Promise): Boolean {
         try {
             streamUuid = java.util.UUID.randomUUID().toString()
-            audioFile = createRecordingFile(recordingConfig)
             totalDataSize = 0
-
-            FileOutputStream(audioFile, true).use { fos ->
-                audioFileHandler.writeWavHeader(
-                    fos,
-                    recordingConfig.sampleRate,
-                    recordingConfig.channels,
-                    AudioFormatUtils.getBitDepth(recordingConfig.encoding)
-                )
+            
+            // Only create file if primary output is enabled
+            if (recordingConfig.output.primary.enabled) {
+                audioFile = createRecordingFile(recordingConfig)
+                
+                FileOutputStream(audioFile, true).use { fos ->
+                    audioFileHandler.writeWavHeader(
+                        fos,
+                        recordingConfig.sampleRate,
+                        recordingConfig.channels,
+                        AudioFormatUtils.getBitDepth(recordingConfig.encoding)
+                    )
+                }
+            } else {
+                // Set audioFile to null when primary output is disabled
+                audioFile = null
+                LogUtils.d(CLASS_NAME, "Skipping primary file creation - primary output is disabled")
             }
 
             if (recordingConfig.showNotification) {
@@ -860,16 +882,18 @@ class AudioRecorderManager(
                 - Sample Rate: ${recordingConfig.sampleRate} Hz
                 - Channels: ${recordingConfig.channels}
                 - Encoding: ${recordingConfig.encoding}
+                - Buffer Duration: ${recordingConfig.bufferDurationSeconds?.let { "${it}s" } ?: "default"}
+                - Primary Output: ${recordingConfig.output.primary.enabled}
                 - Data Emission Interval: ${recordingConfig.interval}ms
                 - Analysis Interval: ${recordingConfig.intervalAnalysis}ms
                 - Processing Enabled: ${recordingConfig.enableProcessing}
                 - Keep Awake: ${recordingConfig.keepAwake}
                 - Show Notification: ${recordingConfig.showNotification}
                 - Show Waveform: ${recordingConfig.showWaveformInNotification}
-                - Compressed Output: ${recordingConfig.enableCompressedOutput}
-                ${if (recordingConfig.enableCompressedOutput) """
-                    - Compressed Format: ${recordingConfig.compressedFormat}
-                    - Compressed Bitrate: ${recordingConfig.compressedBitRate}
+                - Compressed Output: ${recordingConfig.output.compressed.enabled}
+                ${if (recordingConfig.output.compressed.enabled) """
+                    - Compressed Format: ${recordingConfig.output.compressed.format}
+                    - Compressed Bitrate: ${recordingConfig.output.compressed.bitrate}
                 """.trimIndent() else ""}
                 - Auto Resume: ${recordingConfig.autoResumeAfterInterruption}
                 - Output Directory: ${recordingConfig.outputDirectory ?: "default"}
@@ -974,29 +998,45 @@ class AudioRecorderManager(
                 compressedRecorder = null
 
                 // Log compressed file status if enabled
-                if (recordingConfig.enableCompressedOutput) {
+                if (recordingConfig.output.compressed.enabled) {
                     val compressedSize = compressedFile?.length() ?: 0
                     LogUtils.d(CLASS_NAME, "Compressed File validation - Size: $compressedSize bytes, Path: ${compressedFile?.absolutePath}")
                 }
 
-                val result = bundleOf(
-                    "fileUri" to audioFile?.toURI().toString(),
-                    "filename" to audioFile?.name,
-                    "durationMs" to duration,
-                    "channels" to recordingConfig.channels,
-                    "bitDepth" to AudioFormatUtils.getBitDepth(recordingConfig.encoding),
-                    "sampleRate" to recordingConfig.sampleRate,
-                    "size" to fileSize,
-                    "mimeType" to mimeType,
-                    "createdAt" to System.currentTimeMillis(),
-                    "compression" to if (compressedFile != null) bundleOf(
-                        "size" to compressedFile?.length(),
-                        "mimeType" to if (recordingConfig.compressedFormat == "aac") "audio/aac" else "audio/opus",
-                        "bitrate" to recordingConfig.compressedBitRate,
-                        "format" to recordingConfig.compressedFormat,
-                        "compressedFileUri" to compressedFile?.toURI().toString()
-                    ) else null
-                )
+                val result = if (!recordingConfig.output.primary.enabled) {
+                    // When primary output is disabled, return minimal info
+                    bundleOf(
+                        "fileUri" to "",
+                        "filename" to "stream-only",
+                        "durationMs" to duration,
+                        "channels" to recordingConfig.channels,
+                        "bitDepth" to AudioFormatUtils.getBitDepth(recordingConfig.encoding),
+                        "sampleRate" to recordingConfig.sampleRate,
+                        "size" to totalDataSize,
+                        "mimeType" to mimeType,
+                        "createdAt" to System.currentTimeMillis(),
+                        "compression" to null
+                    )
+                } else {
+                    bundleOf(
+                        "fileUri" to audioFile?.toURI().toString(),
+                        "filename" to audioFile?.name,
+                        "durationMs" to duration,
+                        "channels" to recordingConfig.channels,
+                        "bitDepth" to AudioFormatUtils.getBitDepth(recordingConfig.encoding),
+                        "sampleRate" to recordingConfig.sampleRate,
+                        "size" to fileSize,
+                        "mimeType" to mimeType,
+                        "createdAt" to System.currentTimeMillis(),
+                        "compression" to if (compressedFile != null) bundleOf(
+                            "size" to compressedFile?.length(),
+                            "mimeType" to if (recordingConfig.output.compressed.format == "aac") "audio/aac" else "audio/opus",
+                            "bitrate" to recordingConfig.output.compressed.bitrate,
+                            "format" to recordingConfig.output.compressed.format,
+                            "compressedFileUri" to compressedFile?.toURI().toString()
+                        ) else null
+                    )
+                }
                 promise.resolve(result)
 
                 // Reset the timing variables
@@ -1155,12 +1195,12 @@ class AudioRecorderManager(
                 else -> totalRecordedTime
             }
 
-            val compressionBundle = if (recordingConfig.enableCompressedOutput) {
+            val compressionBundle = if (recordingConfig.output.compressed.enabled) {
                 bundleOf(
                     "size" to (compressedFile?.length() ?: 0),
-                    "mimeType" to if (recordingConfig.compressedFormat == "aac") "audio/aac" else "audio/opus",
-                    "bitrate" to recordingConfig.compressedBitRate,
-                    "format" to recordingConfig.compressedFormat
+                    "mimeType" to if (recordingConfig.output.compressed.format == "aac") "audio/aac" else "audio/opus",
+                    "bitrate" to recordingConfig.output.compressed.bitrate,
+                    "format" to recordingConfig.output.compressed.format
                 )
             } else null
 
@@ -1257,8 +1297,16 @@ class AudioRecorderManager(
     private fun recordingProcess() {
         try {
             LogUtils.i(CLASS_NAME, "Starting recording process...")
-            FileOutputStream(audioFile, true).use { fos ->
-                // Write audio data directly to the file
+            
+            // Only use FileOutputStream if primary output is enabled
+            val fos = if (recordingConfig.output.primary.enabled && audioFile != null) {
+                FileOutputStream(audioFile, true)
+            } else {
+                null
+            }
+            
+            try {
+                // Write audio data directly to the file (if not skipping)
                 val audioData = ByteArray(bufferSizeInBytes)
                 LogUtils.d(CLASS_NAME, "Entering recording loop")
                 
@@ -1318,7 +1366,10 @@ class AudioRecorderManager(
                     }
 
                     if (bytesRead > 0) {
-                        fos.write(audioData, 0, bytesRead)
+                        // Only write to file if primary output is enabled
+                        if (fos != null) {
+                            fos.write(audioData, 0, bytesRead)
+                        }
                         totalDataSize += bytesRead
                         
                         accumulatedAudioData.write(audioData, 0, bytesRead)
@@ -1377,10 +1428,16 @@ class AudioRecorderManager(
                         }
                     }
                 }
+            } finally {
+                // Close the file output stream if it was opened
+                fos?.close()
             }
-            // Update the WAV header to reflect the actual data size
-            audioFile?.let { file ->
-                audioFileHandler.updateWavHeader(file)
+            
+            // Update the WAV header to reflect the actual data size (only if file was created)
+            if (recordingConfig.output.primary.enabled) {
+                audioFile?.let { file ->
+                    audioFileHandler.updateWavHeader(file)
+                }
             }
 
         } catch (e: Exception) {
@@ -1403,7 +1460,7 @@ class AudioRecorderManager(
         val positionInMs =
             (from * 1000) / (recordingConfig.sampleRate * recordingConfig.channels * (if (recordingConfig.encoding == "pcm_8bit") 8 else 16) / 8)
 
-        val compressionBundle = if (recordingConfig.enableCompressedOutput) {
+        val compressionBundle = if (recordingConfig.output.compressed.enabled) {
             val compressedSize = compressedFile?.length() ?: 0
             val eventDataSize = compressedSize - lastEmittedCompressedSize
             
@@ -1563,6 +1620,12 @@ class AudioRecorderManager(
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun initializeCompressedRecorder(fileExtension: String, promise: Promise): Boolean {
+        // Skip compressed recording if compressed output is not enabled
+        if (!recordingConfig.output.compressed.enabled) {
+            LogUtils.d(CLASS_NAME, "Skipping compressed recorder initialization - compressed output is disabled")
+            return true
+        }
+        
         try {
             // Pass true to indicate this is a compressed file
             compressedFile = createRecordingFile(recordingConfig, isCompressed = true)
@@ -1576,15 +1639,15 @@ class AudioRecorderManager(
 
             compressedRecorder?.apply {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(if (recordingConfig.compressedFormat == "aac") 
+                setOutputFormat(if (recordingConfig.output.compressed.format == "aac") 
                     MediaRecorder.OutputFormat.AAC_ADTS 
                     else MediaRecorder.OutputFormat.OGG)
-                setAudioEncoder(if (recordingConfig.compressedFormat == "aac") 
+                setAudioEncoder(if (recordingConfig.output.compressed.format == "aac") 
                     MediaRecorder.AudioEncoder.AAC 
                     else MediaRecorder.AudioEncoder.OPUS)
                 setAudioChannels(recordingConfig.channels)
                 setAudioSamplingRate(recordingConfig.sampleRate)
-                setAudioEncodingBitRate(recordingConfig.compressedBitRate)
+                setAudioEncodingBitRate(recordingConfig.output.compressed.bitrate)
                 setOutputFile(compressedFile?.absolutePath)
                 prepare()
             }
@@ -1687,7 +1750,7 @@ class AudioRecorderManager(
         
         // Choose extension based on whether this is a compressed file
         val extension = if (isCompressed) {
-            config.compressedFormat.lowercase()
+            config.output.compressed.format.lowercase()
         } else {
             "wav"
         }
@@ -1752,8 +1815,8 @@ class AudioRecorderManager(
             if (!initializeBufferSize(dummyPromise)) return false
             if (!initializeAudioRecord(dummyPromise)) return false
             
-            if (recordingConfig.enableCompressedOutput && !initializeCompressedRecorder(
-                if (recordingConfig.compressedFormat == "aac") "aac" else "opus",
+            if (recordingConfig.output.compressed.enabled && !initializeCompressedRecorder(
+                if (recordingConfig.output.compressed.format == "aac") "aac" else "opus",
                 dummyPromise
             )) return false
 

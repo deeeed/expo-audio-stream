@@ -18,9 +18,9 @@ echo "========================="
 swift buffer_duration_test.swift
 echo ""
 
-echo "2️⃣  Skip File Writing Test"
-echo "============================"
-swift skip_file_writing_test.swift
+echo "2️⃣  Output Control Test"
+echo "========================"
+swift output_control_test.swift
 echo ""
 
 echo "✅ Integration tests validate real iOS behavior"

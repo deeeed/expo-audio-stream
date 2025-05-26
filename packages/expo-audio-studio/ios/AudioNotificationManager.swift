@@ -78,12 +78,8 @@ class AudioNotificationManager {
             self.updateTimer = nil
             
             // Clean up notification
-            do {
-                self.notificationCenter.removeDeliveredNotifications(withIdentifiers: [self.notificationId])
-                self.notificationCenter.removePendingNotificationRequests(withIdentifiers: [self.notificationId])
-            } catch {
-                Logger.debug("AudioNotificationManager", "Error removing notifications: \(error)")
-            }
+            self.notificationCenter.removeDeliveredNotifications(withIdentifiers: [self.notificationId])
+            self.notificationCenter.removePendingNotificationRequests(withIdentifiers: [self.notificationId])
         }
     }
     

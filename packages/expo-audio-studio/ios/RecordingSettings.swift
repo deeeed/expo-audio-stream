@@ -17,6 +17,22 @@ struct IOSNotificationConfig {
     var categoryIdentifier: String?
 }
 
+struct OutputSettings {
+    struct PrimaryOutput {
+        var enabled: Bool = true
+        var format: String = "wav"  // Currently only "wav" is supported
+    }
+    
+    struct CompressedOutput {
+        var enabled: Bool = false
+        var format: String = "aac"  // "aac" or "opus" (opus falls back to aac on iOS)
+        var bitrate: Int = 128000
+    }
+    
+    var primary: PrimaryOutput = PrimaryOutput()
+    var compressed: CompressedOutput = CompressedOutput()
+}
+
 struct CompressedRecordingInfo {
     var compressedFileUri: String
     var mimeType: String
@@ -97,9 +113,8 @@ struct RecordingSettings {
     // Notification configuration
     var notification: NotificationConfig?
     
-    let enableCompressedOutput: Bool
-    let compressedFormat: String // "aac" or "opus"
-    let compressedBitRate: Int
+    // Output configuration
+    var output: OutputSettings = OutputSettings()
     
     let autoResumeAfterInterruption: Bool
     
@@ -111,25 +126,36 @@ struct RecordingSettings {
     
     // Add these new properties
     var deviceId: String?
-    var deviceDisconnectionBehavior: DeviceDisconnectionBehaviorType = .continueRecording
+    var deviceDisconnectionBehavior: DeviceDisconnectionBehavior = .FALLBACK
     var bufferDurationSeconds: Double?
-    var skipFileWriting: Bool = false
     
     static func fromDictionary(_ dict: [String: Any]) -> Result<RecordingSettings, Error> {
-        // Extract compression settings
-        let compression = dict["compression"] as? [String: Any]
-        let enableCompressedOutput = compression?["enabled"] as? Bool ?? false
-        let compressedFormat = (compression?["format"] as? String)?.lowercased() ?? "opus"
-        let compressedBitRate = compression?["bitrate"] as? Int ?? 24000
+        // Parse output configuration
+        var outputSettings = OutputSettings()
         
-        // Validate compression settings if enabled
-        if enableCompressedOutput {
-            // Validate format and bitrate
-            if case .failure(let error) = CompressedRecordingInfo.validate(
-                format: compressedFormat,
-                bitrate: compressedBitRate
-            ) {
-                return .failure(error)
+        if let outputDict = dict["output"] as? [String: Any] {
+            // Parse primary output settings
+            if let primaryDict = outputDict["primary"] as? [String: Any] {
+                outputSettings.primary.enabled = primaryDict["enabled"] as? Bool ?? true
+                outputSettings.primary.format = primaryDict["format"] as? String ?? "wav"
+            }
+            
+            // Parse compressed output settings
+            if let compressedDict = outputDict["compressed"] as? [String: Any] {
+                outputSettings.compressed.enabled = compressedDict["enabled"] as? Bool ?? false
+                let format = (compressedDict["format"] as? String)?.lowercased() ?? "aac"
+                outputSettings.compressed.format = format
+                outputSettings.compressed.bitrate = compressedDict["bitrate"] as? Int ?? 128000
+                
+                // Validate compression settings if enabled
+                if outputSettings.compressed.enabled {
+                    if case .failure(let error) = CompressedRecordingInfo.validate(
+                        format: format,
+                        bitrate: outputSettings.compressed.bitrate
+                    ) {
+                        return .failure(error)
+                    }
+                }
             }
         }
         
@@ -141,11 +167,10 @@ struct RecordingSettings {
         var settings = RecordingSettings(
             sampleRate: dict["sampleRate"] as? Double ?? 44100.0,
             desiredSampleRate: dict["desiredSampleRate"] as? Double ?? 44100.0,
-            enableCompressedOutput: enableCompressedOutput,
-            compressedFormat: compressedFormat,
-            compressedBitRate: compressedBitRate,
             autoResumeAfterInterruption: dict["autoResumeAfterInterruption"] as? Bool ?? false
         )
+        
+        settings.output = outputSettings
         
         // Parse core settings
         settings.numberOfChannels = dict["channels"] as? Int ?? 1
@@ -272,14 +297,10 @@ struct RecordingSettings {
         
         // Set new properties
         settings.deviceId = deviceId
-        settings.deviceDisconnectionBehavior = DeviceDisconnectionBehaviorType(rawValue: deviceDisconnectionBehaviorStr) ?? .continueRecording
+        settings.deviceDisconnectionBehavior = DeviceDisconnectionBehavior(rawValue: deviceDisconnectionBehaviorStr ?? "fallback") ?? .FALLBACK
         
         if let bufferDuration = dict["bufferDurationSeconds"] as? Double {
             settings.bufferDurationSeconds = bufferDuration
-        }
-        
-        if let skipFile = dict["skipFileWriting"] as? Bool {
-            settings.skipFileWriting = skipFile
         }
         
         return .success(settings)

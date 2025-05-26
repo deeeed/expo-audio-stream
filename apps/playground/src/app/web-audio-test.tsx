@@ -411,14 +411,14 @@ export default function WebAudioTestPage() {
       const result = await startRecording({
         interval: 500, // 500ms chunks
         enableProcessing: false,
-        web: {
-            storeUncompressedAudio: true,
-        },
         showNotification: false,
-        compression: {
-          enabled: true,
-          format: 'opus',
-          bitrate: 24000,
+        output: {
+          primary: { enabled: true },
+          compressed: {
+            enabled: true,
+            format: 'opus',
+            bitrate: 24000,
+          },
         },
         onAudioStream: async (event) => {
           // For compressed audio chunks (opus/aac)

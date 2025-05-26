@@ -41,14 +41,8 @@ export interface RecordingConfig {
     ios?: IOSConfig // iOS-specific configuration
     web?: WebConfig // Web-specific configuration
 
-    // Compression settings
-    compression?: {
-        enabled: boolean
-        format: 'aac' | 'opus'  // Available compression formats
-        bitrate?: number
-    }
-
     // Output configuration
+    output?: OutputConfig // Control which files are created during recording
     outputDirectory?: string // Custom directory for saving recordings (uses app default if not specified)
     filename?: string // Custom filename for the recording (uses UUID if not specified)
 
@@ -60,9 +54,8 @@ export interface RecordingConfig {
     onAudioStream?: (_: AudioDataEvent) => Promise<void> // Callback function to handle audio stream
     onAudioAnalysis?: (_: AudioAnalysisEvent) => Promise<void> // Callback function to handle audio features
     
-    // Performance and streaming options
+    // Performance options
     bufferDurationSeconds?: number // Buffer duration in seconds (controls audio buffer size)
-    skipFileWriting?: boolean // Skip file I/O for streaming-only scenarios
 }
 
 ```
@@ -314,17 +307,25 @@ await startRecording({
 - **Web**: The `storeUncompressedAudio` setting controls in-memory storage of PCM data
 - **iOS/Android**: This setting has no effect, as these platforms always write directly to files rather than storing in memory
 
-## Compression Settings {#compression-settings}
+## Output Configuration {#output-configuration}
 
-The library supports real-time audio compression alongside the raw PCM recording. This dual-stream approach allows you to capture both high-quality uncompressed audio and smaller compressed files simultaneously.
+The library provides flexible control over which audio files are created during recording. You can choose to save uncompressed WAV files, compressed audio files, both, or neither (for streaming-only scenarios).
 
-### Configuration Options
+> **⚠️ Breaking Change (Web)**: The web-specific `web.storeUncompressedAudio` option has been removed and replaced with `output.primary.enabled`. See the [Breaking Changes Guide](../../../docs/BREAKING_CHANGES_OUTPUT_CONFIG.md) for migration details.
+
+### Configuration Structure
 
 ```tsx
-compression: {
-    enabled: boolean      // Whether to enable compression
-    format: 'aac' | 'opus' // Compression format to use
-    bitrate?: number      // Optional bitrate in bits per second
+output?: {
+    primary?: {
+        enabled?: boolean    // Whether to create the primary WAV file (default: true)
+        format?: 'wav'       // Currently only 'wav' is supported
+    }
+    compressed?: {
+        enabled?: boolean    // Whether to create a compressed file (default: false)
+        format?: 'aac' | 'opus'  // Compression format
+        bitrate?: number     // Bitrate in bits per second (default: 128000)
+    }
 }
 ```
 
@@ -342,28 +343,64 @@ compression: {
   - Excellent for speech compression
   - Recommended bitrate: 16000-96000 bps
 
-### Example: Enabling Compression
+### Usage Examples
 
 ```tsx
 const { startRecording } = useAudioRecorder();
 
-// Configure recording with compression
+// Example 1: Default behavior - only primary WAV file
+await startRecording({
+  sampleRate: 44100,
+  channels: 1,
+  encoding: 'pcm_16bit'
+  // output is undefined, defaults to { primary: { enabled: true } }
+});
+
+// Example 2: Both WAV and compressed files
 await startRecording({
   sampleRate: 44100,
   channels: 1,
   encoding: 'pcm_16bit',
-  // Compression settings
-  compression: {
-    enabled: true,
-    format: 'aac',
-    bitrate: 128000 // 128 kbps
+  output: {
+    compressed: {
+      enabled: true,
+      format: 'aac',
+      bitrate: 128000 // 128 kbps
+    }
+    // primary is not specified, defaults to enabled
+  }
+});
+
+// Example 3: Only compressed file (no WAV)
+await startRecording({
+  sampleRate: 44100,
+  channels: 1,
+  output: {
+    primary: { enabled: false },
+    compressed: {
+      enabled: true,
+      format: 'opus',
+      bitrate: 64000 // 64 kbps
+    }
+  }
+});
+
+// Example 4: Streaming only (no files)
+await startRecording({
+  sampleRate: 16000,
+  channels: 1,
+  output: {
+    primary: { enabled: false }
+  },
+  onAudioStream: async (data) => {
+    // Process audio in real-time
   }
 });
 ```
 
-### Accessing Compressed Files
+### Accessing Output Files
 
-When recording with compression enabled, both the raw PCM file and the compressed file are available in the recording result:
+The recording result structure depends on which outputs were enabled:
 
 ```tsx
 const { stopRecording } = useAudioRecorder();
@@ -371,16 +408,24 @@ const { stopRecording } = useAudioRecorder();
 const handleStopRecording = async () => {
   const result = await stopRecording();
   
-  // Access the uncompressed WAV file
-  console.log('Uncompressed file:', result.fileUri);
-  console.log('Uncompressed size:', result.size, 'bytes');
+  // Primary WAV file (if enabled)
+  if (result.fileUri) {
+    console.log('Primary file:', result.fileUri);
+    console.log('Primary size:', result.size, 'bytes');
+    console.log('Format:', result.mimeType); // 'audio/wav'
+  }
   
-  // Access the compressed file
+  // Compressed file (if enabled)
   if (result.compression) {
     console.log('Compressed file:', result.compression.compressedFileUri);
     console.log('Compressed size:', result.compression.size, 'bytes');
     console.log('Compression format:', result.compression.format);
     console.log('Bitrate:', result.compression.bitrate, 'bps');
+  }
+  
+  // If no outputs were enabled (streaming only)
+  if (!result.fileUri && !result.compression) {
+    console.log('No files created - streaming only mode');
   }
 };
 ```
@@ -399,20 +444,22 @@ const handleStopRecording = async () => {
   - AAC support depends on browser
   - Data is stored in memory during recording unless `storeUncompressedAudio: false` is set
 
-### Streaming Compressed Audio
+### Streaming Audio Data
 
-You can also access the compressed audio data in real-time during recording using the `onAudioStream` callback:
+You can access both raw and compressed audio data in real-time during recording using the `onAudioStream` callback:
 
 ```tsx
 await startRecording({
   // ... other config options
-  compression: {
-    enabled: true,
-    format: 'opus',
-    bitrate: 64000
+  output: {
+    compressed: {
+      enabled: true,
+      format: 'opus',
+      bitrate: 64000
+    }
   },
   onAudioStream: async (event) => {
-    // Raw PCM audio data
+    // Raw PCM audio data (always available)
     console.log('Raw data size:', event.eventDataSize);
     
     // Compressed audio chunk (if compression is enabled)
@@ -467,7 +514,9 @@ await startRecording({
     sampleRate: 16000,
     channels: 1,
     bufferDurationSeconds: 0.02, // Request 20ms buffers
-    skipFileWriting: true, // No file I/O for lower latency
+    output: {
+        primary: { enabled: false } // No file I/O for lower latency
+    },
     onAudioStream: async (data) => {
         // Process voice commands with minimal delay
         const command = await detectVoiceCommand(data);
@@ -478,15 +527,17 @@ await startRecording({
 });
 ```
 
-## Skip File Writing {#skip-file-writing}
+## Streaming-Only Mode {#streaming-only}
 
-The `skipFileWriting` option enables streaming-only recording without creating files on disk. This is ideal for real-time processing scenarios where you don't need to persist the audio.
+You can configure the library to stream audio data without creating any files on disk. This is ideal for real-time processing scenarios where you don't need to persist the audio.
 
 ### Configuration
 
 ```tsx
 const config = {
-    skipFileWriting: true, // Disable file I/O
+    output: {
+        primary: { enabled: false }  // Disable all file creation
+    },
     // ... other config options
 };
 ```
@@ -500,9 +551,9 @@ const config = {
 
 ### Important Notes
 
-- When enabled, the recording result will have an empty `fileUri`
+- When no outputs are enabled, the recording result will have empty `fileUri` and no `compression` object
 - Audio data is only available through the `onAudioStream` callback
-- Compression is also skipped when file writing is disabled
+- You must implement `onAudioStream` to capture the audio data
 
 ### Example: Real-Time Transcription
 
@@ -513,7 +564,9 @@ await startRecording({
     sampleRate: 16000,
     channels: 1,
     bufferDurationSeconds: 0.05, // 50ms chunks
-    skipFileWriting: true, // No file needed
+    output: {
+        primary: { enabled: false }  // No files needed
+    },
     onAudioStream: async (data) => {
         // Send audio directly to transcription service
         const transcript = await transcriptionService.process(data);
@@ -521,10 +574,10 @@ await startRecording({
     }
 });
 
-// When stopping, no file will be returned
+// When stopping, no files will be returned
 const result = await stopRecording();
-console.log(result.fileUri); // Will be empty string
-console.log(result.filename); // Will be "stream-only"
+console.log(result.fileUri); // Will be undefined
+console.log(result.compression); // Will be undefined
 ```
 
 ### Example: Live Streaming to Server
@@ -536,7 +589,9 @@ await startRecording({
     sampleRate: 44100,
     channels: 2,
     bufferDurationSeconds: 0.1, // 100ms chunks for network efficiency
-    skipFileWriting: true,
+    output: {
+        primary: { enabled: false }  // Stream only
+    },
     onAudioStream: async (data) => {
         if (websocket.readyState === WebSocket.OPEN) {
             // Stream audio data to server
@@ -554,14 +609,18 @@ These options work well together for optimizing streaming scenarios:
 // Ultra-low latency configuration
 const lowLatencyConfig = {
     bufferDurationSeconds: 0.01, // 10ms (will use 100ms on iOS)
-    skipFileWriting: true,
+    output: {
+        primary: { enabled: false }  // No file I/O
+    },
     // ... other options
 };
 
 // Efficient streaming configuration
 const efficientStreamingConfig = {
     bufferDurationSeconds: 0.2, // 200ms for network efficiency
-    skipFileWriting: true,
+    output: {
+        primary: { enabled: false }  // Stream only
+    },
     // ... other options
 };
 ```
@@ -579,10 +638,12 @@ const config = {
     enableProcessing: true,
     keepAwake: true,
     showNotification: true,
-    compression: {
-        enabled: true,
-        format: 'aac',
-        bitrate: 128000
+    output: {
+        compressed: {
+            enabled: true,
+            format: 'aac',
+            bitrate: 128000
+        }
     },
     pointsPerSecond: 1000,
     algorithm: 'rms',
@@ -741,10 +802,12 @@ const config = {
     enableProcessing: true,
     keepAwake: true,
     showNotification: true,
-    compression: {
-        enabled: true,
-        format: 'aac',
-        bitrate: 128000
+    output: {
+        compressed: {
+            enabled: true,
+            format: 'aac',
+            bitrate: 128000
+        }
     },
     pointsPerSecond: 1000,
     algorithm: 'rms',
