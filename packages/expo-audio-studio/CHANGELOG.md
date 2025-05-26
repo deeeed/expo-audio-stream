@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+- feat(expo-audio-studio): add buffer duration control and skip file writing options ([bfdbcb8](https://github.com/deeeed/expo-audio-stream/commit/bfdbcb8bac7c0641d6bacfa9b6fc4e64c2621baa))
+- docs: enhance contribution guidelines with Test-Driven Development practices ([2c04eff](https://github.com/deeeed/expo-audio-stream/commit/2c04eff1f6d6d3c567aad8f7d7174b7f1ad533aa))
+- feat(expo-audio-studio): enhance testing framework and add instrumented tests (#242) ([6e823ec](https://github.com/deeeed/expo-audio-stream/commit/6e823ec79c77ff34441b5acf757fdbac0a974e46))
 
 ## [2.10.0] - 2025-05-26
 ### Changed

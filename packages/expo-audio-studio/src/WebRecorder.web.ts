@@ -275,9 +275,12 @@ export class WebRecorder {
                               size: this.pendingCompressedChunk.size,
                               totalSize: this.compressedSize,
                               mimeType: 'audio/webm',
-                              format: this.config.output?.compressed?.format ?? 'opus',
+                              format:
+                                  this.config.output?.compressed?.format ??
+                                  'opus',
                               bitrate:
-                                  this.config.output?.compressed?.bitrate ?? 128000,
+                                  this.config.output?.compressed?.bitrate ??
+                                  128000,
                           }
                         : undefined
 

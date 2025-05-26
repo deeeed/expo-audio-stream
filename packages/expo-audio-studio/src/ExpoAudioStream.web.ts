@@ -288,10 +288,12 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             compression: recordingConfig.output?.compressed?.enabled
                 ? {
                       ...recordingConfig.output.compressed,
-                      bitrate: recordingConfig.output.compressed.bitrate ?? 128000,
+                      bitrate:
+                          recordingConfig.output.compressed.bitrate ?? 128000,
                       size: 0,
                       mimeType: 'audio/webm',
-                      format: recordingConfig.output.compressed.format ?? 'opus',
+                      format:
+                          recordingConfig.output.compressed.format ?? 'opus',
                       compressedFileUri: '',
                   }
                 : undefined,
@@ -460,8 +462,10 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             let mimeType = `audio/${this.extension}`
 
             // Handle both compressed and uncompressed blobs according to new output configuration
-            const primaryEnabled = this.recordingConfig?.output?.primary?.enabled ?? true
-            const compressedEnabled = this.recordingConfig?.output?.compressed?.enabled ?? false
+            const primaryEnabled =
+                this.recordingConfig?.output?.primary?.enabled ?? true
+            const compressedEnabled =
+                this.recordingConfig?.output?.compressed?.enabled ?? false
 
             // Process compressed blob if available and enabled
             if (compressedBlob && compressedEnabled) {
@@ -470,9 +474,12 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                     compressedFileUri: compressedUri,
                     size: compressedBlob.size,
                     mimeType: 'audio/webm',
-                    format: this.recordingConfig?.output?.compressed?.format ?? 'opus',
+                    format:
+                        this.recordingConfig?.output?.compressed?.format ??
+                        'opus',
                     bitrate:
-                        this.recordingConfig?.output?.compressed?.bitrate ?? 128000,
+                        this.recordingConfig?.output?.compressed?.bitrate ??
+                        128000,
                 }
 
                 // Store compression info
@@ -501,7 +508,9 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             }
 
             // Use the stored streamUuid for the final filename
-            const filename = fileUri ? `${this.streamUuid}.${this.extension}` : 'stream-only'
+            const filename = fileUri
+                ? `${this.streamUuid}.${this.extension}`
+                : 'stream-only'
             const result: AudioRecording = {
                 fileUri,
                 filename,
@@ -627,9 +636,12 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
                 ? {
                       size: this.totalCompressedSize,
                       mimeType: 'audio/webm',
-                      format: this.recordingConfig.output.compressed.format ?? 'opus',
+                      format:
+                          this.recordingConfig.output.compressed.format ??
+                          'opus',
                       bitrate:
-                          this.recordingConfig.output.compressed.bitrate ?? 128000,
+                          this.recordingConfig.output.compressed.bitrate ??
+                          128000,
                       compressedFileUri: `${this.streamUuid}.webm`,
                   }
                 : undefined,

@@ -296,7 +296,7 @@ export interface OutputConfig {
         /** Format for the primary output (currently only 'wav' is supported) */
         format?: 'wav'
     }
-    
+
     /**
      * Configuration for the compressed output file
      */
@@ -312,7 +312,7 @@ export interface OutputConfig {
         /** Bitrate for compression in bits per second (default: 128000) */
         bitrate?: number
     }
-    
+
     // Future enhancement: Post-processing pipeline
     // postProcessing?: {
     //     normalize?: boolean
@@ -373,7 +373,7 @@ export interface RecordingConfig {
 
     /**
      * Configuration for audio output files
-     * 
+     *
      * Examples:
      * - Primary only (default): `{ primary: { enabled: true } }`
      * - Compressed only: `{ primary: { enabled: false }, compressed: { enabled: true, format: 'aac' } }`
@@ -403,17 +403,17 @@ export interface RecordingConfig {
      * Buffer duration in seconds. Controls the size of audio buffers
      * used during recording. Smaller values reduce latency but increase
      * CPU usage. Larger values improve efficiency but increase latency.
-     * 
+     *
      * Platform Notes:
      * - iOS/macOS: Minimum effective 0.1s, uses accumulation below
      * - Android: Respects all sizes within hardware limits
      * - Web: Fully configurable
-     * 
+     *
      * Default: undefined (uses platform default ~23ms at 44.1kHz)
      * Recommended: 0.01 - 0.5 seconds
      * Optimal iOS: >= 0.1 seconds
      */
-    bufferDurationSeconds?: number;
+    bufferDurationSeconds?: number
 }
 
 export interface NotificationConfig {
