@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.10.1] - 2025-05-27
+### Changed
+- fix(useAudioRecorder): update intervalId type for better type safety ([dc0021a](https://github.com/deeeed/expo-audio-stream/commit/dc0021ae0dc2b1e31f61c1340529b655f85447fc))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.10.0 ([bb8418f](https://github.com/deeeed/expo-audio-stream/commit/bb8418f2156d531377247a6d4095112560ff975f))
 ## [2.10.0] - 2025-05-26
 ### Changed
 - chore(expo-audio-studio): update @siteed/design-system to version 0.51.0 and refactor recording configuration (#245) ([6486c66](https://github.com/deeeed/expo-audio-stream/commit/6486c66d687093b5257fddcce575d932b6a6443b))
@@ -258,9 +262,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.0...HEAD
-[2.10.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.9.0...@siteed/expo-audio-studio@2.10.0
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.1...HEAD
 [2.10.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.0...@siteed/expo-audio-studio@2.10.1
+[2.10.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.9.0...@siteed/expo-audio-studio@2.10.0
 [2.9.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.6...@siteed/expo-audio-studio@2.9.0
 [2.8.6]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.5...@siteed/expo-audio-studio@2.8.6
 [2.8.5]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.8.4...@siteed/expo-audio-studio@2.8.5
