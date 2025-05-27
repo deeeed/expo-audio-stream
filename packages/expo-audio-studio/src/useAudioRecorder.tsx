@@ -566,7 +566,7 @@ export function useAudioRecorder({
     }, [dispatch])
 
     useEffect(() => {
-        let intervalId: NodeJS.Timeout | undefined
+        let intervalId: ReturnType<typeof setInterval> | undefined
 
         if (state.isRecording || state.isPaused) {
             // Immediately check status when starting
