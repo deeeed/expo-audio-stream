@@ -39,7 +39,7 @@ class OutputControlTest {
         let fileURL = testDir.appendingPathComponent("default_recording.wav")
         
         // Simulate default recording (primary enabled, compressed disabled)
-        let success = createMockRecording(
+        let _ = createMockRecording(
             primaryURL: fileURL,
             compressedURL: nil,
             primaryEnabled: true,
